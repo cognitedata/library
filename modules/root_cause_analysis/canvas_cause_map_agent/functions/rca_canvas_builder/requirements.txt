@@ -1,0 +1,5 @@
+cognite-sdk>=7.64.11
+pandas
+pydantic
+python-dotenv
+cognite-pygen

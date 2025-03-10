@@ -1,0 +1,7 @@
+externalId: '{{files_dataset}}'
+name:  'files:{{location_name}}'
+description: 'Files data for {{location_name}}'
+metadata:
+  consoleSource:
+    names:
+      - '{{source_name}}'
