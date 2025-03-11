@@ -1,0 +1,37 @@
+externalId: 'ep_ctx_files_{{location_name}}_{{source_name}}_pandid_annotation'
+config:
+  parameters:
+    debug: False
+    debugFile: 'PH-ME-P-0156-001.pdf'
+    runAll: False
+    cleanOldAnnotations: False
+    rawDb: 'ds_files_{{location_name}}_{{source_name}}'
+    rawTableState: 'files_state_store'
+    rawTableDocTag: 'documents_tags'
+    rawTableDocDoc: 'documents_docs'
+    autoApprovalThreshold: 0.85
+    autoSuggestThreshold: 0.50
+  data:
+    annotationView:
+      schemaSpace: {{ annotationSchemaSpace }}
+      externalId: CogniteDiagramAnnotation
+      version: {{ viewVersion }}
+    annotationJob:
+      fileView:
+        schemaSpace: {{ schemaSpace }}
+        instanceSpace: {{ fileInstanceSpace }}
+        externalId: {{organization}}File
+        version: {{ viewVersion }}
+        searchProperty: aliases
+        type: diagrams.FileLink
+        filterProperty: tags
+        filterValues: ["PID", "ISO", "PLOT PLANS"]
+      entityViews:
+        - schemaSpace: {{ schemaSpace }}
+          instanceSpace: {{ assetInstanceSpace }}
+          externalId: {{organization}}Asset
+          version: {{ viewVersion }}
+          searchProperty: aliases
+          type: diagrams.AssetLink
+          filterProperty: tags
+          filterValues: ["PID"]

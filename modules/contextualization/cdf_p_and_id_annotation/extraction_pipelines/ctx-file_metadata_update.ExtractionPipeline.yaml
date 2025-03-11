@@ -1,0 +1,35 @@
+externalId: 'ep_ctx_metadata_update'
+name: 'ctx:metadata_update'
+dataSetExternalId: {{ files_dataset }}
+description: 'Update / add alias, summary and tags files and assets'
+rawTables:
+  - dbName: 'ds_files_{{location_name}}_{{source_name}}'
+    tableName: 'files_state_store'
+source: '{{source_name}}'
+documentation: >
+  # Create Alias, summary and tags for files and Assets
+ 
+  Uses the DM sync api to get all files in the system and creates aliases, summary and tags for each file.
+  The aliases are used in the annotation process to link found objects in document to other resource 
+  types in CDF, making it possible to generalize the annotation process. So that the same process can be used for different sites/assets/facilities.
+  
+  Default configuration is provided as part of the deployment, but can be overwritten 
+  by configuration provided in configuration section below
+ 
+  
+  ```
+   debug -  write DEBUG messages and only process one file if True
+   debugFile - if debug is True, process only this file name
+   runAll - if True run on all found documents, if False only run on document not updated since last  annotation
+   rawdb - Raw database where status Information is stored
+   rawTableState - Raw table to store state related to process
+
+   fileView - View to to access files
+   assetView - View to to access assets
+
+   schemaSpace - Schema space for the views, same or different for each view
+   instanceSpace - Instance space ( where data is stored) for the views, same or different for each view
+   externalId: External id of the view
+   version: Version of the view
+  
+  ```

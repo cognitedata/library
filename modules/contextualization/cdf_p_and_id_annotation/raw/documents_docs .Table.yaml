@@ -1,0 +1,2 @@
+dbName: ds_files_{{location_name}}_{{source_name}}
+tableName: documents_docs

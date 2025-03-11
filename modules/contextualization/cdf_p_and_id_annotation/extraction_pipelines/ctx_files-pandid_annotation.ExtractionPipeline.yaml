@@ -1,0 +1,66 @@
+externalId: 'ep_ctx_files_{{location_name}}_{{source_name}}_pandid_annotation'
+name: 'ctx:files:{{location_name}}:{{source_name}}:pandid_annotation'
+dataSetExternalId: '{{files_dataset}}'
+description: 'Annotation of P&ID documents from file source  {{location_name}}:{{source_name}}'
+rawTables:
+  - dbName: 'ds_files_{{location_name}}_{{source_name}}'
+    tableName: 'documents_tags'
+  - dbName: 'ds_files_{{location_name}}_{{source_name}}'
+    tableName: 'documents_docs'
+  - dbName: 'ds_files_{{location_name}}_{{source_name}}'
+    tableName: 'files_state_store'
+source: '{{source_name}}'
+documentation: >
+  # Contextualization / Annotation of P&ID Documents
+
+
+  The P&ID Annotation runs as a process in CDF Functions. Process triggers on new and
+  updated documents using sync api.
+
+
+
+  Extracts all tags in P&ID that matches tags from Assets and creates CDF annotations
+  used for linking found objects in document to other resource types in CDF.
+
+
+
+  Default configuration is provided as part of the deployment, but can be overwritten
+  by configuration provided in configuration section below
+
+  ```
+   annotationView - View to store annotations in
+   annotationJob - Job configuration for annotation
+
+   schemaSpace - Schema space for the views, same or different for each view
+   instanceSpace - Instance space ( where data is stored) for the views, same or different for each view
+   externalId: External id of the view
+   version: Version of the view
+   searchProperty: Property to search for in the view that is used to create the annotation link, typically alias
+   type: Type of the link to create in the annotation, either diagrams.FileLink or diagrams.AssetLink
+
+   debug -  write DEBUG messages and only process one file if True
+   debugFile - if debug is True, process only this file name
+   runAll - if True run on all found documents, if False only run on document not updated since last  annotation
+   cleanOldAnnotations - if True remove all annotations for file created by function before running the process (useful for testing different annotations Thresholds)
+   rawdb - Raw database where status Information is stored
+   rawTableDocTag -  Raw table to store found documents tags relationships in the P&ID
+   rawTableDocDoc - Raw table to store found documents to documents relationships in the P&ID
+   rawTableState - Raw table to store state related to process
+   autoApprovalThreshold - Threshold for auto approval of annotations
+   autoSuggestThreshold - Threshold for auto suggestion of annotations
+   ```
+
+   ## Running the process
+
+   Provide a data block with the parameters for the process to run.
+
+  ```
+  data = {"logLevel":"INFO", "ExtractionPipelineExtId": "ep_ctx_files_LOC_SOURCE_pandid_annotation"}
+
+  ```
+
+  
+  Available logLevels are INFO, DEBUG, ERROR, WARNING
+
+
+  ExtractionPipelineExtId is the external id of the extraction pipeline to run
