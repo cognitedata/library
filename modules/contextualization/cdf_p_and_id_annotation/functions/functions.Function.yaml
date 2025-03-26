@@ -18,7 +18,7 @@
 - name: 'dm:context:metadata_update'
   externalId: 'fn_dm_context_metadata_update'
   owner: 'Anonymous'
-  description: 'Update aliases for files and attests as prep for Contextualization of P&ID files'
+  description: 'Update aliases for files and assets as prep for Contextualization of P&ID files'
   metadata:
     version: '{{function_version}}'
   envVars:
