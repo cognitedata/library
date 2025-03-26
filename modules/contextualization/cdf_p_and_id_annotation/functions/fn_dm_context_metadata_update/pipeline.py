@@ -84,7 +84,7 @@ def file_metadata_update(
 
         # Get files that has been updated since last run to create aliases 
         files_view_id = config.data.job.file_view.as_view_id()
-        new_files = get_new_items(client, logger, file_cursor, files_view_id, config, FILE_NODE)
+        new_files = get_new_items(client, logger, file_cursor, files_view_id, config, FILE_NODE, STAT_STORE_FILE_CURSOR)
 
         if len(new_files[FILE_NODE]) > 0:
             while len(new_files[FILE_NODE]) > 0: 
@@ -99,11 +99,8 @@ def file_metadata_update(
                 file_cursor = new_files.cursors[FILE_NODE]
                 
                 # look for more files to process 
-                new_files = get_new_items(client, logger, file_cursor, files_view_id, config, FILE_NODE)
-                file_cursor = new_files.cursors[FILE_NODE]
-                # Update state store with new cursor - in case timeout on next loop to set water mark
-                update_state_store(client, logger, file_cursor, config, STAT_STORE_FILE_CURSOR)
-
+                new_files = get_new_items(client, logger, file_cursor, files_view_id, config, FILE_NODE, STAT_STORE_FILE_CURSOR)
+ 
         else:
             msg = f"[INFO]: No new file to process"
             update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
@@ -111,7 +108,7 @@ def file_metadata_update(
 
         # Get assets that has been updated since last run to create aliases 
         asset_view_id = config.data.job.asset_view.as_view_id()
-        new_assets = get_new_items(client, logger, asset_cursor, asset_view_id, config, ASSET_NODE)
+        new_assets = get_new_items(client, logger, asset_cursor, asset_view_id, config, ASSET_NODE, STAT_STORE_ASSET_CURSOR)
         if len(new_assets[ASSET_NODE]) > 0:
             while len(new_assets[ASSET_NODE]) > 0: 
                 num_asset_aliases = update_metadata(client, logger, new_assets, asset_view_id, config.data.job.asset_view.instance_space, ASSET_NODE)
@@ -125,18 +122,11 @@ def file_metadata_update(
                 asset_cursor = new_assets.cursors[ASSET_NODE]
                 
                 # look for more assets to process 
-                new_assets = get_new_items(client, logger, asset_cursor, asset_view_id, config, ASSET_NODE)
-                asset_cursor = new_assets.cursors[ASSET_NODE]
-                # Update state store with new cursor - in case timeout on next loop to set water mark
-                update_state_store(client, logger, asset_cursor, config, STAT_STORE_ASSET_CURSOR)
+                new_assets = get_new_items(client, logger, asset_cursor, asset_view_id, config, ASSET_NODE, STAT_STORE_ASSET_CURSOR)
 
         else:
             msg = f"[INFO]: No new assets to process"
             update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
-
-
-
-
 
     except Exception as e:
         msg = f"Failed, Message: {e!s}, traceback:\n{traceback.format_exc()}"
@@ -237,7 +227,8 @@ def get_new_items(
     cursor: str,
     view_id: ViewId,
     config: Config,
-    node_type: str
+    node_type: str,
+    cursor_name: str
 ) -> NodeList[Node]:
     """
     Read new files based on TAG PID
@@ -292,6 +283,11 @@ def get_new_items(
             else:
                 retry = False
                 raise Exception(msg) from e
+
+
+    new_cursor_value = sync_result.cursors[node_type]
+    # Update state store with new cursor - in case timeout on next loop to set water mark
+    update_state_store(client, logger, new_cursor_value, config, cursor_name)
 
     logger.info(f"Num new items: {len(sync_result[node_type])} from view: {view_id}")
     return sync_result

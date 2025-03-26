@@ -136,7 +136,7 @@ def annotate_p_and_id(
                 for num in range(file_num, len(file_ids), ANNOTATE_BATCH_SIZE):
                     result = run_diagram_detect(client, logger, entities, file_ids[num:num+ANNOTATE_BATCH_SIZE], search_property)
                     if result is None:
-                        error_count += ANNOTATE_BATCH_SIZE
+                        error_count += len(file_ids)
                     else:
                         error_count = push_result_to_annotations(
                             client,
@@ -150,7 +150,7 @@ def annotate_p_and_id(
                             doc_doc,
                             doc_tag
                         )
-                        annotated_count += ANNOTATE_BATCH_SIZE
+                        annotated_count += len(file_ids) - error_count
 
                         # Update raw with new annotations
                         write_mapping_to_raw(client, config, raw_uploader, doc_doc, doc_tag, logger)
@@ -445,6 +445,10 @@ def get_new_files(
             else:
                 retry = False
                 raise Exception(msg) from e
+            
+
+    new_cursor_value = sync_result.cursors["files"]
+    update_state_store(client, logger, new_cursor_value, None, config, STAT_STORE_CURSOR, None)
 
     logger.info(f"Num new files: {len(sync_result['files'])} from view: {files_view_id}")
     return sync_result
