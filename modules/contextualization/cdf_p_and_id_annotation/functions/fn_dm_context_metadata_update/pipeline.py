@@ -88,7 +88,7 @@ def file_metadata_update(
 
         if len(new_files[FILE_NODE]) > 0:
             while len(new_files[FILE_NODE]) > 0: 
-                num_file_aliases = update_metadata(client, config, logger, new_files, files_view_id, config.data.job.file_view.instance_space, FILE_NODE)
+                num_file_aliases = update_metadata(client, logger, new_files, files_view_id, config.data.job.file_view.instance_space, FILE_NODE)
 
                 msg = f"[INFO]: Updating {num_file_aliases} aliases for {len(new_files[FILE_NODE])} files"
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
@@ -114,7 +114,7 @@ def file_metadata_update(
         new_assets = get_new_items(client, logger, asset_cursor, asset_view_id, config, ASSET_NODE)
         if len(new_assets[ASSET_NODE]) > 0:
             while len(new_assets[ASSET_NODE]) > 0: 
-                num_asset_aliases = update_metadata(client, config, logger, new_assets, asset_view_id, config.data.job.asset_view.instance_space, ASSET_NODE)
+                num_asset_aliases = update_metadata(client, logger, new_assets, asset_view_id, config.data.job.asset_view.instance_space, ASSET_NODE)
 
                 msg = f"[INFO]: Updating {num_asset_aliases} aliases for {len(new_assets[ASSET_NODE])} assets"
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
@@ -363,7 +363,6 @@ def extract_tags_simple(
         
 def update_metadata(
     client: CogniteClient,
-    config: Config,
     logger: CogniteFunctionLogger,
     new_nodes: NodeList[Node],
     view_id: ViewId,
@@ -408,6 +407,10 @@ def update_metadata(
                 if summary and summary.find("I apologize") < 0:  # test if we found a summary with any value
                     tags = extract_tags_simple(summary, tags)
                     update_metadata = True
+                else:
+                    summary = ""
+            else:
+                summary = description
 
             aliases_upd = get_file_alias_list(name, aliases)
             properties_dict = {"name": name,
@@ -462,7 +465,7 @@ def get_doc_summary(
             
     except Exception as e:
         msg = f"Failed to get summary for file externalId: {ext_id}, Message: {e!s}"
-        logger.error(msg)
+        logger.warning(msg)
         return None
 
     if response.status_code != 200:
