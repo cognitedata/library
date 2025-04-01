@@ -1,0 +1,286 @@
+{
+    "AIR": {
+        "Breakage": {
+            "Failure Rate": 0.42
+        },
+        "Control failure": {
+            "Failure Rate": 1.68
+        },
+        "Corrosion": {
+            "Failure Rate": 0.42
+        },
+        "Faulty signal/indication/alarm": {
+            "Design-related causes": [
+                "Inadequate equipment design or configuration",
+                "Inadequate dimensioning/capacity",
+                "Improper material selection"
+            ],
+            "Fabrication/installation-related causes": [
+                "Failure related to fabrication or installation",
+                "Manufacturing or processing failure",
+                "Installation or assembly failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Failure related to operation/use or maintenance",
+                "Off-design or unintended service conditions",
+                "Human error during operation",
+                "Human error during maintenance",
+                "Failure caused by wear and tear"
+            ]
+        },
+        "Instrument failure - general": {
+            "Design-related causes": [
+                "Inadequate equipment design or configuration",
+                "Inadequate dimensioning/capacity",
+                "Improper material selection"
+            ],
+            "Fabrication/installation-related causes": [
+                "Failure related to fabrication or installation",
+                "Manufacturing or processing failure",
+                "Installation or assembly failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Failure related to operation/use or maintenance",
+                "Off-design or unintended service conditions",
+                "Human error during operation",
+                "Human error during maintenance",
+                "Failure caused by wear and tear"
+            ],
+            "Leakage": {
+                "Failure Rate": 0.42
+            },
+            "Looseness": {
+                "Failure Rate": 0.42
+            },
+            "Misc. external influences": {
+                "Failure Rate": 0.42
+            },
+            "No signal/indication/alarm": {
+                "Failure Rate": 2.1
+            },
+            "Out of adjustment": {
+                "Failure related to operation/maintenance": [
+                    "Failure related to operation/use or maintenance",
+                    "Off-design or unintended service conditions",
+                    "Human error during operation",
+                    "Human error during maintenance",
+                    "Failure caused by wear and tear"
+                ]
+            },
+            "Software failure": {
+                "Failure Rate": 0.42
+            },
+            "Wear": {
+                "Failure Rate": 0.42
+            }
+        },
+        "External leakage - process medium (ELP)": {
+            "Leakage": {
+                "Failure Rate": 1.68
+            },
+            "Looseness": {
+                "Failure Rate": 1.68
+            },
+            "Material failure - general": {
+                "Design-related causes": [
+                    "Inadequate equipment design or configuration",
+                    "Inadequate dimensioning/capacity",
+                    "Improper material selection"
+                ],
+                "Fabrication/installation-related causes": [
+                    "Failure related to fabrication or installation",
+                    "Manufacturing or processing failure",
+                    "Installation or assembly failure"
+                ],
+                "Failure related to operation/maintenance": [
+                    "Failure related to operation/use or maintenance",
+                    "Off-design or unintended service conditions",
+                    "Human error during operation",
+                    "Human error during maintenance",
+                    "Failure caused by wear and tear"
+                ]
+            }
+        },
+        "Mechanical Failure - general": {
+            "Failure Rate": 1.26
+        }
+    },
+    "ELU": {
+        "Erosion": {
+            "Failure Rate": 0.42
+        },
+        "Leakage": {
+            "Failure Rate": 1.68
+        },
+        "Looseness": {
+            "Failure Rate": 1.68
+        },
+        "Material failure - general": {
+            "Design-related causes": [
+                "Inadequate equipment design or configuration",
+                "Inadequate dimensioning/capacity",
+                "Improper material selection"
+            ],
+            "Fabrication/installation-related causes": [
+                "Failure related to fabrication or installation",
+                "Manufacturing or processing failure",
+                "Installation or assembly failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Failure related to operation/use or maintenance",
+                "Off-design or unintended service conditions",
+                "Human error during operation",
+                "Human error during maintenance",
+                "Failure caused by wear and tear"
+            ]
+        },
+        "Mechanical Failure - general": {
+            "Failure Rate": 1.26
+        }
+    },
+    "IHT": {
+        "Blockage/plugged": {
+            "Design-related causes": [
+                "Inadequate equipment design or configuration",
+                "Inadequate dimensioning/capacity",
+                "Improper material selection"
+            ],
+            "Fabrication/installation-related causes": [
+                "Failure related to fabrication or installation",
+                "Manufacturing or processing failure",
+                "Installation or assembly failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Failure related to operation/use or maintenance",
+                "Off-design or unintended service conditions",
+                "Human error during operation",
+                "Human error during maintenance",
+                "Failure caused by wear and tear"
+            ]
+        },
+        "Control failure": {
+            "Failure Rate": 0.84
+        },
+        "Faulty signal/indication/alarm": {
+            "Failure Rate": 0.42
+        },
+        "Wear": {
+            "Failure Rate": 1.26
+        }
+    },
+    "INL": {
+        "Blockage/plugged": {
+            "Failure Rate": 0.42
+        },
+        "Breakage": {
+            "Failure Rate": 1.68
+        },
+        "Burst": {
+            "Failure Rate": 0.42
+        },
+        "Corrosion": null,
+        "Design-related causes": [
+            "Inadequate equipment design or configuration",
+            "Inadequate dimensioning/capacity",
+            "Improper material selection"
+        ],
+        "Fabrication/installation-related causes": [
+            "Failure related to fabrication or installation",
+            "Manufacturing or processing failure",
+            "Installation or assembly failure"
+        ],
+        "Failure related to operation/maintenance": [
+            "Failure related to operation/use or maintenance",
+            "Off-design or unintended service conditions",
+            "Human error during operation",
+            "Human error during maintenance",
+            "Failure caused by wear and tear"
+        ],
+        "Leakage": {
+            "Failure Rate": 1.26
+        },
+        "Material failure - general": {
+            "Failure Rate": 2.94
+        },
+        "Unknown": {
+            "Failure Rate": 0.84
+        }
+    },
+    "PDE": {
+        "Blockage/plugged": {
+            "Failure Rate": 0.84
+        },
+        "Control failure": {
+            "Failure Rate": 2.1
+        },
+        "Out of adjustment": {
+            "Failure Rate": 1.26
+        }
+    },
+    "PLU": {
+        "Blockage/plugged": {
+            "Failure Rate": 3.78
+        },
+        "Sticking": {
+            "Failure Rate": 0.84
+        },
+        "Unknown": {
+            "Failure Rate": 0.84
+        }
+    },
+    "SER": {
+        "Blockage/plugged": {
+            "Failure Rate": 0.42
+        },
+        "Breakage": {
+            "Failure Rate": 0.84
+        },
+        "External influence - general": {
+            "Failure Rate": 0.84
+        },
+        "Material failure - general": {
+            "Failure Rate": 0.84
+        },
+        "Mechanical Failure - general": {
+            "Failure Rate": 1.68
+        },
+        "Misc. external influences": {
+            "Failure Rate": 0.84
+        },
+        "Other": {
+            "Failure Rate": 0.42
+        },
+        "Overheating": {
+            "Failure Rate": 0.42
+        },
+        "Unknown": {
+            "Failure Rate": 1.26
+        }
+    },
+    "STD": {
+        "Corrosion": null,
+        "Design-related causes": [
+            "Inadequate equipment design or configuration",
+            "Inadequate dimensioning/capacity",
+            "Improper material selection"
+        ],
+        "Fabrication/installation-related causes": [
+            "Failure related to fabrication or installation",
+            "Manufacturing or processing failure",
+            "Installation or assembly failure"
+        ],
+        "Failure related to operation/maintenance": [
+            "Failure related to operation/use or maintenance",
+            "Off-design or unintended service conditions",
+            "Human error during operation",
+            "Human error during maintenance",
+            "Failure caused by wear and tear"
+        ],
+        "Material failure - general": {
+            "Failure Rate": 0.84
+        },
+        "Wear": {
+            "Failure Rate": 0.42
+        }
+    }
+}

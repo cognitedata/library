@@ -1,0 +1,3918 @@
+{
+    "AIR": {
+        "Failure Rate": 9.13,  
+        "General": {
+            "Failure Rate": 0.05,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Leakage": {
+            "Failure Rate": 0.16,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.27,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Deformation": {
+            "Failure Rate": 0.05,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": {
+            "Failure Rate": 0.16,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": {
+            "Failure Rate": 0.05,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": {
+            "Failure Rate": 0.05,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Fatigue": {
+            "Failure Rate": 0.05,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Control failure": {
+            "Failure Rate": 0.65,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "No signal /indication/alarm": {
+            "Failure Rate": 2.93,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty signal/indication/alarm": {
+            "Failure Rate": 12.21,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": {
+            "Failure Rate": 2.22,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Software error": {
+            "Failure Rate": 0.05,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Short circuiting": {
+            "Failure Rate": 0.11,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Open circuit": {
+            "Failure Rate": 0.22,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "No power/voltage": {
+            "Failure Rate": 2.93,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty power/voltage": {
+            "Failure Rate": 0.11,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Earth/isolation fault": {
+            "Failure Rate": 0.05,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.6,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Contamination": {
+            "Failure Rate": 0.22,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Miscellaneous external influences": {
+            "Failure Rate": 0.16,  
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+      },
+    "BRD": {
+        "Failure Rate": 3.22,    
+        "Leakage": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.27,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance /alignment failure": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Erosion": {
+            "Failure Rate": 0.38,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": {
+            "Failure Rate": 0.43,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Overheating": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "No signal /indication/alarm": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "ELP": {
+        "Failure Rate": 10.66,
+        "Leakage": {
+            "Failure Rate": 9.28,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance /alignment failure": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": {
+            "Failure Rate": 0.54,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Cavitation": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Erosion": {
+            "Failure Rate": 0.6,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": {
+            "Failure Rate": 1.57,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Fatigue": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Miscellaneous external influences": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "ELU": {
+        "Failure Rate": 4.04,
+        "Leakage": {
+            "Failure Rate": 5.48,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance /alignment failure": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Deformation": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": {
+            "Failure Rate": 0.54,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Cavitation": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": {
+            "Failure Rate": 0.33,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Erosion": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": {
+            "Failure Rate": 2.44,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": {
+            "Failure Rate": 0.22,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Fatigue": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "ERO": {
+        "Failure Rate": 0.74,
+        "Leakage": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Control failure": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty signal/indication/alarm": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": {
+            "Failure Rate": 0.27,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty power/voltage": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "FTS": {
+        "Failure Rate": 2.5,
+        "Leakage": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Sticking": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Control failure": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty signal/indication/alarm": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Common cause/Common mode failure": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "HIO": {
+        "Failure Rate": 0.25,
+        "Leakage": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Control failure": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "INL": {
+        "Failure Rate": 1.35,
+        "Leakage": {
+            "Failure Rate": 2.01,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Burst": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Contamination": {
+            "Failure Rate": 0.22,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "LOO": {
+        "Failure Rate": 1.35,
+        "General - Mechanical failure": {
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance/alignment failure": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Material failure": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Erosion": {
+            "Failure Rate": 0.11,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": {
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": {
+            "Failure Rate": 0.65,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "NOI": {
+        "Failure Rate": 0.48,
+        "General": { 
+            "Failure Rate": 0.22,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": { 
+            "Failure Rate": 0.16,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ] 
+        },
+        "Looseness": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.16, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "OHE": {
+        "Failure Rate": 1.17,
+        "General": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Leakage": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance/alignment failure": { 
+            "Failure Rate": 0.16, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Overheating": { 
+            "Failure Rate": 0.38, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "PDE": {
+        "Failure Rate": 2.07,
+        "General - Mechanical failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Leakage": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance/alignment failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Deformation": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Material failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.49, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Control failure": { 
+            "Failure Rate": 0.27, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty signal/indication/alarm": { 
+            "Failure Rate": 0.22, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": { 
+            "Failure Rate": 0.27, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Electrical failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": { 
+            "Failure Rate": 0.71, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Contamination": { 
+            "Failure Rate": 0.19, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "PLU": {
+        "Failure Rate": 1.41,
+        "Clearance/alignment failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": { 
+            "Failure Rate": 1.47, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Contamination": { 
+            "Failure Rate": 0.05,
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ] 
+        }
+    },
+    "SER": {
+        "Failure Rate": 0.11,
+        "General - Mechanical failure": { 
+            "Failure Rate": 0.49, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance/alignment failure": { 
+            "Failure Rate": 0.16, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Deformation": { 
+            "Failure Rate": 0.16, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": { 
+            "Failure Rate": 0.22, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Sticking": { 
+            "Failure Rate": 0.16, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Material failure": { 
+            "Failure Rate": 0.16, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": { 
+            "Failure Rate": 0.76, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Erosion": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.49, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": { 
+            "Failure Rate": 0.38, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "No signal/indication/alarm": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty signal/indication/alarm": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Electrical failure": { 
+            "Failure Rate": 0.49, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "No power/voltage": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Earth/isolation fault": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": { 
+            "Failure Rate": 2.33, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Contamination": { 
+            "Failure Rate": 0.6, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Miscellaneous external influences": { 
+            "Failure Rate": 0.33, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "STD": {
+        "Failure Rate": 0.75,
+        "General - Mechanical failure": { 
+            "Failure Rate": 0.54, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Deformation": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Material failure": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": { 
+            "Failure Rate": 0.27, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Burst": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Miscellaneous external influences": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+    "UST": {
+        "Failure Rate": 3.8,
+        "General - Mechanical failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance/alignment failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Sticking": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Material failure": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Fatigue": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Overheating": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Control failure": { 
+            "Failure Rate": 0.22, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "No signal/indication/alarm": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Faulty signal/indication/alarm": { 
+            "Failure Rate": 0.98, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": { 
+            "Failure Rate": 0.16, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Software error": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Electrical failure": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Miscellaneous external influences": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    },
+     "VIB": {
+        "Failure Rate": 3.8,
+        "General - Mechanical failure": { 
+            "Failure Rate": 0.43, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Leakage": { 
+            "Failure Rate": 0.05, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Vibration": { 
+            "Failure Rate": 1.47, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Clearance/alignment failure": { 
+            "Failure Rate": 0.98, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Looseness": { 
+            "Failure Rate": 0.27, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Sticking": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "General - Material failure": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Corrosion": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Wear": { 
+            "Failure Rate": 0.6, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Breakage": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Burst": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Out of adjustment": { 
+            "Failure Rate": 0.33, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        },
+        "Blockage/plugged": { 
+            "Failure Rate": 0.11, 
+            "Design-related causes": [
+                "Improper capacity",
+                "Improper material"
+            ],
+            "Fabrication/installation-related causes": [
+                "Fabrication failure",
+                "Installation failure"
+            ],
+            "Failure related to operation/maintenance": [
+                "Off-design service",
+                "Operating error",
+                "Maintenance error",
+                "Expected wear and tear"
+            ],
+            "Failure related to management": [
+                "Documentation error",
+                "Management error"
+            ]
+        }
+    }
+}
+
