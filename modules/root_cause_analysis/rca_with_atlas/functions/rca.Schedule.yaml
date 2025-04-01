@@ -1,0 +1,7 @@
+- name: "local-test-data"
+  functionExternalId: 'rca_canvas_builder'
+  description: "Test data for local testing"
+  cronExpression: "0 0 1 1 *"
+  data:
+    foo: "bar-value"
+  
