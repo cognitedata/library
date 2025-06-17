@@ -1,0 +1,105 @@
+space: rmdm
+externalId: Notification
+name: RM Notification
+properties:
+  equipment:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Equipment
+    description: A list of physical equipment related to this notifcation.
+  subunitFailed:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Subunit
+    description: A reference to the specific subsystem(s) belonging to the asset in
+      this notifcation that failed.
+  componentFailed:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Component
+    description: A reference to the specific parts of the subsystem referenced in
+      this notifcation that failed.
+  longDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Long Text
+    description: A detailed textual explanation providing additional context or specifications
+      for this notifcation.
+  discipline:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Discipline
+    description: The technical field associated with this notifcation.
+  plannerGroup:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Planner Group
+    description: A designated team responsible for planning and managing maintenance
+      activities.
+  plannerGroupDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Planner Group Description
+    description: A textual summary defining the role, responsibilities, and scope
+      of a planner group.
+  typeDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Type Description
+    description: The type of this notifcation as a human readable name.
+  statusDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Status Description
+    description: A string indicating the status of this notifcation.
+constraints:
+  cdf_idm_CogniteNotification:
+    require:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

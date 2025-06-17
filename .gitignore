@@ -1,0 +1,54 @@
+# macOS system files
+.DS_Store
+
+# Python cache and environment
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.venv
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# VSCode and IDE settings
+.vscode/
+.idea/
+*.code-workspace
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Temporary files
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# Byte-compiled and compiled files
+*.class
+*.o
+*.so
+
+# Test results
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.pytest_cache/
+
+# OS generated files
+Thumbs.db
+Desktop.ini
