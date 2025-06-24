@@ -1,8 +1,7 @@
 space: rmdm
 externalId: rmdm
 name: Reliability Maintenance Data Model 
-description: 'Reliability & Maintenance Data Model, ISO14224 compliant Creator: Charan
-  Raju'
+description: 'Reliability & Maintenance Data Model, ISO14224 compliant'
 version: v1
 views:
 - space: cdf_cdm
