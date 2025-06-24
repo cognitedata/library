@@ -1,6 +1,6 @@
 space: rmdm
-externalId: rmdm_templates
-name: Reliability Maintenance Data Model
+externalId: rmdm
+name: Reliability Maintenance Data Model 
 description: 'Reliability & Maintenance Data Model, ISO14224 compliant Creator: Charan
   Raju'
 version: v1
