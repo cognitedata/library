@@ -20,7 +20,7 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 
 - Python 3.11+
 - An active Cognite Data Fusion (CDF) project.
-- The required Python packages are listed in the `modules/contextualization/cdf_files_annotation_functions/functions/fn_dm_context_annotation_launch/requirements.txt` and `modules/contextualization/cdf_files_annotation_functions/functions/fn_dm_context_annotation_finalize/requirements.txt` files.
+- The required Python packages are listed in the `modules/contextualization/cdf_file_annotation/functions/fn_dm_context_annotation_launch/requirements.txt` and `modules/contextualization/cdf_file_annotation/functions/fn_dm_context_annotation_finalize/requirements.txt` files.
 - The necessary CDF data models (e.g., for files, assets, and annotation state) must be deployed in your CDF project.
 - The necessary RAW tables for caching and reporting must be created.
 - The file and target entity data models must include a property for entity matching, such as `aliases`. This property is used to match files to assets and should contain a list of alternative names or identifiers.
@@ -41,9 +41,9 @@ This template is configured for easy local execution and debugging directly with
 ### Deployment Steps
 
 1.  **Configure the Module**
-    The core of the configuration is handled by the ` default.config.yaml` file located in `modules/contextualization/cdf_files_annotation_functions/`. This file acts as a template for your project-specific settings. Before deploying, you need to replace the placeholder values (`<insert>`) with the actual values from your CDF project.
+    The core of the configuration is handled by the ` default.config.yaml` file located in `modules/contextualization/cdf_file_annotation/`. This file acts as a template for your project-specific settings. Before deploying, you need to replace the placeholder values (`<insert>`) with the actual values from your CDF project.
 
-    Open `modules/contextualization/cdf_files_annotation_functions/default.config.yaml` and update the following critical fields:
+    Open `modules/contextualization/cdf_file_annotation/default.config.yaml` and update the following critical fields:
 
     - `fileExternalId`: The external ID of your file view.
     - `fileSchemaSpace`: The schema space for your file view.
@@ -110,7 +110,7 @@ This file allows for deep customization. For example, you can use a list of quer
 
 ## Diving Deeper: Advanced Guides
 
-This README provides a high-level overview of the template's purpose and architecture. To gain a deeper understanding of how to configure and extend the template, I highly recommend exploring the detailed guides located in the `modules/contextualization/cdf_files_annotation_functions/detailed_guides/` directory:
+This README provides a high-level overview of the template's purpose and architecture. To gain a deeper understanding of how to configure and extend the template, I highly recommend exploring the detailed guides located in the `modules/contextualization/cdf_file_annotation/detailed_guides/` directory:
 
 - **`CONFIG.md`**: A comprehensive document outlining the `extraction_pipeline_config.yaml` file to control the behavior of the Annotation Function.
 - **`CONFIG_PATTERNS.md`**: A practical guide with recipes for common operational tasks, such as processing specific subsets of data, reprocessing files for debugging, and tuning performance by adjusting the configuration.
