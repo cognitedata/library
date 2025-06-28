@@ -17,7 +17,7 @@ rawTableDocDoc: annotation_documents_docs
 rawTableCache: annotation_entities_cache
 
 # used in /extraction_pipelines
-extractionPipelineExternalId: ep_ctx_file_annotation
+extractionPipelineExternalId: ep_file_annotation
 targetEntitySchemaSpace: <insert>
 targetEntityExternalId: <insert>
 targetEntityVersion: <insert>
