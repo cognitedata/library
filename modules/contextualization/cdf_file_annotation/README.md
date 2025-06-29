@@ -20,30 +20,28 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 
 - Python 3.11+
 - An active Cognite Data Fusion (CDF) project.
-- The required Python packages are listed in the `modules/contextualization/cdf_file_annotation/functions/fn_dm_context_annotation_launch/requirements.txt` and `modules/contextualization/cdf_file_annotation/functions/fn_dm_context_annotation_finalize/requirements.txt` files.
-- The necessary CDF data models (e.g., for files, assets, and annotation state) must be deployed in your CDF project.
-- The necessary RAW tables for caching and reporting must be created.
-- The file and target entity data models must include a property for entity matching, such as `aliases`. This property is used to match files to assets and should contain a list of alternative names or identifiers.
+- The required Python packages are listed in the `cdf_file_annotation/functions/fn_file_annotation_launch/requirements.txt` and `cdf_file_annotation/functions/fn_file_annotation_finalize/requirements.txt` files.
+- The file and target entity data models must include a property for entity matching, such as `aliases`, and a separate transformation or function that populates it. This property is used to match files to assets and should contain a list of alternative names or identifiers.
 
 ### Local Development and Debugging
 
 This template is configured for easy local execution and debugging directly within Visual Studio Code.
 
-1.  **Create Environment File**: Before running locally, you must create a `.env` file in the root directory. This file will hold the necessary credentials and configuration for connecting to your CDF project. Populate it with the required environment variables for `COGNITE_CLIENT_SECRET`, `COGNITE_CLIENT_ID`, `CDF_CLUSTER`, etc. In the `local_runs/` folder you'll find a .env template.
+1.  **Create Environment File**: Before running locally, you must create a `.env` file in the root directory. This file will hold the necessary credentials and configuration for connecting to your CDF project. Populate it with the required environment variables for `IDP_CLIENT_ID`, `CDF_CLUSTER`, etc. In the `local_runs/` folder you'll find a .env template.
 
 2.  **Use the VS Code Debugger**: The repository includes a pre-configured `local_runs/.vscode/launch.json` file. Please move the .vscode/ folder to the top level of your repo.
 
     - Navigate to the "Run and Debug" view in the VS Code sidebar.
     - You will see dropdown options for launching the different functions (e.g., `Launch Function`, `Finalize Function`).
     - Select the function you wish to run and click the green "Start Debugging" arrow. This will start the function on your local machine, with the debugger attached, allowing you to set breakpoints and inspect variables.
-    - Feel free to change adjust the arguments passed into the function call to point to a test_extraction_pipeline and/or change the log level.
+    - Feel free to change/adjust the arguments passed into the function call to point to a test_extraction_pipeline and/or change the log level.
 
 ### Deployment Steps
 
 1.  **Configure the Module**
-    The core of the configuration is handled by the ` default.config.yaml` file located in `modules/contextualization/cdf_file_annotation/`. This file acts as a template for your project-specific settings. Before deploying, you need to replace the placeholder values (`<insert>`) with the actual values from your CDF project.
+    The core of the configuration is handled by the `default.config.yaml` file. This file acts as a template for your project-specific settings. Before deploying, you need to replace the placeholder values (`<insert>`) with the actual values from your CDF project.
 
-    Open `modules/contextualization/cdf_file_annotation/default.config.yaml` and update the following critical fields:
+    Open `cdf_file_annotation/default.config.yaml` and update the following critical fields:
 
     - `fileExternalId`: The external ID of your file view.
     - `fileSchemaSpace`: The schema space for your file view.
@@ -77,7 +75,7 @@ The template operates in three main phases, orchestrated by CDF Workflows.
 - **Goal**: Launch the annotation jobs for files that are ready.
 - **Process**:
   1.  It queries for `AnnotationState` instances with a "New" or "Retry" status.
-  2.  It groups these files by a primary scope (e.g., `sysSite`) to provide context.
+  2.  It groups these files by a primary scope to provide context.
   3.  For each group, it fetches the relevant file and target entity information, using a cache to avoid redundant lookups.
   4.  It calls the Cognite Diagram Detect API to start the annotation job.
   5.  It updates the `AnnotationState` instance with the `diagramDetectJobId` and sets the status to "Processing".
@@ -97,7 +95,7 @@ The template operates in three main phases, orchestrated by CDF Workflows.
 
 ## Configuration
 
-The templates behavior is entirely controlled by the `extraction_pipeline_config.yaml` file. This YAML file is parsed by Pydantic models in the code, ensuring a strongly typed and validated configuration.
+The templates behavior is entirely controlled by the `ep_file_annotation.config.yaml` file. This YAML file is parsed by Pydantic models in the code, ensuring a strongly typed and validated configuration.
 
 Key configuration sections include:
 
@@ -110,11 +108,11 @@ This file allows for deep customization. For example, you can use a list of quer
 
 ## Diving Deeper: Advanced Guides
 
-This README provides a high-level overview of the template's purpose and architecture. To gain a deeper understanding of how to configure and extend the template, I highly recommend exploring the detailed guides located in the `modules/contextualization/cdf_file_annotation/detailed_guides/` directory:
+This README provides a high-level overview of the template's purpose and architecture. To gain a deeper understanding of how to configure and extend the template, I highly recommend exploring the detailed guides located in the `cdf_file_annotation/detailed_guides/` directory:
 
-- **`CONFIG.md`**: A comprehensive document outlining the `extraction_pipeline_config.yaml` file to control the behavior of the Annotation Function.
-- **`CONFIG_PATTERNS.md`**: A practical guide with recipes for common operational tasks, such as processing specific subsets of data, reprocessing files for debugging, and tuning performance by adjusting the configuration.
-- **`DEVELOPING.md`**: An essential guide for developers who wish to extend the template's functionality. It details the interface-based architecture and provides a step-by-step walkthrough on how to create and integrate your own custom service implementations for specialized logic.
+- **`CONFIG.md`**: A document outlining the `ep_file_annotation.config.yaml` file to control the behavior of the Annotation Function.
+- **`CONFIG_PATTERNS.md`**: A guide with recipes for common operational tasks, such as processing specific subsets of data, reprocessing files for debugging, and tuning performance by adjusting the configuration.
+- **`DEVELOPING.md`**: A guide for developers who wish to extend the template's functionality. It details the interface-based architecture and provides a step-by-step walkthrough on how to create and integrate your own custom service implementations for specialized logic.
 
 ## Design Philosophy
 
