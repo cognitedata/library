@@ -57,8 +57,6 @@ def handle(data: dict, client: CogniteClient) -> dict:
 
         overall_report: str = tracker_instance.generate_overall_report()
         logger_instance.info(overall_report, "BOTH")
-        pipeline_instance.update_extraction_pipeline(msg=overall_report)
-
         tracker_instance.reset()
 
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
