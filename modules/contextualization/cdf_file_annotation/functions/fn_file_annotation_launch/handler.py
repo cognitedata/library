@@ -74,7 +74,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
         logger_instance.info(overall_report, "BOTH")
         # only want to report on the count of successful and failed files in ep_logs since they're relatively short
         parts = overall_report.split("-")
-        ep_parts = parts[3:7]
+        ep_parts = parts[4:7]
         extracted_string = " - ".join(ep_parts)
         pipeline_instance.update_extraction_pipeline(msg=extracted_string)
         pipeline_instance.upload_extraction_pipeline(status=run_status)
