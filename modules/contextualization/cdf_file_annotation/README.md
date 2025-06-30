@@ -22,15 +22,15 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 - An active Cognite Data Fusion (CDF) project.
 - The required Python packages are listed in the `cdf_file_annotation/functions/fn_file_annotation_launch/requirements.txt` and `cdf_file_annotation/functions/fn_file_annotation_finalize/requirements.txt` files.
 - Alias and tag generation is abstracted out of the annotation function. Thus, you'll need to create a transformation that populates the `aliases` and `tags` property of your file and target entity view.
-   - The `aliases` property is used to match files with entities and should contain a list of alternative names or identifiers that can be found in the files image. 
-   - The `tags` property serves multiple purposes and consists of the following...
-      - (`DetectInDiagrams`) Identifies files and assets to include as entities filtered by primary scope and secondary scope (if provided).
-      - (`ScopeWideDetect`) Identifies files and asset to include as entities filtered by a primary scope.
-      - (`ToAnnotate`) Identifies files that need to be annotated.
-      - (`AnnotationInProcess`) Identifies files that are in the process of being annotated.
-      - (`Annotated`) Identifies files that have been annotated.
-      - (`AnnotationFailed`) Identifies files that have failed the annotation process. Either by erroring out or by receiving 0 possible matches.
-   - Don't worry if these concepts don't immediately make sense. Aliases and tags are explained in greater detail in the detailed_guides/ documentation. The template also includes a jupyter notebook that prepare the files and assets for annotation if using the toolkit's quickstart module.
+  - The `aliases` property is used to match files with entities and should contain a list of alternative names or identifiers that can be found in the files image.
+  - The `tags` property serves multiple purposes and consists of the following...
+    - (`DetectInDiagrams`) Identifies files and assets to include as entities filtered by primary scope and secondary scope (if provided).
+    - (`ScopeWideDetect`) Identifies files and asset to include as entities filtered by a primary scope.
+    - (`ToAnnotate`) Identifies files that need to be annotated.
+    - (`AnnotationInProcess`) Identifies files that are in the process of being annotated.
+    - (`Annotated`) Identifies files that have been annotated.
+    - (`AnnotationFailed`) Identifies files that have failed the annotation process. Either by erroring out or by receiving 0 possible matches.
+  - Don't worry if these concepts don't immediately make sense. Aliases and tags are explained in greater detail in the detailed_guides/ documentation. The template also includes a jupyter notebook that prepare the files and assets for annotation if using the toolkit's quickstart module.
 
 ### Deployment Steps
 
@@ -58,6 +58,7 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
 <video src="https://github.com/user-attachments/assets/32df7e8b-cc27-4675-a813-1a72406704d5"></video>
 
 3. **Build and Deploy the Module**
+
    - (optional) Build and deploy the quickstart template modules
    - Build and deploy this module
 
@@ -66,7 +67,7 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
    poetry run cdf deploy --dry-run
    poetry run cdf deploy
    ```
-   
+
    ```yaml
    # config.<env>.yaml used in examples below
    environment:
@@ -74,15 +75,15 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
      project: <insert>
      validation-type: dev
      selected:
-     - modules/
-   
+       - modules/
+
    variables:
      modules:
        # stuff from quickstart package...
        organization: tx
-   
+
        # ...
-   
+
        cdf_ingestion:
          workflow: ingestion
          groupSourceId: <insert>
@@ -94,16 +95,16 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
          schemaSpace2: cdf_cdm
          schemaSpace3: cdf_idm
          instanceSpaces:
-         - springfield_instances
-         - cdf_cdm_units
+           - springfield_instances
+           - cdf_cdm_units
          runWorkflowUserIds:
-         - <insert>
-   
+           - <insert>
+
        contextualization:
          cdf_file_annotation:
            # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
            annotationDatasetExternalId: ds_file_annotation
-   
+
            # used in /data_models and /extraction_pipelines
            annotationStateExternalId: FileAnnotationState
            annotationStateInstanceSpace: sp_dat_cdf_annotation_states
@@ -112,19 +113,19 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
            fileSchemaSpace: sp_enterprise_process_industry
            fileExternalId: txFile
            fileVersion: v1
-   
+
            # used in /raw and /extraction_pipelines
            rawDb: db_file_annotation
            rawTableDocTag: annotation_documents_tags
            rawTableDocDoc: annotation_documents_docs
            rawTableCache: annotation_entities_cache
-   
+
            # used in /extraction_pipelines
            extractionPipelineExternalId: ep_file_annotation
            targetEntitySchemaSpace: sp_enterprise_process_industry
            targetEntityExternalId: txEquipment
            targetEntityVersion: v1
-   
+
            # used in /functions and /workflows
            launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
            launchFunctionVersion: v1.0.0
@@ -132,13 +133,16 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
            finalizeFunctionVersion: v1.0.0
            functionClientId: ${IDP_CLIENT_ID}
            functionClientSecret: ${IDP_CLIENT_SECRET}
-   
+
            # used in /workflows
            workflowSchedule: "*/10 * * * *"
            workflowExternalId: wf_file_annotation
            workflowVersion: v1
-   
-      # ...
+
+           # used in /auth
+           groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
+
+       # ...
    ```
 
 <video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f"></video>
