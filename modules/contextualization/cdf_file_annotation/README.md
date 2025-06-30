@@ -9,7 +9,7 @@ The Annotation template is a framework designed to automate the process of annot
 - **Configuration-Driven Workflow:** The entire process is controlled by a single `config.yaml` file, allowing adaptation to different data models and operational parameters without code changes.
 - **Large Document Support (\>50 Pages):** Automatically handles files with more than 50 pages by breaking them into manageable chunks, processing them iteratively, and tracking the overall progress.
 - **Parallel Execution Ready:** Designed for concurrent execution with a robust optimistic locking mechanism to prevent race conditions when multiple finalize function instances run in parallel.
-- **Detailed Reporting:** Local logs and processed annotation details stored in CDF RAW tables for auditing and analysis.
+- **Detailed Reporting:** Local logs and processed annotation details stored in CDF RAW tables, fucntion logs, and extraction pipeline runs for auditing and analysis.
 - **Local Running and Debugging:** Both the launch and finalize handler can be ran locally and have default setups in the 'Run & Debug' tab in vscode. Requires a .env file to be placed in the directory.
 
 ## Getting Started
