@@ -95,7 +95,7 @@ The template operates in three main phases, orchestrated by CDF Workflows.
 
 ### Launch Phase
 
-![Launch Service Design](detailed_guides/images/LaunchService.png)
+![LaunchService](https://github.com/user-attachments/assets/3e5ba403-50bb-4f6a-a723-be8947c65ebc)
 
 - **Goal**: Launch the annotation jobs for files that are ready.
 - **Process**:
@@ -107,7 +107,7 @@ The template operates in three main phases, orchestrated by CDF Workflows.
 
 ### Finalize Phase
 
-![Finalize Service Design](detailed_guides/images/FinalizeService.png)
+![FinalizeService](https://github.com/user-attachments/assets/152d9eaf-afdb-46fe-9125-11430ff10bc9)
 
 - **Goal**: Retrieve, process, and store the results of completed annotation jobs.
 - **Process**:
