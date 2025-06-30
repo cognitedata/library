@@ -23,6 +23,47 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 - The required Python packages are listed in the `cdf_file_annotation/functions/fn_file_annotation_launch/requirements.txt` and `cdf_file_annotation/functions/fn_file_annotation_finalize/requirements.txt` files.
 - The file and target entity data models must include a property for entity matching, such as `aliases`, and a separate transformation or function that populates it. This property is used to match files to assets and should contain a list of alternative names or identifiers.
 
+### Deployment Steps
+
+1. **Create a CDF Project through Toolkit**
+    - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
+    - (optional) Initialize the quickstart package using toolkit CLI
+    ```bash
+    poetry init
+    poetry add cognite-toolkit
+    poetry run cdf modules init <project-name>
+<video src="https://github.com/user-attachments/assets/4dfa8966-a419-47b9-8ee1-4fea331705fd" width="352" height="720"></video>
+<video src="https://github.com/user-attachments/assets/bc165848-5f8c-4eff-9a38-5b2288ec7e23" width="352" height="720"></video>
+
+2. **Integrate the Module**
+    - Move the `local_setup/` folder to the root and unpack .vscode/ and .env.tmpl
+    - Update the default.config.yaml file with project-specific configurations
+    - Add the module name to the list of selected modules in your config.{env}.yaml file
+    - Make sure to create a .env file with credentials pointing to your CDF project
+  
+<video src="https://github.com/user-attachments/assets/78ef2f59-4189-4059-90d6-c480acb3083e" width="352" height="720"></video>
+<video src="https://github.com/user-attachments/assets/32df7e8b-cc27-4675-a813-1a72406704d5" width="352" height="720"></video>
+
+3. **Build and Deploy the Module**
+    - (optional) Build and deploy the quickstart template modules
+    - Build and deploy this module
+    ```bash
+    poetry run cdf build --env dev
+    poetry run cdf deploy --dry-run
+    poetry run cdf deploy
+<video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f" width="352" height="720"></video>
+<video src="https://github.com/user-attachments/assets/9a1f1154-6d1b-4f98-bd58-cdf54e297a46" width="352" height="720"></video>
+
+4.  **Run the Workflow**
+
+    After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
+    - (optional) Run the ingestion workflow from the quickstart package to create instances of <org>File, <org>Asset, etc
+        - Checkout the instantiated files that have been annotated using the annotation function from the quickstart package 
+    - (optional) Run the local_setup.ipynb to setup the files for annotation
+    - Run the File Annotation Workflow
+
+<video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8" width="352" height="720"></video>
+
 ### Local Development and Debugging
 
 This template is configured for easy local execution and debugging directly within Visual Studio Code.
@@ -35,26 +76,6 @@ This template is configured for easy local execution and debugging directly with
     - You will see dropdown options for launching the different functions (e.g., `Launch Function`, `Finalize Function`).
     - Select the function you wish to run and click the green "Start Debugging" arrow. This will start the function on your local machine, with the debugger attached, allowing you to set breakpoints and inspect variables.
     - Feel free to change/adjust the arguments passed into the function call to point to a test_extraction_pipeline and/or change the log level.
-
-### Deployment Steps
-
-1.  **Configure the Module**
-    The core of the configuration is handled by the `default.config.yaml` file. This file acts as a template for your project-specific settings. Before deploying, you need to replace the placeholder values (`<insert>`) with the actual values from your CDF project.
-
-    Open `cdf_file_annotation/default.config.yaml` and update the following critical fields:
-
-    - `fileExternalId`: The external ID of your file view.
-    - `fileSchemaSpace`: The schema space for your file view.
-    - `fileVersion`: The version of your file view.
-    - `targetEntitySchemaSpace`: The schema space for your target entity view (e.g., assets).
-    - `targetEntityExternalId`: The external ID of your target entity view.
-    - `targetEntityVersion`: The version of your target entity view.
-
-2.  **Deploy the Module**
-    Once you have updated the `default.config.yaml` with your project-specific information, you can deploy the entire module using the Cognite Toolkit CLI. Navigate to the root of the `tk-annotation-function` directory and run the deployment command. The toolkit will handle the creation and deployment of all necessary resources, including the Launch and Finalize functions.
-
-3.  **Run the Workflow**
-    After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
 
 ## How It Works
 
