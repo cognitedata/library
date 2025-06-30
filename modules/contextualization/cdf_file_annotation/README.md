@@ -25,44 +25,48 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 
 ### Deployment Steps
 
-1. **Create a CDF Project through Toolkit**
-    - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
-    - (optional) Initialize the quickstart package using toolkit CLI
-    ```bash
-    poetry init
-    poetry add cognite-toolkit
-    poetry run cdf modules init <project-name>
-<video src="https://github.com/user-attachments/assets/4dfa8966-a419-47b9-8ee1-4fea331705fd" width="352" height="720"></video>
-<video src="https://github.com/user-attachments/assets/bc165848-5f8c-4eff-9a38-5b2288ec7e23" width="352" height="720"></video>
+1. **Create a CDF Project through Toolkit** - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/) - (optional) Initialize the quickstart package using toolkit CLI
+   ```bash
+   poetry init
+   poetry add cognite-toolkit
+   poetry run cdf modules init <project-name>
+   ```
+
+<video src="https://github.com/user-attachments/assets/4dfa8966-a419-47b9-8ee1-4fea331705fd"></video>
+
+<video src="https://github.com/user-attachments/assets/bc165848-5f8c-4eff-9a38-5b2288ec7e23"></video>
 
 2. **Integrate the Module**
-    - Move the `local_setup/` folder to the root and unpack .vscode/ and .env.tmpl
-    - Update the default.config.yaml file with project-specific configurations
-    - Add the module name to the list of selected modules in your config.{env}.yaml file
-    - Make sure to create a .env file with credentials pointing to your CDF project
-  
-<video src="https://github.com/user-attachments/assets/78ef2f59-4189-4059-90d6-c480acb3083e" width="352" height="720"></video>
-<video src="https://github.com/user-attachments/assets/32df7e8b-cc27-4675-a813-1a72406704d5" width="352" height="720"></video>
+   - Move the `local_setup/` folder to the root and unpack .vscode/ and .env.tmpl
+   - Update the default.config.yaml file with project-specific configurations
+   - Add the module name to the list of selected modules in your config.{env}.yaml file
+   - Make sure to create a .env file with credentials pointing to your CDF project
 
-3. **Build and Deploy the Module**
-    - (optional) Build and deploy the quickstart template modules
-    - Build and deploy this module
-    ```bash
-    poetry run cdf build --env dev
-    poetry run cdf deploy --dry-run
-    poetry run cdf deploy
-<video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f" width="352" height="720"></video>
-<video src="https://github.com/user-attachments/assets/9a1f1154-6d1b-4f98-bd58-cdf54e297a46" width="352" height="720"></video>
+<video src="https://github.com/user-attachments/assets/78ef2f59-4189-4059-90d6-c480acb3083e"></video>
 
-4.  **Run the Workflow**
+<video src="https://github.com/user-attachments/assets/32df7e8b-cc27-4675-a813-1a72406704d5"></video>
 
-    After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
-    - (optional) Run the ingestion workflow from the quickstart package to create instances of <org>File, <org>Asset, etc
-        - Checkout the instantiated files that have been annotated using the annotation function from the quickstart package 
-    - (optional) Run the local_setup.ipynb to setup the files for annotation
-    - Run the File Annotation Workflow
+3. **Build and Deploy the Module** - (optional) Build and deploy the quickstart template modules - Build and deploy this module
+   ```bash
+   poetry run cdf build --env dev
+   poetry run cdf deploy --dry-run
+   poetry run cdf deploy
+   ```
 
-<video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8" width="352" height="720"></video>
+<video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f"></video>
+
+<video src="https://github.com/user-attachments/assets/9a1f1154-6d1b-4f98-bd58-cdf54e297a46"></video>
+
+4. **Run the Workflow**
+
+   After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
+
+   - (optional) Run the ingestion workflow from the quickstart package to create instances of <org>File, <org>Asset, etc
+     - Checkout the instantiated files that have been annotated using the annotation function from the quickstart package
+   - (optional) Run the local_setup.ipynb to setup the files for annotation
+   - Run the File Annotation Workflow
+
+<video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8"></video>
 
 ### Local Development and Debugging
 
