@@ -12,6 +12,7 @@ from services.ConfigService import Config, load_config_parameters
 from services.CacheService import GeneralCacheService
 from services.DataModelService import GeneralDataModelService
 from services.AnnotationService import GeneralAnnotationService
+from services.PipelineService import GeneralPipelineService
 
 
 def get_env_variables() -> EnvConfig:
@@ -105,3 +106,9 @@ def create_general_annotation_service(
     config: Config, client: CogniteClient, logger: CogniteFunctionLogger
 ) -> GeneralAnnotationService:
     return GeneralAnnotationService(config=config, client=client, logger=logger)
+
+
+def create_general_pipeline_service(
+    client: CogniteClient, pipeline_ext_id: str
+) -> GeneralPipelineService:
+    return GeneralPipelineService(pipeline_ext_id, client)

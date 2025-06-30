@@ -13,6 +13,7 @@ from services.RetrieveService import GeneralRetrieveService
 from services.ApplyService import GeneralApplyService
 from services.LoggerService import CogniteFunctionLogger
 from services.ReportService import GeneralReportService
+from services.PipelineService import GeneralPipelineService
 
 
 def get_env_variables() -> EnvConfig:
@@ -112,3 +113,9 @@ def create_apply_service(
     client: CogniteClient, config: Config, logger: CogniteFunctionLogger
 ) -> GeneralApplyService:
     return GeneralApplyService(client, config, logger)
+
+
+def create_general_pipeline_service(
+    client: CogniteClient, pipeline_ext_id: str
+) -> GeneralPipelineService:
+    return GeneralPipelineService(pipeline_ext_id, client)
