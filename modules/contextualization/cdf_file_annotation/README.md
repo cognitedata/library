@@ -39,11 +39,11 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
 1. **Create a CDF Project through Toolkit**
    - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
    - (optional) Initialize the quickstart package using toolkit CLI
-   ```bash
-   poetry init
-   poetry add cognite-toolkit
-   poetry run cdf modules init <project-name>
-   ```
+ ```bash
+ poetry init
+ poetry add cognite-toolkit
+ poetry run cdf modules init <project-name>
+ ```
 
 <video src="https://github.com/user-attachments/assets/4dfa8966-a419-47b9-8ee1-4fea331705fd"></video>
 
@@ -64,88 +64,88 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
    - (optional) Build and deploy the quickstart template modules
    - Build and deploy this module
 
-   ```bash
-   poetry run cdf build --env dev
-   poetry run cdf deploy --dry-run
-   poetry run cdf deploy
-   ```
+ ```bash
+ poetry run cdf build --env dev
+ poetry run cdf deploy --dry-run
+ poetry run cdf deploy
+ ```
 
-   ```yaml
-   # config.<env>.yaml used in examples below
-   environment:
-     name: dev
-     project: <insert>
-     validation-type: dev
-     selected:
-       - modules/
+ ```yaml
+ # config.<env>.yaml used in examples below
+ environment:
+   name: dev
+   project: <insert>
+   validation-type: dev
+   selected:
+     - modules/
 
-   variables:
-     modules:
-       # stuff from quickstart package...
-       organization: tx
+ variables:
+   modules:
+     # stuff from quickstart package...
+     organization: tx
 
-       # ...
+     # ...
 
-       cdf_ingestion:
-         workflow: ingestion
-         groupSourceId: <insert>
-         ingestionClientId: ${IDP_CLIENT_ID}
-         ingestionClientSecret: ${IDP_CLIENT_SECRET}
-         pandidContextualizationFunction: contextualization_p_and_id_annotater
-         contextualization_connection_writer: contextualization_connection_writer
-         schemaSpace: sp_enterprise_process_industry
-         schemaSpace2: cdf_cdm
-         schemaSpace3: cdf_idm
-         instanceSpaces:
-           - springfield_instances
-           - cdf_cdm_units
-         runWorkflowUserIds:
-           - <insert>
+     cdf_ingestion:
+       workflow: ingestion
+       groupSourceId: <insert>
+       ingestionClientId: ${IDP_CLIENT_ID}
+       ingestionClientSecret: ${IDP_CLIENT_SECRET}
+       pandidContextualizationFunction: contextualization_p_and_id_annotater
+       contextualization_connection_writer: contextualization_connection_writer
+       schemaSpace: sp_enterprise_process_industry
+       schemaSpace2: cdf_cdm
+       schemaSpace3: cdf_idm
+       instanceSpaces:
+         - springfield_instances
+         - cdf_cdm_units
+       runWorkflowUserIds:
+         - <insert>
 
-       contextualization:
-         cdf_file_annotation:
-           # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
-           annotationDatasetExternalId: ds_file_annotation
+     contextualization:
+       cdf_file_annotation:
+         # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
+         annotationDatasetExternalId: ds_file_annotation
 
-           # used in /data_models and /extraction_pipelines
-           annotationStateExternalId: FileAnnotationState
-           annotationStateInstanceSpace: sp_dat_cdf_annotation_states
-           annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
-           annotationStateVersion: v1.0.1
-           fileSchemaSpace: sp_enterprise_process_industry
-           fileExternalId: txFile
-           fileVersion: v1
+         # used in /data_models and /extraction_pipelines
+         annotationStateExternalId: FileAnnotationState
+         annotationStateInstanceSpace: sp_dat_cdf_annotation_states
+         annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
+         annotationStateVersion: v1.0.1
+         fileSchemaSpace: sp_enterprise_process_industry
+         fileExternalId: txFile
+         fileVersion: v1
 
-           # used in /raw and /extraction_pipelines
-           rawDb: db_file_annotation
-           rawTableDocTag: annotation_documents_tags
-           rawTableDocDoc: annotation_documents_docs
-           rawTableCache: annotation_entities_cache
+         # used in /raw and /extraction_pipelines
+         rawDb: db_file_annotation
+         rawTableDocTag: annotation_documents_tags
+         rawTableDocDoc: annotation_documents_docs
+         rawTableCache: annotation_entities_cache
 
-           # used in /extraction_pipelines
-           extractionPipelineExternalId: ep_file_annotation
-           targetEntitySchemaSpace: sp_enterprise_process_industry
-           targetEntityExternalId: txEquipment
-           targetEntityVersion: v1
+         # used in /extraction_pipelines
+         extractionPipelineExternalId: ep_file_annotation
+         targetEntitySchemaSpace: sp_enterprise_process_industry
+         targetEntityExternalId: txEquipment
+         targetEntityVersion: v1
 
-           # used in /functions and /workflows
-           launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
-           launchFunctionVersion: v1.0.0
-           finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
-           finalizeFunctionVersion: v1.0.0
-           functionClientId: ${IDP_CLIENT_ID}
-           functionClientSecret: ${IDP_CLIENT_SECRET}
+         # used in /functions and /workflows
+         launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
+         launchFunctionVersion: v1.0.0
+         finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
+         finalizeFunctionVersion: v1.0.0
+         functionClientId: ${IDP_CLIENT_ID}
+         functionClientSecret: ${IDP_CLIENT_SECRET}
 
-           # used in /workflows
-           workflowSchedule: "*/10 * * * *"
-           workflowExternalId: wf_file_annotation
-           workflowVersion: v1
+         # used in /workflows
+         workflowSchedule: "*/10 * * * *"
+         workflowExternalId: wf_file_annotation
+         workflowVersion: v1
 
-           # used in /auth
-           groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
+         # used in /auth
+         groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
 
-       # ...
-   ```
+     # ...
+ ```
 
 <video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f"></video>
 
