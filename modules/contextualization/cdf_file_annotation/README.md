@@ -21,7 +21,14 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 - Python 3.11+
 - An active Cognite Data Fusion (CDF) project.
 - The required Python packages are listed in the `cdf_file_annotation/functions/fn_file_annotation_launch/requirements.txt` and `cdf_file_annotation/functions/fn_file_annotation_finalize/requirements.txt` files.
-- The file and target entity data models must include a property for entity matching, such as `aliases`, and a separate transformation or function that populates it. This property is used to match files to assets and should contain a list of alternative names or identifiers.
+- Alias and tag generation is abstracted out of the annotation function. Thus, you'll need to create a transformation that populates the `aliases` and `tags` property of your file and target entity view.
+   - The `aliases` property is used to match files with entities and should contain a list of alternative names or identifiers that can be found in the files image. 
+   - The `tags` property serves multiple purposes.
+      - (DetectInDiagrams) Identifies files and assets to include as entities. i.e) What files and assets can appear in the document that's being annotated. 
+      - (ToAnnotate) Identifies files that need to be annotated.
+      - (AnnotationInProcess) Identifies files that are in the process of being annotated.
+      - (Annotated) Identifies files that have been annotated.
+      - (AnnotationFailed) Identifies files that have failed the annotation process. Either by erroring out or by receiving 0 possible matches.
 
 ### Deployment Steps
 
@@ -266,4 +273,4 @@ The template is designed around a core set of abstract interfaces (e.g., `IDataM
 
 Hey everyone\! I'm Jack Zhao, the creator of this template. I want to give a huge shoutout to Thomas Molbach and Noah Karsky for providing invaluable input from a solution architect's point of view. I also want to thank Khaled Shaheen and Gayatri Babel for their help in building this.
 
-This code is my attempt to create a standard template that 'breaks' the cycle where projects build simple tools, outgrow them, and are then forced to build a new, bespoke, and often hard-to-reuse solution. I genuinely believe it's impossible for a template to have long-term success if it's not built on the fundamental premise of being extended. Customer needs will evolve, and new product features will create new opportunities for optimization.
+This code is my attempt to create a standard template that 'breaks' the cycle where projects build simple tools, outgrow them, and are then forced to build a new and often hard-to-reuse solution. I genuinely believe it's impossible for a template to have long-term success if it's not built on the fundamental premise of being extended. Customer needs will evolve, and new product features will create new opportunities for optimization.
