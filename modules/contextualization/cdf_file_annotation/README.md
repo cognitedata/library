@@ -177,7 +177,7 @@ This template is configured for easy local execution and debugging directly with
 
 ## How It Works
 
-The template operates in three main phases, orchestrated by CDF Workflows.
+The template operates in three main phases, orchestrated by CDF Workflows. Since the prepare phase is relatively small, it is bundled in with the launch phase. However, conceptually it should be treated as a separate process.
 
 ### Prepare Phase
 
