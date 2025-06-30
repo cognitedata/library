@@ -23,12 +23,14 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 - The required Python packages are listed in the `cdf_file_annotation/functions/fn_file_annotation_launch/requirements.txt` and `cdf_file_annotation/functions/fn_file_annotation_finalize/requirements.txt` files.
 - Alias and tag generation is abstracted out of the annotation function. Thus, you'll need to create a transformation that populates the `aliases` and `tags` property of your file and target entity view.
    - The `aliases` property is used to match files with entities and should contain a list of alternative names or identifiers that can be found in the files image. 
-   - The `tags` property serves multiple purposes.
-      - (DetectInDiagrams) Identifies files and assets to include as entities. i.e) What files and assets can appear in the document that's being annotated. 
-      - (ToAnnotate) Identifies files that need to be annotated.
-      - (AnnotationInProcess) Identifies files that are in the process of being annotated.
-      - (Annotated) Identifies files that have been annotated.
-      - (AnnotationFailed) Identifies files that have failed the annotation process. Either by erroring out or by receiving 0 possible matches.
+   - The `tags` property serves multiple purposes and consists of the following...
+      - (`DetectInDiagrams`) Identifies files and assets to include as entities filtered by primary scope and secondary scope (if provided).
+      - (`ScopeWideDetect`) Identifies files and asset to include as entities filtered by a primary scope.
+      - (`ToAnnotate`) Identifies files that need to be annotated.
+      - (`AnnotationInProcess`) Identifies files that are in the process of being annotated.
+      - (`Annotated`) Identifies files that have been annotated.
+      - (`AnnotationFailed`) Identifies files that have failed the annotation process. Either by erroring out or by receiving 0 possible matches.
+   - Don't worry if these concepts don't immediately make sense. Aliases and tags are explained in greater detail in the detailed_guides/ documentation. The template also includes a jupyter notebook that prepare the files and assets for annotation if using the toolkit's quickstart module.
 
 ### Deployment Steps
 
