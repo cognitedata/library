@@ -34,3 +34,6 @@ functionClientSecret: ${IDP_CLIENT_SECRET}
 workflowSchedule: "*/10 * * * *"
 workflowExternalId: wf_file_annotation
 workflowVersion: v1
+
+# used in /auth
+groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
