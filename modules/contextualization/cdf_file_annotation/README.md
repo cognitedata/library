@@ -68,6 +68,10 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 
 <video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8"></video>
 
+<video src="https://github.com/user-attachments/assets/6a27880d-4179-4903-9112-496f7975a2eb"></video>
+
+<video src="https://github.com/user-attachments/assets/c65980c4-b65f-4db4-8d36-765febfe65c9"></video>
+
 ### Local Development and Debugging
 
 This template is configured for easy local execution and debugging directly within Visual Studio Code.
@@ -80,6 +84,8 @@ This template is configured for easy local execution and debugging directly with
     - You will see dropdown options for launching the different functions (e.g., `Launch Function`, `Finalize Function`).
     - Select the function you wish to run and click the green "Start Debugging" arrow. This will start the function on your local machine, with the debugger attached, allowing you to set breakpoints and inspect variables.
     - Feel free to change/adjust the arguments passed into the function call to point to a test_extraction_pipeline and/or change the log level.
+
+<video src="https://github.com/user-attachments/assets/c18c05d8-2163-4301-8908-3821d5ffee48"></video>
 
 ## How It Works
 
