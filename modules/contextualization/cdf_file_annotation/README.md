@@ -225,7 +225,7 @@ Key configuration sections include:
 
 This file allows for deep customization. For example, you can use a list of query configurations to combine them with `OR` logic, or you can set `primaryScopeProperty` to `None` to process files that are not tied to a specific scope.
 
-## Diving Deeper: Advanced Guides
+## Detailed Guides
 
 This README provides a high-level overview of the template's purpose and architecture. To gain a deeper understanding of how to configure and extend the template, I highly recommend exploring the detailed guides located in the `cdf_file_annotation/detailed_guides/` directory:
 
@@ -244,9 +244,9 @@ There were two principles I kept in mind when designing this template.
   1.  **Quick Start (via Configuration):** For the majority of use cases, a user should only need to edit the `config.yaml` file. By defining their data model views and tuning process parameters, they can get the template running quickly and effectively.
   2.  **Scaling (via Interfaces):** When a project demands unique optimizations—like a non-standard batching strategy or a complex query to fetch entities—the interface-based design provides the necessary "escape hatch." A developer can write a custom Python class to implement their specialized logic, ensuring the template can meet any future requirement.
 
-## Architectural Highlights & Optimizations
+## Architecture & Optimizations
 
-This section explains some of the core design choices made to ensure the template is scalable, robust, and maintainable.
+This section explains some of the core design choices made to ensure the template is robust and scalable.
 
 ### Stateful Processing with Data Models
 
