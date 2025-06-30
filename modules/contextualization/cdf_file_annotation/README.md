@@ -36,7 +36,9 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 
 _(if videos fail to load, try loading page in incognito or re-sign into github)_
 
-1. **Create a CDF Project through Toolkit** - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/) - (optional) Initialize the quickstart package using toolkit CLI
+1. **Create a CDF Project through Toolkit**
+   - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
+   - (optional) Initialize the quickstart package using toolkit CLI
    ```bash
    poetry init
    poetry add cognite-toolkit
