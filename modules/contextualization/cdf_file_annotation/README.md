@@ -239,7 +239,7 @@ This section explains some of the core design choices made to ensure the templat
 
 ### Stateful Processing with Data Models
 
-Instead of using a simpler store like a RAW table to track the status of each file, this module uses a dedicated `AnnotationState` Data Model. There is a 1-to-1 relationship between a file being annotated (e.g., `mpcFile`) and its corresponding `AnnotationState` instance. This architectural choice is deliberate and crucial for scalability and reliability:
+Instead of using a simpler store like a RAW table to track the status of each file, this module uses a dedicated `AnnotationState` Data Model. There is a 1-to-1 relationship between a file being annotated and its corresponding `AnnotationState` instance. This architectural choice is deliberate and crucial for scalability and reliability:
 
 - **Concurrency and Atomicity:** Data Model instances have built-in optimistic locking via the `existing_version` field. When multiple parallel functions attempt to "claim" a job, only the first one can succeed in updating the `AnnotationState` instance. All others will receive a version conflict error. This atomic, database-level locking is far more reliable and simpler to manage than building a custom locking mechanism on top of RAW.
 - **Query Performance:** Finding all files that need processing (e.g., status is "New" or "Retry") is a fast, indexed query against the Data Model. Performing equivalent filtering on potentially millions of rows in a RAW table would be significantly slower and less efficient.
@@ -251,7 +251,7 @@ Instead of using a simpler store like a RAW table to track the status of each fi
 When processing tens of thousands of files, naively fetching context for each file is inefficient. This module implements a significant optimization based on experiences with large-scale projects.
 
 - **Rationale:** For many projects, the entities relevant to a given file are often co-located within the same site or operational unit. By grouping files based on these properties before processing, we can create a highly effective cache.
-- **Implementation:** The `launchFunction` configuration allows specifying a `primary_scope_property` (e.g., `sysSite`) and an optional `secondary_scope_property` (e.g., `sysUnit`). The `LaunchService` uses these properties to organize all files into ordered batches. The cache for entities is then loaded once for each context, drastically reducing the number of queries to CDF and improving overall throughput.
+- **Implementation:** The `launchFunction` configuration allows specifying a `primary_scope_property` and an optional `secondary_scope_property`. The `LaunchService` uses these properties to organize all files into ordered batches. The cache for entities is then loaded once for each context, drastically reducing the number of queries to CDF and improving overall throughput.
 
 ### Interface-Based Extensibility
 

@@ -68,7 +68,9 @@ def handle(data: dict, client: CogniteClient) -> dict:
         parts = overall_report.split("-")
         ep_parts = parts[4:7]
         extracted_string = " - ".join(ep_parts)
-        pipeline_instance.update_extraction_pipeline(msg=extracted_string)
+        pipeline_instance.update_extraction_pipeline(
+            msg=f"(Finalize) {extracted_string}"
+        )
         pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
