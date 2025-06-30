@@ -25,7 +25,7 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 
 ### Deployment Steps
 
-(if videos fail to load, try loading the library in incognito or resign into github)
+_(if videos fail to load, try loading page in incognito or re-sign into github)_
 
 1. **Create a CDF Project through Toolkit** - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/) - (optional) Initialize the quickstart package using toolkit CLI
    ```bash
