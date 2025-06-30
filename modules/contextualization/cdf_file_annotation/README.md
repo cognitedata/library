@@ -57,7 +57,7 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
    ```
    
    ```yaml
-   # config used in examples below
+   # config.<env>.yaml used in examples below
    environment:
      name: dev
      project: <insert>
