@@ -35,6 +35,9 @@ class GeneralPipelineService(IPipelineService):
         )
 
     def update_extraction_pipeline(self, msg: str) -> None:
+        """
+        Update the message log for the extraction pipeline
+        """
         if not self.ep_write.message:
             self.ep_write.message = msg
         else:
@@ -44,5 +47,8 @@ class GeneralPipelineService(IPipelineService):
         self,
         status: Literal["success", "failure", "seen"],
     ) -> None:
+        """
+        Upload the extraction pipeline run so that status and message logs are captured
+        """
         self.ep_write.status = status
         self.client.extraction_pipelines.runs.create(self.ep_write)
