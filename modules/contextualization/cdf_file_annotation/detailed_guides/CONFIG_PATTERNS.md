@@ -1,4 +1,4 @@
-# Annotation Template: Configuration Recipes and Usage Patterns
+# Configuration Recipes and Usage Patterns
 
 This guide provides practical examples and common usage patterns for the `extraction_pipeline_config.yaml` file. It is intended for users who are familiar with the overall architecture of the Annotation template and want to tailor its behavior for specific tasks.
 
@@ -178,7 +178,7 @@ In the `launchFunction` configuration, set the `primaryScopeProperty` to `None`.
 # In ep_file_annotation.config.yaml
 
 launchFunction:
-  primaryScopeProperty: None # Set to null or remove the line entirely
+  primaryScopeProperty: None # Set to None or remove the line entirely
   # ... (rest of launchFunction config)
   dataModelService:
     # ...
@@ -254,8 +254,9 @@ dataModelViews:
 
 To use the recommended "Isolated Scoping" pattern to annotate files across your entire system, you must adopt a multi-workflow approach:
 
-1.  **Create Separate Config Files:** For each `instanceSpace` (e.g., `sp_dat_files_austin`, `sp_dat_files_houston`), create a dedicated configuration file (e.g., `ep_file_annotation_austin.config.yaml`, `ep_file_annotation_houston.config.yaml`).
-2.  **Create Separate Extraction Pipelines:** In Cognite Data Fusion, create a corresponding `ExtractionPipeline` resource for each config file.
-3.  **Create and Trigger Separate Workflows:** Define separate workflows, one for each city. The Austin workflow would be triggered with the Austin extraction pipeline external ID, and the Houston workflow with its respective pipeline ID.
+1.  **Create Separate Auth Groups:** For each `instanceSpace` (e.g., `sp_dat_files_austin`, `sp_dat_files_houston`), create a dedicated configuration file (e.g. `file_annotation_<instance_space>.Group.yaml` file that contains capabilties with specified scopes.
+2.  **Create Separate Config Files:** For each `instanceSpace`, create a dedicated configuration file (e.g., `ep_file_annotation_austin.config.yaml`, `ep_file_annotation_houston.config.yaml`).
+3.  **Create Separate Extraction Pipelines:** In Cognite Data Fusion, create a corresponding `ExtractionPipeline` resource for each config file.
+4.  **Create and Trigger Separate Workflows:** Define separate workflows, one for each city. The Austin workflow would be triggered with the Austin extraction pipeline external ID, and the Houston workflow with its respective pipeline ID.
 
 This ensures that each annotation process runs in its own isolated, controlled, and configurable environment.
