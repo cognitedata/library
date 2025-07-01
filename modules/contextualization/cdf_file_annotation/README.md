@@ -162,9 +162,10 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
 
 <video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8"></video>
 
-<video src="https://github.com/user-attachments/assets/6a27880d-4179-4903-9112-496f7975a2eb"></video>
+<video src="https://github.com/user-attachments/assets/687c81c6-508b-4292-9211-e72f44f827c3"></video>
 
 <video src="https://github.com/user-attachments/assets/c65980c4-b65f-4db4-8d36-765febfe65c9"></video>
+
 
 ### Local Development and Debugging
 
