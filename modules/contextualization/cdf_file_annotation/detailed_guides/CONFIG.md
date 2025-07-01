@@ -31,7 +31,7 @@ This section specifies the Data Model views the function will interact with. Eac
   - `coreAnnotationView`: For storing annotation edges (e.g., `CogniteDiagramAnnotation`).
   - `annotationStateView`: For `FileAnnotationState` instances tracking file annotation progress.
   - `fileView`: For the primary files to be annotated (e.g., `CogniteFile`).
-  - `targetEntitiesView`: For target entities like assets (e.g., `CogniteAsset`) to be detected. _(Pydantic model name: `target_entities_view`)_
+  - `targetEntitiesView`: For target entities like assets (e.g., `CogniteAsset`) to be detected.
 
 ---
 
@@ -45,7 +45,6 @@ Configures the initial setup phase, primarily for selecting files to be annotate
 
   - **Purpose:** Selects specific files to have their annotation status reset (e.g., remove "Annotated"/"AnnotationInProcess" tags) to make them eligible for re-annotation.
   - **Usage:** If present, `LaunchService.prepare()` uses this query first.
-  - See [Query Configuration Details] below.
 
 - **`getFilesToAnnotateQuery`** (`QueryConfig | list[QueryConfig]`):
   - **Purpose:** The main query to find files that are ready for the annotation process (e.g., tagged "ToAnnotate" and not "AnnotationInProcess" or "Annotated").
