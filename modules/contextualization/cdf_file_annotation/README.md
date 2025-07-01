@@ -89,8 +89,8 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
      cdf_ingestion:
        workflow: ingestion
        groupSourceId: <insert>
-       ingestionClientId: ${IDP_CLIENT_ID}
-       ingestionClientSecret: ${IDP_CLIENT_SECRET}
+       ingestionClientId: ${IDP_CLIENT_ID} # Changed from ${INGESTION_CLIENT_ID}
+       ingestionClientSecret: ${IDP_CLIENT_SECRET} # Changed from ${INGESTION_CLIENT_SECRET}
        pandidContextualizationFunction: contextualization_p_and_id_annotater
        contextualization_connection_writer: contextualization_connection_writer
        schemaSpace: sp_enterprise_process_industry
