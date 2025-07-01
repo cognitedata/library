@@ -6,7 +6,7 @@ The Annotation template is a framework designed to automate the process of annot
 
 ## Key Features
 
-- **Configuration-Driven Workflow:** The entire process is controlled by a single `config.yaml` file, allowing adaptation to different data models and operational parameters without code changes.
+- **Configuration-Driven Workflow:** The entire process is controlled by a single config.yaml file, allowing adaptation to different data models and operational parameters without code changes.
 - **Large Document Support (\>50 Pages):** Automatically handles files with more than 50 pages by breaking them into manageable chunks, processing them iteratively, and tracking the overall progress.
 - **Parallel Execution Ready:** Designed for concurrent execution with a robust optimistic locking mechanism to prevent race conditions when multiple finalize function instances run in parallel.
 - **Detailed Reporting:** Local logs and processed annotation details stored in CDF RAW tables, fucntion logs, and extraction pipeline runs for auditing and analysis.
@@ -156,7 +156,7 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
    After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
 
    - (optional) Run the ingestion workflow from the quickstart package to create instances of <org>File, <org>Asset, etc
-     - Checkout the instantiated files that have been annotated using the annotation function from the quickstart package
+     - (optional) Checkout the instantiated files that have been annotated using the annotation function from the quickstart package
    - (optional) Run the local_setup.ipynb to setup the files for annotation
    - Run the File Annotation Workflow
 
@@ -257,9 +257,9 @@ This section explains some of the core design choices made to ensure the templat
 
 ### Stateful Processing with Data Models
 
-Instead of using a simpler store like a RAW table to track the status of each file, this module uses a dedicated `AnnotationState` Data Model. There is a 1-to-1 relationship between a file being annotated and its corresponding `AnnotationState` instance. This architectural choice is deliberate and crucial for scalability and reliability:
+Instead of using a simpler store like a RAW table to track the status of each file, this module uses a dedicated `AnnotationState` Data Model. There is a 1-to-1 relationship between a file being annotated and its corresponding `AnnotationState` instance. This architectural choice is deliberate and crucial for reliability:
 
-- **Concurrency and Atomicity:** Data Model instances have built-in optimistic locking via the `existing_version` field. When multiple parallel functions attempt to "claim" a job, only the first one can succeed in updating the `AnnotationState` instance. All others will receive a version conflict error. This atomic, database-level locking is far more reliable and simpler to manage than building a custom locking mechanism on top of RAW.
+- **Concurrency:** Data Model instances have built-in optimistic locking via the `existing_version` field. When multiple parallel functions attempt to "claim" a job, only the first one can succeed in updating the `AnnotationState` instance. All others will receive a version conflict error. This database-level locking is far more reliable and simpler to manage than building a custom locking mechanism on top of RAW.
 - **Query Performance:** Finding all files that need processing (e.g., status is "New" or "Retry") is a fast, indexed query against the Data Model. Performing equivalent filtering on potentially millions of rows in a RAW table would be significantly slower and less efficient.
 - **Schema Enforcement and Data Integrity:** The `AnnotationState` view enforces a strict schema for state information (`status`, `attemptCount`, `annotatedPageCount`, etc.), ensuring data consistency across the entire process. RAW tables offer no schema guarantees.
 - **Discoverability and Governance:** The state of the annotation pipeline is exposed as a first-class entity in the CDF data catalog. This makes it easy to monitor progress, build dashboards, and govern the data lifecycle, which is much more difficult with state hidden away in RAW rows.
@@ -282,4 +282,4 @@ The template is designed around a core set of abstract interfaces (e.g., `IDataM
 
 Hey everyone\! I'm Jack Zhao, the creator of this template. I want to give a huge shoutout to Thomas Molbach and Noah Karsky for providing invaluable input from a solution architect's point of view. I also want to thank Khaled Shaheen and Gayatri Babel for their help in building this.
 
-This code is my attempt to create a standard template that 'breaks' the cycle where projects build simple tools, outgrow them, and are then forced to build a new and often hard-to-reuse solution. I genuinely believe it's impossible for a template to have long-term success if it's not built on the fundamental premise of being extended. Customer needs will evolve, and new product features will create new opportunities for optimization.
+This code is my attempt to create a standard template that 'breaks' the cycle where projects build simple tools, outgrow them, and are then forced to build a new and often hard-to-reuse solution. My current belief is that it's impossible for a template to have long-term success if it's not built on the fundamental premise of being extended. Customer needs will evolve, and new product features will create new opportunities for optimization.
