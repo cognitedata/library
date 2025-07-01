@@ -149,7 +149,7 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
 
 <video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f"></video>
 
-<video src="https://github.com/user-attachments/assets/9a1f1154-6d1b-4f98-bd58-cdf54e297a46"></video>
+<video src="https://github.com/user-attachments/assets/0508acce-cb3c-4fbf-a1c2-5c781d9b3de7"></video>
 
 4. **Run the Workflow**
 
@@ -162,10 +162,9 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
 
 <video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8"></video>
 
-<video src="https://github.com/user-attachments/assets/687c81c6-508b-4292-9211-e72f44f827c3"></video>
+<video src="https://github.com/user-attachments/assets/b189910c-6eca-41c3-9f45-dbe83693ea42"></video>
 
-<video src="https://github.com/user-attachments/assets/c65980c4-b65f-4db4-8d36-765febfe65c9"></video>
-
+<video src="https://github.com/user-attachments/assets/fa267c9f-472d-4ad5-a35b-0102394de7e2"></video>
 
 ### Local Development and Debugging
 
@@ -180,7 +179,7 @@ This template is configured for easy local execution and debugging directly with
     - Select the function you wish to run and click the green "Start Debugging" arrow. This will start the function on your local machine, with the debugger attached, allowing you to set breakpoints and inspect variables.
     - Feel free to change/adjust the arguments passed into the function call to point to a test_extraction_pipeline and/or change the log level.
 
-<video src="https://github.com/user-attachments/assets/c18c05d8-2163-4301-8908-3821d5ffee48"></video>
+<video src="https://github.com/user-attachments/assets/f8c66306-1502-4e44-ac48-6b24f612900c"></video>
 
 ## How It Works
 
