@@ -6,11 +6,11 @@ Before reading this, you should be familiar with the high-level architecture des
 
 ## The Philosophy: Configuration vs. Code
 
-The template is built on a core philosophy of balancing ease of use with ultimate flexibility:
+The template is built on the core philosophy of balancing ease of use with flexibility:
 
 - **Configuration for Intent**: The `ep_file_annotation.config.yaml` is designed to handle the most common variations between projects (the "80%"). This includes pointing to different data models, defining data retrieval filters, setting thresholds, and toggling features. For most standard use cases, you should only need to edit this file.
 
-- **Code for Complexity**: When a project's requirements are highly specialized (the "20%"), configuration is not enough. Scenarios like complex business logic, unique performance optimizations, or integration with external systems require custom code. This is where the template's interface-based architecture becomes essential.
+- **Code for Complexity**: When a project's requirements are highly specialized (the "20%"), configuration is not enough. Scenarios like complex business logic, unique performance optimizations, or integration with external systems require custom code. This is where the template's interface-based architecture shines.
 
 > **Rule of Thumb**: If you find yourself trying to express complex procedural logic (e.g., "if-this-then-that") in the YAML, it's a sign that you should probably write a custom Python implementation of a service interface instead.
 
@@ -32,7 +32,7 @@ While any service can be replaced, these are the most common candidates for cust
 
 - **`ICacheService`**: Manages the in-memory entity cache. You might implement this if your project has a different caching strategy (e.g., different cache key logic, or fetching context from an external system).
 
-## How to Create a Custom Implementation: A Step-by-Step Example
+## How to Create a Custom Implementation
 
 Let's walk through a common scenario: your project requires a unique way to organize files for processing that the default `GeneralLaunchService` doesn't support.
 
@@ -134,4 +134,4 @@ def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchSer
 
 When the function now runs, you'll have an instance of `HighPriorityLaunchService` wherever an `AbstractLaunchService` is required. The rest of the application (like the `handler.py`) continues to function as before, completely unaware of the specific implementation it's using. It only knows it's working with a service that fulfills the `AbstractLaunchService` contract.
 
-This powerful pattern allows you to surgically replace or extend any part of the template's logic to meet your project's specific needs while leveraging the stability and functionality of the surrounding framework.
+This pattern allows you to replace or extend any part of the template's logic to meet your project's specific needs while leveraging the stability and functionality of the surrounding framework.
