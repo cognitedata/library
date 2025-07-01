@@ -97,19 +97,19 @@ def create_write_logger_service(log_level, filepath):
         return CogniteFunctionLogger(log_level=log_level, write=True, filepath=filepath)
 
 
-def create_retrieve_service(
+def create_general_retrieve_service(
     client: CogniteClient, config: Config, logger: CogniteFunctionLogger
 ) -> GeneralRetrieveService:
     return GeneralRetrieveService(client, config, logger)
 
 
-def create_report_service(
+def create_general_report_service(
     client: CogniteClient, config: Config, logger: CogniteFunctionLogger
 ) -> GeneralReportService:
     return GeneralReportService(client, config, logger)
 
 
-def create_apply_service(
+def create_general_apply_service(
     client: CogniteClient, config: Config, logger: CogniteFunctionLogger
 ) -> GeneralApplyService:
     return GeneralApplyService(client, config, logger)

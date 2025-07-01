@@ -7,9 +7,9 @@ from dependencies import (
     create_config_service,
     create_logger_service,
     create_write_logger_service,
-    create_report_service,
-    create_retrieve_service,
-    create_apply_service,
+    create_general_report_service,
+    create_general_retrieve_service,
+    create_general_apply_service,
     create_general_pipeline_service,
 )
 from services.FinalizeService import AbstractFinalizeService, GeneralFinalizeService
@@ -146,11 +146,13 @@ def _create_finalize_service(
     """
     Instantiate Finalize with interfaces.
     """
-    report_instance: IReportService = create_report_service(client, config, logger)
-    retrieve_instance: IRetrieveService = create_retrieve_service(
+    report_instance: IReportService = create_general_report_service(
         client, config, logger
     )
-    apply_instance: IApplyService = create_apply_service(client, config, logger)
+    retrieve_instance: IRetrieveService = create_general_retrieve_service(
+        client, config, logger
+    )
+    apply_instance: IApplyService = create_general_apply_service(client, config, logger)
     finalize_instance = GeneralFinalizeService(
         client=client,
         config=config,
