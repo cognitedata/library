@@ -127,16 +127,22 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     message=f"Retrieved job id ({job_id}) and claimed {len(file_to_state_map.values())} files"
                 )
         except CogniteAPIError as e:
-            if e.code == 400:
+            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
+            if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
+                # NOTE: Expected behavior. Means jobs has been claimed already.
                 self.logger.info(
                     message=f"Retrieved job id that has already been claimed. Grabbing another job.",
                     section="END",
                 )
-            else:
+                return
+            elif e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(
-                    message=f"Ran into the following error:\n\t{e}", section="END"
+                    message=f"Ran into the following error:\n{str(e)}", section="END"
                 )
-            return
+                return
+            else:
+                raise e
 
         try:
             job_results: dict | None = (

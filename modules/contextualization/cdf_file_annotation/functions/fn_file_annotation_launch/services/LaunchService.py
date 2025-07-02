@@ -151,9 +151,16 @@ class GeneralLaunchService(AbstractLaunchService):
                         f"Removed the AnnotationInProcess/Annotated/AnnotationFailed tag of {len(update_results)} files"
                     )
                 self.reset_files = False
-        except Exception as e:
-            self.logger.error(message=f"Ran into the following error:\n{str(e)}")
-            return
+        except CogniteAPIError as e:
+            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
+            if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
+                self.logger.error(
+                    message=f"Ran into the following error:\n{str(e)}"
+                )
+                return
+            else:
+                raise e
 
         try:
             file_nodes: NodeList | None = (
@@ -166,11 +173,16 @@ class GeneralLaunchService(AbstractLaunchService):
                 )
                 return "Done"
             self.logger.info(f"Preparing {len(file_nodes)} files")
-        except Exception as e:
-            self.logger.error(
-                message=f"Ran into the following error:\n{str(e)}", section="END"
-            )
-            return
+        except CogniteAPIError as e:
+            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
+            if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
+                self.logger.error(
+                    message=f"Ran into the following error:\n{str(e)}"
+                )
+                return
+            else:
+                raise e
 
         annotation_state_instances: list[NodeApply] = []
         file_apply_instances: list[NodeApply] = []
@@ -241,11 +253,16 @@ class GeneralLaunchService(AbstractLaunchService):
             self.logger.info(
                 message=f"Launching {len(file_nodes)} files", section="END"
             )
-        except Exception as e:
-            self.logger.error(
-                message=f"Ran into the following error: \n{str(e)}", section="END"
-            )
-            return
+        except CogniteAPIError as e:
+            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
+            if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
+                self.logger.error(
+                    message=f"Ran into the following error:\n{str(e)}"
+                )
+                return
+            else:
+                raise e
 
         processing_batches: list[FileProcessingBatch] = (
             self._organize_files_for_processing(file_nodes)
@@ -347,9 +364,16 @@ class GeneralLaunchService(AbstractLaunchService):
                 )
                 self._cached_primary_scope = primary_scope_value
                 self._cached_secondary_scope = secondary_scope_value
-            except Exception as e:
-                self.logger.error(f"Error refreshing cache")
-                raise
+            except CogniteAPIError as e:
+                # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
+                if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+                    # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
+                    self.logger.error(
+                        message=f"Ran into the following error:\n{str(e)}"
+                    )
+                    return
+                else:
+                    raise e
 
     def _process_batch(self, batch: BatchOfPairedNodes):
         """
