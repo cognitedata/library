@@ -31,7 +31,7 @@ functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 
 # used in /workflows
-workflowSchedule: "*/10 * * * *"
+workflowSchedule: "3-59/10 * * * *" # NOTE: runs every 10 minutes with a 3 minute offset
 workflowExternalId: wf_file_annotation
 workflowVersion: v1
 
