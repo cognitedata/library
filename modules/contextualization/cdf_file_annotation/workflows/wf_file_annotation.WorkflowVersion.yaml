@@ -20,7 +20,7 @@ workflowDefinition:
       timeout: 600
       onFailure: "abortWorkflow"
 
-    - externalId: fn_finailze_thread_1
+    - externalId: fn_finalize_thread_1
       type: "function"
       parameters:
         function:
@@ -37,7 +37,7 @@ workflowDefinition:
       timeout: 600
       onFailure: "abortWorkflow"
 
-    - externalId: fn_finailze_thread_2
+    - externalId: fn_finalize_thread_2
       type: "function"
       parameters:
         function:
@@ -54,7 +54,7 @@ workflowDefinition:
       timeout: 600
       onFailure: "abortWorkflow"
 
-    - externalId: fn_finailze_thread_3
+    - externalId: fn_finalize_thread_3
       type: "function"
       parameters:
         function:
@@ -71,7 +71,7 @@ workflowDefinition:
       timeout: 600
       onFailure: "abortWorkflow"
 
-    - externalId: fn_finailze_thread_4
+    - externalId: fn_finalize_thread_4
       type: "function"
       parameters:
         function:
@@ -88,7 +88,7 @@ workflowDefinition:
       timeout: 600
       onFailure: "abortWorkflow"
 
-    - externalId: fn_finailze_thread_5
+    - externalId: fn_finalize_thread_5
       type: "function"
       parameters:
         function:
