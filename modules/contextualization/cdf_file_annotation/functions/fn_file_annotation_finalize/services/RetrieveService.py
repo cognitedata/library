@@ -189,7 +189,7 @@ class GeneralRetrieveService(IRetrieveService):
                 == AnnotationStatus.FINALIZING
             ):
                 self.logger.debug("Lock bypassed. Caught on the client-side.")
-                raise CogniteAPIError(message="Job has already been claimed", code=400)
+                raise CogniteAPIError(message="A version conflict caused the ingest to fail.", code=400)
 
         update_results = self.client.data_modeling.instances.apply(
             nodes=list_job_nodes_to_claim
