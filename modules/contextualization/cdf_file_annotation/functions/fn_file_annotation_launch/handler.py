@@ -70,14 +70,18 @@ def handle(data: dict, client: CogniteClient) -> dict:
         logger_instance.error(message=msg, section="BOTH")
         return {"status": run_status, "message": msg}
     finally:
-        overall_report = tracker_instance.generate_overall_report()
-        logger_instance.info(overall_report, "BOTH")
-        # only want to report on the count of successful and failed files in ep_logs since they're relatively short
-        parts = overall_report.split("-")
-        ep_parts = parts[4:7]
-        extracted_string = " - ".join(ep_parts)
-        pipeline_instance.update_extraction_pipeline(msg=f"(Launch) {extracted_string}")
-        pipeline_instance.upload_extraction_pipeline(status=run_status)
+        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
+        # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured
+        # else run log will be too messy.
+        if (
+            tracker_instance.files_failed != 0
+            or tracker_instance.files_success != 0
+            or run_status == "failure"
+        ):
+            pipeline_instance.update_extraction_pipeline(
+                msg=tracker_instance.generate_ep_run("Launch")
+            )
+            pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
 def run_locally(config_file: dict[str, str], log_path: str | None = None):
