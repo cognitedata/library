@@ -153,11 +153,13 @@ class GeneralLaunchService(AbstractLaunchService):
                 self.reset_files = False
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+            if (
+                e.code == 408
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
+            ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(
-                    message=f"Ran into the following error:\n{str(e)}"
-                )
+                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
                 return
             else:
                 raise e
@@ -175,11 +177,13 @@ class GeneralLaunchService(AbstractLaunchService):
             self.logger.info(f"Preparing {len(file_nodes)} files")
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+            if (
+                e.code == 408
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
+            ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(
-                    message=f"Ran into the following error:\n{str(e)}"
-                )
+                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
                 return
             else:
                 raise e
@@ -255,11 +259,13 @@ class GeneralLaunchService(AbstractLaunchService):
             )
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+            if (
+                e.code == 408
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
+            ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(
-                    message=f"Ran into the following error:\n{str(e)}"
-                )
+                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
                 return
             else:
                 raise e
@@ -339,7 +345,7 @@ class GeneralLaunchService(AbstractLaunchService):
                         files=files_in_batch,
                     )
                 )
-                self.logger.debug(
+                self.logger.info(
                     message=f"Created batch of {len(files_in_batch)} files for {self.primary_scope_property}: {primary_property}, {self.secondary_scope_property}: {secondary_property}",
                     section="END",
                 )
@@ -366,7 +372,11 @@ class GeneralLaunchService(AbstractLaunchService):
                 self._cached_secondary_scope = secondary_scope_value
             except CogniteAPIError as e:
                 # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-                if e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+                if (
+                    e.code == 408
+                    and e.message
+                    == "Graph query timed out. Reduce load or contention, or optimise your query."
+                ):
                     # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                     self.logger.error(
                         message=f"Ran into the following error:\n{str(e)}"
