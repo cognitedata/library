@@ -56,7 +56,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
         return {"status": run_status, "data": data}
     except Exception as e:
         run_status = "failure"
-        msg = f"Ran into the following error: \n{str(e)}"
+        msg = f"{str(e)}"
         logger_instance.error(message=msg, section="BOTH")
         return {"status": run_status, "message": msg}
     finally:
