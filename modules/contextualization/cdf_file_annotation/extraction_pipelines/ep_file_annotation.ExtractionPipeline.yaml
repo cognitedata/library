@@ -26,9 +26,10 @@ documentation: >
   - `launchFunction`: Settings for launching annotation tasks.
 
   - `finalizeFunction`: Settings for processing and finalizing annotation results.
-  
+
 
   The entire structure is parsed into a main `Config` Pydantic model.
+
 
   ---
 
