@@ -25,7 +25,7 @@ This section specifies the Data Model views the function will interact with. Eac
   - `instanceSpace` (str, optional): The data space where instances of the view are stored (e.g., `sp_dat_cdf_annotation_states`). Defaults to `None`.
   - `externalId` (str): The external ID of the view (e.g., `FileAnnotationState`).
   - `version` (str): The version of the view (e.g., `v1.0.0`).
-  - `annotationType` (str, optional): For entity views, specifies the type of annotation link (e.g., `diagrams.FileLink`, `diagrams.AssetLink`). Defaults to `None`.
+  - `annotationType` (str, optional): For entity views, specifies the type of annotation link (e.g., `diagrams.FileLink`, `diagrams.AssetLink`). Defaults to `None`. The full list of annotation types can be found in the following documentation. https://api-docs.cognite.com/20230101-beta/tag/Annotations/operation/annotationsCreate.
 
 - **Configured Views in `ep_file_annotation.config.yaml`:**
   - `coreAnnotationView`: For storing annotation edges (e.g., `CogniteDiagramAnnotation`).
