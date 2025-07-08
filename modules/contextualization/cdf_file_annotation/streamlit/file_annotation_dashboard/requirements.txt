@@ -1,0 +1,4 @@
+pandas
+altair
+pyodide-http==0.2.1
+cognite-sdk==7.73.4
