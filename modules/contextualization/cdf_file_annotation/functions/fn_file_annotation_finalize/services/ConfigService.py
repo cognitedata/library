@@ -23,7 +23,27 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     instance_space: Optional[str] = None
     external_id: str
     version: str
-    annotation_type: Optional[Literal["diagrams.FileLink", "diagrams.AssetLink"]] = None
+    annotation_type: Optional[
+        Literal[
+            "pointcloud.BoundingVolume",
+            "images.Classification",
+            "forms.Detection",
+            "documents.ExtractedText",
+            "diagrams.FileLink",
+            "isoplan.IsoPlanAnnotation",
+            "diagrams.Junction",
+            "images.KeypointCollection",
+            "diagrams.Line",
+            "images.ObjectDetection",
+            "images.TextRegion",
+            "diagrams.UnhandledSymbolObject",
+            "diagrams.UnhandledTextObject",
+            "diagrams.AssetLink",
+            "diagrams.InstanceLink",
+            "images.AssetLink",
+            "images.InstanceLink",
+        ]
+    ] = None
 
     def as_view_id(self) -> dm.ViewId:
         return dm.ViewId(

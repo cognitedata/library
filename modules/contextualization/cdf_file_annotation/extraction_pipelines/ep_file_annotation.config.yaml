@@ -19,7 +19,7 @@ config:
       schemaSpace: {{ targetEntitySchemaSpace }}
       externalId: {{ targetEntityExternalId }}
       version: {{ targetEntityVersion }}
-      annotationType: diagrams.AssetLink
+      annotationType: diagrams.InstanceLink
   prepareFunction:
     # getFilesForAnnotationResetQuery:
     #   targetView:
