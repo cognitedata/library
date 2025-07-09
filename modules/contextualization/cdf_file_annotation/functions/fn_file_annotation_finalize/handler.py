@@ -20,7 +20,7 @@ from services.PipelineService import IPipelineService
 from utils.DataStructures import PerformanceTracker
 
 
-def handle(data: dict, client: CogniteClient) -> dict:
+def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     """
     Main entry point for the cognite function.
     1. Create an instance of config, logger, and tracker
@@ -32,6 +32,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
     NOTE: Cognite functions have a run-time limit of 10 minutes.
     Don't want the function to die at the 10minute mark since there's no guarantee all code will execute.
     Thus we set a timelimit of 7 minutes (conservative) so that code execution is guaranteed.
+    documentation on the calling a function can be found here...  https://api-docs.cognite.com/20230101/tag/Function-calls/operation/postFunctionsCall
     """
     start_time = datetime.now(timezone.utc)
     log_level = data.get("logLevel", "INFO")
@@ -69,8 +70,12 @@ def handle(data: dict, client: CogniteClient) -> dict:
             or tracker_instance.files_success != 0
             or run_status == "failure"
         ):
+            function_external_id = function_call_info.get("function_external_id")
+            call_id = function_call_info.get("call_id")
             pipeline_instance.update_extraction_pipeline(
-                msg=tracker_instance.generate_ep_run("Finalize")
+                msg=tracker_instance.generate_ep_run(
+                    "Finalize", function_external_id, call_id
+                )
             )
             pipeline_instance.upload_extraction_pipeline(status=run_status)
 

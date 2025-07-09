@@ -319,8 +319,19 @@ class PerformanceTracker:
         report = f" Run started {datetime.now(timezone.utc)}\n- total runs: {self.total_runs}\n- total files processed: {self.files_success+self.files_failed}\n- successful files: {self.files_success}\n- failed files: {self.files_failed}\n- total run time: {self.total_time_delta}\n- average run time: {self._average_run_time()}"
         return report
 
-    def generate_ep_run(self, caller: Literal["Launch", "Finalize"]) -> str:
-        report = f"({caller}) total files processed: {self.files_success+self.files_failed} - successful files: {self.files_success} - failed files: {self.files_failed}"
+    def generate_ep_run(
+        self,
+        caller: Literal["Launch", "Finalize"],
+        function_external_id: str | None,
+        call_id: str | None,
+    ) -> str:
+        """Generates the report string for the extraction pipeline run."""
+        report = (
+            f"(caller:{caller}, function_id:{function_external_id}, call_id:{call_id}) - "
+            f"total files processed: {self.files_success + self.files_failed} - "
+            f"successful files: {self.files_success} - "
+            f"failed files: {self.files_failed}"
+        )
         return report
 
     def reset(self) -> None:
