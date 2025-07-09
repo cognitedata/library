@@ -2,6 +2,7 @@ import streamlit as st
 from cognite.client.data_classes.data_modeling import ViewId
 from dataclasses import dataclass
 
+
 # Configuration Classes
 @dataclass
 class ViewPropertyConfig:
