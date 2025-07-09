@@ -151,8 +151,10 @@ if not df_raw.empty:
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total Files", len(df_filtered))
-    with col3:
+    with col2:
         st.metric("Annotated", status_counts.get("Annotated", 0))
+    with col3:
+        st.metric("New", status_counts.get("New", 0))
     with col3:
         st.metric("Processing", status_counts.get("Processing", 0))
     with col4:
