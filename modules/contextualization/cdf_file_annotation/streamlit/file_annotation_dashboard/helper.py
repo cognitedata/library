@@ -10,6 +10,7 @@ from data_structures import ViewPropertyConfig
 
 client = CogniteClient()
 
+PIPELINE_EXT_ID = "ep_file_annotation" #NOTE: hard coded since it shouldn't change that often.
 
 @st.cache_data(ttl=3600)  # Cache data for an hour
 def fetch_extraction_pipeline_config() -> tuple[dict, ViewPropertyConfig, ViewPropertyConfig]:
