@@ -1,29 +1,42 @@
-import streamlit as st
-import pandas as pd
 import os
 import re
+import yaml
+import streamlit as st
+import pandas as pd
 from datetime import datetime, timedelta
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import ViewId
+from data_structures import ViewPropertyConfig
 
 client = CogniteClient()
 
-# Always retrieve the latest file annotation state view
-view: ViewId = client.data_modeling.views.retrieve(
-    ("sp_hdm", "FileAnnotationState"), all_versions=False
-)[0].as_id()
 
-instance_space: str = "sp_dat_cdf_annotation_states"
-pipeline_ext_id: str = "ep_file_annotation"
+@st.cache_data(ttl=3600)  # Cache data for an hour
+def fetch_extraction_pipeline_config() -> tuple[dict, ViewPropertyConfig, ViewPropertyConfig]:
+    """
+    Fetch configurations from the latest extraction 
+    """
+    ep_configuration: ExtractionPipelineConfig = client.extraction_pipelines.config.retrieve(
+        external_id=pipeline_ext_id
+    )
+    config_dict = yaml.safe_load(ep_configuration.config)
+
+    local_annotation_state_view = config_dict['dataModelViews']['annotationStateView']
+    annotation_state_view = ViewPropertyConfig(local_annotation_state_view['schemaSpace'], local_annotation_state_view['externalId'], local_annotation_state_view['version'], local_annotation_state_view['instanceSpace'])
+    
+    local_file_view = config_dict['dataModelViews']['fileView']
+    file_view = ViewPropertyConfig(local_file_view['schemaSpace'], local_file_view['externalId'], local_file_view['version'], local_file_view.get('instanceSpace'))
+
+    return (config_dict, annotation_state_view, file_view)
 
 
-@st.cache_data(ttl=3600)  # Cache data for 5 minutes
-def fetch_annotation_states(project):
+@st.cache_data(ttl=3600)  # Cache data for an hour
+def fetch_annotation_states(annotation_state_view: ViewPropertyConfig):
     """
     Fetches annotation state instances from the specified data model view.
     """
     result = client.data_modeling.instances.list(
-        instance_type="node", space=instance_space, sources=view, limit=-1
+        instance_type="node", space=annotation_state_view.instance_space, sources=annotation_state_view.as_view_id(), limit=-1
     )
     if not result:
         st.info("No annotation state instances found in the specified view.")
@@ -39,7 +52,7 @@ def fetch_annotation_states(project):
             "lastUpdatedTime": pd.to_datetime(instance.last_updated_time, unit="ms"),
         }
         # Add properties from the view
-        for prop_key, prop_value in instance.properties[view].items():
+        for prop_key, prop_value in instance.properties[annotation_state_view.as_view_id()].items():
             if prop_key == "linkedFile":
                 node_data["fileExternalId"] = prop_value[
                     "externalId"
@@ -71,7 +84,7 @@ def fetch_annotation_states(project):
 
 
 @st.cache_data(ttl=3600)
-def fetch_pipeline_run_history(project):
+def fetch_pipeline_run_history():
     """
     Fetches the full run history for a given extraction pipeline.
     """

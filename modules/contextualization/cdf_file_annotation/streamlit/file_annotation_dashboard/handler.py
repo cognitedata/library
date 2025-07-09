@@ -7,7 +7,9 @@ from helper import (
     fetch_annotation_states,
     fetch_pipeline_run_history,
     process_runs_for_graphing,
+    fetch_extraction_pipeline_config,
 )
+
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -16,11 +18,21 @@ st.set_page_config(
     layout="wide",
 )
 
+ep_config, annotation_state_view, file_view = fetch_extraction_pipeline_config()
+df_raw = fetch_annotation_states(annotation_state_view)
+pipeline_runs = fetch_pipeline_run_history()
+
 # --- Sidebar for Inputs ---
 with st.sidebar:
     st.header("Data Model Identifiers")
-    primary_scope_property = st.text_input("Primary Scope", value="All") # TODO: haven't implemented this yet
-    secondary_scope_property= st.text_input("Secondary Scope", value="All") # TODO:haven't implemented this yet
+    if ep_config["launchFunction"].get("primaryScopeProperty") != "None":
+        primary_scope_property = st.text_input(
+            ep_config["launchFunction"].get("primaryScopeProperty"), value="All"
+        )  # TODO: haven't implemented this yet
+    if ep_config["launchFunction"].get("secondaryScopeProperty"):
+        secondary_scope_property = st.text_input(
+            ep_config["launchFunction"].get("secondaryScopeProperty"), value="All"
+        )  # TODO:haven't implemented this yet
     if st.button("Refresh Data"):
         st.cache_data.clear()
 
@@ -29,9 +41,6 @@ st.title("📄 File Annotation Status Dashboard")
 st.markdown(
     "This application provides an audit trail and overview of the file annotation process."
 )
-
-df_raw = fetch_annotation_states(project)
-pipeline_runs = fetch_pipeline_run_history(project)
 
 if not df_raw.empty:
     st.sidebar.header("Filters")
