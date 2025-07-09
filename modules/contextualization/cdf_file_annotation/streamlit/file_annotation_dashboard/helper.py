@@ -17,7 +17,7 @@ instance_space: str = "sp_dat_cdf_annotation_states"
 pipeline_ext_id: str = "ep_file_annotation"
 
 
-@st.cache_data(ttl=300)  # Cache data for 5 minutes
+@st.cache_data(ttl=3600)  # Cache data for 5 minutes
 def fetch_annotation_states(project):
     """
     Fetches annotation state instances from the specified data model view.
@@ -70,7 +70,7 @@ def fetch_annotation_states(project):
     return df
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600)
 def fetch_pipeline_run_history(project):
     """
     Fetches the full run history for a given extraction pipeline.

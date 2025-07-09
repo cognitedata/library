@@ -18,11 +18,9 @@ st.set_page_config(
 
 # --- Sidebar for Inputs ---
 with st.sidebar:
-    st.header("CDF Connection Settings")
     st.header("Data Model Identifiers")
-    project = st.text_input("Project", value="Refining")
-    site = st.text_input("Site", value="All")
-    unit = st.text_input("Unit", value="All")
+    primary_scope_property = st.text_input("Primary Scope", value="All") # TODO: haven't implemented this yet
+    secondary_scope_property= st.text_input("Secondary Scope", value="All") # TODO:haven't implemented this yet
     if st.button("Refresh Data"):
         st.cache_data.clear()
 
