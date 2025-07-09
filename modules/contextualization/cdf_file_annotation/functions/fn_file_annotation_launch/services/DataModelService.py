@@ -194,7 +194,8 @@ class GeneralDataModelService(IDataModelService):
         """
         filter = (getFilesToProcess filter || (annotationStatus == Processing && now() - lastUpdatedTime) > 1440 minutes)
         - getFilesToProcess filter comes from extraction pipeline
-        - (annotationStatus == Processing && now() - lastUpdatedTime) > 1440 minutes -> hardcoded -> reprocesses any file that has
+        - (annotationStatus == Processing | Finalizing && now() - lastUpdatedTime) > 720 minutes/12 hours -> hardcoded -> reprocesses any file that's stuck
+            - Edge case that occurs very rarely but can happen.
         NOTE: Implementation of a more complex query that can't be handled in config should come from an implementation of the interface.
         """
         filterA: Filter = self.filter_files_to_process
@@ -205,14 +206,16 @@ class GeneralDataModelService(IDataModelService):
         annotation_last_updated_property = self.annotation_state_view.as_property_ref(
             "sourceUpdatedTime"
         )
+        # NOTE: While this number is hard coded, I believe it doesn't need to be configured. Number comes from my experience with the pipeline. Feel free to change if your experience leads to a different number
         latest_permissible_time_utc = datetime.now(timezone.utc) - timedelta(
-            minutes=1440
+            minutes=720
         )
         latest_permissible_time_utc = latest_permissible_time_utc.isoformat(
             timespec="milliseconds"
         )
-        filterB = Equals(
-            annotation_status_property, AnnotationStatus.PROCESSING
+        filterB = In(
+            annotation_status_property,
+            [AnnotationStatus.PROCESSING, AnnotationStatus.FINALIZING],
         ) & Range(annotation_last_updated_property, lt=latest_permissible_time_utc)
 
         filter = filterA | filterB

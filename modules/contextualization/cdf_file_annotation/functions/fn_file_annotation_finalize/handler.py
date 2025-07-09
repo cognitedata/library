@@ -70,12 +70,10 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
             or tracker_instance.files_success != 0
             or run_status == "failure"
         ):
-            function_external_id = function_call_info.get("function_external_id")
+            function_id = function_call_info.get("function_id")
             call_id = function_call_info.get("call_id")
             pipeline_instance.update_extraction_pipeline(
-                msg=tracker_instance.generate_ep_run(
-                    "Finalize", function_external_id, call_id
-                )
+                msg=tracker_instance.generate_ep_run("Finalize", function_id, call_id)
             )
             pipeline_instance.upload_extraction_pipeline(status=run_status)
 

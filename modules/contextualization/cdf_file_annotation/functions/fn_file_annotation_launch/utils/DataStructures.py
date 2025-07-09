@@ -322,12 +322,12 @@ class PerformanceTracker:
     def generate_ep_run(
         self,
         caller: Literal["Launch", "Finalize"],
-        function_external_id: str | None,
+        function_id: str | None,
         call_id: str | None,
     ) -> str:
         """Generates the report string for the extraction pipeline run."""
         report = (
-            f"(caller:{caller}, function_id:{function_external_id}, call_id:{call_id}) - "
+            f"(caller:{caller}, function_id:{function_id}, call_id:{call_id}) - "
             f"total files processed: {self.files_success + self.files_failed} - "
             f"successful files: {self.files_success} - "
             f"failed files: {self.files_failed}"
