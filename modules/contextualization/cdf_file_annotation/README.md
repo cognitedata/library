@@ -12,6 +12,8 @@ The Annotation template is a framework designed to automate the process of annot
 - **Detailed Reporting:** Local logs and processed annotation details stored in CDF RAW tables, fucntion logs, and extraction pipeline runs for auditing and analysis.
 - **Local Running and Debugging:** Both the launch and finalize handler can be ran locally and have default setups in the 'Run & Debug' tab in vscode. Requires a .env file to be placed in the directory.
 
+<video src="https://github.com/user-attachments/assets/b33c6a5f-0078-46b6-9f5a-dae30713ae5e"></video>
+
 ## Getting Started
 
 Deploying this annotation module into a new Cognite Data Fusion (CDF) project is a streamlined process. Since all necessary resources (Data Sets, Extraction Pipelines, Functions, etc.) are bundled into a single module, you only need to configure one file to get started.
@@ -34,7 +36,9 @@ Deploying this annotation module into a new Cognite Data Fusion (CDF) project is
 
 ### Deployment Steps
 
-_(if videos fail to load, try loading page in incognito or re-sign into github)_
+_**NOTE:** I'm constantly improving this template, thus some parts of the video walkthroughs are from an older version. The video tutorials below are still **relevant**. Any breaking changes will receive a new video tutorial._
+
+_(if videos fail to load, try loading page in incognito or re-sign into github) ~ Hope y'all enjoy :)_
 
 1. **Create a CDF Project through Toolkit**
    - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
@@ -163,6 +167,8 @@ _(if videos fail to load, try loading page in incognito or re-sign into github)_
 <video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8"></video>
 
 <video src="https://github.com/user-attachments/assets/b189910c-6eca-41c3-9f45-dbe83693ea42"></video>
+
+<video src="https://github.com/user-attachments/assets/b5d932c2-4b58-4b04-95cf-dd748aa3e3b1"></video>
 
 <video src="https://github.com/user-attachments/assets/fa267c9f-472d-4ad5-a35b-0102394de7e2"></video>
 
