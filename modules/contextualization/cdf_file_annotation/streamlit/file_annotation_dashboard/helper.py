@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import ViewId
+from cognite.client.data_classes.data_modeling import ViewId, NodeId
 from cognite.client.data_classes.functions import FunctionCallLog
 from data_structures import ViewPropertyConfig
 
@@ -69,22 +69,28 @@ def fetch_extraction_pipeline_config() -> (
 
 
 @st.cache_data(ttl=3600)
-def fetch_annotation_states(annotation_state_view: ViewPropertyConfig):
+def fetch_annotation_states(
+    annotation_state_view: ViewPropertyConfig, file_view: ViewPropertyConfig
+):
     """
-    Fetches annotation state instances from the specified data model view.
+    Fetches annotation state instances from the specified data model view
+    and joins them with their corresponding file instances.
     """
-    result = client.data_modeling.instances.list(
+    # 1. Fetch all annotation state instances
+    annotation_instances = client.data_modeling.instances.list(
         instance_type="node",
         space=annotation_state_view.instance_space,
         sources=annotation_state_view.as_view_id(),
         limit=-1,
     )
-    if not result:
+    if not annotation_instances:
         st.info("No annotation state instances found in the specified view.")
         return pd.DataFrame()
 
-    data = []
-    for instance in result:
+    # 2. Process annotation states and collect NodeIds for linked files
+    annotation_data = []
+    nodes_to_fetch = []
+    for instance in annotation_instances:
         node_data = {
             "externalId": instance.external_id,
             "space": instance.space,
@@ -94,18 +100,69 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig):
         for prop_key, prop_value in instance.properties[
             annotation_state_view.as_view_id()
         ].items():
-            if prop_key == "linkedFile":
-                node_data["fileExternalId"] = prop_value.get("externalId")
+            if prop_key == "linkedFile" and prop_value:
+                file_external_id = prop_value.get("externalId")
+                file_space = prop_value.get("space")
+                node_data["fileExternalId"] = file_external_id
+                node_data["fileSpace"] = file_space
+                if file_external_id and file_space:
+                    nodes_to_fetch.append(
+                        NodeId(space=file_space, external_id=file_external_id)
+                    )
             node_data[prop_key] = prop_value
-        data.append(node_data)
+        annotation_data.append(node_data)
 
-    df = pd.DataFrame(data)
-    if "createdTime" in df.columns:
-        df["createdTime"] = df["createdTime"].dt.tz_localize("UTC")
-    if "lastUpdatedTime" in df.columns:
-        df["lastUpdatedTime"] = df["lastUpdatedTime"].dt.tz_localize("UTC")
+    df_annotations = pd.DataFrame(annotation_data)
+    if df_annotations.empty or not nodes_to_fetch:
+        return df_annotations
 
-    df.rename(
+    # 3. Fetch corresponding file instances using the collected NodeIds
+    # Remove duplicates before fetching
+    unique_nodes_to_fetch = list(set(nodes_to_fetch))
+    file_instances = client.data_modeling.instances.retrieve_nodes(
+        nodes=unique_nodes_to_fetch, sources=file_view.as_view_id()
+    )
+
+    # 4. Process file instances into a DataFrame
+    file_data = []
+    for instance in file_instances:
+        node_data = {
+            "fileExternalId": instance.external_id,
+            "fileSpace": instance.space,
+        }
+        properties = instance.properties[file_view.as_view_id()]
+
+        for prop_key, prop_value in properties.items():
+            if isinstance(prop_value, list):
+                string_values = []
+                for value in prop_value:
+                    string_values.append(value)
+                node_data[f"file{prop_key.capitalize()}"] = ", ".join(
+                    filter(None, string_values)
+                )
+            else:
+                node_data[f"file{prop_key.capitalize()}"] = prop_value
+        file_data.append(node_data)
+
+    if not file_data:
+        return df_annotations
+
+    df_files = pd.DataFrame(file_data)
+
+    # 5. Merge annotation data with file data
+    df_merged = pd.merge(
+        df_annotations, df_files, on=["fileExternalId", "fileSpace"], how="left"
+    )
+
+    # 6. Final data cleaning and preparation
+    if "createdTime" in df_merged.columns:
+        df_merged["createdTime"] = df_merged["createdTime"].dt.tz_localize("UTC")
+    if "lastUpdatedTime" in df_merged.columns:
+        df_merged["lastUpdatedTime"] = df_merged["lastUpdatedTime"].dt.tz_localize(
+            "UTC"
+        )
+
+    df_merged.rename(
         columns={
             "annotationStatus": "status",
             "attemptCount": "retries",
@@ -115,9 +172,10 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig):
     )
 
     for col in ["status", "fileExternalId", "retries", "jobId"]:
-        if col not in df.columns:
-            df[col] = None
-    return df
+        if col not in df_merged.columns:
+            df_merged[col] = None
+
+    return df_merged
 
 
 @st.cache_data(ttl=3600)
