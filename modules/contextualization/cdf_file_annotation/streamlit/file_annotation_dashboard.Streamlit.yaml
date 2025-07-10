@@ -1,0 +1,8 @@
+externalId: file_annotation_dashboard
+name: File Annotation Dashboard
+creator: jack.zhao72.jz@gmail.com (feel free to change)
+description: Dashboard to inspect the health of the File Annotation Pipeline
+published: true
+theme: Light
+dataSetExternalId: ds_file_annotation
+entrypoint: Extraction_Pipeline.py

@@ -128,14 +128,21 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 )
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
+            if (
+                e.code == 400
+                and e.message == "A version conflict caused the ingest to fail."
+            ):
                 # NOTE: Expected behavior. Means jobs has been claimed already.
                 self.logger.info(
                     message=f"Retrieved job id that has already been claimed. Grabbing another job.",
                     section="END",
                 )
                 return
-            elif e.code == 408 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query.":
+            elif (
+                e.code == 408
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
+            ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(
                     message=f"Ran into the following error:\n{str(e)}", section="END"
