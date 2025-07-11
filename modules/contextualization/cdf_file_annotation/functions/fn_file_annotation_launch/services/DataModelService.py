@@ -198,8 +198,6 @@ class GeneralDataModelService(IDataModelService):
             - Edge case that occurs very rarely but can happen.
         NOTE: Implementation of a more complex query that can't be handled in config should come from an implementation of the interface.
         """
-        filterA: Filter = self.filter_files_to_process
-
         annotation_status_property = self.annotation_state_view.as_property_ref(
             "annotationStatus"
         )
@@ -213,12 +211,12 @@ class GeneralDataModelService(IDataModelService):
         latest_permissible_time_utc = latest_permissible_time_utc.isoformat(
             timespec="milliseconds"
         )
-        filterB = In(
+        filter_stuck = In(
             annotation_status_property,
             [AnnotationStatus.PROCESSING, AnnotationStatus.FINALIZING],
         ) & Range(annotation_last_updated_property, lt=latest_permissible_time_utc)
 
-        filter = filterA | filterB # | == OR
+        filter = self.filter_files_to_process | filter_stuck  # | == OR
         return filter
 
     def update_annotation_state(
@@ -290,30 +288,34 @@ class GeneralDataModelService(IDataModelService):
             or
             - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
         """
-        filterA: Filter = Equals(
+        filter_primary_scope: Filter = Equals(
             property=self.target_entities_view.as_property_ref(
                 self.config.launch_function.primary_scope_property
             ),
             value=primary_scope_value,
         )
-        filterB: Filter = self.filter_target_entities
+        filter_entities: Filter = self.filter_target_entities
         # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
-        filterC: Filter = In(
+        filter_scope_wide: Filter = In(
             property=self.target_entities_view.as_property_ref("tags"),
             values=["ScopeWideDetect"],
         )
         if not primary_scope_value:
-            target_filter = filterB | filterC
+            target_filter = filter_entities | filter_scope_wide
         elif secondary_scope_value:
-            filterD: Filter = Equals(
+            filter_secondary_scope: Filter = Equals(
                 property=self.target_entities_view.as_property_ref(
                     self.config.launch_function.secondary_scope_property
                 ),
                 value=secondary_scope_value,
             )
-            target_filter = (filterA & filterD & filterB) | (filterA & filterC)
+            target_filter = (
+                filter_primary_scope & filter_secondary_scope & filter_entities
+            ) | (filter_primary_scope & filter_scope_wide)
         else:
-            target_filter = (filterA & filterB) | (filterA & filterC)
+            target_filter = (filter_primary_scope & filter_entities) | (
+                filter_primary_scope & filter_scope_wide
+            )
         return target_filter
 
     def _get_file_entities_filter(
@@ -325,34 +327,43 @@ class GeneralDataModelService(IDataModelService):
             or
             - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
         """
-        filterA: Filter = Equals(
+        filter_primary_scope: Filter = Equals(
             property=self.file_view.as_property_ref(
                 self.config.launch_function.primary_scope_property
             ),
             value=primary_scope_value,
         )
-        filterB: Filter = self.filter_file_entities
-        filterC: Filter = Exists(
+        filter_entities: Filter = self.filter_file_entities
+        filter_search_property_exists: Filter = Exists(
             property=self.file_view.as_property_ref(
                 self.config.launch_function.file_search_property
             ),
         )
         # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
-        filterD: Filter = In(
+        filter_scope_wide: Filter = In(
             property=self.file_view.as_property_ref("tags"),
             values=["ScopeWideDetect"],
         )
         if not primary_scope_value:
-            file_filter = (filterB & filterC) | (filterD)
+            file_filter = (filter_entities & filter_search_property_exists) | (
+                filter_scope_wide
+            )
         elif secondary_scope_value:
-            filterE: Filter = Equals(
+            filter_secondary_scope: Filter = Equals(
                 property=self.file_view.as_property_ref(
                     self.config.launch_function.secondary_scope_property
                 ),
                 value=secondary_scope_value,
             )
-            file_filter = (filterA & filterB & filterE & filterC) | (filterA & filterD)
+            file_filter = (
+                filter_primary_scope
+                & filter_entities
+                & filter_secondary_scope
+                & filter_search_property_exists
+            ) | (filter_primary_scope & filter_scope_wide)
         else:
-            file_filter = (filterA & filterB & filterC) | (filterA & filterD)
+            file_filter = (
+                filter_primary_scope & filter_entities & filter_search_property_exists
+            ) | (filter_primary_scope & filter_scope_wide)
 
         return file_filter
