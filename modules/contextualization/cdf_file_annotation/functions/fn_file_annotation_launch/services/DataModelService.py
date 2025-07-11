@@ -115,7 +115,7 @@ class GeneralDataModelService(IDataModelService):
               Furthermore, there is an implicit guarantee that a filter will be returned b/c launch checks if the query exists.
         """
         if not self.config.prepare_function.get_files_for_annotation_reset_query:
-            return None
+            return
 
         filter_files_for_annotation_reset: Filter = build_filter_from_query(
             self.config.prepare_function.get_files_for_annotation_reset_query

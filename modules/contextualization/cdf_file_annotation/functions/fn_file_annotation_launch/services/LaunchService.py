@@ -1,6 +1,6 @@
 import time
 import abc
-from typing import cast
+from typing import cast, Literal
 from datetime import datetime, timezone
 from collections import defaultdict
 from cognite.client import CogniteClient
@@ -111,7 +111,7 @@ class GeneralLaunchService(AbstractLaunchService):
             self.reset_files = True
 
     # NOTE: I believe this code should be encapsulated as a separate CDF function named prepFunction. Due to the amount of cdf functions we can spin up, we're coupling this within the launchFunction.
-    def prepare(self):
+    def prepare(self) -> Literal["Done"] | None:
         """
         Retrieves files marked "ToAnnotate" in the tags property and creates a 1-to-1 ratio of FileAnnotationState instances to files
         """
@@ -237,8 +237,9 @@ class GeneralLaunchService(AbstractLaunchService):
             raise
 
         self.tracker.add_files(success=len(file_nodes))
+        return
 
-    def run(self):
+    def run(self) -> Literal["Done"] | None:
         """
         The main entry point for the launch service. It prepares the files and then
         processes them in organized, context-aware batches.
@@ -306,7 +307,7 @@ class GeneralLaunchService(AbstractLaunchService):
             self.logger.info(message=f"Finished processing for {msg}", section="END")
 
         self.tracker.add_files(success=total_files_processed)
-        return None
+        return
 
     def _organize_files_for_processing(
         self, list_files: NodeList

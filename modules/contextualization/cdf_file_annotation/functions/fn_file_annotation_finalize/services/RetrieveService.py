@@ -77,7 +77,7 @@ class GeneralRetrieveService(IRetrieveService):
             self.logger.debug(
                 f"{job_id} - Request to get job result failed with {response.status_code} code"
             )
-        return None
+        return
 
     def get_job_id(self) -> tuple[int, dict[NodeId, Node]] | tuple[None, None]:
         """
