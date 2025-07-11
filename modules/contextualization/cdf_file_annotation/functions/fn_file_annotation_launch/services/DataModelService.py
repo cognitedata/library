@@ -172,7 +172,7 @@ class GeneralDataModelService(IDataModelService):
                 self.annotation_state_view.as_view_id()
             ).get("linkedFile")
             if (
-                not self.file_view.instance_space
+                self.file_view.instance_space is None
                 or self.file_view.instance_space == file_reference["space"]
             ):
                 file_node_id = NodeId(
