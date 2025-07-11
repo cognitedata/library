@@ -218,7 +218,7 @@ class GeneralDataModelService(IDataModelService):
             [AnnotationStatus.PROCESSING, AnnotationStatus.FINALIZING],
         ) & Range(annotation_last_updated_property, lt=latest_permissible_time_utc)
 
-        filter = filterA | filterB
+        filter = filterA | filterB # | == OR
         return filter
 
     def update_annotation_state(
