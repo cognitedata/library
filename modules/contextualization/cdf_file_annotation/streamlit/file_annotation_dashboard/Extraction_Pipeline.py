@@ -33,6 +33,7 @@ st.markdown("This page provides statistics and detailed history for all extracti
 if pipeline_runs:
     # Time window selection
     time_window_map = {
+        "All": None,
         "Last 24 Hours": 24,
         "Last 7 Days": 7 * 24,
         "Last 30 Days": 30 * 24,
@@ -42,105 +43,114 @@ if pipeline_runs:
         options=list(time_window_map.keys()),
     )
     window_hours = time_window_map[time_window_option]
-    now = pd.Timestamp.now(tz="UTC")
-    filter_start_time = now - timedelta(hours=window_hours)
 
-    # Filter runs based on the time window
-    recent_pipeline_runs = [
-        run
-        for run in pipeline_runs
-        if pd.to_datetime(run.created_time, unit="ms").tz_localize("UTC") > filter_start_time
-    ]
+    if window_hours is not None:
+        now = pd.Timestamp.now(tz="UTC")
+        filter_start_time = now - timedelta(hours=window_hours)
+        # Filter runs based on the time window
+        recent_pipeline_runs = [
+            run
+            for run in pipeline_runs
+            if pd.to_datetime(run.created_time, unit="ms").tz_localize("UTC") > filter_start_time
+        ]
+    else:
+        # If 'All' is selected, use the original unfiltered list of runs
+        recent_pipeline_runs = pipeline_runs
 
-    # --- Calculate detailed stats for the selected time window ---
-    df_runs_for_graphing = process_runs_for_graphing(recent_pipeline_runs)
+    # MODIFICATION: Check if 'recent_pipeline_runs' has data BEFORE processing.
+    # If it's empty, display a message. Otherwise, proceed with stats and graphs.
+    if not recent_pipeline_runs:
+        st.warning("No pipeline runs found in the selected time window.")
+    else:
+        # --- Calculate detailed stats for the selected time window ---
+        df_runs_for_graphing = process_runs_for_graphing(recent_pipeline_runs)
 
-    launch_success = 0
-    launch_failure = 0
-    finalize_success = 0
-    finalize_failure = 0
+        launch_success = 0
+        launch_failure = 0
+        finalize_success = 0
+        finalize_failure = 0
 
-    for run in recent_pipeline_runs:
-        # We need to parse the message to determine the caller type
-        parsed_message = parse_run_message(run.message)
-        caller = parsed_message.get("caller")
+        for run in recent_pipeline_runs:
+            # We need to parse the message to determine the caller type
+            parsed_message = parse_run_message(run.message)
+            caller = parsed_message.get("caller")
 
-        if caller == "Launch":
-            if run.status == "success":
-                launch_success += 1
-            elif run.status == "failure":
-                launch_failure += 1
-        elif caller == "Finalize":
-            if run.status == "success":
-                finalize_success += 1
-            elif run.status == "failure":
-                finalize_failure += 1
+            if caller == "Launch":
+                if run.status == "success":
+                    launch_success += 1
+                elif run.status == "failure":
+                    launch_failure += 1
+            elif caller == "Finalize":
+                if run.status == "success":
+                    finalize_success += 1
+                elif run.status == "failure":
+                    finalize_failure += 1
 
-    total_launched_recent = int(df_runs_for_graphing[df_runs_for_graphing["type"] == "Launch"]["count"].sum())
-    total_finalized_recent = int(df_runs_for_graphing[df_runs_for_graphing["type"] == "Finalize"]["count"].sum())
+        total_launched_recent = int(df_runs_for_graphing[df_runs_for_graphing["type"] == "Launch"]["count"].sum())
+        total_finalized_recent = int(df_runs_for_graphing[df_runs_for_graphing["type"] == "Finalize"]["count"].sum())
 
-    # --- Display Metrics and Graphs in two columns ---
-    g_col1, g_col2 = st.columns(2)
+        # --- Display Metrics and Graphs in two columns ---
+        g_col1, g_col2 = st.columns(2)
 
-    with g_col1:
-        st.subheader("Launch Runs")
-        m_col1, m_col2, m_col3 = st.columns(3)
-        m_col1.metric(
-            f"Files Launched",
-            f"{total_launched_recent:,}",
+        with g_col1:
+            st.subheader("Launch Runs")
+            m_col1, m_col2, m_col3 = st.columns(3)
+            m_col1.metric(
+                f"Files Launched",
+                f"{total_launched_recent:,}",
+            )
+            m_col2.metric(
+                "Successful Runs",
+                f"{launch_success:,}",
+            )
+            m_col3.metric(
+                "Failed Runs",
+                f"{launch_failure:,}",
+                delta=f"{launch_failure:,}" if launch_failure > 0 else "0",
+                delta_color="inverse",
+            )
+
+        with g_col2:
+            st.subheader("Finalize Runs")
+            m_col4, m_col5, m_col6 = st.columns(3)
+            m_col4.metric(
+                f"Files Finalized",
+                f"{total_finalized_recent:,}",
+            )
+            m_col5.metric(
+                "Successful Runs",
+                f"{finalize_success:,}",
+            )
+            m_col6.metric(
+                "Failed Runs",
+                f"{finalize_failure:,}",
+                delta=f"{finalize_failure:,}" if finalize_failure > 0 else "0",
+                delta_color="inverse",
+            )
+
+        # --- Graphs ---
+        base_chart = (
+            alt.Chart(df_runs_for_graphing)
+            .mark_circle(size=60, opacity=0.7)
+            .encode(
+                x=alt.X("timestamp:T", title="Time of Run"),
+                y=alt.Y("count:Q", title="Files Processed"),
+                tooltip=["timestamp:T", "count:Q", "type:N"],
+            )
+            .interactive()
         )
-        m_col2.metric(
-            "Successful Runs",
-            f"{launch_success:,}",
-        )
-        m_col3.metric(
-            "Failed Runs",
-            f"{launch_failure:,}",
-            delta=f"{launch_failure:,}" if launch_failure > 0 else "0",
-            delta_color="inverse",
-        )
 
-    with g_col2:
-        st.subheader("Finalize Runs")
-        m_col4, m_col5, m_col6 = st.columns(3)
-        m_col4.metric(
-            f"Files Finalized",
-            f"{total_finalized_recent:,}",
-        )
-        m_col5.metric(
-            "Successful Runs",
-            f"{finalize_success:,}",
-        )
-        m_col6.metric(
-            "Failed Runs",
-            f"{finalize_failure:,}",
-            delta=f"{finalize_failure:,}" if finalize_failure > 0 else "0",
-            delta_color="inverse",
-        )
-
-    # --- Graphs ---
-    base_chart = (
-        alt.Chart(df_runs_for_graphing)
-        .mark_circle(size=60, opacity=0.7)
-        .encode(
-            x=alt.X("timestamp:T", title="Time of Run"),
-            y=alt.Y("count:Q", title="Files Processed"),
-            tooltip=["timestamp:T", "count:Q", "type:N"],
-        )
-        .interactive()
-    )
-
-    chart_col1, chart_col2 = st.columns(2)
-    with chart_col1:
-        launch_chart = base_chart.transform_filter(alt.datum.type == "Launch").properties(
-            title="Files Processed per Launch Run"
-        )
-        st.altair_chart(launch_chart, use_container_width=True)
-    with chart_col2:
-        finalize_chart = base_chart.transform_filter(alt.datum.type == "Finalize").properties(
-            title="Files Processed per Finalize Run"
-        )
-        st.altair_chart(finalize_chart, use_container_width=True)
+        chart_col1, chart_col2 = st.columns(2)
+        with chart_col1:
+            launch_chart = base_chart.transform_filter(alt.datum.type == "Launch").properties(
+                title="Files Processed per Launch Run"
+            )
+            st.altair_chart(launch_chart, use_container_width=True)
+        with chart_col2:
+            finalize_chart = base_chart.transform_filter(alt.datum.type == "Finalize").properties(
+                title="Files Processed per Finalize Run"
+            )
+            st.altair_chart(finalize_chart, use_container_width=True)
 
     # --- UNIFIED DETAILED RUN HISTORY ---
     with st.expander("View recent runs and fetch logs", expanded=True):
