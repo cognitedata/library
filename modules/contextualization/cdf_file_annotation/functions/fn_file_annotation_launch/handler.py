@@ -11,7 +11,7 @@ from dependencies import (
     create_general_annotation_service,
     create_general_pipeline_service,
 )
-from services.LaunchService import GeneralLaunchService, AbstractLaunchService
+from services.LaunchService import GeneralLaunchService, LocalLaunchService, AbstractLaunchService
 from services.CacheService import ICacheService
 from services.DataModelService import IDataModelService
 from services.AnnotationService import IAnnotationService
@@ -52,7 +52,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     run_status: str = "success"
     try:
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
-            if launch_instance.prepare():
+            if launch_instance.prepare() == "Done":
                 break
             logger_instance.info(tracker_instance.generate_local_report())
 
@@ -61,7 +61,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         tracker_instance.reset()
 
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
-            if launch_instance.run():
+            if launch_instance.run() == "Done":
                 return {"status": run_status, "data": data}
             logger_instance.info(tracker_instance.generate_local_report())
         return {"status": run_status, "data": data}
@@ -100,7 +100,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance = create_logger_service(log_level=log_level)
     tracker_instance = PerformanceTracker()
 
-    launch_instance: AbstractLaunchService = _create_launch_service(
+    launch_instance: AbstractLaunchService = _create_local_launch_service(
         config=config_instance,
         client=client,
         logger=logger_instance,
@@ -108,7 +108,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     )
     try:
         while True:
-            if launch_instance.prepare():
+            if launch_instance.prepare() == "Done":
                 break
             logger_instance.info(tracker_instance.generate_local_report())
 
@@ -116,7 +116,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         tracker_instance.reset()
 
         while True:
-            if launch_instance.run():
+            if launch_instance.run() == "Done":
                 break
             logger_instance.info(tracker_instance.generate_local_report())
     except Exception as e:
@@ -134,6 +134,22 @@ def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchSer
     data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
     launch_instance: AbstractLaunchService = GeneralLaunchService(
+        client=client,
+        config=config,
+        logger=logger,
+        tracker=tracker,
+        data_model_service=data_model_instance,
+        cache_service=cache_instance,
+        annotation_service=annotation_instance,
+    )
+    return launch_instance
+
+
+def _create_local_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
+    cache_instance: ICacheService = create_general_cache_service(config, client, logger)
+    data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
+    annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
+    launch_instance: AbstractLaunchService = LocalLaunchService(
         client=client,
         config=config,
         logger=logger,

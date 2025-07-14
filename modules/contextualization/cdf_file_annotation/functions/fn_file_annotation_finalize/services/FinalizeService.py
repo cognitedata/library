@@ -1,6 +1,6 @@
 import time
 import abc
-from typing import cast
+from typing import cast, Literal
 from datetime import datetime, timezone
 from cognite.client import CogniteClient
 from cognite.client.exceptions import CogniteAPIError
@@ -87,7 +87,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         self.max_retries: int = config.finalize_function.max_retry_attempts
         self.clean_old_annotations: bool = config.finalize_function.clean_old_annotations
 
-    def run(self):
+    def run(self) -> Literal["Done"] | None:
         """
         Retrieves the result of a diagram detect job and then pushes the annotation to mpcFile.
         Specifically,
