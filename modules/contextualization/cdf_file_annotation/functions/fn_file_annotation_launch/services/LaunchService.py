@@ -245,33 +245,45 @@ class GeneralLaunchService(AbstractLaunchService):
         processing_batches: list[FileProcessingBatch] = self._organize_files_for_processing(file_nodes)
 
         total_files_processed = 0
-        for batch in processing_batches:
-            primary_scope_value = batch.primary_scope_value
-            secondary_scope_value = batch.secondary_scope_value
-            msg = f"{self.primary_scope_property}: {primary_scope_value}"
-            if secondary_scope_value:
-                msg += f", {self.secondary_scope_property}: {secondary_scope_value}"
-            self.logger.info(message=f"Processing {len(batch.files)} files in {msg}")
-            self._ensure_cache_for_batch(primary_scope_value, secondary_scope_value)
+        try:
+            for batch in processing_batches:
+                primary_scope_value = batch.primary_scope_value
+                secondary_scope_value = batch.secondary_scope_value
+                msg = f"{self.primary_scope_property}: {primary_scope_value}"
+                if secondary_scope_value:
+                    msg += f", {self.secondary_scope_property}: {secondary_scope_value}"
+                self.logger.info(message=f"Processing {len(batch.files)} files in {msg}")
+                self._ensure_cache_for_batch(primary_scope_value, secondary_scope_value)
 
-            current_batch = BatchOfPairedNodes(file_to_state_map=file_to_state_map)
-            for file_node in batch.files:
-                file_reference: FileReference = current_batch.create_file_reference(
-                    file_node_id=file_node.as_id(),
-                    page_range=self.page_range,
-                    annotation_state_view_id=self.annotation_state_view.as_view_id(),
-                )
-                current_batch.add_pair(file_node, file_reference)
-                total_files_processed += 1
-                if current_batch.size() == self.max_batch_size:
-                    self.logger.info(message=f"Processing batch - Max batch size ({self.max_batch_size}) reached")
+                current_batch = BatchOfPairedNodes(file_to_state_map=file_to_state_map)
+                for file_node in batch.files:
+                    file_reference: FileReference = current_batch.create_file_reference(
+                        file_node_id=file_node.as_id(),
+                        page_range=self.page_range,
+                        annotation_state_view_id=self.annotation_state_view.as_view_id(),
+                    )
+                    current_batch.add_pair(file_node, file_reference)
+                    total_files_processed += 1
+                    if current_batch.size() == self.max_batch_size:
+                        self.logger.info(message=f"Processing batch - Max batch size ({self.max_batch_size}) reached")
+                        self._process_batch(current_batch)
+                if not current_batch.is_empty():
+                    self.logger.info(message=f"Processing remaining {current_batch.size()} files in batch")
                     self._process_batch(current_batch)
-            if not current_batch.is_empty():
-                self.logger.info(message=f"Processing remaining {current_batch.size()} files in batch")
-                self._process_batch(current_batch)
-            self.logger.info(message=f"Finished processing for {msg}", section="END")
+                self.logger.info(message=f"Finished processing for {msg}", section="END")
+        except CogniteAPIError as e:
+            if e.code == 429:
+                self.logger.debug(f"{str(e)}")
+                self.logger.info(
+                    "Reached the max amount of jobs that can be processed by the server at once.\nSleeping for 15 minutes",
+                    "END",
+                )
+                return "Done"
+            else:
+                raise e
+        finally:
+            self.tracker.add_files(success=total_files_processed)
 
-        self.tracker.add_files(success=total_files_processed)
         return
 
     def _organize_files_for_processing(self, list_files: NodeList) -> list[FileProcessingBatch]:
@@ -371,6 +383,45 @@ class GeneralLaunchService(AbstractLaunchService):
                 message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
                 section="END",
             )
+        finally:
+            batch.clear_pair()
+
+
+class LocalLaunchService(GeneralLaunchService):
+    """
+    A Launch service that uses a custom, local process for handling batches,
+    while inheriting all other functionality from GeneralLaunchService.
+    """
+
+    def _process_batch(self, batch: BatchOfPairedNodes):
+        """
+        This method overrides the original _process_batch.
+        Instead of calling the annotation service, it could, for example,
+        process the files locally.
+        """
+        if batch.is_empty():
+            return
+
+        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
+
+        try:
+            job_id: int = self.annotation_service.run_diagram_detect(
+                files=batch.file_references, entities=self.in_memory_cache
+            )
+            update_properties = {
+                "annotationStatus": AnnotationStatus.PROCESSING,
+                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "diagramDetectJobId": job_id,
+            }
+            batch.batch_states.update_node_properties(
+                new_properties=update_properties,
+                view_id=self.annotation_state_view.as_view_id(),
+            )
+            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.logger.info(
+                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                section="END",
+            )
         except CogniteAPIError as e:
             if e.code == 429:
                 self.logger.debug(f"{str(e)}")
@@ -378,7 +429,9 @@ class GeneralLaunchService(AbstractLaunchService):
                     "Reached the max amount of jobs that can be processed by the server at once.\nSleeping for 15 minutes",
                     "END",
                 )
-                time.sleep(900)
+                time.sleep(
+                    900
+                )  # in a local run the ideal behavior is to not terminate the program because of this error, since it's expected
                 return
             else:
                 self.logger.error(f"Ran into the following error:\n{str(e)}")
