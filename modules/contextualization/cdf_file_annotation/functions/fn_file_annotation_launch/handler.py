@@ -74,11 +74,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured
         # else run log will be too messy.
-        if (
-            tracker_instance.files_failed != 0
-            or tracker_instance.files_success != 0
-            or run_status == "failure"
-        ):
+        if tracker_instance.files_failed != 0 or tracker_instance.files_success != 0 or run_status == "failure":
             function_id = function_call_info.get("function_id")
             call_id = function_call_info.get("call_id")
             pipeline_instance.update_extraction_pipeline(
@@ -99,9 +95,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     config_instance, client = create_config_service(function_data=config_file)
 
     if log_path:
-        logger_instance = create_write_logger_service(
-            log_level=log_level, filepath=log_path
-        )
+        logger_instance = create_write_logger_service(log_level=log_level, filepath=log_path)
     else:
         logger_instance = create_logger_service(log_level=log_level)
     tracker_instance = PerformanceTracker()
@@ -137,12 +131,8 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
 
 def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_cache_service(config, client, logger)
-    data_model_instance: IDataModelService = create_general_data_model_service(
-        config, client, logger
-    )
-    annotation_instance: IAnnotationService = create_general_annotation_service(
-        config, client, logger
-    )
+    data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
+    annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
     launch_instance: AbstractLaunchService = GeneralLaunchService(
         client=client,
         config=config,

@@ -90,21 +90,15 @@ class GeneralLaunchService(AbstractLaunchService):
 
         self.max_batch_size: int = config.launch_function.batch_size
         self.page_range: int = config.launch_function.annotation_service.page_range
-        self.annotation_state_view: ViewPropertyConfig = (
-            config.data_model_views.annotation_state_view
-        )
+        self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
 
         self.in_memory_cache: list[dict] = []
         self._cached_primary_scope: str | None = None
         self._cached_secondary_scope: str | None = None
 
-        self.primary_scope_property: str = (
-            self.config.launch_function.primary_scope_property
-        )
-        self.secondary_scope_property: str | None = (
-            self.config.launch_function.secondary_scope_property
-        )
+        self.primary_scope_property: str = self.config.launch_function.primary_scope_property
+        self.secondary_scope_property: str | None = self.config.launch_function.secondary_scope_property
 
         self.reset_files: bool = False
         if self.config.prepare_function.get_files_for_annotation_reset_query:
@@ -121,9 +115,7 @@ class GeneralLaunchService(AbstractLaunchService):
         )
         try:
             if self.reset_files:
-                file_nodes_to_reset: NodeList | None = (
-                    self.data_model_service.get_files_for_annotation_reset()
-                )
+                file_nodes_to_reset: NodeList | None = self.data_model_service.get_files_for_annotation_reset()
                 if not file_nodes_to_reset:
                     self.logger.info(
                         "No files found with the getFilesForAnnotationReset query provided in the config file"
@@ -133,9 +125,7 @@ class GeneralLaunchService(AbstractLaunchService):
                     reset_node_apply: list[NodeApply] = []
                     for file_node in file_nodes_to_reset:
                         file_node_apply: NodeApply = file_node.as_write()
-                        tags_property: list[str] = cast(
-                            list[str], file_node_apply.sources[0].properties["tags"]
-                        )
+                        tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
                         if "AnnotationInProcess" in tags_property:
                             tags_property.remove("AnnotationInProcess")
                         if "Annotated" in tags_property:
@@ -144,9 +134,7 @@ class GeneralLaunchService(AbstractLaunchService):
                             tags_property.remove("AnnotationFailed")
 
                         reset_node_apply.append(file_node_apply)
-                    update_results = self.data_model_service.update_annotation_state(
-                        reset_node_apply
-                    )
+                    update_results = self.data_model_service.update_annotation_state(reset_node_apply)
                     self.logger.info(
                         f"Removed the AnnotationInProcess/Annotated/AnnotationFailed tag of {len(update_results)} files"
                     )
@@ -155,8 +143,7 @@ class GeneralLaunchService(AbstractLaunchService):
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
             if (
                 e.code == 408
-                and e.message
-                == "Graph query timed out. Reduce load or contention, or optimise your query."
+                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message=f"Ran into the following error:\n{str(e)}")
@@ -165,9 +152,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 raise e
 
         try:
-            file_nodes: NodeList | None = (
-                self.data_model_service.get_files_to_annotate()
-            )
+            file_nodes: NodeList | None = self.data_model_service.get_files_to_annotate()
             if not file_nodes:
                 self.logger.info(
                     message=f"No files found to prepare",
@@ -179,8 +164,7 @@ class GeneralLaunchService(AbstractLaunchService):
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
             if (
                 e.code == 408
-                and e.message
-                == "Graph query timed out. Reduce load or contention, or optimise your query."
+                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message=f"Ran into the following error:\n{str(e)}")
@@ -197,7 +181,9 @@ class GeneralLaunchService(AbstractLaunchService):
                 linkedFile=node_id,
             )
             if not self.annotation_state_view.instance_space:
-                msg = "Need an instance space in DataModelViews/AnnotationStateView config to store the annotation state"
+                msg = (
+                    "Need an instance space in DataModelViews/AnnotationStateView config to store the annotation state"
+                )
                 self.logger.error(msg)
                 raise ValueError(msg)
             annotation_instance_space: str = self.annotation_state_view.instance_space
@@ -209,31 +195,21 @@ class GeneralLaunchService(AbstractLaunchService):
             annotation_state_instances.append(annotation_node_apply)
 
             file_node_apply: NodeApply = file_node.as_write()
-            tags_property: list[str] = cast(
-                list[str], file_node_apply.sources[0].properties["tags"]
-            )
+            tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")
                 file_apply_instances.append(file_node_apply)
 
         try:
-            create_results = self.data_model_service.create_annotation_state(
-                annotation_state_instances
-            )
-            self.logger.info(
-                message=f"Created {len(create_results)} annotation state instances"
-            )
-            update_results = self.data_model_service.update_annotation_state(
-                file_apply_instances
-            )
+            create_results = self.data_model_service.create_annotation_state(annotation_state_instances)
+            self.logger.info(message=f"Created {len(create_results)} annotation state instances")
+            update_results = self.data_model_service.update_annotation_state(file_apply_instances)
             self.logger.info(
                 message=f"Added 'AnnotationInProcess' to the tag property for {len(update_results)} files",
                 section="END",
             )
         except Exception as e:
-            self.logger.error(
-                message=f"Ran into the following error:\n{str(e)}", section="END"
-            )
+            self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
             raise
 
         self.tracker.add_files(success=len(file_nodes))
@@ -249,21 +225,16 @@ class GeneralLaunchService(AbstractLaunchService):
             section="START",
         )
         try:
-            file_nodes, file_to_state_map = (
-                self.data_model_service.get_files_to_process()
-            )
+            file_nodes, file_to_state_map = self.data_model_service.get_files_to_process()
             if not file_nodes or not file_to_state_map:
                 self.logger.info(message=f"No files found to launch")
                 return "Done"
-            self.logger.info(
-                message=f"Launching {len(file_nodes)} files", section="END"
-            )
+            self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
             if (
                 e.code == 408
-                and e.message
-                == "Graph query timed out. Reduce load or contention, or optimise your query."
+                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message=f"Ran into the following error:\n{str(e)}")
@@ -271,9 +242,7 @@ class GeneralLaunchService(AbstractLaunchService):
             else:
                 raise e
 
-        processing_batches: list[FileProcessingBatch] = (
-            self._organize_files_for_processing(file_nodes)
-        )
+        processing_batches: list[FileProcessingBatch] = self._organize_files_for_processing(file_nodes)
 
         total_files_processed = 0
         for batch in processing_batches:
@@ -295,32 +264,24 @@ class GeneralLaunchService(AbstractLaunchService):
                 current_batch.add_pair(file_node, file_reference)
                 total_files_processed += 1
                 if current_batch.size() == self.max_batch_size:
-                    self.logger.info(
-                        message=f"Processing batch - Max batch size ({self.max_batch_size}) reached"
-                    )
+                    self.logger.info(message=f"Processing batch - Max batch size ({self.max_batch_size}) reached")
                     self._process_batch(current_batch)
             if not current_batch.is_empty():
-                self.logger.info(
-                    message=f"Processing remaining {current_batch.size()} files in batch"
-                )
+                self.logger.info(message=f"Processing remaining {current_batch.size()} files in batch")
                 self._process_batch(current_batch)
             self.logger.info(message=f"Finished processing for {msg}", section="END")
 
         self.tracker.add_files(success=total_files_processed)
         return
 
-    def _organize_files_for_processing(
-        self, list_files: NodeList
-    ) -> list[FileProcessingBatch]:
+    def _organize_files_for_processing(self, list_files: NodeList) -> list[FileProcessingBatch]:
         """
         Groups files based on the 'primary_scope_property' and 'secondary_scope_property'
         defined in the configuration. This strategy allows us to load a relevant entity cache
         once for a group of files that share the same operational context, significantly
         reducing redundant CDF queries.
         """
-        organized_data: dict[str, dict[str, list[Node]]] = defaultdict(
-            lambda: defaultdict(list)
-        )
+        organized_data: dict[str, dict[str, list[Node]]] = defaultdict(lambda: defaultdict(list))
 
         for file_node in list_files:
             node_props = file_node.properties[self.file_view.as_view_id()]
@@ -352,9 +313,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 )
         return final_processing_batches
 
-    def _ensure_cache_for_batch(
-        self, primary_scope_value: str, secondary_scope_value: str | None
-    ):
+    def _ensure_cache_for_batch(self, primary_scope_value: str, secondary_scope_value: str | None):
         """
         Ensure self.in_memory_cache is populated for the given site and unit.
         Checks if there's a mismatch in site, unit, or if the in_memory_cache is empty
@@ -375,13 +334,10 @@ class GeneralLaunchService(AbstractLaunchService):
                 # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
                 if (
                     e.code == 408
-                    and e.message
-                    == "Graph query timed out. Reduce load or contention, or optimise your query."
+                    and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
                 ):
                     # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                    self.logger.error(
-                        message=f"Ran into the following error:\n{str(e)}"
-                    )
+                    self.logger.error(message=f"Ran into the following error:\n{str(e)}")
                     return
                 else:
                     raise e
@@ -395,9 +351,7 @@ class GeneralLaunchService(AbstractLaunchService):
         if batch.is_empty():
             return
 
-        self.logger.info(
-            f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
-        )
+        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
 
         try:
             job_id: int = self.annotation_service.run_diagram_detect(
@@ -405,18 +359,14 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(timezone.utc)
-                .replace(microsecond=0)
-                .isoformat(),
+                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
             }
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(
-                batch.batch_states.apply
-            )
+            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
                 message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
                 section="END",
