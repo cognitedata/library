@@ -53,9 +53,7 @@ def create_client(env_config: EnvConfig, debug: bool = False):
     global_config.apply_settings(settings)
 
     SCOPES = [f"https://{env_config.cdf_cluster}.cognitedata.com/.default"]
-    TOKEN_URL = (
-        f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
-    )
+    TOKEN_URL = f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
     creds = OAuthClientCredentials(
         token_url=TOKEN_URL,
         client_id=env_config.client_id,
@@ -115,7 +113,5 @@ def create_general_apply_service(
     return GeneralApplyService(client, config, logger)
 
 
-def create_general_pipeline_service(
-    client: CogniteClient, pipeline_ext_id: str
-) -> GeneralPipelineService:
+def create_general_pipeline_service(client: CogniteClient, pipeline_ext_id: str) -> GeneralPipelineService:
     return GeneralPipelineService(pipeline_ext_id, client)

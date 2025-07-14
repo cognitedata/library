@@ -44,23 +44,17 @@ class GeneralCacheService(ICacheService):
     that share the same operational context.
     """
 
-    def __init__(
-        self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger
-    ):
+    def __init__(self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger):
         self.client = client
         self.config = config
         self.logger = logger
 
         self.db_name: str = config.launch_function.cache_service.raw_db
         self.tbl_name: str = config.launch_function.cache_service.raw_table_cache
-        self.cache_time_limit: int = (
-            config.launch_function.cache_service.cache_time_limit
-        )  # in hours
+        self.cache_time_limit: int = config.launch_function.cache_service.cache_time_limit  # in hours
 
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
-        self.target_entities_view: ViewPropertyConfig = (
-            config.data_model_views.target_entities_view
-        )
+        self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
 
     def get_entities(
         self,
@@ -79,25 +73,19 @@ class GeneralCacheService(ICacheService):
             key = f"{primary_scope_value}"
 
         cdf_raw = self.client.raw.rows
-        row: Row | None = cdf_raw.retrieve(
-            db_name=self.db_name, table_name=self.tbl_name, key=key
-        )
+        row: Row | None = cdf_raw.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
 
         if row and row.columns:
             last_update_time_str = row.columns["LastUpdateTimeUtcIso"]
             if self._validate_cache(last_update_time_str) == False:
                 self.logger.debug("Refreshing RAW entities cache")
-                entities = self._update_cache(
-                    data_model_service, key, primary_scope_value, secondary_scope_value
-                )
+                entities = self._update_cache(data_model_service, key, primary_scope_value, secondary_scope_value)
             else:
                 asset_entity: list[dict] = row.columns["AssetEntities"]
                 file_entity: list[dict] = row.columns["FileEntities"]
                 entities = asset_entity + file_entity
         else:
-            entities = self._update_cache(
-                data_model_service, key, primary_scope_value, secondary_scope_value
-            )
+            entities = self._update_cache(data_model_service, key, primary_scope_value, secondary_scope_value)
 
         return entities
 
@@ -121,9 +109,7 @@ class GeneralCacheService(ICacheService):
 
         asset_entities: list[dict] = []
         file_entities: list[dict] = []
-        asset_entities, file_entities = self._convert_instances_to_entities(
-            asset_instances, file_instances
-        )
+        asset_entities, file_entities = self._convert_instances_to_entities(asset_instances, file_instances)
 
         current_time_seconds = datetime.now(timezone.utc).isoformat()
         new_row = RowWrite(
@@ -167,22 +153,16 @@ class GeneralCacheService(ICacheService):
         """
         Convert the asset and file nodes into an entity
         """
-        target_entities_search_property: str = (
-            self.config.launch_function.target_entities_search_property
-        )
+        target_entities_search_property: str = self.config.launch_function.target_entities_search_property
         target_entities: list[dict] = []
         for instance in asset_instances:
-            instance_properties = instance.properties.get(
-                self.target_entities_view.as_view_id()
-            )
+            instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
             if target_entities_search_property in instance_properties:
                 asset_entity = entity(
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
-                    search_property=instance_properties.get(
-                        target_entities_search_property
-                    ),
+                    search_property=instance_properties.get(target_entities_search_property),
                     annotation_type_external_id=self.target_entities_view.annotation_type,
                 )
                 target_entities.append(asset_entity.to_dict())

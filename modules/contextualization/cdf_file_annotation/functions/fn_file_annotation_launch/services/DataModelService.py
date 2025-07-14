@@ -73,20 +73,14 @@ class GeneralDataModelService(IDataModelService):
     Implementation used for real runs
     """
 
-    def __init__(
-        self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger
-    ):
+    def __init__(self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
 
-        self.annotation_state_view: ViewPropertyConfig = (
-            config.data_model_views.annotation_state_view
-        )
+        self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
-        self.target_entities_view: ViewPropertyConfig = (
-            config.data_model_views.target_entities_view
-        )
+        self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
 
         self.get_files_to_annotate_retrieve_limit: int | None = get_limit_from_query(
             config.prepare_function.get_files_to_annotate_query
@@ -115,7 +109,7 @@ class GeneralDataModelService(IDataModelService):
               Furthermore, there is an implicit guarantee that a filter will be returned b/c launch checks if the query exists.
         """
         if not self.config.prepare_function.get_files_for_annotation_reset_query:
-            return None
+            return
 
         filter_files_for_annotation_reset: Filter = build_filter_from_query(
             self.config.prepare_function.get_files_for_annotation_reset_query
@@ -168,13 +162,8 @@ class GeneralDataModelService(IDataModelService):
         list_file_node_ids: list[NodeId] = []
 
         for node in annotation_state_instances:
-            file_reference = node.properties.get(
-                self.annotation_state_view.as_view_id()
-            ).get("linkedFile")
-            if (
-                not self.file_view.instance_space
-                or self.file_view.instance_space == file_reference["space"]
-            ):
+            file_reference = node.properties.get(self.annotation_state_view.as_view_id()).get("linkedFile")
+            if self.file_view.instance_space is None or self.file_view.instance_space == file_reference["space"]:
                 file_node_id = NodeId(
                     space=file_reference["space"],
                     external_id=file_reference["externalId"],
@@ -198,55 +187,37 @@ class GeneralDataModelService(IDataModelService):
             - Edge case that occurs very rarely but can happen.
         NOTE: Implementation of a more complex query that can't be handled in config should come from an implementation of the interface.
         """
-        filterA: Filter = self.filter_files_to_process
-
-        annotation_status_property = self.annotation_state_view.as_property_ref(
-            "annotationStatus"
-        )
-        annotation_last_updated_property = self.annotation_state_view.as_property_ref(
-            "sourceUpdatedTime"
-        )
+        annotation_status_property = self.annotation_state_view.as_property_ref("annotationStatus")
+        annotation_last_updated_property = self.annotation_state_view.as_property_ref("sourceUpdatedTime")
         # NOTE: While this number is hard coded, I believe it doesn't need to be configured. Number comes from my experience with the pipeline. Feel free to change if your experience leads to a different number
-        latest_permissible_time_utc = datetime.now(timezone.utc) - timedelta(
-            minutes=720
-        )
-        latest_permissible_time_utc = latest_permissible_time_utc.isoformat(
-            timespec="milliseconds"
-        )
-        filterB = In(
+        latest_permissible_time_utc = datetime.now(timezone.utc) - timedelta(minutes=720)
+        latest_permissible_time_utc = latest_permissible_time_utc.isoformat(timespec="milliseconds")
+        filter_stuck = In(
             annotation_status_property,
             [AnnotationStatus.PROCESSING, AnnotationStatus.FINALIZING],
         ) & Range(annotation_last_updated_property, lt=latest_permissible_time_utc)
 
-        filter = filterA | filterB
+        filter = self.filter_files_to_process | filter_stuck  # | == OR
         return filter
 
-    def update_annotation_state(
-        self, list_node_apply: list[NodeApply]
-    ) -> NodeApplyResultList:
+    def update_annotation_state(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
         """
         Updates annotation state nodes from the node applies passed into the function
         """
-        update_results: InstancesApplyResult = (
-            self.client.data_modeling.instances.apply(
-                nodes=list_node_apply,
-                replace=False,  # ensures we don't delete other properties in the view
-            )
+        update_results: InstancesApplyResult = self.client.data_modeling.instances.apply(
+            nodes=list_node_apply,
+            replace=False,  # ensures we don't delete other properties in the view
         )
         return update_results.nodes
 
-    def create_annotation_state(
-        self, list_node_apply: list[NodeApply]
-    ) -> NodeApplyResultList:
+    def create_annotation_state(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
         """
         Creates annotation state nodes from the node applies passed into the function
         """
-        update_results: InstancesApplyResult = (
-            self.client.data_modeling.instances.apply(
-                nodes=list_node_apply,
-                auto_create_direct_relations=True,
-                replace=True,  # ensures we reset the properties of the node
-            )
+        update_results: InstancesApplyResult = self.client.data_modeling.instances.apply(
+            nodes=list_node_apply,
+            auto_create_direct_relations=True,
+            replace=True,  # ensures we reset the properties of the node
         )
         return update_results.nodes
 
@@ -258,12 +229,8 @@ class GeneralDataModelService(IDataModelService):
         1. grab assets that meet the filter requirement
         2. grab files that meet the filter requirement
         """
-        target_filter: Filter = self._get_target_entities_filter(
-            primary_scope_value, secondary_scope_value
-        )
-        file_filter: Filter = self._get_file_entities_filter(
-            primary_scope_value, secondary_scope_value
-        )
+        target_filter: Filter = self._get_target_entities_filter(primary_scope_value, secondary_scope_value)
+        file_filter: Filter = self._get_file_entities_filter(primary_scope_value, secondary_scope_value)
 
         target_entities: NodeList = self.client.data_modeling.instances.list(
             instance_type="node",
@@ -281,78 +248,72 @@ class GeneralDataModelService(IDataModelService):
         )
         return target_entities, file_entities
 
-    def _get_target_entities_filter(
-        self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> Filter:
+    def _get_target_entities_filter(self, primary_scope_value: str, secondary_scope_value: str | None) -> Filter:
         """
         Create a filter that...
             - grabs assets in the primary_scope_value and secondary_scope_value provided with detectInDiagram in the tags property
             or
             - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
         """
-        filterA: Filter = Equals(
-            property=self.target_entities_view.as_property_ref(
-                self.config.launch_function.primary_scope_property
-            ),
+        filter_primary_scope: Filter = Equals(
+            property=self.target_entities_view.as_property_ref(self.config.launch_function.primary_scope_property),
             value=primary_scope_value,
         )
-        filterB: Filter = self.filter_target_entities
+        filter_entities: Filter = self.filter_target_entities
         # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
-        filterC: Filter = In(
+        filter_scope_wide: Filter = In(
             property=self.target_entities_view.as_property_ref("tags"),
             values=["ScopeWideDetect"],
         )
         if not primary_scope_value:
-            target_filter = filterB | filterC
+            target_filter = filter_entities | filter_scope_wide
         elif secondary_scope_value:
-            filterD: Filter = Equals(
+            filter_secondary_scope: Filter = Equals(
                 property=self.target_entities_view.as_property_ref(
                     self.config.launch_function.secondary_scope_property
                 ),
                 value=secondary_scope_value,
             )
-            target_filter = (filterA & filterD & filterB) | (filterA & filterC)
+            target_filter = (filter_primary_scope & filter_secondary_scope & filter_entities) | (
+                filter_primary_scope & filter_scope_wide
+            )
         else:
-            target_filter = (filterA & filterB) | (filterA & filterC)
+            target_filter = (filter_primary_scope & filter_entities) | (filter_primary_scope & filter_scope_wide)
         return target_filter
 
-    def _get_file_entities_filter(
-        self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> Filter:
+    def _get_file_entities_filter(self, primary_scope_value: str, secondary_scope_value: str | None) -> Filter:
         """
         Create a filter that...
             - grabs assets in the primary_scope_value and secondary_scope_value provided with DetectInDiagram in the tags property
             or
             - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
         """
-        filterA: Filter = Equals(
-            property=self.file_view.as_property_ref(
-                self.config.launch_function.primary_scope_property
-            ),
+        filter_primary_scope: Filter = Equals(
+            property=self.file_view.as_property_ref(self.config.launch_function.primary_scope_property),
             value=primary_scope_value,
         )
-        filterB: Filter = self.filter_file_entities
-        filterC: Filter = Exists(
-            property=self.file_view.as_property_ref(
-                self.config.launch_function.file_search_property
-            ),
+        filter_entities: Filter = self.filter_file_entities
+        filter_search_property_exists: Filter = Exists(
+            property=self.file_view.as_property_ref(self.config.launch_function.file_search_property),
         )
         # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
-        filterD: Filter = In(
+        filter_scope_wide: Filter = In(
             property=self.file_view.as_property_ref("tags"),
             values=["ScopeWideDetect"],
         )
         if not primary_scope_value:
-            file_filter = (filterB & filterC) | (filterD)
+            file_filter = (filter_entities & filter_search_property_exists) | (filter_scope_wide)
         elif secondary_scope_value:
-            filterE: Filter = Equals(
-                property=self.file_view.as_property_ref(
-                    self.config.launch_function.secondary_scope_property
-                ),
+            filter_secondary_scope: Filter = Equals(
+                property=self.file_view.as_property_ref(self.config.launch_function.secondary_scope_property),
                 value=secondary_scope_value,
             )
-            file_filter = (filterA & filterB & filterE & filterC) | (filterA & filterD)
+            file_filter = (
+                filter_primary_scope & filter_entities & filter_secondary_scope & filter_search_property_exists
+            ) | (filter_primary_scope & filter_scope_wide)
         else:
-            file_filter = (filterA & filterB & filterC) | (filterA & filterD)
+            file_filter = (filter_primary_scope & filter_entities & filter_search_property_exists) | (
+                filter_primary_scope & filter_scope_wide
+            )
 
         return file_filter

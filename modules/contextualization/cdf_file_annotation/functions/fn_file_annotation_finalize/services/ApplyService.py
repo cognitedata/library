@@ -36,9 +36,7 @@ class IApplyService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def apply_annotations(
-        self, result_item: dict, file_id: NodeId
-    ) -> tuple[list, list]:
+    def apply_annotations(self, result_item: dict, file_id: NodeId) -> tuple[list, list]:
         pass
 
     @abc.abstractmethod
@@ -46,9 +44,7 @@ class IApplyService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def delete_annotations_for_file(
-        self, file_node: NodeId
-    ) -> tuple[list[str], list[str]]:
+    def delete_annotations_for_file(self, file_node: NodeId) -> tuple[list[str], list[str]]:
         pass
 
 
@@ -60,30 +56,20 @@ class GeneralApplyService(IApplyService):
     EXTERNAL_ID_LIMIT = 256
     FUNCTION_ID = "fn_dm_context_annotation_finalize"
 
-    def __init__(
-        self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger
-    ):
+    def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
 
-        self.core_annotation_view_id: ViewId = (
-            self.config.data_model_views.core_annotation_view.as_view_id()
-        )
+        self.core_annotation_view_id: ViewId = self.config.data_model_views.core_annotation_view.as_view_id()
         self.file_view_id: ViewId = self.config.data_model_views.file_view.as_view_id()
         self.file_annotation_type = config.data_model_views.file_view.annotation_type
 
-        self.approve_threshold = (
-            self.config.finalize_function.apply_service.auto_approval_threshold
-        )
-        self.suggest_threshold = (
-            self.config.finalize_function.apply_service.auto_suggest_threshold
-        )
+        self.approve_threshold = self.config.finalize_function.apply_service.auto_approval_threshold
+        self.suggest_threshold = self.config.finalize_function.apply_service.auto_suggest_threshold
 
     # NOTE: could implement annotation edges to be updated in batches for performance gains but leaning towards no. Since it will over complicate error handling.
-    def apply_annotations(
-        self, result_item: dict, file_id: NodeId
-    ) -> tuple[list[RowWrite], list[RowWrite]]:
+    def apply_annotations(self, result_item: dict, file_id: NodeId) -> tuple[list[RowWrite], list[RowWrite]]:
         """
         Push the annotations to the file and set the "AnnotationInProcess" tag to "Annotated"
         """
@@ -97,9 +83,7 @@ class GeneralApplyService(IApplyService):
         node_apply: NodeApply = file_node.as_write()
         node_apply.existing_version = None
 
-        tags_property: list[str] = cast(
-            list[str], node_apply.sources[0].properties["tags"]
-        )
+        tags_property: list[str] = cast(list[str], node_apply.sources[0].properties["tags"])
 
         # NOTE: There are cases where the 'annotated' tag is set but a job was queued up again for the file.
         # This is because the rate at which the jobs are processed by finalize is slower than the rate at which launch fills up the queue.
@@ -108,23 +92,17 @@ class GeneralApplyService(IApplyService):
             index = tags_property.index("AnnotationInProcess")
             tags_property[index] = "Annotated"
         elif "Annotated" not in tags_property:
-            raise ValueError(
-                "Annotated and AnnotationInProcess not found in tag property of file node"
-            )
-        source_id: str | None = cast(
-            str, file_node.properties[self.file_view_id].get("sourceId")
-        )
+            raise ValueError("Annotated and AnnotationInProcess not found in tag property of file node")
+        source_id: str | None = cast(str, file_node.properties[self.file_view_id].get("sourceId"))
         doc_doc, doc_tag = [], []
         edge_applies: list[EdgeApply] = []
         for detect_annotation in result_item["annotations"]:
-            edge_apply_dict: dict[tuple, EdgeApply] = (
-                self._detect_annotation_to_edge_applies(
-                    file_id,
-                    source_id,
-                    doc_doc,
-                    doc_tag,
-                    detect_annotation,
-                )
+            edge_apply_dict: dict[tuple, EdgeApply] = self._detect_annotation_to_edge_applies(
+                file_id,
+                source_id,
+                doc_doc,
+                doc_tag,
+                detect_annotation,
             )
             edge_applies.extend(edge_apply_dict.values())
 
@@ -136,11 +114,9 @@ class GeneralApplyService(IApplyService):
         return doc_doc, doc_tag
 
     def update_nodes(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
-        update_results: InstancesApplyResult = (
-            self.client.data_modeling.instances.apply(
-                nodes=list_node_apply,
-                replace=False,  # ensures we don't delete other properties in the view
-            )
+        update_results: InstancesApplyResult = self.client.data_modeling.instances.apply(
+            nodes=list_node_apply,
+            replace=False,  # ensures we don't delete other properties in the view
         )
         return update_results.nodes
 
@@ -155,9 +131,7 @@ class GeneralApplyService(IApplyService):
 
         # NOTE: Using a set to ensure uniqueness and solve the duplicate external edge ID problem
         diagram_annotations: dict[tuple, EdgeApply] = {}
-        annotation_schema_space: str = (
-            self.config.data_model_views.core_annotation_view.schema_space
-        )
+        annotation_schema_space: str = self.config.data_model_views.core_annotation_view.schema_space
 
         for entity in detect_annotation["entities"]:
             if detect_annotation["confidence"] >= self.approve_threshold:
@@ -191,18 +165,10 @@ class GeneralApplyService(IApplyService):
                 "confidence": detect_annotation["confidence"],
                 "status": annotation_status,
                 "startNodePageNumber": detect_annotation["region"]["page"],
-                "startNodeXMin": min(
-                    v["x"] for v in detect_annotation["region"]["vertices"]
-                ),
-                "startNodeYMin": min(
-                    v["y"] for v in detect_annotation["region"]["vertices"]
-                ),
-                "startNodeXMax": max(
-                    v["x"] for v in detect_annotation["region"]["vertices"]
-                ),
-                "startNodeYMax": max(
-                    v["y"] for v in detect_annotation["region"]["vertices"]
-                ),
+                "startNodeXMin": min(v["x"] for v in detect_annotation["region"]["vertices"]),
+                "startNodeYMin": min(v["y"] for v in detect_annotation["region"]["vertices"]),
+                "startNodeXMax": max(v["x"] for v in detect_annotation["region"]["vertices"]),
+                "startNodeYMax": max(v["y"] for v in detect_annotation["region"]["vertices"]),
                 "startNodeText": detect_annotation["text"],
                 "sourceCreatedUser": self.FUNCTION_ID,
                 "sourceUpdatedUser": self.FUNCTION_ID,
@@ -224,9 +190,7 @@ class GeneralApplyService(IApplyService):
                     space=file_instance_id.space,
                     external_id=file_instance_id.external_id,
                 ),
-                end_node=DirectRelationReference(
-                    space=entity["space"], external_id=entity["external_id"]
-                ),
+                end_node=DirectRelationReference(space=entity["space"], external_id=entity["external_id"]),
                 sources=[
                     NodeOrEdgeData(
                         source=self.core_annotation_view_id,
@@ -253,9 +217,7 @@ class GeneralApplyService(IApplyService):
         text: str,
         raw_annotation: dict[str, Any],
     ) -> str:
-        hash_ = sha256(json.dumps(raw_annotation, sort_keys=True).encode()).hexdigest()[
-            :10
-        ]
+        hash_ = sha256(json.dumps(raw_annotation, sort_keys=True).encode()).hexdigest()[:10]
         naive = f"{file_id.space}:{file_id.external_id}:{entity['space']}:{entity['external_id']}:{text}:{hash_}"
         if len(naive) < self.EXTERNAL_ID_LIMIT:
             return naive
