@@ -51,7 +51,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     run_status: str = "success"
     try:
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
-            if finalize_instance.run():
+            if finalize_instance.run() == "Done":
                 return {"status": run_status, "data": data}
             logger_instance.info(tracker_instance.generate_local_report(), "START")
         return {"status": run_status, "data": data}
