@@ -275,7 +275,7 @@ class GeneralLaunchService(AbstractLaunchService):
             if e.code == 429:
                 self.logger.debug(f"{str(e)}")
                 self.logger.info(
-                    "Reached the max amount of jobs that can be processed by the server at once.\nSleeping for 15 minutes",
+                    "Reached the max amount of jobs that can be processed by the server at once.",
                     "END",
                 )
                 return "Done"
