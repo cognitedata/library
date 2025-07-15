@@ -20,9 +20,11 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # VSCode and IDE settings
-.vscode/
 .idea/
 *.code-workspace
+.vscode/
+# Keep launch.json for easy debug setups
+!.vscode/launch.json 
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
