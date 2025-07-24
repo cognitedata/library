@@ -22,3 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Helper data model
 - File Annotation State view
+
+### Fixed
+
+- Removed the page_count <= last_page check in utils/DataStructures.py BatchOfPairedNodes class create_file_reference() function
+  - Unnecessary check and can lead to unexpected behaviors

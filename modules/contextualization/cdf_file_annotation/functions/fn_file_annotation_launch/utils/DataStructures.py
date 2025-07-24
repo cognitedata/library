@@ -245,8 +245,6 @@ class BatchOfPairedNodes:
             # e.g.) first run annotates pages 1-50 second run would annotate 51-100
             first_page = annotated_page_count + 1
             last_page = annotated_page_count + page_range
-            if page_count <= last_page:
-                last_page = page_count
             file_reference: FileReference = FileReference(
                 file_instance_id=file_node_id,
                 first_page=first_page,
