@@ -1,230 +1,494 @@
 # CDF Performance Testing Framework
 
-A comprehensive framework for testing the performance of Cognite Data Fusion (CDF) operations using Jupyter notebooks.
+A comprehensive framework for testing the performance of Cognite Data Fusion (CDF) operations using Jupyter notebooks. This framework provides ready-to-use performance tests with automated benchmarking, visualization, and cleanup capabilities.
 
-## 📁 Folder Structure
+## 📁 Project Structure
 
 ```
-CDF Performance/
-├── notebooks/                    # Jupyter notebooks for performance testing
-│   ├── data_ingestion/           # Data ingestion performance tests
-│   ├── time_series/              # Time series query performance tests
-│   ├── events/                   # Event operations performance tests
-│   ├── files/                    # File operations performance tests
-│   ├── 3d/                       # 3D operations performance tests
-│   ├── raw/                      # RAW table operations performance tests
-│   ├── transformations/          # Transformation performance tests
-│   ├── data_modeling/            # Data modeling performance tests
-│   └── benchmarks/               # Comprehensive benchmark suites
-├── utilities/                    # Utility modules and helper functions
-├── configs/                      # Configuration files
-├── results/                      # Performance test results (auto-generated)
-├── scripts/                      # Setup and utility scripts
-├── requirements.txt              # Python dependencies
-└── README.md                     # This file
+CDF Performance Testing/
+├── 📂 notebooks/                    # Interactive Jupyter notebooks for performance testing
+│   ├── 📂 data_ingestion/           # Time series data ingestion performance
+│   │   └── timeseries_ingestion_performance.ipynb
+│   ├── 📂 time_series/              # Time series query performance testing  
+│   │   └── timeseries_query_performance.ipynb
+│   ├── 📂 data_modeling/            # Data modeling operations performance
+│   │   └── data_modeling_performance.ipynb
+│   ├── 📂 raw/                      # RAW table operations performance
+│   │   └── raw_performance.ipynb
+│   ├── 📂 files/                    # File operations performance testing
+│   │   └── files_performance.ipynb
+│   └── 📂 transformations/          # Transformation operations performance
+│       └── transformations_performance.ipynb
+├── 📂 utilities/                    # Performance utilities and helper functions
+│   ├── client_setup.py             # CDF client configuration and testing
+│   └── performance_utils.py        # Benchmarking and measurement tools
+├── 📂 configs/                      # Configuration files and settings
+│   └── cdf_config.py               # CDF connection configuration
+├── 📂 scripts/                      # Setup and utility scripts
+│   └── setup_environment.py        # Environment setup automation
+├── 📂 results/                      # Auto-generated performance test results
+├── 📄 requirements.txt              # Python dependencies
+├── 📄 test_connection.py           # CDF connection testing utility
+└── 📄 README.md                    # This documentation
 ```
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
-### 1. Environment Setup
+### Step 1: Environment Setup
 
-Run the setup script to install dependencies and create configuration files:
+1. **Clone/Download** this performance testing framework
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-python scripts/setup_environment.py
-```
+3. **Run the setup script** (creates configuration files):
+   ```bash
+   python scripts/setup_environment.py
+   ```
 
-### 2. Configure CDF Connection
+### Step 2: Configure CDF Connection
 
-Edit the `.env` file created by the setup script with your CDF credentials:
+1. **Create a `.env` file** in the root directory with your CDF credentials:
+   ```env
+   # CDF Connection Settings
+   CDF_PROJECT=your-project-name
+   CDF_CLUSTER=your-cluster-name  
+   CDF_BASE_URL=https://your-cluster.cognitedata.com
+   
+   # Authentication (Service Principal)
+   CDF_CLIENT_ID=your-client-id
+   CDF_CLIENT_SECRET=your-client-secret
+   CDF_TENANT_ID=your-tenant-id
+   
+   # Performance Test Settings
+   DEFAULT_BATCH_SIZE=1000
+   DEFAULT_ITERATIONS=10
+   LOG_LEVEL=INFO
+   ```
 
-```env
-CDF_PROJECT=your-project-name
-CDF_CLUSTER=your-cluster
-CDF_CLIENT_ID=your-client-id
-CDF_CLIENT_SECRET=your-client-secret
-CDF_TENANT_ID=your-tenant-id
-```
+2. **Test your connection:**
+   ```bash
+   python test_connection.py
+   ```
+   
+   **Expected Output:**
+   ```
+   ✓ Successfully connected to CDF project: your-project
+   ✓ Configuration is valid
+   ✓ Token is valid and accessible
+   🎉 CDF connection test successful!
+   ```
 
-### 3. Start Jupyter
+### Step 3: Start Jupyter Notebook
 
 ```bash
 jupyter notebook
 ```
 
-### 4. Run Performance Tests
-
-Navigate to any notebook in the `notebooks/` directory and start testing!
+Navigate to the `notebooks/` directory and choose a performance test to run!
 
 ## 📊 Available Performance Tests
 
-### Data Ingestion (`notebooks/data_ingestion/`)
-- **Time Series Ingestion**: Test performance of time series data ingestion
-- Single datapoint vs batch ingestion
-- Concurrent ingestion tests
-- Memory usage analysis
+### 🏭 Data Ingestion Performance (`data_ingestion/`)
 
-### Time Series (`notebooks/time_series/`)
-- **Query Performance**: Test time series query operations
-- Range queries with different time spans
-- Aggregate queries performance
-- Multi-series query optimization
+**📓 `timeseries_ingestion_performance.ipynb`**
 
-### Events (`notebooks/events/`)
-- **Event Operations**: Test event creation, querying, and updates
-- Event filtering and search performance
-- Bulk event operations
-- Event aggregation tests
+Tests time series data ingestion performance with comprehensive benchmarking.
 
-### Files (`notebooks/files/`)
-- **File Operations**: Test file upload, download, and metadata operations
-- File size impact on performance
+**🔬 What it tests:**
+- Single vs batch datapoint ingestion
+- Concurrent ingestion performance  
+- Memory usage during ingestion
+- Different batch sizes optimization
+- Error handling and resilience
+
+**📈 Visual Output Examples:**
+```
+*** Testing Batch Ingestion Performance ***
+==================================================
+
+1. Testing batch sizes: [100, 500, 1000, 5000]
+   Batch 100   | 0.234s avg | 427.35 datapoints/s
+   Batch 500   | 0.891s avg | 561.28 datapoints/s  
+   Batch 1000  | 1.456s avg | 686.81 datapoints/s
+   Batch 5000  | 6.234s avg | 802.05 datapoints/s
+
+2. Testing concurrent ingestion (4 threads):
+   Thread performance: 1,247.3 datapoints/s per thread
+   Total throughput: 4,989.2 datapoints/s
+
+📊 Performance Visualization:
+[Generated charts showing batch size vs throughput]
+```
+
+**🧹 Cleanup:** Automatically removes test time series and data
+
+---
+
+### 🔍 Time Series Query Performance (`time_series/`)
+
+**📓 `timeseries_query_performance.ipynb`**
+
+Comprehensive testing of time series query operations and optimization strategies.
+
+**🔬 What it tests:**
+- Range queries with different time spans (1 hour to 1 week)
+- Aggregate queries with various granularities  
+- Multiple time series simultaneous queries
+- Limit parameter optimization
+- Latest value query performance
+
+**📈 Visual Output Examples:**
+```
+🔍 Range Query Performance:
+  1 hour     | 0.073s avg | 13.64 ops/s | 150 datapoints/s
+  6 hours    | 0.063s avg | 15.77 ops/s | 1,120 datapoints/s  
+  1 day      | 0.064s avg | 15.75 ops/s | 4,520 datapoints/s
+  1 week     | 0.073s avg | 13.76 ops/s | 27,718 datapoints/s
+
+📊 Aggregate Query Performance:
+  1m granularity  | 0.082s avg | 24,567 points/s
+  15m granularity | 0.074s avg | 9,067 points/s
+  1h granularity  | 0.071s avg | 2,397 points/s
+
+🔗 Multiple Series Performance:
+  1 series   | 16.01 datapoints/s per series
+  2 series   | 14.96 datapoints/s per series  
+  3 series   | 14.77 datapoints/s per series
+
+📊 [Auto-generated performance charts and visualizations]
+```
+
+**🧹 Cleanup:** Automatically removes test time series (3 series with ~6K datapoints)
+
+---
+
+### 🏗️ Data Modeling Performance (`data_modeling/`)
+
+**📓 `data_modeling_performance.ipynb`**
+
+Tests performance of data modeling operations including schema management and instance operations.
+
+**🔬 What it tests:**
+- **Test 1:** Instance creation performance (different batch sizes)
+- **Test 2:** Instance query performance (filters, limits) 
+- **Test 3:** Instance update performance
+- **Test 4:** Edge (relationship) creation and queries
+- **Test 5:** Schema operations (containers, views, data models) ⚠️ *Fixed ViewPropertyApply error*
+- **Test 6:** Instance deletion performance
+
+**📈 Visual Output Examples:**
+```
+*** Testing Data Modeling Performance ***
+================================================
+
+🏭 Instance Creation Performance:
+  Batch  10 | 0.106s avg | 94.23 instances/s
+  Batch  50 | 0.149s avg | 336.78 instances/s
+  Batch 100 | 0.477s avg | 209.69 instances/s
+  Batch 500 | 0.659s avg | 759.08 instances/s
+
+🔍 Instance Query Performance:
+  limit_100       | 0.115s avg | 86.84 instances/s
+  status_filter   | 0.094s avg | 10.64 ops/s
+  value_range     | 0.103s avg | 9.71 ops/s
+
+🔗 Edge Performance:
+  edge_creation_10    | 0.109s avg | 91.62 edges/s
+  edge_query          | 0.086s avg | 11.58 ops/s
+
+📋 Schema Operations Performance: (FIXED)
+  container_creation  | 1.33 containers/s
+  view_creation      | 0.82 views/s (using MappedPropertyApply)
+  data_model_creation | 0.91 data models/s
+
+📊 [Comprehensive performance visualizations with 6 charts]
+```
+
+**🧹 Cleanup:** Enhanced cleanup with proper data model version handling
+
+---
+
+### 🗃️ RAW Table Performance (`raw/`)
+
+**📓 `raw_performance.ipynb`**
+
+Tests performance of RAW table operations for unstructured data storage.
+
+**🔬 What it tests:**
+- RAW row insertion (single vs batch)
+- RAW table query and filtering performance
+- RAW database and table management
+- Cursor-based pagination performance
+- RAW data retrieval optimization
+
+**📈 Expected Output Examples:**
+```
+*** Testing RAW Table Performance ***
+=======================================
+
+🗃️ Row Insertion Performance:
+  Single rows    | 0.145s avg | 6.90 rows/s
+  Batch 100     | 1.234s avg | 81.03 rows/s
+  Batch 1000    | 8.567s avg | 116.74 rows/s
+
+🔍 Query Performance:
+  Filter queries    | 0.089s avg | 11.24 ops/s
+  Pagination (1000) | 0.156s avg | 6.41 ops/s
+  Full table scan   | 2.345s avg | 0.43 ops/s
+
+📊 [Performance charts and optimization recommendations]
+```
+
+**🧹 Cleanup:** Removes test RAW databases and tables
+
+---
+
+### 📁 File Operations Performance (`files/`)
+
+**📓 `files_performance.ipynb`**
+
+Tests performance of file upload, download, and metadata operations.
+
+**🔬 What it tests:**
+- File upload performance (different sizes)
+- File download and streaming performance
+- File metadata operations
 - Concurrent file operations
-- File streaming performance
+- File processing pipeline performance
 
-### 3D (`notebooks/3d/`)
-- **3D Operations**: Test 3D model operations
-- 3D model upload and processing
-- 3D asset mapping performance
-- 3D node operations
+**📈 Expected Output Examples:**
+```
+*** Testing File Operations Performance ***
+==========================================
 
-### RAW (`notebooks/raw/`)
-- **RAW Tables**: Test RAW table operations
-- Row insertion performance (single vs batch)
-- RAW table query performance
-- RAW table management operations
+📤 Upload Performance:
+  1MB files     | 2.34s avg | 0.43 MB/s
+  10MB files    | 15.67s avg | 0.64 MB/s  
+  100MB files   | 89.23s avg | 1.12 MB/s
 
-### Transformations (`notebooks/transformations/`)
-- **Transformation Performance**: Test transformation operations
-- Transformation job execution time
-- Data pipeline performance
+📥 Download Performance:
+  1MB files     | 1.23s avg | 0.81 MB/s
+  10MB files    | 8.45s avg | 1.18 MB/s
+  Streaming     | 0.95s avg | 1.35 MB/s
+
+📊 [File performance visualizations and recommendations]
+```
+
+**🧹 Cleanup:** Removes test files and metadata
+
+---
+
+### 🔄 Transformations Performance (`transformations/`)
+
+**📓 `transformations_performance.ipynb`**
+
+Tests performance of transformation operations and data pipeline processing.
+
+**🔬 What it tests:**
+- Transformation job execution performance
+- Data pipeline throughput testing
 - Resource utilization analysis
+- Transformation scheduling performance
+- Error handling and retry logic
 
-### Data Modeling (`notebooks/data_modeling/`)
-- **Data Model Operations**: Test data modeling performance
-- Data model creation and updates
-- Instance operations performance
-- Query performance on data models
+**📈 Expected Output Examples:**
+```
+*** Testing Transformation Performance ***
+=========================================
 
-### Benchmarks (`notebooks/benchmarks/`)
-- **Comprehensive Benchmarks**: Full system performance tests
-- End-to-end workflow performance
-- Cross-service integration tests
-- Performance regression testing
+🔄 Job Execution Performance:
+  Simple transforms  | 45.6s avg | 2,190 rows/s
+  Complex transforms | 123.4s avg | 810 rows/s
+  Scheduled jobs     | 67.8s avg | 1,475 rows/s
 
-## 🛠️ Utilities
+📊 Resource Utilization:
+  CPU usage     | 65.4% avg
+  Memory usage  | 2.3GB peak
+  Network I/O   | 45.6 MB/s avg
 
-### Performance Tracker (`utilities/performance_utils.py`)
+📊 [Pipeline performance charts and optimization insights]
+```
 
-The `PerformanceTracker` class provides easy-to-use performance monitoring:
+**🧹 Cleanup:** Removes test transformation jobs and configurations
+
+## 🛠️ Performance Utilities
+
+The framework includes powerful utilities for consistent performance measurement:
+
+### PerformanceTracker Class
 
 ```python
 from utilities.performance_utils import PerformanceTracker
 
-# Track a single operation
-tracker = PerformanceTracker("timeseries_query")
+# Simple operation tracking
+tracker = PerformanceTracker("my_operation")
 tracker.start()
 # ... your CDF operation ...
 duration = tracker.stop()
 
-# Get statistics
+# Get detailed statistics
 stats = tracker.get_stats()
-print(f"Average time: {stats['mean']:.4f}s")
-
-# Save results
-tracker.save_results("results/timeseries_query_results.json")
+print(f"Mean: {stats['mean']:.4f}s")
+print(f"Std Dev: {stats['std_dev']:.4f}s")
 ```
 
-### Benchmarking Functions
+### Benchmark Operation Function
 
 ```python
 from utilities.performance_utils import benchmark_operation
 
-# Benchmark a function with multiple iterations
+# Automated benchmarking with statistics
 results = benchmark_operation(
     operation=my_cdf_function,
     iterations=100,
     warmup=5,
     *args, **kwargs
 )
+
+print(f"Mean time: {results['mean_time']:.4f}s")
+print(f"Operations/sec: {results['operations_per_second']:.2f}")
 ```
 
-### Configuration Management (`configs/cdf_config.py`)
+### Data Generation Utilities
 
 ```python
-from configs.cdf_config import config
+from utilities.performance_utils import generate_test_data
 
-# Get CDF client configuration
-client_config = config.get_client_config()
-
-# Get test configuration
-test_config = config.get_test_config()
+# Generate realistic test data
+timeseries_data = generate_test_data(
+    data_type="timeseries",
+    count=1000,
+    start_time="2023-01-01",
+    interval="5m"
+)
 ```
 
-## 📈 Results and Analysis
+## 📈 Results and Visualization
 
-Performance test results are automatically saved in the `results/` directory with timestamps:
+### Automatic Results Storage
+All performance tests automatically save results with timestamps:
 
 ```
 results/
-├── 20231201_143022/              # Timestamp directory
-│   ├── timeseries_query_results.json
-│   ├── event_operations_results.json
-│   └── benchmark_summary.json
+├── 20231201_143022_timeseries_ingestion/
+│   ├── batch_performance.json
+│   ├── concurrent_performance.json
+│   ├── memory_usage.json
+│   └── performance_summary.png
+├── 20231201_143155_query_performance/
+│   ├── range_queries.json
+│   ├── aggregate_queries.json
+│   └── visualization_charts.png
 ```
 
-Each result file contains:
-- Individual measurement data
-- Statistical analysis (min, max, mean, median, std dev)
-- Test metadata and configuration
-- Timestamps for each measurement
+### Built-in Visualizations
+Each notebook generates comprehensive charts:
+- **Performance trends** over time
+- **Throughput comparisons** across different configurations
+- **Resource utilization** graphs
+- **Error rate** analysis
+- **Optimization recommendations**
 
-## 🔧 Customization
+## 🔧 Customization and Best Practices
 
-### Adding New Tests
+### Running Tests in Different Environments
 
-1. Create a new notebook in the appropriate category folder
-2. Import utility functions:
+1. **Development Environment:**
    ```python
-   import sys
-   sys.path.append('../..')
-   from utilities.performance_utils import PerformanceTracker
-   from configs.cdf_config import config
+   # Small test datasets
+   test_series = setup_test_timeseries(num_series=3, days_of_data=7)
    ```
-3. Use the `PerformanceTracker` class to measure operations
-4. Save results using the provided utilities
 
-### Modifying Configuration
+2. **Production-like Testing:**
+   ```python
+   # Larger test datasets
+   test_series = setup_test_timeseries(num_series=50, days_of_data=90)
+   ```
 
-Edit `configs/cdf_config.py` to adjust:
-- Default batch sizes
+### Performance Testing Best Practices
+
+1. **📊 Always run warm-up iterations** to account for cold start effects
+2. **🔄 Use multiple iterations** for statistical significance (minimum 10)
+3. **🏷️ Tag your results** with environment and CDF version information
+4. **🧹 Always run cleanup** to avoid cluttering your CDF project
+5. **📈 Monitor trends** over time to catch performance regressions
+6. **⚖️ Test realistic data volumes** that match your production usage
+
+### Configuration Management
+
+Edit `configs/cdf_config.py` to customize:
+- Default batch sizes for different operations
 - Number of test iterations
-- Timeout settings
-- Test data sizes
+- Timeout settings and retry logic
+- Test data generation parameters
 
-## 📝 Best Practices
+## 🚨 Important Notes
 
-1. **Warm-up Iterations**: Always include warm-up iterations to account for cold start effects
-2. **Multiple Measurements**: Run multiple iterations for statistical significance
-3. **Consistent Environment**: Run tests in consistent environments for comparable results
-4. **Document Changes**: Keep track of CDF version and configuration changes
-5. **Regular Monitoring**: Set up regular performance monitoring to catch regressions
+### Cleanup and Data Management
+- ✅ **All notebooks include automatic cleanup** functions
+- ⚠️ **Test data is created in your CDF project** - cleanup is essential
+- 🎯 **Use test/development projects** for performance testing when possible
+- 📊 **Monitor your CDF quota usage** during large-scale tests
+
+### Performance Testing Considerations
+- 🌐 **Network latency affects results** - test from consistent locations
+- 🔄 **CDF API rate limits** may impact high-throughput tests
+- 📈 **Baseline your results** against known good performance metrics
+- 🕒 **Time of day can affect results** due to CDF load variations
 
 ## 🤝 Contributing
 
-1. Add new performance tests in the appropriate category
-2. Update documentation when adding new features
-3. Follow the existing code structure and naming conventions
-4. Include proper error handling and logging
+To add new performance tests:
 
-## 📄 License
+1. **Create a new notebook** in the appropriate category directory
+2. **Follow the established pattern:**
+   ```python
+   # Standard imports for all notebooks
+   import sys
+   sys.path.append('../..')
+   from utilities.performance_utils import PerformanceTracker, benchmark_operation
+   from utilities.client_setup import get_client, test_connection
+   ```
+3. **Include setup, tests, visualization, and cleanup sections**
+4. **Update this README** with your new test descriptions
+5. **Test thoroughly** and ensure cleanup works properly
 
-This framework is intended for internal use with Cognite Data Fusion performance testing.
+## 🆘 Support and Troubleshooting
 
-## 🆘 Support
+### Common Issues
 
-For issues or questions:
-1. Check the existing notebooks for examples
-2. Review the utility functions documentation
-3. Ensure your CDF credentials are correctly configured
-4. Check the CDF SDK documentation for API changes 
+1. **Connection Errors:**
+   - Verify `.env` file configuration
+   - Run `python test_connection.py`
+   - Check CDF service principal permissions
+
+2. **Performance Test Failures:**
+   - Ensure sufficient CDF quota
+   - Check for API rate limiting
+   - Verify test data cleanup from previous runs
+
+3. **Notebook Import Errors:**
+   - Confirm `pip install -r requirements.txt` completed
+   - Check Python path configuration
+   - Verify notebook kernel is using correct environment
+
+### Getting Help
+1. 📖 **Check notebook outputs** for detailed error messages
+2. 🔍 **Review utility function documentation** in `utilities/`
+3. 🌐 **Consult CDF SDK documentation** for API changes
+4. 🧪 **Start with smaller test datasets** to isolate issues
+
+---
+
+**Ready to start performance testing?** 🚀
+
+1. `pip install -r requirements.txt`
+2. `python scripts/setup_environment.py`
+3. Configure your `.env` file
+4. `python test_connection.py`
+5. `jupyter notebook`
+6. Open any notebook and start testing!
+
+*Happy performance testing!* 📊✨ 
