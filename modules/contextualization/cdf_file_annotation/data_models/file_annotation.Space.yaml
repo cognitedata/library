@@ -1,0 +1,6 @@
+- description: Schema Space for holding new containers and views that extend an organizations file view. This is useful for when the organizations file view needs to be used for search consumption while the extended info, such as the files annotation state, should be hidden from end users.
+  name: {{ fileAnnotationSchemaSpace }}
+  space: {{ fileAnnotationSchemaSpace }}
+- description: Instance space for holding instantiated nodes and edges from the views in the file Annotation data model.
+  name: {{ fileAnnotationInstanceSpace }}
+  space: {{ fileAnnotationInstanceSpace }}

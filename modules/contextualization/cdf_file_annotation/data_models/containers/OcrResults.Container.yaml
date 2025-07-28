@@ -1,0 +1,21 @@
+space: {{ fileAnnotationSchemaSpace }}
+externalId: {{ ocrContainerExteneralId }}
+name: File OCR Results
+description: Container that holds information on the results of the OCR endpoint for a file
+properties:
+  ocrResults:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: results
+  totalPageCount:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: totalPageCount

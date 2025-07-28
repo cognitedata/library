@@ -1,0 +1,203 @@
+space: {{ fileAnnotationSchemaSpace }}
+externalId: {{ organization }}{{ fileAnnotationViewExternalId }}
+name: File Annotation
+description: A file with its annotation state and OCR results
+implements:
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+  type: view
+- space: {{ organizationSchemaSpace }}
+  externalId: {{ organization }}File
+  version: v1
+  type: view
+version: {{ fileAnnotationDataModelVersion }}
+properties:
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    name: name
+  description:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    name: description
+  tags:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    name: tags
+  aliases:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    name: aliases
+  sourceId:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    name: sourceId
+  sourceContext:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceContext
+    name: sourceContext
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  sourceCreatedTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedTime
+    name: sourceCreatedTime
+  sourceUpdatedTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedTime
+    name: sourceUpdatedTime
+  sourceCreatedUser:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedUser
+    name: sourceCreatedUser
+  sourceUpdatedUser:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedUser
+    name: sourceUpdatedUser
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: A list of assets this file is related to.
+    source:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}Asset
+      version: v1
+      type: view
+  category:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: category
+    name: Category
+    description: Specifies the detected category the file belongs to. It's a direct
+      relation to an instance of CogniteFileCategory.
+    source:
+      space: cdf_cdm
+      externalId: CogniteFileCategory
+      version: v1
+      type: view
+  equipment:
+    source:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}Equipment
+      version: v1
+      type: view
+    through:
+      source:
+        space: {{ organizationSchemaSpace }}
+        externalId: {{ organization }}Equipment
+        version: v1
+        type: view
+      identifier: files
+    name: Equipment
+    description: An automatically updated list of equipment this file is related to.
+    connectionType: multi_reverse_direct_relation
+  UUID:
+    container:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}File
+      type: container
+    containerPropertyIdentifier: UUID
+  annotationStatus:
+    container:
+      space: {{ fileAnnotationSchemaSpace }}
+      externalId: {{ annotationStateContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotationStatus
+    name: Annotation Status
+  annotationResults:
+    container:
+      space: {{ fileAnnotationSchemaSpace }}
+      externalId: {{ annotationStateContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotationResults
+    name: Annotation Results
+  annotationAttemptCount:
+    container:
+      space: {{ fileAnnotationSchemaSpace }}
+      externalId: {{ annotationStateContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotationAttemptCount
+    name: Annotation Attempt Count
+  diagramDetectJobId:
+    container:
+      space: {{ fileAnnotationSchemaSpace }}
+      externalId: {{ annotationStateContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: diagramDetectJobId
+    name: Diagram Detect Job Id
+  annotatedPageCount:
+    container:
+      space: {{ fileAnnotationSchemaSpace }}
+      externalId: {{ annotationStateContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotatedPageCount
+    name: Count of Annotated Pages
+  ocrResults:
+    container:
+      space: {{ fileAnnotationSchemaSpace }}
+      externalId: {{ ocrContainerExteneralId }}
+      type: container
+    containerPropertyIdentifier: ocrResults
+    name: OCR Results
+  totalPageCount:
+    container:
+      space: {{ fileAnnotationSchemaSpace }}
+      externalId: {{ ocrContainerExteneralId }}
+      type: container
+    containerPropertyIdentifier: totalPageCount
+    name: Total Page Count

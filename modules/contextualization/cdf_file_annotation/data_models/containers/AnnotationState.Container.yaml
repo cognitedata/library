@@ -1,0 +1,47 @@
+space: {{ fileAnnotationSchemaSpace }}
+externalId: {{ annotationStateContainerExternalId }}
+name: File Annotation State
+description: Container that holds information on the state of a file in the annotation process
+properties:
+  annotationStatus:
+    type:
+      type: enum
+      values:
+        New: {}
+        Processing: {}
+        Finalizing: {}
+        Retry: {}
+        Failed: {}
+        Annotated: {}
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  annotationResults:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  annotationAttemptCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  diagramDetectJobId:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  annotatedPageCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false

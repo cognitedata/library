@@ -67,7 +67,7 @@ capabilities:
       scope:
         datasetScope:
           ids:
-            - {{ annotationDatasetExternalId }}
+            - {{ fileAnnotationDataSetExternalId }}
   - extractionRunsAcl:
       actions:
           - READ
@@ -75,7 +75,7 @@ capabilities:
       scope:
         datasetScope:
           ids:
-            - {{ annotationDatasetExternalId }}
+            - {{ fileAnnotationDataSetExternalId }}
   - extractionPipelinesAcl:
         actions:
           - READ
@@ -83,7 +83,7 @@ capabilities:
         scope:
           datasetScope:
             ids:
-              - {{ annotationDatasetExternalId }}
+              - {{ fileAnnotationDataSetExternalId }}
   - workflowOrchestrationAcl:
         actions:
             - READ
@@ -91,7 +91,7 @@ capabilities:
         scope:
           datasetScope:
             ids:
-              - {{ annotationDatasetExternalId }}
+              - {{ fileAnnotationDataSetExternalId }}
 # Bug in /context/diagram/detect/ endpoint that requires this
   - assetsAcl:
       actions:

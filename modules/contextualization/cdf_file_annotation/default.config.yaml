@@ -1,14 +1,27 @@
 # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
-annotationDatasetExternalId: ds_file_annotation
+fileAnnotationDataSetExternalId: ds_file_annotation
 
 # used in /data_models and /extraction_pipelines
-annotationStateExternalId: FileAnnotationState
-annotationStateInstanceSpace: sp_dat_cdf_annotation_states
-annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
-annotationStateVersion: v1.0.0
-fileSchemaSpace: <insert>
-fileExternalId: <insert>
-fileVersion: <insert>
+fileAnnotationDataModelExternalId: dm_file_annotation
+fileAnnotationDataModelVersion: v1
+fileAnnotationSchemaSpace: sp_file_annotation
+fileAnnotationInstanceSpace: sp_dat_cdf_file_annotation
+
+# Containers
+# NOTE: Using camel case because it's more indicative of a class name
+annotationStateContainerExternalId: AnnotationState
+ocrContainerExteneralId: OcrResults
+
+# Views
+# NOTE: Using camel case because it's more indicative of a class name
+fileAnnotationViewExternalId: FileAnnotation # NOTE: When deployed, the view name will be a concatenation of the following... <organization>FileAnnotation
+
+# organization/name used to extend the CogniteCore views. organization is the standard variable used when creating a quickstart project through toolkit. 
+# Take a look at the quickstart config.<env>.yaml file to see example.
+# In this template, we'll be extending the extended views from the quickstart module. This enables one instance that populates multiple views/containers such that they can be consumed independetly
+organization: <insert>
+organizationSchemaSpace: <insert>
+organizationDataModelExternalId: <insert>
 
 # used in /raw and /extraction_pipelines
 rawDb: db_file_annotation

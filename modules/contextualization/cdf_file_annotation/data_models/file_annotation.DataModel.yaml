@@ -1,0 +1,153 @@
+space: {{ fileAnnotationSchemaSpace}}
+externalId: {{ fileAnnotationDataModelExternalId }}
+name: File Annotation Data Model
+description: Data model for holding new containers and views that extend an organizations
+  file view. This is useful for when the organizations file view needs to be used
+  for search consumption while the extended info, such as the files annotation state,
+  should be hidden from end users.
+version: {{ fileAnnotationDataModelVersion }}
+views:
+- space: {{ fileAnnotationSchemaSpace }}
+  externalId: {{ organization }}{{ fileAnnotationViewExternalId }}
+  version: {{ fileAnnotationDataModelVersion }}
+  type: view
+- space: {{ organizationSchemaSpace }}
+  externalId: {{ organization }}Asset
+  version: v1
+  type: view
+- space: {{ organizationSchemaSpace }}
+  externalId: {{ organization }}Equipment
+  version: v1
+  type: view
+- space: {{ organizationSchemaSpace }}
+  externalId: {{ organization }}Activity
+  version: v1
+  type: view
+- space: {{ organizationSchemaSpace }}
+  externalId: {{ organization }}TimeSeries
+  version: v1
+  type: view
+- space: {{ organizationSchemaSpace }}
+  externalId: {{ organization }}File
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteUnit
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetClass
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetType
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipmentType
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceSystem
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAsset
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipment
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteTimeSeries
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteActivity
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSchedulable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteVisualizable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DObject
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADNode
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360Image
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CognitePointCloudVolume
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageCollection
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageStation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADModel
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADRevision
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageModel
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DRevision
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DModel
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCubeMap
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DTransformation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageAnnotation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAnnotation
+  version: v1
+  type: view
