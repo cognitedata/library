@@ -2,7 +2,91 @@
 
 A comprehensive framework for testing the performance of Cognite Data Fusion (CDF) operations using Jupyter notebooks. This framework provides ready-to-use performance tests with automated benchmarking, visualization, and cleanup capabilities.
 
-## 📁 Project Structure
+## 🎯 What We're Testing & Why It Matters
+
+### 📊 **Performance Testing Overview**
+
+This framework systematically tests **all critical CDF operations** that impact project delivery success:
+
+| **Operation Category** | **What We Test** | **Project Impact** |
+|------------------------|------------------|-------------------|
+| **🏭 Data Ingestion** | Time series batch/streaming ingestion | Data pipeline throughput & reliability |
+| **🔍 Query Performance** | Range, aggregate, multi-series queries | Application response times |
+| **🏗️ Data Modeling** | Schema ops, instance CRUD, relationships | Data model scalability |
+| **🗃️ RAW Operations** | Bulk insert/query, table management | Data lake performance |
+| **📁 File Operations** | Upload/download, metadata handling | Asset management efficiency |
+| **🔄 Transformations** | Pipeline execution, resource usage | Data processing workflows |
+
+### 🚀 **Why Performance Testing is Critical for CDF Projects**
+
+#### **1. Project Delivery Success** 
+- **⏱️ Meet SLA Requirements:** Ensure applications meet response time commitments
+- **📈 Scale Validation:** Verify system can handle projected data volumes
+- **🎯 User Experience:** Prevent slow dashboards and frustrated end users
+- **💰 Cost Optimization:** Identify inefficient operations that waste CDF quota
+
+#### **2. Production Readiness**
+- **🔥 Avoid Go-Live Issues:** Catch performance bottlenecks before production
+- **📊 Capacity Planning:** Size infrastructure correctly for data loads
+- **🛡️ System Stability:** Prevent timeouts and failures under load
+- **⚡ Optimization Opportunities:** Find areas for significant performance gains
+
+#### **3. Development Efficiency**
+- **🧪 Early Detection:** Identify performance regressions during development
+- **📐 Design Validation:** Verify data model and architecture decisions
+- **🔧 Tuning Guidance:** Get specific recommendations for optimization
+- **📈 Baseline Establishment:** Track performance improvements over time
+
+### 💡 **Real-World Project Benefits**
+
+**Before Performance Testing:**
+```
+❌ "Dashboard takes 30 seconds to load"
+❌ "Data ingestion pipeline fails with large batches" 
+❌ "Users complain about slow search results"
+❌ "Hitting CDF quota limits unexpectedly"
+```
+
+**After Performance Testing:**
+```
+✅ "Dashboard loads in <3 seconds"
+✅ "Ingestion handles 10,000 datapoints/second reliably"
+✅ "Search results return in <1 second"
+✅ "Optimized operations reduce CDF costs by 40%"
+```
+
+### 🎪 **Typical Project Performance Issues We Catch**
+
+1. **🐌 Inefficient Queries**
+   - Large time range queries without proper limits
+   - Querying multiple time series inefficiently
+   - Missing aggregate optimizations
+
+2. **💾 Data Ingestion Bottlenecks**
+   - Sub-optimal batch sizes causing timeouts
+   - Lack of concurrent ingestion strategies
+   - Memory leaks in long-running processes
+
+3. **🏗️ Data Model Problems**
+   - Complex schemas causing slow instance operations
+   - Inefficient relationship queries
+   - Poor container/view design patterns
+
+4. **📁 File Operation Issues**
+   - Large file uploads timing out
+   - Inefficient metadata handling
+   - Missing streaming optimizations
+
+### 📈 **Performance Success Metrics**
+
+**Target Performance Benchmarks:**
+- **Data Ingestion:** >1,000 datapoints/second sustained
+- **Query Response:** <2 seconds for typical dashboard queries
+- **Data Model Ops:** <1 second for instance creation/updates
+- **File Operations:** >1 MB/s upload/download throughput
+- **System Reliability:** <1% error rate under normal load
+
+## �� Project Structure
 
 ```
 CDF Performance Testing/
