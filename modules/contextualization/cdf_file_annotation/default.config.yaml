@@ -1,20 +1,24 @@
 # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
-fileAnnotationDataSetExternalId: ds_file_annotation
+contextualizationExtensionsDataSetExternalId: ds_contextualization_extensions
 
 # used in /data_models and /extraction_pipelines
-fileAnnotationDataModelExternalId: dm_file_annotation
-fileAnnotationDataModelVersion: v1
-fileAnnotationSchemaSpace: sp_file_annotation
-fileAnnotationInstanceSpace: sp_dat_cdf_file_annotation
+contextualizationExtensionsDataModelExternalId: dm_contextualization_extensions
+contextualizationExtensionsDataModelVersion: v1
+contextualizationExtensionsSchemaSpace: sp_contextualization_extensions
+
+# Instance spaces
+fileInstanceSpace: sp_dat_cdf_contextualized_files # or wherever you'd like to store instances of your file
 
 # Containers
 # NOTE: Using camel case because it's more indicative of a class name
 annotationStateContainerExternalId: AnnotationState
-ocrContainerExteneralId: OcrResults
+ocrContainerExternalId: OcrResults
+diagramDetectContainerExternalId: DiagramDetectResults
+runInformationContainerExternalId: RunInformation
 
 # Views
-# NOTE: Using camel case because it's more indicative of a class name
-fileAnnotationViewExternalId: FileAnnotation # NOTE: When deployed, the view name will be a concatenation of the following... <organization>FileAnnotation
+# NOTE: Using camel case because it's more indicawtive of a class name
+contextualizationFileViewExternalId: ContextualizationFile # NOTE: When deployed, the view name will be a concatenation of the following... <organization>FileAnnotation
 
 # organization/name used to extend the CogniteCore views. organization is the standard variable used when creating a quickstart project through toolkit. 
 # Take a look at the quickstart config.<env>.yaml file to see example.

@@ -1,3 +1,0 @@
-externalId: {{ fileAnnotationDataSetExternalId }}
-name: {{ fileAnnotationDataSetExternalId }}
-description: Dataset for processes related to file views that have been extended.

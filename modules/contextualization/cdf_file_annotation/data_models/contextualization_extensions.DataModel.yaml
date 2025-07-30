@@ -1,15 +1,15 @@
-space: {{ fileAnnotationSchemaSpace}}
-externalId: {{ fileAnnotationDataModelExternalId }}
-name: File Annotation Data Model
+space: {{ contextualizationExtensionsSchemaSpace}}
+externalId: {{ contextualizationExtensionsDataModelExternalId }}
+name: Contextualization Extensions Data Model
 description: Data model for holding new containers and views that extend an organizations
   file view. This is useful for when the organizations file view needs to be used
   for search consumption while the extended info, such as the files annotation state,
   should be hidden from end users.
-version: {{ fileAnnotationDataModelVersion }}
+version: {{ contextualizationExtensionsDataModelVersion }}
 views:
-- space: {{ fileAnnotationSchemaSpace }}
-  externalId: {{ organization }}{{ fileAnnotationViewExternalId }}
-  version: {{ fileAnnotationDataModelVersion }}
+- space: {{ contextualizationExtensionsSchemaSpace }}
+  externalId: {{ organization }}{{ contextualizationFileViewExternalId }}
+  version: {{ contextualizationExtensionsDataModelVersion }}
   type: view
 - space: {{ organizationSchemaSpace }}
   externalId: {{ organization }}Asset

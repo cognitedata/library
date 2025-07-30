@@ -1,6 +1,6 @@
 name: File Annotations
 externalId: {{ extractionPipelineExternalId }}
-dataSetExternalId: {{ fileAnnotationDataSetExternalId }}
+dataSetExternalId: {{ contextualizationExtensionsDataSetExternalId }}
 description: "Pipeline holding configurations for annotating P&ID and documents."
 rawTables:
   - dbName: {{ rawDb }}

@@ -1,22 +1,18 @@
-space: {{ fileAnnotationSchemaSpace }}
+space: {{ contextualizationExtensionsSchemaSpace }}
 externalId: {{ annotationStateContainerExternalId }}
 name: File Annotation State
 description: Container that holds information on the state of a file in the annotation process
 properties:
-  annotationStatus:
+  annotationStatus: # NOTE: Will be used as an index -> property will consistently be used as a query
     type:
-      type: enum
-      values:
-        New: {}
-        Processing: {}
-        Finalizing: {}
-        Retry: {}
-        Failed: {}
-        Annotated: {}
+      list: false
+      collation: ucs_basic
+      type: text
     immutable: false
-    nullable: true
+    nullable: false
     autoIncrement: false
-  annotationResults:
+    name: Annotation Status
+  annotationMessage:
     type:
       list: false
       collation: ucs_basic
@@ -24,6 +20,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
+    name: Annotation Message
   annotationAttemptCount:
     type:
       list: false
@@ -31,13 +28,7 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-  diagramDetectJobId:
-    type:
-      list: false
-      type: int64
-    immutable: false
-    nullable: true
-    autoIncrement: false
+    name: Annotation Attempt Count
   annotatedPageCount:
     type:
       list: false
@@ -45,3 +36,16 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
+    name: Annotated Page Count
+indexes:
+  annotationStatus:
+    indexType: btree
+    properties:
+      - annotationStatus
+    cursorable: true
+constraints:
+  requireFile:
+    constraintType: requires
+    require:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}File # NOTE: assumes the view name is just <orgnization>File -> similar to how the quickstart is setup

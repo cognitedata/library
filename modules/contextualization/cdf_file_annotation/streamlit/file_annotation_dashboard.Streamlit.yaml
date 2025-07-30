@@ -4,5 +4,5 @@ creator: jack.zhao72.jz@gmail.com (feel free to change)
 description: Dashboard to inspect the health of the File Annotation Pipeline
 published: true
 theme: Light
-dataSetExternalId: {{ fileAnnotationDataSetExternalId }}
+dataSetExternalId: {{ contextualizationExtensionsDataSetExternalId }}
 entrypoint: Extraction_Pipeline.py

@@ -1,0 +1,73 @@
+space: {{ contextualizationExtensionsSchemaSpace }}
+externalId: {{ diagramDetectContainerExternalId }}
+name: File Diagram Detect Results
+description: Container that holds information on the results of the diagram detect endpoint for a file
+properties:
+  diagramDetectJobId: # NOTE: Will be used as an index -> property will consistently be used as a query
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Job Id
+  diagramDetectAnnotationResults: # NOTE: will store the annotations results of the diagram detect job that was retrieved for a file
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Annotation Results
+  diagramDetectConfiguration: # NOTE: will store the config used to create the job id of the diagram detect job that was retrieved
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Configuration
+  diagramDetectCreatedTime: # NOTE: will store when the diagram detect job was created
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Created Time
+  diagramDetectStatusTime: # NOTE: will store when the diagram detect job completed or failed
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Status Updated Time
+  diagramDetectErrorMessage: # NOTE: will either store nothing if successful or the error message related to the diagram detect job
+    type:
+      list: false
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Error Message
+  totalPageCount:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Total Pages
+indexes:
+  diagramDetectJobId:
+    indexType: btree
+    properties:
+      - diagramDetectJobId
+    cursorable: true
+constraints:
+  requireAnnotationState:
+    constraintType: requires
+    require:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ annotationStateContainerExternalId }}
