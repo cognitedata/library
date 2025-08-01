@@ -10,10 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Contextualization Extensions Data Model
-- File Annotation State Container
-- OCR Container
-- Diagram Detect Container
-- Run Information Container
+- Contextualization File View that extends <org>File
+- File Annotation Container
 
 ### Changed
 
