@@ -11,10 +11,7 @@ fileInstanceSpace: sp_dat_cdf_contextualized_files # or wherever you'd like to s
 
 # Containers
 # NOTE: Using camel case because it's more indicative of a class name
-annotationStateContainerExternalId: AnnotationState
-ocrContainerExternalId: OcrResults
-diagramDetectContainerExternalId: DiagramDetectResults
-runInformationContainerExternalId: RunInformation
+fileAnnotationContainerExternalId: FileAnnotation
 
 # Views
 # NOTE: Using camel case because it's more indicawtive of a class name

@@ -155,112 +155,98 @@ properties:
   annotationStatus:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ annotationStateContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: annotationStatus
     name: Annotation Status
   annotationMessage:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ annotationStateContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: annotationMessage
     name: Annotation Message
   annotationAttemptCount:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ annotationStateContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: annotationAttemptCount
     name: Annotation Attempt Count
   annotatedPageCount:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ annotationStateContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: annotatedPageCount
     name: Pages Annotated
   diagramDetectJobId:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ diagramDetectContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: diagramDetectJobId
     name: Diagram Detect Job Id
   diagramDetectAnnotationResults:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ diagramDetectContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: diagramDetectAnnotationResults
     name: Diagram Detect Annotation Results
   diagramDetectConfiguration:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ diagramDetectContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: diagramDetectConfiguration
     name: Diagram Detect Configuration
   diagramDetectCreatedTime:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ diagramDetectContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: diagramDetectCreatedTime
     name: Diagram Detect Job Created Time
   diagramDetectStatusTime:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ diagramDetectContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: diagramDetectStatusTime
     name: Diagram Detect Job Status Time
-  diagramDetectErrorMessage:
-    container:
-      space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ diagramDetectContainerExternalId }}
-      type: container
-    containerPropertyIdentifier: diagramDetectErrorMessage
-    name: Diagram Detect Error Message
   totalPageCount:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ diagramDetectContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: totalPageCount
     name: Total Pages
-  ocrResults:
-    container:
-      space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ ocrContainerExternalId }}
-      type: container
-    containerPropertyIdentifier: ocrResults
-    name: OCR Results
   launchFunctionId:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ runInformationContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: launchFunctionId
     name: Launch Function Id
   launchFunctionCallId:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ runInformationContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: launchFunctionCallId
     name: Launch Function Call Id
   finalizeFunctionId:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ runInformationContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: finalizeFunctionId
     name: Finalize Function Id
   finalizeFunctionCallId:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ runInformationContainerExternalId }}
+      externalId: {{ fileAnnotationContainerExternalId }}
       type: container
     containerPropertyIdentifier: finalizeFunctionCallId
     name: Finalize Function Call Id
