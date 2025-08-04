@@ -1,0 +1,252 @@
+space: {{ contextualizationExtensionsSchemaSpace }}
+externalId: {{ organization }}{{ contextualizationFileViewExternalId }}
+name: Contextualization File
+description: Holds information useful for the contextualization process of a file. Currently, particularly useful for the file annotation process.
+implements:
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+  type: view
+- space: {{ organizationSchemaSpace }}
+  externalId: {{ organization }}File
+  version: v1
+  type: view
+version: {{ contextualizationExtensionsDataModelVersion }}
+properties:
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    name: name
+  description:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    name: description
+  tags:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    name: tags
+  aliases:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    name: aliases
+  sourceId:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    name: sourceId
+  sourceContext:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceContext
+    name: sourceContext
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  sourceCreatedTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedTime
+    name: sourceCreatedTime
+  sourceUpdatedTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedTime
+    name: sourceUpdatedTime
+  sourceCreatedUser:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedUser
+    name: sourceCreatedUser
+  sourceUpdatedUser:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedUser
+    name: sourceUpdatedUser
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: A list of assets this file is related to.
+    source:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}Asset
+      version: v1
+      type: view
+  category:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: category
+    name: Category
+    description: Specifies the detected category the file belongs to. It's a direct
+      relation to an instance of CogniteFileCategory.
+    source:
+      space: cdf_cdm
+      externalId: CogniteFileCategory
+      version: v1
+      type: view
+  equipment:
+    source:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}Equipment
+      version: v1
+      type: view
+    through:
+      source:
+        space: {{ organizationSchemaSpace }}
+        externalId: {{ organization }}Equipment
+        version: v1
+        type: view
+      identifier: files
+    name: Equipment
+    description: An automatically updated list of equipment this file is related to.
+    connectionType: multi_reverse_direct_relation
+  UUID:
+    container:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}File
+      type: container
+    containerPropertyIdentifier: UUID
+  annotationStatus:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotationStatus
+    name: Annotation Status
+  annotationMessage:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotationMessage
+    name: Annotation Message
+  annotationAttemptCount:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotationAttemptCount
+    name: Annotation Attempt Count
+  annotatedPageCount:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: annotatedPageCount
+    name: Pages Annotated
+  diagramDetectJobId:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: diagramDetectJobId
+    name: Diagram Detect Job Id
+  diagramDetectAnnotationResults:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: diagramDetectAnnotationResults
+    name: Diagram Detect Annotation Results
+  diagramDetectConfiguration:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: diagramDetectConfiguration
+    name: Diagram Detect Configuration
+  diagramDetectCreatedTime:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: diagramDetectCreatedTime
+    name: Diagram Detect Job Created Time
+  diagramDetectStatusTime:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: diagramDetectStatusTime
+    name: Diagram Detect Job Status Time
+  totalPageCount:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: totalPageCount
+    name: Total Pages
+  launchFunctionId:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: launchFunctionId
+    name: Launch Function Id
+  launchFunctionCallId:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: launchFunctionCallId
+    name: Launch Function Call Id
+  finalizeFunctionId:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: finalizeFunctionId
+    name: Finalize Function Id
+  finalizeFunctionCallId:
+    container:
+      space: {{ contextualizationExtensionsSchemaSpace }}
+      externalId: {{ fileAnnotationContainerExternalId }}
+      type: container
+    containerPropertyIdentifier: finalizeFunctionCallId
+    name: Finalize Function Call Id

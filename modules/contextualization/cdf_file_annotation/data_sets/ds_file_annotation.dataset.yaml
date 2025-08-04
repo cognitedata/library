@@ -1,3 +1,0 @@
-externalId: {{ annotationDatasetExternalId }}
-name: {{ annotationDatasetExternalId }}
-description: Dataset for annotating P&ID and documents.

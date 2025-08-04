@@ -1,0 +1,148 @@
+space: {{ contextualizationExtensionsSchemaSpace }}
+externalId: {{ fileAnnotationContainerExternalId }}
+name: File Annotation
+description: Container that holds information on the state of a file in the annotation process
+properties:
+  annotationStatus: # NOTE: Will be used as an index -> property will consistently be used as a query
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Annotation Status
+  annotationMessage:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Annotation Message
+  annotationAttemptCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Annotation Attempt Count
+  annotatedPageCount:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Annotated Page Count
+  diagramDetectJobId: # NOTE: Will be used as an index -> property will consistently be used as a query
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Job Id
+  diagramDetectAnnotationResults: # NOTE: will store the annotations results of the diagram detect job that was retrieved for a file
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Annotation Results
+  diagramDetectConfiguration: # NOTE: will store the config used to create the job id of the diagram detect job that was retrieved
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Configuration
+  diagramDetectCreatedTime: # NOTE: will store when the diagram detect job was created
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Job Created Time
+  diagramDetectStatusTime: # NOTE: will store when the diagram detect job completed or failed
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Job Status Updated Time
+  totalPageCount:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Total Pages
+  launchFunctionId: # NOTE: Id of the function that was called. Will be useful as an index for query calls. B-tree
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Launch Function Id
+  launchFunctionCallId: # NOTE: specific Id that points to the function log. Will be useful as an index for query calls. B-tree
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Launch Function Call Id
+  finalizeFunctionId: # NOTE: Id of the function that was called. Will be useful as an index for query calls. B-tree
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Finalize Function Id
+  finalizeFunctionCallId: # NOTE: specific Id that points to the function log. Will be useful as an index for query calls. B-tree
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Finalize Function Call Id
+indexes:
+  annotationStatus:
+    indexType: btree
+    properties:
+      - annotationStatus
+    cursorable: true
+  diagramDetectJobId:
+    indexType: btree
+    properties:
+      - diagramDetectJobId
+    cursorable: true
+  launch:
+    indexType: btree
+    properties:
+      - launchFunctionId
+      - launchFunctionCallId
+    cursorable: true
+  finalize:
+    indexType: btree
+    properties:
+      - finalizeFunctionId
+      - finalizeFunctionCallId
+    cursorable: true
+constraints:
+  requireFile:
+    constraintType: requires
+    require:
+      space: {{ organizationSchemaSpace }}
+      externalId: {{ organization }}File # NOTE: assumes the view name is just <orgnization>File -> similar to how the quickstart is setup

@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Cognite Contextualization Extensions Data Model
-- Cognite File Annotation State Container
+- Contextualization Extensions Data Model
+- Contextualization File View that extends <org>File
+- File Annotation Container
 
 ### Changed
 
