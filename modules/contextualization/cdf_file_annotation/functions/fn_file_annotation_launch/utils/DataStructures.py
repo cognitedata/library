@@ -213,7 +213,7 @@ class BatchOfNodes:
         )
         page_count: int | None = cast(
             int,
-            file_node.properties[contextualizaton_file_view].get("pageCount"),
+            file_node.properties[contextualizaton_file_view].get("totalPageCount"),
         )
         if not annotated_page_count or not page_count:
             file_reference: FileReference = FileReference(
