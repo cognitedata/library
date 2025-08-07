@@ -64,53 +64,6 @@ class FilterOperator(str, Enum):
 
 
 @dataclass
-class AnnotationState:
-    """
-    Data structure holding the mpcAnnotationState view properties. Time will convert to Timestamp when ingested into CDF.
-    """
-
-    annotationStatus: AnnotationStatus
-    linkedFile: dict[str, str] = field(default_factory=dict)
-    attemptCount: int = 0
-    annotationMessage: str | None = None
-    diagramDetectJobId: int | None = None
-    sourceCreatedTime: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-    )
-    sourceUpdatedTime: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-    )
-    sourceCreatedUser: str = "fn_dm_context_annotation_launch"
-    sourceUpdatedUser: str = "fn_dm_context_annotation_launch"
-
-    def _create_external_id(self) -> str:
-        """
-        Create a deterministic external ID so that we can replace mpcAnnotationState of files that have been updated and aren't new
-        """
-        prefix = "an_state"
-        linked_file_space = self.linkedFile["space"]
-        linked_file_id = self.linkedFile["externalId"]
-        return f"{prefix}_{linked_file_space}_{linked_file_id}"
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-    def to_node_apply(self, node_space: str, annotation_state_view: ViewId) -> NodeApply:
-        external_id: str = self._create_external_id()
-
-        return NodeApply(
-            space=node_space,
-            external_id=external_id,
-            sources=[
-                NodeOrEdgeData(
-                    source=annotation_state_view,
-                    properties=self.to_dict(),
-                )
-            ],
-        )
-
-
-@dataclass
 class FileProcessingBatch:
     primary_scope_value: str
     secondary_scope_value: str | None

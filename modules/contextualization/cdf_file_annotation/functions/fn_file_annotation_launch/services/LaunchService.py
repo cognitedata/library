@@ -1,6 +1,6 @@
 import time
 import abc
-from typing import cast, Literal
+from typing import Literal
 from datetime import datetime, timezone
 from collections import defaultdict
 from cognite.client import CogniteClient
@@ -306,8 +306,7 @@ class GeneralLaunchService(AbstractLaunchService):
     def _process_batch(self, batch: BatchOfNodes):
         """
         Processes a single batch of files. For each file, it starts a diagram
-        detection job and then updates the corresponding 'AnnotationState' node
-        with the job ID and a 'Processing' status.
+        detection job and then updates the file with the cooresponding information.
         """
         if batch.is_empty():
             return
