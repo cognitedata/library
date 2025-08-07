@@ -41,25 +41,19 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     pipeline_instance: IPipelineService = create_general_pipeline_service(
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
-
+    function_id = function_call_info.get("function_id")
+    call_id = function_call_info.get("call_id")
     launch_instance: AbstractLaunchService = _create_launch_service(
         config=config_instance,
         client=client,
         logger=logger_instance,
         tracker=tracker_instance,
+        function_id=function_id,
+        call_id=call_id,
     )
 
     run_status: str = "success"
     try:
-        while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
-            if launch_instance.prepare() == "Done":
-                break
-            logger_instance.info(tracker_instance.generate_local_report())
-
-        overall_report: str = tracker_instance.generate_overall_report()
-        logger_instance.info(overall_report, "BOTH")
-        tracker_instance.reset()
-
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
             if launch_instance.run() == "Done":
                 return {"status": run_status, "data": data}
@@ -108,14 +102,6 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     )
     try:
         while True:
-            if launch_instance.prepare() == "Done":
-                break
-            logger_instance.info(tracker_instance.generate_local_report())
-
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
-        tracker_instance.reset()
-
-        while True:
             if launch_instance.run() == "Done":
                 break
             logger_instance.info(tracker_instance.generate_local_report())
@@ -129,7 +115,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.close()
 
 
-def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
+def _create_launch_service(config, client, logger, tracker, function_id, call_id) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_cache_service(config, client, logger)
     data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
@@ -141,6 +127,8 @@ def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchSer
         data_model_service=data_model_instance,
         cache_service=cache_instance,
         annotation_service=annotation_instance,
+        function_id=function_id,
+        function_call_id=call_id,
     )
     return launch_instance
 

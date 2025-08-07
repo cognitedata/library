@@ -53,7 +53,7 @@ class GeneralCacheService(ICacheService):
         self.tbl_name: str = config.launch_function.cache_service.raw_table_cache
         self.cache_time_limit: int = config.launch_function.cache_service.cache_time_limit  # in hours
 
-        self.file_view: ViewPropertyConfig = config.data_model_views.file_view
+        self.contextualization_file_view: ViewPropertyConfig = config.data_model_views.contextualization_file_view
         self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
 
     def get_entities(
@@ -179,13 +179,13 @@ class GeneralCacheService(ICacheService):
         file_search_property: str = self.config.launch_function.file_search_property
         file_entities: list[dict] = []
         for instance in file_instances:
-            instance_properties = instance.properties.get(self.file_view.as_view_id())
+            instance_properties = instance.properties.get(self.contextualization_file_view.as_view_id())
             file_entity = entity(
                 external_id=instance.external_id,
                 name=instance_properties.get("name"),
                 space=instance.space,
                 search_property=instance_properties.get(file_search_property),
-                annotation_type_external_id=self.file_view.annotation_type,
+                annotation_type_external_id=self.contextualization_file_view.annotation_type,
             )
             file_entities.append(file_entity.to_dict())
 

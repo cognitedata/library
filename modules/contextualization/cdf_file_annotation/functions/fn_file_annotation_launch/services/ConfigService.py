@@ -159,6 +159,7 @@ class DiagramDetectConfigModel(BaseModel, alias_generator=to_camel):
 
 # Launch Related Configs
 class DataModelServiceConfig(BaseModel, alias_generator=to_camel):
+    get_files_for_annotation_reset_query: Optional[QueryConfig | list[QueryConfig]] = None
     get_files_to_process_query: QueryConfig | list[QueryConfig]
     get_target_entities_query: QueryConfig | list[QueryConfig]
     get_file_entities_query: QueryConfig | list[QueryConfig]
@@ -175,11 +176,6 @@ class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):
     partial_match: bool = True
     min_tokens: int = 1
     diagram_detect_config: Optional[DiagramDetectConfigModel] = None
-
-
-class PrepareFunction(BaseModel, alias_generator=to_camel):
-    get_files_for_annotation_reset_query: Optional[QueryConfig | list[QueryConfig]] = None
-    get_files_to_annotate_query: QueryConfig | list[QueryConfig]
 
 
 class LaunchFunction(BaseModel, alias_generator=to_camel):
@@ -220,14 +216,12 @@ class FinalizeFunction(BaseModel, alias_generator=to_camel):
 
 class DataModelViews(BaseModel, alias_generator=to_camel):
     core_annotation_view: ViewPropertyConfig
-    annotation_state_view: ViewPropertyConfig
-    file_view: ViewPropertyConfig
+    contextualization_file_view: ViewPropertyConfig
     target_entities_view: ViewPropertyConfig
 
 
 class Config(BaseModel, alias_generator=to_camel):
     data_model_views: DataModelViews
-    prepare_function: PrepareFunction
     launch_function: LaunchFunction
     finalize_function: FinalizeFunction
 

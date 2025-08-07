@@ -3,11 +3,9 @@ from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeId,
     NodeList,
     NodeApply,
     NodeApplyResultList,
-    instances,
     InstancesApplyResult,
 )
 from cognite.client.data_classes.filters import (
@@ -38,13 +36,9 @@ class IDataModelService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_files_to_annotate(self) -> NodeList | None:
-        pass
-
-    @abc.abstractmethod
     def get_files_to_process(
         self,
-    ) -> tuple[NodeList, dict[NodeId, Node]] | tuple[None, None]:
+    ) -> NodeList[Node] | None:
         pass
 
     @abc.abstractmethod
@@ -78,19 +72,11 @@ class GeneralDataModelService(IDataModelService):
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
 
-        self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
-        self.file_view: ViewPropertyConfig = config.data_model_views.file_view
+        self.contextualization_file_view: ViewPropertyConfig = config.data_model_views.contextualization_file_view
         self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
 
-        self.get_files_to_annotate_retrieve_limit: int | None = get_limit_from_query(
-            config.prepare_function.get_files_to_annotate_query
-        )
         self.get_files_to_process_retrieve_limit: int | None = get_limit_from_query(
             config.launch_function.data_model_service.get_files_to_process_query
-        )
-
-        self.filter_files_to_annotate: Filter = build_filter_from_query(
-            config.prepare_function.get_files_to_annotate_query
         )
         self.filter_files_to_process: Filter = build_filter_from_query(
             config.launch_function.data_model_service.get_files_to_process_query
@@ -108,76 +94,40 @@ class GeneralDataModelService(IDataModelService):
         NOTE: Not building the filter in the object instantiation because the filter will only ever be used once throughout all runs of prepare
               Furthermore, there is an implicit guarantee that a filter will be returned b/c launch checks if the query exists.
         """
-        if not self.config.prepare_function.get_files_for_annotation_reset_query:
+        if not self.config.launch_function.data_model_service.get_files_for_annotation_reset_query:
             return
 
         filter_files_for_annotation_reset: Filter = build_filter_from_query(
-            self.config.prepare_function.get_files_for_annotation_reset_query
+            self.config.launch_function.data_model_service.get_files_for_annotation_reset_query
         )
         result: NodeList | None = self.client.data_modeling.instances.list(
             instance_type="node",
-            sources=self.file_view.as_view_id(),
-            space=self.file_view.instance_space,
+            sources=self.contextualization_file_view.as_view_id(),
+            space=self.contextualization_file_view.instance_space,
             limit=-1,  # NOTE: this should always be kept at -1 so that all files defined in the query will get reset
             filter=filter_files_for_annotation_reset,
         )
         return result
 
-    def get_files_to_annotate(self) -> NodeList | None:
+    def get_files_to_process(self) -> NodeList[Node] | None:
         """
-        Query for files that are marked "ToAnnotate" in tags and don't have 'AnnotataionInProcess' and 'Annotated' in tags.
-        More specific details of the query come from the getFilesToAnnotate config parameter.
-        """
-        result: NodeList | None = self.client.data_modeling.instances.list(
-            instance_type="node",
-            sources=self.file_view.as_view_id(),
-            space=self.file_view.instance_space,
-            limit=self.get_files_to_annotate_retrieve_limit,  # NOTE: the amount of instances that are returned may or may not matter depending on how the memory constraints of azure/aws functions
-            filter=self.filter_files_to_annotate,
-        )
-
-        return result
-
-    def get_files_to_process(
-        self,
-    ) -> tuple[NodeList, dict[NodeId, Node]] | tuple[None, None]:
-        """
-        Query for FileAnnotationStateInstances based on the getFilesToProcess config parameter.
-        Extract the NodeIds of the file that is referenced in mpcAnnotationState.
-        Retrieve the files with the NodeIds.
+        Query for file instances based on the getFilesToProcess config parameter.
+        Extract file instances that have an annotation state of 'New' or 'Retry'.
+        Not interested in annotating files that don't have an annotation state set.
         """
         annotation_state_filter = self._get_annotation_state_filter()
-        annotation_state_instances: NodeList = self.client.data_modeling.instances.list(
+        file_instances: NodeList = self.client.data_modeling.instances.list(
             instance_type="node",
-            sources=self.annotation_state_view.as_view_id(),
-            space=self.annotation_state_view.instance_space,
+            sources=self.contextualization_file_view.as_view_id(),
+            space=self.contextualization_file_view.instance_space,
             limit=self.get_files_to_process_retrieve_limit,
             filter=annotation_state_filter,
         )
 
-        if not annotation_state_instances:
-            return None, None
+        if not file_instances:
+            return None
 
-        file_to_state_map: dict[NodeId, Node] = {}
-        list_file_node_ids: list[NodeId] = []
-
-        for node in annotation_state_instances:
-            file_reference = node.properties.get(self.annotation_state_view.as_view_id()).get("linkedFile")
-            if self.file_view.instance_space is None or self.file_view.instance_space == file_reference["space"]:
-                file_node_id = NodeId(
-                    space=file_reference["space"],
-                    external_id=file_reference["externalId"],
-                )
-
-                file_to_state_map[file_node_id] = node
-                list_file_node_ids.append(file_node_id)
-
-        file_instances: NodeList = self.client.data_modeling.instances.retrieve_nodes(
-            nodes=list_file_node_ids,
-            sources=self.file_view.as_view_id(),
-        )
-
-        return file_instances, file_to_state_map
+        return file_instances
 
     def _get_annotation_state_filter(self) -> Filter:
         """
@@ -187,8 +137,8 @@ class GeneralDataModelService(IDataModelService):
             - Edge case that occurs very rarely but can happen.
         NOTE: Implementation of a more complex query that can't be handled in config should come from an implementation of the interface.
         """
-        annotation_status_property = self.annotation_state_view.as_property_ref("annotationStatus")
-        annotation_last_updated_property = self.annotation_state_view.as_property_ref("sourceUpdatedTime")
+        annotation_status_property = self.contextualization_file_view.as_property_ref("annotationStatus")
+        annotation_last_updated_property = self.contextualization_file_view.as_property_ref("sourceUpdatedTime")
         # NOTE: While this number is hard coded, I believe it doesn't need to be configured. Number comes from my experience with the pipeline. Feel free to change if your experience leads to a different number
         latest_permissible_time_utc = datetime.now(timezone.utc) - timedelta(minutes=720)
         latest_permissible_time_utc = latest_permissible_time_utc.isoformat(timespec="milliseconds")
@@ -241,8 +191,8 @@ class GeneralDataModelService(IDataModelService):
         )
         file_entities: NodeList = self.client.data_modeling.instances.list(
             instance_type="node",
-            sources=self.file_view.as_view_id(),
-            space=self.file_view.instance_space,
+            sources=self.contextualization_file_view.as_view_id(),
+            space=self.contextualization_file_view.instance_space,
             filter=file_filter,
             limit=-1,  # NOTE: this should always be kept at -1 so that all entities are retrieved
         )
@@ -289,23 +239,27 @@ class GeneralDataModelService(IDataModelService):
             - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
         """
         filter_primary_scope: Filter = Equals(
-            property=self.file_view.as_property_ref(self.config.launch_function.primary_scope_property),
+            property=self.contextualization_file_view.as_property_ref(
+                self.config.launch_function.primary_scope_property
+            ),
             value=primary_scope_value,
         )
         filter_entities: Filter = self.filter_file_entities
         filter_search_property_exists: Filter = Exists(
-            property=self.file_view.as_property_ref(self.config.launch_function.file_search_property),
+            property=self.contextualization_file_view.as_property_ref(self.config.launch_function.file_search_property),
         )
         # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
         filter_scope_wide: Filter = In(
-            property=self.file_view.as_property_ref("tags"),
+            property=self.contextualization_file_view.as_property_ref("tags"),
             values=["ScopeWideDetect"],
         )
         if not primary_scope_value:
             file_filter = (filter_entities & filter_search_property_exists) | (filter_scope_wide)
         elif secondary_scope_value:
             filter_secondary_scope: Filter = Equals(
-                property=self.file_view.as_property_ref(self.config.launch_function.secondary_scope_property),
+                property=self.contextualization_file_view.as_property_ref(
+                    self.config.launch_function.secondary_scope_property
+                ),
                 value=secondary_scope_value,
             )
             file_filter = (

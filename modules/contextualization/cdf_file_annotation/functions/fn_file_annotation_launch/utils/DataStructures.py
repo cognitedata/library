@@ -148,8 +148,9 @@ class BatchOfNodes:
     nodes: list[Node] = field(default_factory=list)
     ids: list[NodeId] = field(default_factory=list)
     apply: list[NodeApply] = field(default_factory=list)
+    file_references: list[FileReference] = field(default_factory=list)
 
-    def add(self, node: Node):
+    def add(self, node: Node, file_reference: FileReference | None):
         self.nodes.append(node)
         node_id = node.as_id()
         self.ids.append(node_id)
@@ -177,30 +178,11 @@ class BatchOfNodes:
             self.apply.append(node_apply)
         return
 
-
-@dataclass
-class BatchOfPairedNodes:
-    """
-    Where nodeA is an instance of the file view and nodeB is an instance of the annotation state view
-    """
-
-    file_to_state_map: dict[NodeId, Node]
-    batch_files: BatchOfNodes = field(default_factory=BatchOfNodes)
-    batch_states: BatchOfNodes = field(default_factory=BatchOfNodes)
-    file_references: list[FileReference] = field(default_factory=list)
-
-    def add_pair(self, file_node: Node, file_reference: FileReference):
-        self.file_references.append(file_reference)
-        self.batch_files.add(file_node)
-        file_node_id: NodeId = file_node.as_id()
-        state_node: Node = self.file_to_state_map[file_node_id]
-        self.batch_states.add(state_node)
-
     def create_file_reference(
         self,
-        file_node_id: NodeId,
+        file_node: Node,
         page_range: int,
-        annotation_state_view_id: ViewId,
+        contextualizaton_file_view: ViewId,
     ) -> FileReference:
         """
         Create a file reference that has a page range for annotation.
@@ -225,18 +207,17 @@ class BatchOfPairedNodes:
         Thus -> O(N) + O(N) to create the BatchOfPairedNodes and then to create the file references
         Instead, this approach makes it just O(N)
         """
-        annotation_state_node: Node = self.file_to_state_map[file_node_id]
         annotated_page_count: int | None = cast(
             int,
-            annotation_state_node.properties[annotation_state_view_id].get("annotatedPageCount"),
+            file_node.properties[contextualizaton_file_view].get("annotatedPageCount"),
         )
         page_count: int | None = cast(
             int,
-            annotation_state_node.properties[annotation_state_view_id].get("pageCount"),
+            file_node.properties[contextualizaton_file_view].get("pageCount"),
         )
         if not annotated_page_count or not page_count:
             file_reference: FileReference = FileReference(
-                file_instance_id=file_node_id,
+                file_instance_id=file_node.as_id(),
                 first_page=1,
                 last_page=page_range,
             )
@@ -246,17 +227,12 @@ class BatchOfPairedNodes:
             first_page = annotated_page_count + 1
             last_page = annotated_page_count + page_range
             file_reference: FileReference = FileReference(
-                file_instance_id=file_node_id,
+                file_instance_id=file_node.as_id(),
                 first_page=first_page,
                 last_page=last_page,
             )
 
         return file_reference
-
-    def clear_pair(self):
-        self.batch_files.clear()
-        self.batch_states.clear()
-        self.file_references.clear()
 
     def size(self) -> int:
         return len(self.file_references)

@@ -10,6 +10,7 @@ from cognite.client.data_classes.data_modeling import (
     Node,
     NodeList,
     NodeApply,
+    NodeOrEdgeData,
 )
 
 from services.ConfigService import Config, ViewPropertyConfig
@@ -18,9 +19,8 @@ from services.AnnotationService import IAnnotationService
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import (
-    BatchOfPairedNodes,
+    BatchOfNodes,
     AnnotationStatus,
-    AnnotationState,
     PerformanceTracker,
     FileProcessingBatch,
 )
@@ -41,21 +41,20 @@ class AbstractLaunchService(abc.ABC):
         data_model_service: IDataModelService,
         cache_service: ICacheService,
         annotation_service: IAnnotationService,
+        function_id: int | None = None,
+        function_call_id: int | None = None,
     ):
         self.client = client
         self.config = config
         self.logger = logger
         self.tracker = tracker
+
         self.data_model_service = data_model_service
         self.cache_service = cache_service
         self.annotation_service = annotation_service
 
-    @abc.abstractmethod
-    def prepare(self) -> str | None:
-        """
-        Peronally think it's cleaner having this operate as a separate cognite function -> but due to mpc function constraints it wouldn't make sense for our project to go down this route (Jack)
-        """
-        pass
+        self.function_id = function_id
+        self.function_call_id = function_call_id
 
     @abc.abstractmethod
     def run(self) -> str | None:
@@ -77,6 +76,8 @@ class GeneralLaunchService(AbstractLaunchService):
         data_model_service: IDataModelService,
         cache_service: ICacheService,
         annotation_service: IAnnotationService,
+        function_id: int | None = None,
+        function_call_id: int | None = None,
     ):
         super().__init__(
             client,
@@ -86,12 +87,13 @@ class GeneralLaunchService(AbstractLaunchService):
             data_model_service,
             cache_service,
             annotation_service,
+            function_id,
+            function_call_id,
         )
 
         self.max_batch_size: int = config.launch_function.batch_size
         self.page_range: int = config.launch_function.annotation_service.page_range
-        self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
-        self.file_view: ViewPropertyConfig = config.data_model_views.file_view
+        self.contextualization_file_view: ViewPropertyConfig = config.data_model_views.contextualization_file_view
 
         self.in_memory_cache: list[dict] = []
         self._cached_primary_scope: str | None = None
@@ -101,132 +103,79 @@ class GeneralLaunchService(AbstractLaunchService):
         self.secondary_scope_property: str | None = self.config.launch_function.secondary_scope_property
 
         self.reset_files: bool = False
-        if self.config.prepare_function.get_files_for_annotation_reset_query:
+        if self.config.launch_function.data_model_service.get_files_for_annotation_reset_query:
             self.reset_files = True
-
-    # NOTE: I believe this code should be encapsulated as a separate CDF function named prepFunction. Due to the amount of cdf functions we can spin up, we're coupling this within the launchFunction.
-    def prepare(self) -> Literal["Done"] | None:
-        """
-        Retrieves files marked "ToAnnotate" in the tags property and creates a 1-to-1 ratio of FileAnnotationState instances to files
-        """
-        self.logger.info(
-            message=f"Starting Prepare Function",
-            section="START",
-        )
-        try:
-            if self.reset_files:
-                file_nodes_to_reset: NodeList | None = self.data_model_service.get_files_for_annotation_reset()
-                if not file_nodes_to_reset:
-                    self.logger.info(
-                        "No files found with the getFilesForAnnotationReset query provided in the config file"
-                    )
-                else:
-                    self.logger.info(f"Resetting {len(file_nodes_to_reset)} files")
-                    reset_node_apply: list[NodeApply] = []
-                    for file_node in file_nodes_to_reset:
-                        file_node_apply: NodeApply = file_node.as_write()
-                        tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
-                        if "AnnotationInProcess" in tags_property:
-                            tags_property.remove("AnnotationInProcess")
-                        if "Annotated" in tags_property:
-                            tags_property.remove("Annotated")
-                        if "AnnotationFailed" in tags_property:
-                            tags_property.remove("AnnotationFailed")
-
-                        reset_node_apply.append(file_node_apply)
-                    update_results = self.data_model_service.update_annotation_state(reset_node_apply)
-                    self.logger.info(
-                        f"Removed the AnnotationInProcess/Annotated/AnnotationFailed tag of {len(update_results)} files"
-                    )
-                self.reset_files = False
-        except CogniteAPIError as e:
-            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if (
-                e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-            ):
-                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
-                return
-            else:
-                raise e
-
-        try:
-            file_nodes: NodeList | None = self.data_model_service.get_files_to_annotate()
-            if not file_nodes:
-                self.logger.info(
-                    message=f"No files found to prepare",
-                    section="END",
-                )
-                return "Done"
-            self.logger.info(f"Preparing {len(file_nodes)} files")
-        except CogniteAPIError as e:
-            # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if (
-                e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-            ):
-                # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
-                return
-            else:
-                raise e
-
-        annotation_state_instances: list[NodeApply] = []
-        file_apply_instances: list[NodeApply] = []
-        for file_node in file_nodes:
-            node_id = {"space": file_node.space, "externalId": file_node.external_id}
-            annotation_instance = AnnotationState(
-                annotationStatus=AnnotationStatus.NEW,
-                linkedFile=node_id,
-            )
-            if not self.annotation_state_view.instance_space:
-                msg = (
-                    "Need an instance space in DataModelViews/AnnotationStateView config to store the annotation state"
-                )
-                self.logger.error(msg)
-                raise ValueError(msg)
-            annotation_instance_space: str = self.annotation_state_view.instance_space
-
-            annotation_node_apply: NodeApply = annotation_instance.to_node_apply(
-                node_space=annotation_instance_space,
-                annotation_state_view=self.annotation_state_view.as_view_id(),
-            )
-            annotation_state_instances.append(annotation_node_apply)
-
-            file_node_apply: NodeApply = file_node.as_write()
-            tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
-            if "AnnotationInProcess" not in tags_property:
-                tags_property.append("AnnotationInProcess")
-                file_apply_instances.append(file_node_apply)
-
-        try:
-            create_results = self.data_model_service.create_annotation_state(annotation_state_instances)
-            self.logger.info(message=f"Created {len(create_results)} annotation state instances")
-            update_results = self.data_model_service.update_annotation_state(file_apply_instances)
-            self.logger.info(
-                message=f"Added 'AnnotationInProcess' to the tag property for {len(update_results)} files",
-                section="END",
-            )
-        except Exception as e:
-            self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
-            raise
-
-        self.tracker.add_files(success=len(file_nodes))
-        return
 
     def run(self) -> Literal["Done"] | None:
         """
         The main entry point for the launch service. It prepares the files and then
         processes them in organized, context-aware batches.
         """
+        if self.reset_files:
+            self.logger.info("Checking for files to reset based on 'getFilesForAnnotationResetQuery'.")
+            try:
+                # Assumes get_files_for_annotation_reset is added back to DataModelService
+                file_nodes_to_reset: NodeList | None = self.data_model_service.get_files_for_annotation_reset()
+
+                if file_nodes_to_reset:
+                    self.logger.info(f"Found {len(file_nodes_to_reset)} files to reset.")
+                    reset_node_applies: list[NodeApply] = []
+
+                    # Define the complete set of properties to reset
+                    properties_to_reset = {
+                        "annotationStatus": AnnotationStatus.NEW,
+                        "annotationMessage": None,
+                        "annotationAttemptCount": 0,
+                        "annotatedPageCount": None,
+                        "diagramDetectJobId": None,
+                        "diagramDetectAnnotationResults": None,
+                        "diagramDetectConfiguration": None,
+                        "diagramDetectCreatedTime": None,
+                        "diagramDetectStatusTime": None,
+                        "totalPageCount": None,
+                        "launchFunctionId": None,
+                        "launchFunctionCallId": None,
+                        "finalizeFunctionId": None,
+                        "finalizeFunctionCallId": None,
+                    }
+
+                    for file_node in file_nodes_to_reset:
+                        if file_node.properties[self.contextualization_file_view.as_view_id()].get("annotationStatus"):
+                            node_apply = NodeApply(
+                                space=file_node.space,
+                                external_id=file_node.external_id,
+                                existing_version=file_node.version,
+                                sources=[
+                                    NodeOrEdgeData(
+                                        source=self.contextualization_file_view.as_view_id(),
+                                        properties=properties_to_reset,
+                                    )
+                                ],
+                            )
+                            reset_node_applies.append(node_apply)
+
+                    # Apply the updates
+                    update_results = self.data_model_service.update_annotation_state(reset_node_applies)
+                    self.logger.info(f"Successfully reset the annotation state for {len(update_results)} files.")
+
+                else:
+                    self.logger.info("No files matched the reset query.")
+
+                # Ensure this block only runs once per function execution
+                self.reset_files = False
+
+            except CogniteAPIError as e:
+                self.logger.error(f"Error during file reset process: {e}")
+                # Decide if you should raise or continue
+                raise
+
         self.logger.info(
             message=f"Starting Launch Function",
             section="START",
         )
         try:
-            file_nodes, file_to_state_map = self.data_model_service.get_files_to_process()
-            if not file_nodes or not file_to_state_map:
+            file_nodes: NodeList[Node] | None = self.data_model_service.get_files_to_process()
+            if not file_nodes:
                 self.logger.info(message=f"No files found to launch")
                 return "Done"
             self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
@@ -255,14 +204,14 @@ class GeneralLaunchService(AbstractLaunchService):
                 self.logger.info(message=f"Processing {len(batch.files)} files in {msg}")
                 self._ensure_cache_for_batch(primary_scope_value, secondary_scope_value)
 
-                current_batch = BatchOfPairedNodes(file_to_state_map=file_to_state_map)
+                current_batch = BatchOfNodes()
                 for file_node in batch.files:
                     file_reference: FileReference = current_batch.create_file_reference(
-                        file_node_id=file_node.as_id(),
+                        file_node=file_node,
                         page_range=self.page_range,
-                        annotation_state_view_id=self.annotation_state_view.as_view_id(),
+                        contextualizaton_file_view=self.contextualization_file_view.as_view_id(),
                     )
-                    current_batch.add_pair(file_node, file_reference)
+                    current_batch.add(file_node, file_reference)
                     total_files_processed += 1
                     if current_batch.size() == self.max_batch_size:
                         self.logger.info(message=f"Processing batch - Max batch size ({self.max_batch_size}) reached")
@@ -296,7 +245,7 @@ class GeneralLaunchService(AbstractLaunchService):
         organized_data: dict[str, dict[str, list[Node]]] = defaultdict(lambda: defaultdict(list))
 
         for file_node in list_files:
-            node_props = file_node.properties[self.file_view.as_view_id()]
+            node_props = file_node.properties[self.contextualization_file_view.as_view_id()]
             primary_value = node_props.get(self.primary_scope_property)
             secondary_value = "__NONE__"
             if self.secondary_scope_property:
@@ -354,7 +303,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 else:
                     raise e
 
-    def _process_batch(self, batch: BatchOfPairedNodes):
+    def _process_batch(self, batch: BatchOfNodes):
         """
         Processes a single batch of files. For each file, it starts a diagram
         detection job and then updates the corresponding 'AnnotationState' node
@@ -371,20 +320,22 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "diagramDetectCreatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.function_call_id,
             }
-            batch.batch_states.update_node_properties(
+            batch.update_node_properties(
                 new_properties=update_properties,
-                view_id=self.annotation_state_view.as_view_id(),
+                view_id=self.contextualization_file_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            update_results = self.data_model_service.update_annotation_state(batch.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                message=f" Updated the annotation state:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
                 section="END",
             )
         finally:
-            batch.clear_pair()
+            batch.clear
 
 
 class LocalLaunchService(GeneralLaunchService):
@@ -393,7 +344,7 @@ class LocalLaunchService(GeneralLaunchService):
     while inheriting all other functionality from GeneralLaunchService.
     """
 
-    def _process_batch(self, batch: BatchOfPairedNodes):
+    def _process_batch(self, batch: BatchOfNodes):
         """
         This method overrides the original _process_batch.
         Instead of calling the annotation service, it could, for example,
@@ -410,14 +361,16 @@ class LocalLaunchService(GeneralLaunchService):
             )
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "diagramDetectCreatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.function_call_id,
             }
-            batch.batch_states.update_node_properties(
+            batch.update_node_properties(
                 new_properties=update_properties,
-                view_id=self.annotation_state_view.as_view_id(),
+                view_id=self.contextualization_file_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            update_results = self.data_model_service.update_annotation_state(batch.apply)
             self.logger.info(
                 message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
                 section="END",
@@ -437,4 +390,4 @@ class LocalLaunchService(GeneralLaunchService):
                 self.logger.error(f"Ran into the following error:\n{str(e)}")
                 raise Exception(e)
         finally:
-            batch.clear_pair()
+            batch.clear()
