@@ -187,20 +187,20 @@ properties:
       type: container
     containerPropertyIdentifier: diagramDetectJobId
     name: Diagram Detect Job Id
-  diagramDetectAnnotationResults:
-    container:
-      space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ fileAnnotationContainerExternalId }}
-      type: container
-    containerPropertyIdentifier: diagramDetectAnnotationResults
-    name: Diagram Detect Annotation Results
-  diagramDetectConfiguration:
-    container:
-      space: {{ contextualizationExtensionsSchemaSpace }}
-      externalId: {{ fileAnnotationContainerExternalId }}
-      type: container
-    containerPropertyIdentifier: diagramDetectConfiguration
-    name: Diagram Detect Configuration
+  # diagramDetectAnnotationResults:
+  #   container:
+  #     space: {{ contextualizationExtensionsSchemaSpace }}
+  #     externalId: {{ fileAnnotationContainerExternalId }}
+  #     type: container
+  #   containerPropertyIdentifier: diagramDetectAnnotationResults
+  #   name: Diagram Detect Annotation Results
+  # diagramDetectConfiguration:
+  #   container:
+  #     space: {{ contextualizationExtensionsSchemaSpace }}
+  #     externalId: {{ fileAnnotationContainerExternalId }}
+  #     type: container
+  #   containerPropertyIdentifier: diagramDetectConfiguration
+  #   name: Diagram Detect Configuration
   diagramDetectCreatedTime:
     container:
       space: {{ contextualizationExtensionsSchemaSpace }}
