@@ -15,7 +15,6 @@ A high-performance entity matching pipeline for Cognite Data Fusion (CDF) that m
 ## 📋 Requirements
 
 ### Dependencies
-
 ```
 cognite-extractor-utils>=7
 cognite-sdk == 7.*
@@ -26,7 +25,6 @@ psutil >= 5.9.0
 ```
 
 ### Environment Variables
-
 ```bash
 CDF_PROJECT=your-project-name
 CDF_CLUSTER=your-cluster-name
@@ -111,7 +109,6 @@ data:
 ### Running the Pipeline
 
 #### 1. As a CDF Function
-
 ```python
 from handler import handle
 from cognite.client import CogniteClient
@@ -126,7 +123,6 @@ result = handle(data, client)
 ```
 
 #### 2. Local Execution
-
 ```bash
 # Set environment variables
 export CDF_PROJECT=your-project
@@ -140,7 +136,6 @@ python handler.py
 ```
 
 #### 3. Programmatic Usage
-
 ```python
 from handler import run_locally
 
@@ -152,7 +147,6 @@ print(f"Status: {result['status']}")
 ### Advanced Usage
 
 #### Custom Optimization Configuration
-
 ```python
 from pipeline_optimizations import (
     BatchProcessor,
@@ -168,7 +162,6 @@ benchmark = PerformanceBenchmark(logger)
 ```
 
 #### Manual Optimization Application
-
 ```python
 from pipeline_optimizations import patch_existing_pipeline
 
@@ -179,7 +172,6 @@ patch_existing_pipeline()
 ## 🧪 Testing
 
 ### Run All Tests
-
 ```bash
 python test_optimizations.py
 ```
@@ -187,7 +179,6 @@ python test_optimizations.py
 ### Individual Test Categories
 
 #### 1. Performance Monitoring Tests
-
 ```bash
 python -c "
 from test_optimizations import test_performance_monitoring
@@ -196,7 +187,6 @@ test_performance_monitoring()
 ```
 
 #### 2. Optimization Component Tests
-
 ```bash
 python -c "
 from test_optimizations import test_match_tracker, test_rule_mapper, test_batch_processor
@@ -207,7 +197,6 @@ test_batch_processor()
 ```
 
 #### 3. Performance Comparison Tests
-
 ```bash
 python -c "
 from test_optimizations import run_performance_comparison
@@ -218,7 +207,6 @@ run_performance_comparison()
 ### Test Coverage
 
 The test suite covers:
-
 - ✅ Performance monitoring utilities
 - ✅ Match tracking and duplicate detection
 - ✅ Rule mapping with regex compilation
@@ -233,7 +221,6 @@ The test suite covers:
 ## 📊 Performance Improvements
 
 ### Optimization Results
-
 - **Overall Pipeline**: 35-55% faster execution
 - **Duplicate Detection**: 500x faster (O(1) vs O(n))
 - **Memory Usage**: 30-50% reduction
@@ -241,7 +228,6 @@ The test suite covers:
 - **Data Loading**: 40-60% faster with concurrency
 
 ### Before vs After
-
 ```
 Original Processing:
 ├── List-based duplicate checking: O(n)
@@ -259,14 +245,12 @@ Optimized Processing:
 ## 🐛 Debugging
 
 ### Log Levels
-
 - **DEBUG**: Detailed execution information
 - **INFO**: General progress and performance metrics
 - **WARNING**: Non-critical issues and retries
 - **ERROR**: Critical failures and exceptions
 
 ### Performance Monitoring
-
 ```python
 # Monitor memory usage
 monitor_memory_usage(logger, "Operation name")
@@ -284,7 +268,6 @@ result = benchmark.benchmark_function("Function name", my_function, *args)
 ### Common Issues
 
 #### 1. Memory Issues
-
 ```python
 # Force garbage collection
 cleanup_memory()
@@ -294,7 +277,6 @@ monitor_memory_usage(logger, "checkpoint")
 ```
 
 #### 2. Performance Issues
-
 ```python
 # Enable performance benchmarking
 benchmark = PerformanceBenchmark(logger)
@@ -302,7 +284,6 @@ benchmark.log_summary()
 ```
 
 #### 3. API Errors
-
 ```python
 # Robust API client with retries
 robust_client = RobustAPIClient(client, logger)
@@ -314,7 +295,6 @@ robust_client.robust_api_call(client.some_method, *args)
 ### Adding New Optimizations
 
 1. **Create optimization in `pipeline_optimizations.py`**:
-
 ```python
 class MyOptimization:
     def __init__(self, logger):
@@ -326,7 +306,6 @@ class MyOptimization:
 ```
 
 2. **Add to exports**:
-
 ```python
 __all__ = [
     # ... existing exports
@@ -335,7 +314,6 @@ __all__ = [
 ```
 
 3. **Use in `handler.py`**:
-
 ```python
 from pipeline_optimizations import MyOptimization
 
@@ -347,7 +325,6 @@ result = optimization.optimize(data)
 ### Testing New Features
 
 1. **Add test to `test_optimizations.py`**:
-
 ```python
 def test_my_optimization():
     print("🧪 Testing MyOptimization...")
@@ -356,7 +333,6 @@ def test_my_optimization():
 ```
 
 2. **Add to main test runner**:
-
 ```python
 def main():
     # ... existing tests
@@ -366,7 +342,6 @@ def main():
 ## 📈 Monitoring
 
 ### Performance Metrics
-
 - Execution time per operation
 - Memory usage tracking
 - API call success rates
@@ -374,7 +349,6 @@ def main():
 - Throughput measurements
 
 ### Logging Output
-
 ```
 INFO - Starting OPTIMIZED entity matching with loglevel = INFO
 INFO - Monitor Memory: Handler start Memory usage: 45.2 MB
@@ -401,8 +375,7 @@ This project is part of the Cognite Data Fusion ecosystem and follows Cognite's 
 ## 🆘 Support
 
 For issues and questions:
-
 1. Check the debugging section above
 2. Review the test suite for usage examples
 3. Contact the development team
-4. Submit an issue with detailed logs and reproduction steps
+4. Submit an issue with detailed logs and reproduction steps 

@@ -123,19 +123,16 @@ print(f"Status: {result['status']}")
 ### Core Components
 
 #### 1. **OptimizedMetadataProcessor**
-
 - Processes timeseries and asset metadata with caching
 - Applies discipline-based categorization using NORSOK standards
 - Handles batch updates with memory management
 
 #### 2. **BatchProcessor**
-
 - Processes items in configurable batches
 - Implements retry logic for failed operations
 - Provides memory cleanup between batches
 
 #### 3. **PerformanceBenchmark**
-
 - Monitors execution time for all operations
 - Tracks memory usage throughout processing
 - Provides detailed performance statistics
@@ -144,7 +141,7 @@ print(f"Status: {result['status']}")
 
 1. **Initialization**: Apply global optimizations and setup monitoring
 2. **Configuration**: Load parameters from extraction pipeline
-3. **Timeseries Processing**:
+3. **Timeseries Processing**: 
    - Fetch timeseries in batches
    - Apply discipline classification
    - Update metadata with optimized batch operations
@@ -174,21 +171,18 @@ python test_metadata_optimizations.py
 ### Test Categories
 
 #### 1. **Unit Tests**
-
 ```bash
 # Test individual optimization components
 python -m pytest test_metadata_optimizations.py::TestOptimizedMetadataProcessor -v
 ```
 
 #### 2. **Performance Tests**
-
 ```bash
 # Test performance improvements
 python -m pytest test_metadata_optimizations.py::TestPerformanceBenchmark -v
 ```
 
 #### 3. **Integration Tests**
-
 ```bash
 # Test complete pipeline scenarios
 python -m pytest test_metadata_optimizations.py::test_integration_scenario -v
@@ -197,7 +191,6 @@ python -m pytest test_metadata_optimizations.py::test_integration_scenario -v
 ### Test Coverage
 
 The test suite covers:
-
 - ✅ All optimization classes and functions
 - ✅ Performance benchmarking
 - ✅ Memory management
@@ -300,4 +293,4 @@ data = {
 
 ## 📄 License
 
-This module is part of the Cognite Templates repository.
+This module is part of the Cognite Templates repository. 

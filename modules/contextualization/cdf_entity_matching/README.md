@@ -5,7 +5,6 @@ This module provides comprehensive entity matching capabilities for Cognite Data
 ## 🎯 Overview
 
 The CDF Entity Matching module is designed to:
-
 - **Support expert manual mappings** for complex or domain-specific relationships
 - **Match timeseries to assets** using rule-based, AI-powered, and manual mapping algorithms
 - **Optimize metadata** for improved searchability and contextualization
@@ -45,7 +44,6 @@ cdf_entity_matching/
 **Purpose**: Matches timeseries data to assets using advanced algorithms
 
 **Key Features**:
-
 - ✋ **Manual mapping support** for expert-defined asset-timeseries relationships
 - 🎯 **Rule-based matching** with regex patterns and business logic
 - 🤖 **AI-powered entity matching** using machine learning algorithms
@@ -54,7 +52,6 @@ cdf_entity_matching/
 - 📈 **Real-time monitoring** with detailed performance metrics
 
 **Use Cases**:
-
 - Manual expert mapping for complex relationships
 - Automatic contextualization of sensor data
 - Asset-timeseries relationship discovery
@@ -66,7 +63,6 @@ cdf_entity_matching/
 **Purpose**: Optimizes metadata for timeseries and assets to improve searchability
 
 **Key Features**:
-
 - ⚡ **Optimized processing** with caching and batch operations
 - 🏷️ **Discipline classification** using NORSOK standards
 - 🧠 **Memory optimization** with automatic cleanup
@@ -74,7 +70,6 @@ cdf_entity_matching/
 - 🛡️ **Enhanced error handling** with comprehensive logging
 
 **Use Cases**:
-
 - Metadata enrichment for better search
 - Discipline-based asset categorization
 - Data quality improvement
@@ -146,7 +141,6 @@ cdf workflows deploy
 ### 3. Configure Workflows
 
 The module includes automated workflows that:
-
 1. **Trigger entity matching** on new timeseries data
 2. **Update metadata** for improved searchability
 3. **Monitor processing** and handle errors
@@ -185,20 +179,17 @@ graph TD
 ## 🎯 Use Cases
 
 ### Industrial Process Monitoring
-
 - **Sensor Contextualization**: Automatically link temperature, pressure, and flow sensors to equipment
 - **Expert Manual Mapping**: Allow domain experts to define complex sensor-equipment relationships
 - **Process Optimization**: Enable cross-asset analysis and process improvement
 - **Anomaly Detection**: Support advanced analytics with proper asset-timeseries relationships
 
 ### Asset Management
-
 - **Equipment Monitoring**: Connect maintenance data with operational metrics
 - **Performance Analysis**: Enable equipment efficiency and reliability analysis
 - **Predictive Maintenance**: Support ML models with contextualized data
 
 ### Data Discovery
-
 - **Enhanced Search**: Improve data findability through optimized metadata
 - **Data Lineage**: Track relationships between assets and measurements
 - **Compliance**: Support regulatory reporting with proper data classification
@@ -206,14 +197,12 @@ graph TD
 ## 📈 Performance Metrics
 
 ### Overall Module Performance
-
 - **Processing Speed**: 35-55% faster than legacy implementations
 - **Memory Efficiency**: 30-50% reduction in memory usage
 - **Error Recovery**: 95%+ success rate with retry mechanisms
 - **Scalability**: Handles 10,000+ timeseries per batch
 
 ### Function-Specific Metrics
-
 - **Entity Matching**: 40-60% improvement in matching accuracy
 - **Metadata Update**: 70%+ cache hit rate for optimized processing
 - **Batch Processing**: 25-40% faster API interactions
@@ -291,4 +280,4 @@ parameters:
 
 ## 📄 License
 
-This module is part of the Cognite Templates repository and follows the same licensing terms.
+This module is part of the Cognite Templates repository and follows the same licensing terms. 

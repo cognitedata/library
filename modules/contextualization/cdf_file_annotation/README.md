@@ -43,7 +43,6 @@ _(if videos fail to load, try loading page in incognito or re-sign into github) 
 1. **Create a CDF Project through Toolkit**
    - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
    - (optional) Initialize the quickstart package using toolkit CLI
-
  ```bash
  poetry init
  poetry add cognite-toolkit
@@ -177,9 +176,9 @@ _(if videos fail to load, try loading page in incognito or re-sign into github) 
 
 This template is configured for easy local execution and debugging directly within Visual Studio Code.
 
-1. **Create Environment File**: Before running locally, you must create a `.env` file in the root directory. This file will hold the necessary credentials and configuration for connecting to your CDF project. Populate it with the required environment variables for `IDP_CLIENT_ID`, `CDF_CLUSTER`, etc. In the `local_runs/` folder you'll find a .env template.
+1.  **Create Environment File**: Before running locally, you must create a `.env` file in the root directory. This file will hold the necessary credentials and configuration for connecting to your CDF project. Populate it with the required environment variables for `IDP_CLIENT_ID`, `CDF_CLUSTER`, etc. In the `local_runs/` folder you'll find a .env template.
 
-2. **Use the VS Code Debugger**: The repository includes a pre-configured `local_runs/.vscode/launch.json` file. Please move the .vscode/ folder to the top level of your repo.
+2.  **Use the VS Code Debugger**: The repository includes a pre-configured `local_runs/.vscode/launch.json` file. Please move the .vscode/ folder to the top level of your repo.
 
     - Navigate to the "Run and Debug" view in the VS Code sidebar.
     - You will see dropdown options for launching the different functions (e.g., `Launch Function`, `Finalize Function`).
@@ -196,9 +195,9 @@ The template operates in three main phases, orchestrated by CDF Workflows. Since
 
 - **Goal**: Identify files that need to be annotated or have their status reset.
 - **Process**:
-  1. It queries for files that are marked for re-annotation and resets their status.
-  2. It then queries for new files tagged for annotation (e.g., with a "ToAnnotate" tag).
-  3. For each new file, it creates a corresponding `AnnotationState` instance in the data model, marking it with a "New" status.
+  1.  It queries for files that are marked for re-annotation and resets their status.
+  2.  It then queries for new files tagged for annotation (e.g., with a "ToAnnotate" tag).
+  3.  For each new file, it creates a corresponding `AnnotationState` instance in the data model, marking it with a "New" status.
 
 ### Launch Phase
 
@@ -206,11 +205,11 @@ The template operates in three main phases, orchestrated by CDF Workflows. Since
 
 - **Goal**: Launch the annotation jobs for files that are ready.
 - **Process**:
-  1. It queries for `AnnotationState` instances with a "New" or "Retry" status.
-  2. It groups these files by a primary scope to provide context.
-  3. For each group, it fetches the relevant file and target entity information, using a cache to avoid redundant lookups.
-  4. It calls the Cognite Diagram Detect API to start the annotation job.
-  5. It updates the `AnnotationState` instance with the `diagramDetectJobId` and sets the status to "Processing".
+  1.  It queries for `AnnotationState` instances with a "New" or "Retry" status.
+  2.  It groups these files by a primary scope to provide context.
+  3.  For each group, it fetches the relevant file and target entity information, using a cache to avoid redundant lookups.
+  4.  It calls the Cognite Diagram Detect API to start the annotation job.
+  5.  It updates the `AnnotationState` instance with the `diagramDetectJobId` and sets the status to "Processing".
 
 ### Finalize Phase
 
@@ -218,12 +217,12 @@ The template operates in three main phases, orchestrated by CDF Workflows. Since
 
 - **Goal**: Retrieve, process, and store the results of completed annotation jobs.
 - **Process**:
-  1. It queries for `AnnotationState` instances with a "Processing" status.
-  2. It checks the status of the corresponding diagram detection job.
-  3. Once a job is complete, it retrieves the annotation results.
-  4. It applies the new annotations, optionally cleaning up old ones first.
-  5. It updates the `AnnotationState` status to "Annotated" or "Failed" and tags the file accordingly.
-  6. It writes a summary of the approved annotations to a CDF RAW table for reporting.
+  1.  It queries for `AnnotationState` instances with a "Processing" status.
+  2.  It checks the status of the corresponding diagram detection job.
+  3.  Once a job is complete, it retrieves the annotation results.
+  4.  It applies the new annotations, optionally cleaning up old ones first.
+  5.  It updates the `AnnotationState` status to "Annotated" or "Failed" and tags the file accordingly.
+  6.  It writes a summary of the approved annotations to a CDF RAW table for reporting.
 
 ## Configuration
 
@@ -254,8 +253,8 @@ There were two principles I kept in mind when designing this template.
 
 - **The Balance Between Configuration and Code:** This template is architected to provide two primary modes of adaptation, striking a crucial balance:
 
-  1. **Quick Start (via Configuration):** For the majority of use cases, a user should only need to edit the `config.yaml` file. By defining their data model views and tuning process parameters, they can get the template running quickly and effectively.
-  2. **Scaling (via Interfaces):** When a project demands unique optimizations—like a non-standard batching strategy or a complex query to fetch entities—the interface-based design provides the necessary "escape hatch." A developer can write a custom Python class to implement their specialized logic, ensuring the template can meet any future requirement.
+  1.  **Quick Start (via Configuration):** For the majority of use cases, a user should only need to edit the `config.yaml` file. By defining their data model views and tuning process parameters, they can get the template running quickly and effectively.
+  2.  **Scaling (via Interfaces):** When a project demands unique optimizations—like a non-standard batching strategy or a complex query to fetch entities—the interface-based design provides the necessary "escape hatch." A developer can write a custom Python class to implement their specialized logic, ensuring the template can meet any future requirement.
 
 ## Architecture & Optimizations
 
