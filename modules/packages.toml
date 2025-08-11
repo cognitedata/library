@@ -12,7 +12,7 @@ canCherryPick = true
 # modules that belong to this package
 modules = [
     "contextualization/cdf_entity_matching",
-    "contextualization/cdf_pand_id_annotation"
+    "contextualization/cdf_p_and_id_annotation"
 ]
 
 [packages.root_cause_analysis]
