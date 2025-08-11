@@ -10,21 +10,19 @@ description = "Get started with Contextualization"
 canCherryPick = true
 
 # modules that belong to this package
-[[packages.contextualization.modules]]
-name = "p_and_id_annotations"
-description = "P&ID annotations"
+modules = [
+    "cdf_entity_matching",
+    "cdf_file_annotation",
+    "cdf_pand_id_annotation"
+]
 
 [packages.root_cause_analysis]
 title = "Root Cause Analysis"
 description = "Get started with Root Cause Analysis using Canvas and Atlas AI"
 canCherryPick = true
 
-[[packages.root_cause_analysis.modules]]
-name = "rca_with_atlas_and_rmdm"
-description = "RCA Agent with Reliability and Maintenance Data Model (recommended)"
-
 # modules that belong to this package
-[[packages.root_cause_analysis.modules]]
-name = "RCA Agent with the Core Data Model"
-description = "rca_with_atlas"
+modules = [
+    "rca_with_atlas"
+]
 
