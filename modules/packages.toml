@@ -1,4 +1,4 @@
-[package]
+[library]
 description = "Cognite Official Deployment Packs"
 toolkit-version = ">=0.6.0" # Recommended version of the Toolkit required to use this library
 canCherryPick = true # Set to false if the user should not be able to pick individual modules in this package
@@ -11,9 +11,8 @@ canCherryPick = true
 
 # modules that belong to this package
 modules = [
-    "cdf_entity_matching",
-    "cdf_file_annotation",
-    "cdf_pand_id_annotation"
+    "contextualization/cdf_entity_matching",
+    "contextualization/cdf_pand_id_annotation"
 ]
 
 [packages.root_cause_analysis]
@@ -23,6 +22,6 @@ canCherryPick = true
 
 # modules that belong to this package
 modules = [
-    "rca_with_atlas"
+    "root_cause_analysis/rca_with_atlas"
 ]
 
