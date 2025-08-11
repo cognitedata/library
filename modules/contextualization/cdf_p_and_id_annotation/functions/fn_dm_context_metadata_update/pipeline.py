@@ -1,3 +1,4 @@
+
 import sys
 import traceback
 from pathlib import Path
@@ -15,13 +16,16 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.data_classes.filters import In, HasData, Equals
 from cognite.client.utils._text import shorten
-from cognite.client.data_classes import ExtractionPipelineRun, Row
+from cognite.client.data_classes import (
+    ExtractionPipelineRun,
+    Row
+)
 from cognite.client import data_modeling as dm
 
 from cognite.client.data_classes.data_modeling.query import (
-    Query,
-    NodeResultSetExpression,
-    Select,
+    Query, 
+    NodeResultSetExpression, 
+    Select, 
     SourceSelector,
 )
 
@@ -38,13 +42,12 @@ from constants import (
 )
 
 sys.path.append(str(Path(__file__).parent))
-
-
-def file_metadata_update(
+    
+def file_metadata_update(   
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     data: dict[str, Any],
-    config: Config,
+    config: Config
 ) -> None:
     """
     Main function for the alias update process. This function will read new files and assets from Cognite Data Fusion and create aliases for them in the CDM.
@@ -61,6 +64,7 @@ def file_metadata_update(
     global BATCH_SIZE
 
     try:
+            
         pipeline_ext_id = data["ExtractionPipelineExtId"]
 
         file_cursor = None
@@ -69,49 +73,22 @@ def file_metadata_update(
         if config.parameters.debug:
             logger = CogniteFunctionLogger("DEBUG")
             logger.debug(f"**** Write debug messages and only process one file *****")
-            BATCH_SIZE = 100  # Minimum batch size for debug
+            BATCH_SIZE = 100 # Minimum batch size for debug
         else:
             logger.debug("Get files that has been updated since last run")
 
             # Check if we should run all files (then delete state content in RAW) or just new files
-            if not config.parameters.run_all:
-                file_cursor = read_state_store(
-                    client,
-                    logger,
-                    STAT_STORE_FILE_CURSOR,
-                    config.parameters.raw_db,
-                    config.parameters.raw_table_state,
-                )
-                asset_cursor = read_state_store(
-                    client,
-                    logger,
-                    STAT_STORE_ASSET_CURSOR,
-                    config.parameters.raw_db,
-                    config.parameters.raw_table_state,
-                )
+            if not config.parameters.run_all:    
+                file_cursor = read_state_store(client, logger, STAT_STORE_FILE_CURSOR, config.parameters.raw_db, config.parameters.raw_table_state)
+                asset_cursor = read_state_store(client, logger, STAT_STORE_ASSET_CURSOR, config.parameters.raw_db, config.parameters.raw_table_state)
 
-        # Get files that has been updated since last run to create aliases
+        # Get files that has been updated since last run to create aliases 
         files_view_id = config.data.job.file_view.as_view_id()
-        new_files = get_new_items(
-            client,
-            logger,
-            file_cursor,
-            files_view_id,
-            config,
-            FILE_NODE,
-            STAT_STORE_FILE_CURSOR,
-        )
+        new_files = get_new_items(client, logger, file_cursor, files_view_id, config, FILE_NODE, STAT_STORE_FILE_CURSOR)
 
         if len(new_files[FILE_NODE]) > 0:
-            while len(new_files[FILE_NODE]) > 0:
-                num_file_aliases = update_metadata(
-                    client,
-                    logger,
-                    new_files,
-                    files_view_id,
-                    config.data.job.file_view.instance_space,
-                    FILE_NODE,
-                )
+            while len(new_files[FILE_NODE]) > 0: 
+                num_file_aliases = update_metadata(client, logger, new_files, files_view_id, config.data.job.file_view.instance_space, FILE_NODE)
 
                 msg = f"[INFO]: Updating {num_file_aliases} aliases for {len(new_files[FILE_NODE])} files"
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
@@ -120,43 +97,21 @@ def file_metadata_update(
                     break
 
                 file_cursor = new_files.cursors[FILE_NODE]
-
-                # look for more files to process
-                new_files = get_new_items(
-                    client,
-                    logger,
-                    file_cursor,
-                    files_view_id,
-                    config,
-                    FILE_NODE,
-                    STAT_STORE_FILE_CURSOR,
-                )
-
+                
+                # look for more files to process 
+                new_files = get_new_items(client, logger, file_cursor, files_view_id, config, FILE_NODE, STAT_STORE_FILE_CURSOR)
+ 
         else:
             msg = f"[INFO]: No new file to process"
             update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
 
-        # Get assets that has been updated since last run to create aliases
+
+        # Get assets that has been updated since last run to create aliases 
         asset_view_id = config.data.job.asset_view.as_view_id()
-        new_assets = get_new_items(
-            client,
-            logger,
-            asset_cursor,
-            asset_view_id,
-            config,
-            ASSET_NODE,
-            STAT_STORE_ASSET_CURSOR,
-        )
+        new_assets = get_new_items(client, logger, asset_cursor, asset_view_id, config, ASSET_NODE, STAT_STORE_ASSET_CURSOR)
         if len(new_assets[ASSET_NODE]) > 0:
-            while len(new_assets[ASSET_NODE]) > 0:
-                num_asset_aliases = update_metadata(
-                    client,
-                    logger,
-                    new_assets,
-                    asset_view_id,
-                    config.data.job.asset_view.instance_space,
-                    ASSET_NODE,
-                )
+            while len(new_assets[ASSET_NODE]) > 0: 
+                num_asset_aliases = update_metadata(client, logger, new_assets, asset_view_id, config.data.job.asset_view.instance_space, ASSET_NODE)
 
                 msg = f"[INFO]: Updating {num_asset_aliases} aliases for {len(new_assets[ASSET_NODE])} assets"
                 update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
@@ -165,17 +120,9 @@ def file_metadata_update(
                     break
 
                 asset_cursor = new_assets.cursors[ASSET_NODE]
-
-                # look for more assets to process
-                new_assets = get_new_items(
-                    client,
-                    logger,
-                    asset_cursor,
-                    asset_view_id,
-                    config,
-                    ASSET_NODE,
-                    STAT_STORE_ASSET_CURSOR,
-                )
+                
+                # look for more assets to process 
+                new_assets = get_new_items(client, logger, asset_cursor, asset_view_id, config, ASSET_NODE, STAT_STORE_ASSET_CURSOR)
 
         else:
             msg = f"[INFO]: No new assets to process"
@@ -184,15 +131,17 @@ def file_metadata_update(
     except Exception as e:
         msg = f"Failed, Message: {e!s}, traceback:\n{traceback.format_exc()}"
         update_pipeline_run(client, logger, pipeline_ext_id, "failure", msg)
-
-
+    
+   
+   
 def update_pipeline_run(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     xid: str,
     status: str,
-    msg: str = None,
+    msg: str = None
 ) -> None:
+
     if status == "success":
         logger.info(msg)
     else:
@@ -200,13 +149,18 @@ def update_pipeline_run(
 
     client.extraction_pipelines.runs.create(
         ExtractionPipelineRun(
-            extpipe_external_id=xid, status=status, message=shorten(msg, 1000)
+            extpipe_external_id=xid,
+            status=status,
+            message=shorten(msg, 1000)
         )
     )
-
-
+    
 def read_state_store(
-    client: CogniteClient, logger: CogniteFunctionLogger, key: str, db: str, table: str
+    client: CogniteClient, 
+    logger: CogniteFunctionLogger,
+    key: str, 
+    db: str, 
+    table: str
 ) -> str:
     """
     Reads a value from a state store in a specified database and table.
@@ -220,9 +174,9 @@ def read_state_store(
     Returns:
         str: The value associated with the given key, or None if the key does not exist.
     """
-
+    
     value = None
-
+    
     logger.info(f"Read state from DB: {db} Table: {table} Key: {key}")
 
     # Create DB / Table for state if it does not exist
@@ -236,22 +190,19 @@ def read_state_store(
     except Exception:
         pass
 
-    row_list = client.raw.rows.list(
-        db_name=db, table_name=table, columns=[STAT_STORE_VALUE], limit=-1
-    )
+    row_list = client.raw.rows.list(db_name=db, table_name=table, columns=[STAT_STORE_VALUE], limit=-1)
     for row in row_list:
         if row.key == key:
             value = row.columns[STAT_STORE_VALUE]
-
+ 
     return value
-
 
 def update_state_store(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
-    cursor: str,
-    config: Config,
-    cursor_name: str,
+    cursor: str, 
+    config: Config, 
+    cursor_name: str
 ) -> None:
     """
     Updates the state store with the provided cursor value.
@@ -267,10 +218,8 @@ def update_state_store(
     """
     logger.info(f"Updating state store for cursor: {cursor_name}")
     state_row = Row(cursor_name, {STAT_STORE_VALUE: cursor})
-    client.raw.rows.insert(
-        config.parameters.raw_db, config.parameters.raw_table_state, state_row
-    )
-
+    client.raw.rows.insert(config.parameters.raw_db, config.parameters.raw_table_state, state_row)
+    
 
 def get_new_items(
     client: CogniteClient,
@@ -279,7 +228,7 @@ def get_new_items(
     view_id: ViewId,
     config: Config,
     node_type: str,
-    cursor_name: str,
+    cursor_name: str
 ) -> NodeList[Node]:
     """
     Read new files based on TAG PID
@@ -287,7 +236,7 @@ def get_new_items(
     :returns: Nodelist of files nodes
     """
     if node_type == FILE_NODE:
-        view_config = config.data.job.file_view
+        view_config= config.data.job.file_view
         if config.parameters.debug:
             debug_file = config.parameters.debug_file
         else:
@@ -296,7 +245,7 @@ def get_new_items(
         property_list = ["name", "aliases", "tags", "description"]
 
     else:
-        view_config = config.data.job.asset_view
+        view_config= config.data.job.asset_view
         is_selected = get_asset_filter(view_config, logger)
         property_list = ["name", "aliases"]
 
@@ -304,7 +253,10 @@ def get_new_items(
 
     sync_query = Query(
         with_={
-            node_type: NodeResultSetExpression(filter=is_selected, limit=BATCH_SIZE),
+            node_type: NodeResultSetExpression(
+                filter=is_selected, 
+                limit=BATCH_SIZE
+            ),
         },
         select={
             node_type: Select([SourceSelector(view_id, property_list)]),
@@ -322,9 +274,7 @@ def get_new_items(
         except Exception as e:
             msg = f"failed, Message: {e!s}"
             if e.code == 400:
-                logger.warning(
-                    f"Got 400 error, Resetting cursor and trying again : {msg}"
-                )
+                logger.warning(f"Got 400 error, Resetting cursor and trying again : {msg}")
                 cursor = None
                 num_retry += 1
                 if num_retry > 3:
@@ -334,6 +284,7 @@ def get_new_items(
                 retry = False
                 raise Exception(msg) from e
 
+
     new_cursor_value = sync_result.cursors[node_type]
     # Update state store with new cursor - in case timeout on next loop to set water mark
     update_state_store(client, logger, new_cursor_value, config, cursor_name)
@@ -341,30 +292,26 @@ def get_new_items(
     logger.info(f"Num new items: {len(sync_result[node_type])} from view: {view_id}")
     return sync_result
 
-
 def get_file_filter(
     file_view_config: ViewPropertyConfig,
     debug_file: str,
     logger: CogniteFunctionLogger,
 ) -> dm.filters.Filter:
+
     is_view = dm.filters.HasData(views=[file_view_config.as_view_id()])
-    is_uploaded = dm.filters.Equals(
-        file_view_config.as_property_ref("isUploaded"), True
-    )
+    is_uploaded = dm.filters.Equals(file_view_config.as_property_ref("isUploaded"), True)
 
     is_file_type = dm.filters.In(
-        file_view_config.as_property_ref("mimeType"),
-        ["application/pdf", "image/jpeg", "image/png", "image/tiff"],
+        file_view_config.as_property_ref("mimeType"), ["application/pdf", "image/jpeg", "image/png", "image/tiff"]
     )
     is_selected = dm.filters.And(is_view, is_uploaded, is_file_type)
     dbg_msg = f"File filter: hasData = True, isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
 
     if debug_file:
-        is_debug_file = dm.filters.Equals(
-            file_view_config.as_property_ref("name"), debug_file
-        )
+        is_debug_file = dm.filters.Equals(file_view_config.as_property_ref("name"), debug_file)
         dbg_msg = f"{dbg_msg} filtering on file name: {debug_file}"
         is_selected = dm.filters.And(is_selected, is_debug_file)
+
 
     logger.debug(dbg_msg)
 
@@ -375,6 +322,7 @@ def get_asset_filter(
     view_config: ViewPropertyConfig,
     logger: CogniteFunctionLogger,
 ) -> dm.filters.Filter:
+
     is_view = dm.filters.HasData(views=[view_config.as_view_id()])
     dbg_msg = f"Asset filter: hasData = True"
     is_selected = dm.filters.And(is_view)
@@ -384,39 +332,31 @@ def get_asset_filter(
     return is_selected
 
 
-def extract_tags_simple(text: str, tags: list[str]) -> list[str]:
+def extract_tags_simple(
+    text: str,
+    tags: list[str]
+) -> list[str]:
     # Convert to lowercase and split by non-alphanumeric characters
 
     if text:
-        use_text = re.split(r"[,.]", text, maxsplit=1)[0].strip()
-        words = re.findall(r"\b\w+\b", use_text.lower())
+        use_text = re.split(r'[,.]', text, maxsplit=1)[0].strip()
+        words = re.findall(r'\b\w+\b', use_text.lower())
         if "P&ID" in use_text:
             if "PID" not in tags:
                 tags.append("PID")
 
+        
         # Define a simple set of stopwords (expand this as needed)
-        stopwords = {
-            "apologize",
-            "this",
-            "appears",
-            "document",
-            "outlines",
-            "cognite",
-            "data",
-            "fusion",
-            "system",
-            "industrial",
-            "process",
-        }
-
+        stopwords = {'apologize','this', 'appears',  'document', 'outlines', 'cognite', 'data', 'fusion', 'system', 'industrial', 'process'}
+        
         # Filter out stopwords
         for word in words:
             if word not in stopwords and len(word) > 4 and word not in tags:
                 tags.append(word)
-
+            
     return tags
 
-
+        
 def update_metadata(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
@@ -442,7 +382,8 @@ def update_metadata(
     item_update = []
     tags = []
     node_ids = new_nodes[node_type].as_ids()
-    for num in range(node_num, len(node_ids), 1):
+    for num in range(node_num, len(node_ids), 1): 
+        
         aliases = []
         description = None
         tags = []
@@ -459,9 +400,7 @@ def update_metadata(
         if node_type == FILE_NODE:
             if description in [None, ""] or description.find("I apologize") > -1:
                 summary = get_doc_summary(client, logger, ext_id, node_space)
-                if (
-                    summary and summary.find("I apologize") < 0
-                ):  # test if we found a summary with any value
+                if summary and summary.find("I apologize") < 0:  # test if we found a summary with any value
                     tags = extract_tags_simple(summary, tags)
                     update_metadata = True
                 else:
@@ -470,18 +409,16 @@ def update_metadata(
                 summary = description
 
             aliases_upd = get_file_alias_list(name, aliases)
-            properties_dict = {
-                "name": name,
-                "aliases": aliases_upd,
-                "tags": tags,
-                "description": summary,
-            }
+            properties_dict = {"name": name,
+                               "aliases": aliases_upd,
+                               "tags": tags,
+                               "description": summary}
             dbg_msg = f"Updating file : {ext_id} with aliases: {aliases_upd} - tags : {tags} - summary: {summary}"
         else:
             aliases_upd = get_asset_alias_list(name, aliases)
             properties_dict = {"aliases": aliases_upd}
             dbg_msg = f"Updating asset : {ext_id} with aliases: {aliases_upd}"
-
+        
         if aliases_upd != aliases:
             update_metadata = True
 
@@ -497,11 +434,12 @@ def update_metadata(
                         )
                     ],
                 )
-            )
+            )       
             logger.debug(dbg_msg)
 
     client.data_modeling.instances.apply(item_update)
     return len(item_update)
+
 
 
 def get_doc_summary(
@@ -510,16 +448,17 @@ def get_doc_summary(
     ext_id: str,
     node_space: str,
 ) -> str:
+    
     endpoint = f"/api/v1/projects/{client._config.project}/ai/tools/documents/summarize"
-
+    
     payload = {
         "ignoreUnknownIds": False,
-        "items": [{"instanceId": {"space": node_space, "externalId": ext_id}}],
+        "items": [{"instanceId": {"space": node_space, "externalId": ext_id}}]
     }
-
+    
     try:
         response = client.post(url=endpoint, json=payload)
-
+            
     except Exception as e:
         msg = f"Failed to get summary for file externalId: {ext_id}, Message: {e!s}"
         logger.warning(msg)
@@ -531,11 +470,15 @@ def get_doc_summary(
         return None
     elif response.json().get("items")[0]["summary"] is None:
         return None
-
+        
+    
     return response.json().get("items")[0]["summary"]
 
 
-def get_file_alias_list(name: str, aliases: list[str]) -> list[str]:
+def get_file_alias_list(
+    name: str, 
+    aliases: list[str]
+) -> list[str]:
     """
     Generate a list of file aliases based on the provided file name.
 
@@ -548,25 +491,28 @@ def get_file_alias_list(name: str, aliases: list[str]) -> list[str]:
     aliases_upd = []
     aliases_upd.extend(aliases)
 
-    alias_1 = name.split(".")[:-1][0]  # Remove last part of file name
+    alias_1 = name.split('.')[:-1][0] # Remove last part of file name  
     if alias_1 not in aliases_upd:
         aliases_upd.append(alias_1)
 
-    alias_2 = name[: name.rfind("-")]  # Remove last part of file name
+    alias_2 = name[:name.rfind('-')] # Remove last part of file name  
     if alias_2 not in aliases_upd:
         aliases_upd.append(alias_2)
 
-    return aliases_upd
 
+    return aliases_upd 
 
-def get_asset_alias_list(name: str, aliases: list[str]) -> list[str]:
+def get_asset_alias_list(
+    name: str, 
+    aliases: list[str]
+) -> list[str]:
     """
     Generate a list of asset aliases based on the provided name and external ID.
     Args:
         name (str): The name of the asset.
         ext_id (str): The external ID of the asset.
     Returns:
-        list[str]: An updated list of aliases including the name, external ID,
+        list[str]: An updated list of aliases including the name, external ID, 
                    and a modified version of the name with the first part removed.
     """
     aliases_upd = []
@@ -574,10 +520,10 @@ def get_asset_alias_list(name: str, aliases: list[str]) -> list[str]:
 
     if name not in aliases_upd:
         aliases_upd.append(name)
+    
+    alias_1 = '-'.join(name.split('-')[1:]) # Remove first part of asset name
 
-    alias_1 = "-".join(name.split("-")[1:])  # Remove first part of asset name
-
-    if alias_1 not in aliases_upd and alias_1 != "":
+    if alias_1 not in aliases_upd and alias_1 != '':
         aliases_upd.append(alias_1)
-
-    return aliases_upd
+        
+    return aliases_upd 

@@ -18,9 +18,7 @@ class IAnnotationService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def run_diagram_detect(
-        self, files: list[FileReference], entities: list[dict[str, Any]]
-    ) -> int:
+    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
         pass
 
 
@@ -30,9 +28,7 @@ class GeneralAnnotationService(IAnnotationService):
     Build a queue of files that are in the annotation process and return the jobId
     """
 
-    def __init__(
-        self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger
-    ):
+    def __init__(self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
@@ -42,9 +38,7 @@ class GeneralAnnotationService(IAnnotationService):
         if config.launch_function.annotation_service.diagram_detect_config:
             self.diagram_detect_config = config.launch_function.annotation_service.diagram_detect_config.as_config()
 
-    def run_diagram_detect(
-        self, files: list[FileReference], entities: list[dict[str, Any]]
-    ) -> int:
+    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
             entities=entities,

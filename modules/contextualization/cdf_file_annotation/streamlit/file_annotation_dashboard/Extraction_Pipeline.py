@@ -26,9 +26,7 @@ pipeline_runs = fetch_pipeline_run_history()
 
 # --- Main Application ---
 st.title("Pipeline Run History")
-st.markdown(
-    "This page provides statistics and detailed history for all extraction pipeline runs."
-)
+st.markdown("This page provides statistics and detailed history for all extraction pipeline runs.")
 
 
 # --- Pipeline Statistics Section ---
@@ -53,8 +51,7 @@ if pipeline_runs:
         recent_pipeline_runs = [
             run
             for run in pipeline_runs
-            if pd.to_datetime(run.created_time, unit="ms").tz_localize("UTC")
-            > filter_start_time
+            if pd.to_datetime(run.created_time, unit="ms").tz_localize("UTC") > filter_start_time
         ]
     else:
         # If 'All' is selected, use the original unfiltered list of runs
@@ -89,16 +86,8 @@ if pipeline_runs:
                 elif run.status == "failure":
                     finalize_failure += 1
 
-        total_launched_recent = int(
-            df_runs_for_graphing[df_runs_for_graphing["type"] == "Launch"][
-                "count"
-            ].sum()
-        )
-        total_finalized_recent = int(
-            df_runs_for_graphing[df_runs_for_graphing["type"] == "Finalize"][
-                "count"
-            ].sum()
-        )
+        total_launched_recent = int(df_runs_for_graphing[df_runs_for_graphing["type"] == "Launch"]["count"].sum())
+        total_finalized_recent = int(df_runs_for_graphing[df_runs_for_graphing["type"] == "Finalize"]["count"].sum())
 
         # --- Display Metrics and Graphs in two columns ---
         g_col1, g_col2 = st.columns(2)
@@ -153,14 +142,14 @@ if pipeline_runs:
 
         chart_col1, chart_col2 = st.columns(2)
         with chart_col1:
-            launch_chart = base_chart.transform_filter(
-                alt.datum.type == "Launch"
-            ).properties(title="Files Processed per Launch Run")
+            launch_chart = base_chart.transform_filter(alt.datum.type == "Launch").properties(
+                title="Files Processed per Launch Run"
+            )
             st.altair_chart(launch_chart, use_container_width=True)
         with chart_col2:
-            finalize_chart = base_chart.transform_filter(
-                alt.datum.type == "Finalize"
-            ).properties(title="Files Processed per Finalize Run")
+            finalize_chart = base_chart.transform_filter(alt.datum.type == "Finalize").properties(
+                title="Files Processed per Finalize Run"
+            )
             st.altair_chart(finalize_chart, use_container_width=True)
 
     # --- UNIFIED DETAILED RUN HISTORY ---
@@ -188,18 +177,11 @@ if pipeline_runs:
 
             filtered_runs = recent_pipeline_runs
             if run_status_filter != "All":
-                filtered_runs = [
-                    run
-                    for run in filtered_runs
-                    if run.status.lower() == run_status_filter.lower()
-                ]
+                filtered_runs = [run for run in filtered_runs if run.status.lower() == run_status_filter.lower()]
 
             if caller_type_filter != "All":
                 filtered_runs = [
-                    run
-                    for run in filtered_runs
-                    if parse_run_message(run.message).get("caller")
-                    == caller_type_filter
+                    run for run in filtered_runs if parse_run_message(run.message).get("caller") == caller_type_filter
                 ]
 
             if not filtered_runs:
@@ -216,6 +198,7 @@ if pipeline_runs:
 
                 # Display logic for each run
                 for run in paginated_runs:
+
                     if run.status == "success":
                         st.markdown(f"**Status:** Success")
                         st.success(
@@ -238,9 +221,7 @@ if pipeline_runs:
                         button_key = f"log_btn_all_{call_id}"
                         if st.button("Fetch Function Logs", key=button_key):
                             with st.spinner("Fetching logs..."):
-                                logs = fetch_function_logs(
-                                    function_id=function_id, call_id=call_id
-                                )
+                                logs = fetch_function_logs(function_id=function_id, call_id=call_id)
                                 if logs:
                                     st.text_area(
                                         "Function Logs",
@@ -253,9 +234,7 @@ if pipeline_runs:
                     st.divider()
 
                 # Pagination controls
-                total_pages = (
-                    len(filtered_runs) + items_per_page - 1
-                ) // items_per_page
+                total_pages = (len(filtered_runs) + items_per_page - 1) // items_per_page
                 if total_pages > 1:
                     p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
                     with p_col1:
@@ -280,6 +259,4 @@ if pipeline_runs:
                             st.session_state.page_num += 1
                             st.rerun()
 else:
-    st.info(
-        "No data returned from Cognite Data Fusion. Please check your settings and data model."
-    )
+    st.info("No data returned from Cognite Data Fusion. Please check your settings and data model.")

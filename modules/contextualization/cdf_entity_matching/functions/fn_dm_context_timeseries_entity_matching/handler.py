@@ -17,95 +17,87 @@ from pipeline_optimizations import (
     monitor_memory_usage,
     cleanup_memory,
     patch_existing_pipeline,
-    PerformanceBenchmark,
+    PerformanceBenchmark
 )
 
 
 def handle(data: dict, client: CogniteClient) -> dict:
     """
     OPTIMIZED Entity Matching Handler
-
+    
     This function includes performance optimizations for improved speed and monitoring.
     """
     logger = None
     benchmark = None
-
+    
     try:
         # Apply global optimizations
         patch_existing_pipeline()
-
+        
         # Initialize logger and performance monitoring
         loglevel = data.get("logLevel", "INFO")
         logger = CogniteFunctionLogger(loglevel)
         benchmark = PerformanceBenchmark(logger)
-
+        
         logger.info(f"Starting OPTIMIZED entity matching with loglevel = {loglevel}")
-        logger.info(
-            f"Reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}"
-        )
-
+        logger.info(f"Reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}")
+        
         # Monitor initial memory usage
         monitor_memory_usage(logger, "Handler start")
-
+        
         # Load configuration with timing
         config = benchmark.benchmark_function(
-            "Config loading", load_config_parameters, client, data
+            "Config loading",
+            load_config_parameters,
+            client, data
         )
         logger.debug("Loaded config successfully")
-
+        
         # Run the main pipeline with optimizations and timing
         with time_operation("Complete pipeline execution", logger):
             benchmark.benchmark_function(
                 "Pipeline execution",
                 asset_entity_matching,
-                client,
-                logger,
-                data,
-                config,
+                client, logger, data, config
             )
-
+        
         # Final cleanup and monitoring
         cleanup_memory()
         monitor_memory_usage(logger, "Handler end")
-
+        
         # Log performance summary
         if benchmark:
             benchmark.log_summary()
-
+        
         logger.info("Optimized entity matching completed successfully!")
         return {"status": "succeeded", "data": data}
-
+        
     except Exception as e:
         message = f"Optimized pipeline failed: {e!s}"
-
+        
         if logger:
             logger.error(message)
             if benchmark:
                 benchmark.log_summary()
         else:
             print(f"[ERROR] {message}")  # Fallback logging if logger creation failed
-
+            
         return {"status": "failure", "message": message}
+
 
 
 def run_locally():
     """
     OPTIMIZED Local Runner
-
+    
     Enhanced with better error handling and performance monitoring.
     """
-
+    
     # Apply optimizations first
     patch_existing_pipeline()
-
+    
     # Validate environment variables
-    required_envvars = (
-        "CDF_PROJECT",
-        "CDF_CLUSTER",
-        "IDP_CLIENT_ID",
-        "IDP_CLIENT_SECRET",
-        "IDP_TOKEN_URL",
-    )
+    required_envvars = ("CDF_PROJECT", "CDF_CLUSTER", "IDP_CLIENT_ID", "IDP_CLIENT_SECRET", "IDP_TOKEN_URL")
     if missing := [envvar for envvar in required_envvars if envvar not in os.environ]:
         raise ValueError(f"Missing required environment variables: {missing}")
 
@@ -131,22 +123,22 @@ def run_locally():
             ),
         )
     )
-
+    
     # Test data
     data = {
-        "logLevel": "INFO",
-        "ExtractionPipelineExtId": "ep_ctx_timeseries_LOC_SOURCE_entity_matching",
+        "logLevel": "INFO", 
+        "ExtractionPipelineExtId": "ep_ctx_timeseries_LOC_SOURCE_entity_matching"
     }
-
+    
     # Run optimized handler
     print("Starting optimized entity matching pipeline...")
     result = handle(data, client)
-
+    
     if result["status"] == "succeeded":
         print("Optimized pipeline completed successfully!")
     else:
         print(f"Pipeline failed: {result.get('message', 'Unknown error')}")
-
+    
     return result
 
 
@@ -159,5 +151,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Failed: {e}")
         import traceback
-
-        traceback.print_exc()
+        traceback.print_exc() 

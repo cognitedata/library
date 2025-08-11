@@ -25,10 +25,7 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes import (
     ExtractionPipelineRun,
 )
-from cognite.client.data_classes.contextualization import (
-    DiagramDetectResults,
-    DiagramDetectConfig,
-)
+from cognite.client.data_classes.contextualization import DiagramDetectResults, DiagramDetectConfig
 from cognite.client import data_modeling as dm
 from cognite.client.utils._auxiliary import split_into_chunks
 from cognite.client.utils._text import shorten
@@ -36,12 +33,7 @@ from cognite.extractorutils.uploader import RawUploadQueue
 from cognite.client.data_classes import Row
 from cognite.client.exceptions import CogniteAPIError
 
-from cognite.client.data_classes.data_modeling.query import (
-    Query,
-    NodeResultSetExpression,
-    Select,
-    SourceSelector,
-)
+from cognite.client.data_classes.data_modeling.query import Query, NodeResultSetExpression, Select, SourceSelector
 
 from config import Config, ViewPropertyConfig
 from logger import CogniteFunctionLogger
@@ -54,7 +46,7 @@ from constants import (
     BATCH_SIZE,
     ANNOTATE_BATCH_SIZE,
     EXTERNAL_ID_LIMIT,
-    FUNCTION_ID,
+    FUNCTION_ID
 )
 
 sys.path.append(str(Path(__file__).parent))
@@ -64,7 +56,6 @@ sys.path.append(str(Path(__file__).parent))
 class DiagramAnnotationStatus(Enum):
     SUGGESTED = "Suggested"
     APPROVED = "Approved"
-
 
 # Define a custom exception
 class DiagramDetectError(Exception):
@@ -76,7 +67,7 @@ def annotate_p_and_id(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     data: dict[str, Any],
-    config: Config,
+    config: Config
 ) -> None:
     """
     Read configuration and start P&ID annotation process by
@@ -105,53 +96,23 @@ def annotate_p_and_id(
             logger.debug(f"**** Write debug messages and only process one file *****")
             ANNOTATE_BATCH_SIZE = 1
 
-        logger.debug(
-            f"Initiate RAW upload queue used to store output from Diagram parsing"
-        )
-        raw_uploader = RawUploadQueue(
-            cdf_client=client, max_queue_size=500000, trigger_log_level="INFO"
-        )
+        logger.debug(f"Initiate RAW upload queue used to store output from Diagram parsing")
+        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level="INFO")
 
         # Check if we should run all files (then delete state content in RAW) or just new files
         if config.parameters.run_all:
-            logger.debug(
-                f"Run all files, delete state content in RAW since we are rerunning based on all input"
-            )
-            delete_table(
-                client, config.parameters.raw_db, config.parameters.raw_table_doc_tag
-            )
-            delete_table(
-                client, config.parameters.raw_db, config.parameters.raw_table_doc_doc
-            )
-            delete_table(
-                client, config.parameters.raw_db, config.parameters.raw_table_state
-            )
+            logger.debug(f"Run all files, delete state content in RAW since we are rerunning based on all input")
+            delete_table(client, config.parameters.raw_db, config.parameters.raw_table_doc_tag)
+            delete_table(client, config.parameters.raw_db, config.parameters.raw_table_doc_doc)
+            delete_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
         elif config.parameters.debug_file and config.parameters.debug:
-            logger.debug(
-                f"Since debugging with one file name: {config.parameters.debug_file} - ignore cursor and batch number"
-            )
+            logger.debug(f"Since debugging with one file name: {config.parameters.debug_file} - ignore cursor and batch number")
         else:
-            logger.debug(
-                f"Get file cursor and batch number from RAW, to continue processing from last run"
-            )
-            file_cursor = read_state_store(
-                client,
-                logger,
-                STAT_STORE_CURSOR,
-                config.parameters.raw_db,
-                config.parameters.raw_table_state,
-            )
-            file_num = read_state_store(
-                client,
-                logger,
-                STAT_STORE_NUM_IN_BATCH,
-                config.parameters.raw_db,
-                config.parameters.raw_table_state,
-            )
+            logger.debug(f"Get file cursor and batch number from RAW, to continue processing from last run")
+            file_cursor = read_state_store(client, logger, STAT_STORE_CURSOR, config.parameters.raw_db, config.parameters.raw_table_state)
+            file_num = read_state_store(client, logger, STAT_STORE_NUM_IN_BATCH, config.parameters.raw_db, config.parameters.raw_table_state)
 
-        logger.debug(
-            "Create entities for files, assets, equipment and more if in configuration"
-        )
+        logger.debug("Create entities for files, assets, equipment and more if in configuration")
         entities = get_all_entities(client, logger, config)
 
         logger.debug("Get files that has been updated since last run")
@@ -160,18 +121,8 @@ def annotate_p_and_id(
 
         logger.debug(f"Number of new files to process are: {len(new_files['files'])}")
         if len(new_files["files"]) == 0:
-            logger.debug(
-                "No new files to process, we are done - just update pipeline run"
-            )
-            update_pipeline_run(
-                client,
-                logger,
-                pipeline_ext_id,
-                "success",
-                annotated_count,
-                error_count,
-                None,
-            )
+            logger.debug("No new files to process, we are done - just update pipeline run")
+            update_pipeline_run(client, logger, pipeline_ext_id, "success", annotated_count, error_count, None)
             return
 
         original_batch_size = ANNOTATE_BATCH_SIZE
@@ -183,13 +134,7 @@ def annotate_p_and_id(
             file_ids = new_files["files"].as_ids()
             try:
                 for num in range(file_num, len(file_ids), ANNOTATE_BATCH_SIZE):
-                    result = run_diagram_detect(
-                        client,
-                        logger,
-                        entities,
-                        file_ids[num : num + ANNOTATE_BATCH_SIZE],
-                        search_property,
-                    )
+                    result = run_diagram_detect(client, logger, entities, file_ids[num:num+ANNOTATE_BATCH_SIZE], search_property)
                     if result is None:
                         error_count += len(file_ids)
                     else:
@@ -203,63 +148,31 @@ def annotate_p_and_id(
                             new_files,
                             error_count,
                             doc_doc,
-                            doc_tag,
+                            doc_tag
                         )
                         annotated_count += len(file_ids) - error_count
 
                         # Update raw with new annotations
-                        write_mapping_to_raw(
-                            client, config, raw_uploader, doc_doc, doc_tag, logger
-                        )
+                        write_mapping_to_raw(client, config, raw_uploader, doc_doc, doc_tag, logger)
 
-                    logger.debug(
-                        "Update state store with doc num in batch - in case timeout to set water mark"
-                    )
-                    update_state_store(
-                        client,
-                        logger,
-                        file_cursor,
-                        num + ANNOTATE_BATCH_SIZE,
-                        config,
-                        None,
-                        STAT_STORE_NUM_IN_BATCH,
-                    )
+                    logger.debug("Update state store with doc num in batch - in case timeout to set water mark")
+                    update_state_store(client, logger, file_cursor, num+ANNOTATE_BATCH_SIZE, config, None, STAT_STORE_NUM_IN_BATCH)
 
                     if config.parameters.debug:
                         break
 
                 if not config.parameters.debug:
-                    logger.debug(
-                        "Update state store with new cursor - in case timeout on next loop to set water mark"
-                    )
+                    logger.debug("Update state store with new cursor - in case timeout on next loop to set water mark")
                     file_num = 0
                     file_cursor = new_files.cursors["files"]
-                    update_state_store(
-                        client,
-                        logger,
-                        file_cursor,
-                        file_num,
-                        config,
-                        STAT_STORE_CURSOR,
-                        STAT_STORE_NUM_IN_BATCH,
-                    )
+                    update_state_store(client, logger, file_cursor, file_num, config, STAT_STORE_CURSOR, STAT_STORE_NUM_IN_BATCH)
 
                 logger.debug("Update pipeline run with success")
-                update_pipeline_run(
-                    client,
-                    logger,
-                    pipeline_ext_id,
-                    "success",
-                    annotated_count,
-                    error_count,
-                    None,
-                )
+                update_pipeline_run(client, logger, pipeline_ext_id, "success", annotated_count, error_count, None)
                 error_count, annotated_count = 0, 0
 
                 logger.debug("look for more files to process...")
-                new_files = get_new_files(
-                    client, logger, file_cursor, files_view_id, config
-                )
+                new_files = get_new_files(client, logger, file_cursor, files_view_id, config)
 
                 if config.parameters.debug:
                     break
@@ -271,7 +184,7 @@ def annotate_p_and_id(
                 file_num += ANNOTATE_BATCH_SIZE
                 ANNOTATE_BATCH_SIZE = original_batch_size
                 pass
-
+            
             except Exception as e:
                 if ANNOTATE_BATCH_SIZE > 1:
                     msg = f"Failed to push: {ANNOTATE_BATCH_SIZE} annotations to data model, setting Batch Size = 1 and retry error: {e!s}"
@@ -286,16 +199,9 @@ def annotate_p_and_id(
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
-        update_pipeline_run(
-            client,
-            logger,
-            pipeline_ext_id,
-            "failure",
-            annotated_count,
-            error_count,
-            msg,
-        )
+        update_pipeline_run(client, logger, pipeline_ext_id, "failure", annotated_count, error_count, msg)
         raise Exception("msg")
+
 
 
 def update_pipeline_run(
@@ -305,8 +211,9 @@ def update_pipeline_run(
     status: str,
     annotated_count: int,
     error_count: int,
-    error: str = None,
+    error: str = None
 ) -> None:
+
     if status == "success":
         msg = (
             f"Annotated P&ID file(s) annotated: {annotated_count}, "
@@ -322,14 +229,20 @@ def update_pipeline_run(
 
     client.extraction_pipelines.runs.create(
         ExtractionPipelineRun(
-            extpipe_external_id=xid, status=status, message=shorten(msg, 1000)
+            extpipe_external_id=xid,
+            status=status,
+            message=shorten(msg, 1000)
         )
     )
 
-
 def read_state_store(
-    client: CogniteClient, logger: CogniteFunctionLogger, key: str, db: str, table: str
+    client: CogniteClient,
+    logger: CogniteFunctionLogger,
+    key: str,
+    db: str,
+    table: str
 ) -> str:
+
     if key == STAT_STORE_NUM_IN_BATCH:
         value = 0
     else:
@@ -340,9 +253,7 @@ def read_state_store(
     logger.debug("Create DB / Table for state if it does not exist")
     create_table(client, db, table)
 
-    row_list = client.raw.rows.list(
-        db_name=db, table_name=table, columns=[STAT_STORE_VALUE], limit=-1
-    )
+    row_list = client.raw.rows.list(db_name=db, table_name=table, columns=[STAT_STORE_VALUE], limit=-1)
     for row in row_list:
         if row.key == key:
             value = row.columns[STAT_STORE_VALUE]
@@ -351,7 +262,6 @@ def read_state_store(
 
     return value
 
-
 def update_state_store(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
@@ -359,8 +269,9 @@ def update_state_store(
     file_num: int,
     config: Config,
     cursor: str,
-    batch_num: str,
+    batch_num: str
 ) -> None:
+
     state_row = None
 
     # Create DB / Table for state if it does not exist
@@ -368,19 +279,13 @@ def update_state_store(
 
     if cursor:
         state_row = Row(cursor, {STAT_STORE_VALUE: file_cursor})
-        client.raw.rows.insert(
-            config.parameters.raw_db, config.parameters.raw_table_state, state_row
-        )
+        client.raw.rows.insert(config.parameters.raw_db, config.parameters.raw_table_state, state_row)
 
     if batch_num:
         state_row = Row(batch_num, {STAT_STORE_VALUE: file_num})
-        client.raw.rows.insert(
-            config.parameters.raw_db, config.parameters.raw_table_state, state_row
-        )
+        client.raw.rows.insert(config.parameters.raw_db, config.parameters.raw_table_state, state_row)
 
-    logger.debug(
-        f"Update state store DB: {config.parameters.raw_db} Table: {config.parameters.raw_table_state}"
-    )
+    logger.debug(f"Update state store DB: {config.parameters.raw_db} Table: {config.parameters.raw_table_state}")
 
 
 def get_all_entities(
@@ -400,33 +305,30 @@ def get_all_entities(
 
     for file in all_files:
         entities.append(
-            {
-                "external_id": file.external_id,
-                "name": file.properties[job_config.file_view.as_view_id()]["name"],
-                "space": file.space,
-                search_property: file.properties[job_config.file_view.as_view_id()][
-                    search_property
-                ],
-                "annotation_type_external_id": job_config.file_view.type,
-            }
-        )
+        {
+            "external_id": file.external_id,
+            "name": file.properties[job_config.file_view.as_view_id()]["name"],
+            "space": file.space,
+            search_property: file.properties[job_config.file_view.as_view_id()][search_property],
+            "annotation_type_external_id": job_config.file_view.type,
+        }
+    )
     logger.debug(f"Number files added as entities: {len(entities)}")
 
     for entity_view in job_config.entity_views:
+
         type = entity_view.type
         search_property = entity_view.search_property
         view_id = entity_view.as_view_id()
-        logger.debug(
-            f"Get all entities from view: {view_id} with search property: {search_property} and type: {type}"
-        )
+        logger.debug(f"Get all entities from view: {view_id} with search property: {search_property} and type: {type}")
 
         is_selected = get_entity_filter(entity_view, logger)
 
         entity_list = client.data_modeling.instances.list(
             space=entity_view.instance_space,
-            sources=[entity_view.as_view_id()],
+            sources=[entity_view.as_view_id()], 
             filter=is_selected,
-            limit=-1,
+            limit=-1
         )
 
         warningLogged = False
@@ -447,9 +349,7 @@ def get_all_entities(
                 )
             else:
                 if not warningLogged:
-                    logger.warning(
-                        f"View {view_id} don't contains {search_property} property, using name instead"
-                    )
+                    logger.warning(f"View {view_id} don't contains {search_property} property, using name instead")
                     warningLogged = True
                 entities.append(
                     {
@@ -460,11 +360,11 @@ def get_all_entities(
                         "annotation_type_external_id": type,
                     }
                 )
-        logger.info(
-            f"Total number of entities: {len(entities)} including elements from view: {view_id} and type: {type}"
-        )
+        logger.info(f"Total number of entities: {len(entities)} including elements from view: {view_id} and type: {type}")
+
 
     return entities
+
 
 
 def get_all_files(
@@ -484,20 +384,19 @@ def get_all_files(
         space=file_view_config.instance_space,
         sources=[file_view_config.as_view_id()],
         filter=is_selected,
-        limit=-1,
+        limit=-1
     )
 
     logger.info(f"Num files: {len(files)} from view: {file_view_config.as_view_id()}")
 
     return files
 
-
 def get_new_files(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     file_cursor: str,
     files_view_id: ViewId,
-    config: Config,
+    config: Config
 ) -> NodeList[Node]:
     """
     Read new files based on TAG PID
@@ -505,21 +404,21 @@ def get_new_files(
     :returns: Nodelist of files nodes
     """
 
-    file_view_config = config.data.annotation_job.file_view
+    file_view_config= config.data.annotation_job.file_view
     if config.parameters.debug:
         debug_file = config.parameters.debug_file
     else:
         debug_file = None
 
-    logger.debug(
-        f"Get new files from view: {files_view_id}, based on config: {file_view_config}"
-    )
+    logger.debug(f"Get new files from view: {files_view_id}, based on config: {file_view_config}")
     is_selected = get_file_filter(file_view_config, debug_file, logger)
     property_list = ["name", "sourceId", file_view_config.search_property]
 
     sync_query = Query(
         with_={
-            "files": NodeResultSetExpression(filter=is_selected, limit=BATCH_SIZE),
+            "files": NodeResultSetExpression(
+                filter=is_selected, limit=BATCH_SIZE
+            ),
         },
         select={
             "files": Select([SourceSelector(files_view_id, property_list)]),
@@ -537,9 +436,7 @@ def get_new_files(
         except Exception as e:
             msg = f"failed, Message: {e!s}"
             if e.code == 400:
-                logger.warning(
-                    f"Got 400 error, Resetting cursor and trying again : {msg}"
-                )
+                logger.warning(f"Got 400 error, Resetting cursor and trying again : {msg}")
                 file_cursor = None
                 num_retry += 1
                 if num_retry > 3:
@@ -548,46 +445,40 @@ def get_new_files(
             else:
                 retry = False
                 raise Exception(msg) from e
+            
 
     new_cursor_value = sync_result.cursors["files"]
-    update_state_store(
-        client, logger, new_cursor_value, None, config, STAT_STORE_CURSOR, None
-    )
+    update_state_store(client, logger, new_cursor_value, None, config, STAT_STORE_CURSOR, None)
 
-    logger.info(
-        f"Num new files: {len(sync_result['files'])} from view: {files_view_id}"
-    )
+    logger.info(f"Num new files: {len(sync_result['files'])} from view: {files_view_id}")
     return sync_result
-
 
 def get_file_filter(
     file_view_config: ViewPropertyConfig,
     debug_file: str,
     logger: CogniteFunctionLogger,
 ) -> dm.filters.Filter:
+
     is_view = dm.filters.HasData(views=[file_view_config.as_view_id()])
-    is_uploaded = dm.filters.Equals(
-        file_view_config.as_property_ref("isUploaded"), True
-    )
+    is_uploaded = dm.filters.Equals(file_view_config.as_property_ref("isUploaded"), True)
 
     is_file_type = dm.filters.In(
-        file_view_config.as_property_ref("mimeType"),
-        ["application/pdf", "image/jpeg", "image/png", "image/tiff"],
+        file_view_config.as_property_ref("mimeType"), ["application/pdf", "image/jpeg", "image/png", "image/tiff"]
     )
     is_selected = dm.filters.And(is_view, is_uploaded, is_file_type)
     dbg_msg = f"File filter: isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
 
     if debug_file:
-        is_debug_file = dm.filters.Equals(
-            file_view_config.as_property_ref("name"), debug_file
-        )
+        is_debug_file = dm.filters.Equals(file_view_config.as_property_ref("name"), debug_file)
         dbg_msg = f"{dbg_msg} filtering on file name: {debug_file}"
         is_selected = dm.filters.And(is_selected, is_debug_file)
 
+
     if file_view_config.filter_property and file_view_config.filter_values:
         is_filter_param = dm.filters.In(
-            file_view_config.as_property_ref(file_view_config.filter_property),
-            file_view_config.filter_values,
+            file_view_config.as_property_ref(
+                file_view_config.filter_property),
+                file_view_config.filter_values
         )
         is_selected = dm.filters.And(is_selected, is_filter_param)
         dbg_msg = f"{dbg_msg} File filtering on: '{file_view_config.filter_values}' IN: '{file_view_config.filter_property}'"
@@ -601,17 +492,18 @@ def get_entity_filter(
     view_config: ViewPropertyConfig,
     logger: CogniteFunctionLogger,
 ) -> dm.filters.Filter:
+
     is_view = dm.filters.HasData(views=[view_config.as_view_id()])
     is_selected = dm.filters.And(is_view)
 
-    dbg_msg = (
-        f"For for view: {view_config.as_view_id()} - Entity filter: HasData = True"
-    )
+    dbg_msg = f"For for view: {view_config.as_view_id()} - Entity filter: HasData = True"
+
 
     if view_config.filter_property and view_config.filter_values:
         is_filter_param = dm.filters.In(
-            view_config.as_property_ref(view_config.filter_property),
-            view_config.filter_values,
+            view_config.as_property_ref(
+                view_config.filter_property),
+                view_config.filter_values
         )
         is_selected = dm.filters.And(is_selected, is_filter_param)
         dbg_msg = f"{dbg_msg} Entity filtering on: '{view_config.filter_values}' IN: '{view_config.filter_property}'"
@@ -619,6 +511,8 @@ def get_entity_filter(
     logger.debug(dbg_msg)
 
     return is_selected
+
+
 
 
 def run_diagram_detect(
@@ -632,21 +526,20 @@ def run_diagram_detect(
     Run diagram detect job
     on bach of documents
     """
-    logger.info(
-        f"Run diagram detect on {len(file_ids)} files, num entities: {len(entities)}, partial match: True, search field: {search_property}"
-    )
+    logger.info(f"Run diagram detect on {len(file_ids)} files, num entities: {len(entities)}, partial match: True, search field: {search_property}")
 
     num_retry = 0
     retry = True
 
     while retry:
         try:
+
             job = client.diagrams.detect(
                 file_instance_ids=file_ids,
                 entities=entities,
                 partial_match=True,
                 search_field=search_property,
-                configuration=DiagramDetectConfig(read_embedded_text=True),
+                configuration=DiagramDetectConfig(read_embedded_text=True)
             )
             logger.debug("Diagram detect job started...   waiting for job to finish")
             return job.result
@@ -655,13 +548,10 @@ def run_diagram_detect(
             if num_retry > 3:
                 retry = False
                 if len(file_ids) > 1:
-                    raise Exception(
-                        f"Batch diagram detect batch failed on {len(file_ids)} files - rerunning with one file at a time"
-                    )
-                else:
-                    raise DiagramDetectError(
-                        f"Diagram detect job failed for {file_ids}, error: {e} - skipping file"
-                    )
+                    raise Exception(f"Batch diagram detect batch failed on {len(file_ids)} files - rerunning with one file at a time")
+                else:             
+                    raise DiagramDetectError(f"Diagram detect job failed for {file_ids}, error: {e} - skipping file")
+
 
 
 def push_result_to_annotations(
@@ -674,23 +564,21 @@ def push_result_to_annotations(
     new_files: dict[str, any],
     error_count: int,
     doc_doc: list[dict],
-    doc_tag: list[dict],
+    doc_tag: list[dict]
 ) -> None:
+
     edge_applies = []
-    logger.debug(
-        f"Pushing annotations to data model, number of items: {len(result['items'])}"
-    )
+    logger.debug(f"Pushing annotations to data model, number of items: {len(result['items'])}")
 
     for result_item in result["items"]:
+
         file_instance_id_dict = result_item.get("fileInstanceId")
         if file_instance_id_dict is not None:
             logger.debug(f"File instance id: {file_instance_id_dict}")
             file_instance_id = NodeId.load(file_instance_id_dict)
 
             if config.parameters.clean_old_annotations:
-                delete_annotations_for_file(
-                    client, logger, annotation_view_id, file_instance_id
-                )
+                delete_annotations_for_file(client, logger, annotation_view_id, file_instance_id)
 
             source_id = get_file_source_id(new_files, file_instance_id, files_view_id)
 
@@ -706,14 +594,10 @@ def push_result_to_annotations(
                 doc_tag,
             )
             edge_applies.extend(edge_apply)
-            logger.info(
-                f"Number of annotations for file: {result_item['fileInstanceId']['externalId']} to apply: {len(edge_apply)}"
-            )
+            logger.info(f"Number of annotations for file: {result_item['fileInstanceId']['externalId']} to apply: {len(edge_apply)}")
         else:
             error_count += 1
-            logger.error(
-                f"File instance id not found in result item: {result_item['fileId']}"
-            )
+            logger.error(f"File instance id not found in result item: {result_item['fileId']}")
             return [], error_count
 
     num_retry = 0
@@ -722,9 +606,7 @@ def push_result_to_annotations(
     while retry:
         try:
             client.data_modeling.instances.apply(edge_applies)
-            logger.debug(
-                f"Total number of annotations added/updated: {len(edge_applies)}"
-            )
+            logger.debug(f"Total number of annotations added/updated: {len(edge_applies)}")
             return error_count
         except Exception as e:
             num_retry += 1
@@ -746,6 +628,7 @@ def _result_item_to_edge_applies(
     doc_doc: list[dict],
     doc_tag: list[dict],
 ) -> tuple[list[EdgeApply], int]:
+
     edge_annotations = []
 
     if "annotations" in result_item:
@@ -759,14 +642,13 @@ def _result_item_to_edge_applies(
                 annotation_view_id,
                 file_instance_id,
                 source_id,
-                detect_annotation,
+                detect_annotation
             )
             edge_annotations.extend(edge_apply)
 
         return edge_annotations, error_count
     else:
         return [], error_count
-
 
 def _detect_annotation_to_edge_applies(
     config: Config,
@@ -779,13 +661,14 @@ def _detect_annotation_to_edge_applies(
     source_id: str,
     detect_annotation: dict[str, any],
 ) -> tuple[list[EdgeApply], int]:
+
     diagram_annotations = []
-    file_instance_space = config.data.annotation_job.file_view.instance_space
-    annotation_schema_space = config.data.annotation_view.schema_space
-    approve_threshold = config.parameters.auto_approval_threshold
-    suggest_threshold = config.parameters.auto_suggest_threshold
+    file_instance_space=config.data.annotation_job.file_view.instance_space
+    annotation_schema_space=config.data.annotation_view.schema_space
+    approve_threshold=config.parameters.auto_approval_threshold
+    suggest_threshold=config.parameters.auto_suggest_threshold
     try:
-        # logger.debug(f"Detected annotation: {detect_annotation}")
+        #logger.debug(f"Detected annotation: {detect_annotation}")
         for entity in detect_annotation["entities"]:
             if detect_annotation["confidence"] >= approve_threshold:
                 annotation_status = DiagramAnnotationStatus.APPROVED.value
@@ -794,9 +677,7 @@ def _detect_annotation_to_edge_applies(
             else:
                 continue
 
-            external_id = create_annotation_id(
-                file_instance_id, entity, detect_annotation["text"], detect_annotation
-            )
+            external_id=create_annotation_id(file_instance_id, entity, detect_annotation["text"], detect_annotation)
 
             # start collection properties to log to RAW
             doc_log = {
@@ -804,10 +685,10 @@ def _detect_annotation_to_edge_applies(
                 "start_source_id": source_id,
                 "start_node": file_instance_id.external_id,
                 "end_node": entity["external_id"],
-                "end_node_space": entity["space"],
-                "view_id": annotation_view_id.external_id,
-                "view_space": annotation_view_id.space,
-                "view_version": annotation_view_id.version,
+                "end_node_space":entity["space"],
+                "view_id":annotation_view_id.external_id,
+                "view_space":annotation_view_id.space,
+                "view_version":annotation_view_id.version,
             }
             now = datetime.now(timezone.utc).replace(microsecond=0)
 
@@ -816,21 +697,13 @@ def _detect_annotation_to_edge_applies(
                 "confidence": detect_annotation["confidence"],
                 "status": annotation_status,
                 "startNodePageNumber": detect_annotation["region"]["page"],
-                "startNodeXMin": min(
-                    v["x"] for v in detect_annotation["region"]["vertices"]
-                ),
-                "startNodeYMin": min(
-                    v["y"] for v in detect_annotation["region"]["vertices"]
-                ),
-                "startNodeXMax": max(
-                    v["x"] for v in detect_annotation["region"]["vertices"]
-                ),
-                "startNodeYMax": max(
-                    v["y"] for v in detect_annotation["region"]["vertices"]
-                ),
+                "startNodeXMin": min(v["x"] for v in detect_annotation["region"]["vertices"]),
+                "startNodeYMin": min(v["y"] for v in detect_annotation["region"]["vertices"]),
+                "startNodeXMax": max(v["x"] for v in detect_annotation["region"]["vertices"]),
+                "startNodeYMax": max(v["y"] for v in detect_annotation["region"]["vertices"]),
                 "startNodeText": detect_annotation["text"],
-                "sourceCreatedUser": FUNCTION_ID,
-                "sourceUpdatedUser": FUNCTION_ID,
+                "sourceCreatedUser":FUNCTION_ID,
+                "sourceUpdatedUser":FUNCTION_ID,
             }
 
             doc_log.update(annotation_properties)
@@ -843,14 +716,15 @@ def _detect_annotation_to_edge_applies(
                     external_id=external_id,
                     type=DirectRelationReference(
                         space=annotation_schema_space,
-                        external_id=entity["annotation_type_external_id"],
+                        external_id=entity["annotation_type_external_id"]
                     ),
                     start_node=DirectRelationReference(
                         space=file_instance_id.space,
-                        external_id=file_instance_id.external_id,
+                        external_id=file_instance_id.external_id
                     ),
                     end_node=DirectRelationReference(
-                        space=entity["space"], external_id=entity["external_id"]
+                        space=entity["space"],
+                        external_id=entity["external_id"]
                     ),
                     sources=[
                         NodeOrEdgeData(
@@ -869,17 +743,14 @@ def _detect_annotation_to_edge_applies(
         return diagram_annotations, error_count
     except Exception as e:
         error_count += 1
-        logger.error(
-            f"Failed to create annotation for file: {file_instance_id.external_id} error: {e}"
-        )
-        return [], error_count
-
+        logger.error(f"Failed to create annotation for file: {file_instance_id.external_id} error: {e}")
+        return [],error_count
 
 def create_annotation_id(
     file_id: dm.NodeId,
     entity: dict[str, any],
     text: str,
-    raw_annotation: dict[str, Any],
+    raw_annotation: dict[str, Any]
 ) -> str:
     hash_ = sha256(json.dumps(raw_annotation, sort_keys=True).encode()).hexdigest()[:10]
     naive = f"{file_id.space}:{file_id.external_id}:{entity['space']}:{entity['external_id']}:{text}:{hash_}"
@@ -893,18 +764,17 @@ def create_annotation_id(
 
     return prefix[: EXTERNAL_ID_LIMIT - 10] + hash_
 
-
 def get_file_source_id(
-    new_files: dict[str, any], file_instance_id: NodeId, files_view_id: ViewId
+    new_files: dict[str, any],
+    file_instance_id: NodeId,
+    files_view_id: ViewId
 ) -> str:
     file_source_id = None
 
     # Find the matching file and extract the sourceId
     for file_node in new_files["files"]:
-        if (
-            file_node.external_id == file_instance_id.external_id
-            and file_node.space == file_instance_id.space
-        ):
+        if file_node.external_id == file_instance_id.external_id and \
+           file_node.space == file_instance_id.space:
             if "sourceId" in file_node.properties[files_view_id]:
                 file_source_id = file_node.properties[files_view_id]["sourceId"]
             break
@@ -918,7 +788,7 @@ def write_mapping_to_raw(
     raw_uploader: RawUploadQueue,
     doc_doc: list[dict],
     doc_tag: list[dict],
-    logger: CogniteFunctionLogger,
+    logger: CogniteFunctionLogger
 ) -> None:
     """
     Write matching results to RAW DB
@@ -934,23 +804,17 @@ def write_mapping_to_raw(
     tag_tbl = config.parameters.raw_table_doc_tag
     doc_tbl = config.parameters.raw_table_doc_doc
 
-    logger.debug(
-        "Create DB / Table for DB: {raw_db}  Tables: {doc_tag} and {doc_doc} if it does not exist"
-    )
+    logger.debug("Create DB / Table for DB: {raw_db}  Tables: {doc_tag} and {doc_doc} if it does not exist")
     create_table(client, raw_db, tag_tbl)
     create_table(client, raw_db, doc_tbl)
 
     for tag in doc_tag:
-        raw_uploader.add_to_upload_queue(
-            raw_db, tag_tbl, Row(str(tag["external_id"]), tag)
-        )
+        raw_uploader.add_to_upload_queue(raw_db, tag_tbl, Row(str(tag['external_id']), tag))
 
     logger.info(f"Added {len(doc_tag)} rows to {raw_db}/{tag_tbl}")
 
     for doc in doc_doc:
-        raw_uploader.add_to_upload_queue(
-            raw_db, doc_tbl, Row(str(doc["external_id"]), doc)
-        )
+        raw_uploader.add_to_upload_queue(raw_db, doc_tbl, Row(str(doc['external_id']), doc))
 
     logger.info(f"Added {len(doc_doc)} rows to {raw_db}/{doc_tbl}")
 
@@ -969,7 +833,6 @@ def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
     except Exception:
         pass
 
-
 def delete_table(client: CogniteClient, db: str, tbl: str) -> None:
     try:
         client.raw.tables.delete(db, [tbl])
@@ -979,12 +842,18 @@ def delete_table(client: CogniteClient, db: str, tbl: str) -> None:
             raise
 
 
-def get_property(view_id: ViewId, property: str) -> list[str]:
+def get_property(
+    view_id: ViewId,
+    property: str
+) -> list[str]:
+
     return [view_id.space, f"{view_id.external_id}/{view_id.version}", property]
 
 
 def list_annotations_for_file(
-    client: CogniteClient, annotation_view_id: ViewId, node: NodeId
+    client: CogniteClient,
+    annotation_view_id: ViewId,
+    node: NodeId
 ) -> list:
     """
     List all annotation edges for a file node.
@@ -998,12 +867,8 @@ def list_annotations_for_file(
         list: A list of edges (annotations) linked to the file node.
     """
 
-    is_function = dm.filters.Equals(
-        get_property(annotation_view_id, "sourceCreatedUser"), FUNCTION_ID
-    )
-    is_file = dm.filters.Equals(
-        get_property(annotation_view_id, "name"), node.external_id
-    )
+    is_function = dm.filters.Equals(get_property(annotation_view_id, "sourceCreatedUser"), FUNCTION_ID)
+    is_file = dm.filters.Equals(get_property(annotation_view_id, "name"), node.external_id)
     is_selected = dm.filters.And(is_function, is_file)
 
     # Query for edges (annotations) connected to the file node
@@ -1021,7 +886,7 @@ def delete_annotations_for_file(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     annotation_view_id: ViewId,
-    node: NodeId,
+    node: NodeId
 ) -> None:
     """
     Delete all annotation edges for a file node.
@@ -1038,9 +903,7 @@ def delete_annotations_for_file(
         return
 
     # Extract edge IDs for deletion
-    edge_ids = [
-        EdgeId(space=node.space, external_id=edge.external_id) for edge in annotations
-    ]
+    edge_ids = [EdgeId(space=node.space, external_id=edge.external_id) for edge in annotations]
 
     # Delete edges
     client.data_modeling.instances.delete(edge_ids)
