@@ -75,10 +75,14 @@ class AnnotationState:
     annotationMessage: str | None = None
     diagramDetectJobId: int | None = None
     sourceCreatedTime: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        default_factory=lambda: datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
     )
     sourceUpdatedTime: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        default_factory=lambda: datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
     )
     sourceCreatedUser: str = "fn_dm_context_annotation_launch"
     sourceUpdatedUser: str = "fn_dm_context_annotation_launch"
@@ -95,7 +99,9 @@ class AnnotationState:
     def to_dict(self) -> dict:
         return asdict(self)
 
-    def to_node_apply(self, node_space: str, annotation_state_view: ViewId) -> NodeApply:
+    def to_node_apply(
+        self, node_space: str, annotation_state_view: ViewId
+    ) -> NodeApply:
         external_id: str = self._create_external_id()
 
         return NodeApply(
@@ -136,7 +142,9 @@ class entity:
     external_id: str
     name: str
     space: str
-    annotation_type_external_id: Literal["diagrams.FileLink", "diagrams.AssetLink"] | None
+    annotation_type_external_id: (
+        Literal["diagrams.FileLink", "diagrams.AssetLink"] | None
+    )
     search_property: list[str] = field(default_factory=list)
 
     def to_dict(self):
@@ -228,7 +236,9 @@ class BatchOfPairedNodes:
         annotation_state_node: Node = self.file_to_state_map[file_node_id]
         annotated_page_count: int | None = cast(
             int,
-            annotation_state_node.properties[annotation_state_view_id].get("annotatedPageCount"),
+            annotation_state_node.properties[annotation_state_view_id].get(
+                "annotatedPageCount"
+            ),
         )
         page_count: int | None = cast(
             int,
@@ -279,7 +289,9 @@ class PerformanceTracker:
     files_failed: int = 0
     total_runs: int = 0
     total_time_delta: timedelta = timedelta(0)
-    latest_run_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    latest_run_time: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
     def _run_time(self) -> timedelta:
         time_delta = datetime.now(timezone.utc) - self.latest_run_time

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Literal, cast, Optional
+from typing import Any, Literal, Optional
 
 import yaml
 from cognite.client.data_classes.contextualization import (
@@ -26,7 +26,9 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     annotation_type: Optional[Literal["diagrams.FileLink", "diagrams.AssetLink"]] = None
 
     def as_view_id(self) -> dm.ViewId:
-        return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
+        return dm.ViewId(
+            space=self.schema_space, external_id=self.external_id, version=self.version
+        )
 
     def as_property_ref(self, property) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property]
@@ -57,12 +59,16 @@ class FilterConfig(BaseModel, alias_generator=to_camel):
                 raise ValueError(f"Operator {self.operator} requires a value")
         elif self.operator == FilterOperator.IN:
             if not isinstance(find_values, list):
-                raise ValueError(f"Operator 'IN' requires a list of values for property {self.target_property}")
+                raise ValueError(
+                    f"Operator 'IN' requires a list of values for property {self.target_property}"
+                )
             filter = dm.filters.In(property=property_reference, values=find_values)
         elif self.operator == FilterOperator.EQUALS:
             filter = dm.filters.Equals(property=property_reference, value=find_values)
         elif self.operator == FilterOperator.CONTAINSALL:
-            filter = dm.filters.ContainsAll(property=property_reference, values=find_values)
+            filter = dm.filters.ContainsAll(
+                property=property_reference, values=find_values
+            )
         elif self.operator == FilterOperator.SEARCH:
             filter = dm.filters.Search(property=property_reference, value=find_values)
         else:
@@ -80,12 +86,16 @@ class QueryConfig(BaseModel, alias_generator=to_camel):
     limit: Optional[int] = -1
 
     def build_filter(self) -> Filter:
-        list_filters: list[Filter] = [f.as_filter(self.target_view) for f in self.filters]
+        list_filters: list[Filter] = [
+            f.as_filter(self.target_view) for f in self.filters
+        ]
 
         if len(list_filters) == 1:
             return list_filters[0]
         else:
-            return dm.filters.And(*list_filters)  # NOTE: '*' Unpacks each filter in the list
+            return dm.filters.And(
+                *list_filters
+            )  # NOTE: '*' Unpacks each filter in the list
 
 
 class ConnectionFlagsConfig(BaseModel, alias_generator=to_camel):
@@ -93,7 +103,9 @@ class ConnectionFlagsConfig(BaseModel, alias_generator=to_camel):
     natural_reading_order: Optional[bool] = None
 
     def as_connection_flag(self) -> ConnectionFlags:
-        params = {key: value for key, value in self.model_dump().items() if value is not None}
+        params = {
+            key: value for key, value in self.model_dump().items() if value is not None
+        }
         return ConnectionFlags(**params)
 
 
@@ -103,7 +115,9 @@ class CustomizeFuzzinessConfig(BaseModel, alias_generator=to_camel):
     min_chars: Optional[int] = None
 
     def as_customize_fuzziness(self) -> CustomizeFuzziness:
-        params = {key: value for key, value in self.model_dump().items() if value is not None}
+        params = {
+            key: value for key, value in self.model_dump().items() if value is not None
+        }
         return CustomizeFuzziness(**params)
 
 
@@ -114,7 +128,9 @@ class DirectionWeightsConfig(BaseModel, alias_generator=to_camel):
     down: Optional[float] = None
 
     def as_direction_weights(self) -> DirectionWeights:
-        params = {key: value for key, value in self.model_dump().items() if value is not None}
+        params = {
+            key: value for key, value in self.model_dump().items() if value is not None
+        }
         return DirectionWeights(**params)
 
 
@@ -140,7 +156,9 @@ class DiagramDetectConfigModel(BaseModel, alias_generator=to_camel):
         if self.connection_flags is not None:
             params["connection_flags"] = self.connection_flags.as_connection_flag()
         if self.customize_fuzziness is not None:
-            params["customize_fuzziness"] = self.customize_fuzziness.as_customize_fuzziness()
+            params["customize_fuzziness"] = (
+                self.customize_fuzziness.as_customize_fuzziness()
+            )
         if self.direction_delta is not None:
             params["direction_delta"] = self.direction_delta
         if self.direction_weights is not None:
@@ -178,7 +196,9 @@ class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):
 
 
 class PrepareFunction(BaseModel, alias_generator=to_camel):
-    get_files_for_annotation_reset_query: Optional[QueryConfig | list[QueryConfig]] = None
+    get_files_for_annotation_reset_query: Optional[QueryConfig | list[QueryConfig]] = (
+        None
+    )
     get_files_to_annotate_query: QueryConfig | list[QueryConfig]
 
 
@@ -265,7 +285,9 @@ def build_filter_from_query(query: QueryConfig | list[QueryConfig]) -> Filter:
         list_filters: list[Filter] = [q.build_filter() for q in query]
         if not list_filters:
             raise ValueError("Query list cannot be empty.")
-        return dm.filters.Or(*list_filters) if len(list_filters) > 1 else list_filters[0]
+        return (
+            dm.filters.Or(*list_filters) if len(list_filters) > 1 else list_filters[0]
+        )
     else:
         return query.build_filter()
 
@@ -278,15 +300,21 @@ def load_config_parameters(
     Retrieves the configuration parameters from the function data and loads the configuration from CDF.
     """
     if "ExtractionPipelineExtId" not in function_data:
-        raise ValueError("Missing key 'ExtractionPipelineExtId' in input data to the function")
+        raise ValueError(
+            "Missing key 'ExtractionPipelineExtId' in input data to the function"
+        )
 
     pipeline_ext_id = function_data["ExtractionPipelineExtId"]
     try:
         raw_config = client.extraction_pipelines.config.retrieve(pipeline_ext_id)
         if raw_config.config is None:
-            raise ValueError(f"No config found for extraction pipeline: {pipeline_ext_id!r}")
+            raise ValueError(
+                f"No config found for extraction pipeline: {pipeline_ext_id!r}"
+            )
     except CogniteAPIError:
-        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}")
+        raise RuntimeError(
+            f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}"
+        )
 
     loaded_yaml_data = yaml.safe_load(raw_config.config)
 

@@ -1,11 +1,10 @@
-import os
 import re
 import yaml
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import timedelta
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import ViewId, NodeId
+from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.functions import FunctionCallLog
 from data_structures import ViewPropertyConfig
 
@@ -38,11 +37,15 @@ def parse_run_message(message: str) -> dict:
 
 
 @st.cache_data(ttl=3600)
-def fetch_extraction_pipeline_config() -> tuple[dict, ViewPropertyConfig, ViewPropertyConfig]:
+def fetch_extraction_pipeline_config() -> (
+    tuple[dict, ViewPropertyConfig, ViewPropertyConfig]
+):
     """
     Fetch configurations from the latest extraction
     """
-    ep_configuration = client.extraction_pipelines.config.retrieve(external_id=PIPELINE_EXT_ID)
+    ep_configuration = client.extraction_pipelines.config.retrieve(
+        external_id=PIPELINE_EXT_ID
+    )
     config_dict = yaml.safe_load(ep_configuration.config)
 
     local_annotation_state_view = config_dict["dataModelViews"]["annotationStateView"]
@@ -65,7 +68,9 @@ def fetch_extraction_pipeline_config() -> tuple[dict, ViewPropertyConfig, ViewPr
 
 
 @st.cache_data(ttl=3600)
-def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view: ViewPropertyConfig):
+def fetch_annotation_states(
+    annotation_state_view: ViewPropertyConfig, file_view: ViewPropertyConfig
+):
     """
     Fetches annotation state instances from the specified data model view
     and joins them with their corresponding file instances.
@@ -91,14 +96,18 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
             "createdTime": pd.to_datetime(instance.created_time, unit="ms"),
             "lastUpdatedTime": pd.to_datetime(instance.last_updated_time, unit="ms"),
         }
-        for prop_key, prop_value in instance.properties[annotation_state_view.as_view_id()].items():
+        for prop_key, prop_value in instance.properties[
+            annotation_state_view.as_view_id()
+        ].items():
             if prop_key == "linkedFile" and prop_value:
                 file_external_id = prop_value.get("externalId")
                 file_space = prop_value.get("space")
                 node_data["fileExternalId"] = file_external_id
                 node_data["fileSpace"] = file_space
                 if file_external_id and file_space:
-                    nodes_to_fetch.append(NodeId(space=file_space, external_id=file_external_id))
+                    nodes_to_fetch.append(
+                        NodeId(space=file_space, external_id=file_external_id)
+                    )
             node_data[prop_key] = prop_value
         annotation_data.append(node_data)
 
@@ -127,7 +136,9 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
                 string_values = []
                 for value in prop_value:
                     string_values.append(value)
-                node_data[f"file{prop_key.capitalize()}"] = ", ".join(filter(None, string_values))
+                node_data[f"file{prop_key.capitalize()}"] = ", ".join(
+                    filter(None, string_values)
+                )
             else:
                 node_data[f"file{prop_key.capitalize()}"] = prop_value
         file_data.append(node_data)
@@ -138,13 +149,17 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
     df_files = pd.DataFrame(file_data)
 
     # 5. Merge annotation data with file data
-    df_merged = pd.merge(df_annotations, df_files, on=["fileExternalId", "fileSpace"], how="left")
+    df_merged = pd.merge(
+        df_annotations, df_files, on=["fileExternalId", "fileSpace"], how="left"
+    )
 
     # 6. Final data cleaning and preparation
     if "createdTime" in df_merged.columns:
         df_merged["createdTime"] = df_merged["createdTime"].dt.tz_localize("UTC")
     if "lastUpdatedTime" in df_merged.columns:
-        df_merged["lastUpdatedTime"] = df_merged["lastUpdatedTime"].dt.tz_localize("UTC")
+        df_merged["lastUpdatedTime"] = df_merged["lastUpdatedTime"].dt.tz_localize(
+            "UTC"
+        )
 
     df_merged.rename(
         columns={
@@ -183,7 +198,9 @@ def get_failed_run_details(runs):
             parsed_message = parse_run_message(run.message)
             failed_runs.append(
                 {
-                    "timestamp": pd.to_datetime(run.created_time, unit="ms").tz_localize("UTC"),
+                    "timestamp": pd.to_datetime(
+                        run.created_time, unit="ms"
+                    ).tz_localize("UTC"),
                     "message": run.message,
                     "status": run.status,
                     "function_id": parsed_message.get("function_id"),
@@ -221,7 +238,9 @@ def process_runs_for_graphing(runs):
         caller = parsed.get("caller")
 
         if caller == "Launch":
-            launch_data.append({"timestamp": timestamp, "count": count, "type": "Launch"})
+            launch_data.append(
+                {"timestamp": timestamp, "count": count, "type": "Launch"}
+            )
         elif caller == "Finalize":
             finalize_runs_to_agg.append({"timestamp": timestamp, "count": count})
 

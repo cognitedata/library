@@ -1,9 +1,11 @@
-from typing import Literal, cast
+from typing import Literal
 
 
 # Logger using print
 class CogniteFunctionLogger:
-    def __init__(self, log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"):
+    def __init__(
+        self, log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    ):
         self.log_level = log_level.upper()
 
     def _print(self, prefix: str, message: str) -> None:

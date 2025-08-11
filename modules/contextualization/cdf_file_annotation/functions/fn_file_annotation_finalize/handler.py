@@ -65,7 +65,11 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured
         # else run log will be too messy
-        if tracker_instance.files_failed != 0 or tracker_instance.files_success != 0 or run_status == "failure":
+        if (
+            tracker_instance.files_failed != 0
+            or tracker_instance.files_success != 0
+            or run_status == "failure"
+        ):
             function_id = function_call_info.get("function_id")
             call_id = function_call_info.get("call_id")
             pipeline_instance.update_extraction_pipeline(
@@ -88,7 +92,9 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     config_instance, client = create_config_service(function_data=config_file)
 
     if log_path:
-        logger_instance = create_write_logger_service(log_level=log_level, filepath=log_path)
+        logger_instance = create_write_logger_service(
+            log_level=log_level, filepath=log_path
+        )
     else:
         logger_instance = create_logger_service(log_level=log_level)
 
@@ -138,12 +144,18 @@ def run_locally_parallel(
     thread_4.join()
 
 
-def _create_finalize_service(config, client, logger, tracker) -> tuple[AbstractFinalizeService, IReportService]:
+def _create_finalize_service(
+    config, client, logger, tracker
+) -> tuple[AbstractFinalizeService, IReportService]:
     """
     Instantiate Finalize with interfaces.
     """
-    report_instance: IReportService = create_general_report_service(client, config, logger)
-    retrieve_instance: IRetrieveService = create_general_retrieve_service(client, config, logger)
+    report_instance: IReportService = create_general_report_service(
+        client, config, logger
+    )
+    retrieve_instance: IRetrieveService = create_general_retrieve_service(
+        client, config, logger
+    )
     apply_instance: IApplyService = create_general_apply_service(client, config, logger)
     finalize_instance = GeneralFinalizeService(
         client=client,
@@ -169,6 +181,8 @@ if __name__ == "__main__":
         log_path_2 = sys.argv[5]
         log_path_3 = sys.argv[6]
         log_path_4 = sys.argv[7]
-        run_locally_parallel(config_file, log_path_1, log_path_2, log_path_3, log_path_4)
+        run_locally_parallel(
+            config_file, log_path_1, log_path_2, log_path_3, log_path_4
+        )
     else:
         run_locally(config_file, log_path_1)

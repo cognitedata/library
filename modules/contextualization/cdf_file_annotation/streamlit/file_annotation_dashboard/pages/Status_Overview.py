@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from helper import (
     fetch_annotation_states,
     fetch_extraction_pipeline_config,
@@ -19,7 +18,9 @@ df_raw = fetch_annotation_states(annotation_state_view, file_view)
 
 # --- Main Application ---
 st.title("Annotation Status Overview")
-st.markdown("This page provides an audit trail and overview of the file annotation process.")
+st.markdown(
+    "This page provides an audit trail and overview of the file annotation process."
+)
 
 if not df_raw.empty:
     # --- Sidebar Filters ---
@@ -45,15 +46,25 @@ if not df_raw.empty:
     secondary_scope_property = ep_config["launchFunction"].get("secondaryScopeProperty")
 
     selected_primary_scope = "All"
-    if primary_scope_property and f"file{primary_scope_property.capitalize()}" in df_raw.columns:
-        primary_scope_options = ["All"] + df_raw[f"file{primary_scope_property.capitalize()}"].unique().tolist()
+    if (
+        primary_scope_property
+        and f"file{primary_scope_property.capitalize()}" in df_raw.columns
+    ):
+        primary_scope_options = ["All"] + df_raw[
+            f"file{primary_scope_property.capitalize()}"
+        ].unique().tolist()
         selected_primary_scope = st.sidebar.selectbox(
             f"Filter by {primary_scope_property}", options=primary_scope_options
         )
 
     selected_secondary_scope = "All"
-    if secondary_scope_property and f"file{secondary_scope_property.capitalize()}" in df_raw.columns:
-        secondary_scope_options = ["All"] + df_raw[f"file{secondary_scope_property.capitalize()}"].unique().tolist()
+    if (
+        secondary_scope_property
+        and f"file{secondary_scope_property.capitalize()}" in df_raw.columns
+    ):
+        secondary_scope_options = ["All"] + df_raw[
+            f"file{secondary_scope_property.capitalize()}"
+        ].unique().tolist()
         selected_secondary_scope = st.sidebar.selectbox(
             f"Filter by {secondary_scope_property}", options=secondary_scope_options
         )
@@ -71,11 +82,15 @@ if not df_raw.empty:
         ]
 
     if selected_primary_scope != "All":
-        df_filtered = df_filtered[df_filtered[f"file{primary_scope_property.capitalize()}"] == selected_primary_scope]
+        df_filtered = df_filtered[
+            df_filtered[f"file{primary_scope_property.capitalize()}"]
+            == selected_primary_scope
+        ]
 
     if selected_secondary_scope != "All":
         df_filtered = df_filtered[
-            df_filtered[f"file{secondary_scope_property.capitalize()}"] == selected_secondary_scope
+            df_filtered[f"file{secondary_scope_property.capitalize()}"]
+            == selected_secondary_scope
         ]
 
     # --- Dashboard Metrics ---
@@ -124,4 +139,6 @@ if not df_raw.empty:
         st.warning("Please select at least one column to display.")
 
 else:
-    st.info("No annotation state data returned from Cognite Data Fusion. Please check your settings and data model.")
+    st.info(
+        "No annotation state data returned from Cognite Data Fusion. Please check your settings and data model."
+    )

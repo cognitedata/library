@@ -1,6 +1,9 @@
 # Optimized Entity Matching Pipeline
 
-A high-performance entity matching pipeline for Cognite Data Fusion (CDF) that matches timeseries entities with assets using multiple matching strategies with comprehensive performance optimizations.
+A high-performance entity matching pipeline for
+Cognite Data Fusion (CDF) that matches timeseries entities with
+assets using multiple matching strategies with
+comprehensive performance optimizations.
 
 ## 🚀 Key Features
 
@@ -15,29 +18,32 @@ A high-performance entity matching pipeline for Cognite Data Fusion (CDF) that m
 ## 📋 Requirements
 
 ### Dependencies
-```
+
+```yaml
 cognite-extractor-utils>=7
 cognite-sdk == 7.*
 pyyaml >= 6.0.1
 pytest >= 7.0.0
 tenacity >= 8.0.0
 psutil >= 5.9.0
-```
+```text
 
 ### Environment Variables
+
 ```bash
 CDF_PROJECT=your-project-name
 CDF_CLUSTER=your-cluster-name
 IDP_CLIENT_ID=your-client-id
 IDP_CLIENT_SECRET=your-client-secret
-IDP_TOKEN_URL=https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/oauth2/v2.0/token
-```
+IDP_TOKEN_URL=https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/oaut-
+h2/v2.0/token-
+```text
 
 ## 🏗️ Architecture
 
 ### Core Components
 
-```
+```text
 ├── handler.py                  # Main entry point with optimization integration
 ├── pipeline.py                 # Core matching pipeline logic
 ├── pipeline_optimizations.py   # Performance optimization utilities
@@ -45,7 +51,7 @@ IDP_TOKEN_URL=https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/oauth
 ├── logger.py                   # Logging utilities
 ├── constants.py                # Application constants
 └── test_optimizations.py       # Test suite
-```
+```yaml
 
 ### Key Classes
 
@@ -60,7 +66,8 @@ IDP_TOKEN_URL=https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/oauth
 
 ### Pipeline Configuration
 
-The pipeline reads configuration from CDF extraction pipeline config in YAML format:
+The pipeline reads configuration from CDF extraction pipeline config in 
+YAML format:
 
 ```yaml
 parameters:
@@ -91,7 +98,7 @@ data:
     externalId: "Asset"
     version: "1"
     searchProperty: "name"
-```
+```text
 
 ### Configuration Parameters
 
@@ -109,6 +116,7 @@ data:
 ### Running the Pipeline
 
 #### 1. As a CDF Function
+
 ```python
 from handler import handle
 from cognite.client import CogniteClient
@@ -120,9 +128,10 @@ data = {
 }
 
 result = handle(data, client)
-```
+```text
 
 #### 2. Local Execution
+
 ```bash
 # Set environment variables
 export CDF_PROJECT=your-project
@@ -133,20 +142,22 @@ export IDP_TOKEN_URL=your-token-url
 
 # Run locally
 python handler.py
-```
+```text
 
 #### 3. Programmatic Usage
+
 ```python
 from handler import run_locally
 
 # Run with all optimizations
 result = run_locally()
 print(f"Status: {result['status']}")
-```
+```text
 
 ### Advanced Usage
 
 #### Custom Optimization Configuration
+
 ```python
 from pipeline_optimizations import (
     BatchProcessor,
@@ -159,54 +170,61 @@ processor = BatchProcessor(batch_size=2000)
 
 # Set up performance monitoring
 benchmark = PerformanceBenchmark(logger)
-```
+```text
 
 #### Manual Optimization Application
+
 ```python
 from pipeline_optimizations import patch_existing_pipeline
 
 # Apply optimizations to existing pipeline
 patch_existing_pipeline()
-```
+```dockerfile
 
 ## 🧪 Testing
 
 ### Run All Tests
+
 ```bash
 python test_optimizations.py
-```
+```text
 
 ### Individual Test Categories
 
 #### 1. Performance Monitoring Tests
+
 ```bash
 python -c "
 from test_optimizations import test_performance_monitoring
 test_performance_monitoring()
 "
-```
+```text
 
 #### 2. Optimization Component Tests
+
 ```bash
 python -c "
-from test_optimizations import test_match_tracker, test_rule_mapper, test_batch_processor
+from test_optimizations import test_match_tracker, test_rule_mapper, 
+test_batch_processor
 test_match_tracker()
 test_rule_mapper()
 test_batch_processor()
 "
-```
+```text
 
 #### 3. Performance Comparison Tests
+
 ```bash
 python -c "
 from test_optimizations import run_performance_comparison
 run_performance_comparison()
 "
-```
+```yaml
 
 ### Test Coverage
 
 The test suite covers:
+
 - ✅ Performance monitoring utilities
 - ✅ Match tracking and duplicate detection
 - ✅ Rule mapping with regex compilation
@@ -221,6 +239,7 @@ The test suite covers:
 ## 📊 Performance Improvements
 
 ### Optimization Results
+
 - **Overall Pipeline**: 35-55% faster execution
 - **Duplicate Detection**: 500x faster (O(1) vs O(n))
 - **Memory Usage**: 30-50% reduction
@@ -228,7 +247,8 @@ The test suite covers:
 - **Data Loading**: 40-60% faster with concurrency
 
 ### Before vs After
-```
+
+```text
 Original Processing:
 ├── List-based duplicate checking: O(n)
 ├── Sequential data loading: ~2.5s
@@ -240,17 +260,19 @@ Optimized Processing:
 ├── Concurrent data loading: ~1.0s
 ├── Active memory management: Low usage
 └── Robust error handling: Resilient
-```
+```yaml
 
 ## 🐛 Debugging
 
 ### Log Levels
+
 - **DEBUG**: Detailed execution information
 - **INFO**: General progress and performance metrics
 - **WARNING**: Non-critical issues and retries
 - **ERROR**: Critical failures and exceptions
 
 ### Performance Monitoring
+
 ```python
 # Monitor memory usage
 monitor_memory_usage(logger, "Operation name")
@@ -263,38 +285,42 @@ with time_operation("My operation", logger):
 # Benchmark functions
 benchmark = PerformanceBenchmark(logger)
 result = benchmark.benchmark_function("Function name", my_function, *args)
-```
+```text
 
 ### Common Issues
 
 #### 1. Memory Issues
+
 ```python
 # Force garbage collection
 cleanup_memory()
 
 # Monitor memory usage
 monitor_memory_usage(logger, "checkpoint")
-```
+```text
 
 #### 2. Performance Issues
+
 ```python
 # Enable performance benchmarking
 benchmark = PerformanceBenchmark(logger)
 benchmark.log_summary()
-```
+```text
 
 #### 3. API Errors
+
 ```python
 # Robust API client with retries
 robust_client = RobustAPIClient(client, logger)
 robust_client.robust_api_call(client.some_method, *args)
-```
+```yaml
 
 ## 🔧 Development
 
 ### Adding New Optimizations
 
 1. **Create optimization in `pipeline_optimizations.py`**:
+
 ```python
 class MyOptimization:
     def __init__(self, logger):
@@ -303,45 +329,50 @@ class MyOptimization:
     def optimize(self, data):
         # Your optimization logic
         return optimized_data
-```
+```yaml
 
-2. **Add to exports**:
+1. **Add to exports**:
+
 ```python
 __all__ = [
     # ... existing exports
     'MyOptimization'
 ]
-```
+```yaml
 
-3. **Use in `handler.py`**:
+1. **Use in `handler.py`**:
+
 ```python
 from pipeline_optimizations import MyOptimization
 
 # In handle function
 optimization = MyOptimization(logger)
 result = optimization.optimize(data)
-```
+```yaml
 
 ### Testing New Features
 
 1. **Add test to `test_optimizations.py`**:
+
 ```python
 def test_my_optimization():
     print("🧪 Testing MyOptimization...")
     # Test implementation
     print("✅ MyOptimization tests passed")
-```
+```yaml
 
-2. **Add to main test runner**:
+1. **Add to main test runner**:
+
 ```python
 def main():
     # ... existing tests
     test_my_optimization()
-```
+```text
 
 ## 📈 Monitoring
 
 ### Performance Metrics
+
 - Execution time per operation
 - Memory usage tracking
 - API call success rates
@@ -349,7 +380,8 @@ def main():
 - Throughput measurements
 
 ### Logging Output
-```
+
+```text
 INFO - Starting OPTIMIZED entity matching with loglevel = INFO
 INFO - Monitor Memory: Handler start Memory usage: 45.2 MB
 INFO - Time: Config loading took 0.23 seconds
@@ -370,12 +402,14 @@ INFO -   Pipeline execution: 1 calls, avg 12.45s, total 12.45s
 
 ## 📄 License
 
-This project is part of the Cognite Data Fusion ecosystem and follows Cognite's licensing terms.
+This project is part of the Cognite Data Fusion ecosystem and
+follows Cognite's licensing terms.
 
 ## 🆘 Support
 
 For issues and questions:
+
 1. Check the debugging section above
 2. Review the test suite for usage examples
 3. Contact the development team
-4. Submit an issue with detailed logs and reproduction steps 
+4. Submit an issue with detailed logs and reproduction steps

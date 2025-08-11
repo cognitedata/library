@@ -18,7 +18,9 @@ def handle(data: dict, client: CogniteClient) -> dict:
     try:
         loglevel = data.get("logLevel", "INFO")
         logger = CogniteFunctionLogger(loglevel)
-        logger.info(f"Starting diagram parsing annotation with loglevel = {loglevel},  reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}")
+        logger.info(
+            f"Starting diagram parsing annotation with loglevel = {loglevel},  reading parameters from extraction pipeline config: {data.get('ExtractionPipelineExtId')}"
+        )
         config = load_config_parameters(client, data)
         logger.debug("Loaded config successfully")
         annotate_p_and_id(client, logger, data, config)
@@ -29,9 +31,14 @@ def handle(data: dict, client: CogniteClient) -> dict:
         return {"status": "failure", "message": message}
 
 
-
 def run_locally():
-    required_envvars = ("CDF_PROJECT", "CDF_CLUSTER", "IDP_CLIENT_ID", "IDP_CLIENT_SECRET", "IDP_TOKEN_URL")
+    required_envvars = (
+        "CDF_PROJECT",
+        "CDF_CLUSTER",
+        "IDP_CLIENT_ID",
+        "IDP_CLIENT_SECRET",
+        "IDP_TOKEN_URL",
+    )
     if missing := [envvar for envvar in required_envvars if envvar not in os.environ]:
         raise ValueError(f"Missing one or more env.vars: {missing}")
 
@@ -55,7 +62,10 @@ def run_locally():
             ),
         )
     )
-    data = {"logLevel":"INFO", "ExtractionPipelineExtId": "ep_ctx_files_LOC_SOURCE_pandid_annotation"}
+    data = {
+        "logLevel": "INFO",
+        "ExtractionPipelineExtId": "ep_ctx_files_LOC_SOURCE_pandid_annotation",
+    }
     handle(data, client)
 
 

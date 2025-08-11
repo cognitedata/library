@@ -14,7 +14,9 @@ class IReportService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def add_annotations(self, doc_rows: list[RowWrite], tag_rows: list[RowWrite]) -> None:
+    def add_annotations(
+        self, doc_rows: list[RowWrite], tag_rows: list[RowWrite]
+    ) -> None:
         pass
 
     @abc.abstractmethod
@@ -36,7 +38,9 @@ class GeneralReportService(IReportService):
     e.g.) Used as the numerator for annotation link rate at Marathon
     """
 
-    def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
+    def __init__(
+        self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger
+    ):
         self.client = client
         self.config = config
         self.logger = logger
@@ -55,7 +59,9 @@ class GeneralReportService(IReportService):
         self.batch_size: int = config.finalize_function.report_service.raw_batch_size
         self.delete: bool = self.config.finalize_function.clean_old_annotations
 
-    def add_annotations(self, doc_rows: list[RowWrite], tag_rows: list[RowWrite]) -> None:
+    def add_annotations(
+        self, doc_rows: list[RowWrite], tag_rows: list[RowWrite]
+    ) -> None:
         """
         NOTE:   Using batch size to ensure that we're writing to raw efficiently. IMO report doesn't need to be pushed to raw at the end of every diagram detect job.
                 Though we don't want to be too efficient to where we lose out on data in case anything happens to the thread. Thus this balances efficiency with data secureness.

@@ -28,7 +28,6 @@ class AgentInput:
     canvas_external_id: Optional[str] = None
     failure_mode: Optional[str] = None
 
-
     @classmethod
     def load(cls, data: dict):
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
@@ -87,13 +86,15 @@ def handle(data: dict, client=None) -> dict:
         return response.failed(
             f"Provided failure mode '{failure_mode}' not found in cause map."
         )
-    
+
     root_cause = cause_map[failure_mode]
 
     # Sort failure mechanisms by Failure Rate (descending order)
     sorted_mechanisms = sorted(
         root_cause.items(),
-        key=lambda item: item[1].get("Failure Rate", 0) if isinstance(item[1], dict) else 0,
+        key=lambda item: item[1].get("Failure Rate", 0)
+        if isinstance(item[1], dict)
+        else 0,
         reverse=True,
     )
 
@@ -117,8 +118,5 @@ def handle(data: dict, client=None) -> dict:
 
     # Return sorted data using OrderedDict to preserve order
     return response.succeeded(
-        {
-            "failure_mode": failure_mode,
-            "cause_map": list(top_3_result.items())
-        }
+        {"failure_mode": failure_mode, "cause_map": list(top_3_result.items())}
     )

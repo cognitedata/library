@@ -81,11 +81,15 @@ class GeneralFinalizeService(AbstractFinalizeService):
             report_service,
         )
 
-        self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
+        self.annotation_state_view: ViewPropertyConfig = (
+            config.data_model_views.annotation_state_view
+        )
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
         self.page_range: int = config.launch_function.annotation_service.page_range
         self.max_retries: int = config.finalize_function.max_retry_attempts
-        self.clean_old_annotations: bool = config.finalize_function.clean_old_annotations
+        self.clean_old_annotations: bool = (
+            config.finalize_function.clean_old_annotations
+        )
 
     def run(self) -> Literal["Done"] | None:
         """
@@ -124,26 +128,34 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 )
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-            if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
+            if (
+                e.code == 400
+                and e.message == "A version conflict caused the ingest to fail."
+            ):
                 # NOTE: Expected behavior. Means jobs has been claimed already.
                 self.logger.info(
-                    message=f"Retrieved job id that has already been claimed. Grabbing another job.",
+                    message="Retrieved job id that has already been claimed. Grabbing another job.",
                     section="END",
                 )
                 return
             elif (
                 e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
+                self.logger.error(
+                    message=f"Ran into the following error:\n{str(e)}", section="END"
+                )
                 return
             else:
                 raise e
 
         try:
-            job_results: dict | None = self.retrieve_service.get_diagram_detect_job_result(job_id)
-        except Exception as e:
+            job_results: dict | None = (
+                self.retrieve_service.get_diagram_detect_job_result(job_id)
+            )
+        except Exception:
             self.logger.info(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) is a bad gateway",
                 section="END",
@@ -182,31 +194,48 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
             current_attempt_count: int = cast(
                 int,
-                annotation_state_node.properties[self.annotation_state_view.as_view_id()]["attemptCount"],
+                annotation_state_node.properties[
+                    self.annotation_state_view.as_view_id()
+                ]["attemptCount"],
             )
             next_attempt_count = current_attempt_count + 1
             job_node_to_update: NodeApply | None = None
-            if diagram_detect_item.get("annotations") and len(diagram_detect_item["annotations"]) > 0:
+            if (
+                diagram_detect_item.get("annotations")
+                and len(diagram_detect_item["annotations"]) > 0
+            ):
                 try:
-                    self.logger.info(f"Applying annotations to file NodeId - {str(file_id)}")
+                    self.logger.info(
+                        f"Applying annotations to file NodeId - {str(file_id)}"
+                    )
                     if self.clean_old_annotations:
                         self.logger.info("Deleting old annotations")
-                        doc_annotations_delete, tag_annotations_delete = self.apply_service.delete_annotations_for_file(
-                            file_node=file_id
+                        doc_annotations_delete, tag_annotations_delete = (
+                            self.apply_service.delete_annotations_for_file(
+                                file_node=file_id
+                            )
                         )
                         self.logger.info(
                             f"\t- deleted {len(doc_annotations_delete)} document annotations\n- deleted {len(tag_annotations_delete)} tag annoations"
                         )
-                        self.report_service.delete_annotations(doc_annotations_delete, tag_annotations_delete)
+                        self.report_service.delete_annotations(
+                            doc_annotations_delete, tag_annotations_delete
+                        )
 
-                    doc_annotations, tag_annotations = self.apply_service.apply_annotations(
-                        diagram_detect_item, file_id
+                    doc_annotations, tag_annotations = (
+                        self.apply_service.apply_annotations(
+                            diagram_detect_item, file_id
+                        )
                     )
-                    doc_msg = f"added/updated {len(doc_annotations)} document annotations"
+                    doc_msg = (
+                        f"added/updated {len(doc_annotations)} document annotations"
+                    )
                     tag_msg = f"added/updated {len(tag_annotations)} tag annotations"
 
                     page_count: int = diagram_detect_item["pageCount"]
-                    annotated_page_count: int = self._check_all_pages_annotated(annotation_state_node, page_count)
+                    annotated_page_count: int = self._check_all_pages_annotated(
+                        annotation_state_node, page_count
+                    )
                     if annotated_page_count == page_count:
                         job_node_to_update = self._process_annotation_state(
                             node=annotation_state_node,
@@ -226,7 +255,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
                             annotation_message=f"{doc_msg} and {tag_msg}",
                         )
 
-                    self.report_service.add_annotations(doc_rows=doc_annotations, tag_rows=tag_annotations)
+                    self.report_service.add_annotations(
+                        doc_rows=doc_annotations, tag_rows=tag_annotations
+                    )
                     self.logger.info(f"\t- {doc_msg}\n- {tag_msg}")
 
                 except Exception as e:
@@ -264,7 +295,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         annotation_message=msg,
                     )
                     count_failed += 1
-                    self.logger.info(f"\t- set the annotation status to 'Failed'\n- {msg}")
+                    self.logger.info(
+                        f"\t- set the annotation status to 'Failed'\n- {msg}"
+                    )
                     failed_file_ids.append(file_id)
                 else:
                     job_node_to_update = self._process_annotation_state(
@@ -274,17 +307,23 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         annotation_message=msg,
                     )
                     count_retry += 1
-                    self.logger.info(f"\t- set the annotation status to 'Retry'\n- {msg}")
+                    self.logger.info(
+                        f"\t- set the annotation status to 'Retry'\n- {msg}"
+                    )
             if job_node_to_update:
                 annotation_state_node_applies.append(job_node_to_update)
 
         if failed_file_ids:
-            file_applies: NodeApplyList = self.client.data_modeling.instances.retrieve_nodes(
-                nodes=failed_file_ids, sources=self.file_view.as_view_id()
-            ).as_write()
+            file_applies: NodeApplyList = (
+                self.client.data_modeling.instances.retrieve_nodes(
+                    nodes=failed_file_ids, sources=self.file_view.as_view_id()
+                ).as_write()
+            )
             for node_apply in file_applies:
                 node_apply.existing_version = None
-                tags_property: list[str] = cast(list[str], node_apply.sources[0].properties["tags"])
+                tags_property: list[str] = cast(
+                    list[str], node_apply.sources[0].properties["tags"]
+                )
                 if "AnnotationInProcess" in tags_property:
                     index = tags_property.index("AnnotationInProcess")
                     tags_property[index] = "AnnotationFailed"
@@ -297,11 +336,17 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         f"AnnotationFailed and AnnotationInProcess not found in tag property of {node_apply.as_id()}"
                     )
             try:
-                self.client.data_modeling.instances.apply(nodes=file_applies, replace=False)
+                self.client.data_modeling.instances.apply(
+                    nodes=file_applies, replace=False
+                )
             except CogniteAPIError as e:
-                self.logger.error(f"Ran into the following error:\n\t{str(e)}\nTrying again in 30 seconds")
+                self.logger.error(
+                    f"Ran into the following error:\n\t{str(e)}\nTrying again in 30 seconds"
+                )
                 time.sleep(30)
-                self.client.data_modeling.instances.apply(nodes=file_applies, replace=False)
+                self.client.data_modeling.instances.apply(
+                    nodes=file_applies, replace=False
+                )
 
         if annotation_state_node_applies:
             node_count = len(annotation_state_node_applies)
@@ -311,7 +356,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 section="START",
             )
             try:
-                self.apply_service.update_nodes(list_node_apply=annotation_state_node_applies)
+                self.apply_service.update_nodes(
+                    list_node_apply=annotation_state_node_applies
+                )
                 self.logger.info(
                     f"\t- {count_annotated} set to Annotated\n- {count_retry} set to retry\n- {count_failed} set to failed"
                 )
@@ -321,7 +368,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     section="END",
                 )
 
-        self.tracker.add_files(success=count_annotated, failed=(count_failed + count_retry))
+        self.tracker.add_files(
+            success=count_annotated, failed=(count_failed + count_retry)
+        )
 
     def _process_annotation_state(
         self,
@@ -352,7 +401,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
         if not annotated_page_count or not page_count:
             update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .isoformat(),
                 "annotationMessage": annotation_message,
                 "attemptCount": attempt_count,
                 "diagramDetectJobId": None,  # clear the job id
@@ -360,7 +411,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
         else:
             update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .isoformat(),
                 "annotationMessage": annotation_message,
                 "attemptCount": attempt_count,
                 "diagramDetectJobId": None,  # clear the job id
@@ -399,7 +452,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         annotated_page_count: int | None = cast(
             int,
-            node.properties[self.annotation_state_view.as_view_id()].get("annotatedPageCount"),
+            node.properties[self.annotation_state_view.as_view_id()].get(
+                "annotatedPageCount"
+            ),
         )
 
         if not annotated_page_count:
@@ -407,14 +462,18 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 annotated_page_count = page_count
             else:
                 annotated_page_count = self.page_range
-            self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages")
+            self.logger.info(
+                f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages"
+            )
         else:
             start_page = annotated_page_count + 1
             if (annotated_page_count + self.page_range) >= page_count:
                 annotated_page_count = page_count
             else:
                 annotated_page_count += self.page_range
-            self.logger.info(f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages")
+            self.logger.info(
+                f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages"
+            )
 
         return annotated_page_count
 
@@ -438,11 +497,15 @@ class GeneralFinalizeService(AbstractFinalizeService):
         if len(batch.nodes) == 0:
             return
 
-        self.logger.info(message=f"Updating {len(batch.nodes)} annotation state instances")
+        self.logger.info(
+            message=f"Updating {len(batch.nodes)} annotation state instances"
+        )
         if failed:
             update_properties = {
                 "annotationStatus": status,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .isoformat(),
                 "diagramDetectJobId": None,
             }
             batch.update_node_properties(
@@ -451,7 +514,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
             )
         else:
             if status == AnnotationStatus.PROCESSING:
-                claimed_time = batch.nodes[0].properties[self.annotation_state_view.as_view_id()]["sourceUpdatedTime"]
+                claimed_time = batch.nodes[0].properties[
+                    self.annotation_state_view.as_view_id()
+                ]["sourceUpdatedTime"]
                 update_properties = {
                     "annotationStatus": status,
                     "sourceUpdatedTime": claimed_time,
@@ -459,14 +524,18 @@ class GeneralFinalizeService(AbstractFinalizeService):
             else:
                 update_properties = {
                     "annotationStatus": status,
-                    "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                    "sourceUpdatedTime": datetime.now(timezone.utc)
+                    .replace(microsecond=0)
+                    .isoformat(),
                 }
             batch.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
         try:
-            update_results = self.apply_service.update_nodes(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_nodes(
+                list_node_apply=batch.apply
+            )
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
@@ -474,5 +543,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 section="END",
             )
             time.sleep(30)
-            update_results = self.apply_service.update_nodes(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_nodes(
+                list_node_apply=batch.apply
+            )
             self.logger.info(f"- set annotation status to {status}")

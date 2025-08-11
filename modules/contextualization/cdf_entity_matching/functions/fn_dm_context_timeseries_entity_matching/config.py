@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Literal, cast
+from typing import Any
 
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -35,14 +34,18 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
     filter_values: list[str] = None
 
     def as_view_id(self) -> dm.ViewId:
-        return dm.ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
+        return dm.ViewId(
+            space=self.schema_space, external_id=self.external_id, version=self.version
+        )
 
     def as_property_ref(self, property) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property]
 
+
 class ConfigData(BaseModel, alias_generator=to_camel):
     entity_view: ViewPropertyConfig
     asset_view: ViewPropertyConfig
+
 
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters
@@ -54,17 +57,26 @@ class Config(BaseModel, alias_generator=to_camel):
             return dm.DirectRelationReference.load(value)
         return value
 
-def load_config_parameters(client: CogniteClient, function_data: dict[str, Any]) -> Config:
+
+def load_config_parameters(
+    client: CogniteClient, function_data: dict[str, Any]
+) -> Config:
     """Retrieves the configuration parameters from the function data and loads the configuration from CDF."""
     if "ExtractionPipelineExtId" not in function_data:
-        raise ValueError("Missing key 'ExtractionPipelineExtId' in input data to the function")
+        raise ValueError(
+            "Missing key 'ExtractionPipelineExtId' in input data to the function"
+        )
 
     pipeline_ext_id = function_data["ExtractionPipelineExtId"]
     try:
         raw_config = client.extraction_pipelines.config.retrieve(pipeline_ext_id)
         if raw_config.config is None:
-            raise ValueError(f"No config found for extraction pipeline: {pipeline_ext_id!r}")
+            raise ValueError(
+                f"No config found for extraction pipeline: {pipeline_ext_id!r}"
+            )
     except CogniteAPIError:
-        raise RuntimeError(f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}")
+        raise RuntimeError(
+            f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}"
+        )
 
     return Config.model_validate(yaml.safe_load(raw_config.config))

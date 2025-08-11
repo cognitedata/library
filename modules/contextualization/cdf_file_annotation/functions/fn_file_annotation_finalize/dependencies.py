@@ -2,13 +2,12 @@ import os
 
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import Any, Tuple, Literal
+from typing import Any, Tuple
 from cognite.client import CogniteClient, ClientConfig, global_config
 from cognite.client.credentials import OAuthClientCredentials
 
 from utils.DataStructures import EnvConfig
 from services.ConfigService import Config, load_config_parameters
-from services.ConfigService import Config
 from services.RetrieveService import GeneralRetrieveService
 from services.ApplyService import GeneralApplyService
 from services.LoggerService import CogniteFunctionLogger
@@ -53,7 +52,9 @@ def create_client(env_config: EnvConfig, debug: bool = False):
     global_config.apply_settings(settings)
 
     SCOPES = [f"https://{env_config.cdf_cluster}.cognitedata.com/.default"]
-    TOKEN_URL = f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
+    TOKEN_URL = (
+        f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
+    )
     creds = OAuthClientCredentials(
         token_url=TOKEN_URL,
         client_id=env_config.client_id,
@@ -113,5 +114,7 @@ def create_general_apply_service(
     return GeneralApplyService(client, config, logger)
 
 
-def create_general_pipeline_service(client: CogniteClient, pipeline_ext_id: str) -> GeneralPipelineService:
+def create_general_pipeline_service(
+    client: CogniteClient, pipeline_ext_id: str
+) -> GeneralPipelineService:
     return GeneralPipelineService(pipeline_ext_id, client)
