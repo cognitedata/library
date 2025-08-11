@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite, Row
 from cognite.client.data_classes.data_modeling import (
+    Node,
     NodeList,
 )
 from services.ConfigService import Config, ViewPropertyConfig

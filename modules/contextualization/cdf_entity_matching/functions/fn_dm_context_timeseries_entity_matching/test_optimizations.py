@@ -8,8 +8,9 @@ a full CDF environment setup.
 
 import sys
 import time
+import json
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))

@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from typing import List, Dict, Any, Optional, Tuple, Set, Callable
 from collections import defaultdict
 import re
+import json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from logger import CogniteFunctionLogger

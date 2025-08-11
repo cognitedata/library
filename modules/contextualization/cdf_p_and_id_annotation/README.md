@@ -73,8 +73,7 @@ documents
       - If individual processing fails, log and skip file
     - Report all matches by writing matches to a table in RAW for doc to tag
       and for doc to doc matches (db/table as configured)
-    - Use threshold configuration to automatically approve or
-suggest annotations
+    - Use threshold configuration to automatically approve or suggest annotations
     - Create annotation in DM service
     - Log status from process to extraction pipeline log
 
@@ -87,12 +86,12 @@ This module manages the following resources:
      - Content: Authorization group used for processing the files,
        running transformation, function (contextualization) and updating files
 
-1. data set:
+2. data set:
    - ID: `ds_files_{{location_name}}`
      - Content: Data lineage, used Links to used functions, extraction
        pipelines, transformation, and raw tables
 
-1. extraction pipeline:
+3. extraction pipeline:
    - ID: `ep_ctx_files_{{location_name}}_{{source_name}}_pandid_annotation`
      - Content: Documentation and configuration for a CDF function running
        P&ID contextualization/annotation (see function for more description)
@@ -100,7 +99,7 @@ This module manages the following resources:
      - Content: Documentation and configuration for a CDF function updating
        aliases for asset & files (see function for more description)
 
-1. function:
+4. function:
    - ID: `fn_dm_context_files_{{location_name}}_{{source_name}}_annotation`
      - Content: reads new/updated files using the SYNC api. Extracts all
        tags in P&ID that match tags from Asset & Files to create CDF
@@ -110,11 +109,11 @@ This module manages the following resources:
      - Content: Reads new/updated assets and files to create & update the
        alias property.
 
-1. raw: in database : ds_files_{{source_name}}_{{location_name}}
+5. raw: in database : ds_files_{{source_name}}_{{location_name}}
    - ID: documents_docs
      - Content: DB with table for with all
 
-1. workflow
+6. workflow
    - ID: `wf_{{location_name}}_files_annotation`
      - Content: Start Function:
        `fn_dm_context_{{location_name}}_{{source_name}}_alias_update` and then

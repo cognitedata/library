@@ -10,6 +10,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeList,
     Node,
 )
+from cognite.client.data_classes.filters import In, Or
 
 import sys
 import json
@@ -29,6 +30,7 @@ from cognite.client.data_classes.contextualization import (
     DiagramDetectConfig,
 )
 from cognite.client import data_modeling as dm
+from cognite.client.utils._auxiliary import split_into_chunks
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
 from cognite.client.data_classes import Row
@@ -50,6 +52,7 @@ from constants import (
     STAT_STORE_NUM_IN_BATCH,
     STAT_STORE_VALUE,
     BATCH_SIZE,
+    ANNOTATE_BATCH_SIZE,
     EXTERNAL_ID_LIMIT,
     FUNCTION_ID,
 )
@@ -99,11 +102,11 @@ def annotate_p_and_id(
         file_num = 0
         if config.parameters.debug:
             logger = CogniteFunctionLogger("DEBUG")
-            logger.debug("**** Write debug messages and only process one file *****")
+            logger.debug(f"**** Write debug messages and only process one file *****")
             ANNOTATE_BATCH_SIZE = 1
 
         logger.debug(
-            "Initiate RAW upload queue used to store output from Diagram parsing"
+            f"Initiate RAW upload queue used to store output from Diagram parsing"
         )
         raw_uploader = RawUploadQueue(
             cdf_client=client, max_queue_size=500000, trigger_log_level="INFO"
@@ -112,7 +115,7 @@ def annotate_p_and_id(
         # Check if we should run all files (then delete state content in RAW) or just new files
         if config.parameters.run_all:
             logger.debug(
-                "Run all files, delete state content in RAW since we are rerunning based on all input"
+                f"Run all files, delete state content in RAW since we are rerunning based on all input"
             )
             delete_table(
                 client, config.parameters.raw_db, config.parameters.raw_table_doc_tag
@@ -129,7 +132,7 @@ def annotate_p_and_id(
             )
         else:
             logger.debug(
-                "Get file cursor and batch number from RAW, to continue processing from last run"
+                f"Get file cursor and batch number from RAW, to continue processing from last run"
             )
             file_cursor = read_state_store(
                 client,
@@ -572,7 +575,7 @@ def get_file_filter(
         ["application/pdf", "image/jpeg", "image/png", "image/tiff"],
     )
     is_selected = dm.filters.And(is_view, is_uploaded, is_file_type)
-    dbg_msg = "File filter: isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
+    dbg_msg = f"File filter: isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
 
     if debug_file:
         is_debug_file = dm.filters.Equals(

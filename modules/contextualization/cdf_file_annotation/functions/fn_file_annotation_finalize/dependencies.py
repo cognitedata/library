@@ -2,12 +2,13 @@ import os
 
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import Any, Tuple
+from typing import Any, Tuple, Literal
 from cognite.client import CogniteClient, ClientConfig, global_config
 from cognite.client.credentials import OAuthClientCredentials
 
 from utils.DataStructures import EnvConfig
 from services.ConfigService import Config, load_config_parameters
+from services.ConfigService import Config
 from services.RetrieveService import GeneralRetrieveService
 from services.ApplyService import GeneralApplyService
 from services.LoggerService import CogniteFunctionLogger

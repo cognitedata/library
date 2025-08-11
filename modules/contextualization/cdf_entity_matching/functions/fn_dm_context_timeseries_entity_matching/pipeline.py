@@ -10,16 +10,24 @@ from collections import defaultdict
 from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
     NodeOrEdgeData,
+    NodeList,
+    Node,
     NodeApply,
 )
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes import ExtractionPipelineRun, Row
+from cognite.client.data_classes import ExtractionPipelineRun, ContextualizationJob, Row
 from cognite.client import data_modeling as dm
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
 from cognite.client.exceptions import CogniteAPIError
 
+from cognite.client.data_classes.data_modeling.query import (
+    Query,
+    NodeResultSetExpression,
+    Select,
+    SourceSelector,
+)
 
 from config import Config, ViewPropertyConfig
 from logger import CogniteFunctionLogger
@@ -97,10 +105,10 @@ def asset_entity_matching(
         matching_model_id = None
         if config.parameters.debug:
             logger = CogniteFunctionLogger("DEBUG")
-            logger.debug("**** Write debug messages and only process one entity *****")
+            logger.debug(f"**** Write debug messages and only process one entity *****")
 
         logger.debug(
-            "Initiate RAW upload queue used to store output from entity matching"
+            f"Initiate RAW upload queue used to store output from entity matching"
         )
         raw_uploader = RawUploadQueue(
             cdf_client=client, max_queue_size=500000, trigger_log_level="INFO"
@@ -109,7 +117,7 @@ def asset_entity_matching(
         # Check if we should run all entities (then delete state content in RAW) or just new entities
         if config.parameters.run_all:
             logger.debug(
-                "Run all entities, delete state content in RAW since we are rerunning based on all input"
+                f"Run all entities, delete state content in RAW since we are rerunning based on all input"
             )
             delete_table(
                 client, config.parameters.raw_db, config.parameters.raw_tale_ctx_bad
@@ -121,7 +129,7 @@ def asset_entity_matching(
                 client, config.parameters.raw_db, config.parameters.raw_table_state
             )
         else:
-            logger.debug("Get entity entity matching model ID from state store")
+            logger.debug(f"Get entity entity matching model ID from state store")
             matching_model_id = read_state_store(
                 client, config, logger, STAT_STORE_MATCH_MODEL_ID
             )
@@ -169,7 +177,7 @@ def asset_entity_matching(
         asset_dest = get_all_assets(client, logger, config, rule_mappings)
         if len(asset_dest) == 0:
             logger.warning(
-                "No assets found based on configuration, please check the configuration"
+                f"No assets found based on configuration, please check the configuration"
             )
             update_pipeline_run(
                 client,

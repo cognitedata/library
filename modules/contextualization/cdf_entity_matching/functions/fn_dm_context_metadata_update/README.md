@@ -1,8 +1,6 @@
 # Entity Matching Metadata Update Function
 
-This module provides optimized metadata update functionality for timeseries and
-assets in Cognite Data Fusion (CDF) with enhanced performance, monitoring, and
-error handling.
+This module provides optimized metadata update functionality for timeseries and assets in Cognite Data Fusion (CDF) with enhanced performance, monitoring, and error handling.
 
 ## 🚀 Features
 
@@ -16,7 +14,7 @@ error handling.
 
 ## 📁 Module Structure
 
-```python
+```
 fn_dm_context_metadata_update/
 ├── handler.py                    # Main function handler with optimizations
 ├── pipeline.py                   # Core pipeline logic with batch processing
@@ -27,7 +25,7 @@ fn_dm_context_metadata_update/
 ├── requirements.txt              # Python dependencies
 ├── test_metadata_optimizations.py # Comprehensive test suite
 └── README.md                     # This file
-```text
+```
 
 ## 🔧 Configuration
 
@@ -46,7 +44,7 @@ IDP_TOKEN_URL=https://your-idp-url/oauth2/token
 # Optional: Debug settings
 DEBUG_MODE=false
 LOG_LEVEL=INFO
-```yaml
+```
 
 ### Extraction Pipeline Configuration
 
@@ -73,7 +71,7 @@ data:
       external_id: "Asset"
       version: "v1"
       instance_space: "your_instance_space"
-```yaml
+```
 
 ## 🏃‍♂️ How to Run
 
@@ -84,7 +82,7 @@ Deploy the function to CDF and configure it with an extraction pipeline:
 ```python
 # The function will be triggered by CDF
 # No manual execution needed
-```text
+```
 
 ### 2. Local Development
 
@@ -98,7 +96,7 @@ export IDP_TOKEN_URL=your-token-url
 
 # Run the handler directly
 python handler.py
-```text
+```
 
 ### 3. Programmatic Usage
 
@@ -118,7 +116,7 @@ data = {
 # Run the optimized handler
 result = handle(data, client)
 print(f"Status: {result['status']}")
-```yaml
+```
 
 ## 🔍 Functionality
 
@@ -150,11 +148,11 @@ print(f"Status: {result['status']}")
    - Fetch timeseries in batches
    - Apply discipline classification
    - Update metadata with optimized batch operations
-1. **Asset Processing**:
+4. **Asset Processing**:
    - Fetch assets in batches
    - Apply metadata enhancements
    - Update with batch operations
-1. **Cleanup**: Memory cleanup and performance reporting
+5. **Cleanup**: Memory cleanup and performance reporting
 
 ### Performance Optimizations
 
@@ -171,7 +169,7 @@ print(f"Status: {result['status']}")
 ```bash
 # Run the comprehensive test suite
 python test_metadata_optimizations.py
-```text
+```
 
 ### Test Categories
 
@@ -179,23 +177,22 @@ python test_metadata_optimizations.py
 
 ```bash
 # Test individual optimization components
-python -m pytest test_metadata_optimizations.py::TestOptimizedMetadataProcessor
--v
-```text
+python -m pytest test_metadata_optimizations.py::TestOptimizedMetadataProcessor -v
+```
 
 #### 2. **Performance Tests**
 
 ```bash
 # Test performance improvements
 python -m pytest test_metadata_optimizations.py::TestPerformanceBenchmark -v
-```text
+```
 
 #### 3. **Integration Tests**
 
 ```bash
 # Test complete pipeline scenarios
 python -m pytest test_metadata_optimizations.py::test_integration_scenario -v
-```bash
+```
 
 ### Test Coverage
 
@@ -225,15 +222,14 @@ The test suite covers:
 
 The module provides detailed monitoring:
 
-```text
-📊 Processing Stats: 1500 processed, 1200 updated, 80.00% update rate, 
-75.50% cache hit rate
+```
+📊 Processing Stats: 1500 processed, 1200 updated, 80.00% update rate, 75.50% cache hit rate
 ⏱️ Time: Configuration processing took 0.15 seconds
 ⏱️ Time: Timeseries processing took 45.30 seconds
 ⏱️ Time: Asset processing took 32.10 seconds
 🧠 Memory: Pipeline start Memory usage: 145.2 MB
 🧠 Memory: Pipeline end Memory usage: 152.1 MB
-```yaml
+```
 
 ## 🛠️ Dependencies
 
@@ -243,7 +239,7 @@ See `requirements.txt` for complete dependencies:
 cognite-sdk>=7.0.0
 tenacity>=8.0.0
 psutil>=5.9.0
-```yaml
+```
 
 ## 🔧 Troubleshooting
 
@@ -254,12 +250,12 @@ psutil>=5.9.0
    - Enable debug mode for limited processing
    - Monitor memory usage in logs
 
-1. **API Rate Limits**
+2. **API Rate Limits**
    - Retry logic handles temporary failures
    - Adjust batch sizes if needed
    - Check CDF project limits
 
-1. **Performance Issues**
+3. **Performance Issues**
    - Review batch size configuration
    - Check network connectivity
    - Monitor cache hit rates
@@ -273,7 +269,7 @@ data = {
     "logLevel": "DEBUG",
     "ExtractionPipelineExtId": "your-pipeline-id"
 }
-```yaml
+```
 
 ## 📈 Monitoring and Logging
 
@@ -286,10 +282,9 @@ data = {
 
 ### Performance Logs
 
-```text
+```
 🚀 Starting OPTIMIZED metadata update with loglevel = INFO
-📝 Reading parameters from extraction pipeline config:
-ep_ctx_entity_matching_metadata_update
+📝 Reading parameters from extraction pipeline config: ep_ctx_entity_matching_metadata_update
 ⏱️ Time: Configuration processing took 0.12 seconds
 📊 Processing Stats: 1000 processed, 800 updated, 80.00% update rate
 🎉 Optimized metadata update completed successfully!

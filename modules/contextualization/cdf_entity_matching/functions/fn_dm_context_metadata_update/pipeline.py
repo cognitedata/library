@@ -8,17 +8,20 @@ with improved performance, caching, batch processing, and error handling.
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple, Union
+import gc
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (
+    NodeApply,
+    NodeOrEdgeData,
     ViewId,
     NodeList,
     Node,
 )
-from cognite.client.data_classes.filters import HasData, Equals
+from cognite.client.data_classes.filters import In, HasData, Equals
 from cognite.client.utils._text import shorten
-from cognite.client.data_classes import ExtractionPipelineRun
+from cognite.client.data_classes import ExtractionPipelineRun, Row
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
 
@@ -351,7 +354,7 @@ def get_ts_filter(
         has_alias = dm.filters.Exists(view_config.as_property_ref("aliases"))
         not_alias = dm.filters.Not(has_alias)
         filters.append(not_alias)
-        dbg_msg = "Entity filtering on: 'aliases' - NOT EXISTS"
+        dbg_msg = f"Entity filtering on: 'aliases' - NOT EXISTS"
 
     if debug_ts:
         logger.debug(f"Debug timeseries filter: {dbg_msg} {debug_ts}")

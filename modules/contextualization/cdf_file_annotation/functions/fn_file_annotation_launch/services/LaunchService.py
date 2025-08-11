@@ -116,7 +116,7 @@ class GeneralLaunchService(AbstractLaunchService):
         Retrieves files marked "ToAnnotate" in the tags property and creates a 1-to-1 ratio of FileAnnotationState instances to files
         """
         self.logger.info(
-            message="Starting Prepare Function",
+            message=f"Starting Prepare Function",
             section="START",
         )
         try:
@@ -170,7 +170,7 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             if not file_nodes:
                 self.logger.info(
-                    message="No files found to prepare",
+                    message=f"No files found to prepare",
                     section="END",
                 )
                 return "Done"
@@ -245,7 +245,7 @@ class GeneralLaunchService(AbstractLaunchService):
         processes them in organized, context-aware batches.
         """
         self.logger.info(
-            message="Starting Launch Function",
+            message=f"Starting Launch Function",
             section="START",
         )
         try:
@@ -253,7 +253,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 self.data_model_service.get_files_to_process()
             )
             if not file_nodes or not file_to_state_map:
-                self.logger.info(message="No files found to launch")
+                self.logger.info(message=f"No files found to launch")
                 return "Done"
             self.logger.info(
                 message=f"Launching {len(file_nodes)} files", section="END"
@@ -380,7 +380,7 @@ class GeneralLaunchService(AbstractLaunchService):
             or self._cached_secondary_scope != secondary_scope_value
             or not self.in_memory_cache
         ):
-            self.logger.info("Refreshing in memory cache")
+            self.logger.info(f"Refreshing in memory cache")
             try:
                 self.in_memory_cache = self.cache_service.get_entities(
                     self.data_model_service, primary_scope_value, secondary_scope_value

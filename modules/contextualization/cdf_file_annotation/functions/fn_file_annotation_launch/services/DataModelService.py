@@ -7,6 +7,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeList,
     NodeApply,
     NodeApplyResultList,
+    instances,
     InstancesApplyResult,
 )
 from cognite.client.data_classes.filters import (

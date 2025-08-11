@@ -1,7 +1,7 @@
 import os
 import sys
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
 # Add the current directory to the path so we can import the modules

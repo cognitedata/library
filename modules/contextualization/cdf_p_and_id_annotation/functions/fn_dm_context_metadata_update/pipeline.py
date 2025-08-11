@@ -13,6 +13,7 @@ from cognite.client.data_classes.data_modeling import (
     NodeList,
     Node,
 )
+from cognite.client.data_classes.filters import In, HasData, Equals
 from cognite.client.utils._text import shorten
 from cognite.client.data_classes import ExtractionPipelineRun, Row
 from cognite.client import data_modeling as dm
@@ -67,7 +68,7 @@ def file_metadata_update(
 
         if config.parameters.debug:
             logger = CogniteFunctionLogger("DEBUG")
-            logger.debug("**** Write debug messages and only process one file *****")
+            logger.debug(f"**** Write debug messages and only process one file *****")
             BATCH_SIZE = 100  # Minimum batch size for debug
         else:
             logger.debug("Get files that has been updated since last run")
@@ -132,7 +133,7 @@ def file_metadata_update(
                 )
 
         else:
-            msg = "[INFO]: No new file to process"
+            msg = f"[INFO]: No new file to process"
             update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
 
         # Get assets that has been updated since last run to create aliases
@@ -177,7 +178,7 @@ def file_metadata_update(
                 )
 
         else:
-            msg = "[INFO]: No new assets to process"
+            msg = f"[INFO]: No new assets to process"
             update_pipeline_run(client, logger, pipeline_ext_id, "success", msg)
 
     except Exception as e:
@@ -356,7 +357,7 @@ def get_file_filter(
         ["application/pdf", "image/jpeg", "image/png", "image/tiff"],
     )
     is_selected = dm.filters.And(is_view, is_uploaded, is_file_type)
-    dbg_msg = "File filter: hasData = True, isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
+    dbg_msg = f"File filter: hasData = True, isUploaded=True, mimeType IN [application/pdf, image/jpeg, image/png, image/tiff]"
 
     if debug_file:
         is_debug_file = dm.filters.Equals(
@@ -375,7 +376,7 @@ def get_asset_filter(
     logger: CogniteFunctionLogger,
 ) -> dm.filters.Filter:
     is_view = dm.filters.HasData(views=[view_config.as_view_id()])
-    dbg_msg = "Asset filter: hasData = True"
+    dbg_msg = f"Asset filter: hasData = True"
     is_selected = dm.filters.And(is_view)
 
     logger.debug(dbg_msg)

@@ -1,9 +1,6 @@
 # Optimized Entity Matching Pipeline
 
-A high-performance entity matching pipeline for
-Cognite Data Fusion (CDF) that matches timeseries entities with
-assets using multiple matching strategies with
-comprehensive performance optimizations.
+A high-performance entity matching pipeline for Cognite Data Fusion (CDF) that matches timeseries entities with assets using multiple matching strategies with comprehensive performance optimizations.
 
 ## 🚀 Key Features
 
@@ -19,14 +16,14 @@ comprehensive performance optimizations.
 
 ### Dependencies
 
-```yaml
+```
 cognite-extractor-utils>=7
 cognite-sdk == 7.*
 pyyaml >= 6.0.1
 pytest >= 7.0.0
 tenacity >= 8.0.0
 psutil >= 5.9.0
-```text
+```
 
 ### Environment Variables
 
@@ -35,15 +32,14 @@ CDF_PROJECT=your-project-name
 CDF_CLUSTER=your-cluster-name
 IDP_CLIENT_ID=your-client-id
 IDP_CLIENT_SECRET=your-client-secret
-IDP_TOKEN_URL=https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/oaut-
-h2/v2.0/token-
-```text
+IDP_TOKEN_URL=https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/oauth2/v2.0/token
+```
 
 ## 🏗️ Architecture
 
 ### Core Components
 
-```text
+```
 ├── handler.py                  # Main entry point with optimization integration
 ├── pipeline.py                 # Core matching pipeline logic
 ├── pipeline_optimizations.py   # Performance optimization utilities
@@ -51,7 +47,7 @@ h2/v2.0/token-
 ├── logger.py                   # Logging utilities
 ├── constants.py                # Application constants
 └── test_optimizations.py       # Test suite
-```yaml
+```
 
 ### Key Classes
 
@@ -66,8 +62,7 @@ h2/v2.0/token-
 
 ### Pipeline Configuration
 
-The pipeline reads configuration from CDF extraction pipeline config in 
-YAML format:
+The pipeline reads configuration from CDF extraction pipeline config in YAML format:
 
 ```yaml
 parameters:
@@ -98,7 +93,7 @@ data:
     externalId: "Asset"
     version: "1"
     searchProperty: "name"
-```text
+```
 
 ### Configuration Parameters
 
@@ -128,7 +123,7 @@ data = {
 }
 
 result = handle(data, client)
-```text
+```
 
 #### 2. Local Execution
 
@@ -142,7 +137,7 @@ export IDP_TOKEN_URL=your-token-url
 
 # Run locally
 python handler.py
-```text
+```
 
 #### 3. Programmatic Usage
 
@@ -152,7 +147,7 @@ from handler import run_locally
 # Run with all optimizations
 result = run_locally()
 print(f"Status: {result['status']}")
-```text
+```
 
 ### Advanced Usage
 
@@ -170,7 +165,7 @@ processor = BatchProcessor(batch_size=2000)
 
 # Set up performance monitoring
 benchmark = PerformanceBenchmark(logger)
-```text
+```
 
 #### Manual Optimization Application
 
@@ -179,7 +174,7 @@ from pipeline_optimizations import patch_existing_pipeline
 
 # Apply optimizations to existing pipeline
 patch_existing_pipeline()
-```dockerfile
+```
 
 ## 🧪 Testing
 
@@ -187,7 +182,7 @@ patch_existing_pipeline()
 
 ```bash
 python test_optimizations.py
-```text
+```
 
 ### Individual Test Categories
 
@@ -198,19 +193,18 @@ python -c "
 from test_optimizations import test_performance_monitoring
 test_performance_monitoring()
 "
-```text
+```
 
 #### 2. Optimization Component Tests
 
 ```bash
 python -c "
-from test_optimizations import test_match_tracker, test_rule_mapper, 
-test_batch_processor
+from test_optimizations import test_match_tracker, test_rule_mapper, test_batch_processor
 test_match_tracker()
 test_rule_mapper()
 test_batch_processor()
 "
-```text
+```
 
 #### 3. Performance Comparison Tests
 
@@ -219,7 +213,7 @@ python -c "
 from test_optimizations import run_performance_comparison
 run_performance_comparison()
 "
-```yaml
+```
 
 ### Test Coverage
 
@@ -248,7 +242,7 @@ The test suite covers:
 
 ### Before vs After
 
-```text
+```
 Original Processing:
 ├── List-based duplicate checking: O(n)
 ├── Sequential data loading: ~2.5s
@@ -260,7 +254,7 @@ Optimized Processing:
 ├── Concurrent data loading: ~1.0s
 ├── Active memory management: Low usage
 └── Robust error handling: Resilient
-```yaml
+```
 
 ## 🐛 Debugging
 
@@ -285,7 +279,7 @@ with time_operation("My operation", logger):
 # Benchmark functions
 benchmark = PerformanceBenchmark(logger)
 result = benchmark.benchmark_function("Function name", my_function, *args)
-```text
+```
 
 ### Common Issues
 
@@ -297,7 +291,7 @@ cleanup_memory()
 
 # Monitor memory usage
 monitor_memory_usage(logger, "checkpoint")
-```text
+```
 
 #### 2. Performance Issues
 
@@ -305,7 +299,7 @@ monitor_memory_usage(logger, "checkpoint")
 # Enable performance benchmarking
 benchmark = PerformanceBenchmark(logger)
 benchmark.log_summary()
-```text
+```
 
 #### 3. API Errors
 
@@ -313,7 +307,7 @@ benchmark.log_summary()
 # Robust API client with retries
 robust_client = RobustAPIClient(client, logger)
 robust_client.robust_api_call(client.some_method, *args)
-```yaml
+```
 
 ## 🔧 Development
 
@@ -329,18 +323,18 @@ class MyOptimization:
     def optimize(self, data):
         # Your optimization logic
         return optimized_data
-```yaml
+```
 
-1. **Add to exports**:
+2. **Add to exports**:
 
 ```python
 __all__ = [
     # ... existing exports
     'MyOptimization'
 ]
-```yaml
+```
 
-1. **Use in `handler.py`**:
+3. **Use in `handler.py`**:
 
 ```python
 from pipeline_optimizations import MyOptimization
@@ -348,7 +342,7 @@ from pipeline_optimizations import MyOptimization
 # In handle function
 optimization = MyOptimization(logger)
 result = optimization.optimize(data)
-```yaml
+```
 
 ### Testing New Features
 
@@ -359,15 +353,15 @@ def test_my_optimization():
     print("🧪 Testing MyOptimization...")
     # Test implementation
     print("✅ MyOptimization tests passed")
-```yaml
+```
 
-1. **Add to main test runner**:
+2. **Add to main test runner**:
 
 ```python
 def main():
     # ... existing tests
     test_my_optimization()
-```text
+```
 
 ## 📈 Monitoring
 
@@ -381,7 +375,7 @@ def main():
 
 ### Logging Output
 
-```text
+```
 INFO - Starting OPTIMIZED entity matching with loglevel = INFO
 INFO - Monitor Memory: Handler start Memory usage: 45.2 MB
 INFO - Time: Config loading took 0.23 seconds
@@ -402,8 +396,7 @@ INFO -   Pipeline execution: 1 calls, avg 12.45s, total 12.45s
 
 ## 📄 License
 
-This project is part of the Cognite Data Fusion ecosystem and
-follows Cognite's licensing terms.
+This project is part of the Cognite Data Fusion ecosystem and follows Cognite's licensing terms.
 
 ## 🆘 Support
 

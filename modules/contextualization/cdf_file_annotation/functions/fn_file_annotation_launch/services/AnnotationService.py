@@ -56,4 +56,4 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id:
             return detect_job.job_id
         else:
-            raise Exception("404 ---- No job Id was created")
+            raise Exception(f"404 ---- No job Id was created")

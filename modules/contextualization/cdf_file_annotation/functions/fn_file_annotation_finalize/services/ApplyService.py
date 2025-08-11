@@ -25,7 +25,7 @@ from cognite.client.data_classes.filters import (
 )
 
 
-from services.ConfigService import Config
+from services.ConfigService import Config, ViewPropertyConfig
 from utils.DataStructures import DiagramAnnotationStatus
 from services.LoggerService import CogniteFunctionLogger
 

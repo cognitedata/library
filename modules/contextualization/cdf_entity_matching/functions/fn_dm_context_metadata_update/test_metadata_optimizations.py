@@ -10,7 +10,8 @@ import sys
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import Mock, MagicMock, patch
+from typing import List, Dict, Any
 
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))
@@ -376,7 +377,7 @@ def run_performance_comparison():
     # Calculate improvement
     improvement = ((non_opt_time - opt_time) / non_opt_time) * 100
 
-    print("\n📊 Performance Results:")
+    print(f"\n📊 Performance Results:")
     print(f"   Non-optimized: {non_opt_time:.3f}s")
     print(f"   Optimized:     {opt_time:.3f}s")
     print(f"   Improvement:   {improvement:.1f}% faster")

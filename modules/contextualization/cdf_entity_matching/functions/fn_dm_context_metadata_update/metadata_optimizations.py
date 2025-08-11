@@ -7,9 +7,11 @@ performance, reduce memory usage, and enhance reliability.
 
 import time
 import gc
+import concurrent.futures
 from contextlib import contextmanager
-from typing import List, Dict, Any, Optional, Tuple, Callable
+from typing import List, Dict, Any, Optional, Tuple, Set, Callable, Union
 from functools import lru_cache
+from collections import defaultdict
 import re
 import psutil
 from dataclasses import dataclass

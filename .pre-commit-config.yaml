@@ -27,3 +27,4 @@ repos:
     hooks:
       - id: markdownlint
         args: [--fix, --config, .markdownlint.json]
+        exclude: ^modules/

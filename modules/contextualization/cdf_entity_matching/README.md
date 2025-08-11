@@ -1,25 +1,21 @@
 # CDF Entity Matching Module
 
-This module provides comprehensive entity matching capabilities for Cognite Data
-Fusion (CDF), enabling automated contextualization of timeseries data with
-assets through advanced matching algorithms and metadata optimization.
+This module provides comprehensive entity matching capabilities for Cognite Data Fusion (CDF), enabling automated contextualization of timeseries data with assets through advanced matching algorithms and metadata optimization.
 
 ## 🎯 Overview
 
 The CDF Entity Matching module is designed to:
 
 - **Support expert manual mappings** for complex or domain-specific relationships
-- **Match timeseries to assets** using rule-based, AI-powered, and manual
-  mapping algorithms
+- **Match timeseries to assets** using rule-based, AI-powered, and manual mapping algorithms
 - **Optimize metadata** for improved searchability and contextualization
-- **Provide scalable processing** with batch operations and performance
-  monitoring
+- **Provide scalable processing** with batch operations and performance monitoring
 - **Support workflow automation** through CDF Workflows integration
 - **Maintain state** for incremental processing and error recovery
 
 ## 🏗️ Module Architecture
 
-```text
+```
 cdf_entity_matching/
 ├── 📁 functions/                           # CDF Functions
 │   ├── 📁 fn_dm_context_timeseries_entity_matching/  # Entity matching logic
@@ -40,7 +36,7 @@ cdf_entity_matching/
 ├── 📁 data_sets/                          # Data set definitions
 ├── 📁 auth/                               # Authentication and permissions
 └── 📄 default.config.yaml                 # Module configuration
-```yaml
+```
 
 ## 🚀 Core Functions
 
@@ -50,8 +46,7 @@ cdf_entity_matching/
 
 **Key Features**:
 
-- ✋ **Manual mapping support** for expert-defined asset-timeseries
-  relationships
+- ✋ **Manual mapping support** for expert-defined asset-timeseries relationships
 - 🎯 **Rule-based matching** with regex patterns and business logic
 - 🤖 **AI-powered entity matching** using machine learning algorithms
 - 📊 **Performance optimization** with 35-55% faster execution
@@ -68,8 +63,7 @@ cdf_entity_matching/
 
 ### 2. [Metadata Update Function](./functions/fn_dm_context_metadata_update/README.md)
 
-**Purpose**: Optimizes metadata for timeseries and assets to improve
-searchability
+**Purpose**: Optimizes metadata for timeseries and assets to improve searchability
 
 **Key Features**:
 
@@ -104,44 +98,103 @@ viewVersion: v1
 fileInstanceSpace: springfield_instances
 equipmentInstanceSpace: springfield_instances
 assetInstanceSpace: springfield_instances
-```text
 
-## 🔄 Workflow Process
+# Authentication
+functionClientId: ${IDP_CLIENT_ID}
+functionClientSecret: ${IDP_CLIENT_SECRET}
+
+# Workflow Settings
+workflow: annotation
+files_dataset: ingestion
+```
+
+### Environment Variables
+
+```bash
+# CDF Connection
+CDF_PROJECT=your-cdf-project
+CDF_CLUSTER=your-cdf-cluster
+IDP_CLIENT_ID=your-client-id
+IDP_CLIENT_SECRET=your-client-secret
+IDP_TOKEN_URL=https://your-idp-url/oauth2/token
+
+# Optional Settings
+LOG_LEVEL=INFO
+DEBUG_MODE=false
+```
+
+## 🏃‍♂️ Getting Started
+
+### 1. Prerequisites
+
+- CDF project with appropriate permissions
+- Data models deployed (Enterprise Process Industry)
+- Timeseries and asset data available
+- Authentication credentials configured
+
+### 2. Deploy the Module
+
+```bash
+# Deploy using CDF Toolkit
+cdf deploy --env your-environment
+
+# Or deploy individual components
+cdf functions deploy
+cdf workflows deploy
+```
+
+### 3. Configure Workflows
+
+The module includes automated workflows that:
+
+1. **Trigger entity matching** on new timeseries data
+2. **Update metadata** for improved searchability
+3. **Monitor processing** and handle errors
+4. **Maintain state** for incremental updates
+
+### 4. Monitor Execution
+
+```bash
+# Check function logs
+cdf functions logs fn_dm_context_timeseries_entity_matching
+
+# Monitor workflow execution
+cdf workflows status annotation
+
+# View processing statistics
+cdf raw rows list contextualization_state contextualization_state_store
+```
+
+## 📊 Data Flow
 
 ```mermaid
 graph TD
-    A[Start] --> B[Entity Matching]
-    B --> C[Manual Mapping]
-    B --> D[Rule-based Matching]
-    B --> E[AI Matching]
-    C --> F[Validation]
-    D --> F
-    E --> F
-    F --> G[Metadata Update]
-    G --> H[State Storage]
-    H --> I[Workflow Trigger]
-    I --> B
+    A[Timeseries Data] --> B[Entity Matching Function]
+    C[Asset Data] --> B
+    D[Rule Definitions] --> B
+    B --> E[Matched Relationships]
+    E --> F[Metadata Update Function]
+    F --> G[Enhanced Metadata]
+    G --> H[Improved Search & Discovery]
+    
+    I[Workflow Trigger] --> B
     B --> J[State Storage]
     J --> K[Incremental Processing]
-```bash
+```
 
 ## 🎯 Use Cases
 
 ### Industrial Process Monitoring
 
-- **Sensor Contextualization**: Automatically link temperature, pressure, and
-  flow sensors to equipment
-- **Expert Manual Mapping**: Allow domain experts to define complex
-  sensor-equipment relationships
+- **Sensor Contextualization**: Automatically link temperature, pressure, and flow sensors to equipment
+- **Expert Manual Mapping**: Allow domain experts to define complex sensor-equipment relationships
 - **Process Optimization**: Enable cross-asset analysis and process improvement
-- **Anomaly Detection**: Support advanced analytics with proper
-  asset-timeseries relationships
+- **Anomaly Detection**: Support advanced analytics with proper asset-timeseries relationships
 
 ### Asset Management
 
 - **Equipment Monitoring**: Connect maintenance data with operational metrics
-- **Performance Analysis**: Enable equipment efficiency and reliability
-  analysis
+- **Performance Analysis**: Enable equipment efficiency and reliability analysis
 - **Predictive Maintenance**: Support ML models with contextualized data
 
 ### Data Discovery
@@ -177,7 +230,7 @@ python test_optimizations.py
 # Test metadata update function
 cd functions/fn_dm_context_metadata_update
 python test_metadata_optimizations.py
-```text
+```
 
 ### Integration Testing
 
@@ -187,27 +240,25 @@ cdf workflows trigger annotation
 
 # Monitor test execution
 cdf workflows logs annotation
-```yaml
+```
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
 1. **Matching Performance**
-   - Review rule definitions in
-     `raw/contextualization_rule_input.Table.json`
-   - Check manual mapping definitions in
-     `raw/contextualization_manual_input.Table.*`
+   - Review rule definitions in `raw/contextualization_rule_input.Table.json`
+   - Check manual mapping definitions in `raw/contextualization_manual_input.Table.*`
    - Validate good/bad matches in respective tables
    - Check entity matching algorithm parameters
    - Monitor cache hit rates and optimization effectiveness
 
-1. **Memory Issues**
+2. **Memory Issues**
    - Reduce batch sizes in function configurations
    - Enable debug mode for limited processing
    - Monitor memory usage in function logs
 
-1. **Workflow Failures**
+3. **Workflow Failures**
    - Check extraction pipeline configurations
    - Verify data model compatibility
    - Review authentication and permissions
@@ -226,10 +277,8 @@ parameters:
 
 ## 📚 Documentation
 
-- [**Timeseries Entity Matching Function**](./functions/fn_dm_context_timeseries_entity_matching/README.md) - Detailed
-documentation for entity matching
-- [**Metadata Update Function**](./functions/fn_dm_context_metadata_update/README.md) - Comprehensive guide for metadata
-optimization
+- [**Timeseries Entity Matching Function**](./functions/fn_dm_context_timeseries_entity_matching/README.md) - Detailed documentation for entity matching
+- [**Metadata Update Function**](./functions/fn_dm_context_metadata_update/README.md) - Comprehensive guide for metadata optimization
 - **CDF Toolkit Documentation** - General deployment and configuration guidance
 
 ## 🤝 Contributing
@@ -242,5 +291,4 @@ optimization
 
 ## 📄 License
 
-This module is part of the Cognite Templates repository and follows the
-same licensing terms.
+This module is part of the Cognite Templates repository and follows the same licensing terms.

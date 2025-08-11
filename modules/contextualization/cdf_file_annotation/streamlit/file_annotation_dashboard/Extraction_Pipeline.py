@@ -1,10 +1,14 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from datetime import timedelta
+from cognite.client import CogniteClient
+from datetime import datetime, timedelta
 from helper import (
+    fetch_annotation_states,
     fetch_pipeline_run_history,
     process_runs_for_graphing,
+    fetch_extraction_pipeline_config,
+    calculate_success_failure_stats,
     fetch_function_logs,
     parse_run_message,
 )
@@ -103,7 +107,7 @@ if pipeline_runs:
             st.subheader("Launch Runs")
             m_col1, m_col2, m_col3 = st.columns(3)
             m_col1.metric(
-                "Files Launched",
+                f"Files Launched",
                 f"{total_launched_recent:,}",
             )
             m_col2.metric(
@@ -121,7 +125,7 @@ if pipeline_runs:
             st.subheader("Finalize Runs")
             m_col4, m_col5, m_col6 = st.columns(3)
             m_col4.metric(
-                "Files Finalized",
+                f"Files Finalized",
                 f"{total_finalized_recent:,}",
             )
             m_col5.metric(
@@ -199,7 +203,7 @@ if pipeline_runs:
                 ]
 
             if not filtered_runs:
-                st.warning("No runs match the selected filters.")
+                st.warning(f"No runs match the selected filters.")
             else:
                 # Pagination state
                 if "page_num" not in st.session_state:
@@ -213,12 +217,12 @@ if pipeline_runs:
                 # Display logic for each run
                 for run in paginated_runs:
                     if run.status == "success":
-                        st.markdown("**Status:** Success")
+                        st.markdown(f"**Status:** Success")
                         st.success(
                             f"Timestamp: {pd.to_datetime(run.created_time, unit='ms').tz_localize('UTC').strftime('%Y-%m-%d %H:%M:%S %Z')}"
                         )
                     else:
-                        st.markdown("**Status:** Failure")
+                        st.markdown(f"**Status:** Failure")
                         st.error(
                             f"Timestamp: {pd.to_datetime(run.created_time, unit='ms').tz_localize('UTC').strftime('%Y-%m-%d %H:%M:%S %Z')}"
                         )

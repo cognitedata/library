@@ -134,7 +134,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             ):
                 # NOTE: Expected behavior. Means jobs has been claimed already.
                 self.logger.info(
-                    message="Retrieved job id that has already been claimed. Grabbing another job.",
+                    message=f"Retrieved job id that has already been claimed. Grabbing another job.",
                     section="END",
                 )
                 return
@@ -155,7 +155,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             job_results: dict | None = (
                 self.retrieve_service.get_diagram_detect_job_result(job_id)
             )
-        except Exception:
+        except Exception as e:
             self.logger.info(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) is a bad gateway",
                 section="END",
