@@ -1,0 +1,6 @@
+cognite-extractor-utils>=7
+cognite-sdk == 7.*
+pyyaml >= 6.0.1
+pytest >= 7.0.0
+tenacity >= 8.0.0
+psutil >= 5.9.0
