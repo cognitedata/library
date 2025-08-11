@@ -1,9 +1,7 @@
 name: Validate Packages TOML
 
 on:
-  pull_request:
-    branches: 
-    - main
+  push:
 
 jobs:
   validate:
