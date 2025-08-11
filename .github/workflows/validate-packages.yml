@@ -2,9 +2,10 @@ name: Validate Packages TOML
 
 on:
   pull_request:
-    branches: [ main, master ]
+    branches: 
+    - main
+    
   push:
-    branches: [ main, master ]
 
 jobs:
   validate:

@@ -3,13 +3,11 @@ description = "Cognite Official Deployment Packs"
 toolkit-version = ">=0.6.0" # Recommended version of the Toolkit required to use this library
 canCherryPick = true # Set to false if the user should not be able to pick individual modules in this package
 
-# Package definition
+# Package definitions
 [packages.contextualization]
 title = "Contextualization"
 description = "Get started with Contextualization"
 canCherryPick = true
-
-# modules that belong to this package
 modules = [
     "contextualization/cdf_entity_matching",
     "contextualization/cdf_p_and_id_annotation"
@@ -19,8 +17,6 @@ modules = [
 title = "Root Cause Analysis"
 description = "Get started with Root Cause Analysis using Canvas and Atlas AI"
 canCherryPick = true
-
-# modules that belong to this package
 modules = [
     "root_cause_analysis/rca_with_atlas"
 ]
