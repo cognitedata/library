@@ -26,7 +26,7 @@ external-libraries = true
 ```
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:bf5490ee323445452c04c587691aed91ff5f3e9a1543c16ea12bdf5e7b565f52"
+checksum = "sha256:4be681a4c73d43568649bef2822649e4e293a5be5f7a3036ca7a3712b6f837dc"
 ```
 ## Disclaimer
 

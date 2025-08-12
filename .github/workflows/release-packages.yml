@@ -32,6 +32,20 @@ jobs:
         fi
         echo "packages.zip created successfully"
         
+    - name: List modules directory contents
+      run: |
+        echo "=== MODULES DIRECTORY CONTENTS ==="
+        find modules -type f | head -20
+        echo "Total files in modules: $(find modules -type f | wc -l)"
+        echo "=================================="
+        
+    - name: Verify zip contents
+      run: |
+        echo "=== ZIP FILE CONTENTS ==="
+        unzip -l packages.zip | head -20
+        echo "Total files in zip: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
+        echo "=========================="
+        
     - name: Calculate SHA checksum
       id: checksum
       run: |
@@ -42,14 +56,21 @@ jobs:
         
     - name: Update README with checksum
       run: |
-        # Update the checksum in README.md (both in Current Release section and Usage section)
-        sed -i "s/SHA256 Checksum: \`sha256:\`/SHA256 Checksum: \`sha256:${{ steps.checksum.outputs.sha256 }}\`/" README.md
-        sed -i "s/checksum = \"sha256:\"/checksum = \"sha256:${{ steps.checksum.outputs.sha256 }}\"/" README.md
+        # Update the checksum in README.md - replace the existing checksum value
+        sed -i "s/checksum = \"sha256:[a-f0-9]*\"/checksum = \"sha256:${{ steps.checksum.outputs.sha256 }}\"/" README.md
         
     - name: Display final checksum
       run: |
         echo "=== RELEASE CHECKSUM ==="
         echo "SHA256: ${{ steps.checksum.outputs.sha256 }}"
+        echo "========================"
+        
+    - name: Display final zip details
+      run: |
+        echo "=== FINAL ZIP DETAILS ==="
+        echo "File: packages.zip"
+        echo "Size: $(du -h packages.zip | cut -f1)"
+        echo "Files included: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
         echo "========================"
         
     - name: Commit and push README update
