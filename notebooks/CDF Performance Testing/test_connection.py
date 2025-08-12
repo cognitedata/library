@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 
 # Add utilities to path
-sys.path.append('.')
+sys.path.append(".")
+
 
 def get_project_root():
     """Get the project root directory."""
@@ -18,18 +19,21 @@ def get_project_root():
     current_file = Path(__file__).resolve()
     return current_file.parent
 
+
 def main():
     print("🔧 CDF Connection Test")
     print("=" * 50)
-    
+
     # Check if .env file exists in project root
     project_root = get_project_root()
-    env_file = project_root / '.env'
-    
+    env_file = project_root / ".env"
+
     if not env_file.exists():
         print(f"✗ .env file not found at: {env_file}")
         print(f"Project root: {project_root}")
-        print("\nPlease create a .env file in your project root with the following content:")
+        print(
+            "\nPlease create a .env file in your project root with the following content:"
+        )
         print("-" * 60)
         print("""# CDF Configuration - Replace with your actual credentials
 CDF_PROJECT=your-project-name
@@ -47,14 +51,14 @@ LOG_LEVEL=INFO
         print("-" * 60)
         print("\nReplace the placeholder values with your actual CDF credentials.")
         return False
-    
+
     print(f"✓ .env file found at: {env_file}")
     print()
-    
+
     # Test the connection using the enhanced client_setup
     try:
         from utilities.client_setup import test_connection
-        
+
         # This will display the config and test the connection
         if test_connection():
             print("\n🎉 Success! Your CDF connection is working perfectly.")
@@ -63,7 +67,9 @@ LOG_LEVEL=INFO
             print("✓ Open any notebook in the notebooks/ directory")
             print("✓ Run the performance tests")
             print("\nRecommended first notebook:")
-            print("  📓 notebooks/data_ingestion/timeseries_ingestion_performance.ipynb")
+            print(
+                "  📓 notebooks/data_ingestion/timeseries_ingestion_performance.ipynb"
+            )
             return True
         else:
             print("\n❌ Connection failed. Please check your .env file configuration.")
@@ -73,7 +79,7 @@ LOG_LEVEL=INFO
             print("- Ensure your cluster name is correct")
             print("- Verify the base URL format")
             return False
-            
+
     except Exception as e:
         print(f"❌ Error during connection test: {e}")
         print("\nThis might be due to:")
@@ -82,6 +88,7 @@ LOG_LEVEL=INFO
         print("- Network connectivity issues")
         return False
 
+
 if __name__ == "__main__":
     success = main()
-    sys.exit(0 if success else 1) 
+    sys.exit(0 if success else 1)
