@@ -2,7 +2,10 @@
 """
 Validation script for packages.toml file.
 Checks structure and validates that all module paths exist.
+<<<<<<< HEAD
 Works from the current directory where packages.toml is located.
+=======
+>>>>>>> 6398faa9d6c5e6866081a45fca60da6a16920b23
 """
 
 import sys
