@@ -4,7 +4,9 @@ on:
   push:
     branches: 
     - main
-
+  pull_request:
+    branches:
+    - package
 jobs:
   release:
     runs-on: ubuntu-latest
