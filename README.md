@@ -17,17 +17,6 @@ configuration that can be downloaded and adapted, then deployed with the
 Add this to cdf.toml:
 
 (if on version 0.5)
-```
-[alpha_flags] 
-external-libraries = true
-```
-
-```
-[library.cognite]
-url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:edec1898e88002ef6f1208660c598702f32194a83608b2e3d47bbad9140e5f62"
-```
-
 ## Disclaimer
 
 The open-source Github repository ("Repository") is provided "as is", without
@@ -37,3 +26,4 @@ non-infringement. Usage of the Repository is voluntary and in no event shall
 Cognite be liable for any claim, damages, or other liability, whether in an
 action of contract, tort, or otherwise, arising from, out of, or in connection
 with the use of the Repository.
+# Test comment
