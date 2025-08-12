@@ -12,8 +12,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -45,7 +43,18 @@ jobs:
         unzip -l packages.zip | head -20
         echo "Total files in zip: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
         echo "=========================="
-    
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: latest
+        release_name: Latest Release
+        draft: false
+        prerelease: false
+                
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
