@@ -9,8 +9,8 @@ title = "Contextualization"
 description = "Get started with Contextualization"
 canCherryPick = true
 modules = [
-    "contextualization/cdf_entity_matching",
-    "contextualization/cdf_p_and_id_annotation"
+    "modules/contextualization/cdf_entity_matching",
+    "modules/contextualization/cdf_p_and_id_annotation"
 ]
 
 [packages.root_cause_analysis]
@@ -18,6 +18,6 @@ title = "Root Cause Analysis"
 description = "Get started with Root Cause Analysis using Canvas and Atlas AI"
 canCherryPick = true
 modules = [
-    "root_cause_analysis/rca_with_atlas"
+    "modules/root_cause_analysis/rca_with_atlas"
 ]
 

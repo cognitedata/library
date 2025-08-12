@@ -2,6 +2,10 @@
 """
 Validation script for packages.toml file.
 Checks structure and validates that all module paths exist.
+<<<<<<< HEAD
+Works from the current directory where packages.toml is located.
+=======
+>>>>>>> 6398faa9d6c5e6866081a45fca60da6a16920b23
 """
 
 import sys
@@ -80,7 +84,7 @@ def validate_package_structure(package_name: str, package_data: Dict[str, Any]) 
 
 
 def validate_module_paths(
-    package_name: str, modules: List[str], base_path: str = "modules"
+    package_name: str, modules: List[str], base_path: str = "."
 ) -> bool:
     """Validate that all module paths exist in the filesystem."""
     base_path_obj = Path(base_path)
@@ -142,7 +146,7 @@ def main():
                 sys.exit(1)
 
             # Validate module paths
-            if not validate_module_paths(package_name, package_data["modules"]):
+            if not validate_module_paths(package_name, package_data["modules"], "."):
                 sys.exit(1)
 
         print(
