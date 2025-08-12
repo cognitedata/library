@@ -69,7 +69,19 @@ jobs:
         echo "File: packages.zip"
         echo "Size: $(du -h packages.zip | cut -f1)"
         echo "Files included: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
+<<<<<<< HEAD
         echo "=========================="
+=======
+        echo "========================"
+        
+    - name: Commit and push README update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git commit -m "Update README with release checksum ${{ steps.checksum.outputs.sha256 }}" || echo "No changes to commit"
+        git push
+>>>>>>> ecaf55c310fc4db76e5987d14175ed7ac5f72600
         
     - name: Create Release
       id: create_release
