@@ -44,14 +44,14 @@ jobs:
         echo "Total files in zip: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
         echo "=========================="
         
-    - name: Create Release
-      id: create_release
+    - name: Create Temporary Release
+      id: create_temp_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: latest
-        release_name: Latest Release
+        tag_name: temp-release-${{ github.run_number }}
+        release_name: Temporary Release ${{ github.run_number }}
         draft: false
         prerelease: false
                 
@@ -60,7 +60,39 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ steps.create_temp_release.outputs.upload_url }}
         asset_path: ./packages.zip
         asset_name: packages.zip
         asset_content_type: application/zip
+        
+    - name: Verify Release Success
+      run: |
+        echo "✅ Temporary release created successfully!"
+        echo "Tag: temp-release-${{ github.run_number }}"
+        echo "Release ID: ${{ steps.create_temp_release.outputs.id }}"
+        echo "Asset uploaded: packages.zip"
+        
+    - name: Delete Old Latest Tag
+      run: |
+        # Now that we know the release is successful, delete the old "latest" tag
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -d latest || echo "No local latest tag to delete"
+        git push origin --delete latest || echo "No remote latest tag to delete"
+        echo "🗑️ Old 'latest' tag deleted"
+        
+    - name: Rename Temporary Release to Latest
+      run: |
+        # Rename the temporary tag to "latest"
+        git fetch origin
+        git tag latest temp-release-${{ github.run_number }}
+        git push origin latest
+        echo "🏷️ Tag renamed from temp-release-${{ github.run_number }} to latest"
+        
+    - name: Update Release Name
+      run: |
+        # Update the release name to "Latest Release"
+        gh api repos/${{ github.repository }}/releases/${{ steps.create_temp_release.outputs.id }} \
+          -f name="Latest Release" \
+          -f tag_name="latest"
+        echo "📝 Release name updated to 'Latest Release'"
