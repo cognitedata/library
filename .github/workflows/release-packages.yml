@@ -54,16 +54,14 @@ jobs:
         echo "sha256=$SHA" >> $GITHUB_OUTPUT
         echo "SHA checksum: $SHA"
         
-    - name: Update README with checksum
-      run: |
-        # Update the checksum in README.md - replace the existing checksum value
-        sed -i "s/checksum = \"sha256:[a-f0-9]*\"/checksum = \"sha256:${{ steps.checksum.outputs.sha256 }}\"/" README.md
-        
-    - name: Display final checksum
+    - name: Display checksum in release notes
       run: |
         echo "=== RELEASE CHECKSUM ==="
         echo "SHA256: ${{ steps.checksum.outputs.sha256 }}"
         echo "========================"
+        echo ""
+        echo "📝 Users can find this checksum in the release notes above."
+        echo "   The README now uses badges that automatically link to the latest release."
         
     - name: Display final zip details
       run: |
@@ -71,6 +69,9 @@ jobs:
         echo "File: packages.zip"
         echo "Size: $(du -h packages.zip | cut -f1)"
         echo "Files included: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
+<<<<<<< HEAD
+        echo "=========================="
+=======
         echo "========================"
         
     - name: Commit and push README update
@@ -80,6 +81,7 @@ jobs:
         git add README.md
         git commit -m "Update README with release checksum ${{ steps.checksum.outputs.sha256 }}" || echo "No changes to commit"
         git push
+>>>>>>> ecaf55c310fc4db76e5987d14175ed7ac5f72600
         
     - name: Create Release
       id: create_release
@@ -91,6 +93,14 @@ jobs:
         release_name: Latest Release
         draft: false
         prerelease: false
+        
+    - name: Comment on release with checksum info
+      run: |
+        echo "📝 Release created successfully!"
+        echo "SHA256 Checksum: sha256:${{ steps.checksum.outputs.sha256 }}"
+        echo ""
+        echo "✅ The README now uses badges that automatically link to this release."
+        echo "   Users can find the checksum in the release notes above."
         
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1

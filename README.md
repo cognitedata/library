@@ -12,8 +12,13 @@ configuration that can be downloaded and adapted, then deployed with the
 
 ![Cognite Toolkit Template Modules](templates.png)
 
+## Current Release
+
+[![Release Status](https://github.com/cognitedata/library/workflows/Release%20Packages/badge.svg)](https://github.com/cognitedata/library/actions/workflows/release-packages.yml)
 
 ## Usage
+
+**Note:** The checksum below is a placeholder. For the current checksum, check the [latest release](https://github.com/cognitedata/library/releases/latest) or click the release badge above.
 
 Add this to cdf.toml:
 
@@ -26,7 +31,7 @@ external-libraries = true
 ```
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:"
+checksum = "sha256:..."
 ```
 ## Disclaimer
 
