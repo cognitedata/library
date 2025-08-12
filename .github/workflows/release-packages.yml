@@ -2,7 +2,8 @@ name: Release Packages
 
 on:
   push:
-    branches: [ main, master ]
+    branches: 
+    - main
 
 jobs:
   release:
@@ -11,7 +12,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -20,6 +23,42 @@ jobs:
     - name: Build modules zip
       run: |
         python release_packages.py
+        
+    - name: Verify packages.zip exists
+      run: |
+        if [ ! -f "packages.zip" ]; then
+          echo "Error: packages.zip was not created"
+          exit 1
+        fi
+        echo "packages.zip created successfully"
+        
+    - name: Calculate SHA checksum
+      id: checksum
+      run: |
+        # Use openssl for more reliable SHA256 calculation
+        SHA=$(openssl dgst -sha256 packages.zip | cut -d' ' -f2)
+        echo "sha256=$SHA" >> $GITHUB_OUTPUT
+        echo "SHA checksum: $SHA"
+        
+    - name: Update README with checksum
+      run: |
+        # Update the checksum in README.md (both in Current Release section and Usage section)
+        sed -i "s/SHA256 Checksum: \`sha256:\`/SHA256 Checksum: \`sha256:${{ steps.checksum.outputs.sha256 }}\`/" README.md
+        sed -i "s/checksum = \"sha256:\"/checksum = \"sha256:${{ steps.checksum.outputs.sha256 }}\"/" README.md
+        
+    - name: Display final checksum
+      run: |
+        echo "=== RELEASE CHECKSUM ==="
+        echo "SHA256: ${{ steps.checksum.outputs.sha256 }}"
+        echo "========================"
+        
+    - name: Commit and push README update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        git commit -m "Update README with release checksum ${{ steps.checksum.outputs.sha256 }}" || echo "No changes to commit"
+        git push
         
     - name: Create Release
       id: create_release

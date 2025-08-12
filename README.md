@@ -12,11 +12,22 @@ configuration that can be downloaded and adapted, then deployed with the
 
 ![Cognite Toolkit Template Modules](templates.png)
 
+
 ## Usage
 
 Add this to cdf.toml:
 
 (if on version 0.5)
+```
+[alpha_flags] 
+external-libraries = true
+```
+
+```
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:bf5490ee323445452c04c587691aed91ff5f3e9a1543c16ea12bdf5e7b565f52"
+```
 ## Disclaimer
 
 The open-source Github repository ("Repository") is provided "as is", without
