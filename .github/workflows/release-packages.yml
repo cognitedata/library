@@ -63,9 +63,8 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: latest
-        name: Latest Release
+        name: Latest
         body: |
-          Latest release: ${{ steps.version.outputs.version }}
           
           **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/latest/packages.zip)
           
