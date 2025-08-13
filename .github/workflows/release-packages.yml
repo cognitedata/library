@@ -23,6 +23,12 @@ jobs:
       with:
         python-version: '3.11'
         
+    - name: Validate packages
+      run: |
+        echo "🔍 Validating packages before release..."
+        python validate_packages.py
+        echo "✅ Package validation passed!"
+        
     - name: Build modules zip
       run: |
         python release_packages.py
@@ -55,11 +61,26 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: temp-release-${{ github.run_number }}
-        release_name: Temporary Release ${{ github.run_number }}
+        tag_name: ${{ github.run_number }}
+        release_name: Release ${{ github.run_number }}
         draft: false
         prerelease: false
-                
+        
+    - name: Create Formatted Tag
+      run: |
+        # Create a formatted tag with YYYY-MM-DD:run-number
+        CURRENT_DATE=$(date +%Y-%m-%d)
+        FORMATTED_TAG="${CURRENT_DATE}:${{ github.run_number }}"
+        echo "formatted_tag=$FORMATTED_TAG" >> $GITHUB_OUTPUT
+        echo "📅 Formatted tag: $FORMATTED_TAG"
+        
+        # Create the formatted tag in git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag $FORMATTED_TAG ${{ github.run_number }}
+        git push origin $FORMATTED_TAG
+        echo "🏷️ Created formatted tag: $FORMATTED_TAG"
+        
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
@@ -72,34 +93,29 @@ jobs:
         
     - name: Verify Release Success
       run: |
-        echo "✅ Temporary release created successfully!"
-        echo "Tag: temp-release-${{ github.run_number }}"
+        echo "✅ Release created successfully!"
+        echo "Tag: ${{ github.run_number }}"
+        echo "Formatted Tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
         echo "Release ID: ${{ steps.create_temp_release.outputs.id }}"
         echo "Asset uploaded: packages.zip"
+        echo ""
+        echo "📝 This release is kept as a separate release with formatted naming."
+        echo "   Users can download from this specific release or check the releases page."
         
-    - name: Delete Old Latest Tag
+    - name: Create Latest Tag
       run: |
-        # Now that we know the release is successful, delete the old "latest" tag
+        # Create/update the "latest" tag to point to this release
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git tag -d latest || echo "No local latest tag to delete"
-        git push origin --delete latest || echo "No remote latest tag to delete"
-        echo "🗑️ Old 'latest' tag deleted"
-        
-    - name: Rename Temporary Release to Latest
-      run: |
-        # Rename the temporary tag to "latest"
-        git fetch origin
-        git tag latest temp-release-${{ github.run_number }}
+        git tag -f latest ${{ steps.create_formatted_tag.outputs.formatted_tag }}
         git push origin latest --force
-        echo "🏷️ Tag renamed from temp-release-${{ github.run_number }} to latest"
+        echo "🏷️ 'latest' tag updated to point to release ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
         
     - name: Update Release Name
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        # Update the release name to "Latest Release"
+        # Update the release name to include "Latest" indicator
         gh api repos/${{ github.repository }}/releases/${{ steps.create_temp_release.outputs.id }} \
-          -f name="Latest Release" \
-          -f tag_name="latest"
-        echo "📝 Release name updated to 'Latest Release'"
+          -f name="Release ${{ steps.create_formatted_tag.outputs.formatted_tag }} (Latest)"
+        echo "📝 Release name updated to include 'Latest' indicator"
