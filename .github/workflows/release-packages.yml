@@ -29,11 +29,19 @@ jobs:
       run: |
         python release_packages.py
         
+    - name: Calculate SHA256 checksum
+      id: checksum
+      run: |
+        SHA256=$(sha256sum packages.zip | cut -d' ' -f1)
+        echo "checksum=sha256:$SHA256" >> $GITHUB_OUTPUT
+        
     - name: Get timestamp and short hash
       id: version
       run: |
         # Get current date in YYYYMMDD format
         TIMESTAMP=$(date +%Y%m%d)
+        # Get current date and time for latest release
+        CURRENT_DATETIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
         # Get short hash (7 characters)
         SHORT_HASH=$(git rev-parse --short HEAD)
         # Create version string
@@ -41,6 +49,7 @@ jobs:
         echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
         echo "short_hash=$SHORT_HASH" >> $GITHUB_OUTPUT
         echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "current_datetime=$CURRENT_DATETIME" >> $GITHUB_OUTPUT
         echo "version=$VERSION" >> $GITHUB_ENV
         
     - name: Create timestamped release
@@ -49,12 +58,15 @@ jobs:
         tag_name: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
         body: |
-          Automated release for commit ${{ steps.version.outputs.short_hash }}
+          **Released:** ${{ steps.version.outputs.current_datetime }}
           
-          **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/packages.zip)
-          
-          **Release Date:** ${{ steps.version.outputs.timestamp }}
-          **Commit:** ${{ steps.version.outputs.short_hash }}
+          **Usage:** 
+          ```
+          cdf.toml:
+          [library.deployment_packs]
+          url = https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/packages.zip
+          checksum = ${{ steps.checksum.outputs.checksum }}
+          ```
         files: packages.zip
         draft: false
         prerelease: false
@@ -66,11 +78,16 @@ jobs:
         name: Latest
         body: |
           
-          **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/latest/packages.zip)
+          **Released:** ${{ steps.version.outputs.current_datetime }}
           
-          **Current Version:** ${{ steps.version.outputs.version }}
-          **Release Date:** ${{ steps.version.outputs.timestamp }}
-          **Commit:** ${{ steps.version.outputs.short_hash }}
+          **Usage:** 
+          ```
+          cdf.toml:
+          [library.deployment_packs]
+          url = https://github.com/${{ github.repository }}/releases/download/latest/packages.zip
+          checksum = ${{ steps.checksum.outputs.checksum }}
+          ```
+          
         files: packages.zip
         draft: false
         prerelease: false
