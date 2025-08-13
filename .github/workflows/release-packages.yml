@@ -3,18 +3,21 @@ name: Release Packages
 on:
   push:
     branches: 
-    - main
+    - hardening
   pull_request:
+    types: [closed]
     branches:
-    - package
+    - main
+
 jobs:
   release:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-        
+      
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -88,7 +91,7 @@ jobs:
         # Rename the temporary tag to "latest"
         git fetch origin
         git tag latest temp-release-${{ github.run_number }}
-        git push origin latest
+        git push origin latest --force
         echo "🏷️ Tag renamed from temp-release-${{ github.run_number }} to latest"
         
     - name: Update Release Name
