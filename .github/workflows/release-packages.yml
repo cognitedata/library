@@ -18,194 +18,61 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
+        fetch-depth: 0  # Needed to get full git history for short hash
       
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
         
-    - name: Validate packages
-      run: |
-        echo "🔍 Validating packages before release..."
-        python validate_packages.py
-        echo "✅ Package validation passed!"
-        
-    - name: Build modules zip
+    - name: Create packages.zip
       run: |
         python release_packages.py
         
-    - name: Verify packages.zip exists
+    - name: Get timestamp and short hash
+      id: version
       run: |
-        if [ ! -f "packages.zip" ]; then
-          echo "Error: packages.zip was not created"
-          exit 1
-        fi
-        echo "packages.zip created successfully"
+        # Get current date in YYYYMMDD format
+        TIMESTAMP=$(date +%Y%m%d)
+        # Get short hash (7 characters)
+        SHORT_HASH=$(git rev-parse --short HEAD)
+        # Create version string
+        VERSION="${TIMESTAMP}-${SHORT_HASH}"
+        echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+        echo "short_hash=$SHORT_HASH" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_ENV
         
-    - name: List modules directory contents
-      run: |
-        echo "=== MODULES DIRECTORY CONTENTS ==="
-        find modules -type f | head -20
-        echo "Total files in modules: $(find modules -type f | wc -l)"
-        echo "=================================="
-        
-    - name: Verify zip contents
-      run: |
-        echo "=== ZIP FILE CONTENTS ==="
-        unzip -l packages.zip | head -20
-        echo "Total files in zip: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
-        echo "=========================="
-        
-    - name: Create Formatted Tag
-      id: create_formatted_tag
-      run: |
-        # Create a formatted tag with YYYY-MM-DD-short-hash
-        CURRENT_DATE=$(date +%Y-%m-%d)
-        SHORT_HASH=$(echo ${{ github.sha }} | cut -c1-7)
-        FORMATTED_TAG="${CURRENT_DATE}-${SHORT_HASH}"
-        echo "formatted_tag=$FORMATTED_TAG" >> $GITHUB_OUTPUT
-        echo "📅 Formatted tag: $FORMATTED_TAG"
-        
-        # Create the formatted tag pointing to the current commit
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git tag $FORMATTED_TAG ${{ github.sha }}
-        git push origin $FORMATTED_TAG
-        echo "🏷️ Created formatted tag: $FORMATTED_TAG"
-        
-    - name: Create Timestamped Release
-      id: create_timestamped_release
-      uses: actions/create-release@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create timestamped release
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.create_formatted_tag.outputs.formatted_tag }}
-        release_name: Release ${{ steps.create_formatted_tag.outputs.formatted_tag }}
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
+        body: |
+          Automated release for commit ${{ steps.version.outputs.short_hash }}
+          
+          **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/packages.zip)
+          
+          **Release Date:** ${{ steps.version.outputs.timestamp }}
+          **Commit:** ${{ steps.version.outputs.short_hash }}
+        files: packages.zip
         draft: false
         prerelease: false
         
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_timestamped_release.outputs.upload_url }}
-        asset_path: ./packages.zip
-        asset_name: packages.zip
-        asset_content_type: application/zip
-        
-    - name: Debug Release Creation
-      run: |
-        echo "🔍 Debugging release creation..."
-        echo "Timestamped release outputs:"
-        echo "  ID: ${{ steps.create_timestamped_release.outputs.id }}"
-        echo "  Upload URL: ${{ steps.create_timestamped_release.outputs.upload_url }}"
-        echo "  HTML URL: ${{ steps.create_timestamped_release.outputs.html_url }}"
-        echo "  Tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
-        
-        # Check if the release was actually created
-        if [ ! -z "${{ steps.create_timestamped_release.outputs.id }}" ]; then
-          echo "✅ Timestamped release created successfully with ID: ${{ steps.create_timestamped_release.outputs.id }}"
-        else
-          echo "❌ Timestamped release creation failed - no ID returned"
-        fi
-        
-    - name: Delete Existing Latest Release
-      if: success()
-      run: |
-        echo "🗑️ Checking for existing 'latest' release..."
-        
-        # Get the latest release ID (if it exists)
-        LATEST_RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/latest --jq '.id // empty' 2>/dev/null || echo "")
-        
-        if [ ! -z "$LATEST_RELEASE_ID" ]; then
-          echo "🗑️ Deleting existing 'latest' release (ID: $LATEST_RELEASE_ID)..."
-          gh api repos/${{ github.repository }}/releases/$LATEST_RELEASE_ID -X DELETE
-          echo "✅ Deleted existing 'latest' release"
-        else
-          echo "ℹ️ No existing 'latest' release found"
-        fi
-        
-        # Delete existing 'latest' tag if it exists
-        echo "🗑️ Checking for existing 'latest' tag..."
-        if git ls-remote --tags origin latest | grep -q latest; then
-          echo "🗑️ Deleting existing 'latest' tag..."
-          git push origin --delete latest
-          echo "✅ Deleted existing 'latest' tag"
-        else
-          echo "ℹ️ No existing 'latest' tag found"
-        fi
-        
-        # Also delete local tag if it exists
-        if git tag -l latest | grep -q latest; then
-          echo "🗑️ Deleting local 'latest' tag..."
-          git tag -d latest
-          echo "✅ Deleted local 'latest' tag"
-        fi
-        
-    - name: Create Latest Tag
-      if: success()
-      run: |
-        echo "🏷️ Creating 'latest' tag..."
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        # Ensure we're starting fresh
-        git tag -d latest 2>/dev/null || true
-        
-        # Create the new latest tag
-        git tag latest ${{ github.sha }}
-        git push origin latest
-        echo "✅ Created 'latest' tag"
-        
-    - name: Create Latest Release
-      if: success()
-      id: create_latest_release
-      uses: actions/create-release@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Update latest release
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: latest
-        release_name: Latest Release
+        name: Latest Release
+        body: |
+          Latest release: ${{ steps.version.outputs.version }}
+          
+          **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/latest/packages.zip)
+          
+          **Current Version:** ${{ steps.version.outputs.version }}
+          **Release Date:** ${{ steps.version.outputs.timestamp }}
+          **Commit:** ${{ steps.version.outputs.short_hash }}
+        files: packages.zip
         draft: false
         prerelease: false
-        
-    - name: Debug Latest Release Creation
-      if: success()
-      run: |
-        echo "🔍 Debugging latest release creation..."
-        echo "Latest release outputs:"
-        echo "  ID: ${{ steps.create_latest_release.outputs.id }}"
-        echo "  Upload URL: ${{ steps.create_latest_release.outputs.upload_url }}"
-        echo "  HTML URL: ${{ steps.create_latest_release.outputs.html_url }}"
-        echo "  Tag: latest"
-        
-        # Check if the release was actually created
-        if [ ! -z "${{ steps.create_latest_release.outputs.id }}" ]; then
-          echo "✅ Latest release created successfully with ID: ${{ steps.create_latest_release.outputs.id }}"
-        else
-          echo "❌ Latest release creation failed - no ID returned"
-        fi
-        
-    - name: Upload Asset to Latest Release
-      if: success()
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
-        asset_path: ./packages.zip
-        asset_name: packages.zip
-        asset_content_type: application/zip
-        
-    - name: Verify Release Success
-      run: |
-        echo "✅ Release process completed successfully!"
-        echo "📅 Timestamped Release: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
-        echo "🏷️ Timestamped Tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
-        echo "🏷️ Latest Tag: latest"
-        echo "📦 Asset uploaded to both releases: packages.zip"
-        echo ""
-        echo "📝 Created timestamped release: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
-        echo "📝 Created latest release: latest"
+        update_existing: true
