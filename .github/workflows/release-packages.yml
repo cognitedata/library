@@ -112,9 +112,20 @@ jobs:
         fi
         
         # Delete existing 'latest' tag if it exists
+        echo "🗑️ Checking for existing 'latest' tag..."
         if git ls-remote --tags origin latest | grep -q latest; then
           echo "🗑️ Deleting existing 'latest' tag..."
-          git push origin --delete latest 2>/dev/null || echo "Tag deletion completed"
+          git push origin --delete latest
+          echo "✅ Deleted existing 'latest' tag"
+        else
+          echo "ℹ️ No existing 'latest' tag found"
+        fi
+        
+        # Also delete local tag if it exists
+        if git tag -l latest | grep -q latest; then
+          echo "🗑️ Deleting local 'latest' tag..."
+          git tag -d latest
+          echo "✅ Deleted local 'latest' tag"
         fi
         
     - name: Create Latest Tag
@@ -123,6 +134,11 @@ jobs:
         echo "🏷️ Creating 'latest' tag..."
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        
+        # Ensure we're starting fresh
+        git tag -d latest 2>/dev/null || true
+        
+        # Create the new latest tag
         git tag latest ${{ github.sha }}
         git push origin latest
         echo "✅ Created 'latest' tag"
