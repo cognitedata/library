@@ -17,6 +17,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
       
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -55,18 +57,8 @@ jobs:
         echo "Total files in zip: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
         echo "=========================="
         
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.run_number }}
-        release_name: Release ${{ github.run_number }}
-        draft: false
-        prerelease: false
-        
     - name: Create Formatted Tag
+      id: create_formatted_tag
       run: |
         # Create a formatted tag with YYYY-MM-DD-short-hash
         CURRENT_DATE=$(date +%Y-%m-%d)
@@ -82,41 +74,89 @@ jobs:
         git push origin $FORMATTED_TAG
         echo "🏷️ Created formatted tag: $FORMATTED_TAG"
         
-    - name: Update Latest Tag
-      run: |
-        # Always update the "latest" tag to point to the current commit
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git tag -f latest ${{ github.sha }}
-        git push origin latest --force
-        echo "🏷️ 'latest' tag updated to point to current commit"
+    - name: Create Timestamped Release
+      id: create_timestamped_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.create_formatted_tag.outputs.formatted_tag }}
+        release_name: Release ${{ steps.create_formatted_tag.outputs.formatted_tag }}
+        draft: false
+        prerelease: false
         
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ steps.create_timestamped_release.outputs.upload_url }}
+        asset_path: ./packages.zip
+        asset_name: packages.zip
+        asset_content_type: application/zip
+        
+    - name: Delete Existing Latest Release
+      if: success()
+      run: |
+        echo "🗑️ Checking for existing 'latest' release..."
+        
+        # Get the latest release ID (if it exists)
+        LATEST_RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/latest --jq '.id // empty' 2>/dev/null || echo "")
+        
+        if [ ! -z "$LATEST_RELEASE_ID" ]; then
+          echo "🗑️ Deleting existing 'latest' release (ID: $LATEST_RELEASE_ID)..."
+          gh api repos/${{ github.repository }}/releases/$LATEST_RELEASE_ID -X DELETE
+          echo "✅ Deleted existing 'latest' release"
+        else
+          echo "ℹ️ No existing 'latest' release found"
+        fi
+        
+        # Delete existing 'latest' tag if it exists
+        if git ls-remote --tags origin latest | grep -q latest; then
+          echo "🗑️ Deleting existing 'latest' tag..."
+          git push origin --delete latest 2>/dev/null || echo "Tag deletion completed"
+        fi
+        
+    - name: Create Latest Tag
+      if: success()
+      run: |
+        echo "🏷️ Creating 'latest' tag..."
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag latest ${{ github.sha }}
+        git push origin latest
+        echo "✅ Created 'latest' tag"
+        
+    - name: Create Latest Release
+      if: success()
+      id: create_latest_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: latest
+        release_name: Latest Release
+        draft: false
+        prerelease: false
+        
+    - name: Upload Asset to Latest Release
+      if: success()
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_latest_release.outputs.upload_url }}
         asset_path: ./packages.zip
         asset_name: packages.zip
         asset_content_type: application/zip
         
     - name: Verify Release Success
       run: |
-        echo "✅ Release created successfully!"
-        echo "Tag: ${{ github.run_number }}"
-        echo "Formatted Tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
-        echo "Release ID: ${{ steps.create_release.outputs.id }}"
-        echo "Asset uploaded: packages.zip"
+        echo "✅ Release process completed successfully!"
+        echo "📅 Timestamped Release: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
+        echo "🏷️ Timestamped Tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
+        echo "🏷️ Latest Tag: latest"
+        echo "📦 Asset uploaded to both releases: packages.zip"
         echo ""
-        echo "📝 Release created with formatted tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
-        echo "   'latest' tag updated to point to current commit"
-        
-    - name: Update Release Name
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        # Update the release name to include "Latest" indicator
-        gh api repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }} \
-          -f name="Release ${{ steps.create_formatted_tag.outputs.formatted_tag }} (Latest)"
-        echo "📝 Release name updated to include 'Latest' indicator"
+        echo "📝 Created timestamped release: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
+        echo "📝 Created latest release: latest"
