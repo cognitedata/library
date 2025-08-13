@@ -68,9 +68,9 @@ jobs:
         
     - name: Create Formatted Tag
       run: |
-        # Create a formatted tag with YYYY-MM-DD:run-number
+        # Create a formatted tag with YYYY-MM-DD.run-number
         CURRENT_DATE=$(date +%Y-%m-%d)
-        FORMATTED_TAG="${CURRENT_DATE}:${{ github.run_number }}"
+        FORMATTED_TAG="${CURRENT_DATE}.${{ github.run_number }}"
         echo "formatted_tag=$FORMATTED_TAG" >> $GITHUB_OUTPUT
         echo "📅 Formatted tag: $FORMATTED_TAG"
         
