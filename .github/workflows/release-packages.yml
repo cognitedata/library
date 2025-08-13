@@ -76,7 +76,7 @@ jobs:
         
     - name: Create Timestamped Release
       id: create_timestamped_release
-      uses: actions/create-release@v1
+      uses: actions/create-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -94,6 +94,22 @@ jobs:
         asset_path: ./packages.zip
         asset_name: packages.zip
         asset_content_type: application/zip
+        
+    - name: Debug Release Creation
+      run: |
+        echo "🔍 Debugging release creation..."
+        echo "Timestamped release outputs:"
+        echo "  ID: ${{ steps.create_timestamped_release.outputs.id }}"
+        echo "  Upload URL: ${{ steps.create_timestamped_release.outputs.upload_url }}"
+        echo "  HTML URL: ${{ steps.create_timestamped_release.outputs.html_url }}"
+        echo "  Tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
+        
+        # Check if the release was actually created
+        if [ ! -z "${{ steps.create_timestamped_release.outputs.id }}" ]; then
+          echo "✅ Timestamped release created successfully with ID: ${{ steps.create_timestamped_release.outputs.id }}"
+        else
+          echo "❌ Timestamped release creation failed - no ID returned"
+        fi
         
     - name: Delete Existing Latest Release
       if: success()
@@ -146,7 +162,7 @@ jobs:
     - name: Create Latest Release
       if: success()
       id: create_latest_release
-      uses: actions/create-release@v1
+      uses: actions/create-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -154,6 +170,23 @@ jobs:
         release_name: Latest Release
         draft: false
         prerelease: false
+        
+    - name: Debug Latest Release Creation
+      if: success()
+      run: |
+        echo "🔍 Debugging latest release creation..."
+        echo "Latest release outputs:"
+        echo "  ID: ${{ steps.create_latest_release.outputs.id }}"
+        echo "  Upload URL: ${{ steps.create_latest_release.outputs.upload_url }}"
+        echo "  HTML URL: ${{ steps.create_latest_release.outputs.html_url }}"
+        echo "  Tag: latest"
+        
+        # Check if the release was actually created
+        if [ ! -z "${{ steps.create_latest_release.outputs.id }}" ]; then
+          echo "✅ Latest release created successfully with ID: ${{ steps.create_latest_release.outputs.id }}"
+        else
+          echo "❌ Latest release creation failed - no ID returned"
+        fi
         
     - name: Upload Asset to Latest Release
       if: success()
