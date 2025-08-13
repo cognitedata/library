@@ -55,8 +55,8 @@ jobs:
         echo "Total files in zip: $(unzip -l packages.zip | tail -1 | awk '{print $2}')"
         echo "=========================="
         
-    - name: Create Temporary Release
-      id: create_temp_release
+    - name: Create Release
+      id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,25 +68,35 @@ jobs:
         
     - name: Create Formatted Tag
       run: |
-        # Create a formatted tag with YYYY-MM-DD.run-number
+        # Create a formatted tag with YYYY-MM-DD-short-hash
         CURRENT_DATE=$(date +%Y-%m-%d)
-        FORMATTED_TAG="${CURRENT_DATE}.${{ github.run_number }}"
+        SHORT_HASH=$(echo ${{ github.sha }} | cut -c1-7)
+        FORMATTED_TAG="${CURRENT_DATE}-${SHORT_HASH}"
         echo "formatted_tag=$FORMATTED_TAG" >> $GITHUB_OUTPUT
         echo "📅 Formatted tag: $FORMATTED_TAG"
         
-        # Create the formatted tag in git
+        # Create the formatted tag pointing to the current commit
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git tag $FORMATTED_TAG ${{ github.run_number }}
+        git tag $FORMATTED_TAG ${{ github.sha }}
         git push origin $FORMATTED_TAG
         echo "🏷️ Created formatted tag: $FORMATTED_TAG"
+        
+    - name: Update Latest Tag
+      run: |
+        # Always update the "latest" tag to point to the current commit
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -f latest ${{ github.sha }}
+        git push origin latest --force
+        echo "🏷️ 'latest' tag updated to point to current commit"
         
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_temp_release.outputs.upload_url }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./packages.zip
         asset_name: packages.zip
         asset_content_type: application/zip
@@ -96,26 +106,17 @@ jobs:
         echo "✅ Release created successfully!"
         echo "Tag: ${{ github.run_number }}"
         echo "Formatted Tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
-        echo "Release ID: ${{ steps.create_temp_release.outputs.id }}"
+        echo "Release ID: ${{ steps.create_release.outputs.id }}"
         echo "Asset uploaded: packages.zip"
         echo ""
-        echo "📝 This release is kept as a separate release with formatted naming."
-        echo "   Users can download from this specific release or check the releases page."
-        
-    - name: Create Latest Tag
-      run: |
-        # Create/update the "latest" tag to point to this release
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git tag -f latest ${{ steps.create_formatted_tag.outputs.formatted_tag }}
-        git push origin latest --force
-        echo "🏷️ 'latest' tag updated to point to release ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
+        echo "📝 Release created with formatted tag: ${{ steps.create_formatted_tag.outputs.formatted_tag }}"
+        echo "   'latest' tag updated to point to current commit"
         
     - name: Update Release Name
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         # Update the release name to include "Latest" indicator
-        gh api repos/${{ github.repository }}/releases/${{ steps.create_temp_release.outputs.id }} \
+        gh api repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }} \
           -f name="Release ${{ steps.create_formatted_tag.outputs.formatted_tag }} (Latest)"
         echo "📝 Release name updated to include 'Latest' indicator"
