@@ -1,4 +1,6 @@
 import abc
+import re
+from typing import Iterator
 from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite, Row
@@ -25,15 +27,19 @@ class ICacheService(abc.ABC):
         data_model_service: IDataModelService,
         primary_scope_value: str,
         secondary_scope_value: str | None,
-    ) -> list[dict]:
+    ) -> tuple[list[dict], list[dict]]:
         pass
 
     @abc.abstractmethod
-    def _update_cache(self) -> list[dict]:
+    def update_cache(self, raw_db: str, raw_tbl: str, row_to_write: RowWrite) -> None:
         pass
 
     @abc.abstractmethod
-    def _validate_cache(self) -> bool:
+    def _validate_cache(self, last_update_datetime_str: str) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def _generate_tag_samples_from_entities(self, entities: list[dict]) -> list[dict]:
         pass
 
 
@@ -61,10 +67,11 @@ class GeneralCacheService(ICacheService):
         data_model_service: IDataModelService,
         primary_scope_value: str,
         secondary_scope_value: str | None,
-    ) -> list[dict]:
+    ) -> tuple[list[dict], list[dict]]:
         """
-        Returns file and asset entities for use in diagram detect job
-        Ensures that the cache is up to date and valid
+        Returns file and asset entities for use in diagram detect job.
+        Ensures that the cache is up to date and valid. This method orchestrates
+        the fetching of data and the updating of the cache.
         """
         entities: list[dict] = []
         if secondary_scope_value:
@@ -72,62 +79,64 @@ class GeneralCacheService(ICacheService):
         else:
             key = f"{primary_scope_value}"
 
-        cdf_raw = self.client.raw.rows
-        row: Row | None = cdf_raw.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
+        try:
+            row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
+        except:
+            row = None
 
-        if row and row.columns:
-            last_update_time_str = row.columns["LastUpdateTimeUtcIso"]
-            if self._validate_cache(last_update_time_str) == False:
-                self.logger.debug("Refreshing RAW entities cache")
-                entities = self._update_cache(data_model_service, key, primary_scope_value, secondary_scope_value)
-            else:
-                asset_entity: list[dict] = row.columns["AssetEntities"]
-                file_entity: list[dict] = row.columns["FileEntities"]
-                entities = asset_entity + file_entity
-        else:
-            entities = self._update_cache(data_model_service, key, primary_scope_value, secondary_scope_value)
+        # Attempt to retrieve from the cache
+        if row and row.columns and self._validate_cache(row.columns["LastUpdateTimeUtcIso"]):
+            self.logger.debug(f"Cache valid for key: {key}. Retrieving entities and patterns.")
+            asset_entities: list[dict] = row.columns.get("AssetEntities", [])
+            file_entities: list[dict] = row.columns.get("FileEntities", [])
+            asset_pattern_samples: list[dict] = row.columns.get("AssetPatternSamples", [])  # Get patterns from cache
+            file_pattern_samples: list[dict] = row.columns.get("FilePatternSamples", [])  # Get patterns from cache
 
-        return entities
+            return (asset_entities + file_entities), (asset_pattern_samples + file_pattern_samples)
 
-    def _update_cache(
-        self,
-        data_model_service: IDataModelService,
-        key: str,
-        primary_scope_value: str,
-        secondary_scope_value: str | None,
-    ) -> list[dict]:
-        """
-        Creates (or overwrites) the cache for a given group. It fetches all relevant
-        contextualization entities for the files in the group from the data model
-        and stores them in the cache table.
-        """
-        asset_instances: NodeList
-        file_instances: NodeList
+        self.logger.info(f"Refreshing RAW entities cache and patterns cache for key: {key}")
+
+        # Fetch data
         asset_instances, file_instances = data_model_service.get_instances_entities(
             primary_scope_value, secondary_scope_value
         )
 
-        asset_entities: list[dict] = []
-        file_entities: list[dict] = []
+        # Convert to entities for diagram detect job
         asset_entities, file_entities = self._convert_instances_to_entities(asset_instances, file_instances)
+        entities = asset_entities + file_entities
 
-        current_time_seconds = datetime.now(timezone.utc).isoformat()
+        # Generate pattern samples from the same entities
+        asset_pattern_samples = self._generate_tag_samples_from_entities(asset_entities)
+        file_pattern_samples = self._generate_tag_samples_from_entities(file_entities)
+        pattern_samples = asset_pattern_samples + file_pattern_samples
+
+        # Update cache
         new_row = RowWrite(
             key=key,
             columns={
                 "AssetEntities": asset_entities,
                 "FileEntities": file_entities,
-                "LastUpdateTimeUtcIso": current_time_seconds,
+                "AssetPatternSamples": asset_pattern_samples,
+                "FilePatternSamples": file_pattern_samples,
+                "LastUpdateTimeUtcIso": datetime.now(timezone.utc).isoformat(),
             },
         )
+        self._update_cache(new_row)
+        return entities, pattern_samples
+
+    def _update_cache(self, row_to_write: RowWrite) -> None:
+        """
+        Writes a single, fully-formed RowWrite object to the RAW cache table.
+        This method's only responsibility is the database insertion.
+        """
         self.client.raw.rows.insert(
             db_name=self.db_name,
             table_name=self.tbl_name,
-            row=new_row,
+            row=row_to_write,
+            ensure_parent=True,
         )
-
-        entities = asset_entities + file_entities
-        return entities
+        self.logger.info(f"Successfully updated RAW cache")
+        return
 
     def _validate_cache(self, last_update_datetime_str: str) -> bool:
         """
@@ -190,3 +199,112 @@ class GeneralCacheService(ICacheService):
             file_entities.append(file_entity.to_dict())
 
         return target_entities, file_entities
+
+    def _generate_tag_samples_from_entities(self, entities: list[dict]) -> list[dict]:
+        """
+        Generates pattern samples from entity aliases by converting them into generalized templates.
+        This version analyzes the internal structure of each segment:
+        - Numbers are generalized to '0'.
+        - Letters are grouped into bracketed alternatives, even when mixed with numbers.
+        - Example: '629P' and '629X' will merge to create a pattern piece '000[P|X]'.
+        """
+        # Structure: { resource_type: { full_template_key: list_of_collected_variable_parts } }
+        # where list_of_collected_variable_parts is [ [{'L1_alt1', 'L1_alt2'}], [{'L2_alt1'}], ... ]
+        pattern_builders: dict[str, dict[str, list[list[set[str]]]]] = {}
+
+        def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
+            """
+            Parses an alias into a structural template key and its variable letter components.
+            A segment '629P' yields a template '000A' and a variable part ['P'].
+            """
+            self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
+
+            alias_parts = re.split(r"([ -])", alias)
+            full_template_key_parts: list[str] = []
+            all_variable_parts: list[list[str]] = []
+
+            for i, part in enumerate(alias_parts):
+                if not part:
+                    continue
+                # Handle delimiters
+                if part in [" ", "-"]:
+                    full_template_key_parts.append(part)
+                    continue
+
+                # Handle fixed constants (override everything else)
+                left_ok = (i == 0) or (alias_parts[i - 1] in [" ", "-"])
+                right_ok = (i == len(alias_parts) - 1) or (alias_parts[i + 1] in [" ", "-"])
+                if left_ok and right_ok and part == resource_type_key:
+                    full_template_key_parts.append(f"[{part}]")
+                    continue
+
+                # --- Dissect the segment to create its template and find variable letters ---
+                # 1. Create the structural template for the segment (e.g., '629P' -> '000A')
+                segment_template = re.sub(r"\d", "0", part)
+                segment_template = re.sub(r"[A-Za-z]", "A", segment_template)
+                full_template_key_parts.append(segment_template)
+
+                # 2. Extract all groups of letters from the segment
+                variable_letters = re.findall(r"[A-Za-z]+", part)
+                if variable_letters:
+                    all_variable_parts.append(variable_letters)
+            return "".join(full_template_key_parts), all_variable_parts
+
+        for entity in entities:
+            key = entity.get("resourceType") or entity.get("external_id") or "tag"
+            if key not in pattern_builders:
+                pattern_builders[key] = {}
+
+            aliases = entity.get("search_property", [])
+            for alias in aliases:
+                if not alias:
+                    continue
+
+                template_key, variable_parts_from_alias = _parse_alias(alias, key)
+
+                if template_key in pattern_builders[key]:
+                    # Merge with existing variable parts
+                    existing_variable_sets = pattern_builders[key][template_key]
+                    for i, part_group in enumerate(variable_parts_from_alias):
+                        for j, letter_group in enumerate(part_group):
+                            existing_variable_sets[i][j].add(letter_group)
+                else:
+                    # Create a new entry with the correct structure (list of lists of sets)
+                    new_variable_sets = []
+                    for part_group in variable_parts_from_alias:
+                        new_variable_sets.append([set([lg]) for lg in part_group])
+                    pattern_builders[key][template_key] = new_variable_sets
+
+        # --- Build the final result from the processed patterns ---
+        result = []
+        for resource_type, templates in pattern_builders.items():
+            final_samples = []
+            for template_key, collected_vars in templates.items():
+                # Create an iterator for the collected letter groups
+                var_iter: Iterator[list[set[str]]] = iter(collected_vars)
+
+                def build_segment(segment_template: str) -> str:
+                    # This function rebuilds one segment, substituting 'A's with bracketed alternatives
+                    if "A" not in segment_template:
+                        return segment_template
+                    try:
+                        letter_groups_for_segment = next(var_iter)
+                        letter_group_iter: Iterator[set[str]] = iter(letter_groups_for_segment)
+
+                        def replace_A(match):
+                            alternatives = sorted(list(next(letter_group_iter)))
+                            return f"[{'|'.join(alternatives)}]"
+
+                        return re.sub(r"A+", replace_A, segment_template)
+                    except StopIteration:
+                        return segment_template  # Should not happen in normal flow
+
+                # Split the full template by delimiters, process each part, then rejoin
+                final_pattern_parts = [
+                    build_segment(p) if p not in " -" else p for p in re.split(r"([ -])", template_key)
+                ]
+                final_samples.append("".join(final_pattern_parts))
+
+            if final_samples:
+                result.append({"sample": sorted(final_samples), "resourceType": resource_type})
+        return result

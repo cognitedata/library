@@ -52,9 +52,6 @@ class AbstractLaunchService(abc.ABC):
 
     @abc.abstractmethod
     def prepare(self) -> str | None:
-        """
-        Peronally think it's cleaner having this operate as a separate cognite function -> but due to mpc function constraints it wouldn't make sense for our project to go down this route (Jack)
-        """
         pass
 
     @abc.abstractmethod
@@ -94,7 +91,7 @@ class GeneralLaunchService(AbstractLaunchService):
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
 
         self.in_memory_cache: list[dict] = []
-        self.in_memory_pattern_cache: list[dict] = []
+        self.in_memory_pattern: list[dict] = []
         self._cached_primary_scope: str | None = None
         self._cached_secondary_scope: str | None = None
 
@@ -338,7 +335,7 @@ class GeneralLaunchService(AbstractLaunchService):
         ):
             self.logger.info(f"Refreshing in memory cache")
             try:
-                self.in_memory_cache = self.cache_service.get_entities(
+                self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
                     self.data_model_service, primary_scope_value, secondary_scope_value
                 )
                 self._cached_primary_scope = primary_scope_value
@@ -381,10 +378,10 @@ class GeneralLaunchService(AbstractLaunchService):
             # Run diagram detect on pattern mode
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern_cache)} entities"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern)} entities"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
-                    files=batch.file_references, pattern_samples=self.in_memory_pattern_cache
+                    files=batch.file_references, pattern_samples=self.in_memory_pattern
                 )
                 update_properties["patternModeStatus"] = AnnotationStatus.PROCESSING
                 update_properties["patternModeJobId"] = pattern_job_id
@@ -434,10 +431,10 @@ class LocalLaunchService(GeneralLaunchService):
             # Run diagram detect on pattern mode
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern_cache)} entities"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern)} entities"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
-                    files=batch.file_references, pattern_samples=self.in_memory_pattern_cache
+                    files=batch.file_references, pattern_samples=self.in_memory_pattern
                 )
                 update_properties["patternModeStatus"] = AnnotationStatus.PROCESSING
                 update_properties["patternModeJobId"] = pattern_job_id

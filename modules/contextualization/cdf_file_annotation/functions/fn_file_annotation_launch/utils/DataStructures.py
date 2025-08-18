@@ -125,12 +125,9 @@ class entity:
         "external_id": file.external_id,
         "name": file.properties[job_config.file_view.as_view_id()]["name"],
         "space": file.space,
-        search_property: file.properties[job_config.file_view.as_view_id()][
-            search_property
-        ],
         "annotation_type_external_id": job_config.file_view.type,
+        "search_property": file.properties[job_config.file_view.as_view_id()][{search_property}],
     }
-    Note: kind of prefer a generic variable name here as opposed to specific ones that changes based off config -> i.e.) for marathon the variable here would be aliases instead of search_property
     """
 
     external_id: str
