@@ -198,6 +198,12 @@ class GeneralFinalizeService(AbstractFinalizeService):
         # Loop through the merged results, processing one file at a time
         for file_id_str, results in merged_results.items():
             file_id: NodeId = NodeId.load(file_id_str)
+            file_node: Node | None = self.client.data_modeling.instances.retrieve_nodes(
+                nodes=file_id, sources=self.file_view.as_view_id()
+            )
+            if not file_node:
+                self.logger.debug(f"No file node found for file id {str(file_id)}")
+                continue
             annotation_state_node: Node = file_to_state_map[file_id]
 
             current_attempt_count: int = cast(
@@ -214,10 +220,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     self.logger.info(f"Applying annotations to file {str(file_id)}")
                     if self.clean_old_annotations:
                         # This should only run once, so we tie it to the regular annotation processing
-                        doc_delete, tag_delete = self.apply_service.delete_annotations_for_file(file_id)
+                        doc_delete, tag_delete = self.apply_service.delete_annotations_for_file(file_node)
                         self.report_service.delete_annotations(doc_delete, tag_delete)
 
-                    doc_add, tag_add = self.apply_service.apply_annotations(regular_item, file_id)
+                    doc_add, tag_add = self.apply_service.apply_annotations(regular_item, file_node)
                     self.report_service.add_annotations(doc_rows=doc_add, tag_rows=tag_add)
                     annotation_msg: str = f"Applied {len(doc_add)} doc and {len(tag_add)} tag annotations."
                     self.logger.info(f"\t- {annotation_msg}")

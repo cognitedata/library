@@ -36,11 +36,11 @@ class IApplyService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def apply_annotations(self, result_item: dict, file_id: NodeId) -> tuple[list, list]:
+    def apply_annotations(self, result_item: dict, file_node: Node) -> tuple[list, list]:
         pass
 
     @abc.abstractmethod
-    def process_pattern_results(self, result_item: dict, file_id: NodeId) -> list[RowWrite]:
+    def process_pattern_results(self, result_item: dict, file_node: Node) -> list[RowWrite]:
         pass
 
     @abc.abstractmethod
@@ -74,17 +74,10 @@ class GeneralApplyService(IApplyService):
         self.suggest_threshold = self.config.finalize_function.apply_service.auto_suggest_threshold
 
     # NOTE: could implement annotation edges to be updated in batches for performance gains but leaning towards no. Since it will over complicate error handling.
-    def apply_annotations(self, result_item: dict, file_id: NodeId) -> tuple[list[RowWrite], list[RowWrite]]:
+    def apply_annotations(self, result_item: dict, file_node: Node) -> tuple[list[RowWrite], list[RowWrite]]:
         """
         Push the annotations to the file and set the "AnnotationInProcess" tag to "Annotated"
         """
-
-        file_node: Node | None = self.client.data_modeling.instances.retrieve_nodes(
-            nodes=file_id, sources=self.file_view_id
-        )
-        if not file_node:
-            raise ValueError("No file node found.")
-
         node_apply: NodeApply = file_node.as_write()
         node_apply.existing_version = None
 
@@ -103,7 +96,7 @@ class GeneralApplyService(IApplyService):
         edge_applies: list[EdgeApply] = []
         for detect_annotation in result_item["annotations"]:
             edge_apply_dict: dict[tuple, EdgeApply] = self._detect_annotation_to_edge_applies(
-                file_id,
+                file_node.as_id(),
                 source_id,
                 doc_doc,
                 doc_tag,
@@ -236,7 +229,7 @@ class GeneralApplyService(IApplyService):
 
     def delete_annotations_for_file(
         self,
-        file_node: NodeId,
+        file_node: Node,
     ) -> tuple[list[str], list[str]]:
         """
         Delete all annotation edges for a file node.
@@ -264,18 +257,14 @@ class GeneralApplyService(IApplyService):
 
         return doc_annotations_delete, tag_annotations_delete
 
-    def process_pattern_results(self, result_item: dict, file_id: NodeId) -> list[RowWrite]:
-
+    def process_pattern_results(self, result_item: dict, file_node: Node) -> list[RowWrite]:
         if not result_item.get("annotations"):
             return []
-
-        file_node: Node | None = self.client.data_modeling.instances.retrieve_nodes(
-            nodes=file_id, sources=self.file_view_id
-        )
         if not file_node:
             return []
 
         doc_patterns: list[RowWrite] = []
+        file_id: NodeId = file_node.as_id()
         source_id: str | None = cast(str, file_node.properties[self.file_view_id].get("sourceId"))
         # TODO: Lots of potential here to create annotation edges from the results pattern mode
         for detect_annotation in result_item["annotations"]:
@@ -312,7 +301,7 @@ class GeneralApplyService(IApplyService):
 
     def _list_annotations_for_file(
         self,
-        node: NodeId,
+        node: Node,
     ):
         """
         List all annotation edges for a file node.
