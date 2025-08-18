@@ -47,6 +47,7 @@ config:
           targetProperty: tags
       limit: 10000
   launchFunction:
+    patternMode: True # NOTE: Set to false when pattern mode is not needed
     batchSize: 50
     fileSearchProperty: aliases
     targetEntitiesSearchProperty: aliases

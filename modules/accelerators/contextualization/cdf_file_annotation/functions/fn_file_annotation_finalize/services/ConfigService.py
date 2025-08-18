@@ -183,6 +183,7 @@ class PrepareFunction(BaseModel, alias_generator=to_camel):
 
 
 class LaunchFunction(BaseModel, alias_generator=to_camel):
+    pattern_mode: bool
     batch_size: int = Field(gt=0, le=50)
     primary_scope_property: str
     secondary_scope_property: Optional[str] = None
