@@ -54,8 +54,8 @@ config:
     secondaryScopeProperty:
     # NOTE: below configurations are used by pattern mode
     patternMode: True
-    fileCategoryProperty:
-    targetEntitiesCategoryProperty:
+    fileCategoryProperty: # optional
+    targetEntitiesCategoryProperty: # optional
     dataModelService:
       getFilesToProcessQuery:
         targetView:
@@ -131,4 +131,5 @@ config:
       rawDb: {{ rawDb }}
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
+      rawTableDocPattern: {{ rawTableDocPattern }}
       rawBatchSize: 10000

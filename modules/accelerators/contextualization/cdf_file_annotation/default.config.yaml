@@ -14,6 +14,7 @@ fileVersion: <insert>
 rawDb: db_file_annotation
 rawTableDocTag: annotation_documents_tags
 rawTableDocDoc: annotation_documents_docs
+rawTableDocPattern: annotation_documents_patterns
 rawTableCache: annotation_entities_cache
 
 # used in /extraction_pipelines
