@@ -27,6 +27,20 @@
         collation: ucs_basic
         list: false
         type: text
+    patternModeJobId:
+      nullable: true
+      type:
+        type: int64
+    patternModeMessage:
+      nullable: true
+      type:
+        type: text
+        collation: ucs_basic
+    patternModeStatus:
+      nullable: true
+      type:
+        type: text
+        collation: ucs_basic
     attemptCount:
       autoIncrement: false
       immutable: false

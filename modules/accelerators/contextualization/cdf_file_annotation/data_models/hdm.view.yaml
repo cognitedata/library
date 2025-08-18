@@ -25,7 +25,7 @@
         space: {{ annotationStateSchemaSpace }}
         type: container
       containerPropertyIdentifier: annotationMessage
-      description: Annotation message
+      description: Contains annotations applied or error message
       name: Annotation message
     annotationStatus:
       container:
@@ -33,7 +33,7 @@
         space: {{ annotationStateSchemaSpace }}
         type: container
       containerPropertyIdentifier: annotationStatus
-      description: Annotation status
+      description: Holds the status of the files diagram detect job
       name: Annotation status
     attemptCount:
       container:
@@ -51,6 +51,27 @@
       containerPropertyIdentifier: diagramDetectJobId
       description: Diagram detect job ID
       name: Diagram detect job ID
+    patternModeJobId:
+      nullable: true
+      type:
+        type: int64
+      containerPropertyIdentifier: patternModeJobId
+      description: Diagram detect job ID with pattern mode
+      name: Pattern mode job ID
+    patternModeMessage:
+      nullable: true
+      type:
+        type: text
+        collation: ucs_basic
+      description: Contains entities found from pattern mode or error message
+      name: Pattern mode message
+    patternModeStatus:
+      nullable: true
+      type:
+        type: text
+        collation: ucs_basic
+      description: Holds the status of the files pattern mode job
+      name: Pattern mode status
     linkedFile:
       container:
         externalId: {{ annotationStateExternalId }}
