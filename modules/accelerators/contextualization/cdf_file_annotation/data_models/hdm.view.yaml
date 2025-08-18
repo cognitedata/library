@@ -65,13 +65,6 @@
         collation: ucs_basic
       description: Contains entities found from pattern mode or error message
       name: Pattern mode message
-    patternModeStatus:
-      nullable: true
-      type:
-        type: text
-        collation: ucs_basic
-      description: Holds the status of the files pattern mode job
-      name: Pattern mode status
     linkedFile:
       container:
         externalId: {{ annotationStateExternalId }}
