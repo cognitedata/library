@@ -217,7 +217,7 @@ class GeneralCacheService(ICacheService):
 
     def _generate_tag_samples_from_entities(self, entities: list[dict]) -> list[dict]:
         """
-        Generates pattern samples from entity aliases by converting them into generalized templates.
+        Generates pattern samples from entity search property by converting them into generalized templates.
         This version analyzes the internal structure of each segment:
         - Numbers are generalized to '0'.
         - Letters are grouped into bracketed alternatives, even when mixed with numbers.
