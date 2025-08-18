@@ -277,6 +277,7 @@ class GeneralApplyService(IApplyService):
 
         doc_patterns: list[RowWrite] = []
         source_id: str | None = cast(str, file_node.properties[self.file_view_id].get("sourceId"))
+        # TODO: Lots of potential here to create annotation edges from the results pattern mode
         for detect_annotation in result_item["annotations"]:
             for entity in detect_annotation["entities"]:
                 if detect_annotation["confidence"] >= self.approve_threshold:
@@ -302,7 +303,6 @@ class GeneralApplyService(IApplyService):
                     "sourceCreatedUser": self.FUNCTION_ID,
                     "sourceUpdatedUser": self.FUNCTION_ID,
                 }
-
                 row: RowWrite = RowWrite(
                     key=f"{baseline_properties["startSourceId"]}_{baseline_properties["text"]}_{baseline_properties["startSourceId"]}_{detect_annotation["region"]["page"]}_{min(v["x"] for v in detect_annotation["region"]["vertices"])}_{min(v["y"] for v in detect_annotation["region"]["vertices"])}",
                     columns=baseline_properties,

@@ -18,11 +18,11 @@ class IReportService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def delete_annotations(
-        self,
-        doc_row_keys: list[str],
-        tag_row_keys: list[str],
-    ) -> None:
+    def add_pattern_tags(self, pattern_rows: list[RowWrite]) -> None:
+        pass
+
+    @abc.abstractmethod
+    def delete_annotations(self, doc_row_keys: list[str], tag_row_keys: list[str]) -> None:
         pass
 
     @abc.abstractmethod
@@ -44,13 +44,18 @@ class GeneralReportService(IReportService):
         self.db: str = config.finalize_function.report_service.raw_db
         self.doc_table: tuple[str, list[RowWrite], list[str]] = (
             config.finalize_function.report_service.raw_table_doc_doc,
-            [],
-            [],
+            [],  # NOTE: rows to upload
+            [],  # NOTE: rows to delete -> holds list of keys
         )
         self.tag_table: tuple[str, list[RowWrite], list[str]] = (
             config.finalize_function.report_service.raw_table_doc_tag,
-            [],
-            [],
+            [],  # NOTE: rows to upload
+            [],  # NOTE: rows to delete -> holds list of keys
+        )
+        self.pattern_table: tuple[str, list[RowWrite], list[str]] = (
+            config.finalize_function.report_service.raw_table_doc_pattern,
+            [],  # NOTE: rows to upload
+            [],  # TODO: figure out best way of implementing this. Hard to generate deterministic key without effecting performance. No edges to retrieve and delete like in clean old annotations function.
         )
         self.batch_size: int = config.finalize_function.report_service.raw_batch_size
         self.delete: bool = self.config.finalize_function.clean_old_annotations
@@ -100,7 +105,7 @@ class GeneralReportService(IReportService):
 
         update_msg = "No annotations to upload"
         if len(self.doc_table[1]) > 0 or len(self.tag_table[1]) > 0:
-            update_msg = f"Uploaded annotations to db: {self.db}\n- added {len(self.doc_table[1])} rows to tbl: {self.doc_table[0]}\n- added {len(self.tag_table[1])} rows to tbl: {self.tag_table[0]}"
+            update_msg = f"Uploaded annotations to db: {self.db}\n- added {len(self.doc_table[1])} rows to tbl: {self.doc_table[0]}\n- added {len(self.tag_table[1])} rows to tbl: {self.tag_table[0]}\n- added {len(self.pattern_table[1])} rows to tbl: {self.pattern_table[0]}"
             self.client.raw.rows.insert(
                 db_name=self.db,
                 table_name=self.doc_table[0],
@@ -113,15 +118,28 @@ class GeneralReportService(IReportService):
                 row=self.tag_table[1],
                 ensure_parent=True,
             )
+            if self.pattern_table[1]:
+                self.client.raw.rows.insert(
+                    db_name=self.db,
+                    table_name=self.pattern_table[0],
+                    row=self.pattern_table[1],
+                    ensure_parent=True,
+                )
         self._clear_tables()
 
         if delete_msg:
             return f" {delete_msg}\n{update_msg}"
         return f" {update_msg}"
 
+    def add_pattern_tags(self, pattern_rows: list[RowWrite]):
+        self.pattern_table[1].extend(pattern_rows)
+        return
+
     def _clear_tables(self) -> None:
         self.doc_table[1].clear()
         self.tag_table[1].clear()
+        self.pattern_table[1].clear()
         if self.delete:
             self.doc_table[2].clear()
             self.tag_table[2].clear()
+            # self.pattern_table[2].clear() # TODO: figure out best approach

@@ -210,6 +210,7 @@ class ReportServiceConfig(BaseModel, alias_generator=to_camel):
     raw_db: str
     raw_table_doc_tag: str
     raw_table_doc_doc: str
+    raw_table_doc_pattern: str
     raw_batch_size: int
 
 
