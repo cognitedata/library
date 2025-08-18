@@ -47,12 +47,15 @@ config:
           targetProperty: tags
       limit: 10000
   launchFunction:
-    patternMode: True # NOTE: Set to false when pattern mode is not needed
     batchSize: 50
     fileSearchProperty: aliases
     targetEntitiesSearchProperty: aliases
     primaryScopeProperty: None
     secondaryScopeProperty:
+    # NOTE: below configurations are used by pattern mode
+    patternMode: True
+    fileCategoryProperty:
+    targetEntitiesCategoryProperty:
     dataModelService:
       getFilesToProcessQuery:
         targetView:

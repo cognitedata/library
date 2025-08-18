@@ -162,17 +162,24 @@ class GeneralCacheService(ICacheService):
         """
         Convert the asset and file nodes into an entity
         """
+        target_entities_category_property: str | None = self.config.launch_function.target_entities_category_property
         target_entities_search_property: str = self.config.launch_function.target_entities_search_property
         target_entities: list[dict] = []
+
         for instance in asset_instances:
             instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
+            if target_entities_category_property:
+                category: str = instance_properties[target_entities_category_property]
+            else:
+                category: str = self.target_entities_view.external_id
             if target_entities_search_property in instance_properties:
                 asset_entity = entity(
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
-                    search_property=instance_properties.get(target_entities_search_property),
                     annotation_type_external_id=self.target_entities_view.annotation_type,
+                    category_property=category,
+                    search_property=instance_properties.get(target_entities_search_property),
                 )
                 target_entities.append(asset_entity.to_dict())
             else:
@@ -181,19 +188,27 @@ class GeneralCacheService(ICacheService):
                     name=instance_properties.get("name"),
                     space=instance.space,
                     search_property=instance_properties.get("name"),
+                    category_property=category,
                     annotation_type_external_id=self.target_entities_view.annotation_type,
                 )
                 target_entities.append(asset_entity.to_dict())
 
+        file_category_property: str | None = self.config.launch_function.file_category_property
         file_search_property: str = self.config.launch_function.file_search_property
         file_entities: list[dict] = []
+
         for instance in file_instances:
             instance_properties = instance.properties.get(self.file_view.as_view_id())
+            if target_entities_category_property:
+                category: str = instance_properties[file_category_property]
+            else:
+                category: str = self.file_view.external_id
             file_entity = entity(
                 external_id=instance.external_id,
                 name=instance_properties.get("name"),
                 space=instance.space,
                 search_property=instance_properties.get(file_search_property),
+                category_property=category,
                 annotation_type_external_id=self.file_view.annotation_type,
             )
             file_entities.append(file_entity.to_dict())
@@ -251,7 +266,8 @@ class GeneralCacheService(ICacheService):
             return "".join(full_template_key_parts), all_variable_parts
 
         for entity in entities:
-            key = entity.get("resourceType") or entity.get("external_id") or "tag"
+            # NOTE:
+            key = entity["category_property"]
             if key not in pattern_builders:
                 pattern_builders[key] = {}
 
