@@ -23,7 +23,7 @@ class IAnnotationService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def run_pattern_mode_detect(self, files: list[FileReference], samples: list[dict[str, Any]]) -> int:
+    def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
         pass
 
 
@@ -55,11 +55,10 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id:
             return detect_job.job_id
         else:
-            raise Exception(f"404 ---- No job Id was created")
+            raise Exception(f"API call to diagram/detect in pattern mode did not return a job ID")
 
-    def run_pattern_mode_detect(self, files: list, samples: list[dict[str, Any]]) -> int:
+    def run_pattern_mode_detect(self, files: list, pattern_samples: list[dict[str, Any]]) -> int:
         """Generates patterns and runs the diagram detection job in pattern mode."""
-        pattern_samples = self._generate_tag_samples_from_entities(samples)
         self.logger.info(f"Generated {len(pattern_samples)} pattern samples for detection.")
 
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
@@ -74,7 +73,7 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id:
             return detect_job.job_id
         else:
-            raise Exception("API call to diagram/detect in pattern mode did not return a job ID.")
+            raise Exception("API call to diagram/detect in pattern mode did not return a job ID")
 
     def _generate_tag_samples_from_entities(self, entities: list[dict]) -> list[dict]:
         """
