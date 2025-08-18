@@ -48,7 +48,7 @@ class IApplyService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def delete_annotations_for_file(self, file_node: NodeId) -> tuple[list[str], list[str]]:
+    def delete_annotations_for_file(self, file_node: Node) -> tuple[list[str], list[str]]:
         pass
 
 
