@@ -132,4 +132,4 @@ config:
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
       rawTableDocPattern: {{ rawTableDocPattern }}
-      rawBatchSize: 10000
+      rawBatchSize: 1000
