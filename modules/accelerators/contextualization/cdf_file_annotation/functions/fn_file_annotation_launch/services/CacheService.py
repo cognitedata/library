@@ -31,7 +31,7 @@ class ICacheService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def update_cache(self, raw_db: str, raw_tbl: str, row_to_write: RowWrite) -> None:
+    def _update_cache(self, row_to_write: RowWrite) -> None:
         pass
 
     @abc.abstractmethod
