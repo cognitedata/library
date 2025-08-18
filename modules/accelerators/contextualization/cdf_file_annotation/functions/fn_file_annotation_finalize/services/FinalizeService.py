@@ -370,7 +370,6 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "annotationMessage": annotation_message,
                 "patternModeMessage": pattern_mode_message,
                 "attemptCount": attempt_count,
-                "diagramDetectJobId": None,  # clear the job id
             }
         else:
             update_properties = {
@@ -379,7 +378,6 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "annotationMessage": annotation_message,
                 "patternModeMessage": pattern_mode_message,
                 "attemptCount": attempt_count,
-                "diagramDetectJobId": None,  # clear the job id
                 "annotatedPageCount": annotated_page_count,
                 "pageCount": page_count,
             }
