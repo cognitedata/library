@@ -293,7 +293,7 @@ class GeneralCacheService(ICacheService):
 
         # --- Build the final result from the processed patterns ---
         result = []
-        for resource_type, templates in pattern_builders.items():
+        for category, templates in pattern_builders.items():
             final_samples = []
             for template_key, collected_vars in templates.items():
                 # Create an iterator for the collected letter groups
@@ -322,5 +322,5 @@ class GeneralCacheService(ICacheService):
                 final_samples.append("".join(final_pattern_parts))
 
             if final_samples:
-                result.append({"sample": sorted(final_samples), "resourceType": resource_type})
+                result.append({"sample": sorted(final_samples), "category_property": category})
         return result

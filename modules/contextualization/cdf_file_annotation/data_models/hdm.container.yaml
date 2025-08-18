@@ -27,16 +27,7 @@
         collation: ucs_basic
         list: false
         type: text
-    patternModeJobId:
-      nullable: true
-      type:
-        type: int64
     patternModeMessage:
-      nullable: true
-      type:
-        type: text
-        collation: ucs_basic
-    patternModeStatus:
       nullable: true
       type:
         type: text
@@ -49,6 +40,13 @@
         list: false
         type: int64
     diagramDetectJobId:
+      autoIncrement: false
+      immutable: false
+      nullable: true
+      type:
+        list: false
+        type: int64
+    patternModeJobId:
       autoIncrement: false
       immutable: false
       nullable: true

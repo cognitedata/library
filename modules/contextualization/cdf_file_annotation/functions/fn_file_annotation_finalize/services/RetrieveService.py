@@ -34,7 +34,7 @@ class IRetrieveService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_job_id(self) -> tuple[int, dict[NodeId, Node]] | tuple[None, None]:
+    def get_job_id(self) -> tuple[int, int | None, dict[NodeId, Node]] | tuple[None, None, None]:
         pass
 
 
@@ -69,7 +69,7 @@ class GeneralRetrieveService(IRetrieveService):
             self.logger.debug(f"{job_id} - Request to get job result failed with {response.status_code} code")
         return
 
-    def get_job_id(self) -> tuple[int, dict[NodeId, Node]] | tuple[None, None]:
+    def get_job_id(self) -> tuple[int, int | None, dict[NodeId, Node]] | tuple[None, None, None]:
         """
         To ensure threads are protected, we do the following...
         1. Query for an available job id
@@ -100,12 +100,15 @@ class GeneralRetrieveService(IRetrieveService):
         )
 
         if len(annotation_state_instance) == 0:
-            return None, None
+            return None, None, None
 
         job_node: Node = annotation_state_instance.pop(-1)
         job_id: int = cast(
             int,
             job_node.properties[self.annotation_state_view.as_view_id()]["diagramDetectJobId"],
+        )
+        pattern_mode_job_id: int | None = job_node.properties[self.annotation_state_view.as_view_id()].get(
+            "patternModeJobId"
         )
 
         filter_job_id = Equals(
@@ -132,7 +135,7 @@ class GeneralRetrieveService(IRetrieveService):
             file_node_id = NodeId(space=file_reference["space"], external_id=file_reference["externalId"])
             file_to_state_map[file_node_id] = node
 
-        return job_id, file_to_state_map
+        return job_id, pattern_mode_job_id, file_to_state_map
 
     def _attempt_to_claim(self, list_job_nodes_to_claim: NodeApplyList) -> None:
         """

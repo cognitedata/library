@@ -40,6 +40,10 @@ class IApplyService(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def process_pattern_results(self, result_item: dict, file_id: NodeId) -> list[RowWrite]:
+        pass
+
+    @abc.abstractmethod
     def update_nodes(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
         pass
 
@@ -54,7 +58,8 @@ class GeneralApplyService(IApplyService):
     """
 
     EXTERNAL_ID_LIMIT = 256
-    FUNCTION_ID = "fn_dm_context_annotation_finalize"
+
+    FUNCTION_ID = "fn_file_annotation_finalize"
 
     def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
@@ -149,11 +154,11 @@ class GeneralApplyService(IApplyService):
             )
 
             doc_log = {
-                "external_id": external_id,
-                "start_source_id": source_id,
-                "start_node": file_instance_id.external_id,
-                "end_node": entity["external_id"],
-                "end_node_space": entity["space"],
+                "externalId": external_id,
+                "startSourceId": source_id,
+                "startNode": file_instance_id.external_id,
+                "endNode": entity["external_id"],
+                "endNodeSpace": entity["space"],
                 "view_id": self.core_annotation_view_id.external_id,
                 "view_space": self.core_annotation_view_id.space,
                 "view_version": self.core_annotation_view_id.version,
@@ -204,9 +209,9 @@ class GeneralApplyService(IApplyService):
                 diagram_annotations[edge_apply_key] = edge_apply_instance
 
             if entity["annotation_type_external_id"] == self.file_annotation_type:
-                doc_doc.append(RowWrite(key=doc_log["external_id"], columns=doc_log))
+                doc_doc.append(RowWrite(key=doc_log["externalId"], columns=doc_log))
             else:
-                doc_tag.append(RowWrite(key=doc_log["external_id"], columns=doc_log))
+                doc_tag.append(RowWrite(key=doc_log["externalId"], columns=doc_log))
 
         return diagram_annotations
 
@@ -258,6 +263,52 @@ class GeneralApplyService(IApplyService):
         self.client.data_modeling.instances.delete(edges=edge_ids)
 
         return doc_annotations_delete, tag_annotations_delete
+
+    def process_pattern_results(self, result_item: dict, file_id: NodeId) -> list[RowWrite]:
+
+        if not result_item.get("annotations"):
+            return []
+
+        file_node: Node | None = self.client.data_modeling.instances.retrieve_nodes(
+            nodes=file_id, sources=self.file_view_id
+        )
+        if not file_node:
+            return []
+
+        doc_patterns: list[RowWrite] = []
+        source_id: str | None = cast(str, file_node.properties[self.file_view_id].get("sourceId"))
+        for detect_annotation in result_item["annotations"]:
+            for entity in detect_annotation["entities"]:
+                if detect_annotation["confidence"] >= self.approve_threshold:
+                    annotation_status = DiagramAnnotationStatus.APPROVED.value
+                elif detect_annotation["confidence"] >= self.suggest_threshold:
+                    annotation_status = DiagramAnnotationStatus.SUGGESTED.value
+                else:
+                    continue
+
+                # TODO: need to change row columns to create reference catalog -> which will live as a DM not RAW tbl-> from there create the table needed for baseline report
+                baseline_properties = {
+                    "startSourceId": source_id,
+                    "startNode": file_id.external_id,
+                    "text": detect_annotation["text"],
+                    "category": entity["category_property"],
+                    "confidence": detect_annotation["confidence"],
+                    "status": annotation_status,
+                    "startNodePageNumber": detect_annotation["region"]["page"],
+                    "startNodeXMin": min(v["x"] for v in detect_annotation["region"]["vertices"]),
+                    "startNodeYMin": min(v["y"] for v in detect_annotation["region"]["vertices"]),
+                    "startNodeXMax": max(v["x"] for v in detect_annotation["region"]["vertices"]),
+                    "startNodeYMax": max(v["y"] for v in detect_annotation["region"]["vertices"]),
+                    "sourceCreatedUser": self.FUNCTION_ID,
+                    "sourceUpdatedUser": self.FUNCTION_ID,
+                }
+
+                row: RowWrite = RowWrite(
+                    key=f"{baseline_properties["startSourceId"]}_{baseline_properties["text"]}_{baseline_properties["startSourceId"]}_{detect_annotation["region"]["page"]}_{min(v["x"] for v in detect_annotation["region"]["vertices"])}_{min(v["y"] for v in detect_annotation["region"]["vertices"])}",
+                    columns=baseline_properties,
+                )
+                doc_patterns.append(row)
+        return doc_patterns
 
     def _list_annotations_for_file(
         self,
