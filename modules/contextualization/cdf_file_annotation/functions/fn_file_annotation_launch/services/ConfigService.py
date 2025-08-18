@@ -183,12 +183,14 @@ class PrepareFunction(BaseModel, alias_generator=to_camel):
 
 
 class LaunchFunction(BaseModel, alias_generator=to_camel):
-    pattern_mode: bool
     batch_size: int = Field(gt=0, le=50)
     primary_scope_property: str
     secondary_scope_property: Optional[str] = None
     file_search_property: str = "aliases"
     target_entities_search_property: str = "aliases"
+    pattern_mode: bool
+    file_category_property: Optional[str] = None
+    target_entities_category_property: Optional[str] = None
     data_model_service: DataModelServiceConfig
     cache_service: CacheServiceConfig
     annotation_service: AnnotationServiceConfig
