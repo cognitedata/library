@@ -458,6 +458,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "annotationStatus": status,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": None,
+                "patternModeJobId": None,
             }
             batch.update_node_properties(
                 new_properties=update_properties,
