@@ -94,6 +94,7 @@ class GeneralLaunchService(AbstractLaunchService):
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
 
         self.in_memory_cache: list[dict] = []
+        self.in_memory_pattern_cache: list[dict] = []
         self._cached_primary_scope: str | None = None
         self._cached_secondary_scope: str | None = None
 
@@ -363,9 +364,11 @@ class GeneralLaunchService(AbstractLaunchService):
         if batch.is_empty():
             return
 
-        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
-
         try:
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
             job_id: int = self.annotation_service.run_diagram_detect(
                 files=batch.file_references, entities=self.in_memory_cache
             )
@@ -374,11 +377,23 @@ class GeneralLaunchService(AbstractLaunchService):
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
             }
+
+            # Run diagram detect on pattern mode
+            if self.config.launch_function.pattern_mode:
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern_cache)} entities"
+                )
+                pattern_job_id = self.annotation_service.run_pattern_mode_detect(
+                    files=batch.file_references, pattern_samples=self.in_memory_pattern_cache
+                )
+                update_properties["patternModeStatus"] = AnnotationStatus.PROCESSING
+                update_properties["patternModeJobId"] = pattern_job_id
+
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
                 message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
                 section="END",
@@ -402,9 +417,11 @@ class LocalLaunchService(GeneralLaunchService):
         if batch.is_empty():
             return
 
-        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
-
         try:
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
             job_id: int = self.annotation_service.run_diagram_detect(
                 files=batch.file_references, entities=self.in_memory_cache
             )
@@ -413,11 +430,23 @@ class LocalLaunchService(GeneralLaunchService):
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
             }
+
+            # Run diagram detect on pattern mode
+            if self.config.launch_function.pattern_mode:
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern_cache)} entities"
+                )
+                pattern_job_id = self.annotation_service.run_pattern_mode_detect(
+                    files=batch.file_references, pattern_samples=self.in_memory_pattern_cache
+                )
+                update_properties["patternModeStatus"] = AnnotationStatus.PROCESSING
+                update_properties["patternModeJobId"] = pattern_job_id
+
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
                 message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
                 section="END",
