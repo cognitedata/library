@@ -391,7 +391,7 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {job_id}",
                 section="END",
             )
         finally:
@@ -443,7 +443,7 @@ class LocalLaunchService(GeneralLaunchService):
             )
             self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {job_id}",
                 section="END",
             )
         except CogniteAPIError as e:
