@@ -378,7 +378,7 @@ class GeneralLaunchService(AbstractLaunchService):
             # Run diagram detect on pattern mode
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns)} entities"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns[0]["sample"]) + len(self.in_memory_patterns[1]["sample"])} sample patterns"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
                     files=batch.file_references, pattern_samples=self.in_memory_patterns
@@ -430,7 +430,7 @@ class LocalLaunchService(GeneralLaunchService):
             # Run diagram detect on pattern mode
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns)} entities"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns[0]["sample"]) + len(self.in_memory_patterns[1]["sample"])} sample patterns"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
                     files=batch.file_references, pattern_samples=self.in_memory_patterns
