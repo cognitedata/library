@@ -226,13 +226,13 @@ class GeneralCacheService(ICacheService):
         # Structure: { resource_type: { full_template_key: list_of_collected_variable_parts } }
         # where list_of_collected_variable_parts is [ [{'L1_alt1', 'L1_alt2'}], [{'L2_alt1'}], ... ]
         pattern_builders: dict[str, dict[str, list[list[set[str]]]]] = {}
+        self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
             """
             Parses an alias into a structural template key and its variable letter components.
             A segment '629P' yields a template '000A' and a variable part ['P'].
             """
-            self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
 
             alias_parts = re.split(r"([ -])", alias)
             full_template_key_parts: list[str] = []
