@@ -293,7 +293,7 @@ class GeneralApplyService(IApplyService):
                     "sourceUpdatedUser": self.FUNCTION_ID,
                 }
                 row: RowWrite = RowWrite(
-                    key=f"{baseline_properties["startSourceId"]}_{baseline_properties["text"]}_{baseline_properties["startSourceId"]}_{detect_annotation["region"]["page"]}_{min(v["x"] for v in detect_annotation["region"]["vertices"])}_{min(v["y"] for v in detect_annotation["region"]["vertices"])}",
+                    key=f"{baseline_properties['startSourceId']}_{baseline_properties['text']}_{baseline_properties['startSourceId']}_{detect_annotation['region']['page']}_{min(v['x'] for v in detect_annotation['region']['vertices'])}_{min(v['y'] for v in detect_annotation['region']['vertices'])}",
                     columns=baseline_properties,
                 )
                 doc_patterns.append(row)
