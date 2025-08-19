@@ -181,13 +181,19 @@ class GeneralFinalizeService(AbstractFinalizeService):
         # Ensures that for each job, both the regular annotations and its pattern results will be updated within the same transaction.
         # This prevents a scenario where the regular annotation is successfully processed but an error occurs before the pattern results are successfully processed.
         # That would leave the file in a partially completed state.
-        merged_results = {item["fileInstanceId"]: {"regular": item} for item in job_results["items"]}
+        merged_results = {
+            (item["fileInstanceId"]["space"], item["fileInstanceId"]["externalId"]): {"regular": item}
+            for item in job_results["items"]
+        }
+
         if pattern_mode_job_results:
             for item in pattern_mode_job_results["items"]:
-                if item["fileInstanceId"] in merged_results:
-                    merged_results[item["fileInstanceId"]]["pattern"] = item
+                # FIX: Use the same tuple format for the key when adding pattern results.
+                key = (item["fileInstanceId"]["space"], item["fileInstanceId"]["externalId"])
+                if key in merged_results:
+                    merged_results[key]["pattern"] = item
                 else:
-                    merged_results[item["fileInstanceId"]] = {"pattern": item}
+                    merged_results[key] = {"pattern": item}
 
         count_retry = 0
         count_failed = 0
@@ -196,8 +202,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
         failed_file_ids: list[NodeId] = []
 
         # Loop through the merged results, processing one file at a time
-        for file_id_str, results in merged_results.items():
-            file_id: NodeId = NodeId.load(file_id_str)
+        for (space, external_id), results in merged_results.items():
+            file_id: NodeId = NodeId(space, external_id)
             file_node: Node | None = self.client.data_modeling.instances.retrieve_nodes(
                 nodes=file_id, sources=self.file_view.as_view_id()
             )
@@ -220,13 +226,15 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     self.logger.info(f"Applying annotations to file {str(file_id)}")
                     if self.clean_old_annotations:
                         # This should only run once, so we tie it to the regular annotation processing
-                        doc_delete, tag_delete = self.apply_service.delete_annotations_for_file(file_node)
+                        doc_delete, tag_delete = self.apply_service.delete_annotations_for_file(file_id)
                         self.report_service.delete_annotations(doc_delete, tag_delete)
 
                     doc_add, tag_add = self.apply_service.apply_annotations(regular_item, file_node)
                     self.report_service.add_annotations(doc_rows=doc_add, tag_rows=tag_add)
                     annotation_msg: str = f"Applied {len(doc_add)} doc and {len(tag_add)} tag annotations."
                     self.logger.info(f"\t- {annotation_msg}")
+                elif regular_item and regular_item.get("errorMessage"):
+                    annotation_msg = regular_item.get("errorMessage")
                 else:
                     annotation_msg: str = "Found no annotations to apply"
 
@@ -235,16 +243,22 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 if pattern_item and pattern_item.get("annotations"):
                     self.logger.info(f"Processing pattern mode results for file {str(file_id)}")
                     # responsible for converting pattern results into RAW rows and adding them to its internal batch for later upload.
-                    pattern_add: list[RowWrite] = self.apply_service.process_pattern_results(pattern_item, file_id)
+                    pattern_add: list[RowWrite] = self.apply_service.process_pattern_results(pattern_item, file_node)
                     self.report_service.add_pattern_tags(pattern_rows=pattern_add)
                     pattern_msg: str = f"Processed {len(pattern_item['annotations'])} pattern annotations."
                     self.logger.info(f"\t- {pattern_msg}")
+                elif pattern_item and pattern_item.get("errorMessage"):
+                    pattern_msg = pattern_item.get("errorMessage")
                 else:
                     pattern_msg: str = "Found no tags from pattern samples"
 
                 # Determine Final State
-                page_count: int = regular_item["pageCount"]
-                annotated_page_count: int = self._check_all_pages_annotated(annotation_state_node, page_count)
+                if regular_item and regular_item.get("pageCount"):
+                    page_count: int = regular_item["pageCount"]
+                    annotated_page_count: int = self._check_all_pages_annotated(annotation_state_node, page_count)
+                else:
+                    page_count = 1
+                    annotated_page_count = page_count
 
                 if annotated_page_count == page_count:
                     job_node_to_update = self._process_annotation_state(

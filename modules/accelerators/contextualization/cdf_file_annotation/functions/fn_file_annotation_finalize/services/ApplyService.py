@@ -48,7 +48,7 @@ class IApplyService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def delete_annotations_for_file(self, file_node: Node) -> tuple[list[str], list[str]]:
+    def delete_annotations_for_file(self, file_id: NodeId) -> tuple[list[str], list[str]]:
         pass
 
 
@@ -229,7 +229,7 @@ class GeneralApplyService(IApplyService):
 
     def delete_annotations_for_file(
         self,
-        file_node: Node,
+        file_id: NodeId,
     ) -> tuple[list[str], list[str]]:
         """
         Delete all annotation edges for a file node.
@@ -239,7 +239,7 @@ class GeneralApplyService(IApplyService):
             annotation_view_id (ViewId): The ViewId of the annotation view.
             node (NodeId): The NodeId of the file node.
         """
-        annotations = self._list_annotations_for_file(file_node)
+        annotations = self._list_annotations_for_file(file_id)
 
         if not annotations:
             return [], []
@@ -248,7 +248,7 @@ class GeneralApplyService(IApplyService):
         tag_annotations_delete: list[str] = []
         edge_ids = []
         for edge in annotations:
-            edge_ids.append(EdgeId(space=file_node.space, external_id=edge.external_id))
+            edge_ids.append(EdgeId(space=file_id.space, external_id=edge.external_id))
             if edge.type.external_id == self.file_annotation_type:
                 doc_annotations_delete.append(edge.external_id)
             else:
@@ -301,7 +301,7 @@ class GeneralApplyService(IApplyService):
 
     def _list_annotations_for_file(
         self,
-        node: Node,
+        node_id: NodeId,
     ):
         """
         List all annotation edges for a file node.
@@ -317,8 +317,8 @@ class GeneralApplyService(IApplyService):
         annotations = self.client.data_modeling.instances.list(
             instance_type="edge",
             sources=[self.core_annotation_view_id],
-            space=node.space,
-            filter=Or(In(["edge", "startNode"], [node])),
+            space=node_id.space,
+            filter=Or(In(["edge", "startNode"], [node_id])),
             limit=-1,
         )
 
