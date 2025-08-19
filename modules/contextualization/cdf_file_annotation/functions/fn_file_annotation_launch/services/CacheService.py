@@ -183,11 +183,12 @@ class GeneralCacheService(ICacheService):
                 )
                 target_entities.append(asset_entity.to_dict())
             else:
+                search_value: list = [instance_properties.get("name")]
                 asset_entity = entity(
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
-                    search_property=instance_properties.get("name"),
+                    search_property=search_value,
                     category_property=category,
                     annotation_type_external_id=self.target_entities_view.annotation_type,
                 )

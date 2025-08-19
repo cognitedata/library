@@ -91,7 +91,7 @@ class GeneralLaunchService(AbstractLaunchService):
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
 
         self.in_memory_cache: list[dict] = []
-        self.in_memory_pattern: list[dict] = []
+        self.in_memory_patterns: list[dict] = []
         self._cached_primary_scope: str | None = None
         self._cached_secondary_scope: str | None = None
 
@@ -436,7 +436,6 @@ class LocalLaunchService(GeneralLaunchService):
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
                     files=batch.file_references, pattern_samples=self.in_memory_pattern
                 )
-                update_properties["patternModeStatus"] = AnnotationStatus.PROCESSING
                 update_properties["patternModeJobId"] = pattern_job_id
 
             batch.batch_states.update_node_properties(
