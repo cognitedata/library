@@ -58,16 +58,14 @@ class GeneralAnnotationService(IAnnotationService):
 
     def run_pattern_mode_detect(self, files: list, pattern_samples: list[dict[str, Any]]) -> int:
         """Generates patterns and runs the diagram detection job in pattern mode."""
-        self.logger.info(f"Generated {len(pattern_samples)} pattern samples for detection.")
-
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
-            entities=pattern_samples,  # Use the generated patterns
+            entities=pattern_samples,
             partial_match=self.annotation_config.partial_match,
             min_tokens=self.annotation_config.min_tokens,
-            search_field="sample",  # The key in your generated samples
+            search_field="sample",
             configuration=self.diagram_detect_config,
-            pattern_mode=True,  # The crucial flag
+            pattern_mode=True,
         )
         if detect_job.job_id:
             return detect_job.job_id
