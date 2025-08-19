@@ -86,15 +86,3 @@
       properties:
         - diagramDetectJobId
       cursorable: true
-    launch:
-      indexType: btree
-      properties:
-        - launchFunctionId
-        - launchFunctionCallId
-      cursorable: true
-    finalize:
-      indexType: btree
-      properties:
-        - finalizeFunctionId
-        - finalizeFunctionCallId
-      cursorable: true
