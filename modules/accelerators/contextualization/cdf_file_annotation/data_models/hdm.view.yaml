@@ -52,17 +52,19 @@
       description: Diagram detect job ID
       name: Diagram detect job ID
     patternModeJobId:
-      nullable: true
-      type:
-        type: int64
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
       containerPropertyIdentifier: patternModeJobId
       description: Diagram detect job ID with pattern mode
       name: Pattern mode job ID
     patternModeMessage:
-      nullable: true
-      type:
-        type: text
-        collation: ucs_basic
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: patternModeMessage
       description: Contains entities found from pattern mode or error message
       name: Pattern mode message
     linkedFile:
