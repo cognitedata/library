@@ -378,12 +378,11 @@ class GeneralLaunchService(AbstractLaunchService):
             # Run diagram detect on pattern mode
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern)} entities"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns)} entities"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
-                    files=batch.file_references, pattern_samples=self.in_memory_pattern
+                    files=batch.file_references, pattern_samples=self.in_memory_patterns
                 )
-                update_properties["patternModeStatus"] = AnnotationStatus.PROCESSING
                 update_properties["patternModeJobId"] = pattern_job_id
 
             batch.batch_states.update_node_properties(
@@ -431,10 +430,10 @@ class LocalLaunchService(GeneralLaunchService):
             # Run diagram detect on pattern mode
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_pattern)} entities"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns)} entities"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
-                    files=batch.file_references, pattern_samples=self.in_memory_pattern
+                    files=batch.file_references, pattern_samples=self.in_memory_patterns
                 )
                 update_properties["patternModeJobId"] = pattern_job_id
 
