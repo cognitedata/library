@@ -376,6 +376,7 @@ class GeneralLaunchService(AbstractLaunchService):
             }
 
             # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
                     f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns[0]['sample']) + len(self.in_memory_patterns[1]['sample'])} sample patterns"
@@ -391,7 +392,7 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {job_id}",
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {pattern_job_id}",
                 section="END",
             )
         finally:
@@ -428,6 +429,7 @@ class LocalLaunchService(GeneralLaunchService):
             }
 
             # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
             if self.config.launch_function.pattern_mode:
                 self.logger.info(
                     f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns[0]['sample']) + len(self.in_memory_patterns[1]['sample'])} sample patterns"
@@ -443,7 +445,7 @@ class LocalLaunchService(GeneralLaunchService):
             )
             self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {job_id}",
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {pattern_job_id}",
                 section="END",
             )
         except CogniteAPIError as e:
