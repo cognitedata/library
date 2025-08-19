@@ -245,7 +245,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     # responsible for converting pattern results into RAW rows and adding them to its internal batch for later upload.
                     pattern_add: list[RowWrite] = self.apply_service.process_pattern_results(pattern_item, file_node)
                     self.report_service.add_pattern_tags(pattern_rows=pattern_add)
-                    pattern_msg: str = f"Processed {len(pattern_item['annotations'])} pattern annotations."
+                    pattern_msg: str = f"Found {len(pattern_item['annotations'])} pattern annotations."
                     self.logger.info(f"\t- {pattern_msg}")
                 elif pattern_item and pattern_item.get("errorMessage"):
                     pattern_msg = pattern_item.get("errorMessage")
