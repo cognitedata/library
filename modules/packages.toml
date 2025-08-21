@@ -3,21 +3,45 @@ description = "Cognite Official Deployment Packs"
 toolkit-version = ">=0.6.0" # Recommended version of the Toolkit required to use this library
 canCherryPick = true # Set to false if the user should not be able to pick individual modules in this package
 
+
 # Package definitions
-[packages.contextualization]
-title = "Contextualization"
-description = "Get started with Contextualization"
+[packages.quickstart]
+title = "Quickstart"
+description = "Get started with Cognte Data Fusion"
+canCherryPick = false
+modules = []
+
+[packages.industrial_tools]
+title = "Industrial Tools"
+description = "Get started with Industrial Tools"
+canCherryPick = true
+modules = []
+
+[packages.equipment_dashboards]
+title = "Dashboards"
+description = "Useful dashboard"
+canCherryPick = true
+modules = []
+
+[packages.data_monitoring]
+title = "Data Monitoring"
+description = "Monitor the flow of data in Cognite Data Fusion"
 canCherryPick = true
 modules = [
-    "contextualization/cdf_entity_matching",
-    "contextualization/cdf_p_and_id_annotation"
+    "analysis/cdf_data_monitoring"
 ]
 
-[packages.root_cause_analysis]
-title = "Root Cause Analysis"
-description = "Get started with Root Cause Analysis using Canvas and Atlas AI"
+[packages.data_models]
+title = "Data Models"
+description = "Get started with Data Models"
 canCherryPick = true
-modules = [
-    "root_cause_analysis/rca_with_atlas"
-]
+modules = []
+
+[packages.atlas]
+title = "Atlas AI Agents"
+description = "Use Atlas AI Agents to ..."
+canCherryPick = true
+modules = []
+
+
 
