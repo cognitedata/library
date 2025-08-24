@@ -7,6 +7,7 @@ The Annotation template is a framework designed to automate the process of annot
 ## Key Features
 
 - **Configuration-Driven Workflow:** The entire process is controlled by a single config.yaml file, allowing adaptation to different data models and operational parameters without code changes.
+- **Dual Annotation Modes**: Simultaneously runs standard entity matching and a new pattern-based detection mode to create a comprehensive indexed reference catalog.
 - **Large Document Support (\>50 Pages):** Automatically handles files with more than 50 pages by breaking them into manageable chunks, processing them iteratively, and tracking the overall progress.
 - **Parallel Execution Ready:** Designed for concurrent execution with a robust optimistic locking mechanism to prevent race conditions when multiple finalize function instances run in parallel.
 - **Detailed Reporting:** Local logs and processed annotation details stored in CDF RAW tables, fucntion logs, and extraction pipeline runs for auditing and analysis.
@@ -43,11 +44,12 @@ _(if videos fail to load, try loading page in incognito or re-sign into github) 
 1. **Create a CDF Project through Toolkit**
    - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
    - (optional) Initialize the quickstart package using toolkit CLI
- ```bash
- poetry init
- poetry add cognite-toolkit
- poetry run cdf modules init <project-name>
- ```
+
+```bash
+poetry init
+poetry add cognite-toolkit
+poetry run cdf modules init <project-name>
+```
 
 <video src="https://github.com/user-attachments/assets/4dfa8966-a419-47b9-8ee1-4fea331705fd"></video>
 
@@ -68,88 +70,89 @@ _(if videos fail to load, try loading page in incognito or re-sign into github) 
    - (optional) Build and deploy the quickstart template modules
    - Build and deploy this module
 
- ```bash
- poetry run cdf build --env dev
- poetry run cdf deploy --dry-run
- poetry run cdf deploy
- ```
+```bash
+poetry run cdf build --env dev
+poetry run cdf deploy --dry-run
+poetry run cdf deploy
+```
 
- ```yaml
- # config.<env>.yaml used in examples below
- environment:
-   name: dev
-   project: <insert>
-   validation-type: dev
-   selected:
-     - modules/
+```yaml
+# config.<env>.yaml used in examples below
+environment:
+  name: dev
+  project: <insert>
+  validation-type: dev
+  selected:
+    - modules/
 
- variables:
-   modules:
-     # stuff from quickstart package...
-     organization: tx
+variables:
+  modules:
+    # stuff from quickstart package...
+    organization: tx
 
-     # ...
+    # ...
 
-     cdf_ingestion:
-       workflow: ingestion
-       groupSourceId: <insert>
-       ingestionClientId: ${IDP_CLIENT_ID} # Changed from ${INGESTION_CLIENT_ID}
-       ingestionClientSecret: ${IDP_CLIENT_SECRET} # Changed from ${INGESTION_CLIENT_SECRET}
-       pandidContextualizationFunction: contextualization_p_and_id_annotater
-       contextualization_connection_writer: contextualization_connection_writer
-       schemaSpace: sp_enterprise_process_industry
-       schemaSpace2: cdf_cdm
-       schemaSpace3: cdf_idm
-       instanceSpaces:
-         - springfield_instances
-         - cdf_cdm_units
-       runWorkflowUserIds:
-         - <insert>
+    cdf_ingestion:
+      workflow: ingestion
+      groupSourceId: <insert>
+      ingestionClientId: ${IDP_CLIENT_ID} # Changed from ${INGESTION_CLIENT_ID}
+      ingestionClientSecret: ${IDP_CLIENT_SECRET} # Changed from ${INGESTION_CLIENT_SECRET}
+      pandidContextualizationFunction: contextualization_p_and_id_annotater
+      contextualization_connection_writer: contextualization_connection_writer
+      schemaSpace: sp_enterprise_process_industry
+      schemaSpace2: cdf_cdm
+      schemaSpace3: cdf_idm
+      instanceSpaces:
+        - springfield_instances
+        - cdf_cdm_units
+      runWorkflowUserIds:
+        - <insert>
 
-     contextualization:
-       cdf_file_annotation:
-         # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
-         annotationDatasetExternalId: ds_file_annotation
+    contextualization:
+      cdf_file_annotation:
+        # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
+        annotationDatasetExternalId: ds_file_annotation
 
-         # used in /data_models and /extraction_pipelines
-         annotationStateExternalId: FileAnnotationState
-         annotationStateInstanceSpace: sp_dat_cdf_annotation_states
-         annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
-         annotationStateVersion: v1.0.1
-         fileSchemaSpace: sp_enterprise_process_industry
-         fileExternalId: txFile
-         fileVersion: v1
+        # used in /data_models and /extraction_pipelines
+        annotationStateExternalId: FileAnnotationState
+        annotationStateInstanceSpace: sp_dat_cdf_annotation_states
+        annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
+        annotationStateVersion: v1.0.1
+        fileSchemaSpace: sp_enterprise_process_industry
+        fileExternalId: txFile
+        fileVersion: v1
 
-         # used in /raw and /extraction_pipelines
-         rawDb: db_file_annotation
-         rawTableDocTag: annotation_documents_tags
-         rawTableDocDoc: annotation_documents_docs
-         rawTableCache: annotation_entities_cache
+        # used in /raw and /extraction_pipelines
+        rawDb: db_file_annotation
+        rawTableDocTag: annotation_documents_tags
+        rawTableDocDoc: annotation_documents_docs
+        rawTableCache: annotation_entities_cache
 
-         # used in /extraction_pipelines
-         extractionPipelineExternalId: ep_file_annotation
-         targetEntitySchemaSpace: sp_enterprise_process_industry
-         targetEntityExternalId: txEquipment
-         targetEntityVersion: v1
+        # used in /extraction_pipelines
+        extractionPipelineExternalId: ep_file_annotation
+        targetEntitySchemaSpace: sp_enterprise_process_industry
+        targetEntityExternalId: txEquipment
+        targetEntityVersion: v1
 
-         # used in /functions and /workflows
-         launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
-         launchFunctionVersion: v1.0.0
-         finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
-         finalizeFunctionVersion: v1.0.0
-         functionClientId: ${IDP_CLIENT_ID}
-         functionClientSecret: ${IDP_CLIENT_SECRET}
+        # used in /functions and /workflows
+        launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
+        launchFunctionVersion: v1.0.0
+        finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
+        finalizeFunctionVersion: v1.0.0
+        functionClientId: ${IDP_CLIENT_ID}
+        functionClientSecret: ${IDP_CLIENT_SECRET}
 
-         # used in /workflows
-         workflowSchedule: "*/10 * * * *"
-         workflowExternalId: wf_file_annotation
-         workflowVersion: v1
+        # used in /workflows
+        workflowSchedule: "*/10 * * * *"
+        workflowExternalId: wf_file_annotation
+        workflowVersion: v1
 
-         # used in /auth
-         groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
+        # used in /auth
+        groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
 
-     # ...
- ```
+
+    # ...
+```
 
 <video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f"></video>
 
@@ -208,8 +211,10 @@ The template operates in three main phases, orchestrated by CDF Workflows. Since
   1.  It queries for `AnnotationState` instances with a "New" or "Retry" status.
   2.  It groups these files by a primary scope to provide context.
   3.  For each group, it fetches the relevant file and target entity information, using a cache to avoid redundant lookups.
-  4.  It calls the Cognite Diagram Detect API to start the annotation job.
-  5.  It updates the `AnnotationState` instance with the `diagramDetectJobId` and sets the status to "Processing".
+  4.  It calls the Cognite Diagram Detect API to initiate two async jobs:
+      - A `standard annotation` job to find and link known entities.
+      - A `pattern mode` job to detect all potential tags and build an indexed reference catalog.
+  5.  It updates the `AnnotationState` instance with both the `diagramDetectJobId` and `patternModeJobId` and sets the overall `annotationStatus` to "Processing".
 
 ### Finalize Phase
 
@@ -218,11 +223,12 @@ The template operates in three main phases, orchestrated by CDF Workflows. Since
 - **Goal**: Retrieve, process, and store the results of completed annotation jobs.
 - **Process**:
   1.  It queries for `AnnotationState` instances with a "Processing" status.
-  2.  It checks the status of the corresponding diagram detection job.
-  3.  Once a job is complete, it retrieves the annotation results.
-  4.  It applies the new annotations, optionally cleaning up old ones first.
+  2.  It waits until both the standard and pattern modejobs for a given file are complete.
+  3.  It then retrieves and merges the results from both jobs.
+  4.  It will optionally clean old annotations first and then:
+      - Applies the standard annotations by creating edges in the data model, writing the results to a dedicated RAW table.
+      - Processes the pattern mode results, writing them to a dedicated RAW table to populate the reference catalog.
   5.  It updates the `AnnotationState` status to "Annotated" or "Failed" and tags the file accordingly.
-  6.  It writes a summary of the approved annotations to a CDF RAW table for reporting.
 
 ## Configuration
 
@@ -232,7 +238,7 @@ Key configuration sections include:
 
 - `dataModelViews`: Defines the data model views for files, annotation states, and target entities.
 - `prepareFunction`: Configures the queries to find files to annotate.
-- `launchFunction`: Sets parameters for the annotation job, such as batch size and entity matching properties.
+- `launchFunction`: Sets parameters for the annotation job, such as batch size, entity matching properties, and a new `patternMode: true` flag to enable the pattern detection feature.
 - `finalizeFunction`: Defines how to process and apply the final annotations.
 
 This file allows for deep customization. For example, you can use a list of query configurations to combine them with `OR` logic, or you can set `primaryScopeProperty` to `None` to process files that are not tied to a specific scope.
@@ -285,6 +291,6 @@ The template is designed around a core set of abstract interfaces (e.g., `IDataM
 
 ## About Me
 
-Hey everyone\! I'm Jack Zhao, the creator of this template. I want to give a huge shoutout to Thomas Molbach and Noah Karsky for providing invaluable input from a solution architect's point of view. I also want to thank Khaled Shaheen and Gayatri Babel for their help in building this.
+Hey everyone\! I'm Jack Zhao, the creator of this template. I want to give a huge shoutout to Thomas Molbach, Noah Karsky, and Darren Downtain for providing invaluable input from a solution architect's point of view. I also want to thank Khaled Shaheen and Gayatri Babel for their help in building this.
 
 This code is my attempt to create a standard template that 'breaks' the cycle where projects build simple tools, outgrow them, and are then forced to build a new and often hard-to-reuse solution. My current belief is that it's impossible for a template to have long-term success if it's not built on the fundamental premise of being extended. Customer needs will evolve, and new product features will create new opportunities for optimization.
