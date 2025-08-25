@@ -1,0 +1,22 @@
+space: rmdm
+externalId: EquipmentType
+name: RM Equipment Type
+properties:
+  class:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Class
+    description: Specifies the class of the equipment.
+constraints:
+  cdf_cdm_CogniteEquipmentType:
+    require:
+      space: cdf_cdm
+      externalId: CogniteEquipmentType
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

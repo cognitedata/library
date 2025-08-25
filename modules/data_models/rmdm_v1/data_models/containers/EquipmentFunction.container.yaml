@@ -1,0 +1,37 @@
+space: rmdm
+externalId: EquipmentFunction
+name: RM Equipment Function
+properties:
+  code:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Code
+    description: A unique identifier for the function of the asset or equipment.
+  standard:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Standard
+    description: A string to specify which standard the function is from.
+constraints:
+  cdf_cdm_CogniteDescribable:
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    constraintType: requires
+  uniqueCodeConstraint:
+    properties:
+    - code
+    constraintType: uniqueness
+indexes: {}
+usedFor: node

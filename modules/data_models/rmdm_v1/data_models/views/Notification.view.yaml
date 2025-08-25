@@ -1,0 +1,146 @@
+space: rmdm
+externalId: Notification
+name: RM Notification
+description: A formal record to report maintenance issues, defects, or requests, starting
+  the process for planning and running maintenance activities.
+implements:
+- space: cdf_idm
+  externalId: CogniteNotification
+  version: v1
+  type: view
+version: v1
+properties:
+  asset:
+    container:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+    containerPropertyIdentifier: asset
+    name: Asset
+    description: The asset or functional location that this notification relates to.
+    source:
+      space: rmdm
+      externalId: Asset
+      version: v1
+      type: view
+  equipment:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: equipment
+    name: Equipment
+    description: A list of physical equipment related to this notifcation.
+    source:
+      space: rmdm
+      externalId: Equipment
+      version: v1
+      type: view
+  subunit:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: subunitFailed
+    name: Subunit
+    description: A reference to the specific subsystem(s) belonging to the asset in
+      this notifcation that failed.
+    source:
+      space: rmdm
+      externalId: Asset
+      version: v1
+      type: view
+  component:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: componentFailed
+    name: Component
+    description: A reference to the specific parts of the subsystem referenced in
+      this notifcation that failed.
+    source:
+      space: rmdm
+      externalId: Asset
+      version: v1
+      type: view
+  maintenanceOrder:
+    container:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    name: Maintenance Order
+    description: The maintenance order that this notifcation relates to.
+    source:
+      space: rmdm
+      externalId: MaintenanceOrder
+      version: v1
+      type: view
+  actualStartTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: startTime
+    name: Actual Start Time
+    description: The actual start time of the notification
+  actualEndTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: endTime
+    name: Actual End Time
+    description: The actual end time of the notification
+  longText:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: longDescription
+    name: Long Text
+    description: A detailed textual explanation providing additional context or specifications
+      for this notifcation.
+  discipline:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: discipline
+    name: Discipline
+    description: The technical field associated with this notifcation.
+  plannerGroup:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: plannerGroup
+    name: Planner Group
+    description: A designated team responsible for planning and managing maintenance
+      activities.
+  plannerGroupDescription:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: plannerGroupDescription
+    name: Planner Group Description
+    description: A textual summary defining the role, responsibilities, and scope
+      of a planner group.
+  typeDescription:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: typeDescription
+    name: Type Description
+    description: The type of this notifcation as a human readable name.
+  statusDescription:
+    container:
+      space: rmdm
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: statusDescription
+    name: Status Description
+    description: A string indicating the status of this notifcation.
