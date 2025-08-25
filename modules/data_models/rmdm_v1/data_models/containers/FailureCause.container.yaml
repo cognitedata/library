@@ -1,0 +1,33 @@
+space: rmdm
+externalId: FailureCause
+name: RM Failure Cause
+properties:
+  code:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Code
+    description: The code of the failure cause according to ISO 14224.
+  category:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Category
+    description: The category of the failure cause.
+constraints:
+  cdf_cdm_CogniteDescribable:
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

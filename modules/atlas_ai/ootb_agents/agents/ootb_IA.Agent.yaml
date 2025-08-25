@@ -1,0 +1,62 @@
+externalId: industrial_data_explorer
+name: Industrial Data Explorer
+description: "This agent demonstrates how Atlas AI agents can interact with Cognite Data Fusion. It can retrieve assets, equipment, time series, files. Use it to explore the structure and capabilities of Atlas AI tooling."
+instructions: "You are an industrial AI assistant connected to Cognite Data Fusion. Help users explore data about assets, equipment, time series, and files. Use the provided tools to retrieve structured data, and always explain what you're doing in simple terms."
+model: azure/gpt-4o
+labels:
+- "published"
+tools:
+- name: Find assets
+  description: "Use this tool to get information about assets.
+Query on the name field and display all the fields that you retrieve."
+  type: queryKnowledgeGraph
+  configuration:
+    dataModels:
+    - space: cdf_cdm
+      externalId: CogniteCore
+      version: v1
+      viewExternalIds:
+      - CogniteAsset
+    instanceSpaces:
+      type: all
+- name: Find equipment
+  description: "Use this tool to get information about Equipment.
+Query on the name field and display all the fields that you retrieve."
+  type: queryKnowledgeGraph
+  configuration:
+    dataModels:
+    - space: cdf_cdm
+      externalId: CogniteCore
+      version: v1
+      viewExternalIds:
+      - CogniteEquipment
+    instanceSpaces:
+      type: all
+- name: Find time series
+  description: "Use this tool to get information about time series.
+Query on the name field and display all the fields that you retrieve."
+  type: queryKnowledgeGraph
+  configuration:
+    dataModels:
+    - space: cdf_cdm
+      externalId: CogniteCore
+      version: v1
+      viewExternalIds:
+      - CogniteTimeSeries
+    instanceSpaces:
+      type: all
+- name: Find files
+  description: "Use this tool to get information about files. The space and external id of files can be used as instance id in Doc Q&A and Doc summarization tools."
+  type: queryKnowledgeGraph
+  configuration:
+    dataModels:
+    - space: cdf_cdm
+      externalId: CogniteCore
+      version: v1
+      viewExternalIds:
+      - CogniteFile
+    instanceSpaces:
+      type: all
+- name: Ask documents
+  description: "Documents Question Answering. This function is used to get the answer to a question from a document, perform semantic search on the documents. Use this when you want to fetch an answer from a file that you found using Find files tool."
+  type: askDocument
