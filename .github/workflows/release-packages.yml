@@ -64,8 +64,8 @@ jobs:
           ```
           cdf.toml:
           [library.deployment_packs]
-          url = https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/packages.zip
-          checksum = ${{ steps.checksum.outputs.checksum }}
+          url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/packages.zip"
+          checksum = "${{ steps.checksum.outputs.checksum }}"
           ```
         files: packages.zip
         draft: false
