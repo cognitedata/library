@@ -1,0 +1,62 @@
+space: rmdm
+externalId: Equipment
+name: RM Equipment
+properties:
+  normalOperatingState:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Normal Operating State
+    description: The expected functional condition of an asset under standard operating
+      parameters.
+  startDateCurrentService:
+    type:
+      list: false
+      type: date
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Start Date Current Service
+    description: The date when this equipment was placed into active service.
+  equipmentClass:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Equipment Class
+    description: Specifies the class of the equipment.
+  functionCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Function Code
+    description: A code to identify the function of this equipment.
+  functionCodeDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Function Code Description
+    description: A human readable description of the function of this equipment.
+constraints:
+  cdf_cdm_CogniteEquipment:
+    require:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

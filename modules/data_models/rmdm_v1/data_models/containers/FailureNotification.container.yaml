@@ -1,0 +1,95 @@
+space: rmdm
+externalId: FailureNotification
+name: RM Failure Notifcation
+properties:
+  failureMode:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Failure Mode
+    description: The distinct way in which the piece(s) of equipment related to this
+      notifcation failed.
+  failureImpactOnHSE:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Failure Impact on HSE
+    description: The potential consequences of a failure on personnel safety and the
+      environment.
+  failureImpactOnOperations:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Failure Impact on Operations
+    description: The effect of a failure on production efficiency and economic performance.
+  failureEffect:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Failure Effect
+    description: The observable outcome resulting from a failure.
+  failureMechanism:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Failure Mechanism
+    description: The underlying physical, chemical, or operational process leading
+      to a failure.
+  failureCause:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Failure Cause
+    description: The root cause that directly led to a failure.
+  detectionMethod:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Detection Method
+    description: The way in which this failure was observed.
+  operatingConditionAtFailure:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Operating Condition at Failure
+    description: The state of the asset at the time of failure, including load and
+      external influences.
+constraints:
+  rmdm_Notification:
+    require:
+      space: rmdm
+      externalId: Notification
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node
