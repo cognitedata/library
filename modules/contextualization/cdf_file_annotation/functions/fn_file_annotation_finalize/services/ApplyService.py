@@ -152,9 +152,9 @@ class GeneralApplyService(IApplyService):
                 "startNode": file_instance_id.external_id,
                 "endNode": entity["external_id"],
                 "endNodeSpace": entity["space"],
-                "view_id": self.core_annotation_view_id.external_id,
-                "view_space": self.core_annotation_view_id.space,
-                "view_version": self.core_annotation_view_id.version,
+                "viewId": self.core_annotation_view_id.external_id,
+                "viewSpace": self.core_annotation_view_id.space,
+                "viewVersion": self.core_annotation_view_id.version,
             }
             now = datetime.now(timezone.utc).replace(microsecond=0)
 
@@ -182,7 +182,7 @@ class GeneralApplyService(IApplyService):
                 existing_version=None,
                 type=DirectRelationReference(
                     space=annotation_schema_space,
-                    external_id=entity["annotation_type_external_id"],
+                    external_id=entity["annotation_type"],
                 ),
                 start_node=DirectRelationReference(
                     space=file_instance_id.space,
@@ -201,7 +201,7 @@ class GeneralApplyService(IApplyService):
             if edge_apply_key not in diagram_annotations:
                 diagram_annotations[edge_apply_key] = edge_apply_instance
 
-            if entity["annotation_type_external_id"] == self.file_annotation_type:
+            if entity["annotation_type"] == self.file_annotation_type:
                 doc_doc.append(RowWrite(key=doc_log["externalId"], columns=doc_log))
             else:
                 doc_tag.append(RowWrite(key=doc_log["externalId"], columns=doc_log))
@@ -263,40 +263,55 @@ class GeneralApplyService(IApplyService):
         if not file_node:
             return []
 
-        doc_patterns: list[RowWrite] = []
         file_id: NodeId = file_node.as_id()
         source_id: str | None = cast(str, file_node.properties[self.file_view_id].get("sourceId"))
-        # TODO: Lots of potential here to create annotation edges from the results pattern mode
-        for detect_annotation in result_item["annotations"]:
-            for entity in detect_annotation["entities"]:
-                if detect_annotation["confidence"] >= self.approve_threshold:
-                    annotation_status = DiagramAnnotationStatus.APPROVED.value
-                elif detect_annotation["confidence"] >= self.suggest_threshold:
-                    annotation_status = DiagramAnnotationStatus.SUGGESTED.value
-                else:
-                    continue
 
-                # TODO: need to change row columns to create reference catalog -> which will live as a DM not RAW tbl-> from there create the table needed for baseline report
-                baseline_properties = {
-                    "startSourceId": source_id,
-                    "startNode": file_id.external_id,
-                    "text": detect_annotation["text"],
-                    "category": entity["category_property"],
-                    "confidence": detect_annotation["confidence"],
-                    "status": annotation_status,
-                    "startNodePageNumber": detect_annotation["region"]["page"],
-                    "startNodeXMin": min(v["x"] for v in detect_annotation["region"]["vertices"]),
-                    "startNodeYMin": min(v["y"] for v in detect_annotation["region"]["vertices"]),
-                    "startNodeXMax": max(v["x"] for v in detect_annotation["region"]["vertices"]),
-                    "startNodeYMax": max(v["y"] for v in detect_annotation["region"]["vertices"]),
-                    "sourceCreatedUser": self.FUNCTION_ID,
-                    "sourceUpdatedUser": self.FUNCTION_ID,
+        # Step 1: Group all detections by their text content
+        # The key is the detected tag text, e.g., "P-101A"
+        aggregated_detections = {}
+
+        for detect_annotation in result_item["annotations"]:
+            tag_text = detect_annotation["text"]
+
+            if tag_text not in aggregated_detections:
+                # Initialize the entry for this tag if it's the first time we've seen it
+                aggregated_detections[tag_text] = {
+                    "regions": [],
+                    "resource_type": "Unknown",  # Default resource_type
                 }
-                row: RowWrite = RowWrite(
-                    key=f"{baseline_properties['startSourceId']}_{baseline_properties['text']}_{baseline_properties['startSourceId']}_{detect_annotation['region']['page']}_{min(v['x'] for v in detect_annotation['region']['vertices'])}_{min(v['y'] for v in detect_annotation['region']['vertices'])}",
-                    columns=baseline_properties,
+
+            # Add the location of the current detection
+            # The region dict contains page, vertices, etc.
+            aggregated_detections[tag_text]["regions"].append(detect_annotation["region"])
+
+            # Assume the resource_type is consistent for a given tag text
+            if "entities" in detect_annotation and detect_annotation["entities"]:
+                aggregated_detections[tag_text]["resource_type"] = detect_annotation["entities"][0].get(
+                    "resource_type", "Unknown"
                 )
-                doc_patterns.append(row)
+
+        # Step 2: Create one RowWrite object for each unique tag
+        doc_patterns: list[RowWrite] = []
+        for tag_text, data in aggregated_detections.items():
+            # The columns for the RAW table row
+            catalog_properties = {
+                "startSourceId": source_id,
+                "startNode": file_id.external_id,
+                "text": tag_text,
+                "resourceType": data["resource_type"],
+                # Store the entire list of region dicts
+                # Note: The RAW table will automatically serialize this list of dicts into a JSON string
+                "regions": data["regions"],
+                "sourceCreatedUser": self.FUNCTION_ID,
+                "sourceUpdatedUser": self.FUNCTION_ID,
+            }
+
+            # Create a deterministic key based on the tag text and file
+            row_key = f"{tag_text}_{source_id}"
+
+            row = RowWrite(key=row_key, columns=catalog_properties)
+            doc_patterns.append(row)
+
         return doc_patterns
 
     def _list_annotations_for_file(
