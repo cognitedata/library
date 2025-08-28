@@ -8,6 +8,7 @@ from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import (
     Node,
     NodeId,
+    NodeList,
     NodeApply,
     NodeApplyList,
     NodeOrEdgeData,
@@ -199,7 +200,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         count_failed = 0
         count_success = 0
         annotation_state_node_applies: list[NodeApply] = []
-        failed_file_ids: list[NodeId] = []
+        failed_files: NodeList[Node] = []
 
         # Loop through the merged results, processing one file at a time
         for (space, external_id), results in merged_results.items():
@@ -234,7 +235,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     annotation_msg: str = f"Applied {len(doc_add)} doc and {len(tag_add)} tag annotations."
                     self.logger.info(f"\t- {annotation_msg}")
                 elif regular_item and regular_item.get("errorMessage"):
-                    annotation_msg = regular_item.get("errorMessage")
+                    raise Exception(regular_item.get("errorMessage"))
                 else:
                     annotation_msg: str = "Found no annotations to apply"
 
@@ -287,35 +288,32 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
             except Exception as e:
                 # If anything fails for this file, mark it for retry or failure
-                msg = f"Failed to process annotations for file {str(file_id)}: {str(e)}"
-                self.logger.error(msg)
+                self.logger.error(f"Failed to process annotations for file {str(file_id)}: {str(e)}")
                 if next_attempt_count >= self.max_retries:
                     job_node_to_update = self._process_annotation_state(
                         node=annotation_state_node,
                         status=AnnotationStatus.FAILED,
                         attempt_count=next_attempt_count,
-                        annotation_message=msg,
-                        pattern_mode_message=msg,
+                        annotation_message=str(e),
+                        pattern_mode_message=str(e),
                     )
                     count_failed += 1
-                    failed_file_ids.append(file_id)
+                    failed_files.append(file_id)
                 else:
                     job_node_to_update = self._process_annotation_state(
                         node=annotation_state_node,
                         status=AnnotationStatus.RETRY,
                         attempt_count=next_attempt_count,
-                        annotation_message=msg,
-                        pattern_mode_message=msg,
+                        annotation_message=str(e),
+                        pattern_mode_message=str(e),
                     )
                     count_retry += 1
 
             if job_node_to_update:
                 annotation_state_node_applies.append(job_node_to_update)
 
-        if failed_file_ids:
-            file_applies: NodeApplyList = self.client.data_modeling.instances.retrieve_nodes(
-                nodes=failed_file_ids, sources=self.file_view.as_view_id()
-            ).as_write()
+        if failed_files:
+            file_applies: NodeApplyList = failed_files.as_write()
             for node_apply in file_applies:
                 node_apply.existing_version = None
                 tags_property: list[str] = cast(list[str], node_apply.sources[0].properties["tags"])
@@ -344,7 +342,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 section="START",
             )
             try:
-                self.apply_service.update_nodes(list_node_apply=annotation_state_node_applies)
+                self.apply_service.update_instances(list_node_apply=annotation_state_node_applies)
                 self.logger.info(
                     f"\t- {count_success} set to Annotated\n- {count_retry} set to retry\n- {count_failed} set to failed"
                 )
@@ -501,7 +499,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 view_id=self.annotation_state_view.as_view_id(),
             )
         try:
-            update_results = self.apply_service.update_nodes(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
@@ -509,5 +507,5 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 section="END",
             )
             time.sleep(30)
-            update_results = self.apply_service.update_nodes(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")

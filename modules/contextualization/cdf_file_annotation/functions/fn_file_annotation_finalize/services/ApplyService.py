@@ -44,7 +44,11 @@ class IApplyService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def update_nodes(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
+    def update_instances(
+        self,
+        list_node_apply: list[NodeApply] | NodeApply | None = None,
+        list_edge_apply: list[EdgeApply] | EdgeApply | None = None,
+    ) -> InstancesApplyResult:
         pass
 
     @abc.abstractmethod
@@ -104,19 +108,21 @@ class GeneralApplyService(IApplyService):
             )
             edge_applies.extend(edge_apply_dict.values())
 
-        self.client.data_modeling.instances.apply(
-            nodes=node_apply,
-            edges=edge_applies,
-            replace=False,
-        )
+        self.update_instances(list_node_apply=node_apply, list_edge_apply=edge_applies)
+
         return doc_doc, doc_tag
 
-    def update_nodes(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
+    def update_instances(
+        self,
+        list_node_apply: list[NodeApply] | NodeApply | None = None,
+        list_edge_apply: list[EdgeApply] | EdgeApply | None = None,
+    ) -> InstancesApplyResult:
         update_results: InstancesApplyResult = self.client.data_modeling.instances.apply(
             nodes=list_node_apply,
+            edges=list_edge_apply,
             replace=False,  # ensures we don't delete other properties in the view
         )
-        return update_results.nodes
+        return update_results
 
     def _detect_annotation_to_edge_applies(
         self,
