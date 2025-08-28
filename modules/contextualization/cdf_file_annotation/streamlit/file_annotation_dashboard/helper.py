@@ -11,7 +11,31 @@ from data_structures import ViewPropertyConfig
 
 client = CogniteClient()
 
-PIPELINE_EXT_ID = "ep_file_annotation"
+
+@st.cache_data(ttl=600)
+def find_pipelines(name_filter: str = "file_annotation") -> list[str]:
+    """
+    Finds the external IDs of all extraction pipelines in the project,
+    filtered by a substring in their external ID.
+    """
+    try:
+        # List all pipelines in the project
+        all_pipelines = client.extraction_pipelines.list(limit=-1)
+        if not all_pipelines:
+            st.warning(f"No extraction pipelines found in the project.")
+            return []
+
+        # Filter pipelines where the external ID contains the name_filter string
+        filtered_ids = [p.external_id for p in all_pipelines if name_filter in p.external_id]
+
+        if not filtered_ids:
+            st.warning(f"No pipelines matching the filter '*{name_filter}*' found in the project.")
+            return []
+
+        return sorted(filtered_ids)
+    except Exception as e:
+        st.error(f"An error occurred while searching for extraction pipelines: {e}")
+        return []
 
 
 def parse_run_message(message: str) -> dict:
@@ -38,11 +62,11 @@ def parse_run_message(message: str) -> dict:
 
 
 @st.cache_data(ttl=3600)
-def fetch_extraction_pipeline_config() -> tuple[dict, ViewPropertyConfig, ViewPropertyConfig]:
+def fetch_extraction_pipeline_config(pipeline_ext_id: str) -> tuple[dict, ViewPropertyConfig, ViewPropertyConfig]:
     """
     Fetch configurations from the latest extraction
     """
-    ep_configuration = client.extraction_pipelines.config.retrieve(external_id=PIPELINE_EXT_ID)
+    ep_configuration = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
     config_dict = yaml.safe_load(ep_configuration.config)
 
     local_annotation_state_view = config_dict["dataModelViews"]["annotationStateView"]
@@ -126,7 +150,7 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
             if isinstance(prop_value, list):
                 string_values = []
                 for value in prop_value:
-                    string_values.append(value)
+                    string_values.append(str(value))
                 node_data[f"file{prop_key.capitalize()}"] = ", ".join(filter(None, string_values))
             else:
                 node_data[f"file{prop_key.capitalize()}"] = prop_value
@@ -163,9 +187,9 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
 
 
 @st.cache_data(ttl=3600)
-def fetch_pipeline_run_history():
+def fetch_pipeline_run_history(pipeline_ext_id: str):
     """Fetches the full run history for a given extraction pipeline."""
-    return client.extraction_pipelines.runs.list(external_id=PIPELINE_EXT_ID, limit=-1)
+    return client.extraction_pipelines.runs.list(external_id=pipeline_ext_id, limit=-1)
 
 
 def calculate_success_failure_stats(runs):
