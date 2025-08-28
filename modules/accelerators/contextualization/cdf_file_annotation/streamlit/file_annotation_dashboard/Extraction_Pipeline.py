@@ -11,22 +11,37 @@ from helper import (
     calculate_success_failure_stats,
     fetch_function_logs,
     parse_run_message,
+    find_pipelines,
 )
 
-
-# --- Page Configuration ---
 st.set_page_config(
     page_title="Pipeline Run History",
     page_icon="📈",
     layout="wide",
 )
 
-# --- Data Fetching ---
-pipeline_runs = fetch_pipeline_run_history()
+# --- Sidebar for Pipeline Selection ---
+st.sidebar.title("Pipeline Selection")
+# The helper function now returns a pre-filtered list
+pipeline_ids = find_pipelines()
+
+if not pipeline_ids:
+    st.info("No active file annotation pipelines found to monitor.")
+    st.stop()
+
+# Use session_state to remember the selection across pages
+if "selected_pipeline" not in st.session_state or st.session_state.selected_pipeline not in pipeline_ids:
+    st.session_state.selected_pipeline = pipeline_ids[0]
+
+# The selectbox displays the filtered list for the user
+selected_pipeline = st.sidebar.selectbox("Select a pipeline to monitor:", options=pipeline_ids, key="selected_pipeline")
 
 # --- Main Application ---
 st.title("Pipeline Run History")
-st.markdown("This page provides statistics and detailed history for all extraction pipeline runs.")
+st.markdown("This page provides statistics and detailed history for the selected extraction pipeline run.")
+
+# Fetch data using the user's selection
+pipeline_runs = fetch_pipeline_run_history(selected_pipeline)
 
 
 # --- Pipeline Statistics Section ---
