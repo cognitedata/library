@@ -126,16 +126,16 @@ class entity:
         "name": file.properties[job_config.file_view.as_view_id()]["name"],
         "space": file.space,
         "annotation_type_external_id": job_config.file_view.type,
-        "search_property": file.properties[job_config.file_view.as_view_id()][{category_property}],
-        "category_property": file.properties[job_config.file_view.as_view_id()][{search_property}],
+        "resource_type": file.properties[job_config.file_view.as_view_id()][{resource_type}],
+        "search_property": file.properties[job_config.file_view.as_view_id()][{search_property}],
     }
     """
 
     external_id: str
     name: str
     space: str
-    annotation_type_external_id: Literal["diagrams.FileLink", "diagrams.AssetLink"] | None
-    category_property: str
+    annotation_type: Literal["diagrams.FileLink", "diagrams.AssetLink"] | None
+    resource_type: str
     search_property: list[str] = field(default_factory=list)
 
     def to_dict(self):

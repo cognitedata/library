@@ -162,23 +162,23 @@ class GeneralCacheService(ICacheService):
         """
         Convert the asset and file nodes into an entity
         """
-        target_entities_category_property: str | None = self.config.launch_function.target_entities_category_property
+        target_entities_resource_type: str | None = self.config.launch_function.target_entities_resource_property
         target_entities_search_property: str = self.config.launch_function.target_entities_search_property
         target_entities: list[dict] = []
 
         for instance in asset_instances:
             instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
-            if target_entities_category_property:
-                category: str = instance_properties[target_entities_category_property]
+            if target_entities_resource_type:
+                resource_type: str = instance_properties[target_entities_resource_type]
             else:
-                category: str = self.target_entities_view.external_id
+                resource_type: str = self.target_entities_view.external_id
             if target_entities_search_property in instance_properties:
                 asset_entity = entity(
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
-                    annotation_type_external_id=self.target_entities_view.annotation_type,
-                    category_property=category,
+                    annotation_type=self.target_entities_view.annotation_type,
+                    resource_type=resource_type,
                     search_property=instance_properties.get(target_entities_search_property),
                 )
                 target_entities.append(asset_entity.to_dict())
@@ -188,29 +188,29 @@ class GeneralCacheService(ICacheService):
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
+                    annotation_type=self.target_entities_view.annotation_type,
+                    resource_type=resource_type,
                     search_property=search_value,
-                    category_property=category,
-                    annotation_type_external_id=self.target_entities_view.annotation_type,
                 )
                 target_entities.append(asset_entity.to_dict())
 
-        file_category_property: str | None = self.config.launch_function.file_category_property
+        file_resource_type: str | None = self.config.launch_function.file_resource_property
         file_search_property: str = self.config.launch_function.file_search_property
         file_entities: list[dict] = []
 
         for instance in file_instances:
             instance_properties = instance.properties.get(self.file_view.as_view_id())
-            if target_entities_category_property:
-                category: str = instance_properties[file_category_property]
+            if target_entities_resource_type:
+                resource_type: str = instance_properties[file_resource_type]
             else:
-                category: str = self.file_view.external_id
+                resource_type: str = self.file_view.external_id
             file_entity = entity(
                 external_id=instance.external_id,
                 name=instance_properties.get("name"),
                 space=instance.space,
+                annotation_type=self.file_view.annotation_type,
+                resource_type=resource_type,
                 search_property=instance_properties.get(file_search_property),
-                category_property=category,
-                annotation_type_external_id=self.file_view.annotation_type,
             )
             file_entities.append(file_entity.to_dict())
 
@@ -268,7 +268,7 @@ class GeneralCacheService(ICacheService):
 
         for entity in entities:
             # NOTE:
-            key = entity["category_property"]
+            key = entity["resource_type"]
             if key not in pattern_builders:
                 pattern_builders[key] = {}
 
@@ -294,7 +294,7 @@ class GeneralCacheService(ICacheService):
 
         # --- Build the final result from the processed patterns ---
         result = []
-        for category, templates in pattern_builders.items():
+        for resource_type, templates in pattern_builders.items():
             final_samples = []
             for template_key, collected_vars in templates.items():
                 # Create an iterator for the collected letter groups
@@ -323,5 +323,5 @@ class GeneralCacheService(ICacheService):
                 final_samples.append("".join(final_pattern_parts))
 
             if final_samples:
-                result.append({"sample": sorted(final_samples), "category_property": category})
+                result.append({"sample": sorted(final_samples), "resource_type": resource_type})
         return result
