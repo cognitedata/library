@@ -125,7 +125,7 @@ class entity:
         "external_id": file.external_id,
         "name": file.properties[job_config.file_view.as_view_id()]["name"],
         "space": file.space,
-        "annotation_type_external_id": job_config.file_view.type,
+        "annotation_type": job_config.file_view.type,
         "resource_type": file.properties[job_config.file_view.as_view_id()][{resource_type}],
         "search_property": file.properties[job_config.file_view.as_view_id()][{search_property}],
     }
