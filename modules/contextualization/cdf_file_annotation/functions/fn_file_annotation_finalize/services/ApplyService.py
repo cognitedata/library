@@ -156,8 +156,10 @@ class GeneralApplyService(IApplyService):
                 "externalId": external_id,
                 "startSourceId": source_id,
                 "startNode": file_instance_id.external_id,
+                "startNodeSpace": file_instance_id.space,
                 "endNode": entity["external_id"],
                 "endNodeSpace": entity["space"],
+                "endNodeResourceType": entity["resource_type"],
                 "viewId": self.core_annotation_view_id.external_id,
                 "viewSpace": self.core_annotation_view_id.space,
                 "viewVersion": self.core_annotation_view_id.version,
@@ -303,6 +305,7 @@ class GeneralApplyService(IApplyService):
             catalog_properties = {
                 "startSourceId": source_id,
                 "startNode": file_id.external_id,
+                "startNodeSpace": file_id.space,
                 "text": tag_text,
                 "resourceType": data["resource_type"],
                 # Store the entire list of region dicts

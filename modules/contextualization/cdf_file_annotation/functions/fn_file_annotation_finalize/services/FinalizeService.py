@@ -200,7 +200,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         count_failed = 0
         count_success = 0
         annotation_state_node_applies: list[NodeApply] = []
-        failed_files: NodeList[Node] = []
+        failed_files: NodeList[Node] = NodeList(resources=[])
 
         # Loop through the merged results, processing one file at a time
         for (space, external_id), results in merged_results.items():
@@ -298,7 +298,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         pattern_mode_message=str(e),
                     )
                     count_failed += 1
-                    failed_files.append(file_id)
+                    failed_files.append(file_node)
                 else:
                     job_node_to_update = self._process_annotation_state(
                         node=annotation_state_node,
