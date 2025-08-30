@@ -5,13 +5,98 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import ViewId, NodeId
+from cognite.client.data_classes.data_modeling import ViewId, NodeId, Node
 from cognite.client.data_classes.functions import FunctionCallLog
 from data_structures import ViewPropertyConfig
+from canvas import dm_generate
 
 client = CogniteClient()
 
-PIPELINE_EXT_ID = "ep_file_annotation"
+
+@st.cache_data(ttl=3600)
+def get_file_node(file_id: NodeId, file_view: ViewPropertyConfig) -> Node | None:
+    """Fetches a single file node from CDF."""
+    try:
+        node = client.data_modeling.instances.retrieve_nodes(nodes=file_id, sources=file_view.as_view_id())
+        return node
+    except Exception as e:
+        st.error(f"Failed to retrieve file node {file_id}: {e}")
+    return None
+
+
+def generate_file_canvas(
+    file_id: NodeId, file_view: ViewPropertyConfig, ep_config: dict, unmatched_tags_with_regions: list = []
+):
+    """
+    Generates an Industrial Canvas, including bounding boxes for unmatched tags,
+    and returns the canvas URL.
+    """
+    file_node = get_file_node(file_id, file_view)
+    if not file_node:
+        st.error("Could not generate canvas because the file node could not be retrieved.")
+        return None
+
+    canvas_name = f"Annotation Quality Analysis - {file_node.external_id}"
+
+    try:
+        domain = ep_config.get("streamlitDashboard", {}).get("industrialCanvasDomain", "cog-shadow-projects")
+        project = client.config.project
+        cluster = client.config.cdf_cluster
+
+        # Pass the unmatched tags data to dm_generate
+        canvas_id = dm_generate(
+            name=canvas_name,
+            file_node=file_node,
+            file_view_id=file_view.as_view_id(),
+            client=client,
+            unmatched_tags_with_regions=unmatched_tags_with_regions,
+        )
+        st.success(f"Successfully generated canvas: {canvas_name}")
+
+        canvas_url = f"https://{domain}.fusion.cognite.com/{project}/industrial-canvas/canvas?canvasId={canvas_id}&cluster={cluster}.cognitedata.com&env={cluster}&workspace=industrial-tools"
+        return canvas_url
+
+    except Exception as e:
+        st.error(f"Failed to generate canvas: {e}")
+        return None
+
+
+@st.cache_data(ttl=600)
+def find_pipelines(name_filter: str = "file_annotation") -> list[str]:
+    """
+    Finds the external IDs of all extraction pipelines in the project,
+    filtered by a substring in their external ID.
+    """
+    try:
+        all_pipelines = client.extraction_pipelines.list(limit=-1)
+        if not all_pipelines:
+            st.warning(f"No extraction pipelines found in the project.")
+            return []
+
+        filtered_ids = [p.external_id for p in all_pipelines if name_filter in p.external_id]
+
+        if not filtered_ids:
+            st.warning(f"No pipelines matching the filter '*{name_filter}*' found in the project.")
+            return []
+
+        return sorted(filtered_ids)
+    except Exception as e:
+        st.error(f"An error occurred while searching for extraction pipelines: {e}")
+        return []
+
+
+@st.cache_data(ttl=3600)
+def fetch_raw_table_data(db_name: str, table_name: str) -> pd.DataFrame:
+    """Fetches all rows from a specified RAW table and returns as a DataFrame."""
+    try:
+        rows = client.raw.rows.list(db_name=db_name, table_name=table_name, limit=-1)
+        if not rows:
+            return pd.DataFrame()
+        data = [row.columns for row in rows]
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.error(f"Failed to fetch data from RAW table '{table_name}': {e}")
+        return pd.DataFrame()
 
 
 def parse_run_message(message: str) -> dict:
@@ -19,7 +104,6 @@ def parse_run_message(message: str) -> dict:
     if not message:
         return {}
 
-    # Regex to capture all key-value pairs from the new format
     pattern = re.compile(
         r"\(caller:(?P<caller>\w+), function_id:(?P<function_id>[\w\.-]+), call_id:(?P<call_id>[\w\.-]+)\) - "
         r"total files processed: (?P<total>\d+) - "
@@ -29,7 +113,6 @@ def parse_run_message(message: str) -> dict:
     match = pattern.search(message)
     if match:
         data = match.groupdict()
-        # Convert numeric strings to integers
         for key in ["total", "success", "failed"]:
             if key in data:
                 data[key] = int(data[key])
@@ -38,11 +121,11 @@ def parse_run_message(message: str) -> dict:
 
 
 @st.cache_data(ttl=3600)
-def fetch_extraction_pipeline_config() -> tuple[dict, ViewPropertyConfig, ViewPropertyConfig]:
+def fetch_extraction_pipeline_config(pipeline_ext_id: str) -> tuple[dict, ViewPropertyConfig, ViewPropertyConfig]:
     """
     Fetch configurations from the latest extraction
     """
-    ep_configuration = client.extraction_pipelines.config.retrieve(external_id=PIPELINE_EXT_ID)
+    ep_configuration = client.extraction_pipelines.config.retrieve(external_id=pipeline_ext_id)
     config_dict = yaml.safe_load(ep_configuration.config)
 
     local_annotation_state_view = config_dict["dataModelViews"]["annotationStateView"]
@@ -70,7 +153,7 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
     Fetches annotation state instances from the specified data model view
     and joins them with their corresponding file instances.
     """
-    # 1. Fetch all annotation state instances
+    # ... (This function remains unchanged)
     annotation_instances = client.data_modeling.instances.list(
         instance_type="node",
         space=annotation_state_view.instance_space,
@@ -81,7 +164,6 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
         st.info("No annotation state instances found in the specified view.")
         return pd.DataFrame()
 
-    # 2. Process annotation states and collect NodeIds for linked files
     annotation_data = []
     nodes_to_fetch = []
     for instance in annotation_instances:
@@ -106,14 +188,11 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
     if df_annotations.empty or not nodes_to_fetch:
         return df_annotations
 
-    # 3. Fetch corresponding file instances using the collected NodeIds
-    # Remove duplicates before fetching
     unique_nodes_to_fetch = list(set(nodes_to_fetch))
     file_instances = client.data_modeling.instances.retrieve_nodes(
         nodes=unique_nodes_to_fetch, sources=file_view.as_view_id()
     )
 
-    # 4. Process file instances into a DataFrame
     file_data = []
     for instance in file_instances:
         node_data = {
@@ -126,7 +205,7 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
             if isinstance(prop_value, list):
                 string_values = []
                 for value in prop_value:
-                    string_values.append(value)
+                    string_values.append(str(value))
                 node_data[f"file{prop_key.capitalize()}"] = ", ".join(filter(None, string_values))
             else:
                 node_data[f"file{prop_key.capitalize()}"] = prop_value
@@ -137,10 +216,8 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
 
     df_files = pd.DataFrame(file_data)
 
-    # 5. Merge annotation data with file data
     df_merged = pd.merge(df_annotations, df_files, on=["fileExternalId", "fileSpace"], how="left")
 
-    # 6. Final data cleaning and preparation
     if "createdTime" in df_merged.columns:
         df_merged["createdTime"] = df_merged["createdTime"].dt.tz_localize("UTC")
     if "lastUpdatedTime" in df_merged.columns:
@@ -163,13 +240,14 @@ def fetch_annotation_states(annotation_state_view: ViewPropertyConfig, file_view
 
 
 @st.cache_data(ttl=3600)
-def fetch_pipeline_run_history():
+def fetch_pipeline_run_history(pipeline_ext_id: str):
     """Fetches the full run history for a given extraction pipeline."""
-    return client.extraction_pipelines.runs.list(external_id=PIPELINE_EXT_ID, limit=-1)
+    return client.extraction_pipelines.runs.list(external_id=pipeline_ext_id, limit=-1)
 
 
 def calculate_success_failure_stats(runs):
     """Calculates success and failure counts from a list of pipeline runs."""
+    # ... (This function remains unchanged)
     success_count = sum(1 for run in runs if run.status == "success")
     failure_count = sum(1 for run in runs if run.status == "failure")
     return success_count, failure_count
@@ -177,6 +255,7 @@ def calculate_success_failure_stats(runs):
 
 def get_failed_run_details(runs):
     """Filters for failed runs and extracts their details, including IDs."""
+    # ... (This function remains unchanged)
     failed_runs = []
     for run in runs:
         if run.status == "failure":
@@ -205,6 +284,7 @@ def fetch_function_logs(function_id: int, call_id: int):
 
 def process_runs_for_graphing(runs):
     """Transforms pipeline run data into a DataFrame for graphing."""
+    # ... (This function remains unchanged)
     launch_data = []
     finalize_runs_to_agg = []
 
@@ -225,7 +305,6 @@ def process_runs_for_graphing(runs):
         elif caller == "Finalize":
             finalize_runs_to_agg.append({"timestamp": timestamp, "count": count})
 
-    # --- Aggregate Finalize Runs ---
     aggregated_finalize_data = []
     if finalize_runs_to_agg:
         finalize_runs_to_agg.sort(key=lambda x: x["timestamp"])
@@ -259,3 +338,32 @@ def process_runs_for_graphing(runs):
     df_finalize = pd.DataFrame(aggregated_finalize_data)
 
     return pd.concat([df_launch, df_finalize], ignore_index=True)
+
+
+@st.cache_data(ttl=3600)
+def fetch_pattern_catalog(db_name: str, table_name: str) -> pd.DataFrame:
+    """
+    Fetches the entity cache and explodes it to create a complete
+    catalog of all generated patterns, indexed by resourceType.
+    """
+    try:
+        rows = client.raw.rows.list(db_name=db_name, table_name=table_name, limit=-1)
+        if not rows:
+            return pd.DataFrame()
+
+        data = [row.columns for row in rows]
+        df_cache = pd.DataFrame(data)
+
+        all_patterns = []
+        for _, row in df_cache.iterrows():
+            for sample_list in ["AssetPatternSamples", "FilePatternSamples"]:
+                if row.get(sample_list) and isinstance(row[sample_list], list):
+                    for item in row[sample_list]:
+                        if item.get("sample") and item.get("resource_type"):
+                            for pattern in item["sample"]:
+                                all_patterns.append({"resourceType": item["resource_type"], "pattern": pattern})
+
+        return pd.DataFrame(all_patterns)
+    except Exception as e:
+        st.error(f"Failed to fetch pattern catalog from '{table_name}': {e}")
+        return pd.DataFrame()

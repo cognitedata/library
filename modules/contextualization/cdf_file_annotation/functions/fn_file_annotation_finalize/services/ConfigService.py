@@ -188,6 +188,9 @@ class LaunchFunction(BaseModel, alias_generator=to_camel):
     secondary_scope_property: Optional[str] = None
     file_search_property: str = "aliases"
     target_entities_search_property: str = "aliases"
+    pattern_mode: bool
+    file_resource_property: Optional[str] = None
+    target_entities_resource_property: Optional[str] = None
     data_model_service: DataModelServiceConfig
     cache_service: CacheServiceConfig
     annotation_service: AnnotationServiceConfig
@@ -207,6 +210,7 @@ class ReportServiceConfig(BaseModel, alias_generator=to_camel):
     raw_db: str
     raw_table_doc_tag: str
     raw_table_doc_doc: str
+    raw_table_doc_pattern: str
     raw_batch_size: int
 
 

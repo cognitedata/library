@@ -52,6 +52,10 @@ config:
     targetEntitiesSearchProperty: aliases
     primaryScopeProperty: None
     secondaryScopeProperty:
+    # NOTE: below configurations are used by pattern mode
+    patternMode: True
+    fileResourceProperty: # optional
+    targetEntitiesResourceProperty: # optional
     dataModelService:
       getFilesToProcessQuery:
         targetView:
@@ -91,18 +95,11 @@ config:
     annotationService:
       pageRange: 50
       partialMatch: True
-      minTokens: 2
       diagramDetectConfig:
         connectionFlags:
           noTextInbetween: True
           naturalReadingOrder: True
-        customizeFuzziness:
-          fuzzyScore: 0.93
-          maxBoxes:
-          minChars: 10
-        minFuzzyScore: 0.915
         readEmbeddedText: True
-        removeLeadingZeros: True
   finalizeFunction:
     cleanOldAnnotations: True
     maxRetryAttempts: 3
@@ -127,4 +124,5 @@ config:
       rawDb: {{ rawDb }}
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
-      rawBatchSize: 10000
+      rawTableDocPattern: {{ rawTableDocPattern }}
+      rawBatchSize: 1000

@@ -15,6 +15,9 @@
       autoIncrement: false
       immutable: false
       nullable: true
+      autoIncrement: false
+      immutable: false
+      nullable: true
       type:
         collation: ucs_basic
         list: false
@@ -27,6 +30,14 @@
         collation: ucs_basic
         list: false
         type: text
+    patternModeMessage:
+      autoIncrement: false
+      immutable: false
+      nullable: true
+      type:
+        type: text
+        collation: ucs_basic
+        list: false
     attemptCount:
       autoIncrement: false
       immutable: false
@@ -35,6 +46,13 @@
         list: false
         type: int64
     diagramDetectJobId:
+      autoIncrement: false
+      immutable: false
+      nullable: true
+      type:
+        list: false
+        type: int64
+    patternModeJobId:
       autoIncrement: false
       immutable: false
       nullable: true
@@ -57,3 +75,14 @@
         type: int64
   space: {{ annotationStateSchemaSpace }}
   usedFor: node
+  indexes:
+    annotationStatus:
+      indexType: btree
+      properties:
+        - annotationStatus
+      cursorable: true
+    diagramDetectJobId:
+      indexType: btree
+      properties:
+        - diagramDetectJobId
+      cursorable: true

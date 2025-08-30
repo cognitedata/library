@@ -3,6 +3,7 @@ import pandas as pd
 from helper import (
     fetch_annotation_states,
     fetch_extraction_pipeline_config,
+    find_pipelines,
 )
 
 # --- Page Configuration ---
@@ -12,13 +13,33 @@ st.set_page_config(
     layout="wide",
 )
 
+# --- Sidebar for Pipeline Selection ---
+st.sidebar.title("Pipeline Selection")
+pipeline_ids = find_pipelines()
+
+if not pipeline_ids:
+    st.info("No active file annotation pipelines found to monitor.")
+    st.stop()
+
+# Add an independent dropdown selector for this page
+# It uses a different key to avoid conflicts
+selected_pipeline = st.sidebar.selectbox(
+    "Select a pipeline to view status:", options=pipeline_ids, key="status_pipeline_selector"
+)
+
 # --- Data Fetching ---
-ep_config, annotation_state_view, file_view = fetch_extraction_pipeline_config()
+# Pass the selected pipeline ID from this page's dropdown
+config_result = fetch_extraction_pipeline_config(selected_pipeline)
+if not config_result:
+    st.error(f"Could not fetch configuration for pipeline: {selected_pipeline}")
+    st.stop()
+
+ep_config, annotation_state_view, file_view = config_result
 df_raw = fetch_annotation_states(annotation_state_view, file_view)
 
 
 # --- Main Application ---
-st.title("Annotation Status Overview")
+st.title(f"Annotation Status Overview:")
 st.markdown("This page provides an audit trail and overview of the file annotation process.")
 
 if not df_raw.empty:
@@ -32,7 +53,6 @@ if not df_raw.empty:
     # Date Range Filter
     min_date = df_raw["lastUpdatedTime"].min().date()
     max_date = df_raw["lastUpdatedTime"].max().date()
-    # THE FIX IS HERE: Changed max_date to max_value
     date_range = st.sidebar.date_input(
         "Filter by Last Updated Date",
         value=(min_date, max_date),
@@ -40,6 +60,7 @@ if not df_raw.empty:
         max_value=max_date,
     )
 
+    # ... (The rest of your page logic for filters, metrics, and dataframes is the same)
     # Dynamic Scope Property Filters
     primary_scope_property = ep_config["launchFunction"].get("primaryScopeProperty")
     secondary_scope_property = ep_config["launchFunction"].get("secondaryScopeProperty")
@@ -77,7 +98,6 @@ if not df_raw.empty:
         df_filtered = df_filtered[
             df_filtered[f"file{secondary_scope_property.capitalize()}"] == selected_secondary_scope
         ]
-
     # --- Dashboard Metrics ---
     st.subheader("Status Overview")
 
@@ -122,6 +142,5 @@ if not df_raw.empty:
         st.dataframe(df_filtered[selected_columns], use_container_width=True)
     else:
         st.warning("Please select at least one column to display.")
-
 else:
-    st.info("No annotation state data returned from Cognite Data Fusion. Please check your settings and data model.")
+    st.info("No annotation state data found for the selected pipeline. Please check its configuration and runs.")

@@ -4,9 +4,11 @@ from typing import cast, Literal
 from datetime import datetime, timezone
 from cognite.client import CogniteClient
 from cognite.client.exceptions import CogniteAPIError
+from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import (
     Node,
     NodeId,
+    NodeList,
     NodeApply,
     NodeApplyList,
     NodeOrEdgeData,
@@ -114,7 +116,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             section="START",
         )
         try:
-            job_id, file_to_state_map = self.retrieve_service.get_job_id()
+            job_id, pattern_mode_job_id, file_to_state_map = self.retrieve_service.get_job_id()
             if not job_id or not file_to_state_map:
                 self.logger.info(message="No diagram detect jobs found", section="END")
                 return "Done"
@@ -141,8 +143,12 @@ class GeneralFinalizeService(AbstractFinalizeService):
             else:
                 raise e
 
+        job_results: dict | None = None
+        pattern_mode_job_results: dict | None = None
         try:
-            job_results: dict | None = self.retrieve_service.get_diagram_detect_job_result(job_id)
+            job_results = self.retrieve_service.get_diagram_detect_job_result(job_id)
+            if pattern_mode_job_id:
+                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(pattern_mode_job_id)
         except Exception as e:
             self.logger.info(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) is a bad gateway",
@@ -154,9 +160,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 failed=True,
             )
 
-        if job_results is None:
+        if not job_results or not pattern_mode_job_results:
             self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) is not complete yet",
+                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) and/or pattern id ({pattern_mode_job_id} not complete)",
                 section="END",
             )
             self._update_batch_state(
@@ -168,16 +174,43 @@ class GeneralFinalizeService(AbstractFinalizeService):
             return
 
         self.logger.info(
-            message=f"Applying annotations to {len(job_results['items'])} files",
+            message=f"Both jobs ({job_id}, {pattern_mode_job_id}) complete. Applying all annotations.",
             section="END",
         )
+
+        # NOTE: Merge the results by file ID for easier processing
+        # Ensures that for each job, both the regular annotations and its pattern results will be updated within the same transaction.
+        # This prevents a scenario where the regular annotation is successfully processed but an error occurs before the pattern results are successfully processed.
+        # That would leave the file in a partially completed state.
+        merged_results = {
+            (item["fileInstanceId"]["space"], item["fileInstanceId"]["externalId"]): {"regular": item}
+            for item in job_results["items"]
+        }
+
+        if pattern_mode_job_results:
+            for item in pattern_mode_job_results["items"]:
+                # FIX: Use the same tuple format for the key when adding pattern results.
+                key = (item["fileInstanceId"]["space"], item["fileInstanceId"]["externalId"])
+                if key in merged_results:
+                    merged_results[key]["pattern"] = item
+                else:
+                    merged_results[key] = {"pattern": item}
+
         count_retry = 0
         count_failed = 0
+        count_success = 0
         annotation_state_node_applies: list[NodeApply] = []
-        failed_file_ids: list[NodeId] = []
+        failed_files: NodeList[Node] = NodeList(resources=[])
 
-        for diagram_detect_item in job_results["items"]:
-            file_id: NodeId = NodeId.load(diagram_detect_item["fileInstanceId"])
+        # Loop through the merged results, processing one file at a time
+        for (space, external_id), results in merged_results.items():
+            file_id: NodeId = NodeId(space, external_id)
+            file_node: Node | None = self.client.data_modeling.instances.retrieve_nodes(
+                nodes=file_id, sources=self.file_view.as_view_id()
+            )
+            if not file_node:
+                self.logger.debug(f"No file node found for file id {str(file_id)}")
+                continue
             annotation_state_node: Node = file_to_state_map[file_id]
 
             current_attempt_count: int = cast(
@@ -186,102 +219,101 @@ class GeneralFinalizeService(AbstractFinalizeService):
             )
             next_attempt_count = current_attempt_count + 1
             job_node_to_update: NodeApply | None = None
-            if diagram_detect_item.get("annotations") and len(diagram_detect_item["annotations"]) > 0:
-                try:
-                    self.logger.info(f"Applying annotations to file NodeId - {str(file_id)}")
+
+            try:
+                # Process Regular Annotations
+                regular_item = results.get("regular")
+                if regular_item and regular_item.get("annotations"):
+                    self.logger.info(f"Applying annotations to file {str(file_id)}")
                     if self.clean_old_annotations:
-                        self.logger.info("Deleting old annotations")
-                        doc_annotations_delete, tag_annotations_delete = self.apply_service.delete_annotations_for_file(
-                            file_node=file_id
-                        )
-                        self.logger.info(
-                            f"\t- deleted {len(doc_annotations_delete)} document annotations\n- deleted {len(tag_annotations_delete)} tag annoations"
-                        )
-                        self.report_service.delete_annotations(doc_annotations_delete, tag_annotations_delete)
+                        # This should only run once, so we tie it to the regular annotation processing
+                        doc_delete, tag_delete = self.apply_service.delete_annotations_for_file(file_id)
+                        self.report_service.delete_annotations(doc_delete, tag_delete)
 
-                    doc_annotations, tag_annotations = self.apply_service.apply_annotations(
-                        diagram_detect_item, file_id
-                    )
-                    doc_msg = f"added/updated {len(doc_annotations)} document annotations"
-                    tag_msg = f"added/updated {len(tag_annotations)} tag annotations"
+                    doc_add, tag_add = self.apply_service.apply_annotations(regular_item, file_node)
+                    self.report_service.add_annotations(doc_rows=doc_add, tag_rows=tag_add)
+                    annotation_msg: str = f"Applied {len(doc_add)} doc and {len(tag_add)} tag annotations."
+                    self.logger.info(f"\t- {annotation_msg}")
+                elif regular_item and regular_item.get("errorMessage"):
+                    raise Exception(regular_item.get("errorMessage"))
+                else:
+                    annotation_msg: str = "Found no annotations to apply"
 
-                    page_count: int = diagram_detect_item["pageCount"]
+                # Process Pattern Mode Annotations
+                pattern_item = results.get("pattern")
+                if pattern_item and pattern_item.get("annotations"):
+                    self.logger.info(f"Processing pattern mode results for file {str(file_id)}")
+                    # responsible for converting pattern results into RAW rows and adding them to its internal batch for later upload.
+                    pattern_add: list[RowWrite] = self.apply_service.process_pattern_results(pattern_item, file_node)
+                    self.report_service.add_pattern_tags(pattern_rows=pattern_add)
+                    pattern_msg: str = f"Found {len(pattern_item['annotations'])} pattern annotations."
+                    self.logger.info(f"\t- {pattern_msg}")
+                elif pattern_item and pattern_item.get("errorMessage"):
+                    pattern_msg = pattern_item.get("errorMessage")
+                else:
+                    pattern_msg: str = "Found no tags from pattern samples"
+
+                # Determine Final State
+                if regular_item and regular_item.get("pageCount"):
+                    page_count: int = regular_item["pageCount"]
                     annotated_page_count: int = self._check_all_pages_annotated(annotation_state_node, page_count)
-                    if annotated_page_count == page_count:
-                        job_node_to_update = self._process_annotation_state(
-                            node=annotation_state_node,
-                            status=AnnotationStatus.ANNOTATED,
-                            attempt_count=next_attempt_count,
-                            annotated_page_count=annotated_page_count,
-                            page_count=page_count,
-                            annotation_message=f"{doc_msg} and {tag_msg}",
-                        )
-                    else:
-                        job_node_to_update = self._process_annotation_state(
-                            node=annotation_state_node,
-                            status=AnnotationStatus.NEW,
-                            attempt_count=current_attempt_count,  # NOTE: using current_attempt_count since don't want to increment this if not fully annotated
-                            annotated_page_count=annotated_page_count,
-                            page_count=page_count,
-                            annotation_message=f"{doc_msg} and {tag_msg}",
-                        )
+                else:
+                    page_count = 1
+                    annotated_page_count = page_count
 
-                    self.report_service.add_annotations(doc_rows=doc_annotations, tag_rows=tag_annotations)
-                    self.logger.info(f"\t- {doc_msg}\n- {tag_msg}")
+                if annotated_page_count == page_count:
+                    job_node_to_update = self._process_annotation_state(
+                        node=annotation_state_node,
+                        status=AnnotationStatus.ANNOTATED,
+                        attempt_count=next_attempt_count,
+                        annotated_page_count=annotated_page_count,
+                        page_count=page_count,
+                        annotation_message=annotation_msg,
+                        pattern_mode_message=pattern_msg,
+                    )
+                    count_success += 1
+                else:
+                    # File has more pages to process
+                    job_node_to_update = self._process_annotation_state(
+                        node=annotation_state_node,
+                        status=AnnotationStatus.NEW,
+                        attempt_count=current_attempt_count,  # Do not increment attempt count
+                        annotated_page_count=annotated_page_count,
+                        page_count=page_count,
+                        annotation_message="Processed page batch, more pages remaining",
+                        pattern_mode_message=pattern_msg,
+                    )
+                    # This is still a success for the current batch
+                    count_success += 1
 
-                except Exception as e:
-                    msg = str(e)
-                    if next_attempt_count >= self.max_retries:
-                        job_node_to_update = self._process_annotation_state(
-                            node=annotation_state_node,
-                            status=AnnotationStatus.FAILED,
-                            attempt_count=next_attempt_count,
-                            annotation_message=msg,
-                        )
-                        count_failed += 1
-                        self.logger.info(
-                            f"\t- set the annotation status to {AnnotationStatus.FAILED}\n- ran into the following error: {msg}"
-                        )
-                        failed_file_ids.append(file_id)
-                    else:
-                        job_node_to_update = self._process_annotation_state(
-                            node=annotation_state_node,
-                            status=AnnotationStatus.RETRY,
-                            attempt_count=next_attempt_count,
-                            annotation_message=msg,
-                        )
-                        count_retry += 1
-                        self.logger.info(
-                            f"\t- set the annotation status to 'Retry'\n- ran into the following error: {msg}"
-                        )
-            else:
-                msg = f"found 0 annotations in diagram_detect_item for file {str(file_id)}"
+            except Exception as e:
+                # If anything fails for this file, mark it for retry or failure
+                self.logger.error(f"Failed to process annotations for file {str(file_id)}: {str(e)}")
                 if next_attempt_count >= self.max_retries:
                     job_node_to_update = self._process_annotation_state(
                         node=annotation_state_node,
                         status=AnnotationStatus.FAILED,
                         attempt_count=next_attempt_count,
-                        annotation_message=msg,
+                        annotation_message=str(e),
+                        pattern_mode_message=str(e),
                     )
                     count_failed += 1
-                    self.logger.info(f"\t- set the annotation status to 'Failed'\n- {msg}")
-                    failed_file_ids.append(file_id)
+                    failed_files.append(file_node)
                 else:
                     job_node_to_update = self._process_annotation_state(
                         node=annotation_state_node,
                         status=AnnotationStatus.RETRY,
                         attempt_count=next_attempt_count,
-                        annotation_message=msg,
+                        annotation_message=str(e),
+                        pattern_mode_message=str(e),
                     )
                     count_retry += 1
-                    self.logger.info(f"\t- set the annotation status to 'Retry'\n- {msg}")
+
             if job_node_to_update:
                 annotation_state_node_applies.append(job_node_to_update)
 
-        if failed_file_ids:
-            file_applies: NodeApplyList = self.client.data_modeling.instances.retrieve_nodes(
-                nodes=failed_file_ids, sources=self.file_view.as_view_id()
-            ).as_write()
+        if failed_files:
+            file_applies: NodeApplyList = failed_files.as_write()
             for node_apply in file_applies:
                 node_apply.existing_version = None
                 tags_property: list[str] = cast(list[str], node_apply.sources[0].properties["tags"])
@@ -305,15 +337,14 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         if annotation_state_node_applies:
             node_count = len(annotation_state_node_applies)
-            count_annotated = node_count - count_retry - count_failed
             self.logger.info(
                 message=f"Updating {node_count} annotation state instances",
                 section="START",
             )
             try:
-                self.apply_service.update_nodes(list_node_apply=annotation_state_node_applies)
+                self.apply_service.update_instances(list_node_apply=annotation_state_node_applies)
                 self.logger.info(
-                    f"\t- {count_annotated} set to Annotated\n- {count_retry} set to retry\n- {count_failed} set to failed"
+                    f"\t- {count_success} set to Annotated\n- {count_retry} set to retry\n- {count_failed} set to failed"
                 )
             except Exception as e:
                 self.logger.error(
@@ -321,7 +352,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     section="END",
                 )
 
-        self.tracker.add_files(success=count_annotated, failed=(count_failed + count_retry))
+        self.tracker.add_files(success=count_success, failed=(count_failed + count_retry))
 
     def _process_annotation_state(
         self,
@@ -331,6 +362,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         annotated_page_count: int | None = None,
         page_count: int | None = None,
         annotation_message: str | None = None,
+        pattern_mode_message: str | None = None,
     ) -> NodeApply:
         """
         Create a node apply from the node passed into the function.
@@ -354,16 +386,16 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "annotationStatus": status,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "annotationMessage": annotation_message,
+                "patternModeMessage": pattern_mode_message,
                 "attemptCount": attempt_count,
-                "diagramDetectJobId": None,  # clear the job id
             }
         else:
             update_properties = {
                 "annotationStatus": status,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "annotationMessage": annotation_message,
+                "patternModeMessage": pattern_mode_message,
                 "attemptCount": attempt_count,
-                "diagramDetectJobId": None,  # clear the job id
                 "annotatedPageCount": annotated_page_count,
                 "pageCount": page_count,
             }
@@ -444,6 +476,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "annotationStatus": status,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": None,
+                "patternModeJobId": None,
             }
             batch.update_node_properties(
                 new_properties=update_properties,
@@ -466,7 +499,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 view_id=self.annotation_state_view.as_view_id(),
             )
         try:
-            update_results = self.apply_service.update_nodes(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
@@ -474,5 +507,5 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 section="END",
             )
             time.sleep(30)
-            update_results = self.apply_service.update_nodes(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")
