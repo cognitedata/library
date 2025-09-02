@@ -131,8 +131,8 @@ def create_bounding_box_annotations(canvas_id: str, file_container_id: str, unma
                     "label": tag_text,
                     "zIndex": 10,
                     "style": {
-                        "fill": "rgba(255, 165, 0, 0.3)",  # Semi-transparent orange
-                        "stroke": "orange",
+                        "fill": "rgba(40, 167, 69, 0.3)",  # Semi-transparent vibrant green
+                        "stroke": "rgb(40, 167, 69)",  # Solid vibrant green for the border
                         "strokeWidth": 1,
                         "opacity": 1,
                     },
