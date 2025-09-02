@@ -5,6 +5,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from cognite.client import CogniteClient
+from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import ViewId, NodeId, Node
 from cognite.client.data_classes.functions import FunctionCallLog
 from data_structures import ViewPropertyConfig
@@ -367,3 +368,107 @@ def fetch_pattern_catalog(db_name: str, table_name: str) -> pd.DataFrame:
     except Exception as e:
         st.error(f"Failed to fetch pattern catalog from '{table_name}': {e}")
         return pd.DataFrame()
+
+def fetch_manual_patterns(db_name: str, table_name: str) -> pd.DataFrame:
+    """
+    Fetches all manual patterns from the RAW table and explodes them
+    into a tidy DataFrame for display and editing.
+    """
+    all_patterns = []
+    expected_columns = [
+        "key",
+        "scope_level",
+        "primary_scope",
+        "secondary_scope",
+        "sample",
+        "resource_type",
+        "created_by",
+    ]
+
+    try:
+        rows = client.raw.rows.list(db_name=db_name, table_name=table_name, limit=-1)
+        for row in rows:
+            key = row.key
+            patterns_list = row.columns.get("patterns", [])
+
+            scope_level = "Global"
+            primary_scope = ""
+            secondary_scope = ""
+            if key != "GLOBAL":
+                parts = key.split("_")
+                if len(parts) == 2:
+                    scope_level = "Secondary Scope"
+                    primary_scope, secondary_scope = parts
+                else:
+                    scope_level = "Primary Scope"
+                    primary_scope = key
+
+            for p in patterns_list:
+                all_patterns.append(
+                    {
+                        "key": key,
+                        "scope_level": scope_level,
+                        "primary_scope": primary_scope,
+                        "secondary_scope": secondary_scope,
+                        "sample": p.get("sample"),
+                        "resource_type": p.get("resource_type"),
+                        "created_by": p.get("created_by"),
+                    }
+                )
+
+        if not all_patterns:
+            return pd.DataFrame(columns=expected_columns)
+
+        df = pd.DataFrame(all_patterns)
+
+        for col in expected_columns:
+            if col not in df.columns:
+                df[col] = ""
+            df[col] = df[col].fillna("").astype(str)
+
+        return df
+
+    except Exception as e:
+        if "NotFoundError" in str(type(e)):
+            return pd.DataFrame(columns=expected_columns)
+        st.error(f"Failed to fetch manual patterns: {e}")
+        return pd.DataFrame(columns=expected_columns)
+
+
+def save_manual_patterns(df: pd.DataFrame, db_name: str, table_name: str):
+    """
+    Takes a tidy DataFrame of patterns, groups them by scope key,
+    and writes them back to the RAW table.
+    """
+
+    def create_key(row):
+        if row["scope_level"] == "Global":
+            return "GLOBAL"
+        elif row["scope_level"] == "Primary Scope" and row["primary_scope"]:
+            return row["primary_scope"]
+        elif row["scope_level"] == "Secondary Scope" and row["primary_scope"] and row["secondary_scope"]:
+            return f"{row['primary_scope']}_{row['secondary_scope']}"
+        return None
+
+    df["key"] = df.apply(create_key, axis=1)
+
+    df.dropna(subset=["key"], inplace=True)
+
+    grouped = df.groupby("key")
+
+    rows_to_write = []
+    for key, group in grouped:
+        patterns_list = group[["sample", "resource_type", "created_by"]].to_dict("records")
+
+        row = RowWrite(key=key, columns={"patterns": patterns_list})
+        rows_to_write.append(row)
+
+    existing_keys = {r.key for r in client.raw.rows.list(db_name, table_name, limit=-1)}
+    new_keys = {r.key for r in rows_to_write}
+    keys_to_delete = list(existing_keys - new_keys)
+
+    if keys_to_delete:
+        client.raw.rows.delete(db_name=db_name, table_name=table_name, key=keys_to_delete)
+
+    if rows_to_write:
+        client.raw.rows.insert(db_name=db_name, table_name=table_name, row=rows_to_write, ensure_parent=True)

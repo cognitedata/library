@@ -16,6 +16,7 @@ rawTableDocTag: annotation_documents_tags
 rawTableDocDoc: annotation_documents_docs
 rawTableDocPattern: annotation_documents_patterns
 rawTableCache: annotation_entities_cache
+rawManualPatternsCatalog: manual_patterns_catalog
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation

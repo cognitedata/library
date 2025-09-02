@@ -6,3 +6,6 @@
 
 - dbName: {{ rawDb }}  
   tableName: {{ rawTableCache }}
+
+- dbName: {{ rawDb }}  
+  tableName: {{ rawManualPatternsCatalog }}

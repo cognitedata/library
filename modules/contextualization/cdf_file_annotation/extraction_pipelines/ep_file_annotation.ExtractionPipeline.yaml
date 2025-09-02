@@ -9,6 +9,8 @@ rawTables:
     tableName: {{ rawTableDocDoc }}
   - dbName: {{ rawDb }}
     tableName: {{ rawTableCache }}
+  - dbName: {{ rawDb }}
+    tableName: {{ rawManualPatternsCatalog }}
 source: "Files"
 documentation: >
   # Guide to Configuring the Annotation Function via YAML
