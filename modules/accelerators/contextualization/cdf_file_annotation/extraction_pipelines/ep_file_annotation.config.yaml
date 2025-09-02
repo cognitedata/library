@@ -92,6 +92,7 @@ config:
       cacheTimeLimit: 24 # hours
       rawDb: {{ rawDb }}
       rawTableCache: {{ rawTableCache }}
+      rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
     annotationService:
       pageRange: 50
       partialMatch: True

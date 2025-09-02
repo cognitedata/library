@@ -316,8 +316,7 @@ class GeneralApplyService(IApplyService):
             }
 
             # Create a deterministic key based on the tag text and file
-            row_key = f"{tag_text}_{source_id}"
-
+            row_key = f"{tag_text}:{file_id.space}:{file_id.external_id}"
             row = RowWrite(key=row_key, columns=catalog_properties)
             doc_patterns.append(row)
 

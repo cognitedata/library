@@ -168,6 +168,7 @@ class CacheServiceConfig(BaseModel, alias_generator=to_camel):
     cache_time_limit: int
     raw_db: str
     raw_table_cache: str
+    raw_manual_patterns_catalog: str
 
 
 class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):

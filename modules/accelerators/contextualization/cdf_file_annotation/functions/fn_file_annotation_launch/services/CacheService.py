@@ -1,9 +1,11 @@
 import abc
 import re
 from typing import Iterator
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite, Row
+from cognite.client.exceptions import CogniteNotFoundError
 from cognite.client.data_classes.data_modeling import (
     Node,
     NodeList,
@@ -57,6 +59,7 @@ class GeneralCacheService(ICacheService):
 
         self.db_name: str = config.launch_function.cache_service.raw_db
         self.tbl_name: str = config.launch_function.cache_service.raw_table_cache
+        self.manual_patterns_tbl_name: str = config.launch_function.cache_service.raw_manual_patterns_catalog
         self.cache_time_limit: int = config.launch_function.cache_service.cache_time_limit  # in hours
 
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
@@ -89,10 +92,8 @@ class GeneralCacheService(ICacheService):
             self.logger.debug(f"Cache valid for key: {key}. Retrieving entities and patterns.")
             asset_entities: list[dict] = row.columns.get("AssetEntities", [])
             file_entities: list[dict] = row.columns.get("FileEntities", [])
-            asset_pattern_samples: list[dict] = row.columns.get("AssetPatternSamples", [])  # Get patterns from cache
-            file_pattern_samples: list[dict] = row.columns.get("FilePatternSamples", [])  # Get patterns from cache
-
-            return (asset_entities + file_entities), (asset_pattern_samples + file_pattern_samples)
+            combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
+            return (asset_entities + file_entities), combined_pattern_samples
 
         self.logger.info(f"Refreshing RAW entities cache and patterns cache for key: {key}")
 
@@ -108,7 +109,13 @@ class GeneralCacheService(ICacheService):
         # Generate pattern samples from the same entities
         asset_pattern_samples = self._generate_tag_samples_from_entities(asset_entities)
         file_pattern_samples = self._generate_tag_samples_from_entities(file_entities)
-        pattern_samples = asset_pattern_samples + file_pattern_samples
+        auto_pattern_samples = asset_pattern_samples + file_pattern_samples
+
+        # Grab the manual pattern samples
+        manual_pattern_samples = self._get_manual_patterns(primary_scope_value, secondary_scope_value)
+
+        # Merge the auto and manual patterns
+        combined_pattern_samples = self._merge_patterns(auto_pattern_samples, manual_pattern_samples)
 
         # Update cache
         new_row = RowWrite(
@@ -118,11 +125,13 @@ class GeneralCacheService(ICacheService):
                 "FileEntities": file_entities,
                 "AssetPatternSamples": asset_pattern_samples,
                 "FilePatternSamples": file_pattern_samples,
+                "ManualPatternSamples": manual_pattern_samples,
+                "CombinedPatternSamples": combined_pattern_samples,
                 "LastUpdateTimeUtcIso": datetime.now(timezone.utc).isoformat(),
             },
         )
         self._update_cache(new_row)
-        return entities, pattern_samples
+        return entities, combined_pattern_samples
 
     def _update_cache(self, row_to_write: RowWrite) -> None:
         """
@@ -325,3 +334,61 @@ class GeneralCacheService(ICacheService):
             if final_samples:
                 result.append({"sample": sorted(final_samples), "resource_type": resource_type})
         return result
+
+    def _get_manual_patterns(self, primary_scope: str, secondary_scope: str | None) -> list[dict]:
+        """Fetches and combines manual patterns from GLOBAL, primary, and secondary scopes."""
+        keys_to_fetch = ["GLOBAL"]
+        if primary_scope:
+            keys_to_fetch.append(primary_scope)
+        if primary_scope and secondary_scope:
+            keys_to_fetch.append(f"{primary_scope}_{secondary_scope}")
+
+        self.logger.info(f"Fetching manual patterns for keys: {keys_to_fetch}")
+        all_manual_patterns = []
+        for key in keys_to_fetch:
+            try:
+                row: Row | None = self.client.raw.rows.retrieve(
+                    db_name=self.db_name, table_name=self.manual_patterns_tbl_name, key=key
+                )
+                if row:
+                    patterns = (row.columns or {}).get("patterns", [])
+                    all_manual_patterns.extend(patterns)
+            except CogniteNotFoundError:
+                self.logger.info(f"No manual patterns found for keys: {keys_to_fetch}. This may be expected.")
+            except Exception as e:
+                self.logger.error(f"Failed to retrieve manual patterns: {e}")
+
+        return all_manual_patterns
+
+    def _merge_patterns(self, auto_patterns: list[dict], manual_patterns: list[dict]) -> list[dict]:
+        """Merges auto-generated and manual patterns, de-duplicating samples."""
+        # The structure of manual_patterns is [{"sample": "P-1", "resource_type": "A"}, ...]
+        # The structure of auto_patterns is [{"sample": ["P-2", "P-3"], "resource_type": "A"}, ...]
+
+        # Use a dictionary with sets for efficient merging and de-duplication
+        merged = defaultdict(set)
+
+        # Process auto-generated patterns
+        for item in auto_patterns:
+            resource_type = item.get("resource_type")
+            samples = item.get("sample", [])
+            if resource_type and isinstance(samples, list):
+                merged[resource_type].update(samples)
+
+        # Process manual patterns
+        for item in manual_patterns:
+            resource_type = item.get("resource_type")
+            sample = item.get("sample")
+            if resource_type and sample:
+                merged[resource_type].add(sample)
+
+        # Convert the merged dictionary back to the required list format
+        final_list = [
+            {"resource_type": resource_type, "sample": sorted(list(samples))}
+            for resource_type, samples in merged.items()
+        ]
+
+        self.logger.info(
+            f"Merged {len(auto_patterns)} auto-patterns and {len(manual_patterns)} manual patterns into {len(final_list)} resource types."
+        )
+        return final_list
