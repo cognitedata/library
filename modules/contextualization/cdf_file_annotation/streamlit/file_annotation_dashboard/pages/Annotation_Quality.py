@@ -7,6 +7,7 @@ from helper import (
     find_pipelines,
     generate_file_canvas,
     fetch_pattern_catalog,
+    fetch_manual_patterns,  # Import the function to get manual patterns
 )
 from cognite.client.data_classes.data_modeling import NodeId
 
@@ -47,17 +48,20 @@ pattern_table = report_config.get("rawTableDocPattern")
 tag_table = report_config.get("rawTableDocTag")
 doc_table = report_config.get("rawTableDocDoc")
 cache_table = cache_config.get("rawTableCache")
+manual_patterns_table = cache_config.get("rawManualPatternsCatalog")
 
 
-if not all([db_name, pattern_table, tag_table, doc_table, cache_table]):
+if not all([db_name, pattern_table, tag_table, doc_table, cache_table, manual_patterns_table]):
     st.error("Could not find all required RAW table names in the pipeline configuration.")
     st.stop()
 
 df_patterns = fetch_raw_table_data(db_name, pattern_table)
 df_tags = fetch_raw_table_data(db_name, tag_table)
 df_docs = fetch_raw_table_data(db_name, doc_table)
-df_pattern_catalog = fetch_pattern_catalog(db_name, cache_table)
 
+# Fetch both auto-generated and manual patterns
+df_auto_patterns = fetch_pattern_catalog(db_name, cache_table)
+df_manual_patterns = fetch_manual_patterns(db_name, manual_patterns_table)
 
 # --- Main Application ---
 st.title("Annotation Quality Dashboard")
@@ -107,18 +111,50 @@ df_quality["completenessRate"] = (
 df_quality.fillna(0, inplace=True)
 
 # --- Dashboard Metrics ---
-st.subheader("Overall Annotation Quality")
-total_matched = df_quality["matchedTags"].sum()
-total_unmatched = df_quality["unmatchedByAnnotation"].sum()
-total_missed = df_quality["missedByPattern"].sum()
+st.header("Overall Annotation Quality")
 
+# Get a unique, sorted list of resource types for the filter
+all_resource_types = ["All"] + sorted(df_patterns["resourceType"].unique().tolist())
+
+selected_resource_type = st.selectbox("Filter by Resource Type:", options=all_resource_types)
+
+# --- Filter the data based on selection ---
+if selected_resource_type == "All":
+    df_metrics_input = df_patterns
+    df_annotations_input = df_annotations
+else:
+    df_metrics_input = df_patterns[df_patterns["resourceType"] == selected_resource_type]
+    if not df_annotations.empty and "endNodeResourceType" in df_annotations.columns:
+        df_annotations_input = df_annotations[df_annotations["endNodeResourceType"] == selected_resource_type]
+    else:
+        df_annotations_input = pd.DataFrame()
+
+
+# --- Recalculate metrics based on the filtered data ---
+potential_tags_set = set(df_metrics_input["text"])
+if not df_annotations_input.empty and "startNodeText" in df_annotations_input.columns:
+    actual_annotations_set = set(df_annotations_input["startNodeText"])
+else:
+    actual_annotations_set = set()
+
+
+matched_tags_set = potential_tags_set.intersection(actual_annotations_set)
+unmatched_by_annotation_set = potential_tags_set - actual_annotations_set
+missed_by_pattern_set = actual_annotations_set - potential_tags_set
+
+total_matched = len(matched_tags_set)
+total_unmatched = len(unmatched_by_annotation_set)
+total_missed = len(missed_by_pattern_set)
+
+# Calculate overall rates
 overall_coverage = (
     (total_matched / (total_matched + total_unmatched)) * 100 if (total_matched + total_unmatched) > 0 else 0
 )
 overall_completeness = (
-    (total_matched / (total_matched + total_missed)) * 100 if (total_matched + total_missed) > 0 else 0
+    (total_matched / (total_missed + total_matched)) * 100 if (total_missed + total_matched) > 0 else 0
 )
 
+# Display KPIs
 kpi_col1, kpi_col2 = st.columns(2)
 kpi_col1.metric(
     "Overall Annotation Coverage",
@@ -131,34 +167,60 @@ kpi_col2.metric(
     help="Of all annotations created, this is the percentage that the patterns successfully predicted. Formula: Matched / (Matched + Missed by Pattern)",
 )
 
-# --- Annotation Quality by Resource Type ---
-df_merged_for_resource = pd.merge(df_patterns, df_quality, on="startNode", how="left")
+st.divider()
 
-if "resourceType" in df_merged_for_resource.columns:
-    df_resource_quality = (
-        df_merged_for_resource.groupby("resourceType")
-        .agg(
-            matchedTags=("matchedTags", "first"),
-            unmatchedByAnnotation=("unmatchedByAnnotation", "first"),
-            missedByPattern=("missedByPattern", "first"),
-        )
-        .reset_index()
+# --- Prepare data for charts ---
+chart_data = []
+# Use all_resource_types[1:] to skip the "All" option
+for resource_type in all_resource_types[1:]:
+    # Filter data for this specific resource type
+    df_patterns_filtered = df_patterns[df_patterns["resourceType"] == resource_type]
+
+    if not df_annotations.empty and "endNodeResourceType" in df_annotations.columns:
+        df_annotations_filtered = df_annotations[df_annotations["endNodeResourceType"] == resource_type]
+    else:
+        df_annotations_filtered = pd.DataFrame()
+
+    # Calculate metrics using global unique tags for THIS resource type
+    potential = set(df_patterns_filtered["text"])
+
+    if not df_annotations_filtered.empty and "startNodeText" in df_annotations_filtered.columns:
+        actual = set(df_annotations_filtered["startNodeText"])
+    else:
+        actual = set()
+
+    matched = len(potential.intersection(actual))
+    unmatched = len(potential - actual)
+    missed = len(actual - potential)
+
+    coverage = (matched / (matched + unmatched)) * 100 if (matched + unmatched) > 0 else 0
+    completeness = (matched / (matched + missed)) * 100 if (matched + missed) > 0 else 0
+
+    chart_data.append(
+        {
+            "resourceType": resource_type,
+            "coverageRate": coverage,
+            "completenessRate": completeness,
+            "matchedTags": matched,
+            "unmatchedByAnnotation": unmatched,
+            "missedByPattern": missed,
+        }
     )
 
-    df_resource_quality["coverageRate"] = (
-        df_resource_quality["matchedTags"]
-        / (df_resource_quality["matchedTags"] + df_resource_quality["unmatchedByAnnotation"])
-    ) * 100
-    df_resource_quality["completenessRate"] = (
-        df_resource_quality["matchedTags"]
-        / (df_resource_quality["matchedTags"] + df_resource_quality["missedByPattern"])
-    ) * 100
-    df_resource_quality.fillna(0, inplace=True)
+df_chart_data = pd.DataFrame(chart_data)
 
+# --- Filter chart data based on dropdown selection ---
+if selected_resource_type != "All":
+    df_chart_display = df_chart_data[df_chart_data["resourceType"] == selected_resource_type]
+else:
+    df_chart_display = df_chart_data
+
+# --- Render Charts ---
+if not df_chart_display.empty:
     chart_col1, chart_col2 = st.columns(2)
     with chart_col1:
         coverage_chart = (
-            alt.Chart(df_resource_quality)
+            alt.Chart(df_chart_display)
             .mark_bar()
             .encode(
                 x=alt.X("resourceType:N", title="Resource Type", sort="-y"),
@@ -170,7 +232,7 @@ if "resourceType" in df_merged_for_resource.columns:
         st.altair_chart(coverage_chart, use_container_width=True)
     with chart_col2:
         completeness_chart = (
-            alt.Chart(df_resource_quality)
+            alt.Chart(df_chart_display)
             .mark_bar()
             .encode(
                 x=alt.X("resourceType:N", title="Resource Type", sort="-y"),
@@ -181,20 +243,60 @@ if "resourceType" in df_merged_for_resource.columns:
         )
         st.altair_chart(completeness_chart, use_container_width=True)
 else:
-    st.info("The 'resourceType' column is not available in the pattern data to generate this chart.")
+    st.info("No data available for the selected resource type to generate charts.")
 
-# --- Pattern Catalog Expander with Tabs ---
+# --- Combine auto and manual patterns for display ---
 with st.expander("View Full Pattern Catalog"):
-    if df_pattern_catalog.empty:
+    # Standardize column names for merging
+    df_auto_patterns.rename(columns={"resourceType": "resource_type", "pattern": "sample"}, inplace=True)
+
+    # Select and combine relevant columns
+    df_combined_patterns = (
+        pd.concat([df_auto_patterns[["resource_type", "sample"]], df_manual_patterns[["resource_type", "sample"]]])
+        .drop_duplicates()
+        .sort_values(by=["resource_type", "sample"])
+    )
+
+    if df_combined_patterns.empty:
         st.info("Pattern catalog is empty or could not be loaded.")
     else:
-        resource_types = sorted(df_pattern_catalog["resourceType"].unique())
+        resource_types = sorted(df_combined_patterns["resource_type"].unique())
         tabs = st.tabs(resource_types)
 
         for i, resource_type in enumerate(resource_types):
             with tabs[i]:
-                df_filtered_patterns = df_pattern_catalog[df_pattern_catalog["resourceType"] == resource_type]
-                st.dataframe(df_filtered_patterns[["pattern"]], use_container_width=True, hide_index=True)
+                df_filtered_patterns = df_combined_patterns[df_combined_patterns["resource_type"] == resource_type]
+                st.dataframe(
+                    df_filtered_patterns[["sample"]],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={"sample": "Pattern"},
+                )
+
+# --- Display Matched, Unmatched and Missed Tags ---
+st.subheader("Tag Details")
+tag_col1, tag_col2, tag_col3 = st.columns(3)
+
+with tag_col1:
+    st.metric("✅ Matched Tags", f"{total_matched}")
+    st.dataframe(
+        pd.DataFrame(sorted(list(matched_tags_set)), columns=["Tag"]), use_container_width=True, hide_index=True
+    )
+
+with tag_col2:
+    st.metric("❓ Unmatched by Annotation", f"{total_unmatched}")
+    st.dataframe(
+        pd.DataFrame(sorted(list(unmatched_by_annotation_set)), columns=["Tag"]),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+with tag_col3:
+    st.metric("❗️ Missed by Pattern", f"{total_missed}")
+    st.dataframe(
+        pd.DataFrame(sorted(list(missed_by_pattern_set)), columns=["Tag"]), use_container_width=True, hide_index=True
+    )
+
 
 # --- File-Level Table ---
 st.subheader("Per-File Annotation Quality")
