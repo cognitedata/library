@@ -369,6 +369,7 @@ def fetch_pattern_catalog(db_name: str, table_name: str) -> pd.DataFrame:
         st.error(f"Failed to fetch pattern catalog from '{table_name}': {e}")
         return pd.DataFrame()
 
+
 def fetch_manual_patterns(db_name: str, table_name: str) -> pd.DataFrame:
     """
     Fetches all manual patterns from the RAW table and explodes them
