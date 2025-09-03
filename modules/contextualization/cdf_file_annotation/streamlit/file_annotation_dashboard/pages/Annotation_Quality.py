@@ -299,7 +299,7 @@ with tag_col3:
 
 
 # --- File-Level Table ---
-st.subheader("Per-File Annotation Quality")
+st.header("Per-File Annotation Quality")
 st.info("✔️ Select a file in the table below to see a detailed breakdown of its tags.")
 
 df_display = df_quality.sort_values(by="coverageRate").reset_index(drop=True)
