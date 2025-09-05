@@ -7,7 +7,8 @@ from helper import (
     find_pipelines,
     generate_file_canvas,
     fetch_pattern_catalog,
-    fetch_manual_patterns,  # Import the function to get manual patterns
+    fetch_manual_patterns,
+    fetch_annotation_states,
 )
 from cognite.client.data_classes.data_modeling import NodeId
 
@@ -17,6 +18,12 @@ st.set_page_config(
     page_icon="🎯",
     layout="wide",
 )
+
+
+# --- Callback function to reset selection ---
+def reset_selection():
+    st.session_state.selected_row_index = None
+
 
 # --- Initialize Session State ---
 if "selected_row_index" not in st.session_state:
@@ -40,7 +47,7 @@ if not config_result:
     st.error(f"Could not fetch configuration for pipeline: {selected_pipeline}")
     st.stop()
 
-ep_config, _, _ = config_result
+ep_config, annotation_state_view, file_view = config_result
 report_config = ep_config.get("finalizeFunction", {}).get("reportService", {})
 cache_config = ep_config.get("launchFunction", {}).get("cacheService", {})
 db_name = report_config.get("rawDb")
@@ -116,7 +123,7 @@ st.header("Overall Annotation Quality")
 # Get a unique, sorted list of resource types for the filter
 all_resource_types = ["All"] + sorted(df_patterns["resourceType"].unique().tolist())
 
-selected_resource_type = st.selectbox("Filter by Resource Type:", options=all_resource_types)
+selected_resource_type = st.selectbox("Filter by Resource Type:", options=all_resource_types, on_change=reset_selection)
 
 # --- Filter the data based on selection ---
 if selected_resource_type == "All":
@@ -168,6 +175,9 @@ kpi_col2.metric(
 )
 
 st.divider()
+
+# --- Annotation Quality by Resource Type ---
+st.subheader("Analysis by Resource Type")
 
 # --- Prepare data for charts ---
 chart_data = []
@@ -245,7 +255,31 @@ if not df_chart_display.empty:
 else:
     st.info("No data available for the selected resource type to generate charts.")
 
-# --- Combine auto and manual patterns for display ---
+# --- Display Matched, Unmatched and Missed Tags ---
+st.subheader("Tag Details")
+tag_col1, tag_col2, tag_col3 = st.columns(3)
+
+with tag_col1:
+    st.metric("✅ Matched Tags", f"{total_matched}")
+    st.dataframe(
+        pd.DataFrame(sorted(list(matched_tags_set)), columns=["Tag"]), use_container_width=True, hide_index=True
+    )
+
+with tag_col2:
+    st.metric("❓ Unmatched by Annotation", f"{total_unmatched}")
+    st.dataframe(
+        pd.DataFrame(sorted(list(unmatched_by_annotation_set)), columns=["Tag"]),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+with tag_col3:
+    st.metric("❗️ Missed by Pattern", f"{total_missed}")
+    st.dataframe(
+        pd.DataFrame(sorted(list(missed_by_pattern_set)), columns=["Tag"]), use_container_width=True, hide_index=True
+    )
+
+# --- Pattern Catalog Expander with Tabs ---
 with st.expander("View Full Pattern Catalog"):
     # Standardize column names for merging
     df_auto_patterns.rename(columns={"resourceType": "resource_type", "pattern": "sample"}, inplace=True)
@@ -273,47 +307,135 @@ with st.expander("View Full Pattern Catalog"):
                     column_config={"sample": "Pattern"},
                 )
 
-# --- Display Matched, Unmatched and Missed Tags ---
-st.subheader("Tag Details")
-tag_col1, tag_col2, tag_col3 = st.columns(3)
-
-with tag_col1:
-    st.metric("✅ Matched Tags", f"{total_matched}")
-    st.dataframe(
-        pd.DataFrame(sorted(list(matched_tags_set)), columns=["Tag"]), use_container_width=True, hide_index=True
-    )
-
-with tag_col2:
-    st.metric("❓ Unmatched by Annotation", f"{total_unmatched}")
-    st.dataframe(
-        pd.DataFrame(sorted(list(unmatched_by_annotation_set)), columns=["Tag"]),
-        use_container_width=True,
-        hide_index=True,
-    )
-
-with tag_col3:
-    st.metric("❗️ Missed by Pattern", f"{total_missed}")
-    st.dataframe(
-        pd.DataFrame(sorted(list(missed_by_pattern_set)), columns=["Tag"]), use_container_width=True, hide_index=True
-    )
-
-
 # --- File-Level Table ---
 st.header("Per-File Annotation Quality")
-st.info("✔️ Select a file in the table below to see a detailed breakdown of its tags.")
 
-df_display = df_quality.sort_values(by="coverageRate").reset_index(drop=True)
+# --- Fetch file metadata and merge it with the quality data ---
+df_file_meta = fetch_annotation_states(annotation_state_view, file_view)
+if not df_file_meta.empty:
+    df_display_unfiltered = pd.merge(
+        df_quality, df_file_meta, left_on="startNode", right_on="fileExternalId", how="left"
+    )
+else:
+    df_display_unfiltered = df_quality
+
+# --- Advanced Filtering Section ---
+with st.expander("Filter Per-File Quality Table"):
+
+    # --- DYNAMIC METADATA FILTER ---
+    # Define columns that should not be offered as metadata filters
+    excluded_columns = [
+        "Select",
+        "startNode",
+        "potentialTags",
+        "actualAnnotations",
+        "matchedTags",
+        "unmatchedByAnnotation",
+        "missedByPattern",
+        "coverageRate",
+        "completenessRate",
+        "fileExternalId",
+        "externalId",
+        "space",
+        "annotatedPageCount",
+        "annotationMessage",
+        "fileAliases",
+        "fileAssets",
+        "fileIsuploaded",
+        "jobId",
+        "linkedFile",
+        "pageCount",
+        "patternModeJobId",
+        "sourceCreatedUser",
+        "sourceCreatedTime",
+        "sourceUpdatedTime",
+        "sourceUpdatedUser",
+        "fileSourceupdateduser",
+        "fileSourcecreatedUser",
+        "fileSourceId",
+        "createdTime",
+        "fileSourcecreateduser",
+        "patternModeMessage",
+        "fileSourceupdatedtime",
+        "fileSourcecreatedtime",
+        "fileUploadedtime",
+    ]
+
+    # Get the list of available metadata columns for filtering
+    filterable_columns = sorted([col for col in df_display_unfiltered.columns if col not in excluded_columns])
+
+    filter_col1, filter_col2 = st.columns(2)
+
+    with filter_col1:
+        selected_column = st.selectbox(
+            "Filter by Metadata Property", options=["None"] + filterable_columns, on_change=reset_selection
+        )
+
+    selected_values = []
+    if selected_column != "None":
+        unique_values = sorted(df_display_unfiltered[selected_column].dropna().unique().tolist())
+        with filter_col2:
+            selected_values = st.multiselect(
+                f"Select Value(s) for {selected_column}", options=unique_values, on_change=reset_selection
+            )
+
+    coverage_range = st.slider("Filter by Annotation Coverage (%)", 0, 100, (0, 100), on_change=reset_selection)
+    completeness_range = st.slider("Filter by Pattern Completeness (%)", 0, 100, (0, 100), on_change=reset_selection)
+
+df_display = df_display_unfiltered.copy()
+# Apply filters
+if selected_column != "None" and selected_values:
+    df_display = df_display[df_display[selected_column].isin(selected_values)]
+
+df_display = df_display[
+    (df_display["coverageRate"] >= coverage_range[0]) & (df_display["coverageRate"] <= coverage_range[1])
+]
+df_display = df_display[
+    (df_display["completenessRate"] >= completeness_range[0])
+    & (df_display["completenessRate"] <= completeness_range[1])
+]
+
+# --- Reset the index after all filtering is complete ---
+df_display = df_display.reset_index(drop=True)
+
 df_display.insert(0, "Select", False)
 
-if st.session_state.get("selected_row_index") is not None and st.session_state.selected_row_index < len(df_display):
-    df_display.at[st.session_state.selected_row_index, "Select"] = True
+# --- Column configuration for the data editor ---
+default_columns = [
+    "Select",
+    "fileName",
+    "fileSourceid",
+    "fileMimetype",
+    "coverageRate",
+    "completenessRate",
+    "lastUpdatedTime",
+]
+all_columns = df_display.columns.tolist()
+
+with st.popover("Customize Table Columns"):
+    selected_columns = st.multiselect(
+        "Select columns to display:",
+        options=all_columns,
+        default=[col for col in default_columns if col in all_columns],  # Ensure default is valid
+    )
+
+if not selected_columns:
+    st.warning("Please select at least one column to display.")
+    st.stop()
+
+
+if st.session_state.get("selected_row_index") is not None:
+    if st.session_state.selected_row_index < len(df_display):
+        df_display.at[st.session_state.selected_row_index, "Select"] = True
 
 edited_df = st.data_editor(
-    df_display,
+    df_display[selected_columns],
     key="quality_table_editor",
     column_config={
         "Select": st.column_config.CheckboxColumn(required=True),
-        "startNode": "File External ID",
+        "fileName": "File Name",
+        "fileSourceid": "Source ID",
+        "fileMimetype": "Mime Type",
         "potentialTags": "Potential Tags",
         "actualAnnotations": "Actual Annotations",
         "coverageRate": st.column_config.ProgressColumn(
@@ -330,9 +452,9 @@ edited_df = st.data_editor(
             min_value=0,
             max_value=100,
         ),
+        "lastUpdatedTime": "Last Updated Time",
     },
     use_container_width=True,
-    column_order=("Select", "startNode", "coverageRate", "completenessRate"),
     hide_index=True,
     disabled=df_display.columns.difference(["Select"]),
 )
@@ -354,91 +476,95 @@ elif len(selected_indices) == 0 and st.session_state.get("selected_row_index") i
 st.subheader("Tag Comparison Drill-Down")
 
 if st.session_state.get("selected_row_index") is not None:
-    selected_file_data = df_display.iloc[st.session_state.selected_row_index]
-    selected_file = selected_file_data["startNode"]
-    st.markdown(f"Displaying details for file: **{selected_file}**")
+    if st.session_state.selected_row_index < len(df_display):
+        selected_file_data = df_display.iloc[st.session_state.selected_row_index]
+        selected_file = selected_file_data["startNode"]
+        st.markdown(f"Displaying details for file: **{selected_file}**")
 
-    file_space_series = df_patterns[df_patterns["startNode"] == selected_file]["startNodeSpace"]
-    if not file_space_series.empty:
-        file_space = file_space_series.iloc[0]
-        file_node_id = NodeId(space=file_space, external_id=selected_file)
+        file_space_series = df_patterns[df_patterns["startNode"] == selected_file]["startNodeSpace"]
+        if not file_space_series.empty:
+            file_space = file_space_series.iloc[0]
+            file_node_id = NodeId(space=file_space, external_id=selected_file)
 
-        # --- Three-Column Tag Comparison (prepare dataframes first) ---
-        df_potential_tags_details = df_patterns[df_patterns["startNode"] == selected_file][
-            ["text", "resourceType", "regions"]
-        ]
+            # --- Three-Column Tag Comparison (prepare dataframes first) ---
+            df_potential_tags_details = df_patterns[df_patterns["startNode"] == selected_file][
+                ["text", "resourceType", "regions"]
+            ]
 
-        if not df_annotations.empty:
-            df_actual_annotations_details = df_annotations[df_annotations["startNode"] == selected_file][
-                ["startNodeText", "endNodeResourceType"]
-            ].rename(columns={"startNodeText": "text", "endNodeResourceType": "resourceType"})
-        else:
-            df_actual_annotations_details = pd.DataFrame(columns=["text", "resourceType"])
+            if not df_annotations.empty:
+                df_actual_annotations_details = df_annotations[df_annotations["startNode"] == selected_file][
+                    ["startNodeText", "endNodeResourceType"]
+                ].rename(columns={"startNodeText": "text", "endNodeResourceType": "resourceType"})
+            else:
+                df_actual_annotations_details = pd.DataFrame(columns=["text", "resourceType"])
 
-        potential_tags_set = set(df_potential_tags_details["text"])
-        actual_tags_set = set(df_actual_annotations_details["text"])
+            potential_tags_set = set(df_potential_tags_details["text"])
+            actual_tags_set = set(df_actual_annotations_details["text"])
 
-        matched_tags_set = potential_tags_set.intersection(actual_tags_set)
-        unmatched_tags_set = potential_tags_set - actual_tags_set
-        missed_tags_set = actual_tags_set - potential_tags_set
+            matched_tags_set = potential_tags_set.intersection(actual_tags_set)
+            unmatched_tags_set = potential_tags_set - actual_tags_set
+            missed_tags_set = actual_tags_set - potential_tags_set
 
-        matched_df = df_potential_tags_details[
-            df_potential_tags_details["text"].isin(matched_tags_set)
-        ].drop_duplicates(subset=["text", "resourceType"])
-        unmatched_df = df_potential_tags_details[
-            df_potential_tags_details["text"].isin(unmatched_tags_set)
-        ].drop_duplicates(subset=["text", "resourceType"])
-        missed_df = df_actual_annotations_details[
-            df_actual_annotations_details["text"].isin(missed_tags_set)
-        ].drop_duplicates()
+            matched_df = df_potential_tags_details[
+                df_potential_tags_details["text"].isin(matched_tags_set)
+            ].drop_duplicates(subset=["text", "resourceType"])
+            unmatched_df = df_potential_tags_details[
+                df_potential_tags_details["text"].isin(unmatched_tags_set)
+            ].drop_duplicates(subset=["text", "resourceType"])
+            missed_df = df_actual_annotations_details[
+                df_actual_annotations_details["text"].isin(missed_tags_set)
+            ].drop_duplicates()
 
-        if st.button("Create in Canvas", key=f"canvas_btn_{selected_file}"):
-            with st.spinner("Generating Industrial Canvas with bounding boxes..."):
-                _, _, file_view_config = fetch_extraction_pipeline_config(selected_pipeline)
+            if st.button("Create in Canvas", key=f"canvas_btn_{selected_file}"):
+                with st.spinner("Generating Industrial Canvas with bounding boxes..."):
+                    _, _, file_view_config = fetch_extraction_pipeline_config(selected_pipeline)
 
-                unmatched_tags_for_canvas = unmatched_df[["text", "regions"]].to_dict("records")
+                    unmatched_tags_for_canvas = unmatched_df[["text", "regions"]].to_dict("records")
 
-                canvas_url = generate_file_canvas(
-                    file_id=file_node_id,
-                    file_view=file_view_config,
-                    ep_config=ep_config,
-                    unmatched_tags_with_regions=unmatched_tags_for_canvas,
-                )
-                if canvas_url:
-                    st.session_state["generated_canvas_url"] = canvas_url
-                else:
-                    st.session_state.pop("generated_canvas_url", None)
+                    canvas_url = generate_file_canvas(
+                        file_id=file_node_id,
+                        file_view=file_view_config,
+                        ep_config=ep_config,
+                        unmatched_tags_with_regions=unmatched_tags_for_canvas,
+                    )
+                    if canvas_url:
+                        st.session_state["generated_canvas_url"] = canvas_url
+                    else:
+                        st.session_state.pop("generated_canvas_url", None)
 
-    if "generated_canvas_url" in st.session_state and st.session_state.generated_canvas_url:
-        st.markdown(
-            f"**[Open Last Generated Canvas]({st.session_state.generated_canvas_url})**", unsafe_allow_html=True
-        )
+        if "generated_canvas_url" in st.session_state and st.session_state.generated_canvas_url:
+            st.markdown(
+                f"**[Open Last Generated Canvas]({st.session_state.generated_canvas_url})**", unsafe_allow_html=True
+            )
 
-    col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-    with col1:
-        st.metric("✅ Matched Tags", len(matched_df))
-        st.dataframe(
-            matched_df[["text", "resourceType"]],
-            column_config={"text": "Tag", "resourceType": "Resource Type"},
-            use_container_width=True,
-            hide_index=True,
-        )
-    with col2:
-        st.metric("❓ Unmatched by Annotation", len(unmatched_df))
-        st.dataframe(
-            unmatched_df[["text", "resourceType"]],
-            column_config={"text": "Tag", "resourceType": "Resource Type"},
-            use_container_width=True,
-            hide_index=True,
-        )
-    with col3:
-        st.metric("❗️ Missed by Pattern", len(missed_df))
-        st.dataframe(
-            missed_df,
-            column_config={"text": "Tag", "resourceType": "Resource Type"},
-            use_container_width=True,
-            hide_index=True,
-        )
+        with col1:
+            st.metric("✅ Matched Tags", len(matched_df))
+            st.dataframe(
+                matched_df[["text", "resourceType"]],
+                column_config={"text": "Tag", "resourceType": "Resource Type"},
+                use_container_width=True,
+                hide_index=True,
+            )
+        with col2:
+            st.metric("❓ Unmatched by Annotation", len(unmatched_df))
+            st.dataframe(
+                unmatched_df[["text", "resourceType"]],
+                column_config={"text": "Tag", "resourceType": "Resource Type"},
+                use_container_width=True,
+                hide_index=True,
+            )
+        with col3:
+            st.metric("❗️ Missed by Pattern", len(missed_df))
+            st.dataframe(
+                missed_df,
+                column_config={"text": "Tag", "resourceType": "Resource Type"},
+                use_container_width=True,
+                hide_index=True,
+            )
+    else:
+        st.info("✔️ Previous selection is not in the filtered view. Please select a new file.")
+
 else:
     st.info("✔️ Select a file in the table above to see a detailed breakdown of its tags.")
