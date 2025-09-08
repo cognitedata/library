@@ -378,8 +378,13 @@ class GeneralLaunchService(AbstractLaunchService):
             # Run diagram detect on pattern mode
             pattern_job_id: int | None = None
             if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', [])) + len(self.in_memory_patterns[1].get('sample', []))
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', []))
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns[0]['sample']) + len(self.in_memory_patterns[1]['sample'])} sample patterns"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
                     files=batch.file_references, pattern_samples=self.in_memory_patterns
@@ -431,8 +436,13 @@ class LocalLaunchService(GeneralLaunchService):
             # Run diagram detect on pattern mode
             pattern_job_id: int | None = None
             if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', [])) + len(self.in_memory_patterns[1].get('sample', []))
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', []))
                 self.logger.info(
-                    f"Running pattern mode diagram detect on {batch.size()} files with {len(self.in_memory_patterns[0]['sample']) + len(self.in_memory_patterns[1]['sample'])} sample patterns"
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
                 )
                 pattern_job_id = self.annotation_service.run_pattern_mode_detect(
                     files=batch.file_references, pattern_samples=self.in_memory_patterns
