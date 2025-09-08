@@ -229,10 +229,13 @@ if pipeline_runs:
                     if run.message:
                         st.code(run.message, language="text")
 
-                    function_id = int(parsed_message.get("function_id"))
-                    call_id = int(parsed_message.get("call_id"))
+                    # Check if the IDs exist and are not None
+                    function_id_str = parsed_message.get("function_id")
+                    call_id_str = parsed_message.get("call_id")
 
-                    if function_id and call_id:
+                    if function_id_str and call_id_str:
+                        function_id = int(parsed_message.get("function_id"))
+                        call_id = int(parsed_message.get("call_id"))
                         button_key = f"log_btn_all_{call_id}"
                         if st.button("Fetch Function Logs", key=button_key):
                             with st.spinner("Fetching logs..."):
