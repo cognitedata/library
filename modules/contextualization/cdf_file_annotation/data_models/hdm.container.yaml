@@ -11,6 +11,7 @@
       type:
         list: false
         type: int64
+      name: Annotated page count
     annotationMessage:
       autoIncrement: false
       immutable: false
@@ -22,6 +23,7 @@
         collation: ucs_basic
         list: false
         type: text
+      name: Annotation message
     annotationStatus:
       autoIncrement: false
       immutable: false
@@ -30,6 +32,7 @@
         collation: ucs_basic
         list: false
         type: text
+      name: Annotation status
     patternModeMessage:
       autoIncrement: false
       immutable: false
@@ -38,6 +41,7 @@
         type: text
         collation: ucs_basic
         list: false
+      name: Pattern mode message
     attemptCount:
       autoIncrement: false
       immutable: false
@@ -45,6 +49,7 @@
       type:
         list: false
         type: int64
+      name: Attempt count
     diagramDetectJobId:
       autoIncrement: false
       immutable: false
@@ -52,6 +57,7 @@
       type:
         list: false
         type: int64
+      name: Diagram detect job Id
     patternModeJobId:
       autoIncrement: false
       immutable: false
@@ -59,6 +65,7 @@
       type:
         list: false
         type: int64
+      name: Pattern mode job Id
     linkedFile:
       autoIncrement: false
       immutable: false
@@ -66,6 +73,7 @@
       type:
         list: false
         type: direct
+      name: Linked file
     pageCount:
       autoIncrement: false
       immutable: false
@@ -73,6 +81,39 @@
       type:
         list: false
         type: int64
+      name: Page count
+    launchFunctionId: # NOTE: Id of the function that was called. Will be useful as an index for query calls. B-tree
+      type:
+        list: false
+        type: int64
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Launch function Id
+    launchFunctionCallId: # NOTE: specific Id that points to the function log. Will be useful as an index for query calls. B-tree
+      type:
+        list: false
+        type: int64
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Launch function call Id
+    finalizeFunctionId: # NOTE: Id of the function that was called. Will be useful as an index for query calls. B-tree
+      type:
+        list: false
+        type: int64
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Finalize function Id
+    finalizeFunctionCallId: # NOTE: specific Id that points to the function log. Will be useful as an index for query calls. B-tree
+      type:
+        list: false
+        type: int64
+      immutable: false
+      nullable: true
+      autoIncrement: false
+      name: Finalize function call Id
   space: {{ annotationStateSchemaSpace }}
   usedFor: node
   indexes:
@@ -85,4 +126,16 @@
       indexType: btree
       properties:
         - diagramDetectJobId
+      cursorable: true
+    launchFunction:
+      indexType: btree
+      properties:
+        - launchFunctionId
+        - launchFunctionCallId
+      cursorable: true
+    finalizeFunction:
+      indexType: btree
+      properties:
+        - finalizeFunctionId
+        - finalizeFunctionCallId
       cursorable: true

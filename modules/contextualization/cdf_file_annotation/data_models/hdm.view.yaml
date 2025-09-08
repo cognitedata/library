@@ -49,16 +49,16 @@
         space: {{ annotationStateSchemaSpace }}
         type: container
       containerPropertyIdentifier: diagramDetectJobId
-      description: Diagram detect job ID
-      name: Diagram detect job ID
+      description: Diagram detect job Id
+      name: Diagram detect job Id
     patternModeJobId:
       container:
         externalId: {{ annotationStateExternalId }}
         space: {{ annotationStateSchemaSpace }}
         type: container
       containerPropertyIdentifier: patternModeJobId
-      description: Diagram detect job ID with pattern mode
-      name: Pattern mode job ID
+      description: Diagram detect job Id with pattern mode
+      name: Pattern mode job Id
     patternModeMessage:
       container:
         externalId: {{ annotationStateExternalId }}
@@ -112,5 +112,37 @@
       containerPropertyIdentifier: sourceUpdatedTime
       description: Last updated time
       name: Last updated time
+    launchFunctionId:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: launchFunctionId
+      description: Id of the launch function that was called
+      name: Launch function Id
+    launchFunctionCallId:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: launchFunctionCallId
+      description: Specific Id that points to the function log that created the diagram detect job for the file
+      name: Launch function call Id
+    finalizeFunctionId:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: finalizeFunctionId
+      description: Id of the finalize function that was called
+      name: Finalize function Id
+    finalizeFunctionCallId:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: finalizeFunctionCallId
+      description: Specific Id that points to the function log that applied annotations to the file
+      name: Finalize function call Id
   space: {{ annotationStateSchemaSpace }}
   version: {{ annotationStateVersion }}
