@@ -408,6 +408,8 @@ default_columns = [
     "fileMimetype",
     "coverageRate",
     "completenessRate",
+    "annotationMessage",
+    "patternModeMessage",
     "lastUpdatedTime",
 ]
 all_columns = df_display.columns.tolist()
@@ -452,6 +454,8 @@ edited_df = st.data_editor(
             min_value=0,
             max_value=100,
         ),
+        "annotationMessage": "Annotation Message",
+        "patternModeMessage": "Pattern Mode Message",
         "lastUpdatedTime": "Last Updated Time",
     },
     use_container_width=True,
