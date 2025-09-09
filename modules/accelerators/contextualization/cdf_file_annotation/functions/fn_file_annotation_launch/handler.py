@@ -47,6 +47,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         client=client,
         logger=logger_instance,
         tracker=tracker_instance,
+        function_call_info=function_call_info,
     )
 
     run_status: str = "success"
@@ -105,6 +106,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         client=client,
         logger=logger_instance,
         tracker=tracker_instance,
+        function_call_info={"function_id": None, "call_id": None},
     )
     try:
         while True:
@@ -129,7 +131,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.close()
 
 
-def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
+def _create_launch_service(config, client, logger, tracker, function_call_info) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_cache_service(config, client, logger)
     data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
@@ -141,11 +143,12 @@ def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchSer
         data_model_service=data_model_instance,
         cache_service=cache_instance,
         annotation_service=annotation_instance,
+        function_call_info=function_call_info,
     )
     return launch_instance
 
 
-def _create_local_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
+def _create_local_launch_service(config, client, logger, tracker, function_call_info) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_cache_service(config, client, logger)
     data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
@@ -157,6 +160,7 @@ def _create_local_launch_service(config, client, logger, tracker) -> AbstractLau
         data_model_service=data_model_instance,
         cache_service=cache_instance,
         annotation_service=annotation_instance,
+        function_call_info=function_call_info,
     )
     return launch_instance
 
