@@ -74,6 +74,7 @@ class GeneralLaunchService(AbstractLaunchService):
         data_model_service: IDataModelService,
         cache_service: ICacheService,
         annotation_service: IAnnotationService,
+        function_call_info: dict,
     ):
         super().__init__(
             client,
@@ -97,6 +98,9 @@ class GeneralLaunchService(AbstractLaunchService):
 
         self.primary_scope_property: str = self.config.launch_function.primary_scope_property
         self.secondary_scope_property: str | None = self.config.launch_function.secondary_scope_property
+
+        self.function_id: int | None = function_call_info.get("function_id")
+        self.call_id: int | None = function_call_info.get("call_id")
 
         self.reset_files: bool = False
         if self.config.prepare_function.get_files_for_annotation_reset_query:
@@ -373,6 +377,8 @@ class GeneralLaunchService(AbstractLaunchService):
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
             }
 
             # Run diagram detect on pattern mode
@@ -431,6 +437,8 @@ class LocalLaunchService(GeneralLaunchService):
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
             }
 
             # Run diagram detect on pattern mode
