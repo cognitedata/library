@@ -68,7 +68,10 @@ overview_tab, explorer_tab, history_tab = st.tabs(["Overview", "File Explorer", 
 #               OVERVIEW TAB
 # ==========================================
 with overview_tab:
-    st.subheader("Live Pipeline KPIs")
+    st.subheader(
+        "Live Pipeline KPIs",
+        help="Provides a high-level summary of the pipeline's current state and historical throughput. The KPIs are calculated directly from the AnnotationState data model for real-time accuracy.",
+    )
 
     kpis = calculate_overview_kpis(df_annotation_states)
 
@@ -119,7 +122,10 @@ with overview_tab:
 #              FILE EXPLORER TAB
 # ==========================================
 with explorer_tab:
-    st.subheader("File-Centric Debugging")
+    st.subheader(
+        "File-Centric Debugging",
+        help="A file-centric debugging tool for deep-dive analysis. Filter and select any file to view its current status, metadata, and the specific Launch and Finalize function logs associated with it.",
+    )
     if df_annotation_states.empty:
         st.info("No annotation state data found for this pipeline.")
     else:
@@ -304,7 +310,10 @@ with explorer_tab:
 #              RUN HISTORY TAB
 # ==========================================
 with history_tab:
-    st.subheader("Run-Centric Analysis")
+    st.subheader(
+        "Run-Centric Analysis",
+        help="A run-centric view for analyzing the execution history of the pipeline functions. Review the status, logs, and a list of files processed for each individual pipeline run.",
+    )
     if not pipeline_runs:
         st.info("No pipeline runs found for this pipeline.")
     else:
