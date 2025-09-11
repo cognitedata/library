@@ -421,7 +421,7 @@ def calculate_overview_kpis(df: pd.DataFrame) -> dict:
     kpis = {"awaiting_processing": 0, "processed_total": 0, "failed_total": 0, "failure_rate_total": 0}
     if df.empty:
         return kpis
-    kpis["awaiting_processing"] = len(df[df["status"].isin(["New", "Retry"])])
+    kpis["awaiting_processing"] = len(df[df["status"].isin(["New", "Retry", "Processing", "Finalizing"])])
     finalized_all_time = df[df["status"].isin(["Annotated", "Failed"])]
     kpis["processed_total"] = len(finalized_all_time)
     kpis["failed_total"] = len(finalized_all_time[finalized_all_time["status"] == "Failed"])
