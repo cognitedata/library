@@ -240,7 +240,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         # This should only run once, so we tie it to the regular annotation processing
                         doc_delete, tag_delete = self.apply_service.delete_annotations_for_file(file_id)
                         self.report_service.delete_annotations(doc_delete, tag_delete)
-
+                        self.logger.info(f"\t- Deleted {len(doc_delete)} doc and {len(tag_delete)} tag annotations.")
+                    
                     doc_add, tag_add = self.apply_service.apply_annotations(regular_item, file_node)
                     self.report_service.add_annotations(doc_rows=doc_add, tag_rows=tag_add)
                     annotation_msg: str = f"Applied {len(doc_add)} doc and {len(tag_add)} tag annotations."
