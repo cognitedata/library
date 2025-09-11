@@ -230,11 +230,18 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 regular_item = results.get("regular")
                 if regular_item and regular_item.get("annotations"):
                     self.logger.info(f"Applying annotations to file {str(file_id)}")
-                    if self.clean_old_annotations:
+                    # NOTE: Only clean annotations on the very first run as to not delete past annotations for multi-page files
+                    if self.clean_old_annotations and (
+                        annotation_state_node.properties[self.annotation_state_view.as_view_id()].get(
+                            "annotatedPageCount"
+                        )
+                        is None
+                    ):
                         # This should only run once, so we tie it to the regular annotation processing
                         doc_delete, tag_delete = self.apply_service.delete_annotations_for_file(file_id)
                         self.report_service.delete_annotations(doc_delete, tag_delete)
-
+                        self.logger.info(f"\t- Deleted {len(doc_delete)} doc and {len(tag_delete)} tag annotations.")
+                    
                     doc_add, tag_add = self.apply_service.apply_annotations(regular_item, file_node)
                     self.report_service.add_annotations(doc_rows=doc_add, tag_rows=tag_add)
                     annotation_msg: str = f"Applied {len(doc_add)} doc and {len(tag_add)} tag annotations."
