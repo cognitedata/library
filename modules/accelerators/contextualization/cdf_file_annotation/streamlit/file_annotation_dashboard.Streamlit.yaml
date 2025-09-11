@@ -5,4 +5,4 @@ description: Dashboard to inspect the health of the File Annotation Pipeline
 published: true
 theme: Light
 dataSetExternalId: {{ annotationDatasetExternalId }}
-entrypoint: Extraction_Pipeline.py
+entrypoint: Pipeline_Health.py
