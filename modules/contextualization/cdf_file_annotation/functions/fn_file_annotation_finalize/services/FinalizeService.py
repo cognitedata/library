@@ -72,6 +72,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         retrieve_service: IRetrieveService,
         apply_service: IApplyService,
         report_service: IReportService,
+        function_call_info: dict,
     ):
         super().__init__(
             client,
@@ -85,9 +86,13 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
+
         self.page_range: int = config.launch_function.annotation_service.page_range
         self.max_retries: int = config.finalize_function.max_retry_attempts
         self.clean_old_annotations: bool = config.finalize_function.clean_old_annotations
+
+        self.function_id: int | None = function_call_info.get("function_id")
+        self.call_id: int | None = function_call_info.get("call_id")
 
     def run(self) -> Literal["Done"] | None:
         """
@@ -388,6 +393,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "annotationMessage": annotation_message,
                 "patternModeMessage": pattern_mode_message,
                 "attemptCount": attempt_count,
+                "finalizeFunctionId": self.function_id,
+                "finalizeFunctionCallId": self.call_id,
             }
         else:
             update_properties = {
@@ -398,6 +405,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 "attemptCount": attempt_count,
                 "annotatedPageCount": annotated_page_count,
                 "pageCount": page_count,
+                "finalizeFunctionId": self.function_id,
+                "finalizeFunctionCallId": self.call_id,
             }
 
         node_apply = NodeApply(
