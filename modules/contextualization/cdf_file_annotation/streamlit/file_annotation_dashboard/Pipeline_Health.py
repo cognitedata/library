@@ -124,15 +124,31 @@ with explorer_tab:
         st.info("No annotation state data found for this pipeline.")
     else:
         with st.expander("Filter and Slice Data"):
+            # ... (your existing filter logic remains unchanged here) ...
             excluded_columns = [
                 "externalId",
                 "space",
-                "createdTime",
-                "lastUpdatedTime",
-                "fileExternalId",
-                "fileSpace",
-                "retries",
+                "annotationMessage",
+                "fileAliases",
+                "fileAssets",
+                "fileIsuploaded",
+                "diagramDetectJobId",
                 "linkedFile",
+                "patternModeJobId",
+                "sourceCreatedUser",
+                "sourceCreatedTime",
+                "sourceUpdatedTime",
+                "sourceUpdatedUser",
+                "fileSpace",
+                "fileSourceupdateduser",
+                "fileSourcecreatedUser",
+                "fileSourceId",
+                "createdTime",
+                "fileSourcecreateduser",
+                "patternModeMessage",
+                "fileSourceupdatedtime",
+                "fileSourcecreatedtime",
+                "fileUploadedtime",
             ]
             filterable_columns = sorted(
                 [
@@ -173,9 +189,46 @@ with explorer_tab:
         ):
             df_display.at[st.session_state.selected_status_file_index, "Select"] = True
 
+        # --- START: New additions for customizable and readable columns ---
+        default_columns = [
+            "Select",
+            "fileName",
+            "fileExternalId",
+            "fileSourceid",
+            "status",
+            "fileMimetype",
+            "pageCount",
+            "annotatedPageCount",
+        ]
+        all_columns = df_display.columns.tolist()
+
+        with st.popover("Customize Table Columns"):
+            selected_columns = st.multiselect(
+                "Select columns to display:",
+                options=all_columns,
+                default=[col for col in default_columns if col in all_columns],
+            )
+
+        if not selected_columns:
+            st.warning("Please select at least one column to display.")
+            st.stop()
+
         edited_df = st.data_editor(
-            df_display,
+            df_display[selected_columns],  # Display only selected columns
             key="status_table_editor",
+            column_config={
+                "Select": st.column_config.CheckboxColumn(required=True),
+                "fileName": "File Name",
+                "fileExternalId": "File External ID",
+                "status": "Annotation Status",
+                "retries": "Retries",
+                "fileSourceid": "Source ID",
+                "fileMimetype": "Mime Type",
+                "annotationMessage": "Annotation Message",
+                "patternModeMessage": "Pattern Mode Message",
+                "pageCount": "Page Count",
+                "annotatedPageCount": "Annotated Page Count",
+            },
             use_container_width=True,
             hide_index=True,
             disabled=df_display.columns.difference(["Select"]),
@@ -203,32 +256,7 @@ with explorer_tab:
             selected_row = df_display.iloc[st.session_state.selected_status_file_index]
             file_ext_id = selected_row.get("fileExternalId", "")
 
-            launch_tab, finalize_tab = st.tabs(["Launch Log", "Finalize Log"])
-            with launch_tab:
-                launch_func_id = selected_row.get("launchFunctionId")
-                launch_call_id = selected_row.get("launchFunctionCallId")
-                if pd.notna(launch_func_id) and pd.notna(launch_call_id):
-                    with st.spinner("Fetching launch log..."):
-                        launch_logs_raw = "".join(
-                            fetch_function_logs(function_id=int(launch_func_id), call_id=int(launch_call_id))
-                        )
-                        if launch_logs_raw:
-                            st.download_button(
-                                "Download Full Launch Log", launch_logs_raw, f"{file_ext_id}_launch_log.txt"
-                            )
-                            filtered_log = filter_log_lines(launch_logs_raw, file_ext_id)
-                            st.write("**Relevant Log Entries:**")
-                            st.code(
-                                filtered_log if filtered_log else "No log entries found for this specific file.",
-                                language="log",
-                            )
-                            with st.expander("View Full Log"):
-                                st.code(launch_logs_raw, language="log")
-                        else:
-                            st.warning("No launch logs found.")
-                else:
-                    st.info("No Launch Function call information available for this file.")
-
+            finalize_tab, launch_tab = st.tabs(["Finalize Log", "Launch Log"])
             with finalize_tab:
                 finalize_func_id = selected_row.get("finalizeFunctionId")
                 finalize_call_id = selected_row.get("finalizeFunctionCallId")
@@ -239,7 +267,7 @@ with explorer_tab:
                         )
                         if finalize_logs_raw:
                             st.download_button(
-                                "Download Full Finalize Log", finalize_logs_raw, f"{file_ext_id}_finalize_log.txt"
+                                "Download Full Log", finalize_logs_raw, f"{file_ext_id}_finalize_log.txt"
                             )
                             filtered_log = filter_log_lines(finalize_logs_raw, file_ext_id)
                             st.write("**Relevant Log Entries:**")
@@ -253,6 +281,24 @@ with explorer_tab:
                             st.warning("No finalize logs found.")
                 else:
                     st.info("No Finalize Function call information available for this file.")
+
+            with launch_tab:
+                launch_func_id = selected_row.get("launchFunctionId")
+                launch_call_id = selected_row.get("launchFunctionCallId")
+                if pd.notna(launch_func_id) and pd.notna(launch_call_id):
+                    with st.spinner("Fetching launch log..."):
+                        launch_logs_raw = "".join(
+                            fetch_function_logs(function_id=int(launch_func_id), call_id=int(launch_call_id))
+                        )
+                        # NOTE: launch log doesn't provide log lines with individual Node Id's of files processed
+                        if launch_logs_raw:
+                            st.download_button("Download Full Log", launch_logs_raw, f"{file_ext_id}_launch_log.txt")
+                            with st.expander("View Full Log"):
+                                st.code(launch_logs_raw, language="log")
+                        else:
+                            st.warning("No launch logs found.")
+                else:
+                    st.info("No Launch Function call information available for this file.")
 
 # ==========================================
 #              RUN HISTORY TAB
