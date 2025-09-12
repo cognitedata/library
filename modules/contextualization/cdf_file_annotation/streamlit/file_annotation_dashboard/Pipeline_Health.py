@@ -156,13 +156,20 @@ with explorer_tab:
                 "fileSourcecreatedtime",
                 "fileUploadedtime",
             ]
-            filterable_columns = sorted(
-                [
-                    col
-                    for col in df_annotation_states.columns
-                    if col not in excluded_columns and df_annotation_states[col].nunique() < 100
-                ]
-            )
+            potential_columns = [col for col in df_annotation_states.columns if col not in excluded_columns]
+            filterable_columns = []
+            for col in potential_columns:
+                # Skip empty columns or columns where the first item is a list/dict
+                if df_annotation_states[col].dropna().empty or isinstance(
+                    df_annotation_states[col].dropna().iloc[0], (list, dict)
+                ):
+                    continue
+
+                # Final check to ensure the column is suitable for filtering
+                if df_annotation_states[col].nunique() < 100:
+                    filterable_columns.append(col)
+
+            filterable_columns = sorted(filterable_columns)
 
             filter_col1, filter_col2 = st.columns(2)
             selected_column = filter_col1.selectbox(
