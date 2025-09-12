@@ -36,15 +36,23 @@ class IApplyService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def apply_annotations(self, result_item: dict, file_id: NodeId) -> tuple[list, list]:
+    def apply_annotations(self, result_item: dict, file_node: Node) -> tuple[list, list]:
         pass
 
     @abc.abstractmethod
-    def update_nodes(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
+    def process_pattern_results(self, result_item: dict, file_node: Node) -> list[RowWrite]:
         pass
 
     @abc.abstractmethod
-    def delete_annotations_for_file(self, file_node: NodeId) -> tuple[list[str], list[str]]:
+    def update_instances(
+        self,
+        list_node_apply: list[NodeApply] | NodeApply | None = None,
+        list_edge_apply: list[EdgeApply] | EdgeApply | None = None,
+    ) -> InstancesApplyResult:
+        pass
+
+    @abc.abstractmethod
+    def delete_annotations_for_file(self, file_id: NodeId) -> tuple[list[str], list[str]]:
         pass
 
 
@@ -54,7 +62,8 @@ class GeneralApplyService(IApplyService):
     """
 
     EXTERNAL_ID_LIMIT = 256
-    FUNCTION_ID = "fn_dm_context_annotation_finalize"
+
+    FUNCTION_ID = "fn_file_annotation_finalize"
 
     def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
         self.client: CogniteClient = client
@@ -69,17 +78,10 @@ class GeneralApplyService(IApplyService):
         self.suggest_threshold = self.config.finalize_function.apply_service.auto_suggest_threshold
 
     # NOTE: could implement annotation edges to be updated in batches for performance gains but leaning towards no. Since it will over complicate error handling.
-    def apply_annotations(self, result_item: dict, file_id: NodeId) -> tuple[list[RowWrite], list[RowWrite]]:
+    def apply_annotations(self, result_item: dict, file_node: Node) -> tuple[list[RowWrite], list[RowWrite]]:
         """
         Push the annotations to the file and set the "AnnotationInProcess" tag to "Annotated"
         """
-
-        file_node: Node | None = self.client.data_modeling.instances.retrieve_nodes(
-            nodes=file_id, sources=self.file_view_id
-        )
-        if not file_node:
-            raise ValueError("No file node found.")
-
         node_apply: NodeApply = file_node.as_write()
         node_apply.existing_version = None
 
@@ -98,7 +100,7 @@ class GeneralApplyService(IApplyService):
         edge_applies: list[EdgeApply] = []
         for detect_annotation in result_item["annotations"]:
             edge_apply_dict: dict[tuple, EdgeApply] = self._detect_annotation_to_edge_applies(
-                file_id,
+                file_node.as_id(),
                 source_id,
                 doc_doc,
                 doc_tag,
@@ -106,19 +108,21 @@ class GeneralApplyService(IApplyService):
             )
             edge_applies.extend(edge_apply_dict.values())
 
-        self.client.data_modeling.instances.apply(
-            nodes=node_apply,
-            edges=edge_applies,
-            replace=False,
-        )
+        self.update_instances(list_node_apply=node_apply, list_edge_apply=edge_applies)
+
         return doc_doc, doc_tag
 
-    def update_nodes(self, list_node_apply: list[NodeApply]) -> NodeApplyResultList:
+    def update_instances(
+        self,
+        list_node_apply: list[NodeApply] | NodeApply | None = None,
+        list_edge_apply: list[EdgeApply] | EdgeApply | None = None,
+    ) -> InstancesApplyResult:
         update_results: InstancesApplyResult = self.client.data_modeling.instances.apply(
             nodes=list_node_apply,
+            edges=list_edge_apply,
             replace=False,  # ensures we don't delete other properties in the view
         )
-        return update_results.nodes
+        return update_results
 
     def _detect_annotation_to_edge_applies(
         self,
@@ -149,14 +153,16 @@ class GeneralApplyService(IApplyService):
             )
 
             doc_log = {
-                "external_id": external_id,
-                "start_source_id": source_id,
-                "start_node": file_instance_id.external_id,
-                "end_node": entity["external_id"],
-                "end_node_space": entity["space"],
-                "view_id": self.core_annotation_view_id.external_id,
-                "view_space": self.core_annotation_view_id.space,
-                "view_version": self.core_annotation_view_id.version,
+                "externalId": external_id,
+                "startSourceId": source_id,
+                "startNode": file_instance_id.external_id,
+                "startNodeSpace": file_instance_id.space,
+                "endNode": entity["external_id"],
+                "endNodeSpace": entity["space"],
+                "endNodeResourceType": entity["resource_type"],
+                "viewId": self.core_annotation_view_id.external_id,
+                "viewSpace": self.core_annotation_view_id.space,
+                "viewVersion": self.core_annotation_view_id.version,
             }
             now = datetime.now(timezone.utc).replace(microsecond=0)
 
@@ -184,7 +190,7 @@ class GeneralApplyService(IApplyService):
                 existing_version=None,
                 type=DirectRelationReference(
                     space=annotation_schema_space,
-                    external_id=entity["annotation_type_external_id"],
+                    external_id=entity["annotation_type"],
                 ),
                 start_node=DirectRelationReference(
                     space=file_instance_id.space,
@@ -203,10 +209,10 @@ class GeneralApplyService(IApplyService):
             if edge_apply_key not in diagram_annotations:
                 diagram_annotations[edge_apply_key] = edge_apply_instance
 
-            if entity["annotation_type_external_id"] == self.file_annotation_type:
-                doc_doc.append(RowWrite(key=doc_log["external_id"], columns=doc_log))
+            if entity["annotation_type"] == self.file_annotation_type:
+                doc_doc.append(RowWrite(key=doc_log["externalId"], columns=doc_log))
             else:
-                doc_tag.append(RowWrite(key=doc_log["external_id"], columns=doc_log))
+                doc_tag.append(RowWrite(key=doc_log["externalId"], columns=doc_log))
 
         return diagram_annotations
 
@@ -231,7 +237,7 @@ class GeneralApplyService(IApplyService):
 
     def delete_annotations_for_file(
         self,
-        file_node: NodeId,
+        file_id: NodeId,
     ) -> tuple[list[str], list[str]]:
         """
         Delete all annotation edges for a file node.
@@ -241,7 +247,7 @@ class GeneralApplyService(IApplyService):
             annotation_view_id (ViewId): The ViewId of the annotation view.
             node (NodeId): The NodeId of the file node.
         """
-        annotations = self._list_annotations_for_file(file_node)
+        annotations = self._list_annotations_for_file(file_id)
 
         if not annotations:
             return [], []
@@ -250,7 +256,7 @@ class GeneralApplyService(IApplyService):
         tag_annotations_delete: list[str] = []
         edge_ids = []
         for edge in annotations:
-            edge_ids.append(EdgeId(space=file_node.space, external_id=edge.external_id))
+            edge_ids.append(EdgeId(space=file_id.space, external_id=edge.external_id))
             if edge.type.external_id == self.file_annotation_type:
                 doc_annotations_delete.append(edge.external_id)
             else:
@@ -259,9 +265,66 @@ class GeneralApplyService(IApplyService):
 
         return doc_annotations_delete, tag_annotations_delete
 
+    def process_pattern_results(self, result_item: dict, file_node: Node) -> list[RowWrite]:
+        if not result_item.get("annotations"):
+            return []
+        if not file_node:
+            return []
+
+        file_id: NodeId = file_node.as_id()
+        source_id: str | None = cast(str, file_node.properties[self.file_view_id].get("sourceId"))
+
+        # Step 1: Group all detections by their text content
+        # The key is the detected tag text, e.g., "P-101A"
+        aggregated_detections = {}
+
+        for detect_annotation in result_item["annotations"]:
+            tag_text = detect_annotation["text"]
+
+            if tag_text not in aggregated_detections:
+                # Initialize the entry for this tag if it's the first time we've seen it
+                aggregated_detections[tag_text] = {
+                    "regions": [],
+                    "resource_type": "Unknown",  # Default resource_type
+                }
+
+            # Add the location of the current detection
+            # The region dict contains page, vertices, etc.
+            aggregated_detections[tag_text]["regions"].append(detect_annotation["region"])
+
+            # Assume the resource_type is consistent for a given tag text
+            if "entities" in detect_annotation and detect_annotation["entities"]:
+                aggregated_detections[tag_text]["resource_type"] = detect_annotation["entities"][0].get(
+                    "resource_type", "Unknown"
+                )
+
+        # Step 2: Create one RowWrite object for each unique tag
+        doc_patterns: list[RowWrite] = []
+        for tag_text, data in aggregated_detections.items():
+            # The columns for the RAW table row
+            catalog_properties = {
+                "startSourceId": source_id,
+                "startNode": file_id.external_id,
+                "startNodeSpace": file_id.space,
+                "text": tag_text,
+                "resourceType": data["resource_type"],
+                # Store the entire list of region dicts
+                # Note: The RAW table will automatically serialize this list of dicts into a JSON string
+                "regions": data["regions"],
+                "sourceCreatedUser": self.FUNCTION_ID,
+                "sourceUpdatedUser": self.FUNCTION_ID,
+            }
+
+            # Create a deterministic key based on the tag text and file
+            row_key = f"{tag_text}:{file_id.space}:{file_id.external_id}"
+            row = RowWrite(key=row_key, columns=catalog_properties)
+            doc_patterns.append(row)
+
+        return doc_patterns
+
     def _list_annotations_for_file(
         self,
-        node: NodeId,
+        node_id: NodeId,
     ):
         """
         List all annotation edges for a file node.
@@ -277,8 +340,8 @@ class GeneralApplyService(IApplyService):
         annotations = self.client.data_modeling.instances.list(
             instance_type="edge",
             sources=[self.core_annotation_view_id],
-            space=node.space,
-            filter=Or(In(["edge", "startNode"], [node])),
+            space=node_id.space,
+            filter=Or(In(["edge", "startNode"], [node_id])),
             limit=-1,
         )
 
