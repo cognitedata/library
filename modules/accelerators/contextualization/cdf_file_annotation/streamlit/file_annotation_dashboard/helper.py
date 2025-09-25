@@ -40,7 +40,7 @@ def generate_file_canvas(
     canvas_name = f"Annotation Quality Analysis - {file_node.external_id}"
 
     try:
-        domain = ep_config.get("streamlitDashboard", {}).get("industrialCanvasDomain", "cog-shadow-projects")
+        domain = os.getenv("COGNITE_ORGANIZATION", "cog-shadow-projects")
         project = client.config.project
         cluster = client.config.cdf_cluster
 
