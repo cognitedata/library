@@ -7,16 +7,18 @@ config:
       version: v1
     annotationStateView:
       schemaSpace: {{ annotationStateSchemaSpace }}
-      instanceSpace: {{annotationStateInstanceSpace}}
+      instanceSpace: {{fileInstanceSpace}}
       externalId: {{ annotationStateExternalId }}
       version: {{ annotationStateVersion }}
     fileView:
       schemaSpace: {{ fileSchemaSpace }}
+      instanceSpace: {{fileInstanceSpace}}
       externalId: {{ fileExternalId }}
       version: {{ fileVersion }}
       annotationType: diagrams.FileLink
     targetEntitiesView:
       schemaSpace: {{ targetEntitySchemaSpace }}
+      instanceSpace: {{targetEntityInstanceSpace}}
       externalId: {{ targetEntityExternalId }}
       version: {{ targetEntityVersion }}
       annotationType: diagrams.AssetLink
@@ -52,10 +54,9 @@ config:
     targetEntitiesSearchProperty: aliases
     primaryScopeProperty: None
     secondaryScopeProperty:
-    # NOTE: below configurations are used by pattern mode
     patternMode: True
-    fileResourceProperty: # optional
-    targetEntitiesResourceProperty: # optional
+    fileResourceProperty:
+    targetEntitiesResourceProperty:
     dataModelService:
       getFilesToProcessQuery:
         targetView:
