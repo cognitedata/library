@@ -21,6 +21,10 @@ class IAnnotationService(abc.ABC):
     def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
         pass
 
+    @abc.abstractmethod
+    def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
+        pass
+
 
 # maybe a different class for debug mode and run mode?
 class GeneralAnnotationService(IAnnotationService):
@@ -50,4 +54,20 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id:
             return detect_job.job_id
         else:
-            raise Exception(f"404 ---- No job Id was created")
+            raise Exception(f"API call to diagram/detect in pattern mode did not return a job ID")
+
+    def run_pattern_mode_detect(self, files: list, pattern_samples: list[dict[str, Any]]) -> int:
+        """Generates patterns and runs the diagram detection job in pattern mode."""
+        detect_job: DiagramDetectResults = self.client.diagrams.detect(
+            file_references=files,
+            entities=pattern_samples,
+            partial_match=self.annotation_config.partial_match,
+            min_tokens=self.annotation_config.min_tokens,
+            search_field="sample",
+            configuration=self.diagram_detect_config,
+            pattern_mode=True,
+        )
+        if detect_job.job_id:
+            return detect_job.job_id
+        else:
+            raise Exception("API call to diagram/detect in pattern mode did not return a job ID")

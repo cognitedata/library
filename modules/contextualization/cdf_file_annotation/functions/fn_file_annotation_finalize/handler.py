@@ -45,7 +45,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     )
 
     finalize_instance, report_instance = _create_finalize_service(
-        config_instance, client, logger_instance, tracker_instance
+        config_instance, client, logger_instance, tracker_instance, function_call_info
     )
 
     run_status: str = "success"
@@ -95,7 +95,11 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     tracker_instance = PerformanceTracker()
 
     finalize_instance, report_instance = _create_finalize_service(
-        config_instance, client, logger_instance, tracker_instance
+        config_instance,
+        client,
+        logger_instance,
+        tracker_instance,
+        function_call_info={"function_id": None, "call_id": None},
     )
 
     try:
@@ -138,7 +142,9 @@ def run_locally_parallel(
     thread_4.join()
 
 
-def _create_finalize_service(config, client, logger, tracker) -> tuple[AbstractFinalizeService, IReportService]:
+def _create_finalize_service(
+    config, client, logger, tracker, function_call_info
+) -> tuple[AbstractFinalizeService, IReportService]:
     """
     Instantiate Finalize with interfaces.
     """
@@ -153,6 +159,7 @@ def _create_finalize_service(config, client, logger, tracker) -> tuple[AbstractF
         retrieve_service=retrieve_instance,
         apply_service=apply_instance,
         report_service=report_instance,
+        function_call_info=function_call_info,
     )
     return finalize_instance, report_instance
 

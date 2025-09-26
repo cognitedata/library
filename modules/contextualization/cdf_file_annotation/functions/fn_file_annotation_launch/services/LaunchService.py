@@ -52,9 +52,6 @@ class AbstractLaunchService(abc.ABC):
 
     @abc.abstractmethod
     def prepare(self) -> str | None:
-        """
-        Peronally think it's cleaner having this operate as a separate cognite function -> but due to mpc function constraints it wouldn't make sense for our project to go down this route (Jack)
-        """
         pass
 
     @abc.abstractmethod
@@ -77,6 +74,7 @@ class GeneralLaunchService(AbstractLaunchService):
         data_model_service: IDataModelService,
         cache_service: ICacheService,
         annotation_service: IAnnotationService,
+        function_call_info: dict,
     ):
         super().__init__(
             client,
@@ -94,11 +92,15 @@ class GeneralLaunchService(AbstractLaunchService):
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
 
         self.in_memory_cache: list[dict] = []
+        self.in_memory_patterns: list[dict] = []
         self._cached_primary_scope: str | None = None
         self._cached_secondary_scope: str | None = None
 
         self.primary_scope_property: str = self.config.launch_function.primary_scope_property
         self.secondary_scope_property: str | None = self.config.launch_function.secondary_scope_property
+
+        self.function_id: int | None = function_call_info.get("function_id")
+        self.call_id: int | None = function_call_info.get("call_id")
 
         self.reset_files: bool = False
         if self.config.prepare_function.get_files_for_annotation_reset_query:
@@ -337,7 +339,7 @@ class GeneralLaunchService(AbstractLaunchService):
         ):
             self.logger.info(f"Refreshing in memory cache")
             try:
-                self.in_memory_cache = self.cache_service.get_entities(
+                self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
                     self.data_model_service, primary_scope_value, secondary_scope_value
                 )
                 self._cached_primary_scope = primary_scope_value
@@ -363,9 +365,11 @@ class GeneralLaunchService(AbstractLaunchService):
         if batch.is_empty():
             return
 
-        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
-
         try:
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
             job_id: int = self.annotation_service.run_diagram_detect(
                 files=batch.file_references, entities=self.in_memory_cache
             )
@@ -373,14 +377,33 @@ class GeneralLaunchService(AbstractLaunchService):
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
             }
+
+            # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
+            if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', [])) + len(self.in_memory_patterns[1].get('sample', []))
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', []))
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
+                )
+                pattern_job_id = self.annotation_service.run_pattern_mode_detect(
+                    files=batch.file_references, pattern_samples=self.in_memory_patterns
+                )
+                update_properties["patternModeJobId"] = pattern_job_id
+
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {pattern_job_id}",
                 section="END",
             )
         finally:
@@ -402,9 +425,11 @@ class LocalLaunchService(GeneralLaunchService):
         if batch.is_empty():
             return
 
-        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
-
         try:
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
             job_id: int = self.annotation_service.run_diagram_detect(
                 files=batch.file_references, entities=self.in_memory_cache
             )
@@ -412,14 +437,33 @@ class LocalLaunchService(GeneralLaunchService):
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
             }
+
+            # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
+            if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', [])) + len(self.in_memory_patterns[1].get('sample', []))
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get('sample', []))
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
+                )
+                pattern_job_id = self.annotation_service.run_pattern_mode_detect(
+                    files=batch.file_references, pattern_samples=self.in_memory_patterns
+                )
+                update_properties["patternModeJobId"] = pattern_job_id
+
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {pattern_job_id}",
                 section="END",
             )
         except CogniteAPIError as e:
