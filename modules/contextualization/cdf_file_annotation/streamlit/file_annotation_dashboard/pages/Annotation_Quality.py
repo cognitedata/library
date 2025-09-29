@@ -11,6 +11,7 @@ from helper import (
     fetch_manual_patterns,
     fetch_annotation_states,
     save_manual_patterns,
+    normalize,
 )
 from cognite.client.data_classes.data_modeling import NodeId
 
@@ -105,18 +106,37 @@ with overall_tab:
             else:
                 df_annotations_input = pd.DataFrame()
 
-        potential_tags_set = set(df_metrics_input["text"])
-        actual_annotations_set = (
+        # 1. Get the original, un-normalized sets of strings
+        potential_tags_original = set(df_metrics_input["text"])
+        actual_annotations_original = (
             set(df_annotations_input["startNodeText"])
             if not df_annotations_input.empty and "startNodeText" in df_annotations_input.columns
             else set()
         )
-        matched_tags_set = potential_tags_set.intersection(actual_annotations_set)
-        unmatched_by_annotation_set = potential_tags_set - actual_annotations_set
-        missed_by_pattern_set = actual_annotations_set - potential_tags_set
+
+        # 2. Create a mapping from normalized text back to an original version for display
+        text_map = {
+            normalize(text): text for text in potential_tags_original.union(actual_annotations_original) if text
+        }
+
+        # 3. Create fully normalized sets for logical comparison
+        normalized_potential_set = {normalize(t) for t in potential_tags_original}
+        normalized_actual_set = {normalize(t) for t in actual_annotations_original}
+
+        # 4. Perform all set operations on the normalized data for accurate logic
+        normalized_matched = normalized_potential_set.intersection(normalized_actual_set)
+        normalized_unmatched = normalized_potential_set - normalized_actual_set
+        normalized_missed = normalized_actual_set - normalized_potential_set
+
+        # 5. Use the map to get the final sets with original text for display
+        matched_tags_set = {text_map[t] for t in normalized_matched if t in text_map}
+        unmatched_by_annotation_set = {text_map[t] for t in normalized_unmatched if t in text_map}
+        missed_by_pattern_set = {text_map[t] for t in normalized_missed if t in text_map}
+
         total_matched = len(matched_tags_set)
         total_unmatched = len(unmatched_by_annotation_set)
         total_missed = len(missed_by_pattern_set)
+
         overall_coverage = (
             (total_matched / (total_matched + total_unmatched)) * 100 if (total_matched + total_unmatched) > 0 else 0
         )
@@ -151,9 +171,12 @@ with overall_tab:
                 if not df_annotations_filtered.empty and "startNodeText" in df_annotations_filtered.columns
                 else set()
             )
-            matched = len(potential.intersection(actual))
-            unmatched = len(potential - actual)
-            missed = len(actual - potential)
+            # Use normalized comparison for chart data as well
+            norm_potential = {normalize(p) for p in potential}
+            norm_actual = {normalize(a) for a in actual}
+            matched = len(norm_potential.intersection(norm_actual))
+            unmatched = len(norm_potential - norm_actual)
+            missed = len(norm_actual - norm_potential)
             coverage = (matched / (matched + unmatched)) * 100 if (matched + unmatched) > 0 else 0
             completeness = (matched / (matched + missed)) * 100 if (matched + missed) > 0 else 0
             chart_data.append(
@@ -301,15 +324,22 @@ with per_file_tab:
         df_quality_file["actualAnnotations"] = df_quality_file["actualAnnotations"].apply(
             lambda x: x if isinstance(x, set) else set()
         )
-        df_quality_file["matchedTags"] = df_quality_file.apply(
-            lambda row: len(row["potentialTags"].intersection(row["actualAnnotations"])), axis=1
-        )
-        df_quality_file["unmatchedByAnnotation"] = df_quality_file.apply(
-            lambda row: len(row["potentialTags"] - row["actualAnnotations"]), axis=1
-        )
-        df_quality_file["missedByPattern"] = df_quality_file.apply(
-            lambda row: len(row["actualAnnotations"] - row["potentialTags"]), axis=1
-        )
+
+        # Apply normalized comparison for per-file metrics
+        def calculate_metrics(row):
+            potential = row["potentialTags"]
+            actual = row["actualAnnotations"]
+            norm_potential = {normalize(p) for p in potential}
+            norm_actual = {normalize(a) for a in actual}
+
+            matched = len(norm_potential.intersection(norm_actual))
+            unmatched = len(norm_potential - norm_actual)
+            missed = len(norm_actual - norm_potential)
+            return matched, unmatched, missed
+
+        metrics = df_quality_file.apply(calculate_metrics, axis=1, result_type="expand")
+        df_quality_file[["matchedTags", "unmatchedByAnnotation", "missedByPattern"]] = metrics
+
         df_quality_file["coverageRate"] = (
             (
                 df_quality_file["matchedTags"]
@@ -498,11 +528,25 @@ with per_file_tab:
                     if not df_annotations_file.empty
                     else pd.DataFrame(columns=["text", "resourceType"])
                 )
+
+                # Use normalized comparison for per-file detail view
                 potential_set = set(df_potential_tags_details["text"])
                 actual_set = set(df_actual_annotations_details["text"])
-                matched_set = potential_set.intersection(actual_set)
-                unmatched_set = potential_set - actual_set
-                missed_set = actual_set - potential_set
+                norm_potential = {normalize(p) for p in potential_set}
+                norm_actual = {normalize(a) for a in actual_set}
+
+                # We need a map from normalized text back to original for accurate filtering
+                potential_map = {normalize(text): text for text in potential_set}
+                actual_map = {normalize(text): text for text in actual_set}
+
+                norm_matched = norm_potential.intersection(norm_actual)
+                norm_unmatched = norm_potential - norm_actual
+                norm_missed = norm_actual - norm_potential
+
+                matched_set = {potential_map[t] for t in norm_matched}
+                unmatched_set = {potential_map[t] for t in norm_unmatched}
+                missed_set = {actual_map[t] for t in norm_missed}
+
                 matched_df = df_potential_tags_details[
                     df_potential_tags_details["text"].isin(matched_set)
                 ].drop_duplicates(subset=["text", "resourceType"])
