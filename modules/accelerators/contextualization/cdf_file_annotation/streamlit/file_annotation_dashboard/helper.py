@@ -452,3 +452,11 @@ def filter_log_lines(log_text: str, search_string: str) -> str:
                     break
             relevant_blocks.append("\n".join(current_block))
     return "\n\n".join(relevant_blocks)
+
+
+# --- Remove all non-alphanumeric characters and convert to lowercase ---
+def normalize(s):
+    # Ensure input is a string before applying regex
+    if not isinstance(s, str):
+        return ""
+    return re.sub(r"[^a-zA-Z0-9]", "", s).lower()
