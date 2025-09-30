@@ -1,4 +1,5 @@
 import abc
+import copy
 from typing import Any
 from cognite.client import CogniteClient
 from services.ConfigService import Config
@@ -41,6 +42,12 @@ class GeneralAnnotationService(IAnnotationService):
         self.diagram_detect_config: DiagramDetectConfig | None = None
         if config.launch_function.annotation_service.diagram_detect_config:
             self.diagram_detect_config = config.launch_function.annotation_service.diagram_detect_config.as_config()
+            # NOTE: Remove Leading Zeros has a weird interaction with pattern mode so will always turn off
+            if config.launch_function.pattern_mode:
+                # NOTE: Shallow copy that still references Mutable objects in self.diagram_detect_config.
+                # Since RemoveLeadingZeros is a boolean value, it is immutable and we can modify the copy without effecting the original.
+                self.pattern_detect_config = copy.copy(self.diagram_detect_config)
+                self.pattern_detect_config.remove_leading_zeros = False
 
     def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
@@ -54,9 +61,9 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id:
             return detect_job.job_id
         else:
-            raise Exception(f"API call to diagram/detect in pattern mode did not return a job ID")
+            raise Exception(f"API call to diagram/detect did not return a job ID")
 
-    def run_pattern_mode_detect(self, files: list, pattern_samples: list[dict[str, Any]]) -> int:
+    def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
         """Generates patterns and runs the diagram detection job in pattern mode."""
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
@@ -64,7 +71,7 @@ class GeneralAnnotationService(IAnnotationService):
             partial_match=self.annotation_config.partial_match,
             min_tokens=self.annotation_config.min_tokens,
             search_field="sample",
-            configuration=self.diagram_detect_config,
+            configuration=self.pattern_detect_config,
             pattern_mode=True,
         )
         if detect_job.job_id:
