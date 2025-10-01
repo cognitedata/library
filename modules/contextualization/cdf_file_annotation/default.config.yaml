@@ -3,10 +3,10 @@ annotationDatasetExternalId: ds_file_annotation
 
 # used in /data_models and /extraction_pipelines
 annotationStateExternalId: FileAnnotationState
-annotationStateInstanceSpace: sp_dat_cdf_annotation_states
 annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
 annotationStateVersion: v1.0.0
 fileSchemaSpace: <insert>
+fileInstanceSpace: <insert>
 fileExternalId: <insert>
 fileVersion: <insert>
 
@@ -21,6 +21,7 @@ rawManualPatternsCatalog: manual_patterns_catalog
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation
 targetEntitySchemaSpace: <insert>
+targetEntityInstanceSpace: <insert>
 targetEntityExternalId: <insert>
 targetEntityVersion: <insert>
 
@@ -33,7 +34,7 @@ functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 
 # used in /workflows
-workflowSchedule: "3-59/10 * * * *" # NOTE: runs every 10 minutes with a 3 minute offset
+workflowSchedule: "3-59/15 * * * *" # NOTE: runs every 15 minutes with a 3 minute offset
 workflowExternalId: wf_file_annotation
 workflowVersion: v1
 
