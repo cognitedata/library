@@ -51,6 +51,7 @@ def generate_properties(file_node: Node, file_view_id: ViewId, node_id: str, off
 def create_canvas(name: str, client: CogniteClient):
     """Creates the main canvas node."""
     canvas_id = generate_id()
+    file_annotation_label = {"externalId": "file_annotations_solution_tag", "space": "SolutionTagsInstanceSpace"}
     canvas = NodeApply(
         space=CANVAS_SPACE_INSTANCE,
         external_id=canvas_id,
@@ -63,6 +64,7 @@ def create_canvas(name: str, client: CogniteClient):
                     "updatedAt": get_time(),
                     "createdBy": get_user_id(client),
                     "updatedBy": get_user_id(client),
+                    "solutionTags": [file_annotation_label],
                 },
             )
         ],
