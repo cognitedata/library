@@ -452,3 +452,28 @@ def filter_log_lines(log_text: str, search_string: str) -> str:
                     break
             relevant_blocks.append("\n".join(current_block))
     return "\n\n".join(relevant_blocks)
+
+
+# --- Remove all non-alphanumeric characters, convert to lowercase, and strip leading zeros from numbers ---
+def normalize(s):
+    """
+    Normalizes a string by:
+    1. Ensuring it's a string.
+    2. Removing all non-alphanumeric characters.
+    3. Converting to lowercase.
+    4. Removing leading zeros from any sequence of digits found within the string.
+    """
+    if not isinstance(s, str):
+        return ""
+
+    # Step 1: Basic cleaning (e.g., "V-0912" -> "v0912")
+    s = re.sub(r"[^a-zA-Z0-9]", "", s).lower()
+
+    # Step 2: Define a replacer function that converts any matched number to an int and back to a string
+    def strip_leading_zeros(match):
+        # match.group(0) is the matched string (e.g., "0912")
+        return str(int(match.group(0)))
+
+    # Step 3: Apply the replacer function to all sequences of digits (\d+) in the string
+    # This turns "v0912" into "v912"
+    return re.sub(r"\d+", strip_leading_zeros, s)
