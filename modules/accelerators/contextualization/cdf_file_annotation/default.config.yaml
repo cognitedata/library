@@ -5,6 +5,8 @@ annotationDatasetExternalId: ds_file_annotation
 annotationStateExternalId: FileAnnotationState
 annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
 annotationStateVersion: v1.0.0
+patternModeInstanceSpace: sp_dat_pattern_mode_results
+patternDetectSink: pattern_detection_sink_node
 fileSchemaSpace: <insert>
 fileInstanceSpace: <insert>
 fileExternalId: <insert>
