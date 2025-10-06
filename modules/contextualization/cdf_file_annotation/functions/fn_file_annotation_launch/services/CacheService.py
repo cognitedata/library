@@ -209,7 +209,7 @@ class GeneralCacheService(ICacheService):
 
         for instance in file_instances:
             instance_properties = instance.properties.get(self.file_view.as_view_id())
-            if target_entities_resource_type:
+            if file_resource_type:
                 resource_type: str = instance_properties[file_resource_type]
             else:
                 resource_type: str = self.file_view.external_id
@@ -233,9 +233,8 @@ class GeneralCacheService(ICacheService):
         - Letters are grouped into bracketed alternatives, even when mixed with numbers.
         - Example: '629P' and '629X' will merge to create a pattern piece '000[P|X]'.
         """
-        # Structure: { resource_type: { full_template_key: list_of_collected_variable_parts } }
-        # where list_of_collected_variable_parts is [ [{'L1_alt1', 'L1_alt2'}], [{'L2_alt1'}], ... ]
-        pattern_builders: dict[str, dict[str, list[list[set[str]]]]] = {}
+        # Structure: { resource_type: { 'templates': { template_key: list_of_variable_parts }, 'annotation_type': str } }
+        pattern_builders = defaultdict(lambda: {"templates": defaultdict(list), "annotation_type": None})
         self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
@@ -251,66 +250,58 @@ class GeneralCacheService(ICacheService):
             for i, part in enumerate(alias_parts):
                 if not part:
                     continue
-                # Handle delimiters
                 if part in [" ", "-"]:
                     full_template_key_parts.append(part)
                     continue
-
-                # Handle fixed constants (override everything else)
                 left_ok = (i == 0) or (alias_parts[i - 1] in [" ", "-"])
                 right_ok = (i == len(alias_parts) - 1) or (alias_parts[i + 1] in [" ", "-"])
                 if left_ok and right_ok and part == resource_type_key:
                     full_template_key_parts.append(f"[{part}]")
                     continue
-
-                # --- Dissect the segment to create its template and find variable letters ---
-                # 1. Create the structural template for the segment (e.g., '629P' -> '000A')
                 segment_template = re.sub(r"\d", "0", part)
                 segment_template = re.sub(r"[A-Za-z]", "A", segment_template)
                 full_template_key_parts.append(segment_template)
-
-                # 2. Extract all groups of letters from the segment
                 variable_letters = re.findall(r"[A-Za-z]+", part)
                 if variable_letters:
                     all_variable_parts.append(variable_letters)
             return "".join(full_template_key_parts), all_variable_parts
 
         for entity in entities:
-            # NOTE:
-            key = entity["resource_type"]
-            if key not in pattern_builders:
-                pattern_builders[key] = {}
-
+            resource_type = entity["resource_type"]
+            annotation_type = entity.get("annotation_type")
             aliases = entity.get("search_property", [])
+
+            if pattern_builders[resource_type]["annotation_type"] is None:
+                pattern_builders[resource_type]["annotation_type"] = annotation_type
+
             for alias in aliases:
                 if not alias:
                     continue
+                template_key, variable_parts_from_alias = _parse_alias(alias, resource_type)
 
-                template_key, variable_parts_from_alias = _parse_alias(alias, key)
-
-                if template_key in pattern_builders[key]:
-                    # Merge with existing variable parts
-                    existing_variable_sets = pattern_builders[key][template_key]
-                    for i, part_group in enumerate(variable_parts_from_alias):
-                        for j, letter_group in enumerate(part_group):
-                            existing_variable_sets[i][j].add(letter_group)
-                else:
-                    # Create a new entry with the correct structure (list of lists of sets)
+                if not pattern_builders[resource_type]["templates"][template_key]:
                     new_variable_sets = []
                     for part_group in variable_parts_from_alias:
                         new_variable_sets.append([set([lg]) for lg in part_group])
-                    pattern_builders[key][template_key] = new_variable_sets
+                    pattern_builders[resource_type]["templates"][template_key] = new_variable_sets
+                else:
+                    existing_variable_sets = pattern_builders[resource_type]["templates"][template_key]
+                    for i, part_group in enumerate(variable_parts_from_alias):
+                        for j, letter_group in enumerate(part_group):
+                            while i >= len(existing_variable_sets):
+                                existing_variable_sets.append([])
+                            while j >= len(existing_variable_sets[i]):
+                                existing_variable_sets[i].append(set())
+                            existing_variable_sets[i][j].add(letter_group)
 
-        # --- Build the final result from the processed patterns ---
         result = []
-        for resource_type, templates in pattern_builders.items():
+        for resource_type, data in pattern_builders.items():
             final_samples = []
-            for template_key, collected_vars in templates.items():
-                # Create an iterator for the collected letter groups
+            annotation_type = data["annotation_type"]
+            for template_key, collected_vars in data["templates"].items():
                 var_iter: Iterator[list[set[str]]] = iter(collected_vars)
 
                 def build_segment(segment_template: str) -> str:
-                    # This function rebuilds one segment, substituting 'A's with bracketed alternatives
                     if "A" not in segment_template:
                         return segment_template
                     try:
@@ -319,20 +310,25 @@ class GeneralCacheService(ICacheService):
 
                         def replace_A(match):
                             alternatives = sorted(list(next(letter_group_iter)))
-                            return f"[{'|'.join(alternatives)}]"
+                            return f"[{'|'.join(alternatives)}]" if len(alternatives) > 1 else alternatives[0]
 
                         return re.sub(r"A+", replace_A, segment_template)
                     except StopIteration:
-                        return segment_template  # Should not happen in normal flow
+                        return segment_template
 
-                # Split the full template by delimiters, process each part, then rejoin
                 final_pattern_parts = [
                     build_segment(p) if p not in " -" else p for p in re.split(r"([ -])", template_key)
                 ]
                 final_samples.append("".join(final_pattern_parts))
 
             if final_samples:
-                result.append({"sample": sorted(final_samples), "resource_type": resource_type})
+                result.append(
+                    {
+                        "sample": sorted(final_samples),
+                        "resource_type": resource_type,
+                        "annotation_type": annotation_type,
+                    }
+                )
         return result
 
     def _get_manual_patterns(self, primary_scope: str, secondary_scope: str | None) -> list[dict]:
@@ -357,38 +353,40 @@ class GeneralCacheService(ICacheService):
                 self.logger.info(f"No manual patterns found for keys: {keys_to_fetch}. This may be expected.")
             except Exception as e:
                 self.logger.error(f"Failed to retrieve manual patterns: {e}")
-
         return all_manual_patterns
 
     def _merge_patterns(self, auto_patterns: list[dict], manual_patterns: list[dict]) -> list[dict]:
         """Merges auto-generated and manual patterns, de-duplicating samples."""
-        # The structure of manual_patterns is [{"sample": "P-1", "resource_type": "A"}, ...]
-        # The structure of auto_patterns is [{"sample": ["P-2", "P-3"], "resource_type": "A"}, ...]
-
-        # Use a dictionary with sets for efficient merging and de-duplication
-        merged = defaultdict(set)
+        merged = defaultdict(lambda: {"samples": set(), "annotation_type": None})
 
         # Process auto-generated patterns
         for item in auto_patterns:
             resource_type = item.get("resource_type")
             samples = item.get("sample", [])
-            if resource_type and isinstance(samples, list):
-                merged[resource_type].update(samples)
+            annotation_type = item.get("annotation_type")
+            if resource_type:
+                merged[resource_type]["samples"].update(samples)
+                if not merged[resource_type]["annotation_type"]:
+                    merged[resource_type]["annotation_type"] = annotation_type
 
         # Process manual patterns
         for item in manual_patterns:
             resource_type = item.get("resource_type")
             sample = item.get("sample")
+            annotation_type = item.get("annotation_type")
             if resource_type and sample:
-                merged[resource_type].add(sample)
+                merged[resource_type]["samples"].add(sample)
+                if not merged[resource_type]["annotation_type"]:
+                    merged[resource_type]["annotation_type"] = annotation_type
 
-        # Convert the merged dictionary back to the required list format
         final_list = [
-            {"resource_type": resource_type, "sample": sorted(list(samples))}
-            for resource_type, samples in merged.items()
+            {
+                "resource_type": resource_type,
+                "sample": sorted(list(data["samples"])),
+                "annotation_type": data["annotation_type"],
+            }
+            for resource_type, data in merged.items()
         ]
 
-        self.logger.info(
-            f"Merged {len(auto_patterns)} auto-patterns and {len(manual_patterns)} manual patterns into {len(final_list)} resource types."
-        )
+        self.logger.info(f"Merged auto-generated and manual patterns into {len(final_list)} resource types.")
         return final_list

@@ -8,6 +8,7 @@ from cognite.client.data_classes.contextualization import (
     CustomizeFuzziness,
     DirectionWeights,
 )
+from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.filters import Filter
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -203,6 +204,7 @@ class RetrieveServiceConfig(BaseModel, alias_generator=to_camel):
 
 
 class ApplyServiceConfig(BaseModel, alias_generator=to_camel):
+    sink_node: NodeId
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
     auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
 
