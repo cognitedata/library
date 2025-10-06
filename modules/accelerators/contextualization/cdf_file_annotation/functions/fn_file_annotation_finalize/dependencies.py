@@ -12,7 +12,6 @@ from services.ConfigService import Config
 from services.RetrieveService import GeneralRetrieveService
 from services.ApplyService import GeneralApplyService
 from services.LoggerService import CogniteFunctionLogger
-from services.ReportService import GeneralReportService
 from services.PipelineService import GeneralPipelineService
 
 
@@ -99,12 +98,6 @@ def create_general_retrieve_service(
     client: CogniteClient, config: Config, logger: CogniteFunctionLogger
 ) -> GeneralRetrieveService:
     return GeneralRetrieveService(client, config, logger)
-
-
-def create_general_report_service(
-    client: CogniteClient, config: Config, logger: CogniteFunctionLogger
-) -> GeneralReportService:
-    return GeneralReportService(client, config, logger)
 
 
 def create_general_apply_service(
