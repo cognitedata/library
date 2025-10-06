@@ -31,6 +31,7 @@ class EnvConfig:
 class DiagramAnnotationStatus(str, Enum):
     SUGGESTED = "Suggested"
     APPROVED = "Approved"
+    REJECTED = "Rejected"
 
 
 class AnnotationStatus(str, Enum):

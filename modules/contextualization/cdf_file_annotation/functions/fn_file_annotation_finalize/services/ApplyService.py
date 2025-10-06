@@ -65,7 +65,7 @@ class GeneralApplyService(IApplyService):
         self.approve_threshold = self.config.finalize_function.apply_service.auto_approval_threshold
         self.suggest_threshold = self.config.finalize_function.apply_service.auto_suggest_threshold
 
-        self.sink_node_id = DirectRelationReference(
+        self.sink_node_id = NodeId(
             space=config.finalize_function.apply_service.sink_node.space,
             external_id=config.finalize_function.apply_service.sink_node.external_id,
         )
@@ -192,13 +192,18 @@ class GeneralApplyService(IApplyService):
         return counts
 
     def _process_pattern_results(self, result_item: dict, file_node: Node) -> tuple[list[EdgeApply], list[RowWrite]]:
-        # ... (This method's internal logic remains the same as the previous version)
         file_id: NodeId = file_node.as_id()
         source_id: str | None = cast(str, file_node.properties[self.file_view_id].get("sourceId"))
 
         doc_patterns, edge_applies = [], []
         for detect_annotation in result_item["annotations"]:
             for entity in detect_annotation.get("entities", []):
+                if detect_annotation["confidence"] >= self.approve_threshold:
+                    annotation_status = DiagramAnnotationStatus.APPROVED.value
+                elif detect_annotation["confidence"] >= self.suggest_threshold:
+                    annotation_status = DiagramAnnotationStatus.SUGGESTED.value
+                else:
+                    continue
                 external_id = self._create_pattern_annotation_id(file_id, detect_annotation)
                 now = datetime.now(timezone.utc).replace(microsecond=0)
                 annotation_type = entity.get(
@@ -207,8 +212,8 @@ class GeneralApplyService(IApplyService):
 
                 annotation_properties = {
                     "name": file_id.external_id,
-                    "confidence": detect_annotation.get("confidence", 0.0),
-                    "status": DiagramAnnotationStatus.SUGGESTED.value,
+                    "confidence": detect_annotation["confidence"],
+                    "status": annotation_status,
                     "startNodePageNumber": detect_annotation["region"]["page"],
                     "startNodeXMin": min(v["x"] for v in detect_annotation["region"]["vertices"]),
                     "startNodeYMin": min(v["y"] for v in detect_annotation["region"]["vertices"]),
@@ -222,14 +227,17 @@ class GeneralApplyService(IApplyService):
                 }
 
                 edge_apply = EdgeApply(
-                    space=file_id.space,
+                    # NOTE: Don't want to store the edge in the instance space that the files are in. Should prevent these edges from being seen when using the location configurations ~ e.g. the search and canvas UI
+                    space=self.sink_node_id.space,
                     external_id=external_id,
                     type=DirectRelationReference(
                         space=self.core_annotation_view_id.space,
                         external_id=annotation_type,
                     ),
                     start_node=DirectRelationReference(space=file_id.space, external_id=file_id.external_id),
-                    end_node=self.sink_node_id,
+                    end_node=DirectRelationReference(
+                        space=self.sink_node_id.space, external_id=self.sink_node_id.external_id
+                    ),
                     sources=[
                         NodeOrEdgeData(
                             source=self.core_annotation_view_id,
@@ -385,13 +393,15 @@ class GeneralApplyService(IApplyService):
 
         if negate:
             final_filter = And(start_node_filter, dm.filters.Not(end_node_filter))
+            space = node_id.space
         else:
+            space = self.sink_node_id.space
             final_filter = And(start_node_filter, end_node_filter)
 
         annotations = self.client.data_modeling.instances.list(
             instance_type="edge",
             sources=[self.core_annotation_view_id],
-            space=node_id.space,
+            space=space,
             filter=final_filter,
             limit=-1,
         )

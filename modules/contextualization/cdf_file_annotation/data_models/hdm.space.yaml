@@ -1,3 +1,6 @@
 - description: Helper data model space
   name: {{ annotationStateSchemaSpace }}
   space: {{ annotationStateSchemaSpace }}
+- description: Pattern mode results instance space
+  name: {{ patternModeInstanceSpace }}
+  space: {{ patternModeInstanceSpace }}

@@ -120,6 +120,9 @@ config:
             operator: Exists
             targetProperty: diagramDetectJobId
     applyService:
+      sinkNode:
+          space: {{ patternModeInstanceSpace }}
+          externalId: {{patternDetectSink}}
       autoApprovalThreshold: 1.0
       autoSuggestThreshold: 1.0
     reportService:
