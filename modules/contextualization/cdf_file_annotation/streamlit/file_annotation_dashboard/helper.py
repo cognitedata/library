@@ -5,8 +5,16 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from cognite.client import CogniteClient
-from cognite.client.data_classes import RowWrite
-from cognite.client.data_classes.data_modeling import ViewId, NodeId, Node, filters
+from cognite.client.data_classes import RowWrite, Asset, AssetFilter
+from cognite.client.data_classes.data_modeling import (
+    ViewId,
+    NodeId,
+    Node,
+    filters,
+    EdgeApply,
+    NodeOrEdgeData,
+    DirectRelationReference,
+)
 from cognite.client.data_classes.functions import FunctionCallLog
 from data_structures import ViewPropertyConfig
 from canvas import dm_generate
@@ -477,3 +485,18 @@ def normalize(s):
     # Step 3: Apply the replacer function to all sequences of digits (\d+) in the string
     # This turns "v0912" into "v912"
     return re.sub(r"\d+", strip_leading_zeros, s)
+
+
+@st.cache_data(ttl=600)
+def fetch_potential_annotations(db_name: str, table_name: str, file_external_id: str) -> pd.DataFrame:
+    """Fetches potential annotations for a specific file from the patterns RAW table."""
+    try:
+        rows = client.raw.rows.list(
+            db_name=db_name, table_name=table_name, limit=-1, filter={"startNode": file_external_id}
+        )
+        if not rows:
+            return pd.DataFrame()
+        return pd.DataFrame([row.columns for row in rows])
+    except Exception as e:
+        st.error(f"Failed to fetch potential annotations: {e}")
+        return pd.DataFrame()

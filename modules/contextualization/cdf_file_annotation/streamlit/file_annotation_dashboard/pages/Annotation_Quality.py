@@ -88,7 +88,7 @@ with overall_tab:
             "Overall Annotation Quality",
             help="Provides a high-level summary of pattern performance across all files. Use these aggregate metrics, charts, and tag lists to understand the big picture and identify systemic trends or gaps in the pattern catalog.",
         )
-        all_resource_types = ["All"] + sorted(df_patterns["resourceType"].unique().tolist())
+        all_resource_types = ["All"] + sorted(df_patterns["endNodeResourceType"].unique().tolist())
         selected_resource_type = st.selectbox(
             "Filter by Resource Type:",
             options=all_resource_types,
@@ -100,14 +100,14 @@ with overall_tab:
             df_metrics_input = df_patterns
             df_annotations_input = df_annotations
         else:
-            df_metrics_input = df_patterns[df_patterns["resourceType"] == selected_resource_type]
+            df_metrics_input = df_patterns[df_patterns["endNodeResourceType"] == selected_resource_type]
             if not df_annotations.empty and "endNodeResourceType" in df_annotations.columns:
                 df_annotations_input = df_annotations[df_annotations["endNodeResourceType"] == selected_resource_type]
             else:
                 df_annotations_input = pd.DataFrame()
 
         # 1. Get the original, un-normalized sets of strings
-        potential_tags_original = set(df_metrics_input["text"])
+        potential_tags_original = set(df_metrics_input["startNodeText"])
         actual_annotations_original = (
             set(df_annotations_input["startNodeText"])
             if not df_annotations_input.empty and "startNodeText" in df_annotations_input.columns
@@ -124,48 +124,35 @@ with overall_tab:
         normalized_actual_set = {normalize(t) for t in actual_annotations_original}
 
         # 4. Perform all set operations on the normalized data for accurate logic
-        normalized_matched = normalized_potential_set.intersection(normalized_actual_set)
         normalized_unmatched = normalized_potential_set - normalized_actual_set
-        normalized_missed = normalized_actual_set - normalized_potential_set
 
         # 5. Use the map to get the final sets with original text for display
-        matched_tags_set = {text_map[t] for t in normalized_matched if t in text_map}
-        unmatched_by_annotation_set = {text_map[t] for t in normalized_unmatched if t in text_map}
-        missed_by_pattern_set = {text_map[t] for t in normalized_missed if t in text_map}
+        actual_annotations_set = {text_map[t] for t in normalized_actual_set if t in text_map}
+        potential_new_annotations_set = {text_map[t] for t in normalized_unmatched if t in text_map}
 
-        total_matched = len(matched_tags_set)
-        total_unmatched = len(unmatched_by_annotation_set)
-        total_missed = len(missed_by_pattern_set)
+        total_actual = len(actual_annotations_set)
+        total_potential = len(potential_new_annotations_set)
 
         overall_coverage = (
-            (total_matched / (total_matched + total_unmatched)) * 100 if (total_matched + total_unmatched) > 0 else 0
-        )
-        overall_completeness = (
-            (total_matched / (total_missed + total_matched)) * 100 if (total_missed + total_matched) > 0 else 0
+            (total_actual / (total_actual + total_potential)) * 100 if (total_actual + total_potential) > 0 else 0
         )
 
-        kpi_col1, kpi_col2 = st.columns(2)
-        kpi_col1.metric(
+        st.metric(
             "Overall Annotation Coverage",
             f"{overall_coverage:.2f}%",
-            help="Of all potential tags found by patterns, this is the percentage that were successfully annotated. Formula: Matched / (Matched + Unmatched)",
-        )
-        kpi_col2.metric(
-            "Overall Pattern Completeness",
-            f"{overall_completeness:.2f}%",
-            help="Of all annotations created, this is the percentage that the patterns successfully predicted. Formula: Matched / (Matched + Missed by Pattern)",
+            help="The percentage of all unique tags (both actual and potential) that have been successfully annotated. Formula: Total Actual Annotations / (Total Actual Annotations + Total Potential New Annotations)",
         )
 
         st.divider()
         chart_data = []
         for resource_type in all_resource_types[1:]:
-            df_patterns_filtered = df_patterns[df_patterns["resourceType"] == resource_type]
+            df_patterns_filtered = df_patterns[df_patterns["endNodeResourceType"] == resource_type]
             df_annotations_filtered = (
                 df_annotations[df_annotations["endNodeResourceType"] == resource_type]
                 if not df_annotations.empty and "endNodeResourceType" in df_annotations.columns
                 else pd.DataFrame()
             )
-            potential = set(df_patterns_filtered["text"])
+            potential = set(df_patterns_filtered["startNodeText"])
             actual = (
                 set(df_annotations_filtered["startNodeText"])
                 if not df_annotations_filtered.empty and "startNodeText" in df_annotations_filtered.columns
@@ -174,19 +161,21 @@ with overall_tab:
             # Use normalized comparison for chart data as well
             norm_potential = {normalize(p) for p in potential}
             norm_actual = {normalize(a) for a in actual}
-            matched = len(norm_potential.intersection(norm_actual))
-            unmatched = len(norm_potential - norm_actual)
-            missed = len(norm_actual - norm_potential)
-            coverage = (matched / (matched + unmatched)) * 100 if (matched + unmatched) > 0 else 0
-            completeness = (matched / (matched + missed)) * 100 if (matched + missed) > 0 else 0
+
+            total_actual_rt = len(norm_actual)
+            total_potential_rt = len(norm_potential - norm_actual)
+
+            coverage = (
+                (total_actual_rt / (total_actual_rt + total_potential_rt)) * 100
+                if (total_actual_rt + total_potential_rt) > 0
+                else 0
+            )
             chart_data.append(
                 {
                     "resourceType": resource_type,
                     "coverageRate": coverage,
-                    "completenessRate": completeness,
-                    "matchedTags": matched,
-                    "unmatchedByAnnotation": unmatched,
-                    "missedByPattern": missed,
+                    "actualAnnotations": total_actual_rt,
+                    "potentialNewAnnotations": total_potential_rt,
                 }
             )
 
@@ -198,33 +187,18 @@ with overall_tab:
         )
 
         if not df_chart_display.empty:
-            chart_col1, chart_col2 = st.columns(2)
-            with chart_col1:
-                coverage_chart = (
-                    alt.Chart(df_chart_display)
-                    .mark_bar()
-                    .encode(
-                        x=alt.X("resourceType:N", title="Resource Type", sort="-y"),
-                        y=alt.Y("coverageRate:Q", title="Annotation Coverage (%)", scale=alt.Scale(domain=[0, 100])),
-                        tooltip=["resourceType", "coverageRate", "matchedTags", "unmatchedByAnnotation"],
-                    )
-                    .properties(title="Annotation Coverage by Resource Type")
+            coverage_chart = (
+                alt.Chart(df_chart_display)
+                .mark_bar()
+                .encode(
+                    x=alt.X("resourceType:N", title="Resource Type", sort="-y"),
+                    y=alt.Y("coverageRate:Q", title="Annotation Coverage (%)", scale=alt.Scale(domain=[0, 100])),
+                    tooltip=["resourceType", "coverageRate", "actualAnnotations", "potentialNewAnnotations"],
                 )
-                st.altair_chart(coverage_chart, use_container_width=True)
-            with chart_col2:
-                completeness_chart = (
-                    alt.Chart(df_chart_display)
-                    .mark_bar()
-                    .encode(
-                        x=alt.X("resourceType:N", title="Resource Type", sort="-y"),
-                        y=alt.Y(
-                            "completenessRate:Q", title="Pattern Completeness (%)", scale=alt.Scale(domain=[0, 100])
-                        ),
-                        tooltip=["resourceType", "completenessRate", "matchedTags", "missedByPattern"],
-                    )
-                    .properties(title="Pattern Completeness by Resource Type")
-                )
-                st.altair_chart(completeness_chart, use_container_width=True)
+                .properties(title="Annotation Coverage by Resource Type")
+            )
+            st.altair_chart(coverage_chart, use_container_width=True)
+
         else:
             st.info("No data available for the selected resource type to generate charts.")
 
@@ -259,37 +233,26 @@ with overall_tab:
                             hide_index=True,
                             column_config={"sample": "Pattern"},
                         )
-        tag_col1, tag_col2, tag_col3 = st.columns(3)
+        tag_col1, tag_col2 = st.columns(2)
         with tag_col1:
             st.metric(
-                "✅ Matched Tags",
-                f"{total_matched}",
-                help="Tags that were correctly identified by the pattern catalog and were also created as final annotations. This represents the successful overlap between the two processes.",
+                "✅ Actual Annotations",
+                f"{total_actual}",
+                help="A list of all unique tags that have been successfully created. This is our ground truth.",
             )
             st.dataframe(
-                pd.DataFrame(sorted(list(matched_tags_set)), columns=["Tag"]),
+                pd.DataFrame(sorted(list(actual_annotations_set)), columns=["Tag"]),
                 use_container_width=True,
                 hide_index=True,
             )
         with tag_col2:
             st.metric(
-                "❓ Unmatched by Annotation",
-                f"{total_unmatched}",
-                help="Tags that were found by the pattern catalog but do not exist as final annotations. This can help identify if patterns are too broad (false positives) or if the standard annotation process missed them.",
+                "💡 Potential New Annotations",
+                f"{total_potential}",
+                help="A list of all unique tags found by the pattern-mode job that do not yet exist as actual annotations. This is now a clean 'to-do list' of tags that could be promoted or used to create new patterns.",
             )
             st.dataframe(
-                pd.DataFrame(sorted(list(unmatched_by_annotation_set)), columns=["Tag"]),
-                use_container_width=True,
-                hide_index=True,
-            )
-        with tag_col3:
-            st.metric(
-                "❗️ Missed by Pattern",
-                f"{total_missed}",
-                help="Created annotations that were not found by the pattern catalog. This can help us measure the reliability of pattern mode as a denominator.",
-            )
-            st.dataframe(
-                pd.DataFrame(sorted(list(missed_by_pattern_set)), columns=["Tag"]),
+                pd.DataFrame(sorted(list(potential_new_annotations_set)), columns=["Tag"]),
                 use_container_width=True,
                 hide_index=True,
             )
@@ -312,7 +275,7 @@ with per_file_tab:
     else:
         df_annotations_file = pd.concat([df_tags_file, df_docs_file], ignore_index=True)
         df_patterns_agg_file = (
-            df_patterns_file.groupby("startNode")["text"].apply(set).reset_index(name="potentialTags")
+            df_patterns_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="potentialTags")
         )
         df_annotations_agg_file = (
             df_annotations_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="actualAnnotations")
@@ -332,23 +295,19 @@ with per_file_tab:
             norm_potential = {normalize(p) for p in potential}
             norm_actual = {normalize(a) for a in actual}
 
-            matched = len(norm_potential.intersection(norm_actual))
-            unmatched = len(norm_potential - norm_actual)
-            missed = len(norm_actual - norm_potential)
-            return matched, unmatched, missed
+            total_actual_pf = len(norm_actual)
+            total_potential_pf = len(norm_potential - norm_actual)
+
+            return total_actual_pf, total_potential_pf
 
         metrics = df_quality_file.apply(calculate_metrics, axis=1, result_type="expand")
-        df_quality_file[["matchedTags", "unmatchedByAnnotation", "missedByPattern"]] = metrics
+        df_quality_file[["actualAnnotationsCount", "potentialNewAnnotationsCount"]] = metrics
 
         df_quality_file["coverageRate"] = (
             (
-                df_quality_file["matchedTags"]
-                / (df_quality_file["matchedTags"] + df_quality_file["unmatchedByAnnotation"])
+                df_quality_file["actualAnnotationsCount"]
+                / (df_quality_file["actualAnnotationsCount"] + df_quality_file["potentialNewAnnotationsCount"])
             )
-            * 100
-        ).fillna(0)
-        df_quality_file["completenessRate"] = (
-            (df_quality_file["matchedTags"] / (df_quality_file["matchedTags"] + df_quality_file["missedByPattern"]))
             * 100
         ).fillna(0)
 
@@ -365,11 +324,9 @@ with per_file_tab:
                 "startNode",
                 "potentialTags",
                 "actualAnnotations",
-                "matchedTags",
-                "unmatchedByAnnotation",
-                "missedByPattern",
+                "actualAnnotationsCount",
+                "potentialNewAnnotationsCount",
                 "coverageRate",
-                "completenessRate",
                 "externalId",
                 "space",
                 "annotatedPageCount",
@@ -414,24 +371,12 @@ with per_file_tab:
             coverage_range = st.slider(
                 "Filter by Annotation Coverage (%)", 0, 100, (0, 100), on_change=reset_selection, key="coverage_slider"
             )
-            completeness_range = st.slider(
-                "Filter by Pattern Completeness (%)",
-                0,
-                100,
-                (0, 100),
-                on_change=reset_selection,
-                key="completeness_slider",
-            )
 
         df_display = df_display_unfiltered.copy()
         if selected_column != "None" and selected_values:
             df_display = df_display[df_display[selected_column].isin(selected_values)]
         df_display = df_display[
             (df_display["coverageRate"] >= coverage_range[0]) & (df_display["coverageRate"] <= coverage_range[1])
-        ]
-        df_display = df_display[
-            (df_display["completenessRate"] >= completeness_range[0])
-            & (df_display["completenessRate"] <= completeness_range[1])
         ]
         df_display = df_display.reset_index(drop=True)
         df_display.insert(0, "Select", False)
@@ -442,7 +387,6 @@ with per_file_tab:
             "fileSourceid",
             "fileMimetype",
             "coverageRate",
-            "completenessRate",
             "annotationMessage",
             "patternModeMessage",
             "lastUpdatedTime",
@@ -475,14 +419,7 @@ with per_file_tab:
                 "fileExternalId": "File External ID",
                 "coverageRate": st.column_config.ProgressColumn(
                     "Annotation Coverage ℹ️",
-                    help="How many potential tags were found? (Matched / Potential)",
-                    format="%.2f%%",
-                    min_value=0,
-                    max_value=100,
-                ),
-                "completenessRate": st.column_config.ProgressColumn(
-                    "Pattern Completeness ℹ️",
-                    help="How many final annotations did patterns find? (Matched / Actual)",
+                    help="The percentage of all unique tags (both actual and potential) that have been successfully annotated. Formula: Total Actual Annotations / (Total Actual Annotations + Total Potential New Annotations)",
                     format="%.2f%%",
                     min_value=0,
                     max_value=100,
@@ -519,53 +456,44 @@ with per_file_tab:
                 file_space = file_space_series.iloc[0]
                 file_node_id = NodeId(space=file_space, external_id=selected_file)
                 df_potential_tags_details = df_patterns_file[df_patterns_file["startNode"] == selected_file][
-                    ["text", "resourceType", "regions"]
+                    ["startNodeText", "endNodeResourceType"]
                 ]
                 df_actual_annotations_details = (
                     df_annotations_file[df_annotations_file["startNode"] == selected_file][
                         ["startNodeText", "endNodeResourceType"]
-                    ].rename(columns={"startNodeText": "text", "endNodeResourceType": "resourceType"})
+                    ]
                     if not df_annotations_file.empty
-                    else pd.DataFrame(columns=["text", "resourceType"])
+                    else pd.DataFrame(columns=["startNodeText", "endNodeResourceType"])
                 )
 
                 # Use normalized comparison for per-file detail view
-                potential_set = set(df_potential_tags_details["text"])
-                actual_set = set(df_actual_annotations_details["text"])
+                potential_set = set(df_potential_tags_details["startNodeText"])
+                actual_set = set(df_actual_annotations_details["startNodeText"])
                 norm_potential = {normalize(p) for p in potential_set}
                 norm_actual = {normalize(a) for a in actual_set}
 
                 # We need a map from normalized text back to original for accurate filtering
                 potential_map = {normalize(text): text for text in potential_set}
-                actual_map = {normalize(text): text for text in actual_set}
 
-                norm_matched = norm_potential.intersection(norm_actual)
                 norm_unmatched = norm_potential - norm_actual
-                norm_missed = norm_actual - norm_potential
 
-                matched_set = {potential_map[t] for t in norm_matched}
-                unmatched_set = {potential_map[t] for t in norm_unmatched}
-                missed_set = {actual_map[t] for t in norm_missed}
-
-                matched_df = df_potential_tags_details[
-                    df_potential_tags_details["text"].isin(matched_set)
-                ].drop_duplicates(subset=["text", "resourceType"])
-                unmatched_df = df_potential_tags_details[
-                    df_potential_tags_details["text"].isin(unmatched_set)
-                ].drop_duplicates(subset=["text", "resourceType"])
-                missed_df = df_actual_annotations_details[
-                    df_actual_annotations_details["text"].isin(missed_set)
-                ].drop_duplicates()
+                actual_df = df_actual_annotations_details.drop_duplicates()
+                potential_df = df_potential_tags_details[
+                    df_potential_tags_details["startNodeText"].isin({potential_map[t] for t in norm_unmatched})
+                ].drop_duplicates(subset=["startNodeText", "endNodeResourceType"])
 
                 if st.button("Create in Canvas", key=f"canvas_btn_{selected_file}"):
                     with st.spinner("Generating Industrial Canvas with bounding boxes..."):
                         _, _, file_view_config = fetch_extraction_pipeline_config(selected_pipeline)
-                        unmatched_tags_for_canvas = unmatched_df[["text", "regions"]].to_dict("records")
+                        # The 'regions' column is no longer available in the RAW table.
+                        # You will need to adjust the canvas generation logic to handle this.
+                        # For now, we will pass an empty list.
+                        potential_tags_for_canvas = []
                         canvas_url = generate_file_canvas(
                             file_id=file_node_id,
                             file_view=file_view_config,
                             ep_config=ep_config,
-                            unmatched_tags_with_regions=unmatched_tags_for_canvas,
+                            unmatched_tags_with_regions=potential_tags_for_canvas,
                         )
                         if canvas_url:
                             st.session_state["generated_canvas_url"] = canvas_url
@@ -579,46 +507,31 @@ with per_file_tab:
                     )
 
                 st.divider()
-                col1, col2, col3 = st.columns(3)
+                col1, col2 = st.columns(2)
                 with col1:
                     st.metric(
-                        "✅ Matched Tags",
-                        len(matched_df),
-                        help="Tags that were correctly identified by the pattern catalog and were also created as final annotations. This represents the successful overlap between the two processes.",
+                        "✅ Actual Annotations in this File",
+                        len(actual_df),
                     )
                     st.dataframe(
-                        matched_df[["text", "resourceType"]],
-                        column_config={"text": "Tag", "resourceType": "Resource Type"},
+                        actual_df,
+                        column_config={"startNodeText": "Tag", "endNodeResourceType": "Resource Type"},
                         use_container_width=True,
                         hide_index=True,
                     )
                 with col2:
                     st.metric(
-                        "❓ Unmatched by Annotation",
-                        len(unmatched_df),
-                        help="Tags that were found by the pattern catalog but do not exist as final annotations. This can help identify if patterns are too broad (false positives) or if the standard annotation process missed them.",
+                        "💡 Potential New Annotations in this File",
+                        len(potential_df),
                     )
                     st.dataframe(
-                        unmatched_df[["text", "resourceType"]],
-                        column_config={"text": "Tag", "resourceType": "Resource Type"},
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                with col3:
-                    st.metric(
-                        "❗️ Missed by Pattern",
-                        len(missed_df),
-                        help="Created annotations that were not found by the pattern catalog. This can help us measure the reliability of pattern mode as a denominator.",
-                    )
-                    st.dataframe(
-                        missed_df,
-                        column_config={"text": "Tag", "resourceType": "Resource Type"},
+                        potential_df,
+                        column_config={"startNodeText": "Tag", "endNodeResourceType": "Resource Type"},
                         use_container_width=True,
                         hide_index=True,
                     )
         else:
             st.info("✔️ Select a file in the table above to see a detailed breakdown of its tags.")
-
 
 # ==========================================
 #           PATTERN MANAGEMENT TAB
