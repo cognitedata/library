@@ -26,6 +26,10 @@ from services.LoggerService import CogniteFunctionLogger
 
 
 class IApplyService(abc.ABC):
+    """
+    Interface for applying/deleting annotations to a node
+    """
+
     @abc.abstractmethod
     def process_and_apply_annotations_for_file(
         self, file_node: Node, regular_item: dict | None, pattern_item: dict | None, clean_old: bool
@@ -42,6 +46,10 @@ class IApplyService(abc.ABC):
 
 
 class GeneralApplyService(IApplyService):
+    """
+    Implementation of the ApplyService interface.
+    """
+
     EXTERNAL_ID_LIMIT = 256
     FUNCTION_ID = "fn_file_annotation_finalize"
 
@@ -62,6 +70,9 @@ class GeneralApplyService(IApplyService):
     def process_and_apply_annotations_for_file(
         self, file_node: Node, regular_item: dict | None, pattern_item: dict | None, clean_old: bool
     ) -> tuple[str, str]:
+        """
+        Performs the entire annotation transaction for a single file.
+        """
         file_id = file_node.as_id()
         source_id = cast(str, file_node.properties.get(self.file_view_id, {}).get("sourceId"))
 
@@ -131,6 +142,8 @@ class GeneralApplyService(IApplyService):
         return self.client.data_modeling.instances.apply(nodes=list_node_apply, edges=list_edge_apply, replace=False)
 
     def _delete_annotations_for_file(self, file_id: NodeId) -> dict[str, int]:
+        """Deletes all standard and pattern edges and their corresponding RAW rows for a file."""
+
         counts = {"doc": 0, "tag": 0, "pattern": 0}
         std_edges = self._list_annotations_for_file(file_id, self.sink_node_ref, negate=True)
         if std_edges:
@@ -246,7 +259,6 @@ class GeneralApplyService(IApplyService):
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, Any],
     ) -> dict[tuple, EdgeApply]:
-        # ... (This method remains largely the same)
         diagram_annotations = {}
         for entity in detect_annotation.get("entities", []):
             if detect_annotation.get("confidence", 0.0) >= self.approve_threshold:
@@ -309,6 +321,9 @@ class GeneralApplyService(IApplyService):
         return diagram_annotations
 
     def _create_stable_hash(self, raw_annotation: dict[str, Any]) -> str:
+        """
+        Creates a hash based off items of a potential annotation. This is used such that we don't create duplicate annotations for pattern mode and regular results.
+        """
         text = raw_annotation.get("text", "")
         region = raw_annotation.get("region", {})
         vertices = region.get("vertices", [])
@@ -336,6 +351,9 @@ class GeneralApplyService(IApplyService):
         return f"{prefix}:{hash_}"
 
     def _list_annotations_for_file(self, node_id: NodeId, end_node: DirectRelationReference, negate: bool = False):
+        """
+        List all annotation edges for a file node, optionally filtering by the end node.
+        """
         start_node_filter = Equals(["edge", "startNode"], {"space": node_id.space, "externalId": node_id.external_id})
         end_node_filter = Equals(["edge", "endNode"], {"space": end_node.space, "externalId": end_node.external_id})
         if negate:

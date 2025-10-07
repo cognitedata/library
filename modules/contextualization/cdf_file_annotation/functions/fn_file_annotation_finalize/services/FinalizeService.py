@@ -26,6 +26,8 @@ from utils.DataStructures import (
 class AbstractFinalizeService(abc.ABC):
     """
     Orchestrates the file annotation finalize process.
+    This service retrieves the results of the diagram detect jobs from the launch function and then applies annotations to the file.
+    Additionally, it captures the file and asset annotations into separate RAW tables.
     """
 
     def __init__(
@@ -268,6 +270,20 @@ class GeneralFinalizeService(AbstractFinalizeService):
     ) -> NodeApply:
         """
         Create a node apply from the node passed into the function.
+        The annotatedPageCount and pageCount properties won't be set if this is the first time the job has been run for the specific node.
+        Thus, we set it here and include logic to handle the scneario where it is set.
+        NOTE: Always want to use the latest page count from the diagram detect results
+        e.g.) let page_range = 50
+            - If the pdf has less than 50 pages, say 3 pages, then...
+                - annotationStatus property will get set to 'complete'
+                - annotatedPageCount and pageCount properties will be set to 3.
+            - Elif the pdf has more than 50 pages, say 80, then...
+                - annotationStatus property will get set to 'new'
+                - annotatedPageCount set to 50
+                - pageCount set to 80
+                - attemptCount doesn't get incremented
+            - If an error occurs, the annotated_page_count and page_count won't be passed
+                - Don't want to touch the pageCount and annotatedPageCount properties in this scenario
         """
         update_properties = {
             "annotationStatus": status,
@@ -298,7 +314,17 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
     def _check_all_pages_annotated(self, node: Node, page_count: int) -> int:
         """
-        Checks if all pages have been annotated and returns the new annotated page count.
+        The annotatedPageCount and pageCount properties won't be set if this is the first time the job has been run for the specific node.
+        - if annotated_page_count is not set (first run):
+            - if page_range >= to the page count:
+                - annotated_page_count = page_count b/c all of the pages were passed into the FileReference during LaunchService
+            - else:
+                - annotated_page_count = page_range b/c there are more pages to annotate
+        - else the annotation_page_count property is set:
+            - if (annotated_page_count + page_range) >= page_count:
+                -  annotated_page_count = page_count b/c all of the pages were passed into the FileReference during LaunchService
+            else:
+                - annotated_page_count = self.page_range + annotated_page_count b/c there are more pages to annotate
         """
         annotated_page_count: int | None = cast(
             int,
