@@ -209,7 +209,7 @@ class GeneralCacheService(ICacheService):
 
         for instance in file_instances:
             instance_properties = instance.properties.get(self.file_view.as_view_id())
-            if file_resource_type:
+            if target_entities_resource_type:
                 resource_type: str = instance_properties[file_resource_type]
             else:
                 resource_type: str = self.file_view.external_id
@@ -227,22 +227,14 @@ class GeneralCacheService(ICacheService):
 
     def _generate_tag_samples_from_entities(self, entities: list[dict]) -> list[dict]:
         """
-        Generates pattern samples from entity search property by converting them into generalized templates.
-        This version analyzes the internal structure of each segment:
-        - Numbers are generalized to '0'.
-        - Letters are grouped into bracketed alternatives, even when mixed with numbers.
-        - Example: '629P' and '629X' will merge to create a pattern piece '000[P|X]'.
+        MODIFIED: Generates pattern samples using Implementation 1's logic
+        while adding the 'annotation_type' from Implementation 2.
         """
-        # Structure: { resource_type: { 'templates': { template_key: list_of_variable_parts }, 'annotation_type': str } }
-        pattern_builders = defaultdict(lambda: {"templates": defaultdict(list), "annotation_type": None})
+        # Structure: { resource_type: {"patterns": { template_key: [...] }, "annotation_type": "..."} }
+        pattern_builders = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
         self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
 
         def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
-            """
-            Parses an alias into a structural template key and its variable letter components.
-            A segment '629P' yields a template '000A' and a variable part ['P'].
-            """
-
             alias_parts = re.split(r"([ -])", alias)
             full_template_key_parts: list[str] = []
             all_variable_parts: list[list[str]] = []
@@ -267,38 +259,33 @@ class GeneralCacheService(ICacheService):
             return "".join(full_template_key_parts), all_variable_parts
 
         for entity in entities:
-            resource_type = entity["resource_type"]
-            annotation_type = entity.get("annotation_type")
+            key = entity["resource_type"]
+            if pattern_builders[key]["annotation_type"] is None:
+                pattern_builders[key]["annotation_type"] = entity.get("annotation_type")
+
             aliases = entity.get("search_property", [])
-
-            if pattern_builders[resource_type]["annotation_type"] is None:
-                pattern_builders[resource_type]["annotation_type"] = annotation_type
-
             for alias in aliases:
                 if not alias:
                     continue
-                template_key, variable_parts_from_alias = _parse_alias(alias, resource_type)
-
-                if not pattern_builders[resource_type]["templates"][template_key]:
+                template_key, variable_parts_from_alias = _parse_alias(alias, key)
+                resource_patterns = pattern_builders[key]["patterns"]
+                if template_key in resource_patterns:
+                    existing_variable_sets = resource_patterns[template_key]
+                    for i, part_group in enumerate(variable_parts_from_alias):
+                        for j, letter_group in enumerate(part_group):
+                            existing_variable_sets[i][j].add(letter_group)
+                else:
                     new_variable_sets = []
                     for part_group in variable_parts_from_alias:
                         new_variable_sets.append([set([lg]) for lg in part_group])
-                    pattern_builders[resource_type]["templates"][template_key] = new_variable_sets
-                else:
-                    existing_variable_sets = pattern_builders[resource_type]["templates"][template_key]
-                    for i, part_group in enumerate(variable_parts_from_alias):
-                        for j, letter_group in enumerate(part_group):
-                            while i >= len(existing_variable_sets):
-                                existing_variable_sets.append([])
-                            while j >= len(existing_variable_sets[i]):
-                                existing_variable_sets[i].append(set())
-                            existing_variable_sets[i][j].add(letter_group)
+                    resource_patterns[template_key] = new_variable_sets
 
         result = []
         for resource_type, data in pattern_builders.items():
             final_samples = []
+            templates = data["patterns"]
             annotation_type = data["annotation_type"]
-            for template_key, collected_vars in data["templates"].items():
+            for template_key, collected_vars in templates.items():
                 var_iter: Iterator[list[set[str]]] = iter(collected_vars)
 
                 def build_segment(segment_template: str) -> str:
@@ -310,7 +297,7 @@ class GeneralCacheService(ICacheService):
 
                         def replace_A(match):
                             alternatives = sorted(list(next(letter_group_iter)))
-                            return f"[{'|'.join(alternatives)}]" if len(alternatives) > 1 else alternatives[0]
+                            return f"[{'|'.join(alternatives)}]"
 
                         return re.sub(r"A+", replace_A, segment_template)
                     except StopIteration:
@@ -332,7 +319,7 @@ class GeneralCacheService(ICacheService):
         return result
 
     def _get_manual_patterns(self, primary_scope: str, secondary_scope: str | None) -> list[dict]:
-        """Fetches and combines manual patterns from GLOBAL, primary, and secondary scopes."""
+        """BUG FIX: Fetches manual patterns with correct error handling from Implementation 2."""
         keys_to_fetch = ["GLOBAL"]
         if primary_scope:
             keys_to_fetch.append(primary_scope)
@@ -350,35 +337,35 @@ class GeneralCacheService(ICacheService):
                     patterns = (row.columns or {}).get("patterns", [])
                     all_manual_patterns.extend(patterns)
             except CogniteNotFoundError:
-                self.logger.info(f"No manual patterns found for keys: {keys_to_fetch}. This may be expected.")
+                self.logger.info(f"No manual patterns found for key: {key}. This may be expected.")
             except Exception as e:
-                self.logger.error(f"Failed to retrieve manual patterns: {e}")
+                self.logger.error(f"Failed to retrieve manual patterns for key {key}: {e}")
+
         return all_manual_patterns
 
     def _merge_patterns(self, auto_patterns: list[dict], manual_patterns: list[dict]) -> list[dict]:
-        """Merges auto-generated and manual patterns, de-duplicating samples."""
+        """MODIFIED: Merges patterns while correctly handling the new 'annotation_type' field."""
         merged = defaultdict(lambda: {"samples": set(), "annotation_type": None})
 
         # Process auto-generated patterns
         for item in auto_patterns:
             resource_type = item.get("resource_type")
-            samples = item.get("sample", [])
-            annotation_type = item.get("annotation_type")
             if resource_type:
-                merged[resource_type]["samples"].update(samples)
+                merged[resource_type]["samples"].update(item.get("sample", []))
+                # Set annotation_type if not already set
                 if not merged[resource_type]["annotation_type"]:
-                    merged[resource_type]["annotation_type"] = annotation_type
+                    merged[resource_type]["annotation_type"] = item.get("annotation_type")
 
         # Process manual patterns
         for item in manual_patterns:
             resource_type = item.get("resource_type")
-            sample = item.get("sample")
-            annotation_type = item.get("annotation_type")
-            if resource_type and sample:
-                merged[resource_type]["samples"].add(sample)
+            if resource_type and item.get("sample"):
+                merged[resource_type]["samples"].add(item["sample"])
+                # Set annotation_type if not already set (auto-patterns take precedence)
                 if not merged[resource_type]["annotation_type"]:
-                    merged[resource_type]["annotation_type"] = annotation_type
+                    merged[resource_type]["annotation_type"] = item.get("annotation_type")
 
+        # Convert the merged dictionary back to the required list format
         final_list = [
             {
                 "resource_type": resource_type,
@@ -388,5 +375,5 @@ class GeneralCacheService(ICacheService):
             for resource_type, data in merged.items()
         ]
 
-        self.logger.info(f"Merged auto-generated and manual patterns into {len(final_list)} resource types.")
+        self.logger.info(f"Merged auto and manual patterns into {len(final_list)} resource types.")
         return final_list
