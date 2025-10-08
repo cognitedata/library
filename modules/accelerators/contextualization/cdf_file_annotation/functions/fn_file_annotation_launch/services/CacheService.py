@@ -363,7 +363,8 @@ class GeneralCacheService(ICacheService):
                 merged[resource_type]["samples"].add(item["sample"])
                 # Set annotation_type if not already set (auto-patterns take precedence)
                 if not merged[resource_type]["annotation_type"]:
-                    merged[resource_type]["annotation_type"] = item.get("annotation_type")
+                    # NOTE: UI that creates manual patterns will need to also have the annotation type as a required entry
+                    merged[resource_type]["annotation_type"] = item.get("annotation_type", "diagrams.AssetLink")
 
         # Convert the merged dictionary back to the required list format
         final_list = [
