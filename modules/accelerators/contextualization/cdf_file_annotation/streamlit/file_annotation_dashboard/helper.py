@@ -152,7 +152,21 @@ def fetch_extraction_pipeline_config(pipeline_ext_id: str) -> tuple[dict, ViewPr
         local_file_view.get("instanceSpace"),
     )
 
-    return (config_dict, annotation_state_view, file_view)
+    local_target_entities_view = config_dict["dataModelViews"]["targetEntitiesView"]
+    target_entities_view = ViewPropertyConfig(
+        local_target_entities_view["schemaSpace"],
+        local_target_entities_view["externalId"],
+        local_target_entities_view["version"],
+        local_target_entities_view.get("instanceSpace"),
+    )
+
+    views_dict = {
+        "annotation_state": annotation_state_view,
+        "file": file_view,
+        "target_entities": target_entities_view,
+    }
+
+    return (config_dict, views_dict)
 
 
 @st.cache_data(ttl=3600)
