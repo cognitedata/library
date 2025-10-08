@@ -343,6 +343,7 @@ def fetch_manual_patterns(db_name: str, table_name: str) -> pd.DataFrame:
                     {
                         "key": key,
                         "scope_level": scope_level,
+                        "annotation_type": p.get("annotation_type"),
                         "primary_scope": primary_scope,
                         "secondary_scope": secondary_scope,
                         "sample": p.get("sample"),
@@ -360,6 +361,7 @@ def fetch_manual_patterns(db_name: str, table_name: str) -> pd.DataFrame:
                 columns=[
                     "key",
                     "scope_level",
+                    "annotation_type",
                     "primary_scope",
                     "secondary_scope",
                     "sample",
@@ -373,7 +375,7 @@ def fetch_manual_patterns(db_name: str, table_name: str) -> pd.DataFrame:
         if "NotFoundError" not in str(type(e)):
             st.error(f"Failed to fetch manual patterns: {e}")
         return pd.DataFrame(
-            columns=["key", "scope_level", "primary_scope", "secondary_scope", "sample", "resource_type", "created_by"]
+            columns=["key", "scope_level", "annotation_type", "primary_scope", "secondary_scope", "sample", "resource_type", "created_by"]
         )
 
 
@@ -395,7 +397,7 @@ def save_manual_patterns(df: pd.DataFrame, db_name: str, table_name: str):
     df["key"] = df.apply(create_key, axis=1)
     df.dropna(subset=["key"], inplace=True)
     rows_to_write = [
-        RowWrite(key=key, columns={"patterns": group[["sample", "resource_type", "created_by"]].to_dict("records")})
+        RowWrite(key=key, columns={"patterns": group[["sample", "resource_type", "annotation_type", "created_by"]].to_dict("records")})
         for key, group in df.groupby("key")
     ]
 
