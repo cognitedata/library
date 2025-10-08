@@ -48,7 +48,12 @@ if not config_result:
     st.error(f"Could not fetch configuration for pipeline: {selected_pipeline}")
     st.stop()
 
-ep_config, annotation_state_view, file_view = config_result
+ep_config, view_config = config_result
+
+annotation_state_view = view_config["annotation_state"]
+file_view = view_config["file"]
+target_entities_view = view_config["target_entities"]
+
 report_config = ep_config.get("finalizeFunction", {}).get("reportService", {})
 cache_config = ep_config.get("launchFunction", {}).get("cacheService", {})
 db_name = report_config.get("rawDb")
@@ -57,7 +62,8 @@ tag_table = report_config.get("rawTableDocTag")
 doc_table = report_config.get("rawTableDocDoc")
 cache_table = cache_config.get("rawTableCache")
 manual_patterns_table = cache_config.get("rawManualPatternsCatalog")
-
+file_resource_property = ep_config.get("launchFunction", {}).get("fileResourceProperty", "")
+target_entities_resource_property = ep_config.get("launchFunction", {}).get("targetEntitiesResourceProperty", "")
 
 if not all([db_name, pattern_table, tag_table, doc_table, cache_table, manual_patterns_table]):
     st.error("Could not find all required RAW table names in the pipeline configuration.")
@@ -484,7 +490,7 @@ with per_file_tab:
 
                 if st.button("Create in Canvas", key=f"canvas_btn_{selected_file}"):
                     with st.spinner("Generating Industrial Canvas with bounding boxes..."):
-                        _, _, file_view_config = fetch_extraction_pipeline_config(selected_pipeline)
+                        _, file_view_config = fetch_extraction_pipeline_config(selected_pipeline)
                         # The 'regions' column is no longer available in the RAW table.
                         # You will need to adjust the canvas generation logic to handle this.
                         # For now, we will pass an empty list.
