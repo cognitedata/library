@@ -558,6 +558,10 @@ with management_tab:
         column_config={
             "key": st.column_config.TextColumn("Scope Key", disabled=True),
             "sample": st.column_config.TextColumn("Pattern String", required=True),
+            "annotation_type": st.column_config.SelectboxColumn(
+                "Annotation Type",
+                options=["diagrams.FileLink", "diagrams.AssetLink"],
+                required=True),
             "resource_type": st.column_config.TextColumn("Resource Type", required=True),
             "scope_level": st.column_config.SelectboxColumn(
                 "Scope Level",
@@ -590,6 +594,11 @@ with management_tab:
     with st.form(key="new_pattern_form", clear_on_submit=True):
         st.write("2. Enter Pattern Details")
         new_pattern = st.text_input("Pattern String", placeholder="e.g., [PI]-00000")
+        new_annotation_type = st.selectbox(
+            "Annotation Type",
+            ["diagrams.FileLink", "diagrams.AssetLink"],
+            key="new_annotation_type_selector"
+        )
         new_resource_type = st.text_input("Resource Type", placeholder="e.g., Asset")
 
         primary_scope_value = ""
