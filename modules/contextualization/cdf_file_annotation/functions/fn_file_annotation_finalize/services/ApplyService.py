@@ -196,59 +196,55 @@ class GeneralApplyService(IApplyService):
             if stable_hash in existing_hashes:
                 continue  # Skip creating a pattern edge if a regular one already exists for this detection
 
-            for entity in detect_annotation.get("entities", []):
-                external_id = self._create_pattern_annotation_id(file_id, detect_annotation)
-                now = datetime.now(timezone.utc).replace(microsecond=0)
-                annotation_type = entity.get(
-                    "annotation_type", self.config.data_model_views.target_entities_view.annotation_type
-                )
-                annotation_properties = {
-                    "name": file_id.external_id,
-                    "confidence": detect_annotation.get("confidence", 0.0),
-                    "status": DiagramAnnotationStatus.SUGGESTED.value,
-                    "tags": [],
-                    "startNodePageNumber": detect_annotation.get("region", {}).get("page"),
-                    "startNodeXMin": min(
-                        v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])
-                    ),
-                    "startNodeYMin": min(
-                        v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])
-                    ),
-                    "startNodeXMax": max(
-                        v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])
-                    ),
-                    "startNodeYMax": max(
-                        v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])
-                    ),
-                    "startNodeText": detect_annotation.get("text"),
-                    "sourceCreatedUser": self.FUNCTION_ID,
-                    "sourceUpdatedUser": self.FUNCTION_ID,
-                    "sourceCreatedTime": now.isoformat(),
-                    "sourceUpdatedTime": now.isoformat(),
-                }
-                edge_apply = EdgeApply(
-                    space=self.sink_node_ref.space,
-                    external_id=external_id,
-                    type=DirectRelationReference(space=self.core_annotation_view_id.space, external_id=annotation_type),
-                    start_node=DirectRelationReference(space=file_id.space, external_id=file_id.external_id),
-                    end_node=self.sink_node_ref,
-                    sources=[NodeOrEdgeData(source=self.core_annotation_view_id, properties=annotation_properties)],
-                )
-                edge_applies.append(edge_apply)
-                row_columns = {
-                    "externalId": external_id,
-                    "startSourceId": source_id,
-                    "startNode": file_id.external_id,
-                    "startNodeSpace": file_id.space,
-                    "endNode": self.sink_node_ref.external_id,
-                    "endNodeSpace": self.sink_node_ref.space,
-                    "endNodeResourceType": entity.get("resource_type", "Unknown"),
-                    "viewId": self.core_annotation_view_id.external_id,
-                    "viewSpace": self.core_annotation_view_id.space,
-                    "viewVersion": self.core_annotation_view_id.version,
-                    **annotation_properties,
-                }
-                doc_patterns.append(RowWrite(key=external_id, columns=row_columns))
+            entities = detect_annotation.get("entities", [])
+            if not entities:
+                continue
+            entity = entities[0]
+
+            external_id = self._create_pattern_annotation_id(file_id, detect_annotation)
+            now = datetime.now(timezone.utc).replace(microsecond=0)
+            annotation_type = entity.get(
+                "annotation_type", self.config.data_model_views.target_entities_view.annotation_type
+            )
+            annotation_properties = {
+                "name": file_id.external_id,
+                "confidence": detect_annotation.get("confidence", 0.0),
+                "status": DiagramAnnotationStatus.SUGGESTED.value,
+                "tags": [],
+                "startNodePageNumber": detect_annotation.get("region", {}).get("page"),
+                "startNodeXMin": min(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
+                "startNodeYMin": min(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
+                "startNodeXMax": max(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
+                "startNodeYMax": max(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
+                "startNodeText": detect_annotation.get("text"),
+                "sourceCreatedUser": self.FUNCTION_ID,
+                "sourceUpdatedUser": self.FUNCTION_ID,
+                "sourceCreatedTime": now.isoformat(),
+                "sourceUpdatedTime": now.isoformat(),
+            }
+            edge_apply = EdgeApply(
+                space=self.sink_node_ref.space,
+                external_id=external_id,
+                type=DirectRelationReference(space=self.core_annotation_view_id.space, external_id=annotation_type),
+                start_node=DirectRelationReference(space=file_id.space, external_id=file_id.external_id),
+                end_node=self.sink_node_ref,
+                sources=[NodeOrEdgeData(source=self.core_annotation_view_id, properties=annotation_properties)],
+            )
+            edge_applies.append(edge_apply)
+            row_columns = {
+                "externalId": external_id,
+                "startSourceId": source_id,
+                "startNode": file_id.external_id,
+                "startNodeSpace": file_id.space,
+                "endNode": self.sink_node_ref.external_id,
+                "endNodeSpace": self.sink_node_ref.space,
+                "endNodeResourceType": entity.get("resource_type", "Unknown"),
+                "viewId": self.core_annotation_view_id.external_id,
+                "viewSpace": self.core_annotation_view_id.space,
+                "viewVersion": self.core_annotation_view_id.version,
+                **annotation_properties,
+            }
+            doc_patterns.append(RowWrite(key=external_id, columns=row_columns))
         return edge_applies, doc_patterns
 
     def _detect_annotation_to_edge_applies(
