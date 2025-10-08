@@ -490,14 +490,13 @@ with per_file_tab:
 
                 if st.button("Create in Canvas", key=f"canvas_btn_{selected_file}"):
                     with st.spinner("Generating Industrial Canvas with bounding boxes..."):
-                        _, file_view_config = fetch_extraction_pipeline_config(selected_pipeline)
                         # The 'regions' column is no longer available in the RAW table.
                         # You will need to adjust the canvas generation logic to handle this.
                         # For now, we will pass an empty list.
                         potential_tags_for_canvas = []
                         canvas_url = generate_file_canvas(
                             file_id=file_node_id,
-                            file_view=file_view_config,
+                            file_view=file_view,
                             ep_config=ep_config,
                             unmatched_tags_with_regions=potential_tags_for_canvas,
                         )
