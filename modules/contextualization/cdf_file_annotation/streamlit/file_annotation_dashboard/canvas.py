@@ -1,5 +1,6 @@
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import NodeOrEdgeData, NodeApply, EdgeApply, ContainerId, ViewId, Node
+from cognite.client.data_classes.data_modeling import NodeOrEdgeData, NodeApply, EdgeApply, ContainerId, ViewId, NodeId, EdgeId, Node, Edge
+from cognite.client.data_classes.filters import Equals, And, Not
 import datetime
 import uuid
 import streamlit as st
@@ -48,9 +49,9 @@ def generate_properties(file_node: Node, file_view_id: ViewId, node_id: str, off
     }
 
 
-def create_canvas(name: str, client: CogniteClient):
+def create_canvas(name: str, file_node: Node, client: CogniteClient):
     """Creates the main canvas node."""
-    canvas_id = generate_id()
+    canvas_id = f"file_annotation_canvas_{file_node.external_id}"
     file_annotation_label = {"externalId": "file_annotations_solution_tag", "space": "SolutionTagsInstanceSpace"}
     canvas = NodeApply(
         space=CANVAS_SPACE_INSTANCE,
@@ -69,12 +70,20 @@ def create_canvas(name: str, client: CogniteClient):
             )
         ],
     )
-    return canvas, canvas_id
+    return canvas
+
+
+def fetch_existing_canvas(name: str, file_node: Node, client: CogniteClient):
+    existing_canvas = client.data_modeling.instances.retrieve(
+        nodes=NodeId(space=CANVAS_SPACE_INSTANCE, external_id=f"file_annotation_canvas_{file_node.external_id}")
+    )
+   
+    return existing_canvas.nodes[0] if existing_canvas.nodes else None
 
 
 def create_objects(canvas_id: str, file_node: Node, file_view_id: ViewId):
     """Creates the node and edge for the file container, returning its ID."""
-    file_container_id = generate_id()
+    file_container_id = f"file_annotation_file_container_{file_node.external_id}"
     properties = generate_properties(file_node, file_view_id, file_container_id)
 
     node_apply = NodeApply(
@@ -169,10 +178,18 @@ def dm_generate(
     name: str, file_node: Node, file_view_id: ViewId, client: CogniteClient, unmatched_tags_with_regions: list = []
 ):
     """Orchestrates the creation of the canvas, its objects, and bounding box annotations."""
-    canvas, canvas_id = create_canvas(name=name, client=client)
-    nodes, edges, file_container_id = create_objects(
-        canvas_id=canvas_id, file_node=file_node, file_view_id=file_view_id
-    )
+    canvas = fetch_existing_canvas(name, file_node, client)
+
+    if canvas:
+        file_container_id = f"file_annotation_file_container_{file_node.external_id}"
+        reset_canvas_annotations(canvas.external_id, client)
+        nodes = []
+        edges = []
+    else:
+        canvas = create_canvas(name, file_node, client)
+        nodes, edges, file_container_id = create_objects(canvas.external_id, file_node, file_view_id)
+
+    canvas_id = canvas.external_id
 
     if unmatched_tags_with_regions:
         annotation_nodes, annotation_edges = create_bounding_box_annotations(
@@ -184,3 +201,30 @@ def dm_generate(
     client.data_modeling.instances.apply(nodes=[canvas] + nodes, edges=edges)
     st.session_state["canvas_id"] = canvas_id
     return canvas_id
+
+
+def reset_canvas_annotations(canvas_id: str, client: CogniteClient):
+    """Deletes all canvas annotations, which includes nodes and edges"""
+    edge_filter = And(
+        Equals(property=['edge', 'type'], value={'space': CANVAS_SPACE_CANVAS, 'externalId': 'referencesCanvasAnnotation'}),
+        Equals(property=['edge', 'startNode'], value={'space': CANVAS_SPACE_INSTANCE, 'externalId': canvas_id})
+    )
+
+    edges_to_delete = client.data_modeling.instances.list(
+        instance_type="edge",
+        filter=edge_filter,
+        limit=-1,
+    )
+
+    edges_to_delete_ids = [EdgeId(space=e.space, external_id=e.external_id) for e in edges_to_delete]
+    nodes_to_delete_ids = [NodeId(space=e.end_node.space, external_id=e.end_node.external_id) for e in edges_to_delete]
+
+    if edges_to_delete_ids:
+        client.data_modeling.instances.delete(
+            edges=edges_to_delete_ids
+        )
+
+    if nodes_to_delete_ids:
+        client.data_modeling.instances.delete(
+            nodes=nodes_to_delete_ids
+        )        
