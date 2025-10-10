@@ -1,0 +1,119 @@
+config:
+  source_views:
+    - view_external_id: "txEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      entity_type: "asset"
+      batch_size: 100
+      filter:
+        equals:
+          property: [ "node", "type" ]
+          value: "Equipment"
+      include_properties:
+        - "name"
+        - "description"
+        - "tagIds"
+        - "equipmentType"
+        - "specifications"
+
+  extraction_rules:
+    - name: "heuristic_tag_extraction"
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          max_length: 500
+      method: "heuristic"
+      heuristic_strategies:
+
+        # Strategy 1: Position-based heuristics
+        - name: "positional_detection"
+          weight: 0.3
+          rules:
+            - position: "start_of_field"
+              pattern: '^[A-Z0-9-_]{5,15}\b'
+              confidence_boost: 0.2
+            - position: "after_keyword"
+              keywords: ["Tag:", "ID:", "Equipment:", "Ref:"]
+              pattern: '[A-Z0-9-_]{3,20}'
+              confidence_boost: 0.3
+            - position: "in_parentheses"
+              pattern: '\(([A-Z0-9-_]{3,15})\)'
+              confidence_boost: 0.15
+
+        # Strategy 2: Statistical frequency analysis
+        - name: "frequency_analysis"
+          weight: 0.25
+          rules:
+            - analyze_corpus: true
+              min_frequency: 3
+              pattern_stability_threshold: 0.8
+              common_prefix_detection: true
+              common_suffix_detection: true
+
+        # Strategy 3: Context-based inference
+        - name: "context_inference"
+          weight: 0.25
+          rules:
+            - surrounding_keywords:
+                positive: ["pump", "valve", "tank", "equipment", "asset", "instrument"]
+                negative: ["drawing", "document", "specification", "date", "revision"]
+              context_window: 20  # characters before/after
+              keyword_proximity_bonus: 0.2
+
+            - equipment_type_correlation:
+                enable: true
+                type_indicators:
+                  pump: ["centrifugal", "positive displacement", "feed", "transfer"]
+                  valve: ["control", "isolation", "safety", "relief"]
+                  instrument: ["indicator", "transmitter", "controller", "sensor"]
+
+        # Strategy 4: Pattern learning from known examples
+        - name: "example_based_learning"
+          weight: 0.2
+          rules:
+            - learning_mode: "similarity"
+              known_examples:
+                source: "reference_catalog"  # Load from existing extracted tags
+                min_examples: 50
+              similarity_threshold: 0.75
+              feature_extraction:
+                - character_n_grams: [2, 3]
+                - position_of_digits: true
+                - position_of_separators: true
+                - length_distribution: true
+
+      # Scoring and confidence calculation
+      scoring:
+        aggregation_method: "weighted_average"  # or "max", "consensus"
+        min_confidence_threshold: 0.6
+        normalize_scores: true
+
+        # Confidence adjustments
+        confidence_modifiers:
+          - condition: "multiple_strategies_agree"
+            operator: ">=2"
+            modifier: "+0.15"
+          - condition: "field_name_indicates_tag"
+            field_names: ["tag", "tagId", "equipmentTag"]
+            modifier: "+0.1"
+          - condition: "extracted_value_length"
+            range: [5, 20]
+            modifier: "+0.05"
+          - condition: "extracted_value_in_known_catalog"
+            modifier: "+0.2"
+
+      # Post-extraction validation
+      validation:
+        - check: "length_range"
+          min_length: 3
+          max_length: 30
+        - check: "character_composition"
+          required_character_types: ["uppercase", "digit"]
+          max_consecutive_same_char: 3
+        - check: "not_common_word"
+          dictionary: "english_common_words"
+          max_dictionary_matches: 0
+        - check: "format_consistency"
+          compare_to_historical: true
+          consistency_threshold: 0.7

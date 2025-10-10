@@ -1,0 +1,44 @@
+config:
+  source_views:
+    - view_external_id: "txEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      entity_type: "asset"
+      batch_size: 100
+      filter:
+        equals:
+          property: [ "node", "type" ]
+          value: "Equipment"
+      include_properties:
+        - "name"
+        - "description"
+        - "tagIds"
+        - "equipmentType"
+        - "specifications"
+  extraction_rules:
+    - name: "tag_from_name"
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          max_length: 500
+      method: "fixed_width"
+      field_definitions:
+        - name: "tag_id"
+          start_position: 0
+          end_position: 12
+          trim: true
+          required: true
+        - name: "description"
+          start_position: 13
+          end_position: 63
+          trim: true
+          required: false
+        - name: "equipment_type"
+          start_position: 64
+          end_position: 70
+          trim: true
+          required: false
+      line_pattern: '^\s*[A-Z0-9]'  # Only process lines starting with alphanumeric
+      skip_lines: 2  # Skip header rows
+      stop_on_empty: true

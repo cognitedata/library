@@ -1,0 +1,81 @@
+config:
+  source_views:
+    - view_external_id: "txEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      entity_type: "asset"
+      batch_size: 100
+      filter:
+        equals:
+          property: [ "node", "type" ]
+          value: "Equipment"
+      include_properties:
+        - "name"
+        - "description"
+        - "tagIds"
+        - "equipmentType"
+        - "specifications"
+  extraction_rules:
+    - name: "hierarchical_tag_assembly"
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          max_length: 500
+      method: "token_reassembly"
+      tokenization:
+        token_patterns:
+          - name: "site_code"
+            pattern: '\b[A-Z]{2,4}\b'
+            position: 0
+            required: true
+            component_type: "site"
+          - name: "unit_code"
+            pattern: '\b\d{3}\b'
+            position: 1
+            required: true
+            component_type: "unit"
+          - name: "equipment_type"
+            pattern: '\b[A-Z]{1,2}\b'
+            position: 2
+            required: true
+            component_type: "type"
+          - name: "sequence_number"
+            pattern: '\b\d{2,4}\b'
+            position: 3
+            required: true
+            component_type: "sequence"
+          - name: "variant"
+            pattern: '\b[A-Z]\b'
+            position: 4
+            required: false
+            component_type: "variant"
+        separator_patterns: ['-', '_', '/', ' ']
+        max_tokens: 6
+
+      assembly_rules:
+        - name: "standard_assembly"
+          format: "{site_code}-{unit_code}-{equipment_type}{sequence_number}{variant}"
+          conditions:
+            all_required_present: true
+          priority: 10
+
+        - name: "no_variant_assembly"
+          format: "{site_code}-{unit_code}-{equipment_type}{sequence_number}"
+          conditions:
+            variant_missing: true
+          priority: 20
+
+        - name: "alternate_format"
+          format: "{site_code}/{unit_code}/{equipment_type}-{sequence_number}"
+          conditions:
+            context_match:
+              property: "site"
+              value: "Plant_B"
+          priority: 15
+
+      validation:
+        min_tokens: 3
+        max_tokens: 5
+        validate_assembled: true
+        validation_pattern: '^[A-Z]{2,4}-\d{3}-[A-Z]{1,2}\d{2,4}[A-Z]?$'
