@@ -580,9 +580,6 @@ def show_connect_unmatched_ui(
     if not entity_type:
         return
 
-
-    st.write()
-
     if entity_type == "file":
         entity_view = file_view
         resource_property = file_resource_property
@@ -608,7 +605,7 @@ def show_connect_unmatched_ui(
             df_entities_display.loc[:, "Select"] = False
             df_entities_display.at[idx, "Select"] = True
 
-    filterable_columns = ["sysUnit", "resourceType"]
+    filterable_columns = [col for col in ["sysUnit", "resourceType"] if col in df_entities_display.columns] 
 
     for filterable_column in filterable_columns:
         unique_values = sorted(df_entities_display[filterable_column].dropna().unique().tolist())
@@ -623,9 +620,20 @@ def show_connect_unmatched_ui(
         if selected_value:
             df_entities_display = df_entities_display[df_entities_display[filterable_column] == selected_value]
     
+    all_columns = df_entities_display.columns.tolist()
+    default_columns = ["Select", "name", "resourceType", "sysUnit", "externalId"]
+
+    with st.popover("Customize Table Columns"):
+        selected_columns = st.multiselect(
+            f"Select columns to display ({entity_type}s)",
+            options=all_columns,
+            default=[col for col in default_columns if col in all_columns],
+            key=f"ms_selected_columns_{tab}_{entity_type}"
+        )
+
     entity_editor_key = f"{entity_type}_editor_{tag_text}_{tab}"
     edited_entities = st.data_editor(
-        df_entities_display,
+        df_entities_display[selected_columns],
         key=entity_editor_key,
         column_config={
             "Select": st.column_config.CheckboxColumn(required=True),
