@@ -1,0 +1,21 @@
+[project]
+name = "cdf-entity-matching"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "None"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "cognite-extractor-utils (>=7)",
+    "cognite-sdk (==7.*)",
+    "pytest (>=7.0.0)",
+    "tenacity (>=8.0.0)",
+    "psutil (>=5.9.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

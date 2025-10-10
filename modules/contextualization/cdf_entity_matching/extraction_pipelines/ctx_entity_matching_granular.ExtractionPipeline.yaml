@@ -1,0 +1,77 @@
+externalId: 'ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching'
+name: 'ctx:timeseries:{{location_name}}:{{source_name}}:_entity_matching'
+dataSetExternalId: 'ds_timeseries_{{location_name}}'
+description: 'Entity Matching of timeseries and assets from source  {{location_name}}:{{source_name}}'
+rawTables:
+  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    tableName: 'contextualization_good'
+  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    tableName: 'contextualization_bad'
+  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    tableName: 'contextualization_manual_input'
+  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    tableName: 'contextualization_state_store'
+source: '{{source_name}}'
+documentation: >
+ # Time series and assets Contextualization
+ 
+ The Time series and assets Contextualization runs as a process in CDF Functions.
+
+ Process triggers on new time series that not is connected to an asset.
+
+ The process stages are as follows:
+
+
+  ```
+    Read configuration and start process by:
+    1. Read RAW table with manual mappings and extract all rows not contextualized
+    2. Apply manual mappings from TS to Asset - this will overwrite any existing mapping
+    3. Read all time series not matched (or all if runAll is True)
+    4. Read all assets
+    5. Run ML contextualization to match TS -> Assets
+    6. Update TS with mapping
+    7. Write results matched (good) not matched (bad) to RAW
+    8. Output in good/bad table can then be used in workflow to update manual mappings
+  ```
+
+ Default configuration is provided as part of the deployment, but can be overwritten  
+ 
+ by configuration provided in configuration section below:
+
+  ```
+
+   schemaSpace - Schema space for the views, same or different for each view
+   instanceSpace - Instance space ( where data is stored)
+   externalId: External id of the view
+   version: Version of the view
+   searchProperty: Property used to create the entity matching link, typically alias
+   
+   debug -  write DEBUG messages and only process one timeseries if True
+   debugEntity - if debug is True, process only this entity/timeseries name
+   runAll - if True run on all found timeseries, 
+            if False only run on document not updated since last entity matching
+   rawdb - Raw database where status Information is stored
+   rawTableState - Table to store state related to process
+   rawTaleCtxGood: Table to store entities with score higher than the autoApprovalThreshold
+   rawTaleCtxBad: Table to store entities with score lower than the autoApprovalThreshold
+   rawTaleCtxManual: Raw table to store manual mappings
+   autoApprovalThreshold - Threshold for auto approval of entity matching
+   ```
+
+   ## Running the process
+
+   Provide a data block with the parameters for the process to run.
+
+  ```
+  data = {
+    "logLevel":"INFO", 
+    "ExtractionPipelineExtId": "ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching"
+  }
+
+  ```
+
+  
+  Available logLevels are INFO, DEBUG, ERROR, WARNING
+
+
+  ExtractionPipelineExtId is the external id of the extraction pipeline to run
