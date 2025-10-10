@@ -227,4 +227,4 @@ def reset_canvas_annotations(canvas_id: str, client: CogniteClient):
     if nodes_to_delete_ids:
         client.data_modeling.instances.delete(
             nodes=nodes_to_delete_ids
-        )        
+        )
