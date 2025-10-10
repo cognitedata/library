@@ -529,21 +529,26 @@ def fetch_entities(entity_view: ViewPropertyConfig, resource_property: str) -> p
         sources=entity_view.as_view_id(),
         limit=-1
     )
+
     if not instances:
         return pd.DataFrame()
+
     data = []
+
     for instance in instances:
-        props = instance.properties.get(entity_view.as_view_id(), {})
+        props = instance.properties.get(entity_view.as_view_id(), {}) or {}
+        row = {"externalId": instance.external_id, "space": instance.space}
+
+        row["name"] = props.get("name")
+        row["resourceType"] = props.get(resource_property)
+        row["sysUnit"] = props.get("sysUnit")
         
-        data.append(
-            {
-                "name": props.get("name"),
-                "externalId": instance.external_id,
-                "resourceType": props.get(resource_property),
-                "sysUnit": props.get("sysUnit"),
-                "space": instance.space,
-            }
-        )
+        for k, v in props.items():
+            if k not in row:
+                row[k] = v
+
+        data.append(row)
+
     return pd.DataFrame(data)
 
 
@@ -556,7 +561,8 @@ def show_connect_unmatched_ui(
     associated_files,
     tab,
     db_name,
-    pattern_table
+    pattern_table,
+    apply_config
 ):
     """
     Displays the UI to connect a single unmatched tag to either an Asset or a File.
@@ -672,7 +678,8 @@ def show_connect_unmatched_ui(
                 tag_text,
                 associated_files,
                 selected_entity,
-                annotation_type
+                annotation_type,
+                apply_config,
             )
 
             if success:
@@ -696,7 +703,8 @@ def create_tag_connection(
     tag_text: str,
     associated_files: list[str],
     selected_entity: pd.Series,
-    annotation_type: str
+    annotation_type: str,
+    apply_config: dict,
 ):
     updated_rows = []
     updated_edges = []
@@ -708,6 +716,8 @@ def create_tag_connection(
             limit=-1
         )
 
+        sink_node_space = apply_config["sinkNode"]["space"]
+
         for row in rows:
             row_data = row.columns
 
@@ -715,10 +725,20 @@ def create_tag_connection(
                 edge_external_id = row.key
                 file_id = row_data.get("startNode")
 
+                updated_edges.append(
+                    EdgeApply(
+                        space=sink_node_space,
+                        external_id=edge_external_id,
+                        type=DirectRelationReference(space=row_data.get("viewSpace"), external_id=annotation_type),
+                        start_node=DirectRelationReference(space=row_data.get("startNodeSpace"), external_id=file_id),
+                        end_node=DirectRelationReference(space=selected_entity.get("space"), external_id=selected_entity.get("externalId"))
+                    )
+                )
+                
                 row_data["endNode"] = selected_entity["externalId"]
                 row_data["endNodeSpace"] = selected_entity["space"]
                 row_data["endNodeResourceType"] = selected_entity["resourceType"]
-                row_data["status"] = "approved"
+                row_data["status"] = "Approved"
 
                 updated_rows.append(
                     RowWrite(
@@ -727,28 +747,16 @@ def create_tag_connection(
                     )
                 )
 
-                updated_edges.append(
-                    EdgeApply(
-                        space=row_data.get("space"),
-                        external_id=edge_external_id,
-                        type=DirectRelationReference(space=row_data.get("viewSpace"), external_id=annotation_type),
-                        start_node=DirectRelationReference(space=row_data.get("startNodeSpace"), external_id=file_id),
-                        end_node=DirectRelationReference(space=selected_entity.get("space"), external_id=selected_entity["externalId"])
-                    )
-                )
-
         if updated_rows:
-            st.write(len(updated_rows))
-        #     client.raw.rows.insert(
-        #         db_name=db_name,
-        #         table_name=table_name,
-        #         row=updated_rows,
-        #         ensure_parent=True
-        #     )
+            client.raw.rows.insert(
+                db_name=db_name,
+                table_name=table_name,
+                row=updated_rows,
+                ensure_parent=True
+            )
 
         if updated_edges:
-            st.write(len(updated_edges))
-            # client.data_modeling.instances.apply(edges=updated_edges)
+            client.data_modeling.instances.apply(edges=updated_edges, replace=False)
 
         return True, len(updated_rows), None
     except Exception as e:

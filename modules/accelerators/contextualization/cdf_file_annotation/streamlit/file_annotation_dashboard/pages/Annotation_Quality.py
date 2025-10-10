@@ -74,6 +74,7 @@ cache_table = cache_config.get("rawTableCache")
 manual_patterns_table = cache_config.get("rawManualPatternsCatalog")
 file_resource_property = ep_config.get("launchFunction", {}).get("fileResourceProperty", "")
 target_entities_resource_property = ep_config.get("launchFunction", {}).get("targetEntitiesResourceProperty", "")
+apply_config = ep_config.get("finalizeFunction", {}).get("applyService", {})
 
 if not all([db_name, pattern_table, tag_table, doc_table, cache_table, manual_patterns_table]):
     st.error("Could not find all required RAW table names in the pipeline configuration.")
@@ -347,7 +348,8 @@ with overall_tab:
                 associated_files=tag_to_files_unmatched.get(selected_tag_text, []),
                 tab="overall",
                 db_name=db_name,
-                pattern_table=pattern_table
+                pattern_table=pattern_table,
+                apply_config=apply_config
             )
 
 
@@ -682,7 +684,8 @@ with per_file_tab:
                         associated_files=[selected_file],
                         tab="per_file",
                         db_name=db_name,
-                        pattern_table=pattern_table
+                        pattern_table=pattern_table,
+                        apply_config=apply_config
                     )
                         
         else:
