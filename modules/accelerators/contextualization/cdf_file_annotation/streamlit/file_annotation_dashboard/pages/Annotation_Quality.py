@@ -773,6 +773,7 @@ with management_tab:
                                     "sample": new_pattern,
                                     "resource_type": new_resource_type,
                                     "scope_level": scope_level,
+                                    "annotation_type": new_annotation_type,
                                     "primary_scope": primary_scope_value,
                                     "secondary_scope": secondary_scope_value,
                                     "created_by": "streamlit",
