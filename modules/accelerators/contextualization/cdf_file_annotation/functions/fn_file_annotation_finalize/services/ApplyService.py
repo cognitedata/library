@@ -145,7 +145,9 @@ class GeneralApplyService(IApplyService):
         """Deletes all standard and pattern edges and their corresponding RAW rows for a file."""
 
         counts = {"doc": 0, "tag": 0, "pattern": 0}
-        std_edges = self._list_annotations_for_file(file_id, self.sink_node_ref, negate=True)
+        std_edges = self._list_annotations_for_file(
+            file_id, file_id.space
+        )  # NOTE: Annotations produced from regular diagram detect are stored in the same instance space as the file node
         if std_edges:
             edge_ids, doc_keys, tag_keys = [], [], []
             for edge in std_edges:
@@ -170,7 +172,9 @@ class GeneralApplyService(IApplyService):
                 )
             counts["doc"], counts["tag"] = len(doc_keys), len(tag_keys)
 
-        pattern_edges = self._list_annotations_for_file(file_id, self.sink_node_ref, negate=False)
+        pattern_edges = self._list_annotations_for_file(
+            file_id, self.sink_node_ref.space
+        )  # NOTE: Annotations produced from pattern mode are stored in the same instance space as the sink node
         if pattern_edges:
             edge_ids = [edge.as_id() for edge in pattern_edges]
             row_keys = [edge.external_id for edge in pattern_edges]
@@ -184,6 +188,20 @@ class GeneralApplyService(IApplyService):
                 )
             counts["pattern"] = len(row_keys)
         return counts
+
+    def _list_annotations_for_file(self, node_id: NodeId, edge_instance_space: str):
+        """
+        List all annotation edges for a file node given the instance space of where the edges are stored.
+        """
+        start_node_filter = Equals(["edge", "startNode"], {"space": node_id.space, "externalId": node_id.external_id})
+
+        return self.client.data_modeling.instances.list(
+            instance_type="edge",
+            sources=[self.core_annotation_view_id],
+            space=edge_instance_space,
+            filter=start_node_filter,
+            limit=-1,
+        )
 
     def _process_pattern_results(
         self, result_item: dict, file_node: Node, existing_hashes: set
@@ -345,26 +363,6 @@ class GeneralApplyService(IApplyService):
         if len(prefix) > self.EXTERNAL_ID_LIMIT - 11:
             prefix = prefix[: self.EXTERNAL_ID_LIMIT - 11]
         return f"{prefix}:{hash_}"
-
-    def _list_annotations_for_file(self, node_id: NodeId, end_node: DirectRelationReference, negate: bool = False):
-        """
-        List all annotation edges for a file node, optionally filtering by the end node.
-        """
-        start_node_filter = Equals(["edge", "startNode"], {"space": node_id.space, "externalId": node_id.external_id})
-        end_node_filter = Equals(["edge", "endNode"], {"space": end_node.space, "externalId": end_node.external_id})
-        if negate:
-            final_filter = And(start_node_filter, dm.filters.Not(end_node_filter))
-            space = node_id.space
-        else:
-            space = self.sink_node_ref.space
-            final_filter = And(start_node_filter, end_node_filter)
-        return self.client.data_modeling.instances.list(
-            instance_type="edge",
-            sources=[self.core_annotation_view_id],
-            space=space,
-            filter=final_filter,
-            limit=-1,
-        )
 
     def _get_edge_apply_unique_key(self, edge_apply_instance: EdgeApply) -> tuple:
         start_node = edge_apply_instance.start_node
