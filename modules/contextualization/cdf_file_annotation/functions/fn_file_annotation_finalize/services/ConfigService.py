@@ -204,17 +204,13 @@ class RetrieveServiceConfig(BaseModel, alias_generator=to_camel):
 
 
 class ApplyServiceConfig(BaseModel, alias_generator=to_camel):
-    sink_node: NodeId
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
     auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
-
-
-class ReportServiceConfig(BaseModel, alias_generator=to_camel):
+    sink_node: NodeId
     raw_db: str
     raw_table_doc_tag: str
     raw_table_doc_doc: str
     raw_table_doc_pattern: str
-    raw_batch_size: int
 
 
 class FinalizeFunction(BaseModel, alias_generator=to_camel):
@@ -222,7 +218,6 @@ class FinalizeFunction(BaseModel, alias_generator=to_camel):
     max_retry_attempts: int
     retrieve_service: RetrieveServiceConfig
     apply_service: ApplyServiceConfig
-    report_service: ReportServiceConfig
 
 
 class DataModelViews(BaseModel, alias_generator=to_camel):
