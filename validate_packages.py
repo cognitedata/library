@@ -49,8 +49,8 @@ def validate_packages(data: Dict[str, Any]) -> bool:
 def validate_package_structure(package_name: str, package_data: Dict[str, Any]) -> bool:
     """Validate individual package structure."""
     # Check required fields
-    required_fields = ["title", "description", "modules"]
-    for field in required_fields:
+    required_fields = ["title", "description", "modules", "id"]
+    for field in required_fields:   
         if field not in package_data:
             print(f"ERROR: Package '{package_name}' missing '{field}' field")
             return False
@@ -112,7 +112,6 @@ def validate_module_paths(
             )
             return False
 
-
         with open(module_toml, "rb") as f:
             module_data = tomllib.load(f)
 
@@ -124,21 +123,15 @@ def validate_module_paths(
             )
             return False
 
-
-            if "id" not in module_data["module"]:
+        extra_resources = module_data.get("extra_resources", [])
+        for extra_resource in extra_resources:
+            full_path = base_path_obj / extra_resource["location"]
+            if not full_path.exists():
                 print(
-                    f"ERROR: Package '{package_name}' module path '{module_path}' does not have a module.toml file"
+                    f"ERROR: Package '{package_name}' module '{module_path}' refers to a non-existent file: {full_path}"
                 )
                 return False
-
-
-
-            print(
-                f"ERROR: Package '{package_name}' module path '{module_path}' does not have a module.toml file"
-            )
-            return False
-
-
+        
         print(f"✓ Module '{module_path}' validated successfully")
 
     return True

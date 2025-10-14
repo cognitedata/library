@@ -5,6 +5,7 @@ The open-source Github repository ("Repository") is provided "as is", without wa
 """
 
 [packages.quickstart]
+id = "dp:quickstart"
 title = "Quick Start"
 description = "Get started with Cognite Data Fusion in minutes."
 canCherryPick = false
@@ -19,6 +20,7 @@ modules = [
 ]
 
 [packages.infield]
+id = "dp:infield"
 title = "InField"
 description = "Put real-time data into the hands of every field worker."
 modules = [
@@ -30,6 +32,7 @@ modules = [
 
 
 [packages.industrial_tools]
+id = "dp:industrial_tools"
 title = "Industrial Tools"
 description = "Data exploration and analytics"
 modules = [
@@ -39,6 +42,7 @@ modules = [
 ]
 
 [packages.bootcamp]
+id = "dp:bootcamp"
 title = "Bootcamp"
 description = "Initial toolkit configurations for the Cognite Data Fusion Bootcamp"
 canCherryPick = false
@@ -48,6 +52,7 @@ modules = [
 ]
 
 [packages.sourcesystems]
+id = "dp:sourcesystems"
 title = "Source systems"
 description = "Module templates for setting up a data pipeline from a source system"
 modules = [
@@ -58,6 +63,7 @@ modules = [
 ]
 
 [packages.contextualization]
+id = "dp:contextualization"
 title = "Contextualization"
 description = "Module templates for data contextualization"
 modules = [
@@ -68,6 +74,7 @@ modules = [
 ]
 
 [packages.models]
+id = "dp:models"
 title = "Data models"
 description = "Data models that extend the core data model"
 modules = [
@@ -80,6 +87,7 @@ modules = [
 ]
 
 [packages.custom]
+id = "dp:custom"
 title = "None"
 description = "start with an empty module"
 modules = [

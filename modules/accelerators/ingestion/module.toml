@@ -10,4 +10,4 @@ package_id = "dp:accelerators"
 modules = []
 
 [[extra_resources]]
-location = "cdf_common/data_sets/demo.DataSet.yaml"
+location = "accelerators/cdf_common/data_sets/demo.DataSet.yaml"

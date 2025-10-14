@@ -10,13 +10,13 @@ source = "workitem.Table.csv;workorder.Table.csv;workpackage.Table.csv;worktask.
 destination = "raw/"
 
 [[extra_resources]]
-location = "cdf_common/data_sets/demo.DataSet.yaml"
+location = "accelerators/cdf_common/data_sets/demo.DataSet.yaml"
 
 [[extra_resources]]
-location = "cdf_common/data_models/demo.Space.yaml"
+location = "accelerators/cdf_common/data_models/demo.Space.yaml"
 
 [[extra_resources]]
-location = "cdf_common/raw/source.DataBase.yaml"
+location = "accelerators/cdf_common/raw/source.DataBase.yaml"
 
 [[extra_resources]]
-location = "models/cdf_process_industry_extension/data_models"
+location = "data_models/cdf_process_industry_extension/data_models"
