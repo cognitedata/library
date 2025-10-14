@@ -21,10 +21,22 @@ class CogniteFunctionLogger:
                     os.makedirs(dir_name, exist_ok=True)
                 self.file_handler = open(self.filepath, "a", encoding="utf-8")
             except Exception as e:
-                print(f"[LOGGER_SETUP_ERROR] Could not open log file {self.filepath}: {e}")
+                print(
+                    f"[LOGGER_SETUP_ERROR] Could not open log file {self.filepath}: {e}"
+                )
                 self.write = False
 
     def _format_message_lines(self, prefix: str, message: str) -> list[str]:
+        """
+        Formats multi-line messages with consistent indentation.
+
+        Args:
+            prefix: The log level prefix (e.g., "[INFO]", "[ERROR]").
+            message: The message to format.
+
+        Returns:
+            List of formatted message lines with proper indentation.
+        """
         formatted_lines = []
         if "\n" not in message:
             formatted_lines.append(f"{prefix} {message}")
@@ -37,6 +49,16 @@ class CogniteFunctionLogger:
         return formatted_lines
 
     def _print(self, prefix: str, message: str) -> None:
+        """
+        Prints formatted log messages to console and optionally to file.
+
+        Args:
+            prefix: The log level prefix to prepend to the message.
+            message: The message to log.
+
+        Returns:
+            None
+        """
         lines_to_log = self._format_message_lines(prefix, message)
         if self.write and self.file_handler:
             try:
@@ -50,7 +72,19 @@ class CogniteFunctionLogger:
             for line in lines_to_log:
                 print(line)
 
-    def debug(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+    def debug(
+        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
+    ) -> None:
+        """
+        Logs a debug-level message.
+
+        Args:
+            message: The debug message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level == "DEBUG":
@@ -58,7 +92,19 @@ class CogniteFunctionLogger:
         if section == "END" or section == "BOTH":
             self._section()
 
-    def info(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+    def info(
+        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
+    ) -> None:
+        """
+        Logs an info-level message.
+
+        Args:
+            message: The informational message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level in ("DEBUG", "INFO"):
@@ -66,7 +112,19 @@ class CogniteFunctionLogger:
         if section == "END" or section == "BOTH":
             self._section()
 
-    def warning(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+    def warning(
+        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
+    ) -> None:
+        """
+        Logs a warning-level message.
+
+        Args:
+            message: The warning message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level in ("DEBUG", "INFO", "WARNING"):
@@ -74,7 +132,19 @@ class CogniteFunctionLogger:
         if section == "END" or section == "BOTH":
             self._section()
 
-    def error(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+    def error(
+        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
+    ) -> None:
+        """
+        Logs an error-level message.
+
+        Args:
+            message: The error message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         self._print("[ERROR]", message)
@@ -82,13 +152,27 @@ class CogniteFunctionLogger:
             self._section()
 
     def _section(self) -> None:
+        """
+        Prints a visual separator line for log sections.
+
+        Returns:
+            None
+        """
         if self.write and self.file_handler:
             self.file_handler.write(
                 "--------------------------------------------------------------------------------\n"
             )
-        print("--------------------------------------------------------------------------------")
+        print(
+            "--------------------------------------------------------------------------------"
+        )
 
     def close(self) -> None:
+        """
+        Closes the file handler if file logging is enabled.
+
+        Returns:
+            None
+        """
         if self.file_handler:
             try:
                 self.file_handler.close()

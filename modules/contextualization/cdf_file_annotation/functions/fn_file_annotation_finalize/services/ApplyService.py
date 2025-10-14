@@ -32,7 +32,11 @@ class IApplyService(abc.ABC):
 
     @abc.abstractmethod
     def process_and_apply_annotations_for_file(
-        self, file_node: Node, regular_item: dict | None, pattern_item: dict | None, clean_old: bool
+        self,
+        file_node: Node,
+        regular_item: dict | None,
+        pattern_item: dict | None,
+        clean_old: bool,
     ) -> tuple[str, str]:
         pass
 
@@ -53,28 +57,57 @@ class GeneralApplyService(IApplyService):
     EXTERNAL_ID_LIMIT = 256
     FUNCTION_ID = "fn_file_annotation_finalize"
 
-    def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
+    def __init__(
+        self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger
+    ):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
-        self.core_annotation_view_id: ViewId = config.data_model_views.core_annotation_view.as_view_id()
+        self.core_annotation_view_id: ViewId = (
+            config.data_model_views.core_annotation_view.as_view_id()
+        )
         self.file_view_id: ViewId = config.data_model_views.file_view.as_view_id()
         self.file_annotation_type = config.data_model_views.file_view.annotation_type
-        self.approve_threshold = config.finalize_function.apply_service.auto_approval_threshold
-        self.suggest_threshold = config.finalize_function.apply_service.auto_suggest_threshold
+        self.approve_threshold = (
+            config.finalize_function.apply_service.auto_approval_threshold
+        )
+        self.suggest_threshold = (
+            config.finalize_function.apply_service.auto_suggest_threshold
+        )
         self.sink_node_ref = DirectRelationReference(
             space=config.finalize_function.apply_service.sink_node.space,
             external_id=config.finalize_function.apply_service.sink_node.external_id,
         )
 
     def process_and_apply_annotations_for_file(
-        self, file_node: Node, regular_item: dict | None, pattern_item: dict | None, clean_old: bool
+        self,
+        file_node: Node,
+        regular_item: dict | None,
+        pattern_item: dict | None,
+        clean_old: bool,
     ) -> tuple[str, str]:
         """
-        Performs the entire annotation transaction for a single file.
+        Performs the complete annotation workflow for a single file.
+
+        Processes diagram detection results (regular and pattern mode), removes old annotations if needed,
+        creates annotation edges in the data model, writes annotation data to RAW tables,
+        and updates the file node's tag status.
+
+        Args:
+            file_node: The file node instance to annotate.
+            regular_item: Dictionary containing regular diagram detect results.
+            pattern_item: Dictionary containing pattern mode diagram detect results.
+            clean_old: Whether to delete existing annotations before applying new ones.
+
+        Returns:
+            A tuple containing:
+                - Summary message of regular annotations applied
+                - Summary message of pattern annotations created
         """
         file_id = file_node.as_id()
-        source_id = cast(str, file_node.properties.get(self.file_view_id, {}).get("sourceId"))
+        source_id = cast(
+            str, file_node.properties.get(self.file_view_id, {}).get("sourceId")
+        )
 
         if clean_old:
             deleted_counts = self._delete_annotations_for_file(file_id)
@@ -89,13 +122,17 @@ class GeneralApplyService(IApplyService):
             for annotation in regular_item["annotations"]:
                 stable_hash = self._create_stable_hash(annotation)
                 processed_hashes.add(stable_hash)
-                edges = self._detect_annotation_to_edge_applies(file_id, source_id, doc_rows, tag_rows, annotation)
+                edges = self._detect_annotation_to_edge_applies(
+                    file_id, source_id, doc_rows, tag_rows, annotation
+                )
                 regular_edges.extend(edges.values())
 
         # Step 2: Process pattern annotations, skipping any that were already processed
         pattern_edges, pattern_rows = [], []
         if pattern_item and pattern_item.get("annotations"):
-            pattern_edges, pattern_rows = self._process_pattern_results(pattern_item, file_node, processed_hashes)
+            pattern_edges, pattern_rows = self._process_pattern_results(
+                pattern_item, file_node, processed_hashes
+            )
 
         # Step 3: Update the file node tag
         node_apply = file_node.as_write()
@@ -109,7 +146,9 @@ class GeneralApplyService(IApplyService):
             )
 
         # Step 4: Apply all data model and RAW changes
-        self.update_instances(list_node_apply=node_apply, list_edge_apply=regular_edges + pattern_edges)
+        self.update_instances(
+            list_node_apply=node_apply, list_edge_apply=regular_edges + pattern_edges
+        )
         db_name = self.config.finalize_function.apply_service.raw_db
         if doc_rows:
             self.client.raw.rows.insert(
@@ -138,11 +177,36 @@ class GeneralApplyService(IApplyService):
             f"Created {len(pattern_rows)} new pattern detections.",
         )
 
-    def update_instances(self, list_node_apply=None, list_edge_apply=None) -> InstancesApplyResult:
-        return self.client.data_modeling.instances.apply(nodes=list_node_apply, edges=list_edge_apply, replace=False)
+    def update_instances(
+        self, list_node_apply=None, list_edge_apply=None
+    ) -> InstancesApplyResult:
+        """
+        Applies node and/or edge updates to the data model.
+
+        Args:
+            list_node_apply: Optional NodeApply or list of NodeApply objects to update.
+            list_edge_apply: Optional EdgeApply or list of EdgeApply objects to update.
+
+        Returns:
+            InstancesApplyResult containing the results of the apply operation.
+        """
+        return self.client.data_modeling.instances.apply(
+            nodes=list_node_apply, edges=list_edge_apply, replace=False
+        )
 
     def _delete_annotations_for_file(self, file_id: NodeId) -> dict[str, int]:
-        """Deletes all standard and pattern edges and their corresponding RAW rows for a file."""
+        """
+        Removes all existing annotations for a file from both data model and RAW tables.
+
+        Deletes annotation edges (doc-to-doc, doc-to-tag, and pattern annotations) and their
+        corresponding RAW table entries to prepare for fresh annotations.
+
+        Args:
+            file_id: NodeId of the file whose annotations should be deleted.
+
+        Returns:
+            Dictionary with counts of deleted annotations: {"doc": int, "tag": int, "pattern": int}.
+        """
 
         counts = {"doc": 0, "tag": 0, "pattern": 0}
         std_edges = self._list_annotations_for_file(
@@ -191,9 +255,19 @@ class GeneralApplyService(IApplyService):
 
     def _list_annotations_for_file(self, node_id: NodeId, edge_instance_space: str):
         """
-        List all annotation edges for a file node given the instance space of where the edges are stored.
+        Retrieves all annotation edges for a specific file from a given instance space.
+
+        Args:
+            node_id: NodeId of the file to query annotations for.
+            edge_instance_space: Instance space where the annotation edges are stored.
+
+        Returns:
+            EdgeList of all annotation edges connected to the file node.
         """
-        start_node_filter = Equals(["edge", "startNode"], {"space": node_id.space, "externalId": node_id.external_id})
+        start_node_filter = Equals(
+            ["edge", "startNode"],
+            {"space": node_id.space, "externalId": node_id.external_id},
+        )
 
         return self.client.data_modeling.instances.list(
             instance_type="edge",
@@ -206,8 +280,27 @@ class GeneralApplyService(IApplyService):
     def _process_pattern_results(
         self, result_item: dict, file_node: Node, existing_hashes: set
     ) -> tuple[list[EdgeApply], list[RowWrite]]:
+        """
+        Processes pattern mode detection results into annotation edges and RAW rows.
+
+        Creates pattern-based annotations that link to a sink node rather than specific entities,
+        allowing review and approval of pattern-detected annotations before linking to actual entities.
+        Skips patterns already covered by regular detection results.
+
+        Args:
+            result_item: Dictionary containing pattern mode detection results.
+            file_node: The file node being annotated.
+            existing_hashes: Set of annotation hashes from regular detection to avoid duplicates.
+
+        Returns:
+            A tuple containing:
+                - List of EdgeApply objects for pattern annotations
+                - List of RowWrite objects for RAW table entries
+        """
         file_id = file_node.as_id()
-        source_id = cast(str, file_node.properties.get(self.file_view_id, {}).get("sourceId"))
+        source_id = cast(
+            str, file_node.properties.get(self.file_view_id, {}).get("sourceId")
+        )
         doc_patterns, edge_applies = [], []
         for detect_annotation in result_item.get("annotations", []):
             stable_hash = self._create_stable_hash(detect_annotation)
@@ -222,7 +315,8 @@ class GeneralApplyService(IApplyService):
             external_id = self._create_pattern_annotation_id(file_id, detect_annotation)
             now = datetime.now(timezone.utc).replace(microsecond=0)
             annotation_type = entity.get(
-                "annotation_type", self.config.data_model_views.target_entities_view.annotation_type
+                "annotation_type",
+                self.config.data_model_views.target_entities_view.annotation_type,
             )
             annotation_properties = {
                 "name": file_id.external_id,
@@ -230,10 +324,22 @@ class GeneralApplyService(IApplyService):
                 "status": DiagramAnnotationStatus.SUGGESTED.value,
                 "tags": [],
                 "startNodePageNumber": detect_annotation.get("region", {}).get("page"),
-                "startNodeXMin": min(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMin": min(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeXMax": max(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMax": max(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
+                "startNodeXMin": min(
+                    v.get("x", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
+                "startNodeYMin": min(
+                    v.get("y", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
+                "startNodeXMax": max(
+                    v.get("x", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
+                "startNodeYMax": max(
+                    v.get("y", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
                 "startNodeText": detect_annotation.get("text"),
                 "sourceCreatedUser": self.FUNCTION_ID,
                 "sourceUpdatedUser": self.FUNCTION_ID,
@@ -243,10 +349,20 @@ class GeneralApplyService(IApplyService):
             edge_apply = EdgeApply(
                 space=self.sink_node_ref.space,
                 external_id=external_id,
-                type=DirectRelationReference(space=self.core_annotation_view_id.space, external_id=annotation_type),
-                start_node=DirectRelationReference(space=file_id.space, external_id=file_id.external_id),
+                type=DirectRelationReference(
+                    space=self.core_annotation_view_id.space,
+                    external_id=annotation_type,
+                ),
+                start_node=DirectRelationReference(
+                    space=file_id.space, external_id=file_id.external_id
+                ),
                 end_node=self.sink_node_ref,
-                sources=[NodeOrEdgeData(source=self.core_annotation_view_id, properties=annotation_properties)],
+                sources=[
+                    NodeOrEdgeData(
+                        source=self.core_annotation_view_id,
+                        properties=annotation_properties,
+                    )
+                ],
             )
             edge_applies.append(edge_apply)
             row_columns = {
@@ -273,6 +389,22 @@ class GeneralApplyService(IApplyService):
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, Any],
     ) -> dict[tuple, EdgeApply]:
+        """
+        Converts a single detection annotation into edge applies and RAW row writes.
+
+        Creates annotation edges linking the file to detected entities, applying confidence thresholds
+        to determine approval/suggestion status. Also creates corresponding RAW table entries.
+
+        Args:
+            file_instance_id: NodeId of the file being annotated.
+            source_id: Source ID of the file for RAW table logging.
+            doc_doc: List to append doc-to-doc annotation RAW rows to.
+            doc_tag: List to append doc-to-tag annotation RAW rows to.
+            detect_annotation: Dictionary containing a single detection result.
+
+        Returns:
+            Dictionary mapping edge keys to EdgeApply objects (deduplicated by start/end/type).
+        """
         diagram_annotations = {}
         for entity in detect_annotation.get("entities", []):
             if detect_annotation.get("confidence", 0.0) >= self.approve_threshold:
@@ -282,17 +414,31 @@ class GeneralApplyService(IApplyService):
             else:
                 continue
 
-            external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation)
+            external_id = self._create_annotation_id(
+                file_instance_id, entity, detect_annotation
+            )
             now = datetime.now(timezone.utc).replace(microsecond=0)
             annotation_properties = {
                 "name": file_instance_id.external_id,
                 "confidence": detect_annotation.get("confidence"),
                 "status": status,
                 "startNodePageNumber": detect_annotation.get("region", {}).get("page"),
-                "startNodeXMin": min(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMin": min(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeXMax": max(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMax": max(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
+                "startNodeXMin": min(
+                    v.get("x", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
+                "startNodeYMin": min(
+                    v.get("y", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
+                "startNodeXMax": max(
+                    v.get("x", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
+                "startNodeYMax": max(
+                    v.get("y", 0)
+                    for v in detect_annotation.get("region", {}).get("vertices", [])
+                ),
                 "startNodeText": detect_annotation.get("text"),
                 "sourceCreatedUser": self.FUNCTION_ID,
                 "sourceUpdatedUser": self.FUNCTION_ID,
@@ -303,13 +449,22 @@ class GeneralApplyService(IApplyService):
                 space=file_instance_id.space,
                 external_id=external_id,
                 type=DirectRelationReference(
-                    space=self.core_annotation_view_id.space, external_id=entity.get("annotation_type")
+                    space=self.core_annotation_view_id.space,
+                    external_id=entity.get("annotation_type"),
                 ),
                 start_node=DirectRelationReference(
-                    space=file_instance_id.space, external_id=file_instance_id.external_id
+                    space=file_instance_id.space,
+                    external_id=file_instance_id.external_id,
                 ),
-                end_node=DirectRelationReference(space=entity.get("space"), external_id=entity.get("external_id")),
-                sources=[NodeOrEdgeData(source=self.core_annotation_view_id, properties=annotation_properties)],
+                end_node=DirectRelationReference(
+                    space=entity.get("space"), external_id=entity.get("external_id")
+                ),
+                sources=[
+                    NodeOrEdgeData(
+                        source=self.core_annotation_view_id,
+                        properties=annotation_properties,
+                    )
+                ],
             )
             key = self._get_edge_apply_unique_key(edge)
             if key not in diagram_annotations:
@@ -336,16 +491,47 @@ class GeneralApplyService(IApplyService):
 
     def _create_stable_hash(self, raw_annotation: dict[str, Any]) -> str:
         """
-        Creates a hash based off items of a potential annotation. This is used such that we don't create duplicate annotations for pattern mode and regular results.
+        Generates a stable hash for an annotation to enable deduplication.
+
+        Creates a deterministic hash based on annotation text, page, and bounding box vertices,
+        ensuring that identical detections from regular and pattern mode are recognized as duplicates.
+
+        Args:
+            raw_annotation: Dictionary containing annotation detection data.
+
+        Returns:
+            10-character hash string representing the annotation.
         """
         text = raw_annotation.get("text", "")
         region = raw_annotation.get("region", {})
         vertices = region.get("vertices", [])
         sorted_vertices = sorted(vertices, key=lambda v: (v.get("x", 0), v.get("y", 0)))
-        stable_representation = {"text": text, "page": region.get("page"), "vertices": sorted_vertices}
-        return sha256(json.dumps(stable_representation, sort_keys=True).encode()).hexdigest()[:10]
+        stable_representation = {
+            "text": text,
+            "page": region.get("page"),
+            "vertices": sorted_vertices,
+        }
+        return sha256(
+            json.dumps(stable_representation, sort_keys=True).encode()
+        ).hexdigest()[:10]
 
-    def _create_annotation_id(self, file_id: NodeId, entity: dict[str, Any], raw_annotation: dict[str, Any]) -> str:
+    def _create_annotation_id(
+        self, file_id: NodeId, entity: dict[str, Any], raw_annotation: dict[str, Any]
+    ) -> str:
+        """
+        Creates a unique external ID for a regular annotation edge.
+
+        Combines file ID, entity ID, detected text, and hash to create a human-readable
+        yet unique identifier, truncating if necessary to stay within CDF's 256 character limit.
+
+        Args:
+            file_id: NodeId of the file being annotated.
+            entity: Dictionary containing the detected entity information.
+            raw_annotation: Dictionary containing annotation detection data.
+
+        Returns:
+            Unique external ID string for the annotation edge.
+        """
         hash_ = self._create_stable_hash(raw_annotation)
         text = raw_annotation.get("text", "")
         naive = f"{file_id.external_id}:{entity.get('external_id')}:{text}:{hash_}"
@@ -356,7 +542,22 @@ class GeneralApplyService(IApplyService):
             prefix = prefix[: self.EXTERNAL_ID_LIMIT - 11]
         return f"{prefix}:{hash_}"
 
-    def _create_pattern_annotation_id(self, file_id: NodeId, raw_annotation: dict[str, Any]) -> str:
+    def _create_pattern_annotation_id(
+        self, file_id: NodeId, raw_annotation: dict[str, Any]
+    ) -> str:
+        """
+        Creates a unique external ID for a pattern annotation edge.
+
+        Similar to regular annotations but prefixed with "pattern:" to distinguish pattern-detected
+        annotations that link to sink nodes rather than specific entities.
+
+        Args:
+            file_id: NodeId of the file being annotated.
+            raw_annotation: Dictionary containing annotation detection data.
+
+        Returns:
+            Unique external ID string for the pattern annotation edge.
+        """
         hash_ = self._create_stable_hash(raw_annotation)
         text = raw_annotation.get("text", "")
         prefix = f"pattern:{file_id.external_id}:{text}"
@@ -365,6 +566,17 @@ class GeneralApplyService(IApplyService):
         return f"{prefix}:{hash_}"
 
     def _get_edge_apply_unique_key(self, edge_apply_instance: EdgeApply) -> tuple:
+        """
+        Generates a unique key for an edge based on its start node, end node, and type.
+
+        Used for deduplication to prevent creating multiple edges with identical connections.
+
+        Args:
+            edge_apply_instance: EdgeApply object to generate key for.
+
+        Returns:
+            Tuple of (start_node_tuple, end_node_tuple, type_tuple) for deduplication.
+        """
         start_node = edge_apply_instance.start_node
         end_node = edge_apply_instance.end_node
         type_ = edge_apply_instance.type
