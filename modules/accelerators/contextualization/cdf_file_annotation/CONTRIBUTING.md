@@ -61,11 +61,11 @@ Once the issue has been discussed and you're ready to contribute:
    - Reference the related issue in the PR description (e.g., "Closes #123" or "Fixes #456")
    - Provide a clear description of what changed and why
    - Include any relevant testing details or screenshots
-   - Add `@jack-cognite` as a reviewer (or the current maintainer)
+   - Add `@dude-with-a-mug` as a reviewer (or the current maintainer)
 
 ### 3. Code Review and Approval
 
-- **All PRs require approval** from the project maintainer (@jack-cognite or designated reviewer) before merging
+- **All PRs require approval** from the project maintainer (@dude-with-a-mug or designated reviewer) before merging
 - The maintainer will review your code for:
 
   - Code quality and adherence to project standards
@@ -83,7 +83,6 @@ Once the issue has been discussed and you're ready to contribute:
 
 ### Python Code Style
 
-- Follow [PEP 8](https://pep8.org/) style guidelines
 - Use type hints for all function parameters and return values
 - Maximum line length: 120 characters (as configured in the project)
 - Use meaningful variable and function names
