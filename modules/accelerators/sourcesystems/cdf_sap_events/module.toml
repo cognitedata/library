@@ -1,5 +1,7 @@
 [module]
 title = "SAP Source System Events"
+id = "dp:acc:src:sap_events"
+package_id = "dp:accelerators"
 
 [[data]]
 repoType = "http"

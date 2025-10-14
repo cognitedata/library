@@ -1,2 +1,4 @@
 [module]
 title = "(Alpha) Scene Data Model"
+id = "dp:models:cdf_scene"
+package_id = "dp:models"

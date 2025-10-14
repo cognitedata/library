@@ -1,3 +1,5 @@
 [module]
 title = "Bootcamp"
 is_selected_by_default = true
+id = "dp:bootcamp:ice_cream_api"
+package_id = "dp:bootcamp"

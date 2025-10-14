@@ -1,5 +1,7 @@
 [module]
 title = "Contextualization Entity Matching"
+id = "dp:acc:ctx:entity_matching"
+package_id = "dp:accelerators"
 
 [[extra_resources]]
 location = "cdf_common/data_sets/demo.DataSet.yaml"

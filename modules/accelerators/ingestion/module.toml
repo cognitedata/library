@@ -1,6 +1,10 @@
 [module]
 title = "Ingestion Workflow"
 is_selected_by_default = true
+id = "dp:acc:ingestion_workflow"
+package_id = "dp:accelerators"
+
+
 
 [dependencies]
 modules = []

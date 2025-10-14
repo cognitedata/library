@@ -1,5 +1,7 @@
 [module]
 title = "Sharepoint Files"
+id = "dp:acc:src:sharepoint"
+package_id = "dp:accelerators"
 
 [[data]]
 repoType = "http"

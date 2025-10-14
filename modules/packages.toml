@@ -11,8 +11,11 @@ canCherryPick = false
 modules = [
     "accelerators/cdf_common",
     "accelerators/ingestion",
-    "accelerators/contextualization",
-    "accelerators/sourcesystems"
+    "accelerators/contextualization/cdf_connection_sql",
+    "accelerators/sourcesystems/cdf_pi",
+    "accelerators/sourcesystems/cdf_sap_assets",
+    "accelerators/sourcesystems/cdf_sap_events",
+    "accelerators/sourcesystems/cdf_sharepoint"
 ]
 
 [packages.infield]

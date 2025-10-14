@@ -1,2 +1,4 @@
 [module]
 title = "Example of CogniteCore Extension Model"
+id = "dp:models:cdf_cdm_extension_full"
+package_id = "dp:models"

@@ -1,5 +1,7 @@
 [module]
 title = "SAP Source System Asset/Equipment Metadata"
+id = "dp:acc:src:sap_assets"
+package_id = "dp:accelerators"
 
 [dependencies]
 modules = []

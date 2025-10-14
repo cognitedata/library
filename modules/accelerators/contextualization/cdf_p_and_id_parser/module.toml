@@ -1,5 +1,7 @@
 [module]
 title = "Contextualization P&ID Diagram Parser"
+id = "dp:acc:ctx:p_and_id_parser"
+package_id = "dp:accelerators"
 
 [[extra_resources]]
 location = "cdf_common/data_sets/demo.DataSet.yaml"

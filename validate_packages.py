@@ -104,7 +104,42 @@ def validate_module_paths(
             )
             return False
 
-        print(f"✓ Module path '{module_path}' exists")
+
+        module_toml = full_path / "module.toml"
+        if not module_toml.exists():
+            print(
+                f"ERROR: Package '{package_name}' module path '{module_path}' does not have a module.toml file and is not a valid module"
+            )
+            return False
+
+
+        with open(module_toml, "rb") as f:
+            module_data = tomllib.load(f)
+
+        required_fields = {"id", "package_id", "title"}
+        missing_fields = required_fields - set(module_data["module"].keys())
+        if missing_fields:
+            print(
+                f"ERROR: Package '{package_name}' module path '{module_path}' does not have the following required fields: {missing_fields}"
+            )
+            return False
+
+
+            if "id" not in module_data["module"]:
+                print(
+                    f"ERROR: Package '{package_name}' module path '{module_path}' does not have a module.toml file"
+                )
+                return False
+
+
+
+            print(
+                f"ERROR: Package '{package_name}' module path '{module_path}' does not have a module.toml file"
+            )
+            return False
+
+
+        print(f"✓ Module '{module_path}' validated successfully")
 
     return True
 

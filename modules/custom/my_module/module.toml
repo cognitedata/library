@@ -1,2 +1,4 @@
 [module]
 title = "Empty module"
+id = "dp:custom:my_module"
+package_id = "dp:custom"
