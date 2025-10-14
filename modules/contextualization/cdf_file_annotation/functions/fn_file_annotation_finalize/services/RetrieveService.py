@@ -86,7 +86,7 @@ class GeneralRetrieveService(IRetrieveService):
         sort_by_time.append(
             instances.InstanceSort(
                 property=self.annotation_state_view.as_property_ref("sourceUpdatedTime"),
-                direction="descending",
+                direction="ascending",
             )
         )
 
@@ -94,7 +94,7 @@ class GeneralRetrieveService(IRetrieveService):
             instance_type="node",
             sources=self.annotation_state_view.as_view_id(),
             space=self.annotation_state_view.instance_space,
-            limit=-1,
+            limit=1,
             filter=self.filter_jobs,
             sort=sort_by_time,
         )
