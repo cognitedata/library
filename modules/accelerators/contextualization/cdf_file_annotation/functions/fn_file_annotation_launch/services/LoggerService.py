@@ -21,9 +21,7 @@ class CogniteFunctionLogger:
                     os.makedirs(dir_name, exist_ok=True)
                 self.file_handler = open(self.filepath, "a", encoding="utf-8")
             except Exception as e:
-                print(
-                    f"[LOGGER_SETUP_ERROR] Could not open log file {self.filepath}: {e}"
-                )
+                print(f"[LOGGER_SETUP_ERROR] Could not open log file {self.filepath}: {e}")
                 self.write = False
 
     def _format_message_lines(self, prefix: str, message: str) -> list[str]:
@@ -72,9 +70,7 @@ class CogniteFunctionLogger:
             for line in lines_to_log:
                 print(line)
 
-    def debug(
-        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
-    ) -> None:
+    def debug(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
         """
         Logs a debug-level message.
 
@@ -92,9 +88,7 @@ class CogniteFunctionLogger:
         if section == "END" or section == "BOTH":
             self._section()
 
-    def info(
-        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
-    ) -> None:
+    def info(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
         """
         Logs an info-level message.
 
@@ -112,9 +106,7 @@ class CogniteFunctionLogger:
         if section == "END" or section == "BOTH":
             self._section()
 
-    def warning(
-        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
-    ) -> None:
+    def warning(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
         """
         Logs a warning-level message.
 
@@ -132,9 +124,7 @@ class CogniteFunctionLogger:
         if section == "END" or section == "BOTH":
             self._section()
 
-    def error(
-        self, message: str, section: Literal["START", "END", "BOTH"] | None = None
-    ) -> None:
+    def error(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
         """
         Logs an error-level message.
 
@@ -162,9 +152,7 @@ class CogniteFunctionLogger:
             self.file_handler.write(
                 "--------------------------------------------------------------------------------\n"
             )
-        print(
-            "--------------------------------------------------------------------------------"
-        )
+        print("--------------------------------------------------------------------------------")
 
     def close(self) -> None:
         """

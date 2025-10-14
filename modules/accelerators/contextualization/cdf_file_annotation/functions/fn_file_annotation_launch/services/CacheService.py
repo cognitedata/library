@@ -52,26 +52,18 @@ class GeneralCacheService(ICacheService):
     that share the same operational context.
     """
 
-    def __init__(
-        self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger
-    ):
+    def __init__(self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger):
         self.client = client
         self.config = config
         self.logger = logger
 
         self.db_name: str = config.launch_function.cache_service.raw_db
         self.tbl_name: str = config.launch_function.cache_service.raw_table_cache
-        self.manual_patterns_tbl_name: str = (
-            config.launch_function.cache_service.raw_manual_patterns_catalog
-        )
-        self.cache_time_limit: int = (
-            config.launch_function.cache_service.cache_time_limit
-        )  # in hours
+        self.manual_patterns_tbl_name: str = config.launch_function.cache_service.raw_manual_patterns_catalog
+        self.cache_time_limit: int = config.launch_function.cache_service.cache_time_limit  # in hours
 
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
-        self.target_entities_view: ViewPropertyConfig = (
-            config.data_model_views.target_entities_view
-        )
+        self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
 
     def get_entities(
         self,
@@ -103,31 +95,19 @@ class GeneralCacheService(ICacheService):
             key = f"{primary_scope_value}"
 
         try:
-            row: Row | None = self.client.raw.rows.retrieve(
-                db_name=self.db_name, table_name=self.tbl_name, key=key
-            )
+            row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
         except:
             row = None
 
         # Attempt to retrieve from the cache
-        if (
-            row
-            and row.columns
-            and self._validate_cache(row.columns["LastUpdateTimeUtcIso"])
-        ):
-            self.logger.debug(
-                f"Cache valid for key: {key}. Retrieving entities and patterns."
-            )
+        if row and row.columns and self._validate_cache(row.columns["LastUpdateTimeUtcIso"]):
+            self.logger.debug(f"Cache valid for key: {key}. Retrieving entities and patterns.")
             asset_entities: list[dict] = row.columns.get("AssetEntities", [])
             file_entities: list[dict] = row.columns.get("FileEntities", [])
-            combined_pattern_samples: list[dict] = row.columns.get(
-                "CombinedPatternSamples", []
-            )
+            combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
             return (asset_entities + file_entities), combined_pattern_samples
 
-        self.logger.info(
-            f"Refreshing RAW entities cache and patterns cache for key: {key}"
-        )
+        self.logger.info(f"Refreshing RAW entities cache and patterns cache for key: {key}")
 
         # Fetch data
         asset_instances, file_instances = data_model_service.get_instances_entities(
@@ -135,9 +115,7 @@ class GeneralCacheService(ICacheService):
         )
 
         # Convert to entities for diagram detect job
-        asset_entities, file_entities = self._convert_instances_to_entities(
-            asset_instances, file_instances
-        )
+        asset_entities, file_entities = self._convert_instances_to_entities(asset_instances, file_instances)
         entities = asset_entities + file_entities
 
         # Generate pattern samples from the same entities
@@ -146,14 +124,10 @@ class GeneralCacheService(ICacheService):
         auto_pattern_samples = asset_pattern_samples + file_pattern_samples
 
         # Grab the manual pattern samples
-        manual_pattern_samples = self._get_manual_patterns(
-            primary_scope_value, secondary_scope_value
-        )
+        manual_pattern_samples = self._get_manual_patterns(primary_scope_value, secondary_scope_value)
 
         # Merge the auto and manual patterns
-        combined_pattern_samples = self._merge_patterns(
-            auto_pattern_samples, manual_pattern_samples
-        )
+        combined_pattern_samples = self._merge_patterns(auto_pattern_samples, manual_pattern_samples)
 
         # Update cache
         new_row = RowWrite(
@@ -237,18 +211,12 @@ class GeneralCacheService(ICacheService):
                 - List of target entity dictionaries (typically assets).
                 - List of file entity dictionaries.
         """
-        target_entities_resource_type: str | None = (
-            self.config.launch_function.target_entities_resource_property
-        )
-        target_entities_search_property: str = (
-            self.config.launch_function.target_entities_search_property
-        )
+        target_entities_resource_type: str | None = self.config.launch_function.target_entities_resource_property
+        target_entities_search_property: str = self.config.launch_function.target_entities_search_property
         target_entities: list[dict] = []
 
         for instance in asset_instances:
-            instance_properties = instance.properties.get(
-                self.target_entities_view.as_view_id()
-            )
+            instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
             asset_resource_type: str = (
                 instance_properties[target_entities_resource_type]
                 if target_entities_resource_type
@@ -261,9 +229,7 @@ class GeneralCacheService(ICacheService):
                     space=instance.space,
                     annotation_type=self.target_entities_view.annotation_type,
                     resource_type=asset_resource_type,
-                    search_property=instance_properties.get(
-                        target_entities_search_property
-                    ),
+                    search_property=instance_properties.get(target_entities_search_property),
                 )
                 target_entities.append(asset_entity.to_dict())
             else:
@@ -278,9 +244,7 @@ class GeneralCacheService(ICacheService):
                 )
                 target_entities.append(asset_entity.to_dict())
 
-        file_resource_type_prop: str | None = (
-            self.config.launch_function.file_resource_property
-        )
+        file_resource_type_prop: str | None = self.config.launch_function.file_resource_property
         file_search_property: str = self.config.launch_function.file_search_property
         file_entities: list[dict] = []
 
@@ -320,14 +284,10 @@ class GeneralCacheService(ICacheService):
                 - annotation_type: Annotation type for the entity
         """
         # Structure: { resource_type: {"patterns": { template_key: [...] }, "annotation_type": "..."} }
-        pattern_builders: Dict[str, Dict[str, Any]] = defaultdict(
-            lambda: {"patterns": {}, "annotation_type": None}
-        )
+        pattern_builders: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"patterns": {}, "annotation_type": None})
         self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
 
-        def _parse_alias(
-            alias: str, resource_type_key: str
-        ) -> tuple[str, list[list[str]]]:
+        def _parse_alias(alias: str, resource_type_key: str) -> tuple[str, list[list[str]]]:
             """
             Parse an alias into a normalized template string and collect variable letter groups.
 
@@ -419,9 +379,7 @@ class GeneralCacheService(ICacheService):
                         return segment_template
                     try:
                         letter_groups_for_segment: List[Set[str]] = next(var_iter)
-                        letter_group_iter: Iterator[Set[str]] = iter(
-                            letter_groups_for_segment
-                        )
+                        letter_group_iter: Iterator[Set[str]] = iter(letter_groups_for_segment)
 
                         def replace_A(match):
                             alternatives = sorted(list(next(letter_group_iter)))
@@ -432,14 +390,8 @@ class GeneralCacheService(ICacheService):
                         return segment_template
 
                 # Split by bracketed constants or any single non-alphanumeric separator to preserve them as tokens
-                parts = [
-                    p
-                    for p in re.split(r"(\[[^\]]+\]|[^A-Za-z0-9])", template_key)
-                    if p != ""
-                ]
-                final_pattern_parts = [
-                    build_segment(p) if re.search(r"A", p) else p for p in parts
-                ]
+                parts = [p for p in re.split(r"(\[[^\]]+\]|[^A-Za-z0-9])", template_key) if p != ""]
+                final_pattern_parts = [build_segment(p) if re.search(r"A", p) else p for p in parts]
                 final_samples.append("".join(final_pattern_parts))
 
             # Sanity filter: drop overly generic numeric-only patterns (must contain a letter or a character class)
@@ -463,9 +415,7 @@ class GeneralCacheService(ICacheService):
                 )
         return result
 
-    def _get_manual_patterns(
-        self, primary_scope: str, secondary_scope: str | None
-    ) -> list[dict]:
+    def _get_manual_patterns(self, primary_scope: str, secondary_scope: str | None) -> list[dict]:
         """
         Retrieves manually defined pattern samples from the RAW catalog.
 
@@ -498,19 +448,13 @@ class GeneralCacheService(ICacheService):
                     patterns = (row.columns or {}).get("patterns", [])
                     all_manual_patterns.extend(patterns)
             except CogniteNotFoundError:
-                self.logger.info(
-                    f"No manual patterns found for key: {key}. This may be expected."
-                )
+                self.logger.info(f"No manual patterns found for key: {key}. This may be expected.")
             except Exception as e:
-                self.logger.error(
-                    f"Failed to retrieve manual patterns for key {key}: {e}"
-                )
+                self.logger.error(f"Failed to retrieve manual patterns for key {key}: {e}")
 
         return all_manual_patterns
 
-    def _merge_patterns(
-        self, auto_patterns: list[dict], manual_patterns: list[dict]
-    ) -> list[dict]:
+    def _merge_patterns(self, auto_patterns: list[dict], manual_patterns: list[dict]) -> list[dict]:
         """
         Combines automatically generated and manually defined patterns by resource type.
 
@@ -524,9 +468,7 @@ class GeneralCacheService(ICacheService):
         Returns:
             List of merged pattern dictionaries, deduplicated and organized by resource type.
         """
-        merged: Dict[str, Dict[str, Any]] = defaultdict(
-            lambda: {"samples": set(), "annotation_type": None}
-        )
+        merged: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"samples": set(), "annotation_type": None})
 
         # Process auto-generated patterns
         for item in auto_patterns:
@@ -550,9 +492,7 @@ class GeneralCacheService(ICacheService):
                 # Set annotation_type if not already set (auto-patterns take precedence)
                 if not bucket.get("annotation_type"):
                     # NOTE: UI that creates manual patterns will need to also have the annotation type as a required entry
-                    bucket["annotation_type"] = item.get(
-                        "annotation_type", "diagrams.AssetLink"
-                    )
+                    bucket["annotation_type"] = item.get("annotation_type", "diagrams.AssetLink")
 
         # Convert the merged dictionary back to the required list format
         final_list = []
@@ -566,7 +506,5 @@ class GeneralCacheService(ICacheService):
                 }
             )
 
-        self.logger.info(
-            f"Merged auto and manual patterns into {len(final_list)} resource types."
-        )
+        self.logger.info(f"Merged auto and manual patterns into {len(final_list)} resource types.")
         return final_list
