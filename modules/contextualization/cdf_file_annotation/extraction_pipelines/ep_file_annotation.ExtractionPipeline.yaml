@@ -13,23 +13,6 @@ rawTables:
     tableName: {{ rawManualPatternsCatalog }}
 source: "Files"
 documentation: >
-  # Guide to Configuring the Annotation Function via YAML
-
-  This document outlines how to use the `ep_file_annotation.config.yaml` file to control the behavior of the Annotation Function. The Python code, particularly `ConfigService.py`, uses Pydantic models to parse this YAML, making the function adaptable to different data models and operational parameters.
-
-  ## Overall Structure
-
-  The YAML configuration is organized into logical blocks that correspond to different phases and components of the toolkit:
-
-  - `dataModelViews`: Defines common Data Model views used across functions.
-  - `prepareFunction`: Settings for the initial file preparation phase.
-  - `launchFunction`: Settings for launching annotation tasks.
-  - `finalizeFunction`: Settings for processing and finalizing annotation results.
-
-  The entire structure is parsed into a main `Config` Pydantic model.
-
-  ---
-
   ## 1. `dataModelViews`
 
   This section specifies the Data Model views the function will interact with. Each view is defined using a structure mapping to the `ViewPropertyConfig` Pydantic model.
