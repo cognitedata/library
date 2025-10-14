@@ -110,25 +110,25 @@ class GeneralApplyService(IApplyService):
 
         # Step 4: Apply all data model and RAW changes
         self.update_instances(list_node_apply=node_apply, list_edge_apply=regular_edges + pattern_edges)
-        db_name = self.config.finalize_function.report_service.raw_db
+        db_name = self.config.finalize_function.apply_service.raw_db
         if doc_rows:
             self.client.raw.rows.insert(
                 db_name=db_name,
-                table_name=self.config.finalize_function.report_service.raw_table_doc_doc,
+                table_name=self.config.finalize_function.apply_service.raw_table_doc_doc,
                 row=doc_rows,
                 ensure_parent=True,
             )
         if tag_rows:
             self.client.raw.rows.insert(
                 db_name=db_name,
-                table_name=self.config.finalize_function.report_service.raw_table_doc_tag,
+                table_name=self.config.finalize_function.apply_service.raw_table_doc_tag,
                 row=tag_rows,
                 ensure_parent=True,
             )
         if pattern_rows:
             self.client.raw.rows.insert(
                 db_name=db_name,
-                table_name=self.config.finalize_function.report_service.raw_table_doc_pattern,
+                table_name=self.config.finalize_function.apply_service.raw_table_doc_pattern,
                 row=pattern_rows,
                 ensure_parent=True,
             )
@@ -160,14 +160,14 @@ class GeneralApplyService(IApplyService):
                 self.client.data_modeling.instances.delete(edges=edge_ids)
             if doc_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.config.finalize_function.report_service.raw_db,
-                    table_name=self.config.finalize_function.report_service.raw_table_doc_doc,
+                    db_name=self.config.finalize_function.apply_service.raw_db,
+                    table_name=self.config.finalize_function.apply_service.raw_table_doc_doc,
                     key=doc_keys,
                 )
             if tag_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.config.finalize_function.report_service.raw_db,
-                    table_name=self.config.finalize_function.report_service.raw_table_doc_tag,
+                    db_name=self.config.finalize_function.apply_service.raw_db,
+                    table_name=self.config.finalize_function.apply_service.raw_table_doc_tag,
                     key=tag_keys,
                 )
             counts["doc"], counts["tag"] = len(doc_keys), len(tag_keys)
@@ -182,8 +182,8 @@ class GeneralApplyService(IApplyService):
                 self.client.data_modeling.instances.delete(edges=edge_ids)
             if row_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.config.finalize_function.report_service.raw_db,
-                    table_name=self.config.finalize_function.report_service.raw_table_doc_pattern,
+                    db_name=self.config.finalize_function.apply_service.raw_db,
+                    table_name=self.config.finalize_function.apply_service.raw_table_doc_pattern,
                     key=row_keys,
                 )
             counts["pattern"] = len(row_keys)

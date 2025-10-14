@@ -64,17 +64,16 @@ annotation_state_view = view_config["annotation_state"]
 file_view = view_config["file"]
 target_entities_view = view_config["target_entities"]
 
-report_config = ep_config.get("finalizeFunction", {}).get("reportService", {})
+apply_config = ep_config.get("finalizeFunction", {}).get("applyService", {})
 cache_config = ep_config.get("launchFunction", {}).get("cacheService", {})
-db_name = report_config.get("rawDb")
-pattern_table = report_config.get("rawTableDocPattern")
-tag_table = report_config.get("rawTableDocTag")
-doc_table = report_config.get("rawTableDocDoc")
+db_name = apply_config.get("rawDb")
+pattern_table = apply_config.get("rawTableDocPattern")
+tag_table = apply_config.get("rawTableDocTag")
+doc_table = apply_config.get("rawTableDocDoc")
 cache_table = cache_config.get("rawTableCache")
 manual_patterns_table = cache_config.get("rawManualPatternsCatalog")
 file_resource_property = ep_config.get("launchFunction", {}).get("fileResourceProperty", "")
 target_entities_resource_property = ep_config.get("launchFunction", {}).get("targetEntitiesResourceProperty", "")
-apply_config = ep_config.get("finalizeFunction", {}).get("applyService", {})
 
 if not all([db_name, pattern_table, tag_table, doc_table, cache_table, manual_patterns_table]):
     st.error("Could not find all required RAW table names in the pipeline configuration.")
@@ -283,10 +282,7 @@ with overall_tab:
             df_unmatched_filtered = df_metrics_input[df_metrics_input["startNodeText"].isin(unmatched_tags_list)]
 
             tag_to_files_unmatched = (
-                df_unmatched_filtered.groupby("startNodeText")["startNode"]
-                .unique()
-                .apply(list)
-                .to_dict()
+                df_unmatched_filtered.groupby("startNodeText")["startNode"].unique().apply(list).to_dict()
             )
 
             tag_occurrences = (
@@ -316,7 +312,7 @@ with overall_tab:
                     "Select": st.column_config.CheckboxColumn(required=True),
                     "text": "Tag",
                     "fileCount": "Associated Files",
-                    "occurrenceCount": "Occurrences"
+                    "occurrenceCount": "Occurrences",
                 },
                 use_container_width=True,
                 hide_index=True,
@@ -326,7 +322,9 @@ with overall_tab:
             selected_indices = unmatched_data_editor[unmatched_data_editor.Select].index.tolist()
 
             if len(selected_indices) > 1:
-                new_selection = [idx for idx in selected_indices if idx != st.session_state.selected_unmatched_overall_index]
+                new_selection = [
+                    idx for idx in selected_indices if idx != st.session_state.selected_unmatched_overall_index
+                ]
                 st.session_state.selected_unmatched_overall_index = new_selection[0] if new_selection else None
                 st.rerun()
             elif len(selected_indices) == 1:
@@ -338,7 +336,7 @@ with overall_tab:
         if st.session_state.selected_unmatched_overall_index is not None:
             selected_tag_row = unmatched_display.loc[st.session_state.selected_unmatched_overall_index]
             selected_tag_text = selected_tag_row["text"]
-            
+
             show_connect_unmatched_ui(
                 selected_tag_text,
                 file_view,
@@ -349,9 +347,8 @@ with overall_tab:
                 tab="overall",
                 db_name=db_name,
                 pattern_table=pattern_table,
-                apply_config=apply_config
+                apply_config=apply_config,
             )
-
 
 
 # ==========================================
@@ -589,7 +586,7 @@ with per_file_tab:
                         potential_tags_for_canvas = build_unmatched_tags_with_regions(
                             df=df_metrics_input,
                             file_id=selected_file,
-                            potential_new_annotations=potential_new_annotations_set
+                            potential_new_annotations=potential_new_annotations_set,
                         )
                         canvas_url = generate_file_canvas(
                             file_id=file_node_id,
@@ -626,12 +623,13 @@ with per_file_tab:
                         "💡 Potential New Annotations in this File",
                         len(potential_df),
                     )
-                
+
                     unmatched_display = potential_df[["startNodeText", "endNodeResourceType"]].copy()
                     unmatched_display.insert(0, "Select", False)
-                    
+
                     occurrences = (
-                        df_patterns_file[df_patterns_file["startNode"] == selected_file].groupby("startNodeText")
+                        df_patterns_file[df_patterns_file["startNode"] == selected_file]
+                        .groupby("startNodeText")
                         .size()
                         .reset_index(name="occurrenceCount")
                     )
@@ -653,7 +651,7 @@ with per_file_tab:
                             "Select": st.column_config.CheckboxColumn(required=True),
                             "startNodeText": "Tag",
                             "endNodeResourceType": "Resource Type",
-                            "occurrenceCount": "Occurrences"
+                            "occurrenceCount": "Occurrences",
                         },
                         use_container_width=True,
                         hide_index=True,
@@ -661,9 +659,11 @@ with per_file_tab:
                     )
 
                     selected_indices = unmatched_data_editor[unmatched_data_editor.Select].index.tolist()
-                    
+
                     if len(selected_indices) > 1:
-                        new_selection = [idx for idx in selected_indices if idx != st.session_state.selected_unmatched_per_file_index]
+                        new_selection = [
+                            idx for idx in selected_indices if idx != st.session_state.selected_unmatched_per_file_index
+                        ]
                         st.session_state.selected_unmatched_per_file_index = new_selection[0] if new_selection else None
                         st.rerun()
                     elif len(selected_indices) == 1:
@@ -685,9 +685,9 @@ with per_file_tab:
                         tab="per_file",
                         db_name=db_name,
                         pattern_table=pattern_table,
-                        apply_config=apply_config
+                        apply_config=apply_config,
                     )
-                        
+
         else:
             st.info("✔️ Select a file in the table above to see a detailed breakdown of its tags.")
 
@@ -712,9 +712,8 @@ with management_tab:
             "key": st.column_config.TextColumn("Scope Key", disabled=True),
             "sample": st.column_config.TextColumn("Pattern String", required=True),
             "annotation_type": st.column_config.SelectboxColumn(
-                "Annotation Type",
-                options=["diagrams.FileLink", "diagrams.AssetLink"],
-                required=True),
+                "Annotation Type", options=["diagrams.FileLink", "diagrams.AssetLink"], required=True
+            ),
             "resource_type": st.column_config.TextColumn("Resource Type", required=True),
             "scope_level": st.column_config.SelectboxColumn(
                 "Scope Level",
@@ -748,9 +747,7 @@ with management_tab:
         st.write("2. Enter Pattern Details")
         new_pattern = st.text_input("Pattern String", placeholder="e.g., [PI]-00000")
         new_annotation_type = st.selectbox(
-            "Annotation Type",
-            ["diagrams.FileLink", "diagrams.AssetLink"],
-            key="new_annotation_type_selector"
+            "Annotation Type", ["diagrams.FileLink", "diagrams.AssetLink"], key="new_annotation_type_selector"
         )
         new_resource_type = st.text_input("Resource Type", placeholder="e.g., Asset")
 
