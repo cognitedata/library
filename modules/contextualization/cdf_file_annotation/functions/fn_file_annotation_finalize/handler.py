@@ -1,5 +1,7 @@
 import sys
 import threading
+import time
+import random
 from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 
@@ -7,14 +9,12 @@ from dependencies import (
     create_config_service,
     create_logger_service,
     create_write_logger_service,
-    create_general_report_service,
     create_general_retrieve_service,
     create_general_apply_service,
     create_general_pipeline_service,
 )
 from services.FinalizeService import AbstractFinalizeService, GeneralFinalizeService
 from services.ApplyService import IApplyService
-from services.ReportService import IReportService
 from services.RetrieveService import IRetrieveService
 from services.PipelineService import IPipelineService
 from utils.DataStructures import PerformanceTracker
@@ -44,11 +44,14 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
 
-    finalize_instance, report_instance = _create_finalize_service(
+    finalize_instance = _create_finalize_service(
         config_instance, client, logger_instance, tracker_instance, function_call_info
     )
 
     run_status: str = "success"
+    # NOTE: a random delay to stagger API requests. Used to prevent API load shedding that can return empty results under high concurrency.
+    delay = random.uniform(0.1, 1.0)
+    time.sleep(delay)
     try:
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
             if finalize_instance.run() == "Done":
@@ -61,7 +64,6 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         logger_instance.error(message=msg, section="BOTH")
         return {"status": run_status, "message": msg}
     finally:
-        logger_instance.info(report_instance.update_report())
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured
         # else run log will be too messy
@@ -94,7 +96,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
 
     tracker_instance = PerformanceTracker()
 
-    finalize_instance, report_instance = _create_finalize_service(
+    finalize_instance = _create_finalize_service(
         config_instance,
         client,
         logger_instance,
@@ -113,8 +115,6 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
             section="BOTH",
         )
     finally:
-        result = report_instance.update_report()
-        logger_instance.info(result)
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
         logger_instance.close()
 
@@ -142,13 +142,10 @@ def run_locally_parallel(
     thread_4.join()
 
 
-def _create_finalize_service(
-    config, client, logger, tracker, function_call_info
-) -> tuple[AbstractFinalizeService, IReportService]:
+def _create_finalize_service(config, client, logger, tracker, function_call_info) -> AbstractFinalizeService:
     """
     Instantiate Finalize with interfaces.
     """
-    report_instance: IReportService = create_general_report_service(client, config, logger)
     retrieve_instance: IRetrieveService = create_general_retrieve_service(client, config, logger)
     apply_instance: IApplyService = create_general_apply_service(client, config, logger)
     finalize_instance = GeneralFinalizeService(
@@ -158,10 +155,9 @@ def _create_finalize_service(
         tracker=tracker,
         retrieve_service=retrieve_instance,
         apply_service=apply_instance,
-        report_service=report_instance,
         function_call_info=function_call_info,
     )
-    return finalize_instance, report_instance
+    return finalize_instance
 
 
 if __name__ == "__main__":

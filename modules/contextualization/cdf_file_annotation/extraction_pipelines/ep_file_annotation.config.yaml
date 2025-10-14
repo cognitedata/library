@@ -122,9 +122,11 @@ config:
     applyService:
       autoApprovalThreshold: 1.0
       autoSuggestThreshold: 1.0
-    reportService:
+      sinkNode:
+          space: {{ patternModeInstanceSpace }}
+          externalId: {{patternDetectSink}}
       rawDb: {{ rawDb }}
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
       rawTableDocPattern: {{ rawTableDocPattern }}
-      rawBatchSize: 1000
+

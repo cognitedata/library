@@ -25,6 +25,16 @@ class CogniteFunctionLogger:
                 self.write = False
 
     def _format_message_lines(self, prefix: str, message: str) -> list[str]:
+        """
+        Formats multi-line messages with consistent indentation.
+
+        Args:
+            prefix: The log level prefix (e.g., "[INFO]", "[ERROR]").
+            message: The message to format.
+
+        Returns:
+            List of formatted message lines with proper indentation.
+        """
         formatted_lines = []
         if "\n" not in message:
             formatted_lines.append(f"{prefix} {message}")
@@ -37,6 +47,16 @@ class CogniteFunctionLogger:
         return formatted_lines
 
     def _print(self, prefix: str, message: str) -> None:
+        """
+        Prints formatted log messages to console and optionally to file.
+
+        Args:
+            prefix: The log level prefix to prepend to the message.
+            message: The message to log.
+
+        Returns:
+            None
+        """
         lines_to_log = self._format_message_lines(prefix, message)
         if self.write and self.file_handler:
             try:
@@ -51,6 +71,16 @@ class CogniteFunctionLogger:
                 print(line)
 
     def debug(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+        """
+        Logs a debug-level message.
+
+        Args:
+            message: The debug message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level == "DEBUG":
@@ -59,6 +89,16 @@ class CogniteFunctionLogger:
             self._section()
 
     def info(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+        """
+        Logs an info-level message.
+
+        Args:
+            message: The informational message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level in ("DEBUG", "INFO"):
@@ -67,6 +107,16 @@ class CogniteFunctionLogger:
             self._section()
 
     def warning(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+        """
+        Logs a warning-level message.
+
+        Args:
+            message: The warning message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level in ("DEBUG", "INFO", "WARNING"):
@@ -75,6 +125,16 @@ class CogniteFunctionLogger:
             self._section()
 
     def error(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+        """
+        Logs an error-level message.
+
+        Args:
+            message: The error message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         self._print("[ERROR]", message)
@@ -82,6 +142,12 @@ class CogniteFunctionLogger:
             self._section()
 
     def _section(self) -> None:
+        """
+        Prints a visual separator line for log sections.
+
+        Returns:
+            None
+        """
         if self.write and self.file_handler:
             self.file_handler.write(
                 "--------------------------------------------------------------------------------\n"
@@ -89,6 +155,12 @@ class CogniteFunctionLogger:
         print("--------------------------------------------------------------------------------")
 
     def close(self) -> None:
+        """
+        Closes the file handler if file logging is enabled.
+
+        Returns:
+            None
+        """
         if self.file_handler:
             try:
                 self.file_handler.close()

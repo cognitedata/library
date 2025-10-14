@@ -12,9 +12,7 @@ class ViewPropertyConfig:
     instance_space: str | None = None
 
     def as_view_id(self) -> ViewId:
-        return ViewId(
-            space=self.schema_space, external_id=self.external_id, version=self.version
-        )
+        return ViewId(space=self.schema_space, external_id=self.external_id, version=self.version)
 
     def as_property_ref(self, property) -> list[str]:
         return [self.schema_space, f"{self.external_id}/{self.version}", property]
