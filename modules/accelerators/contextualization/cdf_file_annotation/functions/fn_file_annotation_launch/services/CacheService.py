@@ -1,6 +1,6 @@
 import abc
 import re
-from typing import Iterator
+from typing import Iterator, Any, Dict, List, Set, cast
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
@@ -249,17 +249,18 @@ class GeneralCacheService(ICacheService):
             instance_properties = instance.properties.get(
                 self.target_entities_view.as_view_id()
             )
-            if target_entities_resource_type:
-                resource_type: str = instance_properties[target_entities_resource_type]
-            else:
-                resource_type: str = self.target_entities_view.external_id
+            asset_resource_type: str = (
+                instance_properties[target_entities_resource_type]
+                if target_entities_resource_type
+                else self.target_entities_view.external_id
+            )
             if target_entities_search_property in instance_properties:
                 asset_entity = entity(
                     external_id=instance.external_id,
                     name=instance_properties.get("name"),
                     space=instance.space,
                     annotation_type=self.target_entities_view.annotation_type,
-                    resource_type=resource_type,
+                    resource_type=asset_resource_type,
                     search_property=instance_properties.get(
                         target_entities_search_property
                     ),
@@ -272,12 +273,12 @@ class GeneralCacheService(ICacheService):
                     name=instance_properties.get("name"),
                     space=instance.space,
                     annotation_type=self.target_entities_view.annotation_type,
-                    resource_type=resource_type,
+                    resource_type=asset_resource_type,
                     search_property=search_value,
                 )
                 target_entities.append(asset_entity.to_dict())
 
-        file_resource_type: str | None = (
+        file_resource_type_prop: str | None = (
             self.config.launch_function.file_resource_property
         )
         file_search_property: str = self.config.launch_function.file_search_property
@@ -285,16 +286,17 @@ class GeneralCacheService(ICacheService):
 
         for instance in file_instances:
             instance_properties = instance.properties.get(self.file_view.as_view_id())
-            if target_entities_resource_type:
-                resource_type: str = instance_properties[file_resource_type]
-            else:
-                resource_type: str = self.file_view.external_id
+            file_entity_resource_type: str = (
+                instance_properties[file_resource_type_prop]
+                if target_entities_resource_type
+                else self.file_view.external_id
+            )
             file_entity = entity(
                 external_id=instance.external_id,
                 name=instance_properties.get("name"),
                 space=instance.space,
                 annotation_type=self.file_view.annotation_type,
-                resource_type=resource_type,
+                resource_type=file_entity_resource_type,
                 search_property=instance_properties.get(file_search_property),
             )
             file_entities.append(file_entity.to_dict())
@@ -306,7 +308,7 @@ class GeneralCacheService(ICacheService):
         Generates regex-like pattern samples from entity search properties for pattern mode detection.
 
         Analyzes entity aliases to extract common patterns and variations, creating consolidated
-        pattern samples that can match multiple similar tags (e.g., "FT-[1|2|3]00[1|2]A").
+        pattern samples that can match multiple similar tags (e.g., "[FT]-000[A|B]").
 
         Args:
             entities: List of entity dictionaries containing search properties (aliases).
@@ -318,7 +320,7 @@ class GeneralCacheService(ICacheService):
                 - annotation_type: Annotation type for the entity
         """
         # Structure: { resource_type: {"patterns": { template_key: [...] }, "annotation_type": "..."} }
-        pattern_builders = defaultdict(
+        pattern_builders: Dict[str, Dict[str, Any]] = defaultdict(
             lambda: {"patterns": {}, "annotation_type": None}
         )
         self.logger.info(f"Generating pattern samples from {len(entities)} entities.")
@@ -326,29 +328,60 @@ class GeneralCacheService(ICacheService):
         def _parse_alias(
             alias: str, resource_type_key: str
         ) -> tuple[str, list[list[str]]]:
-            alias_parts = re.split(r"([ -])", alias)
+            """
+            Parse an alias into a normalized template string and collect variable letter groups.
+
+            - Treat hyphens '-' and spaces ' ' as literal characters.
+            - Wrap all other non-alphanumeric characters in brackets to mark them as required literals (e.g., [+], [.]).
+            - Replace digits with '0' and letters with 'A' in alphanumeric segments.
+            - If an alphanumeric segment equals the resource type and is token-boundary isolated, wrap it in brackets to mark it constant.
+            """
+            # Tokenize alias into alphanumeric runs and single-character separators
+            tokens: list[str] = []
+            current_alnum: list[str] = []
+            for ch in alias:
+                if ch.isalnum():
+                    current_alnum.append(ch)
+                else:
+                    if current_alnum:
+                        tokens.append("".join(current_alnum))
+                        current_alnum = []
+                    tokens.append(ch)
+            if current_alnum:
+                tokens.append("".join(current_alnum))
+
             full_template_key_parts: list[str] = []
             all_variable_parts: list[list[str]] = []
 
-            for i, part in enumerate(alias_parts):
+            def is_separator(tok: str) -> bool:
+                return len(tok) == 1 and not tok.isalnum()
+
+            for i, part in enumerate(tokens):
                 if not part:
                     continue
-                if part in [" ", "-"]:
-                    full_template_key_parts.append(part)
+                if is_separator(part):
+                    # Hyphen and space are plain literals; other specials must be wrapped in brackets
+                    if part == "-" or part == " ":
+                        full_template_key_parts.append(part)
+                    else:
+                        full_template_key_parts.append(f"[{part}]")
                     continue
-                left_ok = (i == 0) or (alias_parts[i - 1] in [" ", "-"])
-                right_ok = (i == len(alias_parts) - 1) or (
-                    alias_parts[i + 1] in [" ", "-"]
-                )
+
+                # Alphanumeric segment
+                left_ok = (i == 0) or is_separator(tokens[i - 1])
+                right_ok = (i == len(tokens) - 1) or is_separator(tokens[i + 1])
                 if left_ok and right_ok and part == resource_type_key:
                     full_template_key_parts.append(f"[{part}]")
                     continue
+
                 segment_template = re.sub(r"\d", "0", part)
                 segment_template = re.sub(r"[A-Za-z]", "A", segment_template)
                 full_template_key_parts.append(segment_template)
+
                 variable_letters = re.findall(r"[A-Za-z]+", part)
                 if variable_letters:
                     all_variable_parts.append(variable_letters)
+
             return "".join(full_template_key_parts), all_variable_parts
 
         for entity in entities:
@@ -376,17 +409,17 @@ class GeneralCacheService(ICacheService):
         result = []
         for resource_type, data in pattern_builders.items():
             final_samples = []
-            templates = data["patterns"]
+            templates: Dict[str, List[List[Set[str]]]] = data.get("patterns") or {}
             annotation_type = data["annotation_type"]
             for template_key, collected_vars in templates.items():
-                var_iter: Iterator[list[set[str]]] = iter(collected_vars)
+                var_iter: Iterator[List[Set[str]]] = iter(collected_vars)
 
                 def build_segment(segment_template: str) -> str:
                     if "A" not in segment_template:
                         return segment_template
                     try:
-                        letter_groups_for_segment = next(var_iter)
-                        letter_group_iter: Iterator[set[str]] = iter(
+                        letter_groups_for_segment: List[Set[str]] = next(var_iter)
+                        letter_group_iter: Iterator[Set[str]] = iter(
                             letter_groups_for_segment
                         )
 
@@ -398,11 +431,27 @@ class GeneralCacheService(ICacheService):
                     except StopIteration:
                         return segment_template
 
+                # Split by bracketed constants or any single non-alphanumeric separator to preserve them as tokens
+                parts = [
+                    p
+                    for p in re.split(r"(\[[^\]]+\]|[^A-Za-z0-9])", template_key)
+                    if p != ""
+                ]
                 final_pattern_parts = [
-                    build_segment(p) if p not in " -" else p
-                    for p in re.split(r"([ -])", template_key)
+                    build_segment(p) if re.search(r"A", p) else p for p in parts
                 ]
                 final_samples.append("".join(final_pattern_parts))
+
+            # Sanity filter: drop overly generic numeric-only patterns (must contain a letter or a character class)
+            def _has_alpha_or_class(s: str) -> bool:
+                if re.search(r"[A-Za-z]", s):
+                    return True
+                # Character class: bracketed alternatives like [A|B] or [1|2]
+                if re.search(r"\[[^\]]*\|[^\]]*\]", s):
+                    return True
+                return False
+
+            final_samples = [s for s in final_samples if _has_alpha_or_class(s)]
 
             if final_samples:
                 result.append(
@@ -475,40 +524,47 @@ class GeneralCacheService(ICacheService):
         Returns:
             List of merged pattern dictionaries, deduplicated and organized by resource type.
         """
-        merged = defaultdict(lambda: {"samples": set(), "annotation_type": None})
+        merged: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {"samples": set(), "annotation_type": None}
+        )
 
         # Process auto-generated patterns
         for item in auto_patterns:
             resource_type = item.get("resource_type")
             if resource_type:
-                merged[resource_type]["samples"].update(item.get("sample", []))
+                bucket = merged[resource_type]
+                samples_set = cast(Set[str], bucket["samples"])
+                sample_list = item.get("sample") or []
+                samples_set.update(sample_list)
                 # Set annotation_type if not already set
-                if not merged[resource_type]["annotation_type"]:
-                    merged[resource_type]["annotation_type"] = item.get(
-                        "annotation_type"
-                    )
+                if not bucket.get("annotation_type"):
+                    bucket["annotation_type"] = item.get("annotation_type")
 
         # Process manual patterns
         for item in manual_patterns:
             resource_type = item.get("resource_type")
             if resource_type and item.get("sample"):
-                merged[resource_type]["samples"].add(item["sample"])
+                bucket = merged[resource_type]
+                samples_set = cast(Set[str], bucket["samples"])
+                samples_set.add(cast(str, item["sample"]))
                 # Set annotation_type if not already set (auto-patterns take precedence)
-                if not merged[resource_type]["annotation_type"]:
+                if not bucket.get("annotation_type"):
                     # NOTE: UI that creates manual patterns will need to also have the annotation type as a required entry
-                    merged[resource_type]["annotation_type"] = item.get(
+                    bucket["annotation_type"] = item.get(
                         "annotation_type", "diagrams.AssetLink"
                     )
 
         # Convert the merged dictionary back to the required list format
-        final_list = [
-            {
-                "resource_type": resource_type,
-                "sample": sorted(list(data["samples"])),
-                "annotation_type": data["annotation_type"],
-            }
-            for resource_type, data in merged.items()
-        ]
+        final_list = []
+        for resource_type, data in merged.items():
+            samples_safe: Set[str] = cast(Set[str], data.get("samples") or set())
+            final_list.append(
+                {
+                    "resource_type": resource_type,
+                    "sample": sorted(list(samples_safe)),
+                    "annotation_type": data.get("annotation_type"),
+                }
+            )
 
         self.logger.info(
             f"Merged auto and manual patterns into {len(final_list)} resource types."
