@@ -8,6 +8,7 @@ from cognite.client.data_classes.contextualization import (
     CustomizeFuzziness,
     DirectionWeights,
 )
+from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.filters import Filter
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -168,6 +169,7 @@ class CacheServiceConfig(BaseModel, alias_generator=to_camel):
     cache_time_limit: int
     raw_db: str
     raw_table_cache: str
+    raw_manual_patterns_catalog: str
 
 
 class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):
@@ -188,6 +190,9 @@ class LaunchFunction(BaseModel, alias_generator=to_camel):
     secondary_scope_property: Optional[str] = None
     file_search_property: str = "aliases"
     target_entities_search_property: str = "aliases"
+    pattern_mode: bool
+    file_resource_property: Optional[str] = None
+    target_entities_resource_property: Optional[str] = None
     data_model_service: DataModelServiceConfig
     cache_service: CacheServiceConfig
     annotation_service: AnnotationServiceConfig
@@ -201,13 +206,11 @@ class RetrieveServiceConfig(BaseModel, alias_generator=to_camel):
 class ApplyServiceConfig(BaseModel, alias_generator=to_camel):
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
     auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
-
-
-class ReportServiceConfig(BaseModel, alias_generator=to_camel):
+    sink_node: NodeId
     raw_db: str
     raw_table_doc_tag: str
     raw_table_doc_doc: str
-    raw_batch_size: int
+    raw_table_doc_pattern: str
 
 
 class FinalizeFunction(BaseModel, alias_generator=to_camel):
@@ -215,7 +218,6 @@ class FinalizeFunction(BaseModel, alias_generator=to_camel):
     max_retry_attempts: int
     retrieve_service: RetrieveServiceConfig
     apply_service: ApplyServiceConfig
-    report_service: ReportServiceConfig
 
 
 class DataModelViews(BaseModel, alias_generator=to_camel):

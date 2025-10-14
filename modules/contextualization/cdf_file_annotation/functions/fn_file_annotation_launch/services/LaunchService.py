@@ -52,9 +52,6 @@ class AbstractLaunchService(abc.ABC):
 
     @abc.abstractmethod
     def prepare(self) -> str | None:
-        """
-        Peronally think it's cleaner having this operate as a separate cognite function -> but due to mpc function constraints it wouldn't make sense for our project to go down this route (Jack)
-        """
         pass
 
     @abc.abstractmethod
@@ -77,6 +74,7 @@ class GeneralLaunchService(AbstractLaunchService):
         data_model_service: IDataModelService,
         cache_service: ICacheService,
         annotation_service: IAnnotationService,
+        function_call_info: dict,
     ):
         super().__init__(
             client,
@@ -94,11 +92,15 @@ class GeneralLaunchService(AbstractLaunchService):
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
 
         self.in_memory_cache: list[dict] = []
+        self.in_memory_patterns: list[dict] = []
         self._cached_primary_scope: str | None = None
         self._cached_secondary_scope: str | None = None
 
         self.primary_scope_property: str = self.config.launch_function.primary_scope_property
         self.secondary_scope_property: str | None = self.config.launch_function.secondary_scope_property
+
+        self.function_id: int | None = function_call_info.get("function_id")
+        self.call_id: int | None = function_call_info.get("call_id")
 
         self.reset_files: bool = False
         if self.config.prepare_function.get_files_for_annotation_reset_query:
@@ -107,7 +109,20 @@ class GeneralLaunchService(AbstractLaunchService):
     # NOTE: I believe this code should be encapsulated as a separate CDF function named prepFunction. Due to the amount of cdf functions we can spin up, we're coupling this within the launchFunction.
     def prepare(self) -> Literal["Done"] | None:
         """
-        Retrieves files marked "ToAnnotate" in the tags property and creates a 1-to-1 ratio of FileAnnotationState instances to files
+        Prepares files for annotation by creating annotation state instances.
+
+        Retrieves files marked "ToAnnotate", creates corresponding FileAnnotationState instances,
+        and updates file tags to indicate processing has started. Can also reset files if configured.
+
+        Args:
+            None
+
+        Returns:
+            "Done" if no more files need preparation, None if processing should continue.
+
+        Raises:
+            CogniteAPIError: If query timeout or other API errors occur (408 errors are handled gracefully).
+            ValueError: If annotation state view instance space is not configured.
         """
         self.logger.info(
             message=f"Starting Prepare Function",
@@ -217,8 +232,19 @@ class GeneralLaunchService(AbstractLaunchService):
 
     def run(self) -> Literal["Done"] | None:
         """
-        The main entry point for the launch service. It prepares the files and then
-        processes them in organized, context-aware batches.
+        Main execution loop for launching diagram detection jobs.
+
+        Retrieves files ready for processing, organizes them into context-aware batches based on scope,
+        ensures appropriate entity caches are loaded, and initiates diagram detection jobs for each batch.
+
+        Args:
+            None
+
+        Returns:
+            "Done" if no more files to process or max jobs reached, None if processing should continue.
+
+        Raises:
+            CogniteAPIError: If query timeout (408) or max jobs reached (429), handled gracefully.
         """
         self.logger.info(
             message=f"Starting Launch Function",
@@ -288,10 +314,17 @@ class GeneralLaunchService(AbstractLaunchService):
 
     def _organize_files_for_processing(self, list_files: NodeList) -> list[FileProcessingBatch]:
         """
-        Groups files based on the 'primary_scope_property' and 'secondary_scope_property'
-        defined in the configuration. This strategy allows us to load a relevant entity cache
-        once for a group of files that share the same operational context, significantly
-        reducing redundant CDF queries.
+        Organizes files into batches grouped by scope for efficient processing.
+
+        Groups files based on primary and secondary scope properties defined in configuration.
+        This strategy enables loading a relevant entity cache once per group, significantly
+        reducing redundant CDF queries for files sharing the same operational context.
+
+        Args:
+            list_files: NodeList of file instances to organize into batches.
+
+        Returns:
+            List of FileProcessingBatch objects, each containing files from the same scope.
         """
         organized_data: dict[str, dict[str, list[Node]]] = defaultdict(lambda: defaultdict(list))
 
@@ -327,8 +360,20 @@ class GeneralLaunchService(AbstractLaunchService):
 
     def _ensure_cache_for_batch(self, primary_scope_value: str, secondary_scope_value: str | None):
         """
-        Ensure self.in_memory_cache is populated for the given site and unit.
-        Checks if there's a mismatch in site, unit, or if the in_memory_cache is empty
+        Ensures the in-memory entity cache is loaded and current for the given scope.
+
+        Checks if cache needs refreshing (scope mismatch or empty cache) and fetches fresh
+        entities and patterns from the cache service if needed.
+
+        Args:
+            primary_scope_value: Primary scope identifier for the batch being processed.
+            secondary_scope_value: Optional secondary scope identifier for the batch.
+
+        Returns:
+            None
+
+        Raises:
+            CogniteAPIError: If query timeout (408) occurs, handled gracefully by returning early.
         """
         if (
             self._cached_primary_scope != primary_scope_value
@@ -337,8 +382,10 @@ class GeneralLaunchService(AbstractLaunchService):
         ):
             self.logger.info(f"Refreshing in memory cache")
             try:
-                self.in_memory_cache = self.cache_service.get_entities(
-                    self.data_model_service, primary_scope_value, secondary_scope_value
+                self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
+                    self.data_model_service,
+                    primary_scope_value,
+                    secondary_scope_value,
                 )
                 self._cached_primary_scope = primary_scope_value
                 self._cached_secondary_scope = secondary_scope_value
@@ -356,16 +403,28 @@ class GeneralLaunchService(AbstractLaunchService):
 
     def _process_batch(self, batch: BatchOfPairedNodes):
         """
-        Processes a single batch of files. For each file, it starts a diagram
-        detection job and then updates the corresponding 'AnnotationState' node
-        with the job ID and a 'Processing' status.
+        Processes a batch of files by initiating diagram detection jobs and updating state.
+
+        Runs both regular and pattern mode diagram detection (if enabled) for all files in the batch,
+        then updates annotation state instances with job IDs and processing status.
+
+        Args:
+            batch: BatchOfPairedNodes containing file references and their annotation state nodes.
+
+        Returns:
+            None
+
+        Raises:
+            CogniteAPIError: If max concurrent jobs reached (429), handled gracefully.
         """
         if batch.is_empty():
             return
 
-        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
-
         try:
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
             job_id: int = self.annotation_service.run_diagram_detect(
                 files=batch.file_references, entities=self.in_memory_cache
             )
@@ -373,14 +432,35 @@ class GeneralLaunchService(AbstractLaunchService):
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
             }
+
+            # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
+            if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", [])) + len(
+                        self.in_memory_patterns[1].get("sample", [])
+                    )
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", []))
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
+                )
+                pattern_job_id = self.annotation_service.run_pattern_mode_detect(
+                    files=batch.file_references, pattern_samples=self.in_memory_patterns
+                )
+                update_properties["patternModeJobId"] = pattern_job_id
+
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {pattern_job_id}",
                 section="END",
             )
         finally:
@@ -389,22 +469,36 @@ class GeneralLaunchService(AbstractLaunchService):
 
 class LocalLaunchService(GeneralLaunchService):
     """
-    A Launch service that uses a custom, local process for handling batches,
-    while inheriting all other functionality from GeneralLaunchService.
+    Launch service variant for local development and debugging.
+
+    Extends GeneralLaunchService with custom error handling for local runs, including
+    sleep/retry logic for API rate limiting rather than immediate termination.
     """
 
     def _process_batch(self, batch: BatchOfPairedNodes):
         """
-        This method overrides the original _process_batch.
-        Instead of calling the annotation service, it could, for example,
-        process the files locally.
+        Processes a batch with local-specific error handling.
+
+        Extends the base _process_batch with additional error handling suitable for local runs,
+        including automatic retry with sleep on rate limit errors (429) rather than terminating.
+
+        Args:
+            batch: BatchOfPairedNodes containing file references and their annotation state nodes.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: If non-rate-limit errors occur.
         """
         if batch.is_empty():
             return
 
-        self.logger.info(f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities")
-
         try:
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
             job_id: int = self.annotation_service.run_diagram_detect(
                 files=batch.file_references, entities=self.in_memory_cache
             )
@@ -412,14 +506,35 @@ class LocalLaunchService(GeneralLaunchService):
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
                 "diagramDetectJobId": job_id,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
             }
+
+            # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
+            if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", [])) + len(
+                        self.in_memory_patterns[1].get("sample", [])
+                    )
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", []))
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
+                )
+                pattern_job_id = self.annotation_service.run_pattern_mode_detect(
+                    files=batch.file_references, pattern_samples=self.in_memory_patterns
+                )
+                update_properties["patternModeJobId"] = pattern_job_id
+
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
                 view_id=self.annotation_state_view.as_view_id(),
             )
-            update_results = self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
             self.logger.info(
-                message=f" Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}",
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job id set to {job_id}\n- pattern mode job id set to {pattern_job_id}",
                 section="END",
             )
         except CogniteAPIError as e:

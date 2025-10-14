@@ -7,16 +7,18 @@ config:
       version: v1
     annotationStateView:
       schemaSpace: {{ annotationStateSchemaSpace }}
-      instanceSpace: {{annotationStateInstanceSpace}}
+      instanceSpace: {{fileInstanceSpace}}
       externalId: {{ annotationStateExternalId }}
       version: {{ annotationStateVersion }}
     fileView:
       schemaSpace: {{ fileSchemaSpace }}
+      instanceSpace: {{fileInstanceSpace}}
       externalId: {{ fileExternalId }}
       version: {{ fileVersion }}
       annotationType: diagrams.FileLink
     targetEntitiesView:
       schemaSpace: {{ targetEntitySchemaSpace }}
+      instanceSpace: {{targetEntityInstanceSpace}}
       externalId: {{ targetEntityExternalId }}
       version: {{ targetEntityVersion }}
       annotationType: diagrams.AssetLink
@@ -52,6 +54,9 @@ config:
     targetEntitiesSearchProperty: aliases
     primaryScopeProperty: None
     secondaryScopeProperty:
+    patternMode: True
+    fileResourceProperty:
+    targetEntitiesResourceProperty:
     dataModelService:
       getFilesToProcessQuery:
         targetView:
@@ -88,21 +93,15 @@ config:
       cacheTimeLimit: 24 # hours
       rawDb: {{ rawDb }}
       rawTableCache: {{ rawTableCache }}
+      rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
     annotationService:
       pageRange: 50
       partialMatch: True
-      minTokens: 2
       diagramDetectConfig:
         connectionFlags:
           noTextInbetween: True
           naturalReadingOrder: True
-        customizeFuzziness:
-          fuzzyScore: 0.93
-          maxBoxes:
-          minChars: 10
-        minFuzzyScore: 0.915
         readEmbeddedText: True
-        removeLeadingZeros: True
   finalizeFunction:
     cleanOldAnnotations: True
     maxRetryAttempts: 3
@@ -123,8 +122,11 @@ config:
     applyService:
       autoApprovalThreshold: 1.0
       autoSuggestThreshold: 1.0
-    reportService:
+      sinkNode:
+          space: {{ patternModeInstanceSpace }}
+          externalId: {{patternDetectSink}}
       rawDb: {{ rawDb }}
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
-      rawBatchSize: 10000
+      rawTableDocPattern: {{ rawTableDocPattern }}
+

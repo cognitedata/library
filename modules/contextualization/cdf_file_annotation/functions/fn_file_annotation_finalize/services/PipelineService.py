@@ -36,7 +36,13 @@ class GeneralPipelineService(IPipelineService):
 
     def update_extraction_pipeline(self, msg: str) -> None:
         """
-        Update the message log for the extraction pipeline
+        Appends a message to the extraction pipeline run log.
+
+        Args:
+            msg: The message to append to the pipeline log.
+
+        Returns:
+            None
         """
         if not self.ep_write.message:
             self.ep_write.message = msg
@@ -48,7 +54,13 @@ class GeneralPipelineService(IPipelineService):
         status: Literal["success", "failure", "seen"],
     ) -> None:
         """
-        Upload the extraction pipeline run so that status and message logs are captured
+        Creates an extraction pipeline run with accumulated status and messages.
+
+        Args:
+            status: The run status to report (success, failure, or seen).
+
+        Returns:
+            None
         """
         self.ep_write.status = status
         self.client.extraction_pipelines.runs.create(self.ep_write)

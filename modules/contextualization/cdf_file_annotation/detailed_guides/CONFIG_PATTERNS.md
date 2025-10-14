@@ -99,7 +99,41 @@ launchFunction:
   # ... (rest of launchFunction config)
 ```
 
-### Recipe 4: Fine-Tuning the Diagram Detection API
+### Recipe 4: Enabling and Configuring Pattern Mode
+
+**Goal:** Enable pattern-based detection alongside standard entity matching to create a comprehensive searchable catalog of potential entity occurrences in files.
+
+**Scenario:** You want to detect all text in files that matches patterns generated from entity aliases (e.g., "FT-101A" generates pattern "[FT]-000[A]"), in addition to standard exact entity matching.
+
+**Configuration:**
+Enable `patternMode` in the `launchFunction` section and configure the sink node in `finalizeFunction.applyService`.
+
+```yaml
+# In ep_file_annotation.config.yaml
+
+launchFunction:
+  patternMode: True # Enable pattern detection mode
+  # ... (other configs)
+  cacheService:
+    rawManualPatternsCatalog: "manual_patterns_catalog" # Table for manual pattern overrides
+
+finalizeFunction:
+  # ... (other configs)
+  applyService:
+    sinkNode:
+      space: "sp_pattern_review" # Space where pattern detections are linked
+      externalId: "pattern_detection_sink" # Sink node for review
+    rawTableDocPattern: "doc_pattern" # RAW table for pattern detections
+```
+
+**Pattern Mode Features:**
+
+- **Auto-generation**: Automatically creates regex-like patterns from entity aliases
+- **Manual overrides**: Add custom patterns to RAW table at GLOBAL, site, or unit levels
+- **Deduplication**: Automatically skips pattern detections that duplicate standard annotations
+- **Separate catalog**: Pattern detections stored separately for review in `doc_pattern` RAW table
+
+### Recipe 5: Fine-Tuning the Diagram Detection API
 
 **Goal:** Adjust the behavior of the diagram detection model, for example, by making it more or less strict about fuzzy text matching.
 
@@ -119,7 +153,7 @@ launchFunction:
       # ... (other DiagramDetectConfig properties)
 ```
 
-### Recipe 5: Combining Queries with OR Logic
+### Recipe 6: Combining Queries with OR Logic
 
 **Goal:** To select files for processing that meet one of several distinct criteria. This is useful when you want to combine different sets of filters with a logical OR.
 
@@ -165,7 +199,7 @@ prepareFunction:
           targetProperty: tags
 ```
 
-### Recipe 6: Annotating Files Without a Scope
+### Recipe 7: Annotating Files Without a Scope
 
 **Goal:** To annotate files that do not have a `primaryScopeProperty` (e.g., `city`). This is useful for processing files that are not assigned to a specific city or for a global-level annotation process.
 
@@ -190,7 +224,7 @@ launchFunction:
 
 This section covers high-level architectural decisions about how the template finds and partitions data. The choice between these patterns is fundamental and depends on your organization's requirements for governance, security, and operational structure.
 
-### Recipe 7: Global Scoping (Searching Across All Spaces)
+### Recipe 8: Global Scoping (Searching Across All Spaces)
 
 **Goal:** To run a single, unified annotation process that finds and annotates all new files based on their properties, regardless of which physical `instanceSpace` they reside in.
 
@@ -220,7 +254,7 @@ dataModelViews:
 - When a single team uses a single, consistent set of rules to annotate all files across the organization.
 - For simpler systems where strict data partitioning between different domains is not a requirement.
 
-### Recipe 8: Isolated Scoping (Targeting a Specific Space)
+### Recipe 9: Isolated Scoping (Targeting a Specific Space)
 
 **Goal:** To run a dedicated annotation process that operates only within a single, physically separate data partition.
 
