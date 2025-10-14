@@ -375,7 +375,16 @@ def fetch_manual_patterns(db_name: str, table_name: str) -> pd.DataFrame:
         if "NotFoundError" not in str(type(e)):
             st.error(f"Failed to fetch manual patterns: {e}")
         return pd.DataFrame(
-            columns=["key", "scope_level", "annotation_type", "primary_scope", "secondary_scope", "sample", "resource_type", "created_by"]
+            columns=[
+                "key",
+                "scope_level",
+                "annotation_type",
+                "primary_scope",
+                "secondary_scope",
+                "sample",
+                "resource_type",
+                "created_by",
+            ]
         )
 
 
@@ -397,7 +406,12 @@ def save_manual_patterns(df: pd.DataFrame, db_name: str, table_name: str):
     df["key"] = df.apply(create_key, axis=1)
     df.dropna(subset=["key"], inplace=True)
     rows_to_write = [
-        RowWrite(key=key, columns={"patterns": group[["sample", "resource_type", "annotation_type", "created_by"]].to_dict("records")})
+        RowWrite(
+            key=key,
+            columns={
+                "patterns": group[["sample", "resource_type", "annotation_type", "created_by"]].to_dict("records")
+            },
+        )
         for key, group in df.groupby("key")
     ]
 
@@ -524,10 +538,7 @@ def fetch_entities(entity_view: ViewPropertyConfig, resource_property: str) -> p
     Fetches entity instances from the specified data model view and returns a tidy DataFrame.
     """
     instances = client.data_modeling.instances.list(
-        instance_type="node",
-        space=entity_view.instance_space,
-        sources=entity_view.as_view_id(),
-        limit=-1
+        instance_type="node", space=entity_view.instance_space, sources=entity_view.as_view_id(), limit=-1
     )
 
     if not instances:
@@ -542,7 +553,7 @@ def fetch_entities(entity_view: ViewPropertyConfig, resource_property: str) -> p
         row["name"] = props.get("name")
         row["resourceType"] = props.get(resource_property)
         row["sysUnit"] = props.get("sysUnit")
-        
+
         for k, v in props.items():
             if k not in row:
                 row[k] = v
@@ -562,7 +573,7 @@ def show_connect_unmatched_ui(
     tab,
     db_name,
     pattern_table,
-    apply_config
+    apply_config,
 ):
     """
     Displays the UI to connect a single unmatched tag to either an Asset or a File.
@@ -611,7 +622,7 @@ def show_connect_unmatched_ui(
             df_entities_display.loc[:, "Select"] = False
             df_entities_display.at[idx, "Select"] = True
 
-    filterable_columns = [col for col in ["sysUnit", "resourceType"] if col in df_entities_display.columns] 
+    filterable_columns = [col for col in ["sysUnit", "resourceType"] if col in df_entities_display.columns]
 
     for filterable_column in filterable_columns:
         unique_values = sorted(df_entities_display[filterable_column].dropna().unique().tolist())
@@ -620,12 +631,12 @@ def show_connect_unmatched_ui(
             f"Filter by {filterable_column}",
             key=f"sb_filterable_column_{filterable_column}_{tab}",
             options=[None] + unique_values,
-            index=0
+            index=0,
         )
 
         if selected_value:
             df_entities_display = df_entities_display[df_entities_display[filterable_column] == selected_value]
-    
+
     all_columns = df_entities_display.columns.tolist()
     default_columns = ["Select", "name", "resourceType", "sysUnit", "externalId"]
 
@@ -634,7 +645,7 @@ def show_connect_unmatched_ui(
             f"Select columns to display ({entity_type}s)",
             options=all_columns,
             default=[col for col in default_columns if col in all_columns],
-            key=f"ms_selected_columns_{tab}_{entity_type}"
+            key=f"ms_selected_columns_{tab}_{entity_type}",
         )
 
     entity_editor_key = f"{entity_type}_editor_{tag_text}_{tab}"
@@ -646,7 +657,7 @@ def show_connect_unmatched_ui(
             "name": "Name",
             "externalId": "External ID",
             "resourceType": "Resource Type",
-            "sysUnit": "Sys Unit"
+            "sysUnit": "Sys Unit",
         },
         use_container_width=True,
         hide_index=True,
@@ -669,7 +680,7 @@ def show_connect_unmatched_ui(
         selected_entity = df_entities.loc[st.session_state.selected_entity_to_connect_index]
         if st.button(
             f"Connect '{tag_text}' to '{selected_entity['name']}' in {str(len(associated_files)) + ' files' if len(associated_files) > 1 else str(len(associated_files)) + ' file'}",
-            key=f"btn_connect_tag_to_entities_{tab}"
+            key=f"btn_connect_tag_to_entities_{tab}",
         ):
             success, count, error = create_tag_connection(
                 client,
@@ -687,14 +698,11 @@ def show_connect_unmatched_ui(
                 st.toast(
                     f"{count} annotation{'s' if count > 1 else ''} created from tag '{tag_text}' to {entity_type} '{selected_entity['name']}' "
                     f"in {len(associated_files)} file{'s' if len(associated_files) > 1 else ''}!",
-                    icon=":material/check_small:"
+                    icon=":material/check_small:",
                 )
                 st.cache_data.clear()
             else:
-                st.toast(
-                    body=f"Failed to connect tag '{tag_text}': {error}",
-                    icon=":material/error:"
-                )
+                st.toast(body=f"Failed to connect tag '{tag_text}': {error}", icon=":material/error:")
 
 
 def create_tag_connection(
@@ -712,11 +720,7 @@ def create_tag_connection(
     updated_edges = []
 
     try:
-        rows = client.raw.rows.list(
-            db_name=db_name,
-            table_name=table_name,
-            limit=-1
-        )
+        rows = client.raw.rows.list(db_name=db_name, table_name=table_name, limit=-1)
 
         sink_node_space = apply_config["sinkNode"]["space"]
 
@@ -733,32 +737,26 @@ def create_tag_connection(
                         external_id=edge_external_id,
                         type=DirectRelationReference(space=row_data.get("viewSpace"), external_id=annotation_type),
                         start_node=DirectRelationReference(space=row_data.get("startNodeSpace"), external_id=file_id),
-                        end_node=DirectRelationReference(space=selected_entity.get("space"), external_id=selected_entity.get("externalId"))
+                        end_node=DirectRelationReference(
+                            space=selected_entity.get("space"), external_id=selected_entity.get("externalId")
+                        ),
                     )
                 )
-                
+
                 row_data["endNode"] = selected_entity["externalId"]
                 row_data["endNodeSpace"] = selected_entity["space"]
 
-                resource_type = selected_entity["resourceType"] if selected_entity["resourceType"] else entity_view.external_id
+                resource_type = (
+                    selected_entity["resourceType"] if selected_entity["resourceType"] else entity_view.external_id
+                )
 
                 row_data["endNodeResourceType"] = resource_type
                 row_data["status"] = "Approved"
 
-                updated_rows.append(
-                    RowWrite(
-                        key=edge_external_id,
-                        columns=row_data
-                    )
-                )
+                updated_rows.append(RowWrite(key=edge_external_id, columns=row_data))
 
         if updated_rows:
-            client.raw.rows.insert(
-                db_name=db_name,
-                table_name=table_name,
-                row=updated_rows,
-                ensure_parent=True
-            )
+            client.raw.rows.insert(db_name=db_name, table_name=table_name, row=updated_rows, ensure_parent=True)
 
         if updated_edges:
             client.data_modeling.instances.apply(edges=updated_edges, replace=False)
@@ -768,15 +766,8 @@ def create_tag_connection(
         return False, 0, str(e)
 
 
-def build_unmatched_tags_with_regions(
-    df: pd.DataFrame,
-    file_id: str,
-    potential_new_annotations: list[str]
-):
-    df_filtered = df[
-        (df["startNode"] == file_id) &
-        (df["startNodeText"].isin(potential_new_annotations))
-    ]
+def build_unmatched_tags_with_regions(df: pd.DataFrame, file_id: str, potential_new_annotations: list[str]):
+    df_filtered = df[(df["startNode"] == file_id) & (df["startNodeText"].isin(potential_new_annotations))]
 
     unmatched_tags_with_regions = []
 
@@ -790,9 +781,6 @@ def build_unmatched_tags_with_regions(
             ]
         }
 
-        unmatched_tags_with_regions.append({
-            "text": row["startNodeText"],
-            "regions": [region]
-        })
+        unmatched_tags_with_regions.append({"text": row["startNodeText"], "regions": [region]})
 
     return unmatched_tags_with_regions
