@@ -57,7 +57,11 @@ if not config_result:
     st.error(f"Could not fetch configuration for pipeline: {selected_pipeline}")
     st.stop()
 
-ep_config, annotation_state_view, file_view = config_result
+ep_config, view_config = config_result
+
+annotation_state_view = view_config["annotation_state"]
+file_view = view_config["file"]
+
 df_annotation_states = fetch_annotation_states(annotation_state_view, file_view)
 pipeline_runs = fetch_pipeline_run_history(selected_pipeline)
 
