@@ -120,14 +120,13 @@ config:
             operator: Exists
             targetProperty: diagramDetectJobId
     applyService:
+      autoApprovalThreshold: 1.0
+      autoSuggestThreshold: 1.0
       sinkNode:
           space: {{ patternModeInstanceSpace }}
           externalId: {{patternDetectSink}}
-      autoApprovalThreshold: 1.0
-      autoSuggestThreshold: 1.0
-    reportService:
       rawDb: {{ rawDb }}
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
       rawTableDocPattern: {{ rawTableDocPattern }}
-      rawBatchSize: 1000
+
