@@ -88,7 +88,9 @@ class GeneralLaunchService(AbstractLaunchService):
 
         self.max_batch_size: int = config.launch_function.batch_size
         self.page_range: int = config.launch_function.annotation_service.page_range
-        self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
+        self.annotation_state_view: ViewPropertyConfig = (
+            config.data_model_views.annotation_state_view
+        )
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
 
         self.in_memory_cache: list[dict] = []
@@ -96,8 +98,12 @@ class GeneralLaunchService(AbstractLaunchService):
         self._cached_primary_scope: str | None = None
         self._cached_secondary_scope: str | None = None
 
-        self.primary_scope_property: str = self.config.launch_function.primary_scope_property
-        self.secondary_scope_property: str | None = self.config.launch_function.secondary_scope_property
+        self.primary_scope_property: str = (
+            self.config.launch_function.primary_scope_property
+        )
+        self.secondary_scope_property: str | None = (
+            self.config.launch_function.secondary_scope_property
+        )
 
         self.function_id: int | None = function_call_info.get("function_id")
         self.call_id: int | None = function_call_info.get("call_id")
@@ -109,7 +115,20 @@ class GeneralLaunchService(AbstractLaunchService):
     # NOTE: I believe this code should be encapsulated as a separate CDF function named prepFunction. Due to the amount of cdf functions we can spin up, we're coupling this within the launchFunction.
     def prepare(self) -> Literal["Done"] | None:
         """
-        Retrieves files marked "ToAnnotate" in the tags property and creates a 1-to-1 ratio of FileAnnotationState instances to files
+        Prepares files for annotation by creating annotation state instances.
+
+        Retrieves files marked "ToAnnotate", creates corresponding FileAnnotationState instances,
+        and updates file tags to indicate processing has started. Can also reset files if configured.
+
+        Args:
+            None
+
+        Returns:
+            "Done" if no more files need preparation, None if processing should continue.
+
+        Raises:
+            CogniteAPIError: If query timeout or other API errors occur (408 errors are handled gracefully).
+            ValueError: If annotation state view instance space is not configured.
         """
         self.logger.info(
             message=f"Starting Prepare Function",
@@ -117,7 +136,9 @@ class GeneralLaunchService(AbstractLaunchService):
         )
         try:
             if self.reset_files:
-                file_nodes_to_reset: NodeList | None = self.data_model_service.get_files_for_annotation_reset()
+                file_nodes_to_reset: NodeList | None = (
+                    self.data_model_service.get_files_for_annotation_reset()
+                )
                 if not file_nodes_to_reset:
                     self.logger.info(
                         "No files found with the getFilesForAnnotationReset query provided in the config file"
@@ -127,7 +148,9 @@ class GeneralLaunchService(AbstractLaunchService):
                     reset_node_apply: list[NodeApply] = []
                     for file_node in file_nodes_to_reset:
                         file_node_apply: NodeApply = file_node.as_write()
-                        tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
+                        tags_property: list[str] = cast(
+                            list[str], file_node_apply.sources[0].properties["tags"]
+                        )
                         if "AnnotationInProcess" in tags_property:
                             tags_property.remove("AnnotationInProcess")
                         if "Annotated" in tags_property:
@@ -136,7 +159,9 @@ class GeneralLaunchService(AbstractLaunchService):
                             tags_property.remove("AnnotationFailed")
 
                         reset_node_apply.append(file_node_apply)
-                    update_results = self.data_model_service.update_annotation_state(reset_node_apply)
+                    update_results = self.data_model_service.update_annotation_state(
+                        reset_node_apply
+                    )
                     self.logger.info(
                         f"Removed the AnnotationInProcess/Annotated/AnnotationFailed tag of {len(update_results)} files"
                     )
@@ -145,7 +170,8 @@ class GeneralLaunchService(AbstractLaunchService):
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
             if (
                 e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message=f"Ran into the following error:\n{str(e)}")
@@ -154,7 +180,9 @@ class GeneralLaunchService(AbstractLaunchService):
                 raise e
 
         try:
-            file_nodes: NodeList | None = self.data_model_service.get_files_to_annotate()
+            file_nodes: NodeList | None = (
+                self.data_model_service.get_files_to_annotate()
+            )
             if not file_nodes:
                 self.logger.info(
                     message=f"No files found to prepare",
@@ -166,7 +194,8 @@ class GeneralLaunchService(AbstractLaunchService):
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
             if (
                 e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message=f"Ran into the following error:\n{str(e)}")
@@ -183,9 +212,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 linkedFile=node_id,
             )
             if not self.annotation_state_view.instance_space:
-                msg = (
-                    "Need an instance space in DataModelViews/AnnotationStateView config to store the annotation state"
-                )
+                msg = "Need an instance space in DataModelViews/AnnotationStateView config to store the annotation state"
                 self.logger.error(msg)
                 raise ValueError(msg)
             annotation_instance_space: str = self.annotation_state_view.instance_space
@@ -197,21 +224,31 @@ class GeneralLaunchService(AbstractLaunchService):
             annotation_state_instances.append(annotation_node_apply)
 
             file_node_apply: NodeApply = file_node.as_write()
-            tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
+            tags_property: list[str] = cast(
+                list[str], file_node_apply.sources[0].properties["tags"]
+            )
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")
                 file_apply_instances.append(file_node_apply)
 
         try:
-            create_results = self.data_model_service.create_annotation_state(annotation_state_instances)
-            self.logger.info(message=f"Created {len(create_results)} annotation state instances")
-            update_results = self.data_model_service.update_annotation_state(file_apply_instances)
+            create_results = self.data_model_service.create_annotation_state(
+                annotation_state_instances
+            )
+            self.logger.info(
+                message=f"Created {len(create_results)} annotation state instances"
+            )
+            update_results = self.data_model_service.update_annotation_state(
+                file_apply_instances
+            )
             self.logger.info(
                 message=f"Added 'AnnotationInProcess' to the tag property for {len(update_results)} files",
                 section="END",
             )
         except Exception as e:
-            self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
+            self.logger.error(
+                message=f"Ran into the following error:\n{str(e)}", section="END"
+            )
             raise
 
         self.tracker.add_files(success=len(file_nodes))
@@ -219,24 +256,40 @@ class GeneralLaunchService(AbstractLaunchService):
 
     def run(self) -> Literal["Done"] | None:
         """
-        The main entry point for the launch service. It prepares the files and then
-        processes them in organized, context-aware batches.
+        Main execution loop for launching diagram detection jobs.
+
+        Retrieves files ready for processing, organizes them into context-aware batches based on scope,
+        ensures appropriate entity caches are loaded, and initiates diagram detection jobs for each batch.
+
+        Args:
+            None
+
+        Returns:
+            "Done" if no more files to process or max jobs reached, None if processing should continue.
+
+        Raises:
+            CogniteAPIError: If query timeout (408) or max jobs reached (429), handled gracefully.
         """
         self.logger.info(
             message=f"Starting Launch Function",
             section="START",
         )
         try:
-            file_nodes, file_to_state_map = self.data_model_service.get_files_to_process()
+            file_nodes, file_to_state_map = (
+                self.data_model_service.get_files_to_process()
+            )
             if not file_nodes or not file_to_state_map:
                 self.logger.info(message=f"No files found to launch")
                 return "Done"
-            self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
+            self.logger.info(
+                message=f"Launching {len(file_nodes)} files", section="END"
+            )
         except CogniteAPIError as e:
             # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
             if (
                 e.code == 408
-                and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
+                and e.message
+                == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
                 self.logger.error(message=f"Ran into the following error:\n{str(e)}")
@@ -244,7 +297,9 @@ class GeneralLaunchService(AbstractLaunchService):
             else:
                 raise e
 
-        processing_batches: list[FileProcessingBatch] = self._organize_files_for_processing(file_nodes)
+        processing_batches: list[FileProcessingBatch] = (
+            self._organize_files_for_processing(file_nodes)
+        )
 
         total_files_processed = 0
         try:
@@ -254,7 +309,9 @@ class GeneralLaunchService(AbstractLaunchService):
                 msg = f"{self.primary_scope_property}: {primary_scope_value}"
                 if secondary_scope_value:
                     msg += f", {self.secondary_scope_property}: {secondary_scope_value}"
-                self.logger.info(message=f"Processing {len(batch.files)} files in {msg}")
+                self.logger.info(
+                    message=f"Processing {len(batch.files)} files in {msg}"
+                )
                 self._ensure_cache_for_batch(primary_scope_value, secondary_scope_value)
 
                 current_batch = BatchOfPairedNodes(file_to_state_map=file_to_state_map)
@@ -267,12 +324,18 @@ class GeneralLaunchService(AbstractLaunchService):
                     current_batch.add_pair(file_node, file_reference)
                     total_files_processed += 1
                     if current_batch.size() == self.max_batch_size:
-                        self.logger.info(message=f"Processing batch - Max batch size ({self.max_batch_size}) reached")
+                        self.logger.info(
+                            message=f"Processing batch - Max batch size ({self.max_batch_size}) reached"
+                        )
                         self._process_batch(current_batch)
                 if not current_batch.is_empty():
-                    self.logger.info(message=f"Processing remaining {current_batch.size()} files in batch")
+                    self.logger.info(
+                        message=f"Processing remaining {current_batch.size()} files in batch"
+                    )
                     self._process_batch(current_batch)
-                self.logger.info(message=f"Finished processing for {msg}", section="END")
+                self.logger.info(
+                    message=f"Finished processing for {msg}", section="END"
+                )
         except CogniteAPIError as e:
             if e.code == 429:
                 self.logger.debug(f"{str(e)}")
@@ -288,14 +351,25 @@ class GeneralLaunchService(AbstractLaunchService):
 
         return
 
-    def _organize_files_for_processing(self, list_files: NodeList) -> list[FileProcessingBatch]:
+    def _organize_files_for_processing(
+        self, list_files: NodeList
+    ) -> list[FileProcessingBatch]:
         """
-        Groups files based on the 'primary_scope_property' and 'secondary_scope_property'
-        defined in the configuration. This strategy allows us to load a relevant entity cache
-        once for a group of files that share the same operational context, significantly
-        reducing redundant CDF queries.
+        Organizes files into batches grouped by scope for efficient processing.
+
+        Groups files based on primary and secondary scope properties defined in configuration.
+        This strategy enables loading a relevant entity cache once per group, significantly
+        reducing redundant CDF queries for files sharing the same operational context.
+
+        Args:
+            list_files: NodeList of file instances to organize into batches.
+
+        Returns:
+            List of FileProcessingBatch objects, each containing files from the same scope.
         """
-        organized_data: dict[str, dict[str, list[Node]]] = defaultdict(lambda: defaultdict(list))
+        organized_data: dict[str, dict[str, list[Node]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
 
         for file_node in list_files:
             node_props = file_node.properties[self.file_view.as_view_id()]
@@ -327,10 +401,24 @@ class GeneralLaunchService(AbstractLaunchService):
                 )
         return final_processing_batches
 
-    def _ensure_cache_for_batch(self, primary_scope_value: str, secondary_scope_value: str | None):
+    def _ensure_cache_for_batch(
+        self, primary_scope_value: str, secondary_scope_value: str | None
+    ):
         """
-        Ensure self.in_memory_cache is populated for the given site and unit.
-        Checks if there's a mismatch in site, unit, or if the in_memory_cache is empty
+        Ensures the in-memory entity cache is loaded and current for the given scope.
+
+        Checks if cache needs refreshing (scope mismatch or empty cache) and fetches fresh
+        entities and patterns from the cache service if needed.
+
+        Args:
+            primary_scope_value: Primary scope identifier for the batch being processed.
+            secondary_scope_value: Optional secondary scope identifier for the batch.
+
+        Returns:
+            None
+
+        Raises:
+            CogniteAPIError: If query timeout (408) occurs, handled gracefully by returning early.
         """
         if (
             self._cached_primary_scope != primary_scope_value
@@ -339,8 +427,12 @@ class GeneralLaunchService(AbstractLaunchService):
         ):
             self.logger.info(f"Refreshing in memory cache")
             try:
-                self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
-                    self.data_model_service, primary_scope_value, secondary_scope_value
+                self.in_memory_cache, self.in_memory_patterns = (
+                    self.cache_service.get_entities(
+                        self.data_model_service,
+                        primary_scope_value,
+                        secondary_scope_value,
+                    )
                 )
                 self._cached_primary_scope = primary_scope_value
                 self._cached_secondary_scope = secondary_scope_value
@@ -348,19 +440,32 @@ class GeneralLaunchService(AbstractLaunchService):
                 # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
                 if (
                     e.code == 408
-                    and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
+                    and e.message
+                    == "Graph query timed out. Reduce load or contention, or optimise your query."
                 ):
                     # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                    self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                    self.logger.error(
+                        message=f"Ran into the following error:\n{str(e)}"
+                    )
                     return
                 else:
                     raise e
 
     def _process_batch(self, batch: BatchOfPairedNodes):
         """
-        Processes a single batch of files. For each file, it starts a diagram
-        detection job and then updates the corresponding 'AnnotationState' node
-        with the job ID and a 'Processing' status.
+        Processes a batch of files by initiating diagram detection jobs and updating state.
+
+        Runs both regular and pattern mode diagram detection (if enabled) for all files in the batch,
+        then updates annotation state instances with job IDs and processing status.
+
+        Args:
+            batch: BatchOfPairedNodes containing file references and their annotation state nodes.
+
+        Returns:
+            None
+
+        Raises:
+            CogniteAPIError: If max concurrent jobs reached (429), handled gracefully.
         """
         if batch.is_empty():
             return
@@ -375,7 +480,9 @@ class GeneralLaunchService(AbstractLaunchService):
             )
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .isoformat(),
                 "diagramDetectJobId": job_id,
                 "launchFunctionId": self.function_id,
                 "launchFunctionCallId": self.call_id,
@@ -386,9 +493,11 @@ class GeneralLaunchService(AbstractLaunchService):
             if self.config.launch_function.pattern_mode:
                 total_patterns = 0
                 if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
-                    total_patterns = len(self.in_memory_patterns[0].get('sample', [])) + len(self.in_memory_patterns[1].get('sample', []))
+                    total_patterns = len(
+                        self.in_memory_patterns[0].get("sample", [])
+                    ) + len(self.in_memory_patterns[1].get("sample", []))
                 elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
-                    total_patterns = len(self.in_memory_patterns[0].get('sample', []))
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", []))
                 self.logger.info(
                     f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
                 )
@@ -412,15 +521,27 @@ class GeneralLaunchService(AbstractLaunchService):
 
 class LocalLaunchService(GeneralLaunchService):
     """
-    A Launch service that uses a custom, local process for handling batches,
-    while inheriting all other functionality from GeneralLaunchService.
+    Launch service variant for local development and debugging.
+
+    Extends GeneralLaunchService with custom error handling for local runs, including
+    sleep/retry logic for API rate limiting rather than immediate termination.
     """
 
     def _process_batch(self, batch: BatchOfPairedNodes):
         """
-        This method overrides the original _process_batch.
-        Instead of calling the annotation service, it could, for example,
-        process the files locally.
+        Processes a batch with local-specific error handling.
+
+        Extends the base _process_batch with additional error handling suitable for local runs,
+        including automatic retry with sleep on rate limit errors (429) rather than terminating.
+
+        Args:
+            batch: BatchOfPairedNodes containing file references and their annotation state nodes.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: If non-rate-limit errors occur.
         """
         if batch.is_empty():
             return
@@ -435,7 +556,9 @@ class LocalLaunchService(GeneralLaunchService):
             )
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
-                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "sourceUpdatedTime": datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .isoformat(),
                 "diagramDetectJobId": job_id,
                 "launchFunctionId": self.function_id,
                 "launchFunctionCallId": self.call_id,
@@ -446,9 +569,11 @@ class LocalLaunchService(GeneralLaunchService):
             if self.config.launch_function.pattern_mode:
                 total_patterns = 0
                 if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
-                    total_patterns = len(self.in_memory_patterns[0].get('sample', [])) + len(self.in_memory_patterns[1].get('sample', []))
+                    total_patterns = len(
+                        self.in_memory_patterns[0].get("sample", [])
+                    ) + len(self.in_memory_patterns[1].get("sample", []))
                 elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
-                    total_patterns = len(self.in_memory_patterns[0].get('sample', []))
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", []))
                 self.logger.info(
                     f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
                 )

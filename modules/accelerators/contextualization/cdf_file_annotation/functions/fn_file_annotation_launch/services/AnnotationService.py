@@ -19,11 +19,15 @@ class IAnnotationService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
+    def run_diagram_detect(
+        self, files: list[FileReference], entities: list[dict[str, Any]]
+    ) -> int:
         pass
 
     @abc.abstractmethod
-    def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
+    def run_pattern_mode_detect(
+        self, files: list[FileReference], pattern_samples: list[dict[str, Any]]
+    ) -> int:
         pass
 
 
@@ -33,7 +37,9 @@ class GeneralAnnotationService(IAnnotationService):
     Build a queue of files that are in the annotation process and return the jobId
     """
 
-    def __init__(self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger):
+    def __init__(
+        self, config: Config, client: CogniteClient, logger: CogniteFunctionLogger
+    ):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
@@ -41,7 +47,9 @@ class GeneralAnnotationService(IAnnotationService):
         self.annotation_config = config.launch_function.annotation_service
         self.diagram_detect_config: DiagramDetectConfig | None = None
         if config.launch_function.annotation_service.diagram_detect_config:
-            self.diagram_detect_config = config.launch_function.annotation_service.diagram_detect_config.as_config()
+            self.diagram_detect_config = (
+                config.launch_function.annotation_service.diagram_detect_config.as_config()
+            )
             # NOTE: Remove Leading Zeros has a weird interaction with pattern mode so will always turn off
             if config.launch_function.pattern_mode:
                 # NOTE: Shallow copy that still references Mutable objects in self.diagram_detect_config.
@@ -49,7 +57,22 @@ class GeneralAnnotationService(IAnnotationService):
                 self.pattern_detect_config = copy.copy(self.diagram_detect_config)
                 self.pattern_detect_config.remove_leading_zeros = False
 
-    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
+    def run_diagram_detect(
+        self, files: list[FileReference], entities: list[dict[str, Any]]
+    ) -> int:
+        """
+        Initiates a diagram detection job using CDF's diagram detect API.
+
+        Args:
+            files: List of file references to process for annotation.
+            entities: List of entity dictionaries containing searchable properties for annotation matching.
+
+        Returns:
+            The job ID of the initiated diagram detection job.
+
+        Raises:
+            Exception: If the API call does not return a valid job ID.
+        """
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
             entities=entities,
@@ -63,8 +86,25 @@ class GeneralAnnotationService(IAnnotationService):
         else:
             raise Exception(f"API call to diagram/detect did not return a job ID")
 
-    def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
-        """Generates patterns and runs the diagram detection job in pattern mode."""
+    def run_pattern_mode_detect(
+        self, files: list[FileReference], pattern_samples: list[dict[str, Any]]
+    ) -> int:
+        """
+        Initiates a diagram detection job in pattern mode using generated pattern samples.
+
+        Pattern mode enables detection of entities based on regex-like patterns rather than exact matches,
+        useful for finding variations of asset tags and identifiers.
+
+        Args:
+            files: List of file references to process for annotation.
+            pattern_samples: List of pattern sample dictionaries containing regex-like patterns for matching.
+
+        Returns:
+            The job ID of the initiated pattern mode diagram detection job.
+
+        Raises:
+            Exception: If the API call does not return a valid job ID.
+        """
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
             entities=pattern_samples,
@@ -77,4 +117,6 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id:
             return detect_job.job_id
         else:
-            raise Exception("API call to diagram/detect in pattern mode did not return a job ID")
+            raise Exception(
+                "API call to diagram/detect in pattern mode did not return a job ID"
+            )
