@@ -2,7 +2,12 @@ from __future__ import annotations
 from enum import Enum
 
 from dataclasses import dataclass
-from typing import Any, Literal, cast, Optional, List
+from typing import Any, Literal, Union, Optional, List, Dict
+
+from utils.FixedWidthMethodParameter import FixedWidthMethodParameter
+from utils.HeuristicMethodParameter import HeuristicMethodParameter
+from utils.RegexMethodParameter import RegexMethodParameter
+from utils.TokenReassemblyMethodParameter import TokenReassemblyMethodParameter
 
 import yaml
 from cognite.client import CogniteClient
@@ -19,14 +24,10 @@ from utils.DataStructures import \
 class Parameters(BaseModel):
     debug: bool
     run_all: bool
-    remove_old_asset_links: bool
+    remove_old_keys: bool
     raw_db: str
     raw_table_state: str
-    raw_tale_ctx_good: str
-    raw_tale_ctx_bad: str
-    raw_tale_ctx_manual: str = None
-    raw_tale_ctx_rule: str = None
-    auto_approval_threshold: float = Field(gt=0.0, le=1.0)
+    raw_table_key: str
 
 class EntityType(Enum):
     """
@@ -90,38 +91,30 @@ class FilterConfig(BaseModel):
         else:
             return filter
 
-class SourceView:
+
+class SourceViewConfig(BaseModel):
     """
     A class to define the configuration and scope for querying data views.
     """
-    def __init__(
-        self,
-        view_external_id: str,
-        view_space: str,
-        view_version: str,
-        entity_type: EntityType,
-        batch_size: int,
-        filters: Optional[List[FilterConfig]] = None,
-        include_properties: Optional[List[str]] = None
-    ):
-        """
-        Initializes the SourceViews configuration.
+    # 1. Mandatory Fields
+    view_external_id: str = Field(..., description="External ID of the data model view (e.g., 'txEquipment').")
+    view_space: str = Field(...,
+                            description="Space where the view is defined (e.g., 'sp_enterprise_process_industry').")
+    view_version: str = Field(..., description="Version of the view schema (e.g., 'v1').")
+    entity_type: EntityType = Field(..., description="Type of entity for processing context (e.g., DataType.ASSET).")
+    batch_size: int = Field(..., description="Number of entities to process per batch (e.g., 100).")
 
-        :param view_external_id: External ID of the data model view (e.g., "txEquipment").
-        :param view_space: Space where the view is defined (e.g., "sp_enterprise_process_industry").
-        :param view_version: Version of the view schema (e.g., "v1").
-        :param entity_type: Type of entity for processing context (e.g., DataType.ASSET).
-        :param batch_size: Number of entities to process per batch (e.g., 100).
-        :param filter: CDF DMS filter to limit query scope (optional).
-        :param include_properties: List of properties to retrieve (optional, e.g., ["name", "description"]).
-        """
-        self.view_external_id = view_external_id
-        self.view_space = view_space
-        self.view_version = view_version
-        self.entity_type = entity_type
-        self.batch_size = batch_size
-        self.filters = filters
-        self.include_properties = include_properties if include_properties is not None else []
+    # 2. Optional Fields with Defaults/Mutable Defaults
+    filters: Optional[List[FilterConfig]] = Field(
+        None, alias="filter",  # Use alias if input JSON/YAML uses 'filter' instead of 'filters'
+        description="CDF DMS filter to limit query scope (optional)."
+    )
+
+    # FIX: Use default_factory for the mutable default (List)
+    include_properties: List[str] = Field(
+        default_factory=[],
+        description="List of properties to retrieve (optional, e.g., ['name', 'description']).",
+    )
 
     def build_filter(self) -> Filter:
         target_view = ViewPropertyConfig(
@@ -139,55 +132,44 @@ class SourceView:
         else:
             return dm.filters.And(*list_filters)  # NOTE: '*' Unpacks each filter in the list
 
-class FieldRole(Enum):
-    """Defines the role of the field in the data extraction process."""
-    TARGET = "target"
-    CONTEXT = "context"
-    VALIDATION = "validation"
+# Union for dynamic parameter object in ExtractionRuleConfig
+ExtractionMethod = Union[
+    FixedWidthMethodParameter,
+    HeuristicMethodParameter,
+    RegexMethodParameter,
+    TokenReassemblyMethodParameter
+]
 
-class SourceFieldParameter:
+class ExtractionRuleConfig(BaseModel):
     """
-    A class to define the configuration parameters for a single source field
-    during data extraction.
+    Configuration for a single extraction rule, dynamically instantiating the
+    correct method parameter class based on the 'method' field.
     """
-    def __init__(
-        self,
-        field_name: str,
-        field_type: str,
-        required: bool,
-        priority: int,
-        role: FieldRole,
-        separator: Optional[str] = None,
-        max_length: Optional[int] = None,
-        preprocessing: Optional[List[str]] = None
-    ):
-        """
-        Initializes the SourceFieldParameters configuration.
+    rule_id: str
 
-        :param field_name: Name or path to the metadata field (e.g., "description", "metadata.tagIds").
-        :param field_type: Data type of the field (e.g., "string", "array", "object").
-        :param required: Whether the field must exist (skip entity if missing) (e.g., false).
-        :param priority: Order of precedence when multiple fields match (e.g., 1).
-        :param role: Role in extraction: "target", "context", "validation" (e.g., FieldRole.TARGET).
-        :param separator: Delimiter for list-type fields (optional, e.g., ",", ";", "|").
-        :param max_length: Maximum field length to process (performance) (optional, e.g., 1000).
-        :param preprocessing: Preprocessing steps before extraction (optional, e.g., ["trim", "lowercase"]).
-        """
-        self.field_name = field_name
-        self.field_type = field_type
-        self.required = required
-        self.priority = priority
-        self.separator = separator
-        self.role = role
-        self.max_length = max_length
-        self.preprocessing = preprocessing if preprocessing is not None else []
+    # This field defines which specific model (Regex, FixedWidth, etc.) to use.
+    # We enforce that the incoming data must have a 'method' key that matches one
+    # of the required 'method' fields defined in the Union members.
+    method: Literal[
+        "regex",
+        "fixed width",
+        "token reassembly",
+        "heuristic"
+    ]
 
-class ConfigData(BaseModel, alias_generator=to_camel):
-    source_view: SourceView
-    source_field_parameters: List[SourceFieldParameter]
+    # This field MUST be renamed to hold all the method-specific parameters.
+    # Pydantic will perform the dynamic dispatch using the 'method' field as the tag.
+    method_parameters: ExtractionMethod = Field(
+        ..., alias='parameters'
+        # Optional: Use alias if your input JSON/YAML uses a different field name (e.g., 'parameters')
+    )
+
+class ConfigData(BaseModel):
+    source_views: List[SourceViewConfig]
+    extraction_rules: List[ExtractionRuleConfig]
     field_selection_strategy: Literal["first_match", "highest_priority", "merge_all", "highest_confidence"]
 
-class Config(BaseModel, alias_generator=to_camel):
+class Config(BaseModel):
     parameters: Parameters
     data: ConfigData
 

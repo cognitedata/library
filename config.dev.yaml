@@ -1,0 +1,12 @@
+environment:
+  name: dev
+  project: peanutbutter
+  type: dev
+  selected:
+    - modules/contextualization/cdf_key_extraction
+
+variables:
+  modules:
+    contextualization:
+        key_extraction:
+

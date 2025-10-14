@@ -1,3 +1,4 @@
+externalId: 'ctx_key_extraction_fixed_width_parsing'
 config:
   source_views:
     - view_external_id: "txEquipment"

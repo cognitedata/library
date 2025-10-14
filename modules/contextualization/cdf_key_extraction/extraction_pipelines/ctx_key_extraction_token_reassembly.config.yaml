@@ -1,3 +1,4 @@
+externalId: 'ctx_key_extraction_token_reassembly'
 config:
   source_views:
     - view_external_id: "txEquipment"

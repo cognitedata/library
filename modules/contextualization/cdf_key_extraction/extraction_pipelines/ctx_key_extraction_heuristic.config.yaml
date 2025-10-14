@@ -1,3 +1,4 @@
+externalId: 'ctx_key_extraction_heuristic'
 config:
   source_views:
     - view_external_id: "txEquipment"
