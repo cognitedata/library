@@ -3,7 +3,12 @@ import sys
 import time
 from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
-from dependencies import create_config_service, create_logger_service
+from dependencies import (
+    create_config_service,
+    create_logger_service,
+    create_entity_search_service,
+    create_cache_service,
+)
 from services.PromoteService import GeneralPromoteService
 
 
@@ -13,10 +18,18 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient):
 
     config, client = create_config_service(function_data=data)
     logger = create_logger_service(data.get("logLevel", "DEBUG"), data.get("logPath"))
+
+    # Create service dependencies
+    entity_search_service = create_entity_search_service(config, client, logger)
+    cache_service = create_cache_service(config, client, logger, entity_search_service)
+
+    # Create promote service with injected dependencies
     promote_service = GeneralPromoteService(
         client=client,
         config=config,
         logger=logger,
+        entity_search_service=entity_search_service,
+        cache_service=cache_service,
     )
 
     try:
