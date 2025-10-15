@@ -11,13 +11,13 @@ from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import DiagramAnnotationStatus
 
 
-class IRepairService(abc.ABC):
+class IPromoteService(abc.ABC):
     @abc.abstractmethod
     def run(self) -> str | None:
         pass
 
 
-class GeneralRepairService(IRepairService):
+class GeneralPromoteService(IPromoteService):
     def __init__(self, client: CogniteClient, config: Config, logger: CogniteFunctionLogger):
         self.client = client
         self.config = config
@@ -26,18 +26,18 @@ class GeneralRepairService(IRepairService):
         self.file_view = self.config.data_model_views.file_view
         self.target_entities_view = self.config.data_model_views.target_entities_view
         self.sink_node_ref = DirectRelationReference(
-            space=self.config.finalize_function.sink_node.space,
-            external_id=self.config.finalize_function.sink_node.external_id,
+            space=self.config.finalize_function.apply_service.sink_node.space,
+            external_id=self.config.finalize_function.apply_service.sink_node.external_id,
         )
 
     def run(self) -> str | None:
-        """Main entrypoint for the repair service."""
-        candidates = self._get_repair_candidates()
+        """Main entrypoint for the Promote service."""
+        candidates = self._get_Promote_candidates()
         if not candidates:
-            self.logger.info("No repair candidates found.")
+            self.logger.info("No Promote candidates found.")
             return "Done"
 
-        self.logger.info(f"Found {len(candidates)} repair candidates. Starting processing.")
+        self.logger.info(f"Found {len(candidates)} Promote candidates. Starting processing.")
         edges_to_update = []
         for edge in candidates:
             properties = edge.properties[self.core_annotation_view.as_view_id()]
@@ -55,14 +55,15 @@ class GeneralRepairService(IRepairService):
 
         if edges_to_update:
             self.client.data_modeling.instances.apply(edges=edges_to_update)
+            self.client.raw.rows.insert
             self.logger.info(f"Successfully processed {len(edges_to_update)} edges.")
         else:
             self.logger.info("No edges were updated in this run.")
 
         return None  # Continue running if more candidates might exist
 
-    def _get_repair_candidates(self) -> EdgeList | None:
-        """Queries for suggested edges pointing to the sink node that haven't been repair-attempted."""
+    def _get_Promote_candidates(self) -> EdgeList | None:
+        """Queries for suggested edges pointing to the sink node that haven't been Promote-attempted."""
         return self.client.data_modeling.instances.list(
             instance_type="edge",
             sources=[self.core_annotation_view.as_view_id()],
@@ -79,7 +80,7 @@ class GeneralRepairService(IRepairService):
                         "not": {
                             "containsAny": {
                                 "property": self.core_annotation_view.as_property_ref("tags"),
-                                "values": ["repair-attempted"],
+                                "values": ["Promote-attempted"],
                             }
                         }
                     },
@@ -96,7 +97,7 @@ class GeneralRepairService(IRepairService):
         return self.client.data_modeling.instances.list(
             instance_type="node",
             sources=[self.target_entities_view.as_view_id()],
-            filter={"equals": {"property": self.target_entities_view.as_property_ref("aliases"), "value": text}},
+            filter={"in": {"property": self.target_entities_view.as_property_ref("aliases"), "values": [text]}},
             space=space,
             limit=2,  # Limit to 2 to detect ambiguity
         )
@@ -109,16 +110,16 @@ class GeneralRepairService(IRepairService):
 
         if len(found_nodes) == 1:  # Success
             self.logger.info(f"Found single match for '{properties.get('startNodeText')}'. Promoting edge.")
-            edge_apply.end_node = found_nodes[0].as_direct_relation()
+            edge_apply.end_node = DirectRelationReference(found_nodes[0].space, found_nodes[0].external_id)
             properties["status"] = DiagramAnnotationStatus.APPROVED.value
-            tags.append("repaired-auto")
+            tags.append("Promoteed-auto")
         elif len(found_nodes) == 0:  # Failure
             self.logger.info(f"Found no match for '{properties.get('startNodeText')}'. Rejecting edge.")
             properties["status"] = DiagramAnnotationStatus.REJECTED.value
-            tags.append("repair-attempted")
+            tags.append("Promote-attempted")
         else:  # Ambiguous
             self.logger.info(f"Found multiple matches for '{properties.get('startNodeText')}'. Marking as ambiguous.")
-            tags.extend(["repair-attempted", "ambiguous-match"])
+            tags.extend(["Promote-attempted", "ambiguous-match"])
 
         properties["tags"] = tags
         return edge_apply
