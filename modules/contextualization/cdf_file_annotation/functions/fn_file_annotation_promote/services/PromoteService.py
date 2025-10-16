@@ -15,7 +15,7 @@ from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 from services.CacheService import CacheService
 from services.EntitySearchService import EntitySearchService
-from utils.DataStructures import DiagramAnnotationStatus
+from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker
 
 
 class IPromoteService(abc.ABC):
@@ -53,6 +53,7 @@ class GeneralPromoteService(IPromoteService):
         client: CogniteClient,
         config: Config,
         logger: CogniteFunctionLogger,
+        tracker: PromoteTracker,
         entity_search_service: EntitySearchService,
         cache_service: CacheService,
     ):
@@ -63,12 +64,14 @@ class GeneralPromoteService(IPromoteService):
             client: CogniteClient for API interactions
             config: Configuration object containing data model views and settings
             logger: Logger instance for tracking execution
+            tracker: Performance tracker for metrics (edges promoted/rejected/ambiguous)
             entity_search_service: Service for finding entities by text (injected)
             cache_service: Service for caching text→entity mappings (injected)
         """
         self.client = client
         self.config = config
         self.logger = logger
+        self.tracker = tracker
         self.core_annotation_view = self.config.data_model_views.core_annotation_view
         self.file_view = self.config.data_model_views.file_view
         self.target_entities_view = self.config.data_model_views.target_entities_view
@@ -109,9 +112,11 @@ class GeneralPromoteService(IPromoteService):
         Raises:
             Exception: Any unexpected errors during processing are logged and re-raised.
         """
+        self.logger.info("Starting Promote batch", section="START")
+
         candidates: EdgeList | None = self._get_promote_candidates()
         if not candidates:
-            self.logger.info("No Promote candidates found.")
+            self.logger.info("No Promote candidates found.", section="END")
             return "Done"
 
         self.logger.info(f"Found {len(candidates)} Promote candidates. Starting processing.")
@@ -130,12 +135,20 @@ class GeneralPromoteService(IPromoteService):
                 grouped_candidates[key].append(edge)
 
         self.logger.info(
-            f"Grouped {len(candidates)} candidates into {len(grouped_candidates)} unique text/type combinations. "
-            f"Deduplication savings: {len(candidates) - len(grouped_candidates)} queries avoided."
+            message=f"Grouped {len(candidates)} candidates into {len(grouped_candidates)} unique text/type combinations.",
+        )
+        self.logger.info(
+            message=f"Deduplication savings: {len(candidates) - len(grouped_candidates)} queries avoided.",
+            section="END",
         )
 
         edges_to_update: list[EdgeApply] = []
         raw_rows_to_update: list[RowWrite] = []
+
+        # Track results for this batch
+        batch_promoted: int = 0
+        batch_rejected: int = 0
+        batch_ambiguous: int = 0
 
         # Process each unique text/type combination once
         for (text_to_find, annotation_type), edges_with_same_text in grouped_candidates.items():
@@ -152,20 +165,36 @@ class GeneralPromoteService(IPromoteService):
             # Strategy: Check cache → query edges → fallback to global search
             found_nodes: list[Node] | list = self._find_entity_with_cache(text_to_find, annotation_type, entity_space)
 
+            # Determine result type for tracking
+            num_edges: int = len(edges_with_same_text)
+            if len(found_nodes) == 1:
+                batch_promoted += num_edges
+            elif len(found_nodes) == 0:
+                batch_rejected += num_edges
+            else:  # Multiple matches
+                batch_ambiguous += num_edges
+
             # Apply the same result to ALL edges with this text
             for edge in edges_with_same_text:
-                edge_apply: EdgeApply | None
-                raw_row: RowWrite | None
                 edge_apply, raw_row = self._prepare_edge_update(edge, found_nodes)
 
-                if edge_apply:
+                if edge_apply is not None:
                     edges_to_update.append(edge_apply)
-                if raw_row:
+                if raw_row is not None:
                     raw_rows_to_update.append(raw_row)
+
+        # Update tracker with batch results
+        self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
 
         if edges_to_update:
             self.client.data_modeling.instances.apply(edges=edges_to_update)
-            self.logger.info(f"Successfully updated {len(edges_to_update)} edges in data model.")
+            self.logger.info(
+                f"Successfully updated {len(edges_to_update)} edges in data model:\n"
+                f"  ├─ Promoted: {batch_promoted}\n"
+                f"  ├─ Rejected: {batch_rejected}\n"
+                f"  └─ Ambiguous: {batch_ambiguous}",
+                section="END",
+            )
 
         if raw_rows_to_update:
             self.client.raw.rows.insert(
@@ -174,10 +203,10 @@ class GeneralPromoteService(IPromoteService):
                 row=raw_rows_to_update,
                 ensure_parent=True,
             )
-            self.logger.info(f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.")
+            self.logger.info(f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END")
 
         if not edges_to_update and not raw_rows_to_update:
-            self.logger.info("No edges were updated in this run.")
+            self.logger.info("No edges were updated in this run.", section="END")
 
         return None  # Continue running if more candidates might exist
 
@@ -328,7 +357,9 @@ class GeneralPromoteService(IPromoteService):
 
         if len(found_nodes) == 1:  # Success - single match found
             matched_node: Node = found_nodes[0]
-            self.logger.info(f"Found single match for '{edge_props.get('startNodeText')}'. Promoting edge.")
+            self.logger.info(
+                f"✓ Found single match for '{edge_props.get('startNodeText')}' → {matched_node.external_id}. \n\t- Promoting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+            )
 
             # Update edge to point to the found entity
             edge_apply.end_node = DirectRelationReference(matched_node.space, matched_node.external_id)
@@ -347,7 +378,9 @@ class GeneralPromoteService(IPromoteService):
                 raw_data["endNodeResourceType"] = resource_type
 
         elif len(found_nodes) == 0:  # Failure - no match found
-            self.logger.info(f"Found no match for '{edge_props.get('startNodeText')}'. Rejecting edge.")
+            self.logger.info(
+                f"✗ No match found for '{edge_props.get('startNodeText')}'.\n\t- Rejecting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+            )
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
             updated_tags.append("PromoteAttempted")
 
@@ -355,7 +388,9 @@ class GeneralPromoteService(IPromoteService):
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
 
         else:  # Ambiguous - multiple matches found
-            self.logger.info(f"Found multiple matches for '{edge_props.get('startNodeText')}'. Marking as ambiguous.")
+            self.logger.info(
+                f"⚠ Multiple matches found for '{edge_props.get('startNodeText')}'.\n\t- Ambiguous edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+            )
             updated_tags.extend(["PromoteAttempted", "AmbiguousMatch"])
 
             # Don't change status, just add tags to RAW

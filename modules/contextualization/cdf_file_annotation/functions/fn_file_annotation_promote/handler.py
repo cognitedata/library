@@ -14,6 +14,7 @@ from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 from services.EntitySearchService import EntitySearchService
 from services.CacheService import CacheService
+from utils.DataStructures import PromoteTracker
 
 
 def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[str, str]:
@@ -52,6 +53,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
     config: Config
     config, client = create_config_service(function_data=data)
     logger: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "DEBUG"), data.get("logPath"))
+    tracker: PromoteTracker = PromoteTracker()
 
     # Create service dependencies
     entity_search_service: EntitySearchService = create_entity_search_service(config, client, logger)
@@ -62,10 +64,12 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
         client=client,
         config=config,
         logger=logger,
+        tracker=tracker,
         entity_search_service=entity_search_service,
         cache_service=cache_service,
     )
 
+    run_status: str = "success"
     try:
         # Run in a loop for a maximum of 7 minutes
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
@@ -73,12 +77,19 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
             if result == "Done":
                 logger.info("No more candidates to process. Exiting.", section="END")
                 break
-            time.sleep(10)  # Pause between batches
+            # Log batch report and pause between batches
+            logger.info(tracker.generate_local_report(), section="START")
+            time.sleep(10)
 
-        return {"status": "success", "message": "promote function completed a cycle."}
+        return {"status": run_status, "data": data}
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}", section="BOTH")
-        return {"status": "failure", "message": str(e)}
+        run_status = "failure"
+        msg: str = f"{str(e)}"
+        logger.error(f"An unexpected error occurred: {msg}", section="BOTH")
+        return {"status": run_status, "message": msg}
+    finally:
+        # Generate overall summary report
+        logger.info(tracker.generate_overall_report(), section="BOTH")
 
 
 def run_locally(config_file: dict) -> None:
