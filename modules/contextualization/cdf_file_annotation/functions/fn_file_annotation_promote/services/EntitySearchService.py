@@ -121,7 +121,11 @@ class EntitySearchService(IEntitySearchService):
         if not found_nodes:
             # STRATEGY 2: Global entity search (fallback)
             self.logger.debug(f"No match in existing annotations for '{text}'. Trying global entity search.")
-            found_nodes = self.find_global_entity(text_variations, entity_space)
+            if annotation_type == "diagrams.FileLink":
+                source: ViewId = self.file_view_id
+            else:
+                source = self.target_entities_view_id
+            found_nodes = self.find_global_entity(text_variations, source, entity_space)
 
         return found_nodes
 
@@ -225,7 +229,7 @@ class EntitySearchService(IEntitySearchService):
             self.logger.error(f"Error searching existing annotations for '{original_text}': {e}")
             return []
 
-    def find_global_entity(self, text_variations: list[str], entity_space: str) -> list[Node]:
+    def find_global_entity(self, text_variations: list[str], source: ViewId, entity_space: str) -> list[Node]:
         """
         Performs a global, un-scoped search for an entity matching the given text variations.
         Uses server-side IN filter with text variations to handle different naming conventions.
@@ -249,7 +253,7 @@ class EntitySearchService(IEntitySearchService):
 
             entities: Any = self.client.data_modeling.instances.list(
                 instance_type="node",
-                sources=[self.target_entities_view_id],
+                sources=source,
                 filter=aliases_filter,
                 space=entity_space,
                 limit=1000,  # Reasonable limit to prevent timeouts
