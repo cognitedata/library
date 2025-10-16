@@ -1,0 +1,131 @@
+space: rmdm
+externalId: File_ext
+name: RM File
+description: Represents files.
+implements:
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+  type: view
+version: v1
+properties:
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: List of assets/functional locations that this file is related to.
+    source:
+      space: rmdm
+      externalId: Asset
+      version: v1
+      type: view
+  updatedDate:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: updatedDate
+    name: Updated Date
+    description: The date this document was last updated.
+  issueDate:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: issueDate
+    name: Issue Date
+    description: The date that the document was issued on.
+  revisionRemark:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: revisionRemark
+    name: Revision Remark
+    description: Important remarks of the document
+  revision:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: revision
+    name: Revision
+    description: A sequential number for each document revision, e.g. NN, giving each
+      document revision a unique identification.
+  latest:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: latest
+    name: Latest
+    description: The indication whether the document revision is the latest or not.
+  disciplineCode:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: disciplineCode
+    name: Discipline Code
+    description: A code indicating particulat discipline, e.g. P for Process, and
+      O for Operations
+  className:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: className
+    name: Class Name
+    description: 'Class name of the equipment that the document is related to: Pump'
+  classId:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: classId
+    name: Class ID
+    description: Class id of the equipment that the document is related to.
+  area:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: area
+    name: Area
+    description: The area that the document concerns.
+  facility:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: facility
+    name: Facility
+    description: A facility consists of functional systems.
+  originatingContractor:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: originatingContractor
+    name: Originating Contractor
+    description: The organisation/contractor/supplier who initially created a document.
+  system:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: system
+    name: System
+    description: The system that the document concerns, e,g, System 20 Oil export
+      system
+  workflowStatus:
+    container:
+      space: rmdm
+      externalId: File_ext
+      type: container
+    containerPropertyIdentifier: workflowStatus
+    name: Workflow Status
+    description: The workflow status of this file.

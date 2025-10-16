@@ -1,0 +1,24 @@
+externalId: timeseries_agent
+name: Timeseries Agent
+description: "Find time series and analyze time series"
+instructions: "Find time series and analyze time series"
+model: azure/gpt-4o
+labels:
+- "published"
+tools:
+- name: Find time series
+  description: "Use this tool to get information about time series.
+Query on the name field and display all the fields that you retrieve."
+  type: queryKnowledgeGraph
+  configuration:
+    dataModels:
+    - space: cdf_cdm
+      externalId: CogniteCore
+      version: v1
+      viewExternalIds:
+      - CogniteTimeSeries
+    instanceSpaces:
+      type: all
+- name: Query time series data points
+  description: "This tool lets you fetch timeseries datapoints and values. Use it when the user request for datapoints or values for a timeseries"
+  type: queryTimeSeriesDatapoints

@@ -1,0 +1,5 @@
+[module]
+title = "InField Location"
+is_selected_by_default = true
+id = "dp:infield:infield_location"
+package_id = "dp:infield"

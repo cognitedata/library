@@ -1,0 +1,4 @@
+[module]
+title = "Example of Minimum Extension of the Cognite Core Model"
+id = "dp:models:cdf_cdm_extension"
+package_id = "dp:models"
