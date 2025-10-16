@@ -285,11 +285,11 @@ class GeneralPromoteService(IPromoteService):
         """
         Finds entity for text using multi-tier caching strategy.
 
-        Caching strategy:
-        - TIER 1: In-memory cache (this run, <1ms)
-        - TIER 2: Persistent RAW cache (all runs, 5-10ms)
-        - TIER 3: EntitySearchService (annotation edges, 50-100ms)
-        - TIER 4: EntitySearchService fallback (global search, 500ms-2s)
+        Caching strategy (fastest to slowest):
+        - TIER 1: In-memory cache (this run only, in-memory dictionary)
+        - TIER 2: Persistent RAW cache (all runs, single database query)
+        - TIER 3: EntitySearchService (annotation edges, server-side IN filter on startNodeText)
+        - TIER 4: EntitySearchService fallback (global search, server-side IN filter on aliases)
 
         Caching behavior:
         - Only caches unambiguous single matches (len(found_nodes) == 1)

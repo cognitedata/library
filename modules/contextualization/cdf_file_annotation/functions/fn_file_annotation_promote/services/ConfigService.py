@@ -242,9 +242,11 @@ class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
     Configuration for the EntitySearchService in the promote function.
 
     Controls entity search strategies and text normalization behavior:
-    - Primary: Query existing annotation edges (fast, 50-100ms)
-    - Fallback: Global entity search (slow, 500ms-2s)
-    - Text normalization for improved matching
+    - Primary: Query existing annotation edges (server-side IN filter on startNodeText)
+    - Fallback: Global entity search (server-side IN filter on entity aliases)
+    - Text normalization for generating search variations
+
+    Both strategies use efficient server-side filtering for optimal performance.
     """
 
     enable_existing_annotations_search: bool = True
