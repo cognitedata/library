@@ -1,23 +1,105 @@
 [library]
-description = "Cognite Official Deployment Packs"
-toolkit-version = ">=0.6.0" # Recommended version of the Toolkit required to use this library
-canCherryPick = true # Set to false if the user should not be able to pick individual modules in this package
+title = "official Cognite Deployment Packages"
+description = """
+The open-source Github repository ("Repository") is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. Usage of the Repository is voluntary and in no event shall Cognite be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the use of the Repository.
+"""
 
-# Package definitions
+[packages.quickstart]
+id = "dp:quickstart"
+title = "Quick Start"
+description = "Get started with Cognite Data Fusion in minutes."
+canCherryPick = false
+modules = [
+    "accelerators/cdf_common",
+    "accelerators/ingestion",
+    "accelerators/contextualization/cdf_connection_sql",
+    "accelerators/sourcesystems/cdf_pi",
+    "accelerators/sourcesystems/cdf_sap_assets",
+    "accelerators/sourcesystems/cdf_sap_events",
+    "accelerators/sourcesystems/cdf_sharepoint"
+]
+
+[packages.infield]
+id = "dp:infield"
+title = "InField"
+description = "Put real-time data into the hands of every field worker."
+modules = [
+    "infield/cdf_infield_location",
+    "infield/cdf_infield_second_location",
+    "infield/cdf_infield_common",
+    "infield/cdf_apm_base"
+]
+
+
+[packages.industrial_tools]
+id = "dp:industrial_tools"
+title = "Industrial Tools"
+description = "Data exploration and analytics"
+modules = [
+    "industrial_tools/cdf_location_filter_datamodel_based",
+    "industrial_tools/cdf_search",
+    "industrial_tools/cdf_location_filter_asset_centric"
+]
+
+[packages.bootcamp]
+id = "dp:bootcamp"
+title = "Bootcamp"
+description = "Initial toolkit configurations for the Cognite Data Fusion Bootcamp"
+canCherryPick = false
+modules = [
+    "bootcamp/ice_cream_api",
+    "bootcamp/use_cases/oee"
+]
+
+[packages.sourcesystems]
+id = "dp:sourcesystems"
+title = "Source systems"
+description = "Module templates for setting up a data pipeline from a source system"
+modules = [
+    "accelerators/sourcesystems/cdf_pi",
+    "accelerators/sourcesystems/cdf_sap_assets",
+    "accelerators/sourcesystems/cdf_sap_events",
+    "accelerators/sourcesystems/cdf_sharepoint"
+]
+
 [packages.contextualization]
+id = "dp:contextualization"
 title = "Contextualization"
-description = "Get started with Contextualization"
-canCherryPick = true
+description = "Module templates for data contextualization"
 modules = [
-    "modules/contextualization/cdf_entity_matching",
-    "modules/contextualization/cdf_p_and_id_annotation"
+    "accelerators/contextualization/cdf_p_and_id_parser",
+    "accelerators/contextualization/cdf_connection_sql",
+    "accelerators/contextualization/cdf_entity_matching",
+    "accelerators/contextualization/cdf_file_annotation"
 ]
 
-[packages.root_cause_analysis]
-title = "Root Cause Analysis"
-description = "Get started with Root Cause Analysis using Canvas and Atlas AI"
-canCherryPick = true
+[packages.models]
+id = "dp:models"
+title = "Data models"
+description = "Data models that extend the core data model"
 modules = [
-    "modules/root_cause_analysis/rca_with_atlas"
+    "data_models/cdf_cdm_extension",
+    "data_models/cdf_process_industry_extension",
+    "data_models/cdf_cdm_extension_full",
+    "data_models/cdf_scene",
+    "data_models/cdf_process_industry_extension_full",
+    "data_models/rmdm_v1"
 ]
 
+[packages.custom]
+id = "dp:custom"
+title = "None"
+description = "start with an empty module"
+modules = [
+    "custom/my_module",
+]
+
+[packages.atlas_ai]
+id = "dp:atlas_ai"
+title = "Atlas AI Deployment Pack"
+description = "Deploy all Atlas AI modules in one package."
+canCherryPick = true  # allows users to select individual modules
+modules = [
+    "atlas_ai/ootb_agents/",
+    "atlas_ai/root_cause_analysis/rca_with_atlas"
+]

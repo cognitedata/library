@@ -1,0 +1,8 @@
+[module]
+title = "InField Common"
+is_selected_by_default = true
+id = "dp:infield:infield_common"
+package_id = "dp:infield"
+
+[dependencies]
+modules = ["cdf_apm_base"]

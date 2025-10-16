@@ -1,0 +1,4 @@
+[module]
+title = "Example location filter asset centric"
+id = "dp:industrial_tools:cdf_location_filter_asset_centric"
+package_id = "dp:industrial_tools"

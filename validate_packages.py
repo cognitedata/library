@@ -2,10 +2,7 @@
 """
 Validation script for packages.toml file.
 Checks structure and validates that all module paths exist.
-<<<<<<< HEAD
-Works from the current directory where packages.toml is located.
-=======
->>>>>>> 6398faa9d6c5e6866081a45fca60da6a16920b23
+Assumes "modules" as the base folder where packages.toml is located.
 """
 
 import sys
@@ -52,8 +49,8 @@ def validate_packages(data: Dict[str, Any]) -> bool:
 def validate_package_structure(package_name: str, package_data: Dict[str, Any]) -> bool:
     """Validate individual package structure."""
     # Check required fields
-    required_fields = ["title", "description", "modules"]
-    for field in required_fields:
+    required_fields = ["title", "description", "modules", "id"]
+    for field in required_fields:   
         if field not in package_data:
             print(f"ERROR: Package '{package_name}' missing '{field}' field")
             return False
@@ -84,7 +81,7 @@ def validate_package_structure(package_name: str, package_data: Dict[str, Any]) 
 
 
 def validate_module_paths(
-    package_name: str, modules: List[str], base_path: str = "."
+    package_name: str, modules: List[str], base_path: str = "modules"
 ) -> bool:
     """Validate that all module paths exist in the filesystem."""
     base_path_obj = Path(base_path)
@@ -107,7 +104,35 @@ def validate_module_paths(
             )
             return False
 
-        print(f"✓ Module path '{module_path}' exists")
+
+        module_toml = full_path / "module.toml"
+        if not module_toml.exists():
+            print(
+                f"ERROR: Package '{package_name}' module path '{module_path}' does not have a module.toml file and is not a valid module"
+            )
+            return False
+
+        with open(module_toml, "rb") as f:
+            module_data = tomllib.load(f)
+
+        required_fields = {"id", "package_id", "title"}
+        missing_fields = required_fields - set(module_data["module"].keys())
+        if missing_fields:
+            print(
+                f"ERROR: Package '{package_name}' module path '{module_path}' does not have the following required fields: {missing_fields}"
+            )
+            return False
+
+        extra_resources = module_data.get("extra_resources", [])
+        for extra_resource in extra_resources:
+            full_path = base_path_obj / extra_resource["location"]
+            if not full_path.exists():
+                print(
+                    f"ERROR: Package '{package_name}' module '{module_path}' refers to a non-existent file: {full_path}"
+                )
+                return False
+        
+        print(f"✓ Module '{module_path}' validated successfully")
 
     return True
 
@@ -146,7 +171,7 @@ def main():
                 sys.exit(1)
 
             # Validate module paths
-            if not validate_module_paths(package_name, package_data["modules"], "."):
+            if not validate_module_paths(package_name, package_data["modules"], "modules"):
                 sys.exit(1)
 
         print(

@@ -1,0 +1,27 @@
+space: rmdm
+externalId: EquipmentFunction
+name: RM Equipment Function
+description: Represents the function of an equipment or an asset.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: v1
+properties:
+  code:
+    container:
+      space: rmdm
+      externalId: EquipmentFunction
+      type: container
+    containerPropertyIdentifier: code
+    name: Code
+    description: A unique identifier for the function of the asset or equipment.
+  standard:
+    container:
+      space: rmdm
+      externalId: EquipmentFunction
+      type: container
+    containerPropertyIdentifier: standard
+    name: Standard
+    description: A string to specify which standard the function is from.

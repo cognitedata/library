@@ -1,0 +1,5 @@
+[module]
+title = "APM Base"
+is_selected_by_default = false
+id = "dp:infield:apm_base"
+package_id = "dp:infield"

@@ -1,0 +1,30 @@
+space: rmdm
+externalId: FailureMechanism
+name: RM Failure Mechanism
+description: The process that leads to failure. The process can be physical, chemical,
+  logical, or a combination thereof.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: v1
+properties:
+  code:
+    container:
+      space: rmdm
+      externalId: FailureMechanism
+      type: container
+    containerPropertyIdentifier: code
+    name: Code
+    description: A standardized identifier assigned to assets, failures, or maintenance
+      records.
+  category:
+    container:
+      space: rmdm
+      externalId: FailureMechanism
+      type: container
+    containerPropertyIdentifier: category
+    name: Category
+    description: A classification system used to group assets, failures, or maintenance
+      activities.

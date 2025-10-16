@@ -1,0 +1,129 @@
+space: rmdm
+externalId: Equipment
+name: RM Equipment
+description: Equipment represents physical supplies or devices.
+implements:
+- space: cdf_cdm
+  externalId: CogniteEquipment
+  version: v1
+  type: view
+version: v1
+properties:
+  asset:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: asset
+    name: Asset
+    description: The asset or 'functional location' where this equipment is installed.
+    source:
+      space: rmdm
+      externalId: Asset
+      version: v1
+      type: view
+  maintenanceOrders:
+    source:
+      space: rmdm
+      externalId: MaintenanceOrder
+      version: v1
+      type: view
+    through:
+      source:
+        space: rmdm
+        externalId: MaintenanceOrder
+        version: v1
+        type: view
+      identifier: equipment
+    name: Maintenance Orders
+    description: Work instructions issued to perform preventive or corrective maintenance
+      on equipment.
+    connectionType: multi_reverse_direct_relation
+  files:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: files
+    name: Files
+    description: List of files that this equipment is related to.
+    source:
+      space: rmdm
+      externalId: File_ext
+      version: v1
+      type: view
+  timeSeries:
+    source:
+      space: rmdm
+      externalId: Timeseries_ext
+      version: v1
+      type: view
+    through:
+      source:
+        space: rmdm
+        externalId: Timeseries_ext
+        version: v1
+        type: view
+      identifier: equipment
+    name: TimeSeries
+    description: Reverse direct relation list of timeseries related to this equipment.
+    connectionType: multi_reverse_direct_relation
+  normalOperatingState:
+    container:
+      space: rmdm
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: normalOperatingState
+    name: Normal Operating State
+    description: The expected functional condition of an asset under standard operating
+      parameters.
+  startDateCurrentService:
+    container:
+      space: rmdm
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: startDateCurrentService
+    name: Start Date Current Service
+    description: The date when this equipment was placed into active service.
+  equipmentClass:
+    container:
+      space: rmdm
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: equipmentClass
+    name: Equipment Class
+    description: Specifies the class of the equipment.
+    source:
+      space: rmdm
+      externalId: EquipmentClass
+      version: v1
+      type: view
+  equipmentType:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: equipmentType
+    name: Equipment type
+    description: Specifies the type of the equipment. It's a direct relation to CogniteEquipmentType.
+    source:
+      space: rmdm
+      externalId: EquipmentType
+      version: v1
+      type: view
+  functionCode:
+    container:
+      space: rmdm
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: functionCode
+    name: Function Code
+    description: A code to identify the function of this equipment.
+  functionCodeDesc:
+    container:
+      space: rmdm
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: functionCodeDescription
+    name: Function Code Description
+    description: A human readable description of the function of this equipment.
