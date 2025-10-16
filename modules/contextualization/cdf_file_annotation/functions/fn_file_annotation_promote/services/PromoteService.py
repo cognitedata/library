@@ -125,7 +125,7 @@ class GeneralPromoteService(IPromoteService):
         return None  # Continue running if more candidates might exist
 
     def _get_promote_candidates(self) -> EdgeList | None:
-        """Queries for suggested edges pointing to the sink node that haven't been Promote-attempted."""
+        """Queries for suggested edges pointing to the sink node that haven't been PromoteAttempted."""
         return self.client.data_modeling.instances.list(
             instance_type="edge",
             sources=[self.core_annotation_view.as_view_id()],
@@ -142,7 +142,7 @@ class GeneralPromoteService(IPromoteService):
                         "not": {
                             "containsAny": {
                                 "property": self.core_annotation_view.as_property_ref("tags"),
-                                "values": ["Promote-attempted"],
+                                "values": ["PromoteAttempted"],
                             }
                         }
                     },
@@ -228,7 +228,7 @@ class GeneralPromoteService(IPromoteService):
             # Update edge to point to the found entity
             edge_apply.end_node = DirectRelationReference(matched_node.space, matched_node.external_id)
             update_properties["status"] = DiagramAnnotationStatus.APPROVED.value
-            updated_tags.append("promoted-auto")
+            updated_tags.append("PromotedAuto")
 
             # Update RAW row with new end node information
             raw_data["endNode"] = matched_node.external_id
@@ -244,20 +244,21 @@ class GeneralPromoteService(IPromoteService):
         elif len(found_nodes) == 0:  # Failure - no match found
             self.logger.info(f"Found no match for '{edge_props.get('startNodeText')}'. Rejecting edge.")
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
-            updated_tags.append("promote-attempted")
+            updated_tags.append("PromoteAttempted")
 
             # Update RAW row status
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
 
         else:  # Ambiguous - multiple matches found
             self.logger.info(f"Found multiple matches for '{edge_props.get('startNodeText')}'. Marking as ambiguous.")
-            updated_tags.extend(["promote-attempted", "ambiguous-match"])
+            updated_tags.extend(["PromoteAttempted", "AmbiguousMatch"])
 
             # Don't change status, just add tags to RAW
             raw_data["status"] = edge_props.get("status", DiagramAnnotationStatus.SUGGESTED.value)
 
         # Update edge properties
         update_properties["tags"] = updated_tags
+        raw_data["tags"] = updated_tags
         edge_apply.sources[0] = NodeOrEdgeData(
             source=self.core_annotation_view.as_view_id(), properties=update_properties
         )

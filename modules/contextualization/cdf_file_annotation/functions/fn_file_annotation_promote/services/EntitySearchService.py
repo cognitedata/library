@@ -107,8 +107,9 @@ class EntitySearchService(IEntitySearchService):
             text_variations = self.generate_text_variations(text)
             self.logger.debug(f"Searching for text variations: {text_variations}")
 
-            # Query edges directly with IN filter (server-side, fast!)
-            # These are annotation edges from regular diagram detect (not pattern mode)
+            # Query edges directly with IN filter
+            # These are annotation edges that are from regular diagram detect (not pattern mode)
+            # NOTE: manually promoted results from pattern mode are added to the 
             text_filter: Filter = In(self.core_annotation_view_id.as_property_ref("startNodeText"), text_variations)
             edges = self.client.data_modeling.instances.list(
                 instance_type="edge",
