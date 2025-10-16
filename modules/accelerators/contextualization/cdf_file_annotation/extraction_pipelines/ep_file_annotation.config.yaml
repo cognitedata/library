@@ -129,4 +129,39 @@ config:
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
       rawTableDocPattern: {{ rawTableDocPattern }}
+  promoteFunction:
+    # Query configuration for finding candidate edges to promote
+    getCandidatesQuery:
+      targetView:
+        schemaSpace: cdf_cdm
+        externalId: CogniteDiagramAnnotation
+        version: v1
+      filters:
+        - values: "Suggested"  # Only process suggested annotations
+          negate: False
+          operator: Equals
+          targetProperty: status
+        - values: ["PromoteAttempted"]  # Skip already attempted edges
+          negate: True
+          operator: In
+          targetProperty: tags
+      limit: 500  # Number of edges to process per batch
+    # RAW database configuration
+    rawDb: {{ rawDb }}
+    rawTableDocPattern: {{ rawTableDocPattern }}
+    rawTableDocTag: {{ rawTableDocTag }}
+    rawTableDocDoc: {{ rawTableDocDoc }}
+    # Entity search service configuration
+    entitySearchService:
+      enableExistingAnnotationsSearch: true  # Primary: Query annotation edges (fast, checks existing annotation edges)
+      enableGlobalEntitySearch: true  # Fallback: Global entity search - (slow, unstable as instance count grows)
+      maxEntitySearchLimit: 1000  # Max entities to fetch in global search
+      textNormalization:
+        removeSpecialCharacters: true  # Remove non-alphanumeric characters
+        convertToLowercase: true  # Normalize case
+        stripLeadingZeros: true  # Handle "V-0912" vs "V-912"
+        generateVariations: true  # Generate common text variations for matching
+    # Cache service configuration
+    cacheService:
+      cacheTableName: {{ rawTablePromoteCache }}
 

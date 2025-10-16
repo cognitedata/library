@@ -277,7 +277,7 @@ class CacheService(ICacheService):
 
         except Exception as e:
             # Cache miss or error - just continue without cache
-            self.logger.debug(f"Cache check failed for '{text}': {e}")
+            self.logger.debug(f"[CACHE] Cache check failed for '{text}': {e}")
             return None
 
     def _set_in_persistent_cache(self, text: str, annotation_type: str, node: Node) -> None:

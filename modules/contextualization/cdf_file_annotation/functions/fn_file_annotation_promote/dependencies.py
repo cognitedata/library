@@ -203,9 +203,16 @@ def create_cache_service(
     """
     from services.ConfigService import ViewPropertyConfig
 
-    raw_db: str = config.finalize_function.apply_service.raw_db
     file_view: ViewPropertyConfig = config.data_model_views.file_view
     target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
+
+    # Use promote_function config if available, otherwise fallback to finalize_function
+    if config.promote_function:
+        raw_db: str = config.promote_function.raw_db
+        cache_table_name: str = config.promote_function.cache_service.cache_table_name
+    else:
+        raw_db = config.finalize_function.apply_service.raw_db
+        cache_table_name = "promote_text_to_entity_cache"  # Default
 
     return CacheService(
         client=client,
@@ -214,5 +221,5 @@ def create_cache_service(
         normalize_fn=entity_search_service.normalize,  # Reuse normalization from entity search
         file_view_id=file_view.as_view_id(),
         target_entities_view_id=target_entities_view.as_view_id(),
-        cache_table_name="promote_text_to_entity_cache",
+        cache_table_name=cache_table_name,
     )

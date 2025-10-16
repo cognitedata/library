@@ -11,7 +11,7 @@ from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
     NodeList,
 )
-from services.ConfigService import Config
+from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
 from services.LoggerService import CogniteFunctionLogger
 from services.CacheService import CacheService
 from services.EntitySearchService import EntitySearchService
@@ -75,14 +75,29 @@ class GeneralPromoteService(IPromoteService):
         self.core_annotation_view = self.config.data_model_views.core_annotation_view
         self.file_view = self.config.data_model_views.file_view
         self.target_entities_view = self.config.data_model_views.target_entities_view
+
+        # Sink node reference (from finalize_function config as it's shared)
         self.sink_node_ref = DirectRelationReference(
             space=self.config.finalize_function.apply_service.sink_node.space,
             external_id=self.config.finalize_function.apply_service.sink_node.external_id,
         )
-        self.raw_db = self.config.finalize_function.apply_service.raw_db
-        self.raw_pattern_table = self.config.finalize_function.apply_service.raw_table_doc_pattern
-        self.raw_doc_doc_table = self.config.finalize_function.apply_service.raw_table_doc_doc
-        self.raw_doc_tag_table = self.config.finalize_function.apply_service.raw_table_doc_tag
+
+        # RAW database and table configuration
+        # Prefer promote_function config if available, otherwise fallback to finalize_function config
+        if self.config.promote_function:
+            self.raw_db = self.config.promote_function.raw_db
+            self.raw_pattern_table = self.config.promote_function.raw_table_doc_pattern
+            self.raw_doc_doc_table = self.config.promote_function.raw_table_doc_doc
+            self.raw_doc_tag_table = self.config.promote_function.raw_table_doc_tag
+        else:
+            # Backward compatibility: use finalize_function config
+            self.logger.warning(
+                "promote_function config not found. Using finalize_function config for backward compatibility."
+            )
+            self.raw_db = self.config.finalize_function.apply_service.raw_db
+            self.raw_pattern_table = self.config.finalize_function.apply_service.raw_table_doc_pattern
+            self.raw_doc_doc_table = self.config.finalize_function.apply_service.raw_table_doc_doc
+            self.raw_doc_tag_table = self.config.finalize_function.apply_service.raw_table_doc_tag
 
         # Injected service dependencies
         self.entity_search_service = entity_search_service
@@ -214,7 +229,10 @@ class GeneralPromoteService(IPromoteService):
         """
         Retrieves pattern-mode annotation edges that are candidates for promotion.
 
-        Queries for edges where:
+        Uses query configuration from promote_function config if available, otherwise falls back
+        to hardcoded filter for backward compatibility.
+
+        Default query criteria (when no config):
         - End node is the sink node (placeholder for unresolved entities)
         - Status is "Suggested" (not yet approved/rejected)
         - Tags do not contain "PromoteAttempted" (haven't been processed yet)
@@ -224,12 +242,18 @@ class GeneralPromoteService(IPromoteService):
 
         Returns:
             EdgeList of candidate edges, or None if no candidates found.
-            Limited to 500 edges per batch for performance.
+            Limited by getCandidatesQuery.limit (default 500 if -1/unlimited).
         """
-        return self.client.data_modeling.instances.list(
-            instance_type="edge",
-            sources=[self.core_annotation_view.as_view_id()],
-            filter={
+        # Use query config if available
+        if self.config.promote_function and self.config.promote_function.get_candidates_query:
+            query_filter = build_filter_from_query(self.config.promote_function.get_candidates_query)
+            limit = get_limit_from_query(self.config.promote_function.get_candidates_query)
+            # If limit is -1 (unlimited), use sensible default
+            if limit == -1:
+                limit = 500
+        else:
+            # Backward compatibility: hardcoded filter
+            query_filter = {
                 "and": [
                     {
                         "equals": {
@@ -247,8 +271,14 @@ class GeneralPromoteService(IPromoteService):
                         }
                     },
                 ]
-            },
-            limit=500,  # Batch size
+            }
+            limit = 500  # Default batch size
+
+        return self.client.data_modeling.instances.list(
+            instance_type="edge",
+            sources=[self.core_annotation_view.as_view_id()],
+            filter=query_filter,
+            limit=limit,
         )
 
     def _find_entity_with_cache(self, text: str, annotation_type: str, entity_space: str) -> list[Node] | list:
