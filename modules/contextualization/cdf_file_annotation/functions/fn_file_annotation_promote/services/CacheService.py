@@ -61,15 +61,17 @@ class CacheService(ICacheService):
     **TIER 1: In-Memory Cache** (This Run Only):
     - Ultra-fast lookup (<1ms)
     - Dictionary stored in memory: {(text, type): (space, id) or None}
-    - Includes negative caching (remembers "no match found")
+    - **Includes negative caching** (remembers "no match found" to avoid repeated searches)
     - Cleared when function execution ends
+    - Used for: Both positive matches AND negative results (not found)
 
     **TIER 2: Persistent RAW Cache** (All Runs):
     - Fast lookup (5-10ms)
     - Stored in RAW table: promote_text_to_entity_cache
     - Benefits all future function runs indefinitely
     - Tracks hit count for analytics
-    - Only caches unambiguous single matches
+    - **Only caches positive matches** (unambiguous single entities found)
+    - Does NOT cache negative results (to allow for new entities added over time)
 
     **Performance Impact:**
     - First lookup: 50-100ms (query annotation edges)
@@ -147,11 +149,11 @@ class CacheService(ICacheService):
                     nodes=(space, ext_id), sources=view_id
                 )
                 if retrieved:
-                    self.logger.debug(f"✓ In-memory cache HIT for '{text}'")
+                    self.logger.debug(f"✓ [CACHE] In-memory cache HIT for '{text}'")
                     node: Node | None = self._extract_single_node(retrieved)
                     return node
             except Exception as e:
-                self.logger.warning(f"Failed to retrieve cached node for '{text}': {e}")
+                self.logger.warning(f"[CACHE] Failed to retrieve cached node for '{text}': {e}")
                 # Invalidate this cache entry
                 del self._memory_cache[cache_key]
                 return None
@@ -159,7 +161,7 @@ class CacheService(ICacheService):
         # TIER 2: Persistent RAW cache (fast)
         cached_node: Node | None = self._get_from_persistent_cache(text, annotation_type)
         if cached_node:
-            self.logger.info(f"✓ Persistent cache HIT for '{text}'")
+            self.logger.info(f"✓ [CACHE] Persistent cache HIT for '{text}'")
             # Populate in-memory cache for future lookups in this run
             self._memory_cache[cache_key] = (cached_node.space, cached_node.external_id)
             return cached_node
@@ -206,25 +208,28 @@ class CacheService(ICacheService):
         """
         Caches an entity node for the given text and annotation type.
 
-        Only caches unambiguous single matches. Updates both in-memory and persistent caches.
+        Caching behavior:
+        - Positive matches (node provided): Cached in BOTH in-memory AND persistent RAW
+        - Negative results (node=None): Cached ONLY in-memory (allows for new entities over time)
 
         Args:
             text: The text being cached
             annotation_type: Type of annotation
-            node: The entity node to cache, or None for negative caching
+            node: The entity node to cache, or None for negative caching (in-memory only)
         """
         cache_key: tuple[str, str] = (text, annotation_type)
 
         if node is None:
-            # Negative cache entry (remember that no match was found)
+            # Negative cache entry (IN-MEMORY ONLY - not persisted to RAW)
+            # This avoids repeated searches within the same run but allows new entities added later
             self._memory_cache[cache_key] = None
-            self.logger.debug(f"✓ Cached negative result for '{text}'")
+            self.logger.debug(f"✓ [CACHE] Cached negative result for '{text}' (in-memory only)")
             return
 
-        # Positive cache entry
+        # Positive cache entry (BOTH in-memory AND persistent RAW)
         self._memory_cache[cache_key] = (node.space, node.external_id)
         self._set_in_persistent_cache(text, annotation_type, node)
-        self.logger.debug(f"✓ Cached unambiguous match for '{text}' → {node.external_id}")
+        self.logger.debug(f"✓ [CACHE] Cached positive match for '{text}' → {node.external_id} (in-memory + RAW)")
 
     def _get_from_persistent_cache(self, text: str, annotation_type: str) -> Node | None:
         """
