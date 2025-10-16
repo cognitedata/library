@@ -35,20 +35,22 @@ class EntitySearchService(IEntitySearchService):
 
     This service implements a two-tier search strategy for finding entities:
 
-    **Strategy 1 - Existing Annotations** (Primary, Fast: 50-100ms):
+    **Strategy 1 - Existing Annotations** (Primary, Fast):
     - Queries annotation edges from regular diagram detect
-    - Uses server-side IN filter with text variations
+    - Uses server-side IN filter with text variations on edge startNodeText
     - Returns entities that were successfully annotated before
     - Handles cross-scope scenarios naturally (entity in different site/unit)
+    - Most efficient: Queries proven successful matches first
 
-    **Strategy 2 - Global Entity Search** (Fallback, Slow: 500ms-2s):
-    - Fetches all entities in space (limit 1000)
-    - Client-side normalized matching against aliases
-    - Comprehensive but may timeout with large entity counts
+    **Strategy 2 - Global Entity Search** (Fallback):
+    - Queries all entities in specified space
+    - Uses server-side IN filter with text variations on entity aliases
+    - Comprehensive search across all entities when no previous annotation exists
+    - Efficient: Server-side indexed filtering on aliases property
 
     **Utilities:**
-    - `generate_text_variations()`: Creates common variations (case, leading zeros)
-    - `normalize()`: Normalizes text for comparison (removes special chars, lowercase, strips zeros)
+    - `generate_text_variations()`: Creates common variations (case, leading zeros, special chars)
+    - `normalize()`: Normalizes text for cache keys (removes special chars, lowercase, strips zeros)
     """
 
     def __init__(
@@ -92,8 +94,11 @@ class EntitySearchService(IEntitySearchService):
         This is the main entry point for entity search.
 
         Strategy:
-        1. Try existing annotations (fast, 50-100ms)
-        2. Fall back to global search (slow, 500ms-2s)
+        1. Generate text variations once (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v-912", ...])
+        2. Try existing annotations (fast, queries edges from previous successful matches)
+        3. Fall back to global search (queries all entities in space with IN filter on aliases)
+
+        Both strategies use server-side filtering with text variations for efficiency.
 
         Args:
             text: Text to search for (e.g., "V-123", "G18A-921")
@@ -106,17 +111,21 @@ class EntitySearchService(IEntitySearchService):
             - [node] if single unambiguous match
             - [node1, node2] if ambiguous (multiple matches)
         """
+        # Generate text variations once for use in both strategies
+        text_variations: list[str] = self.generate_text_variations(text)
+        self.logger.info(f"Generated {len(text_variations)} text variation(s) for '{text}': {text_variations}")
+
         # STRATEGY 1: Query existing annotations (primary, fast)
-        found_nodes: list[Node] = self.find_from_existing_annotations(text, annotation_type)
+        found_nodes: list[Node] = self.find_from_existing_annotations(text_variations, annotation_type)
 
         if not found_nodes:
-            # STRATEGY 2: Global entity search (fallback, slow)
+            # STRATEGY 2: Global entity search (fallback)
             self.logger.debug(f"No match in existing annotations for '{text}'. Trying global entity search.")
-            found_nodes = self.find_global_entity(text, entity_space)
+            found_nodes = self.find_global_entity(text_variations, entity_space)
 
         return found_nodes
 
-    def find_from_existing_annotations(self, text: str, annotation_type: str) -> list[Node]:
+    def find_from_existing_annotations(self, text_variations: list[str], annotation_type: str) -> list[Node]:
         """
         Searches for existing successful annotations with matching startNodeText.
 
@@ -127,17 +136,16 @@ class EntitySearchService(IEntitySearchService):
         4. Handles cross-scope scenarios naturally (entity in different site/unit)
 
         Args:
-            text: The text to search for (e.g., "G18A-921")
+            text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
             annotation_type: "diagrams.FileLink" or "diagrams.AssetLink"
 
         Returns:
             List of matched entity nodes (0, 1, or 2+ for ambiguous)
         """
-        try:
-            # Generate variations of the search text
-            text_variations: list[str] = self.generate_text_variations(text)
-            self.logger.debug(f"Searching for text variations: {text_variations}")
+        # Use first text variation (original text) for logging
+        original_text: str = text_variations[0] if text_variations else "unknown"
 
+        try:
             # Query edges directly with IN filter
             # These are annotation edges that are from regular diagram detect (not pattern mode)
             # NOTE: manually promoted results from pattern mode are added to the
@@ -176,7 +184,7 @@ class EntitySearchService(IEntitySearchService):
             top_matches: list[tuple[str, str]]
             if len(matched_end_nodes) > 1:
                 self.logger.warning(
-                    f"Found {len(matched_end_nodes)} different entities for '{text}' in existing annotations. "
+                    f"Found {len(matched_end_nodes)} different entities for '{original_text}' in existing annotations. "
                     f"This indicates data quality issues or legitimate ambiguity."
                 )
                 # Return list of most common matches (limit to 2 for ambiguity detection)
@@ -207,76 +215,69 @@ class EntitySearchService(IEntitySearchService):
 
             if matched_nodes:
                 self.logger.info(
-                    f"Found {len(matched_nodes)} match(es) for '{text}' from existing annotations "
+                    f"Found {len(matched_nodes)} match(es) for '{original_text}' from existing annotations "
                     f"(appeared {matched_end_nodes.get((matched_nodes[0].space, matched_nodes[0].external_id), 0)} times)"
                 )
 
             return matched_nodes
 
         except Exception as e:
-            self.logger.error(f"Error searching existing annotations for '{text}': {e}")
+            self.logger.error(f"Error searching existing annotations for '{original_text}': {e}")
             return []
 
-    def find_global_entity(self, text: str, entity_space: str) -> list[Node]:
+    def find_global_entity(self, text_variations: list[str], entity_space: str) -> list[Node]:
         """
-        Performs a global, un-scoped search for an entity matching the given text.
-        Uses normalized matching to handle variations like "V-0912" vs "V-912".
+        Performs a global, un-scoped search for an entity matching the given text variations.
+        Uses server-side IN filter with text variations to handle different naming conventions.
 
-        NOTE: This approach queries all instances in a given space.
-        Pros: The most accurate and guaranteed approach
-        Cons: Will likely timeout as the amount of instances in a given space increase
+        This approach uses server-side filtering on the aliases property, making it efficient
+        and scalable even with large numbers of entities in a space.
 
         Args:
-            text: Text to search for
+            text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
             entity_space: Space to search in
 
         Returns:
             List of matched nodes (0, 1, or 2 for ambiguity detection)
         """
-        # Normalize the search text
-        normalized_text: str = self.normalize(text)
+        # Use first text variation (original text) for logging
+        original_text: str = text_variations[0] if text_variations else "unknown"
 
-        # Fetch all entities in the space (with reasonable limit)
-        # NOTE: We can't do normalized matching server-side, so we fetch and filter client-side
-        entities: Any
         try:
-            entities = self.client.data_modeling.instances.list(
+            # Query entities with IN filter on aliases property
+            aliases_filter: Filter = In(self.target_entities_view_id.as_property_ref("aliases"), text_variations)
+
+            entities: Any = self.client.data_modeling.instances.list(
                 instance_type="node",
                 sources=[self.target_entities_view_id],
+                filter=aliases_filter,
                 space=entity_space,
                 limit=1000,  # Reasonable limit to prevent timeouts
             )
+
+            if not entities:
+                return []
+
+            # Convert to list and check for ambiguity
+            matched_entities: list[Node] = list(entities)
+
+            if len(matched_entities) > 1:
+                self.logger.warning(
+                    f"Found {len(matched_entities)} entities with aliases matching '{original_text}' in space '{entity_space}'. "
+                    f"This is ambiguous. Returning first 2 for ambiguity detection."
+                )
+                return matched_entities[:2]
+
+            if matched_entities:
+                self.logger.info(
+                    f"Found {len(matched_entities)} match(es) for '{original_text}' via global entity search"
+                )
+
+            return matched_entities
+
         except Exception as e:
-            self.logger.error(f"Error fetching entities from space '{entity_space}': {e}")
+            self.logger.error(f"Error searching for entity '{original_text}' in space '{entity_space}': {e}")
             return []
-
-        # Client-side normalized matching against aliases
-        matches: list[Node] = []
-        for entity in entities:
-            entity_props: dict[str, Any] = entity.properties.get(self.target_entities_view_id, {})
-            aliases: Any = entity_props.get("aliases", [])
-
-            # Ensure aliases is iterable
-            if not isinstance(aliases, list):
-                continue
-
-            # Check if any alias matches after normalization
-            for alias in aliases:
-                if isinstance(alias, str) and self.normalize(alias) == normalized_text:
-                    matches.append(entity)
-                    # Stop after finding 2 matches (ambiguous case)
-                    if len(matches) >= 2:
-                        self.logger.warning(
-                            f"Found multiple entities with alias matching '{text}' (normalized: '{normalized_text}'). "
-                            f"This is ambiguous."
-                        )
-                        return matches[:2]
-                    break  # Move to next entity after finding match
-
-        if matches:
-            self.logger.info(f"Found {len(matches)} match(es) for '{text}' via global entity search")
-
-        return matches
 
     def generate_text_variations(self, text: str) -> list[str]:
         """

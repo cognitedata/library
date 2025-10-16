@@ -60,14 +60,14 @@ class CacheService(ICacheService):
     Manages two-tier caching for text → entity mappings to dramatically improve performance.
 
     **TIER 1: In-Memory Cache** (This Run Only):
-    - Ultra-fast lookup (<1ms)
+    - Ultra-fast lookup (in-memory dictionary)
     - Dictionary stored in memory: {(text, type): (space, id) or None}
     - **Includes negative caching** (remembers "no match found" to avoid repeated searches)
     - Cleared when function execution ends
     - Used for: Both positive matches AND negative results (not found)
 
     **TIER 2: Persistent RAW Cache** (All Runs):
-    - Fast lookup (5-10ms)
+    - Fast lookup (single database query)
     - Stored in RAW table: promote_text_to_entity_cache
     - Benefits all future function runs indefinitely
     - Tracks hit count for analytics
@@ -75,9 +75,9 @@ class CacheService(ICacheService):
     - Does NOT cache negative results (to allow for new entities added over time)
 
     **Performance Impact:**
-    - First lookup: 50-100ms (query annotation edges)
-    - Cached lookup (same run): <1ms (5000x faster)
-    - Cached lookup (future run): 5-10ms (10-20x faster)
+    - First lookup: Slowest (query annotation edges + entity retrieval)
+    - Cached lookup (same run): Fastest (in-memory dictionary)
+    - Cached lookup (future run): Fast (single database query)
     - Self-improving: Gets faster as cache fills
     """
 
