@@ -14,7 +14,12 @@ configuration that can be downloaded and adapted, then deployed with the
 
 ## Current Release
 
-[![Release Status](https://github.com/cognitedata/library/workflows/Release%20Packages/badge.svg)](https://github.com/cognitedata/library/actions/workflows/release-packages.yml)
+
+```toml
+[library.cognite]
+url = "{{placeholder_url}}"
+checksum = "{{placeholder_checksum}}"
+```
 
 ## Usage
 

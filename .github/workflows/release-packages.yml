@@ -1,9 +1,0 @@
-name: Release Packages
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  
