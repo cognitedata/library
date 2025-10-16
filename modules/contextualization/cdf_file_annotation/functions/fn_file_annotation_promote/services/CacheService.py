@@ -68,6 +68,7 @@ class CacheService(ICacheService):
         self.file_view_id = file_view_id
         self.target_entities_view_id = target_entities_view_id
         self.cache_table_name = cache_table_name
+        self.function_id = "fn_file_annotation_promote"
 
         # In-memory cache: {(text, type): (space, ext_id) or None}
         self._memory_cache: dict[tuple[str, str], tuple[str, str] | None] = {}
@@ -229,6 +230,9 @@ class CacheService(ICacheService):
         """
         Updates persistent RAW cache with text → entity mapping.
         Only caches unambiguous single matches.
+        # NOTE: This cache has two entry points. One entry point is automatically generated connections (e.g. from this code)
+        # The second entry point is from the streamlit app. Manual promotions through the streamlit app will have the result cached into the RAW table.
+        # The sourceCreatedUser will be the functionId for auto generated cache rows and will be a usersId for the manual promotions.
         """
         try:
             cache_key = self.normalize(text)
@@ -241,6 +245,7 @@ class CacheService(ICacheService):
                     "endNodeSpace": node.space,
                     "annotationType": annotation_type,
                     "lastUpdateTimeUtcIso": datetime.now(timezone.utc).isoformat(),
+                    "sourceCreatedUser": self.function_id,
                 },
             )
 
