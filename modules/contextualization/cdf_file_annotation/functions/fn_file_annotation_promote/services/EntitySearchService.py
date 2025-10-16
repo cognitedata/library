@@ -5,6 +5,7 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
 from cognite.client.data_classes.filters import Filter, Equals, In
 from services.LoggerService import CogniteFunctionLogger
+from services.ConfigService import Config, ViewPropertyConfig
 
 
 class IEntitySearchService(abc.ABC):
@@ -52,30 +53,37 @@ class EntitySearchService(IEntitySearchService):
 
     def __init__(
         self,
+        config: Config,
         client: CogniteClient,
         logger: CogniteFunctionLogger,
-        core_annotation_view_id: ViewId,
-        file_view_id: ViewId,
-        target_entities_view_id: ViewId,
-        regular_annotation_space: str,
     ):
         """
         Initializes the entity search service.
 
         Args:
+            config: Configuration object containing data model views and entity search settings
             client: Cognite client
             logger: Logger instance
-            core_annotation_view_id: View ID for annotation edges
-            file_view_id: View ID for file entities
-            target_entities_view_id: View ID for target entities (assets, etc.)
-            regular_annotation_space: Space where regular (non-pattern) annotations are stored
+
+        Raises:
+            ValueError: If regular_annotation_space (file_view.instance_space) is None
         """
         self.client = client
         self.logger = logger
-        self.core_annotation_view_id = core_annotation_view_id
-        self.file_view_id = file_view_id
-        self.target_entities_view_id = target_entities_view_id
-        self.regular_annotation_space = regular_annotation_space
+        self.config = config
+
+        # Extract view IDs
+        self.core_annotation_view_id = config.data_model_views.core_annotation_view.as_view_id()
+        self.file_view_id = config.data_model_views.file_view.as_view_id()
+        self.target_entities_view_id = config.data_model_views.target_entities_view.as_view_id()
+
+        # Extract regular annotation space
+        self.regular_annotation_space: str | None = config.data_model_views.file_view.instance_space
+        if not self.regular_annotation_space:
+            raise ValueError("regular_annotation_space (file_view.instance_space) is required but was None")
+
+        # Extract text normalization config
+        self.text_normalization_config = config.promote_function.entity_search_service.text_normalization
 
     def find_entity(self, text: str, annotation_type: str, entity_space: str) -> list[Node]:
         """
@@ -274,63 +282,105 @@ class EntitySearchService(IEntitySearchService):
         """
         Generates common variations of a text string to improve matching.
 
-        Examples:
-            "14-V-0937" → ["14-V-0937", "14-V-937", "14-v-0937", "14-v-937"]
-            "P&ID-001" → ["P&ID-001", "P&ID-1", "p&id-001", "p&id-1"]
+        Respects text_normalization_config settings:
+        - removeSpecialCharacters: Generate variations without special characters
+        - convertToLowercase: Generate lowercase variations
+        - stripLeadingZeros: Generate variations with leading zeros removed
+
+        Examples (all flags enabled):
+            "V-0912" → ["V-0912", "v-0912", "V-912", "v-912", "V0912", "v0912", "V912", "v912"]
+            "P&ID-001" → ["P&ID-001", "p&id-001", "P&ID-1", "p&id-1", "PID001", "pid001", "PID1", "pid1"]
+
+        Examples (all flags disabled):
+            "V-0912" → ["V-0912"]  # Only original
 
         Args:
             text: Original text from pattern detection
 
         Returns:
-            List of text variations (original + common transformations)
+            List of text variations based on config settings
         """
         variations: set[str] = set()
         variations.add(text)  # Always include original
 
-        # Add lowercase version
-        variations.add(text.lower())
-
-        # Remove leading zeros from number sequences
+        # Helper function to strip leading zeros
         def strip_leading_zeros_in_text(s: str) -> str:
             return re.sub(r"\b0+(\d+)", r"\1", s)
 
-        variations.add(strip_leading_zeros_in_text(text))
-        variations.add(strip_leading_zeros_in_text(text.lower()))
+        # Helper function to remove special characters
+        def remove_special_chars(s: str) -> str:
+            return re.sub(r"[^a-zA-Z0-9]", "", s)
 
-        return list(variations)
+        # Generate all combinations of transformations systematically
+        # We'll build up variations by applying each transformation flag
+        base_variations: set[str] = {text}
+
+        # Apply removeSpecialCharacters transformations
+        if self.text_normalization_config.remove_special_characters:
+            new_variations: set[str] = set()
+            for v in base_variations:
+                new_variations.add(remove_special_chars(v))
+            base_variations.update(new_variations)
+
+        # Apply convertToLowercase transformations
+        if self.text_normalization_config.convert_to_lowercase:
+            new_variations = set()
+            for v in base_variations:
+                new_variations.add(v.lower())
+            base_variations.update(new_variations)
+
+        # Apply stripLeadingZeros transformations
+        if self.text_normalization_config.strip_leading_zeros:
+            new_variations = set()
+            for v in base_variations:
+                new_variations.add(strip_leading_zeros_in_text(v))
+            base_variations.update(new_variations)
+
+        return list(base_variations)
 
     def normalize(self, s: str) -> str:
         """
-        Normalizes a string for comparison.
+        Normalizes a string for comparison based on text_normalization_config settings.
 
-        Process:
-        1. Ensures it's a string
-        2. Removes all non-alphanumeric characters
-        3. Converts to lowercase
-        4. Removes leading zeros from any sequence of digits
+        Applies transformations in sequence based on config:
+        1. removeSpecialCharacters: Remove non-alphanumeric characters
+        2. convertToLowercase: Convert to lowercase
+        3. stripLeadingZeros: Remove leading zeros from number sequences
 
-        Examples:
+        Examples (all flags enabled):
             "V-0912" -> "v912"
             "FT-101A" -> "ft101a"
             "P&ID-0001" -> "pid1"
+
+        Examples (all flags disabled):
+            "V-0912" -> "V-0912"  # No transformation
+
+        Examples (only removeSpecialCharacters):
+            "V-0912" -> "V0912"  # Special chars removed, case and zeros preserved
 
         Args:
             s: String to normalize
 
         Returns:
-            Normalized string
+            Normalized string based on config settings
         """
         if not isinstance(s, str):
             return ""
 
-        # Step 1: Basic cleaning (e.g., "V-0912" -> "v0912")
-        s = re.sub(r"[^a-zA-Z0-9]", "", s).lower()
+        # Apply transformations based on config
+        if self.text_normalization_config.remove_special_characters:
+            s = re.sub(r"[^a-zA-Z0-9]", "", s)
 
-        # Step 2: Define a replacer function that converts any matched number to an int and back to a string
-        def strip_leading_zeros(match):
-            # match.group(0) is the matched string (e.g., "0912")
-            return str(int(match.group(0)))
+        if self.text_normalization_config.convert_to_lowercase:
+            s = s.lower()
 
-        # Step 3: Apply the replacer function to all sequences of digits (\d+) in the string
-        # This turns "v0912" into "v912"
-        return re.sub(r"\d+", strip_leading_zeros, s)
+        if self.text_normalization_config.strip_leading_zeros:
+            # Define a replacer function that converts any matched number to an int and back to a string
+            def strip_leading_zeros(match):
+                # match.group(0) is the matched string (e.g., "0912")
+                return str(int(match.group(0)))
+
+            # Apply the replacer function to all sequences of digits (\d+) in the string
+            s = re.sub(r"\d+", strip_leading_zeros, s)
+
+        return s

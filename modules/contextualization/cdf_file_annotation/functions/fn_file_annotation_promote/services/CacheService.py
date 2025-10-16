@@ -6,6 +6,7 @@ from cognite.client.data_classes.data_modeling import Node, NodeList
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.raw import Row
 from services.LoggerService import CogniteFunctionLogger
+from services.ConfigService import Config, ViewPropertyConfig
 
 
 class ICacheService(abc.ABC):
@@ -82,33 +83,37 @@ class CacheService(ICacheService):
 
     def __init__(
         self,
+        config: Config,
         client: CogniteClient,
         logger: CogniteFunctionLogger,
-        raw_db: str,
         normalize_fn: Callable[[str], str],
-        file_view_id: ViewId,
-        target_entities_view_id: ViewId,
-        cache_table_name: str = "promote_text_to_entity_cache",
     ):
         """
         Initializes the cache service.
 
         Args:
+            config: Configuration object containing data model views and cache settings
             client: Cognite client
             logger: Logger instance
-            raw_db: RAW database name
             normalize_fn: Function to normalize text for cache keys
-            file_view_id: View ID for file entities
-            target_entities_view_id: View ID for target entities (assets, etc.)
-            cache_table_name: Name of the RAW table for persistent cache
         """
         self.client = client
         self.logger = logger
-        self.raw_db = raw_db
+        self.config = config
         self.normalize = normalize_fn
-        self.file_view_id = file_view_id
-        self.target_entities_view_id = target_entities_view_id
-        self.cache_table_name = cache_table_name
+
+        # Extract view configurations
+        file_view: ViewPropertyConfig = config.data_model_views.file_view
+        target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
+
+        # Extract view IDs
+        self.file_view_id = file_view.as_view_id()
+        self.target_entities_view_id = target_entities_view.as_view_id()
+
+        # Extract RAW database and cache table configuration
+        self.raw_db: str = config.promote_function.raw_db
+        self.cache_table_name: str = config.promote_function.cache_service.cache_table_name
+
         self.function_id = "fn_file_annotation_promote"
 
         # In-memory cache: {(text, type): (space, ext_id) or None}
