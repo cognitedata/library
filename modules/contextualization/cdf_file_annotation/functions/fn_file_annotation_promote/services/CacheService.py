@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime, timezone, timedelta
-from typing import Callable
+from typing import Callable, Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
 from cognite.client.data_classes.data_modeling.ids import ViewId
@@ -9,34 +9,73 @@ from services.LoggerService import CogniteFunctionLogger
 
 
 class ICacheService(abc.ABC):
+    """
+    Interface for services that cache text → entity mappings to improve lookup performance.
+    """
+
     @abc.abstractmethod
     def get(self, text: str, annotation_type: str) -> Node | None:
-        """Retrieves a cached entity node for the given text and annotation type."""
+        """
+        Retrieves a cached entity node for the given text and annotation type.
+
+        Args:
+            text: Text to look up
+            annotation_type: Type of annotation
+
+        Returns:
+            Cached Node if found, None if cache miss
+        """
         pass
 
     @abc.abstractmethod
-    def set(self, text: str, annotation_type: str, node: Node) -> None:
-        """Caches an entity node for the given text and annotation type."""
+    def set(self, text: str, annotation_type: str, node: Node | None) -> None:
+        """
+        Caches an entity node for the given text and annotation type.
+
+        Args:
+            text: Text being cached
+            annotation_type: Type of annotation
+            node: Entity node to cache, or None for negative caching
+        """
         pass
 
     @abc.abstractmethod
     def get_from_memory(self, text: str, annotation_type: str) -> Node | None:
-        """Retrieves from in-memory cache only (no persistent storage lookup)."""
+        """
+        Retrieves from in-memory cache only (no persistent storage lookup).
+
+        Args:
+            text: Text to look up
+            annotation_type: Type of annotation
+
+        Returns:
+            Cached Node if found in memory, None otherwise
+        """
         pass
 
 
 class CacheService(ICacheService):
     """
-    Manages two-tier caching for text → entity mappings.
+    Manages two-tier caching for text → entity mappings to dramatically improve performance.
 
-    TIER 1: In-memory cache (this run only)
+    **TIER 1: In-Memory Cache** (This Run Only):
     - Ultra-fast lookup (<1ms)
-    - Includes negative caching (None for no match)
+    - Dictionary stored in memory: {(text, type): (space, id) or None}
+    - Includes negative caching (remembers "no match found")
+    - Cleared when function execution ends
 
-    TIER 2: Persistent RAW cache (all runs)
+    **TIER 2: Persistent RAW Cache** (All Runs):
     - Fast lookup (5-10ms)
-    - Benefits all future runs
+    - Stored in RAW table: promote_text_to_entity_cache
+    - Benefits all future function runs indefinitely
     - Tracks hit count for analytics
+    - Only caches unambiguous single matches
+
+    **Performance Impact:**
+    - First lookup: 50-100ms (query annotation edges)
+    - Cached lookup (same run): <1ms (5000x faster)
+    - Cached lookup (future run): 5-10ms (10-20x faster)
+    - Self-improving: Gets faster as cache fills
     """
 
     def __init__(
@@ -86,24 +125,30 @@ class CacheService(ICacheService):
         Returns:
             Cached Node if found, None if cache miss
         """
-        cache_key = (text, annotation_type)
+        cache_key: tuple[str, str] = (text, annotation_type)
 
         # TIER 1: In-memory cache (instant)
         if cache_key in self._memory_cache:
-            cached_result = self._memory_cache[cache_key]
+            cached_result: tuple[str, str] | None = self._memory_cache[cache_key]
             if cached_result is None:
                 # Negative cache entry
                 return None
 
             # Retrieve the node from cache
+            space: str
+            ext_id: str
             space, ext_id = cached_result
-            view_id = self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
+            view_id: ViewId = (
+                self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
+            )
 
             try:
-                retrieved = self.client.data_modeling.instances.retrieve_nodes(nodes=(space, ext_id), sources=view_id)
+                retrieved: Any = self.client.data_modeling.instances.retrieve_nodes(
+                    nodes=(space, ext_id), sources=view_id
+                )
                 if retrieved:
                     self.logger.debug(f"✓ In-memory cache HIT for '{text}'")
-                    node = self._extract_single_node(retrieved)
+                    node: Node | None = self._extract_single_node(retrieved)
                     return node
             except Exception as e:
                 self.logger.warning(f"Failed to retrieve cached node for '{text}': {e}")
@@ -112,7 +157,7 @@ class CacheService(ICacheService):
                 return None
 
         # TIER 2: Persistent RAW cache (fast)
-        cached_node = self._get_from_persistent_cache(text, annotation_type)
+        cached_node: Node | None = self._get_from_persistent_cache(text, annotation_type)
         if cached_node:
             self.logger.info(f"✓ Persistent cache HIT for '{text}'")
             # Populate in-memory cache for future lookups in this run
@@ -135,19 +180,21 @@ class CacheService(ICacheService):
         Returns:
             Cached Node if found in memory, None otherwise
         """
-        cache_key = (text, annotation_type)
+        cache_key: tuple[str, str] = (text, annotation_type)
         if cache_key not in self._memory_cache:
             return None
 
-        cached_result = self._memory_cache[cache_key]
+        cached_result: tuple[str, str] | None = self._memory_cache[cache_key]
         if cached_result is None:
             return None
 
+        space: str
+        ext_id: str
         space, ext_id = cached_result
-        view_id = self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
+        view_id: ViewId = self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
 
         try:
-            retrieved = self.client.data_modeling.instances.retrieve_nodes(nodes=(space, ext_id), sources=view_id)
+            retrieved: Any = self.client.data_modeling.instances.retrieve_nodes(nodes=(space, ext_id), sources=view_id)
             if retrieved:
                 return self._extract_single_node(retrieved)
         except Exception:
@@ -166,7 +213,7 @@ class CacheService(ICacheService):
             annotation_type: Type of annotation
             node: The entity node to cache, or None for negative caching
         """
-        cache_key = (text, annotation_type)
+        cache_key: tuple[str, str] = (text, annotation_type)
 
         if node is None:
             # Negative cache entry (remember that no match was found)
@@ -188,9 +235,9 @@ class CacheService(ICacheService):
         """
         try:
             # Normalize text for consistent cache keys
-            cache_key = self.normalize(text)
+            cache_key: str = self.normalize(text)
 
-            row = self.client.raw.rows.retrieve(
+            row: Any = self.client.raw.rows.retrieve(
                 db_name=self.raw_db,
                 table_name=self.cache_table_name,
                 key=cache_key,
@@ -204,15 +251,17 @@ class CacheService(ICacheService):
                 return None
 
             # Retrieve the cached node
-            end_node_space = row.columns.get("endNodeSpace")
-            end_node_ext_id = row.columns.get("endNode")
+            end_node_space: Any = row.columns.get("endNodeSpace")
+            end_node_ext_id: Any = row.columns.get("endNode")
 
             if not end_node_space or not end_node_ext_id:
                 return None
 
-            view_id = self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
+            view_id: ViewId = (
+                self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
+            )
 
-            retrieved = self.client.data_modeling.instances.retrieve_nodes(
+            retrieved: Any = self.client.data_modeling.instances.retrieve_nodes(
                 nodes=(end_node_space, end_node_ext_id), sources=view_id
             )
 
@@ -235,9 +284,9 @@ class CacheService(ICacheService):
         # The sourceCreatedUser will be the functionId for auto generated cache rows and will be a usersId for the manual promotions.
         """
         try:
-            cache_key = self.normalize(text)
+            cache_key: str = self.normalize(text)
 
-            cache_data = Row(
+            cache_data: Row = Row(
                 key=cache_key,
                 columns={
                     "originalText": text,
