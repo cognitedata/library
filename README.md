@@ -17,8 +17,8 @@ configuration that can be downloaded and adapted, then deployed with the
 
 ```toml
 [library.cognite]
-url = "{{placeholder_url}}"
-checksum = "{{placeholder_checksum}}"
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:9eb177a092228157c7779b3e8d33ba49c17db732cbe2b36787ad67db0baeb49a"
 ```
 
 ## Usage
