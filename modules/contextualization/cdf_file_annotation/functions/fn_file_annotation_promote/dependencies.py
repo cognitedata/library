@@ -147,11 +147,10 @@ def create_entity_search_service(
     """
     Creates an EntitySearchService instance for finding entities by text.
 
-    Factory function that initializes EntitySearchService with all required dependencies
-    extracted from the configuration.
+    Factory function that initializes EntitySearchService with configuration.
 
     Args:
-        config: Configuration object containing data model views
+        config: Configuration object containing data model views and entity search settings
         client: CogniteClient for API interactions
         logger: Logger instance for tracking execution
 
@@ -161,25 +160,7 @@ def create_entity_search_service(
     Raises:
         ValueError: If regular_annotation_space (file_view.instance_space) is None
     """
-    # Get required configuration
-    from services.ConfigService import ViewPropertyConfig
-
-    core_annotation_view: ViewPropertyConfig = config.data_model_views.core_annotation_view
-    file_view: ViewPropertyConfig = config.data_model_views.file_view
-    target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
-    regular_annotation_space: str | None = file_view.instance_space
-
-    if not regular_annotation_space:
-        raise ValueError("regular_annotation_space (file_view.instance_space) is required but was None")
-
-    return EntitySearchService(
-        client=client,
-        logger=logger,
-        core_annotation_view_id=core_annotation_view.as_view_id(),
-        file_view_id=file_view.as_view_id(),
-        target_entities_view_id=target_entities_view.as_view_id(),
-        regular_annotation_space=regular_annotation_space,
-    )
+    return EntitySearchService(config=config, client=client, logger=logger)
 
 
 def create_cache_service(
@@ -188,7 +169,7 @@ def create_cache_service(
     """
     Creates a CacheService instance for caching text→entity mappings.
 
-    Factory function that initializes CacheService with all required dependencies.
+    Factory function that initializes CacheService with configuration.
     Importantly, reuses the normalize() function from EntitySearchService to ensure
     consistent text normalization between caching and searching.
 
@@ -201,25 +182,9 @@ def create_cache_service(
     Returns:
         Initialized CacheService instance
     """
-    from services.ConfigService import ViewPropertyConfig
-
-    file_view: ViewPropertyConfig = config.data_model_views.file_view
-    target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
-
-    # Use promote_function config if available, otherwise fallback to finalize_function
-    if config.promote_function:
-        raw_db: str = config.promote_function.raw_db
-        cache_table_name: str = config.promote_function.cache_service.cache_table_name
-    else:
-        raw_db = config.finalize_function.apply_service.raw_db
-        cache_table_name = "promote_text_to_entity_cache"  # Default
-
     return CacheService(
+        config=config,
         client=client,
         logger=logger,
-        raw_db=raw_db,
         normalize_fn=entity_search_service.normalize,  # Reuse normalization from entity search
-        file_view_id=file_view.as_view_id(),
-        target_entities_view_id=target_entities_view.as_view_id(),
-        cache_table_name=cache_table_name,
     )

@@ -227,12 +227,14 @@ class TextNormalizationConfig(BaseModel, alias_generator=to_camel):
 
     Controls how text is normalized for matching and what variations are generated
     to improve match rates across different naming conventions.
+
+    These flags affect both the normalize() function (for cache keys and direct matching)
+    and generate_text_variations() function (for query-based matching).
     """
 
     remove_special_characters: bool = True
     convert_to_lowercase: bool = True
     strip_leading_zeros: bool = True
-    generate_variations: bool = True
 
 
 class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
@@ -296,7 +298,7 @@ class Config(BaseModel, alias_generator=to_camel):
     prepare_function: PrepareFunction
     launch_function: LaunchFunction
     finalize_function: FinalizeFunction
-    promote_function: Optional[PromoteFunctionConfig] = None
+    promote_function: PromoteFunctionConfig
 
     @classmethod
     def parse_direct_relation(cls, value: Any) -> Any:
