@@ -94,11 +94,12 @@ modules = [
     "custom/my_module",
 ]
 
-[packages.ootb_agents]
-id = "dp:ootb_agents"
-title = "Out-of-the-Box Atlas AI Agents"
-description = "Deploy preconfigured Atlas AI agents with zero setup."
-canCherryPick = true
+[packages.atlas_ai]
+id = "dp:atlas_ai"
+title = "Atlas AI Deployment Pack"
+description = "Deploy all Atlas AI modules in one package."
+canCherryPick = true  # allows users to select individual modules
 modules = [
-    "atlas_ai/ootb_agents/agents"
+    "atlas_ai/ootb_agents/agents",
+    "atlas_ai/root_cause_analysis/rca_with_atlas"
 ]

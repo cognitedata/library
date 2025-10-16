@@ -1,5 +1,5 @@
 [module]
 title = "OOTB AI Agents"
 is_selected_by_default = false
-id = "dp:ootb_agents:all_agents"
-package_id = "dp:ootb_agents"
+id = "dp:atlas_ai:ootb_agents"
+package_id = "dp:atlas_ai"
