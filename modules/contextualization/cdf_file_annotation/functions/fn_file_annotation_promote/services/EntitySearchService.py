@@ -1,6 +1,6 @@
 import abc
 import re
-from typing import Callable
+from typing import Callable, Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
 from cognite.client.data_classes.filters import Filter, Equals, In
@@ -8,23 +8,46 @@ from services.LoggerService import CogniteFunctionLogger
 
 
 class IEntitySearchService(abc.ABC):
+    """
+    Interface for services that find entities by text using various search strategies.
+    """
+
     @abc.abstractmethod
     def find_entity(self, text: str, annotation_type: str, entity_space: str) -> list[Node]:
-        """Finds entities matching the given text using multiple strategies."""
+        """
+        Finds entities matching the given text using multiple strategies.
+
+        Args:
+            text: Text to search for
+            annotation_type: Type of annotation being searched
+            entity_space: Space to search in for global fallback
+
+        Returns:
+            List of matched Node objects
+        """
         pass
 
 
 class EntitySearchService(IEntitySearchService):
     """
-    Finds entities by text using multiple search strategies.
+    Finds entities by text using multiple search strategies with automatic fallback.
 
-    Search Strategy:
-    1. Existing annotations (fast, reliable, leverages proven connections)
-    2. Global entity search (slow, comprehensive, fallback)
+    This service implements a two-tier search strategy for finding entities:
 
-    Utilities:
-    - Text variation generation (handles case, leading zeros)
-    - Text normalization (for comparison)
+    **Strategy 1 - Existing Annotations** (Primary, Fast: 50-100ms):
+    - Queries annotation edges from regular diagram detect
+    - Uses server-side IN filter with text variations
+    - Returns entities that were successfully annotated before
+    - Handles cross-scope scenarios naturally (entity in different site/unit)
+
+    **Strategy 2 - Global Entity Search** (Fallback, Slow: 500ms-2s):
+    - Fetches all entities in space (limit 1000)
+    - Client-side normalized matching against aliases
+    - Comprehensive but may timeout with large entity counts
+
+    **Utilities:**
+    - `generate_text_variations()`: Creates common variations (case, leading zeros)
+    - `normalize()`: Normalizes text for comparison (removes special chars, lowercase, strips zeros)
     """
 
     def __init__(
@@ -76,7 +99,7 @@ class EntitySearchService(IEntitySearchService):
             - [node1, node2] if ambiguous (multiple matches)
         """
         # STRATEGY 1: Query existing annotations (primary, fast)
-        found_nodes = self.find_from_existing_annotations(text, annotation_type)
+        found_nodes: list[Node] = self.find_from_existing_annotations(text, annotation_type)
 
         if not found_nodes:
             # STRATEGY 2: Global entity search (fallback, slow)
@@ -104,14 +127,14 @@ class EntitySearchService(IEntitySearchService):
         """
         try:
             # Generate variations of the search text
-            text_variations = self.generate_text_variations(text)
+            text_variations: list[str] = self.generate_text_variations(text)
             self.logger.debug(f"Searching for text variations: {text_variations}")
 
             # Query edges directly with IN filter
             # These are annotation edges that are from regular diagram detect (not pattern mode)
-            # NOTE: manually promoted results from pattern mode are added to the 
+            # NOTE: manually promoted results from pattern mode are added to the
             text_filter: Filter = In(self.core_annotation_view_id.as_property_ref("startNodeText"), text_variations)
-            edges = self.client.data_modeling.instances.list(
+            edges: Any = self.client.data_modeling.instances.list(
                 instance_type="edge",
                 sources=[self.core_annotation_view_id],
                 filter=text_filter,
@@ -123,43 +146,48 @@ class EntitySearchService(IEntitySearchService):
                 return []
 
             # Count occurrences of each endNode
-            matched_end_nodes = {}  # {(space, externalId): count}
+            matched_end_nodes: dict[tuple[str, str], int] = {}  # {(space, externalId): count}
             for edge in edges:
                 # Check annotation type matches
-                edge_props = edge.properties.get(self.core_annotation_view_id, {})
-                edge_type = edge_props.get("type")
+                edge_props: dict[str, Any] = edge.properties.get(self.core_annotation_view_id, {})
+                edge_type: Any = edge_props.get("type")
 
                 if edge_type != annotation_type:
                     continue  # Skip edges of different type
 
                 # Extract endNode from the edge
-                end_node_ref = edge.end_node
+                end_node_ref: Any = edge.end_node
                 if end_node_ref:
-                    key = (end_node_ref.space, end_node_ref.external_id)
+                    key: tuple[str, str] = (end_node_ref.space, end_node_ref.external_id)
                     matched_end_nodes[key] = matched_end_nodes.get(key, 0) + 1
 
             if not matched_end_nodes:
                 return []
 
             # If multiple different endNodes found, it's ambiguous
+            top_matches: list[tuple[str, str]]
             if len(matched_end_nodes) > 1:
                 self.logger.warning(
                     f"Found {len(matched_end_nodes)} different entities for '{text}' in existing annotations. "
                     f"This indicates data quality issues or legitimate ambiguity."
                 )
                 # Return list of most common matches (limit to 2 for ambiguity detection)
-                sorted_matches = sorted(matched_end_nodes.items(), key=lambda x: x[1], reverse=True)
+                sorted_matches: list[tuple[tuple[str, str], int]] = sorted(
+                    matched_end_nodes.items(), key=lambda x: x[1], reverse=True
+                )
                 top_matches = [match[0] for match in sorted_matches[:2]]
             else:
                 # Single consistent match found
                 top_matches = [list(matched_end_nodes.keys())[0]]
 
             # Fetch the actual node objects for the matched entities
-            view_to_use = self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
+            view_to_use: ViewId = (
+                self.file_view_id if annotation_type == "diagrams.FileLink" else self.target_entities_view_id
+            )
 
-            matched_nodes = []
+            matched_nodes: list[Node] = []
             for space, ext_id in top_matches:
-                retrieved = self.client.data_modeling.instances.retrieve_nodes(
+                retrieved: Any = self.client.data_modeling.instances.retrieve_nodes(
                     nodes=(space, ext_id), sources=view_to_use
                 )
                 # Handle both single Node and NodeList returns
@@ -198,10 +226,11 @@ class EntitySearchService(IEntitySearchService):
             List of matched nodes (0, 1, or 2 for ambiguity detection)
         """
         # Normalize the search text
-        normalized_text = self.normalize(text)
+        normalized_text: str = self.normalize(text)
 
         # Fetch all entities in the space (with reasonable limit)
         # NOTE: We can't do normalized matching server-side, so we fetch and filter client-side
+        entities: Any
         try:
             entities = self.client.data_modeling.instances.list(
                 instance_type="node",
@@ -214,10 +243,10 @@ class EntitySearchService(IEntitySearchService):
             return []
 
         # Client-side normalized matching against aliases
-        matches = []
+        matches: list[Node] = []
         for entity in entities:
-            entity_props = entity.properties.get(self.target_entities_view_id, {})
-            aliases = entity_props.get("aliases", [])
+            entity_props: dict[str, Any] = entity.properties.get(self.target_entities_view_id, {})
+            aliases: Any = entity_props.get("aliases", [])
 
             # Ensure aliases is iterable
             if not isinstance(aliases, list):
@@ -255,7 +284,7 @@ class EntitySearchService(IEntitySearchService):
         Returns:
             List of text variations (original + common transformations)
         """
-        variations = set()
+        variations: set[str] = set()
         variations.add(text)  # Always include original
 
         # Add lowercase version
