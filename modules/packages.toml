@@ -94,3 +94,11 @@ modules = [
     "custom/my_module",
 ]
 
+[packages.ootb_agents]
+id = "dp:ootb_agents"
+title = "Out-of-the-Box Atlas AI Agents"
+description = "Deploy preconfigured Atlas AI agents with zero setup."
+canCherryPick = true
+modules = [
+    "atlas_ai/ootb_agents/agents"
+]
