@@ -18,3 +18,13 @@
   runtime: "py311"
   functionPath: "handler.py"
 
+- name: Promote File Annotations
+  externalId: {{ promoteFunctionExternalId }}
+  owner: "Anonymous"
+  description: "Automatically promote suggested pattern mode annotations created by the finalize function if it exists."
+  metadata:
+    version: {{ promoteFunctionVersion }}
+
+  runtime: "py311"
+  functionPath: "handler.py"
+

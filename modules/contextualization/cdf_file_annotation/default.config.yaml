@@ -19,6 +19,7 @@ rawTableDocDoc: annotation_documents_docs
 rawTableDocPattern: annotation_documents_patterns
 rawTableCache: annotation_entities_cache
 rawManualPatternsCatalog: manual_patterns_catalog
+rawTablePromoteCache: promote_text_cache
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation
@@ -32,6 +33,8 @@ launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, t
 launchFunctionVersion: v1.0.0
 finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
 finalizeFunctionVersion: v1.0.0
+promoteFunctionExternalId: fn_file_annotation_promote #NOTE: if this is changed, then the folder holding the promote function must be named the same as the new external ID
+promoteFunctionVersion: v1.0.0
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 
