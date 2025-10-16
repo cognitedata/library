@@ -288,8 +288,7 @@ class GeneralPromoteService(IPromoteService):
         Caching strategy (fastest to slowest):
         - TIER 1: In-memory cache (this run only, in-memory dictionary)
         - TIER 2: Persistent RAW cache (all runs, single database query)
-        - TIER 3: EntitySearchService (annotation edges, server-side IN filter on startNodeText)
-        - TIER 4: EntitySearchService fallback (global search, server-side IN filter on aliases)
+        - TIER 3: EntitySearchService (global entity search, server-side IN filter on aliases)
 
         Caching behavior:
         - Only caches unambiguous single matches (len(found_nodes) == 1)

@@ -31,22 +31,23 @@ class IEntitySearchService(abc.ABC):
 
 class EntitySearchService(IEntitySearchService):
     """
-    Finds entities by text using multiple search strategies with automatic fallback.
+    Finds entities by text using server-side filtering on entity aliases.
 
-    This service implements a two-tier search strategy for finding entities:
+    This service queries entities directly using an IN filter on the aliases property,
+    which is more efficient than querying annotation edges:
 
-    **Strategy 1 - Existing Annotations** (Primary, Fast):
-    - Queries annotation edges from regular diagram detect
-    - Uses server-side IN filter with text variations on edge startNodeText
-    - Returns entities that were successfully annotated before
-    - Handles cross-scope scenarios naturally (entity in different site/unit)
-    - Most efficient: Queries proven successful matches first
+    **Why query entities directly instead of annotation edges?**
+    - Entity dataset is smaller and stable (~1,000-10,000 entities)
+    - Annotation edges grow quadratically (Files × Entities = potentially millions)
+    - Neither startNodeText nor aliases properties are indexed
+    - Without indexes, smaller dataset = better performance
+    - Entity count doesn't increase as more files are annotated
 
-    **Strategy 2 - Global Entity Search** (Fallback):
-    - Queries all entities in specified space
-    - Uses server-side IN filter with text variations on entity aliases
-    - Comprehensive search across all entities when no previous annotation exists
-    - Efficient: Server-side indexed filtering on aliases property
+    **Search Strategy:**
+    - Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
+    - Query entities with server-side IN filter on aliases property
+    - Uses text variations to handle different naming conventions
+    - Returns matches from specified entity space
 
     **Utilities:**
     - `generate_text_variations()`: Creates common variations (case, leading zeros, special chars)
@@ -89,21 +90,24 @@ class EntitySearchService(IEntitySearchService):
 
     def find_entity(self, text: str, annotation_type: str, entity_space: str) -> list[Node]:
         """
-        Finds entities matching the given text using multiple strategies.
+        Finds entities matching the given text by querying entity aliases.
 
         This is the main entry point for entity search.
 
         Strategy:
-        1. Generate text variations once (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v-912", ...])
-        2. Try existing annotations (fast, queries edges from previous successful matches)
-        3. Fall back to global search (queries all entities in space with IN filter on aliases)
+        1. Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
+        2. Query entities with server-side IN filter on aliases property
 
-        Both strategies use server-side filtering with text variations for efficiency.
+        Note: We query entities directly rather than annotation edges because:
+        - Entity dataset is smaller and more stable (~1,000-10,000 entities)
+        - Annotation edges grow quadratically (Files × Entities = potentially millions)
+        - Neither startNodeText nor aliases properties are indexed
+        - Without indexes, smaller dataset = better performance
 
         Args:
             text: Text to search for (e.g., "V-123", "G18A-921")
             annotation_type: Type of annotation ("diagrams.FileLink" or "diagrams.AssetLink")
-            entity_space: Space to search in for global fallback
+            entity_space: Space to search in
 
         Returns:
             List of matched nodes:
@@ -111,33 +115,41 @@ class EntitySearchService(IEntitySearchService):
             - [node] if single unambiguous match
             - [node1, node2] if ambiguous (multiple matches)
         """
-        # Generate text variations once for use in both strategies
+        # Generate text variations once
         text_variations: list[str] = self.generate_text_variations(text)
         self.logger.info(f"Generated {len(text_variations)} text variation(s) for '{text}': {text_variations}")
 
-        # STRATEGY 1: Query existing annotations (primary, fast)
-        found_nodes: list[Node] = self.find_from_existing_annotations(text_variations, annotation_type)
+        # Determine which view to query based on annotation type
+        if annotation_type == "diagrams.FileLink":
+            source: ViewId = self.file_view_id
+        else:
+            source = self.target_entities_view_id
 
-        if not found_nodes:
-            # STRATEGY 2: Global entity search (fallback)
-            self.logger.debug(f"No match in existing annotations for '{text}'. Trying global entity search.")
-            if annotation_type == "diagrams.FileLink":
-                source: ViewId = self.file_view_id
-            else:
-                source = self.target_entities_view_id
-            found_nodes = self.find_global_entity(text_variations, source, entity_space)
+        # Query entities directly by aliases
+        found_nodes: list[Node] = self.find_global_entity(text_variations, source, entity_space)
 
         return found_nodes
 
     def find_from_existing_annotations(self, text_variations: list[str], annotation_type: str) -> list[Node]:
         """
-        Searches for existing successful annotations with matching startNodeText.
+        [UNUSED] Searches for existing successful annotations with matching startNodeText.
 
-        This is MUCH faster than querying all entity aliases because:
-        1. Queries edges directly with server-side filtering (indexed and fast)
-        2. Uses IN filter with text variations to handle common differences
-        3. Only searches proven successful annotations
-        4. Handles cross-scope scenarios naturally (entity in different site/unit)
+        ** WHY THIS FUNCTION IS NOT USED: **
+        While this was originally designed as a "smart" optimization to find proven matches,
+        it actually queries the LARGER dataset:
+
+        - Annotation edges grow quadratically: O(Files × Entities) = potentially millions
+        - Entity/file nodes grow linearly: O(Entities) = thousands
+        - Neither startNodeText nor aliases properties are indexed
+        - Without indexes, querying the smaller dataset (entities) is always faster
+
+        Performance comparison at scale:
+        - This function: Scans ~500,000+ annotation edges (grows over time)
+        - Global entity search: Scans ~1,000-10,000 entities (relatively stable)
+
+        Result: Global entity search is 50-500x faster at scale.
+
+        This function is kept for reference but should not be used in production.
 
         Args:
             text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
@@ -239,6 +251,7 @@ class EntitySearchService(IEntitySearchService):
 
         Args:
             text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
+            source: View to query (file_view or target_entities_view)
             entity_space: Space to search in
 
         Returns:
@@ -249,7 +262,7 @@ class EntitySearchService(IEntitySearchService):
 
         try:
             # Query entities with IN filter on aliases property
-            aliases_filter: Filter = In(self.target_entities_view_id.as_property_ref("aliases"), text_variations)
+            aliases_filter: Filter = In(source.as_property_ref("aliases"), text_variations)
 
             entities: Any = self.client.data_modeling.instances.list(
                 instance_type="node",
