@@ -2,6 +2,9 @@ name: Validate Packages TOML
 
 on:
   push:
+  pull_request:
+    branches:
+      - main
 
 jobs:
   validate:
@@ -19,3 +22,7 @@ jobs:
     - name: Validate packages.toml
       run: |
         python validate_packages.py
+        
+    - name: Build packages
+      run: |
+        python build_packages.py

@@ -4,6 +4,7 @@ Release script to create a zip archive of the modules folder.
 Designed to run on merge to main branch and create GitHub releases.
 """
 
+import hashlib
 import os
 import sys
 import zipfile
@@ -62,8 +63,17 @@ def create_modules_zip(output_name: str = None) -> str:
         file_size = output_path.stat().st_size
         file_size_mb = file_size / (1024 * 1024)
 
+        # Calculate SHA256 hash
+        sha256_hash = hashlib.sha256()
+        with open(output_path, "rb") as f:
+            # Read file in chunks to handle large files efficiently
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(chunk)
+        hash_digest = sha256_hash.hexdigest()
+
         print(f"\n✅ Successfully created: {output_path}")
         print(f"📦 File size: {file_size_mb:.2f} MB ({file_size:,} bytes)")
+        print(f"🔐 Hash: sha256:{hash_digest}")
         print(f"📁 Source: {modules_dir}")
 
         return str(output_path)
