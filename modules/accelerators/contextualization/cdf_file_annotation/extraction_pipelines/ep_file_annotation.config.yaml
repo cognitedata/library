@@ -149,6 +149,8 @@ config:
     rawTableDocPattern: {{ rawTableDocPattern }}
     rawTableDocTag: {{ rawTableDocTag }}
     rawTableDocDoc: {{ rawTableDocDoc }}
+    delete_rejected_edges: true
+    delete_suggested_edges: true
     entitySearchService:
       enableExistingAnnotationsSearch: true  # Primary: Query annotation edges (fast, checks existing annotation edges)
       enableGlobalEntitySearch: true  # Fallback: Global entity search - (slow, unstable as instance count grows)
