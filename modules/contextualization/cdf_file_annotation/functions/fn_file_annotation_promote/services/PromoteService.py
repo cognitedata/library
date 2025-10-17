@@ -227,7 +227,7 @@ class GeneralPromoteService(IPromoteService):
                     f"  ├─ Promoted: {batch_promoted}\n"
                     f"  ├─ Rejected: {batch_rejected}\n"
                     f"  └─ Ambiguous: {batch_ambiguous}",
-                    section="END",
+                    section="BOTH",
                 )
 
             if edges_to_delete:

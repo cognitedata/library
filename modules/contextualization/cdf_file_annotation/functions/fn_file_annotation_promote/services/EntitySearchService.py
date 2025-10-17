@@ -286,7 +286,7 @@ class EntitySearchService(IEntitySearchService):
                 return matched_entities[:2]
 
             if matched_entities:
-                self.logger.info(
+                self.logger.debug(
                     f"Found {len(matched_entities)} match(es) for '{original_text}' via global entity search"
                 )
 
