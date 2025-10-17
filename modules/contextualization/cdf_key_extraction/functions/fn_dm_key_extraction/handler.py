@@ -7,6 +7,7 @@ from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from config import load_config_parameters
 from logger import CogniteFunctionLogger
+from dependencies import create_client, create_logger_service, get_env_variables
 
 from pipeline import key_extraction
 
@@ -99,35 +100,17 @@ def run_locally():
     if missing := [envvar for envvar in required_envvars if envvar not in os.environ]:
         raise ValueError(f"Missing required environment variables: {missing}")
 
-    # Extract configuration
-    cdf_project_name = os.environ["CDF_PROJECT"]
-    cdf_cluster = os.environ["CDF_CLUSTER"]
-    client_id = os.environ["IDP_CLIENT_ID"]
-    client_secret = os.environ["IDP_CLIENT_SECRET"]
-    token_uri = os.environ["IDP_TOKEN_URL"]
-    base_url = f"https://{cdf_cluster}.cognitedata.com"
-
-    # Initialize client
-    client = CogniteClient(
-        ClientConfig(
-            client_name="Optimized Toolkit Entity Matching Pipeline",
-            base_url=base_url,
-            project=cdf_project_name,
-            credentials=OAuthClientCredentials(
-                token_url=token_uri,
-                client_id=client_id,
-                client_secret=client_secret,
-                scopes=[f"{base_url}/.default"],
-            ),
-        )
-    )
-
     # Test data
     data = {
         "logLevel": "DEBUG",
         "ExtractionPipelineExtId": "ctx_key_extraction_regex"
     }
 
+    log_level = data.get("logLevel", "DEBUG")
+    logger_instance = create_logger_service(log_level=log_level)
+
+    client = create_client(env_config=get_env_variables())
+    
     # Run optimized handler
     print("Starting optimized entity matching pipeline...")
     result = handle(data, client)

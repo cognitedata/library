@@ -14,6 +14,7 @@ from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
+from cognite.client.data_classes.data_modeling.ids import ViewId
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
 
@@ -115,6 +116,13 @@ class SourceViewConfig(BaseModel):
         default_factory=[],
         description="List of properties to retrieve (optional, e.g., ['name', 'description']).",
     )
+
+    def as_view_id(self) -> ViewId:
+        return ViewId(
+            schema_space=self.view_space,
+            external_id=self.view_external_id,
+            version=self.view_version
+        )
 
     def build_filter(self) -> Filter:
         target_view = ViewPropertyConfig(

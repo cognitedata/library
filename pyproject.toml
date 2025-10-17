@@ -12,7 +12,10 @@ dependencies = [
     "cognite-sdk (==7.*)",
     "pytest (>=7.0.0)",
     "tenacity (>=8.0.0)",
-    "psutil (>=5.9.0)"
+    "psutil (>=5.9.0)",
+    "cognite-toolkit (>=0.6.62,<0.7.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "python-certifi-win32 (>=1.6.1,<2.0.0)"
 ]
 
 
