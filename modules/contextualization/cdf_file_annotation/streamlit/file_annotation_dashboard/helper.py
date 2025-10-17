@@ -689,6 +689,7 @@ def show_connect_unmatched_ui(
                 selected_entity,
                 annotation_type,
                 apply_config,
+                entity_view,
             )
 
             if success:
@@ -714,6 +715,7 @@ def create_tag_connection(
     selected_entity: pd.Series,
     annotation_type: str,
     apply_config: dict,
+    entity_view: ViewPropertyConfig,
 ):
     updated_rows = []
     updated_edges = []
@@ -746,7 +748,10 @@ def create_tag_connection(
                 
                 row_data["endNode"] = selected_entity["externalId"]
                 row_data["endNodeSpace"] = selected_entity["space"]
-                row_data["endNodeResourceType"] = selected_entity["resourceType"]
+
+                resource_type = selected_entity["resourceType"] if selected_entity["resourceType"] else entity_view.external_id
+
+                row_data["endNodeResourceType"] = resource_type
                 row_data["status"] = "Approved"
 
                 updated_rows.append(
