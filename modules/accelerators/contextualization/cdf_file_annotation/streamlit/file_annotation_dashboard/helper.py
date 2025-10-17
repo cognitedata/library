@@ -574,15 +574,24 @@ def show_connect_unmatched_ui(
     db_name,
     pattern_table,
     apply_config,
+    annotation_state_view,
 ):
     """
     Displays the UI to connect a single unmatched tag to either an Asset or a File.
     """
     st.markdown(f"### Tag to Connect: `{tag_text}`")
-    st.markdown(f"Associated Files: `{associated_files}`")
-    col1, col2 = st.columns(2)
-    entity_type = None
+    df_states = fetch_annotation_states(annotation_state_view, file_view)
 
+    file_count = len(associated_files)
+    expander_label = f"Associated Files ({file_count})"
+
+    with st.expander(expander_label, expanded=False):
+        for associated_file in associated_files:
+            row = df_states[df_states["fileExternalId"] == associated_file]
+            name = row.iloc[0]["fileName"]
+            st.markdown(f"- `{name} ({associated_file})`")
+
+    col1, col2 = st.columns(2)
     with col1:
         if st.button("Retrieve Assets", key=f"btn_retrieve_assets_{tab}"):
             st.session_state.selected_entity_type_to_connect = "asset"
