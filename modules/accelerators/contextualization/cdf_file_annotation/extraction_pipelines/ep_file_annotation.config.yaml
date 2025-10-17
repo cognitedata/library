@@ -130,7 +130,6 @@ config:
       rawTableDocDoc: {{ rawTableDocDoc }}
       rawTableDocPattern: {{ rawTableDocPattern }}
   promoteFunction:
-    # Query configuration for finding candidate edges to promote
     getCandidatesQuery:
       targetView:
         schemaSpace: cdf_cdm

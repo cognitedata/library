@@ -5,7 +5,13 @@
   tableName: {{ rawTableDocDoc }}
 
 - dbName: {{ rawDb }}  
+  tableName: {{ rawTableDocPattern }}
+
+- dbName: {{ rawDb }}  
   tableName: {{ rawTableCache }}
 
 - dbName: {{ rawDb }}  
   tableName: {{ rawManualPatternsCatalog }}
+
+- dbName: {{ rawDb }}  
+  tableName: {{ rawTablePromoteCache }}
