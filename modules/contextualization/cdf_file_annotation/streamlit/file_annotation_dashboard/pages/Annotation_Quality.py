@@ -148,12 +148,17 @@ with overall_tab:
         all_resource_types = ["All"] + sorted(df_metrics_input["endNodeResourceType"].dropna().unique().tolist())
 
         # 1. Get the original, un-normalized sets of strings
-        potential_tags_original = set(df_metrics_input["startNodeText"])
-        actual_annotations_original = (
-            set(df_annotations_input["startNodeText"])
-            if not df_annotations_input.empty and "startNodeText" in df_annotations_input.columns
-            else set()
-        )
+        # Only consider patterns with status 'Suggested' as potential new annotations
+        df_patterns_suggested = df_metrics_input[df_metrics_input["status"] == "Suggested"]
+        df_patterns_approved = df_metrics_input[df_metrics_input["status"] == "Approved"]
+
+        potential_tags_original = set(df_patterns_suggested["startNodeText"].dropna())
+
+        # Actual annotations come from the annotation tags and docs tables plus any patterns that have been Approved
+        annotations_from_tables = set(df_annotations_input["startNodeText"]) if not df_annotations_input.empty and "startNodeText" in df_annotations_input.columns else set()
+        approved_from_patterns = set(df_patterns_approved["startNodeText"].dropna())
+
+        actual_annotations_original = annotations_from_tables.union(approved_from_patterns)
 
         # 2. Create a mapping from normalized text back to an original version for display
         text_map = {
@@ -187,18 +192,23 @@ with overall_tab:
         st.divider()
         chart_data = []
         for resource_type in all_resource_types[1:]:
-            df_patterns_filtered = df_patterns[df_patterns["endNodeResourceType"] == resource_type]
+            df_patterns_filtered = df_metrics_input[df_metrics_input["endNodeResourceType"] == resource_type]
+            df_patterns_suggested_rt = df_patterns_filtered[df_patterns_filtered["status"] == "Suggested"]
+            df_patterns_approved_rt = df_patterns_filtered[df_patterns_filtered["status"] == "Approved"]
+
             df_annotations_filtered = (
-                df_annotations[df_annotations["endNodeResourceType"] == resource_type]
-                if not df_annotations.empty and "endNodeResourceType" in df_annotations.columns
+                df_annotations_input[df_annotations_input["endNodeResourceType"] == resource_type]
+                if not df_annotations_input.empty and "endNodeResourceType" in df_annotations_input.columns
                 else pd.DataFrame()
             )
-            potential = set(df_patterns_filtered["startNodeText"])
+
+            potential = set(df_patterns_suggested_rt["startNodeText"].dropna())
             actual = (
                 set(df_annotations_filtered["startNodeText"])
                 if not df_annotations_filtered.empty and "startNodeText" in df_annotations_filtered.columns
                 else set()
             )
+            actual = actual.union(set(df_patterns_approved_rt["startNodeText"].dropna()) if not df_patterns_approved_rt.empty else set())
             # Use normalized comparison for chart data as well
             norm_potential = {normalize(p) for p in potential}
             norm_actual = {normalize(a) for a in actual}
@@ -221,11 +231,7 @@ with overall_tab:
             )
 
         df_chart_data = pd.DataFrame(chart_data)
-        df_chart_display = (
-            df_chart_data[df_chart_data["resourceType"] == selected_resource_type]
-            if selected_resource_type != "All"
-            else df_chart_data
-        )
+        df_chart_display = df_chart_data
 
         if not df_chart_display.empty:
             coverage_chart = (
@@ -398,8 +404,13 @@ with per_file_tab:
         st.info("The pattern catalog is empty. Run the pipeline with patternMode enabled to generate data.")
     else:
         df_annotations_file = pd.concat([df_tags_file, df_docs_file], ignore_index=True)
+        # Only consider patterns with status 'Suggested' as potential new annotations
+        df_patterns_file_suggested = df_patterns_file[df_patterns_file["status"] == "Suggested"]
+        # Actual annotations come from the annotation tags and docs tables plus any patterns that have been Approved
+        df_patterns_file_approved = df_patterns_file[df_patterns_file["status"] == "Approved"]
+
         df_patterns_agg_file = (
-            df_patterns_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="potentialTags")
+            df_patterns_file_suggested.groupby("startNode")["startNodeText"].apply(set).reset_index(name="potentialTags")
         )
         df_annotations_agg_file = (
             df_annotations_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="actualAnnotations")
@@ -407,9 +418,23 @@ with per_file_tab:
             else pd.DataFrame(columns=["startNode", "actualAnnotations"])
         )
 
+        df_approved_agg = (
+            df_patterns_file_approved.groupby("startNode")["startNodeText"].apply(set).reset_index(name="approvedPatterns")
+            if not df_patterns_file_approved.empty
+            else pd.DataFrame(columns=["startNode", "approvedPatterns"])
+        )
+
         df_quality_file = pd.merge(df_patterns_agg_file, df_annotations_agg_file, on="startNode", how="left")
+        df_quality_file = pd.merge(df_quality_file, df_approved_agg, on="startNode", how="left")
         df_quality_file["actualAnnotations"] = df_quality_file["actualAnnotations"].apply(
             lambda x: x if isinstance(x, set) else set()
+        )
+        df_quality_file["approvedPatterns"] = df_quality_file["approvedPatterns"].apply(
+            lambda x: x if isinstance(x, set) else set()
+        )
+        df_quality_file["actualAnnotations"] = df_quality_file.apply(
+            lambda r: r["actualAnnotations"].union(r["approvedPatterns"]) if isinstance(r["actualAnnotations"], set) else r["approvedPatterns"],
+            axis=1,
         )
 
         # Apply normalized comparison for per-file metrics
@@ -593,8 +618,14 @@ with per_file_tab:
                 )
 
                 # Use normalized comparison for per-file detail view
-                potential_set = set(df_potential_tags_details["startNodeText"])
-                actual_set = set(df_actual_annotations_details["startNodeText"])
+                df_potential_details_suggested = df_potential_tags_details[df_potential_tags_details["status"] == "Suggested"]
+                df_potential_details_approved = df_potential_tags_details[df_potential_tags_details["status"] == "Approved"]
+
+                potential_set = set(df_potential_details_suggested["startNodeText"].dropna())
+                actual_from_table = set(df_actual_annotations_details["startNodeText"]) if not df_actual_annotations_details.empty else set()
+                approved_in_file = set(df_potential_details_approved["startNodeText"].dropna()) if not df_potential_details_approved.empty else set()
+                actual_set = actual_from_table.union(approved_in_file)
+
                 norm_potential = {normalize(p) for p in potential_set}
                 norm_actual = {normalize(a) for a in actual_set}
 
@@ -606,8 +637,8 @@ with per_file_tab:
                 potential_new_annotations_set = {potential_map[t] for t in norm_unmatched if t in potential_map}
 
                 actual_df = df_actual_annotations_details.drop_duplicates()
-                potential_df = df_potential_tags_details[
-                    df_potential_tags_details["startNodeText"].isin({potential_map[t] for t in norm_unmatched})
+                potential_df = df_potential_details_suggested[
+                    df_potential_details_suggested["startNodeText"].isin({potential_map[t] for t in norm_unmatched})
                 ].drop_duplicates(subset=["startNodeText", "endNodeResourceType"])
 
                 if st.button("Create in Canvas", key=f"canvas_btn_{selected_file_ext_id}"):
