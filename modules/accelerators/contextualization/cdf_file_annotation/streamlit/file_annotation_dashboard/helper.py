@@ -533,7 +533,7 @@ def fetch_potential_annotations(db_name: str, table_name: str, file_external_id:
 
 
 @st.cache_data(ttl=3600)
-def fetch_entities(entity_view: ViewPropertyConfig, resource_property: str) -> pd.DataFrame:
+def fetch_entities(entity_view: ViewPropertyConfig, resource_property: str, secondary_scope_prop: str | None = None) -> pd.DataFrame:
     """
     Fetches entity instances from the specified data model view and returns a tidy DataFrame.
     """
@@ -552,8 +552,8 @@ def fetch_entities(entity_view: ViewPropertyConfig, resource_property: str) -> p
 
         row["name"] = props.get("name")
         row["resourceType"] = props.get(resource_property)
-        row["sysUnit"] = props.get("sysUnit")
-
+        if secondary_scope_prop:
+            row[secondary_scope_prop] = props.get(secondary_scope_prop)
         for k, v in props.items():
             if k not in row:
                 row[k] = v
@@ -575,6 +575,7 @@ def show_connect_unmatched_ui(
     pattern_table,
     apply_config,
     annotation_state_view,
+    secondary_scope_prop = None,
 ):
     """
     Displays the UI to connect a single unmatched tag to either an Asset or a File.
@@ -615,7 +616,7 @@ def show_connect_unmatched_ui(
         resource_property = target_entities_resource_property
         annotation_type = "diagrams.AssetLink"
 
-    df_entities = fetch_entities(entity_view, resource_property)
+    df_entities = fetch_entities(entity_view, resource_property, secondary_scope_prop)
 
     if df_entities.empty:
         st.warning(f"No {entity_type}s found.")
@@ -631,7 +632,10 @@ def show_connect_unmatched_ui(
             df_entities_display.loc[:, "Select"] = False
             df_entities_display.at[idx, "Select"] = True
 
-    filterable_columns = [col for col in ["sysUnit", "resourceType"] if col in df_entities_display.columns]
+    secondary_col = secondary_scope_prop if secondary_scope_prop else None
+    filterable_columns = [
+        col for col in (([secondary_col, "resourceType"] if secondary_col else ["resourceType"])) if col in df_entities_display.columns
+    ]
 
     for filterable_column in filterable_columns:
         unique_values = sorted(df_entities_display[filterable_column].dropna().unique().tolist())
@@ -647,7 +651,9 @@ def show_connect_unmatched_ui(
             df_entities_display = df_entities_display[df_entities_display[filterable_column] == selected_value]
 
     all_columns = df_entities_display.columns.tolist()
-    default_columns = ["Select", "name", "resourceType", "sysUnit", "externalId"]
+    default_columns = ["Select", "name", "resourceType", "externalId"]
+    if secondary_col and secondary_col in df_entities_display.columns:
+        default_columns.insert(-1, secondary_col)
 
     with st.popover("Customize Table Columns"):
         selected_columns = st.multiselect(
@@ -658,16 +664,19 @@ def show_connect_unmatched_ui(
         )
 
     entity_editor_key = f"{entity_type}_editor_{tag_text}_{tab}"
+    column_config = {
+        "Select": st.column_config.CheckboxColumn(required=True),
+        "name": "Name",
+        "externalId": "External ID",
+        "resourceType": "Resource Type",
+    }
+    if secondary_col and secondary_col in df_entities_display.columns:
+        column_config[secondary_col] = secondary_col
+
     edited_entities = st.data_editor(
         df_entities_display[selected_columns],
         key=entity_editor_key,
-        column_config={
-            "Select": st.column_config.CheckboxColumn(required=True),
-            "name": "Name",
-            "externalId": "External ID",
-            "resourceType": "Resource Type",
-            "sysUnit": "Sys Unit",
-        },
+        column_config=column_config,
         use_container_width=True,
         hide_index=True,
         disabled=df_entities_display.columns.difference(["Select"]),
