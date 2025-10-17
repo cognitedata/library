@@ -50,6 +50,19 @@ class GeneralAnnotationService(IAnnotationService):
                 self.pattern_detect_config.remove_leading_zeros = False
 
     def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
+        """
+        Initiates a diagram detection job using CDF's diagram detect API.
+
+        Args:
+            files: List of file references to process for annotation.
+            entities: List of entity dictionaries containing searchable properties for annotation matching.
+
+        Returns:
+            The job ID of the initiated diagram detection job.
+
+        Raises:
+            Exception: If the API call does not return a valid job ID.
+        """
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
             entities=entities,
@@ -64,7 +77,22 @@ class GeneralAnnotationService(IAnnotationService):
             raise Exception(f"API call to diagram/detect did not return a job ID")
 
     def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
-        """Generates patterns and runs the diagram detection job in pattern mode."""
+        """
+        Initiates a diagram detection job in pattern mode using generated pattern samples.
+
+        Pattern mode enables detection of entities based on regex-like patterns rather than exact matches,
+        useful for finding variations of asset tags and identifiers.
+
+        Args:
+            files: List of file references to process for annotation.
+            pattern_samples: List of pattern sample dictionaries containing regex-like patterns for matching.
+
+        Returns:
+            The job ID of the initiated pattern mode diagram detection job.
+
+        Raises:
+            Exception: If the API call does not return a valid job ID.
+        """
         detect_job: DiagramDetectResults = self.client.diagrams.detect(
             file_references=files,
             entities=pattern_samples,

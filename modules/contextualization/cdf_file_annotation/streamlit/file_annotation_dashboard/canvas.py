@@ -1,5 +1,15 @@
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import NodeOrEdgeData, NodeApply, EdgeApply, ContainerId, ViewId, NodeId, EdgeId, Node, Edge
+from cognite.client.data_classes.data_modeling import (
+    NodeOrEdgeData,
+    NodeApply,
+    EdgeApply,
+    ContainerId,
+    ViewId,
+    NodeId,
+    EdgeId,
+    Node,
+    Edge,
+)
 from cognite.client.data_classes.filters import Equals, And, Not
 import datetime
 import uuid
@@ -77,7 +87,7 @@ def fetch_existing_canvas(name: str, file_node: Node, client: CogniteClient):
     existing_canvas = client.data_modeling.instances.retrieve(
         nodes=NodeId(space=CANVAS_SPACE_INSTANCE, external_id=f"file_annotation_canvas_{file_node.external_id}")
     )
-   
+
     return existing_canvas.nodes[0] if existing_canvas.nodes else None
 
 
@@ -206,8 +216,10 @@ def dm_generate(
 def reset_canvas_annotations(canvas_id: str, client: CogniteClient):
     """Deletes all canvas annotations, which includes nodes and edges"""
     edge_filter = And(
-        Equals(property=['edge', 'type'], value={'space': CANVAS_SPACE_CANVAS, 'externalId': 'referencesCanvasAnnotation'}),
-        Equals(property=['edge', 'startNode'], value={'space': CANVAS_SPACE_INSTANCE, 'externalId': canvas_id})
+        Equals(
+            property=["edge", "type"], value={"space": CANVAS_SPACE_CANVAS, "externalId": "referencesCanvasAnnotation"}
+        ),
+        Equals(property=["edge", "startNode"], value={"space": CANVAS_SPACE_INSTANCE, "externalId": canvas_id}),
     )
 
     edges_to_delete = client.data_modeling.instances.list(
@@ -220,11 +232,7 @@ def reset_canvas_annotations(canvas_id: str, client: CogniteClient):
     nodes_to_delete_ids = [NodeId(space=e.end_node.space, external_id=e.end_node.external_id) for e in edges_to_delete]
 
     if edges_to_delete_ids:
-        client.data_modeling.instances.delete(
-            edges=edges_to_delete_ids
-        )
+        client.data_modeling.instances.delete(edges=edges_to_delete_ids)
 
     if nodes_to_delete_ids:
-        client.data_modeling.instances.delete(
-            nodes=nodes_to_delete_ids
-        )
+        client.data_modeling.instances.delete(nodes=nodes_to_delete_ids)
