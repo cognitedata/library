@@ -5,6 +5,7 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import (
     Edge,
+    EdgeId,
     EdgeList,
     EdgeApply,
     Node,
@@ -152,7 +153,7 @@ class GeneralPromoteService(IPromoteService):
         self.logger.info(
             message=f"Grouped {len(candidates)} candidates into {len(grouped_candidates)} unique text/type combinations.",
         )
-        self.logger.info(
+        self.logger.debug(
             message=f"Deduplication savings: {len(candidates) - len(grouped_candidates)} queries avoided.",
             section="END",
         )
@@ -161,7 +162,7 @@ class GeneralPromoteService(IPromoteService):
         raw_rows_to_update: list[RowWrite] = []
         # TODO: think about whether we need to delete the cooresponding raw row of edges that we delete OR if it should be placed in another RAW table when rejected
         # raw_rows_to_delete: list[RowWrite] = []
-        edges_to_delete: list[EdgeApply] = []
+        edges_to_delete: list[EdgeId] = []
 
         # Track results for this batch
         batch_promoted: int = 0
@@ -186,23 +187,35 @@ class GeneralPromoteService(IPromoteService):
                     text_to_find, annotation_type, entity_space
                 )
 
-                # Determine result type for tracking
+                # Determine result type for tracking AND deletion decision
                 num_edges: int = len(edges_with_same_text)
+                should_delete: bool = False
+
                 if len(found_nodes) == 1:
                     batch_promoted += num_edges
+                    should_delete = False  # Never delete promoted edges
                 elif len(found_nodes) == 0:
                     batch_rejected += num_edges
+                    should_delete = self.delete_rejected_edges
                 else:  # Multiple matches
                     batch_ambiguous += num_edges
+                    should_delete = self.delete_suggested_edges
 
                 # Apply the same result to ALL edges with this text
                 for edge in edges_with_same_text:
                     edge_apply, raw_row = self._prepare_edge_update(edge, found_nodes)
 
-                    if edge_apply is not None:
-                        edges_to_update.append(edge_apply)
-                    if raw_row is not None:
-                        raw_rows_to_update.append(raw_row)
+                    if should_delete:
+                        # Delete the edge but still update RAW row to track what happened
+                        edges_to_delete.append(EdgeId(edge.space, edge.external_id))
+                        if raw_row is not None:
+                            raw_rows_to_update.append(raw_row)
+                    else:
+                        # Update both edge and RAW row
+                        if edge_apply is not None:
+                            edges_to_update.append(edge_apply)
+                        if raw_row is not None:
+                            raw_rows_to_update.append(raw_row)
         finally:
             # Update tracker with batch results
             self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
@@ -217,6 +230,10 @@ class GeneralPromoteService(IPromoteService):
                     section="END",
                 )
 
+            if edges_to_delete:
+                self.client.data_modeling.instances.delete(edges=edges_to_delete)
+                self.logger.info(f"Successfully deleted {len(edges_to_delete)} edges from data model.", section="END")
+
             if raw_rows_to_update:
                 self.client.raw.rows.insert(
                     db_name=self.raw_db,
@@ -226,7 +243,7 @@ class GeneralPromoteService(IPromoteService):
                 )
                 self.logger.info(f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END")
 
-            if not edges_to_update and not raw_rows_to_update:
+            if not edges_to_update and not edges_to_delete and not raw_rows_to_update:
                 self.logger.info("No edges were updated in this run.", section="END")
 
         return None  # Continue running if more candidates might exist
