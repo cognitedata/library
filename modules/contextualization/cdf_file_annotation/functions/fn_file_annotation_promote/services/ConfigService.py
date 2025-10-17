@@ -284,6 +284,8 @@ class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     raw_table_doc_pattern: str
     raw_table_doc_tag: str
     raw_table_doc_doc: str
+    delete_rejected_edges: bool
+    delete_suggested_edges: bool
     entity_search_service: EntitySearchServiceConfig
     cache_service: PromoteCacheServiceConfig
 
