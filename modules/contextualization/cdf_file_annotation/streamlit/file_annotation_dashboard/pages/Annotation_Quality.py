@@ -64,6 +64,7 @@ annotation_state_view = view_config["annotation_state"]
 file_view = view_config["file"]
 target_entities_view = view_config["target_entities"]
 
+secondary_scope_property = ep_config.get("launchFunction", {}).get("secondaryScopeProperty")
 report_config = ep_config.get("finalizeFunction", {}).get("reportService", {})
 cache_config = ep_config.get("launchFunction", {}).get("cacheService", {})
 db_name = report_config.get("rawDb")
@@ -383,6 +384,7 @@ with overall_tab:
                 pattern_table=pattern_table,
                 apply_config=apply_config,
                 annotation_state_view=annotation_state_view,
+                secondary_scope_prop=secondary_scope_property,
             )
 
 
@@ -747,6 +749,7 @@ with per_file_tab:
                         pattern_table=pattern_table,
                         apply_config=apply_config,
                         annotation_state_view=annotation_state_view,
+                        secondary_scope_prop=secondary_scope_property,
                     )
                         
         else:
@@ -757,7 +760,7 @@ with per_file_tab:
 # ==========================================
 with management_tab:
     primary_scope_prop = ep_config.get("launchFunction", {}).get("primaryScopeProperty")
-    secondary_scope_prop = ep_config.get("launchFunction", {}).get("secondaryScopeProperty")
+    secondary_scope_property = ep_config.get("launchFunction", {}).get("secondaryScopeProperty")
 
     st.subheader(
         "Existing Manual Patterns",
@@ -821,7 +824,7 @@ with management_tab:
 
         secondary_scope_value = ""
         if scope_level == "Secondary Scope":
-            secondary_scope_value = st.text_input(f"Secondary Scope Value ({secondary_scope_prop or 'not configured'})")
+            secondary_scope_value = st.text_input(f"Secondary Scope Value ({secondary_scope_property or 'not configured'})")
 
         submit_button = st.form_submit_button(label="Add New Pattern")
 
