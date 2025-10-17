@@ -4,6 +4,23 @@ This repository contains Cognite Templates as downloadable and extensible
 configuration that can be downloaded and adapted, then deployed with the
 [Cognite Toolkit](https://docs.cognite.com/cdf/deploy/cdf_toolkit/).
 
+## Current Release
+
+Usage: Add this to cdf.toml:
+
+```toml
+
+[alpha_flags] 
+external-libraries = true
+
+[library.deployment_packages]
+url = "{{placeholder_url}}"
+checksum = "{{placeholder_checksum}}"
+
+```
+
+##About
+
 > The Cognite Template is a reusable blueprint that guides users through
 > deploying, customizing, and building Cognite solutions. The template can be
 > part of a specific business use case for data processing, contextualization
@@ -12,14 +29,6 @@ configuration that can be downloaded and adapted, then deployed with the
 
 ![Cognite Toolkit Template Modules](templates.png)
 
-## Current Release
-
-
-```toml
-[library.cognite]
-url = "{{placeholder_url}}"
-checksum = "{{placeholder_checksum}}"
-```
 
 ## Usage
 
