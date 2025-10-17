@@ -1,4 +1,5 @@
 import abc
+import time
 from typing import Any, Literal
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
@@ -129,10 +130,16 @@ class GeneralPromoteService(IPromoteService):
         """
         self.logger.info("Starting Promote batch", section="START")
 
-        candidates: EdgeList | None = self._get_promote_candidates()
-        if not candidates:
-            self.logger.info("No Promote candidates found.", section="END")
-            return "Done"
+        try:
+            candidates: EdgeList | None = self._get_promote_candidates()
+            if not candidates:
+                self.logger.info("No Promote candidates found.", section="END")
+                return "Done"
+        except Exception as e:
+            self.logger.error(f"Ran into the following error: {str(e)}")
+            self.logger.info("Retrying in 15 seconds")
+            time.sleep(15)
+            return
 
         self.logger.info(f"Found {len(candidates)} Promote candidates. Starting processing.")
 
@@ -165,63 +172,66 @@ class GeneralPromoteService(IPromoteService):
         batch_rejected: int = 0
         batch_ambiguous: int = 0
 
-        # Process each unique text/type combination once
-        for (text_to_find, annotation_type), edges_with_same_text in grouped_candidates.items():
-            entity_space: str | None = (
-                self.file_view.instance_space
-                if annotation_type == "diagrams.FileLink"
-                else self.target_entities_view.instance_space
-            )
+        try:
+            # Process each unique text/type combination once
+            for (text_to_find, annotation_type), edges_with_same_text in grouped_candidates.items():
+                entity_space: str | None = (
+                    self.file_view.instance_space
+                    if annotation_type == "diagrams.FileLink"
+                    else self.target_entities_view.instance_space
+                )
 
-            if not entity_space:
-                self.logger.warning(f"Could not determine entity space for type '{annotation_type}'. Skipping.")
-                continue
+                if not entity_space:
+                    self.logger.warning(f"Could not determine entity space for type '{annotation_type}'. Skipping.")
+                    continue
 
-            # Strategy: Check cache → query edges → fallback to global search
-            found_nodes: list[Node] | list = self._find_entity_with_cache(text_to_find, annotation_type, entity_space)
+                # Strategy: Check cache → query edges → fallback to global search
+                found_nodes: list[Node] | list = self._find_entity_with_cache(
+                    text_to_find, annotation_type, entity_space
+                )
 
-            # Determine result type for tracking
-            num_edges: int = len(edges_with_same_text)
-            if len(found_nodes) == 1:
-                batch_promoted += num_edges
-            elif len(found_nodes) == 0:
-                batch_rejected += num_edges
-            else:  # Multiple matches
-                batch_ambiguous += num_edges
+                # Determine result type for tracking
+                num_edges: int = len(edges_with_same_text)
+                if len(found_nodes) == 1:
+                    batch_promoted += num_edges
+                elif len(found_nodes) == 0:
+                    batch_rejected += num_edges
+                else:  # Multiple matches
+                    batch_ambiguous += num_edges
 
-            # Apply the same result to ALL edges with this text
-            for edge in edges_with_same_text:
-                edge_apply, raw_row = self._prepare_edge_update(edge, found_nodes)
+                # Apply the same result to ALL edges with this text
+                for edge in edges_with_same_text:
+                    edge_apply, raw_row = self._prepare_edge_update(edge, found_nodes)
 
-                if edge_apply is not None:
-                    edges_to_update.append(edge_apply)
-                if raw_row is not None:
-                    raw_rows_to_update.append(raw_row)
+                    if edge_apply is not None:
+                        edges_to_update.append(edge_apply)
+                    if raw_row is not None:
+                        raw_rows_to_update.append(raw_row)
+        finally:
+            # Update tracker with batch results
+            self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
 
-        # Update tracker with batch results
-        self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
+            if edges_to_update:
+                self.client.data_modeling.instances.apply(edges=edges_to_update)
+                self.logger.info(
+                    f"Successfully updated {len(edges_to_update)} edges in data model:\n"
+                    f"  ├─ Promoted: {batch_promoted}\n"
+                    f"  ├─ Rejected: {batch_rejected}\n"
+                    f"  └─ Ambiguous: {batch_ambiguous}",
+                    section="END",
+                )
 
-        if edges_to_update:
-            self.client.data_modeling.instances.apply(edges=edges_to_update)
-            self.logger.info(
-                f"Successfully updated {len(edges_to_update)} edges in data model:\n"
-                f"  ├─ Promoted: {batch_promoted}\n"
-                f"  ├─ Rejected: {batch_rejected}\n"
-                f"  └─ Ambiguous: {batch_ambiguous}",
-                section="END",
-            )
+            if raw_rows_to_update:
+                self.client.raw.rows.insert(
+                    db_name=self.raw_db,
+                    table_name=self.raw_pattern_table,
+                    row=raw_rows_to_update,
+                    ensure_parent=True,
+                )
+                self.logger.info(f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END")
 
-        if raw_rows_to_update:
-            self.client.raw.rows.insert(
-                db_name=self.raw_db,
-                table_name=self.raw_pattern_table,
-                row=raw_rows_to_update,
-                ensure_parent=True,
-            )
-            self.logger.info(f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END")
-
-        if not edges_to_update and not raw_rows_to_update:
-            self.logger.info("No edges were updated in this run.", section="END")
+            if not edges_to_update and not raw_rows_to_update:
+                self.logger.info("No edges were updated in this run.", section="END")
 
         return None  # Continue running if more candidates might exist
 
