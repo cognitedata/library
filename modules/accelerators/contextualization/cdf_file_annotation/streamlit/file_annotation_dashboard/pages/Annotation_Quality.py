@@ -104,23 +104,47 @@ with overall_tab:
             "Overall Annotation Quality",
             help="Provides a high-level summary of pattern performance across all files. Use these aggregate metrics, charts, and tag lists to understand the big picture and identify systemic trends or gaps in the pattern catalog.",
         )
-        all_resource_types = ["All"] + sorted(df_patterns["endNodeResourceType"].unique().tolist())
-        selected_resource_type = st.selectbox(
-            "Filter by Resource Type:",
-            options=all_resource_types,
-            on_change=reset_selection,
-            key="resource_type_filter",
-        )
+        df_file_meta = fetch_annotation_states(annotation_state_view, file_view)
 
-        if selected_resource_type == "All":
-            df_metrics_input = df_patterns
-            df_annotations_input = df_annotations
-        else:
-            df_metrics_input = df_patterns[df_patterns["endNodeResourceType"] == selected_resource_type]
-            if not df_annotations.empty and "endNodeResourceType" in df_annotations.columns:
-                df_annotations_input = df_annotations[df_annotations["endNodeResourceType"] == selected_resource_type]
+        metadata_props = sorted([c for c in df_file_meta.columns]) if not df_file_meta.empty else []
+
+        selected_metadata_prop = "None"
+        selected_metadata_values = []
+        selected_file_ids = None
+
+        with st.expander("Filter Quality Table"):
+            filter_col1, filter_col2 = st.columns(2)
+            with filter_col1:
+                selected_metadata_prop = st.selectbox(
+                    "Select Metadata Property",
+                    options=["None"] + metadata_props,
+                    on_change=reset_selection,
+                    key="overall_metadata_property",
+                )
+
+            if selected_metadata_prop != "None" and not df_file_meta.empty:
+                unique_values = sorted(df_file_meta[selected_metadata_prop].dropna().unique().tolist())
+                with filter_col2:
+                    selected_metadata_values = st.multiselect(
+                        f"Select Value(s) for {selected_metadata_prop}", options=unique_values, on_change=reset_selection
+                    )
+                if selected_metadata_values:
+                    selected_file_ids = set(
+                        df_file_meta[df_file_meta[selected_metadata_prop].isin(selected_metadata_values)]["fileExternalId"].tolist()
+                    )
+
+        # Apply the metadata filter to pattern and annotation inputs (if any selected)
+        if selected_file_ids:
+            df_metrics_input = df_patterns[df_patterns["startNode"].isin(selected_file_ids)]
+            if not df_annotations.empty and "startNode" in df_annotations.columns:
+                df_annotations_input = df_annotations[df_annotations["startNode"].isin(selected_file_ids)]
             else:
                 df_annotations_input = pd.DataFrame()
+        else:
+            df_metrics_input = df_patterns
+            df_annotations_input = df_annotations
+
+        all_resource_types = ["All"] + sorted(df_metrics_input["endNodeResourceType"].dropna().unique().tolist())
 
         # 1. Get the original, un-normalized sets of strings
         potential_tags_original = set(df_metrics_input["startNodeText"])
