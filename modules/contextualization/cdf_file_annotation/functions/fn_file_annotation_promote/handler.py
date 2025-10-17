@@ -71,7 +71,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
 
     run_status: str = "success"
     try:
-        # Run in a loop for a maximum of 7 minutes
+        # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
             result: str | None = promote_service.run()
             if result == "Done":
@@ -79,8 +79,6 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
                 break
             # Log batch report and pause between batches
             logger.info(tracker.generate_local_report(), section="START")
-            time.sleep(10)
-
         return {"status": run_status, "data": data}
     except Exception as e:
         run_status = "failure"
@@ -118,9 +116,43 @@ def run_locally(config_file: dict) -> None:
     client: CogniteClient = create_client(env_vars)
 
     # Mock function_call_info for local runs
-    function_call_info: dict[str, str] = {"function_id": "local", "call_id": "local"}
+    config: Config
+    config, client = create_config_service(function_data=config_file)
+    logger: CogniteFunctionLogger = create_logger_service(
+        config_file.get("logLevel", "DEBUG"), config_file.get("logPath")
+    )
+    tracker: PromoteTracker = PromoteTracker()
 
-    handle(config_file, function_call_info, client)
+    # Create service dependencies
+    entity_search_service: EntitySearchService = create_entity_search_service(config, client, logger)
+    cache_service: CacheService = create_cache_service(config, client, logger, entity_search_service)
+
+    # Create promote service with injected dependencies
+    promote_service: GeneralPromoteService = GeneralPromoteService(
+        client=client,
+        config=config,
+        logger=logger,
+        tracker=tracker,
+        entity_search_service=entity_search_service,
+        cache_service=cache_service,
+    )
+
+    try:
+        # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
+        while True:
+            result: str | None = promote_service.run()
+            if result == "Done":
+                logger.info("No more candidates to process. Exiting.", section="END")
+                break
+            # Log batch report and pause between batches
+            logger.info(tracker.generate_local_report(), section="START")
+    except Exception as e:
+        run_status = "failure"
+        msg: str = f"{str(e)}"
+        logger.error(f"An unexpected error occurred: {msg}", section="BOTH")
+    finally:
+        # Generate overall summary report
+        logger.info(tracker.generate_overall_report(), section="BOTH")
 
 
 if __name__ == "__main__":
