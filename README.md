@@ -29,6 +29,17 @@ checksum = "{{placeholder_checksum}}"
 
 ![Cognite Toolkit Template Modules](templates.png)
 
+<<<<<<< HEAD
+=======
+## Current Release
+
+
+```toml
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:9eb177a092228157c7779b3e8d33ba49c17db732cbe2b36787ad67db0baeb49a"
+```
+>>>>>>> 2be51ad4a1ce657887e03637d2d2c0984ea6082b
 
 ## Usage
 
