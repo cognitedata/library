@@ -104,3 +104,20 @@ workflowDefinition:
       retries: 0
       timeout: 600
       onFailure: "abortWorkflow"
+      
+    - externalId: fn_promote
+      type: "function"
+      parameters:
+        function:
+          externalId: {{ promoteFunctionExternalId }}
+          data:
+            {
+              "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+              "logLevel": "INFO",
+            }
+        isAsyncComplete: false
+      name: Promote File Annotations
+      description: Auto promote tags
+      retries: 0
+      timeout: 600
+      onFailure: "abortWorkflow"

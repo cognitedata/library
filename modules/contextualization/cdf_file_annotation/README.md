@@ -10,11 +10,12 @@ The Annotation template is a framework designed to automate the process of annot
 - **Dual Annotation Modes**: Simultaneously runs standard entity matching and pattern-based detection mode:
   - **Standard Mode**: Links files to known entities in your data model with confidence-based approval thresholds.
   - **Pattern Mode**: Automatically generates regex-like patterns from entity aliases and detects all matching text in files, creating a comprehensive searchable catalog of potential entities for review and approval.
+- **Automatic Pattern Promotion:** Post-processes pattern-mode annotations to automatically resolve cross-scope entity references using intelligent text matching and multi-tier caching, dramatically reducing manual review burden.
 - **Intelligent Pattern Generation:** Automatically analyzes entity aliases to generate pattern samples, with support for manual pattern overrides at global, site, or unit levels.
 - **Large Document Support (\>50 Pages):** Automatically handles files with more than 50 pages by breaking them into manageable chunks, processing them iteratively, and tracking the overall progress.
 - **Parallel Execution Ready:** Designed for concurrent execution with a robust optimistic locking mechanism to prevent race conditions when multiple finalize function instances run in parallel.
 - **Comprehensive Reporting:** Annotations stored in three dedicated RAW tables (doc-to-doc links, doc-to-tag links, and pattern detections) plus extraction pipeline logs for full traceability.
-- **Local Running and Debugging:** Both the launch and finalize handler can be run locally and have default setups in the 'Run & Debug' tab in VSCode. Requires a .env file to be placed in the directory.
+- **Local Running and Debugging:** All function handlers can be run locally and have default setups in the 'Run & Debug' tab in VSCode. Requires a .env file to be placed in the directory.
 
 ## Getting Started
 
@@ -29,7 +30,7 @@ For a quick overview, deploying this annotation module into a new Cognite Data F
 
 ## How It Works
 
-The template operates in three main phases, orchestrated by CDF Workflows. Since the prepare phase is relatively small, it is bundled in with the launch phase. However, conceptually it should be treated as a separate process.
+The template operates in four main phases, orchestrated by CDF Workflows. Since the prepare phase is relatively small, it is bundled in with the launch phase. However, conceptually it should be treated as a separate process.
 
 ### Prepare Phase
 
@@ -59,40 +60,40 @@ The template operates in three main phases, orchestrated by CDF Workflows. Since
 <details>
 <summary>Click to view Mermaid flowchart for Launch Phase</summary>
 
-```mermaid
-flowchart TD
-    Start([Start Launch Phase]) --> QueryFiles[Query AnnotationState<br/>for New or Retry status]
-    QueryFiles --> CheckFiles{Any files<br/>to process?}
-    CheckFiles -->|No| End([End])
-    CheckFiles -->|Yes| GroupFiles[Group files by<br/>primary scope<br/>e.g., site, unit]
-
-    GroupFiles --> NextScope{Next scope<br/>group?}
-    NextScope -->|Yes| CheckCache{Valid cache<br/>exists in RAW?}
-
-    CheckCache -->|No - Stale/Missing| QueryEntities[Query data model for<br/>entities within scope]
-    QueryEntities --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → #91;FT#93;-000#91;A#93;]
-    GenPatterns --> GetManual[Retrieve manual pattern<br/>overrides from RAW catalog<br/>GLOBAL, site, or unit level]
-    GetManual --> MergePatterns[Merge and deduplicate<br/>auto-generated and<br/>manual patterns]
-    MergePatterns --> StoreCache[Store entity list and<br/>pattern samples in<br/>RAW cache]
-    StoreCache --> UseCache[Use entities and patterns]
-
-    CheckCache -->|Yes - Valid| LoadCache[Load entities and<br/>patterns from RAW cache]
-    LoadCache --> UseCache
-
-    UseCache --> ProcessBatch[Process files in batches<br/>up to max batch size]
-    ProcessBatch --> SubmitJobs[Submit Diagram Detect jobs:<br/>1 Standard annotation<br/>2 Pattern mode if enabled]
-    SubmitJobs --> UpdateState[Update AnnotationState:<br/>- Set status to Processing<br/>- Store both job IDs]
-    UpdateState --> NextScope
-    NextScope -->|No more groups| QueryFiles
-
-    style Start fill:#d4f1d4
-    style End fill:#f1d4d4
-    style CheckFiles fill:#fff4e6
-    style CheckCache fill:#fff4e6
-    style NextScope fill:#fff4e6
-    style UseCache fill:#e6f3ff
-    style UpdateState fill:#e6f3ff
-```
+  ```mermaid
+  flowchart TD
+      Start([Start Launch Phase]) --> QueryFiles[Query AnnotationState<br/>for New or Retry status]
+      QueryFiles --> CheckFiles{Any files<br/>to process?}
+      CheckFiles -->|No| End([End])
+      CheckFiles -->|Yes| GroupFiles[Group files by<br/>primary scope<br/>e.g., site, unit]
+  
+      GroupFiles --> NextScope{Next scope<br/>group?}
+      NextScope -->|Yes| CheckCache{Valid cache<br/>exists in RAW?}
+  
+      CheckCache -->|No - Stale/Missing| QueryEntities[Query data model for<br/>entities within scope]
+      QueryEntities --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → #91;FT#93;-000#91;A#93;]
+      GenPatterns --> GetManual[Retrieve manual pattern<br/>overrides from RAW catalog<br/>GLOBAL, site, or unit level]
+      GetManual --> MergePatterns[Merge and deduplicate<br/>auto-generated and<br/>manual patterns]
+      MergePatterns --> StoreCache[Store entity list and<br/>pattern samples in<br/>RAW cache]
+      StoreCache --> UseCache[Use entities and patterns]
+  
+      CheckCache -->|Yes - Valid| LoadCache[Load entities and<br/>patterns from RAW cache]
+      LoadCache --> UseCache
+  
+      UseCache --> ProcessBatch[Process files in batches<br/>up to max batch size]
+      ProcessBatch --> SubmitJobs[Submit Diagram Detect jobs:<br/>1 Standard annotation<br/>2 Pattern mode if enabled]
+      SubmitJobs --> UpdateState[Update AnnotationState:<br/>- Set status to Processing<br/>- Store both job IDs]
+      UpdateState --> NextScope
+      NextScope -->|No more groups| QueryFiles
+  
+      style Start fill:#d4f1d4
+      style End fill:#f1d4d4
+      style CheckFiles fill:#fff4e6
+      style CheckCache fill:#fff4e6
+      style NextScope fill:#fff4e6
+      style UseCache fill:#e6f3ff
+      style UpdateState fill:#e6f3ff
+  ```
 
 </details>
 
@@ -114,52 +115,130 @@ flowchart TD
 <details>
 <summary>Click to view Mermaid flowchart for Finalize Phase</summary>
 
-```mermaid
-flowchart TD
-    Start([Start Finalize Phase]) --> QueryState[Query for ONE AnnotationState<br/>with Processing status<br/>Use optimistic locking to claim it]
-    QueryState --> CheckState{Found annotation<br/>state instance?}
-    CheckState -->|No| End([End])
-    CheckState -->|Yes| GetJobId[Extract job ID and<br/>pattern mode job ID]
+  ```mermaid
+  flowchart TD
+      Start([Start Finalize Phase]) --> QueryState[Query for ONE AnnotationState<br/>with Processing status<br/>Use optimistic locking to claim it]
+      QueryState --> CheckState{Found annotation<br/>state instance?}
+      CheckState -->|No| End([End])
+      CheckState -->|Yes| GetJobId[Extract job ID and<br/>pattern mode job ID]
+  
+      GetJobId --> FindFiles[Find ALL files with<br/>the same job ID]
+      FindFiles --> CheckJobs{Both standard<br/>and pattern jobs<br/>complete?}
+      CheckJobs -->|No| ResetStatus[Update AnnotationStates<br/>back to Processing<br/>Wait 30 seconds]
+      ResetStatus --> QueryState
+  
+      CheckJobs -->|Yes| RetrieveResults[Retrieve results from<br/>both completed jobs]
+      RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
+      MergeResults --> LoopFiles[For each file in merged results]
+  
+      LoopFiles --> ProcessResults[Process file results:<br/>- Create stable hash for deduplication<br/>- Filter standard by confidence threshold<br/>- Skip pattern duplicates]
+  
+      ProcessResults --> CheckClean{First run for<br/>multi-page file?}
+      CheckClean -->|Yes| CleanOld[Clean old annotations]
+      CheckClean -->|No| CreateEdges
+      CleanOld --> CreateEdges[Create edges in data model]
+  
+      CreateEdges --> StandardEdges[Standard annotations:<br/>Link file to entities<br/>Write to doc_tag and doc_doc RAW tables]
+      StandardEdges --> PatternEdges[Pattern annotations:<br/>Link file to sink node<br/>Write to doc_pattern RAW table]
+  
+      PatternEdges --> UpdateTag[Update file tag:<br/>AnnotationInProcess → Annotated]
+      UpdateTag --> PrepareUpdate[Prepare AnnotationState update:<br/>- Annotated if complete<br/>- Failed if error<br/>- New if more pages remain<br/>Track page progress]
+  
+      PrepareUpdate --> MoreFiles{More files in<br/>merged results?}
+      MoreFiles -->|Yes| LoopFiles
+      MoreFiles -->|No| BatchUpdate[Batch update ALL<br/>AnnotationState instances<br/>for this job]
+  
+      BatchUpdate --> QueryState
+  
+      style Start fill:#d4f1d4
+      style End fill:#f1d4d4
+      style CheckState fill:#fff4e6
+      style CheckJobs fill:#fff4e6
+      style CheckClean fill:#fff4e6
+      style MoreFiles fill:#fff4e6
+      style MergeResults fill:#e6f3ff
+      style ProcessResults fill:#e6f3ff
+      style CreateEdges fill:#e6f3ff
+      style BatchUpdate fill:#e6f3ff
+  ```
 
-    GetJobId --> FindFiles[Find ALL files with<br/>the same job ID]
-    FindFiles --> CheckJobs{Both standard<br/>and pattern jobs<br/>complete?}
-    CheckJobs -->|No| ResetStatus[Update AnnotationStates<br/>back to Processing<br/>Wait 30 seconds]
-    ResetStatus --> QueryState
+</details>
 
-    CheckJobs -->|Yes| RetrieveResults[Retrieve results from<br/>both completed jobs]
-    RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
-    MergeResults --> LoopFiles[For each file in merged results]
+### Promote Phase
 
-    LoopFiles --> ProcessResults[Process file results:<br/>- Create stable hash for deduplication<br/>- Filter standard by confidence threshold<br/>- Skip pattern duplicates]
+- **Goal**: Automatically resolve pattern-mode annotations by finding matching entities and updating edges from sink node to actual entities.
+- **Process**:
+  1. Queries for pattern-mode annotation edges (edges pointing to the sink node with status "Suggested").
+  2. Groups candidates by unique text to process each text only once per batch.
+  3. For each unique text:
+     - Generates text variations to handle different naming conventions (case, special characters, leading zeros).
+     - Searches for matching entities using a multi-tier caching strategy:
+       - **TIER 1**: In-memory cache (fastest, this run only).
+       - **TIER 2**: Persistent RAW cache (shared across runs and with manual promotions).
+       - **TIER 3**: Entity search via data model (queries smaller, stable entity dataset).
+     - Updates all edges with the same text based on search results.
+  4. Updates edges and RAW tables based on results:
+     - **Approved**: Single unambiguous match found → edge points to actual entity, added "PromotedAuto" tag.
+     - **Rejected**: No match found → edge stays on sink node, added "PromoteAttempted" tag.
+     - **Suggested**: Multiple ambiguous matches → kept for manual review, added "AmbiguousMatch" tag.
+  5. Runs continuously (designed for repeated execution) until all resolvable pattern annotations are promoted.
+<details>
+<summary>Click to view Mermaid flowchart for Promote Phase</summary>
 
-    ProcessResults --> CheckClean{First run for<br/>multi-page file?}
-    CheckClean -->|Yes| CleanOld[Clean old annotations]
-    CheckClean -->|No| CreateEdges
-    CleanOld --> CreateEdges[Create edges in data model]
-
-    CreateEdges --> StandardEdges[Standard annotations:<br/>Link file to entities<br/>Write to doc_tag and doc_doc RAW tables]
-    StandardEdges --> PatternEdges[Pattern annotations:<br/>Link file to sink node<br/>Write to doc_pattern RAW table]
-
-    PatternEdges --> UpdateTag[Update file tag:<br/>AnnotationInProcess → Annotated]
-    UpdateTag --> PrepareUpdate[Prepare AnnotationState update:<br/>- Annotated if complete<br/>- Failed if error<br/>- New if more pages remain<br/>Track page progress]
-
-    PrepareUpdate --> MoreFiles{More files in<br/>merged results?}
-    MoreFiles -->|Yes| LoopFiles
-    MoreFiles -->|No| BatchUpdate[Batch update ALL<br/>AnnotationState instances<br/>for this job]
-
-    BatchUpdate --> QueryState
-
-    style Start fill:#d4f1d4
-    style End fill:#f1d4d4
-    style CheckState fill:#fff4e6
-    style CheckJobs fill:#fff4e6
-    style CheckClean fill:#fff4e6
-    style MoreFiles fill:#fff4e6
-    style MergeResults fill:#e6f3ff
-    style ProcessResults fill:#e6f3ff
-    style CreateEdges fill:#e6f3ff
-    style BatchUpdate fill:#e6f3ff
-```
+  ```mermaid
+  flowchart TD
+      Start([Start Promote Phase]) --> QueryEdges[Query for pattern-mode edges<br/>pointing to sink node<br/>with Suggested status]
+      QueryEdges --> CheckEdges{Any edges<br/>to promote?}
+      CheckEdges -->|No| End([End])
+      CheckEdges -->|Yes| GroupText[Group edges by<br/>unique text + type<br/>Process each text once]
+  
+      GroupText --> NextText{Next unique<br/>text?}
+      NextText -->|Yes| GenVariations[Generate text variations<br/>Case, special chars, zeros<br/>e.g., V-0912 → 8 variations]
+  
+      GenVariations --> CheckMemCache{In-memory<br/>cache hit?}
+      CheckMemCache -->|Yes| UseMemCache[Use cached entity<br/>TIER 1: Fastest]
+      CheckMemCache -->|No| CheckRAWCache{Persistent RAW<br/>cache hit?}
+  
+      CheckRAWCache -->|Yes| UseRAWCache[Use cached entity<br/>TIER 2: Fast<br/>Populate in-memory cache]
+      CheckRAWCache -->|No| SearchEntities[Query entities via<br/>data model<br/>TIER 3: Server-side IN filter<br/>on aliases property]
+  
+      SearchEntities --> CacheResult{Match found<br/>and unambiguous?}
+      CacheResult -->|Yes| CachePositive[Cache positive result<br/>in-memory + RAW]
+      CacheResult -->|No match| CacheNegative[Cache negative result<br/>in-memory only]
+      CacheResult -->|Ambiguous| NoCache[Don't cache<br/>ambiguous results]
+  
+      UseMemCache --> ProcessResult
+      UseRAWCache --> ProcessResult
+      CachePositive --> ProcessResult[Determine result type:<br/>Single match, No match,<br/>or Ambiguous]
+      CacheNegative --> ProcessResult
+      NoCache --> ProcessResult
+  
+      ProcessResult --> UpdateEdges{Result type?}
+      UpdateEdges -->|Single Match| ApproveEdges[Update ALL edges with this text:<br/>- Point to matched entity<br/>- Status: Approved<br/>- Tag: PromotedAuto<br/>- Update RAW pattern table]
+      UpdateEdges -->|No Match| RejectEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Rejected<br/>- Tag: PromoteAttempted<br/>- Update RAW pattern table]
+      UpdateEdges -->|Ambiguous| FlagEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Suggested<br/>- Tags: PromoteAttempted,<br/>  AmbiguousMatch<br/>- Update RAW pattern table]
+  
+      ApproveEdges --> BatchUpdate[Batch update edges<br/>and RAW rows in CDF]
+      RejectEdges --> BatchUpdate
+      FlagEdges --> BatchUpdate
+  
+      BatchUpdate --> NextText
+      NextText -->|No more texts| QueryEdges
+  
+      style Start fill:#d4f1d4
+      style End fill:#f1d4d4
+      style CheckEdges fill:#fff4e6
+      style CheckMemCache fill:#fff4e6
+      style CheckRAWCache fill:#fff4e6
+      style CacheResult fill:#fff4e6
+      style UpdateEdges fill:#fff4e6
+      style NextText fill:#fff4e6
+      style UseMemCache fill:#e6ffe6
+      style UseRAWCache fill:#e6f3ff
+      style SearchEntities fill:#ffe6e6
+      style ProcessResult fill:#e6f3ff
+      style BatchUpdate fill:#e6f3ff
+  ```
 
 </details>
 
@@ -182,6 +261,11 @@ Key configuration sections include:
   - `cleanOldAnnotations`: Whether to remove existing annotations before applying new ones.
   - `maxRetryAttempts`: Retry limit for failed files.
   - `sinkNode`: Target node for pattern mode annotations pending review.
+- `promoteFunction`: Configures automatic resolution of pattern-mode annotations:
+  - `getCandidatesQuery`: Query to find pattern-mode edges to promote (batch size controlled via limit).
+  - `entitySearchService`: Controls entity search and text normalization (case, special chars, leading zeros).
+  - `cacheService`: Configuration for the persistent text→entity cache shared across runs and with manual promotions.
+  - `rawDb` / `rawTableDocPattern`: Location of RAW tables for storing promotion results.
 
 This file allows for deep customization. For example, you can use a list of query configurations to combine them with `OR` logic, or you can set `primaryScopeProperty` to `None` to process files that are not tied to a specific scope. Manual pattern samples can be added to the RAW catalog at `GLOBAL`, site, or unit levels to override or supplement auto-generated patterns.
 
@@ -245,6 +329,15 @@ When processing tens of thousands of files, naively fetching context for each fi
   6. Store the complete entity list and pattern samples in RAW for reuse.
 
   This cache is loaded once per scope and reused for all files in that batch, drastically reducing the number of queries to CDF and improving overall throughput. The pattern generation process extracts common naming conventions from aliases, creating regex-like patterns that can match variations (e.g., detecting "FT-102A" even if only "FT-101A" was in the training data).
+
+### Efficient Entity Search for Pattern Promotion
+
+The promote function's entity search strategy is deliberately optimized for scale:
+
+- **Dataset Size Analysis:** When pattern-mode annotations need resolution, there are two potential query strategies: query annotation edges (to find proven matches) or query entities directly. Without property indexes on either `startNodeText` (edges) or `aliases` (entities), the smaller dataset wins.
+- **Growth Patterns:** Annotation edges grow quadratically with O(Files × Entities), potentially reaching hundreds of thousands or millions. Entity counts grow linearly and remain relatively stable at thousands.
+- **Design Choice:** The promote function queries entities directly via server-side IN filters on the aliases property, avoiding the much larger annotation edge dataset. This provides 50-500x better performance at scale.
+- **Self-Improving Cache:** The persistent RAW cache accumulates successful text→entity mappings over time and is shared between automated promotions and manual promotions from the Streamlit dashboard, creating a self-improving system.
 
 ### Interface-Based Extensibility
 
