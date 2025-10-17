@@ -339,17 +339,20 @@ with overall_tab:
             selected_tag_row = unmatched_display.loc[st.session_state.selected_unmatched_overall_index]
             selected_tag_text = selected_tag_row["text"]
             
+            associated_files = tag_to_files_unmatched.get(selected_tag_text, [])
+
             show_connect_unmatched_ui(
                 selected_tag_text,
                 file_view,
                 target_entities_view,
                 file_resource_property,
                 target_entities_resource_property,
-                associated_files=tag_to_files_unmatched.get(selected_tag_text, []),
+                associated_files=associated_files,
                 tab="overall",
                 db_name=db_name,
                 pattern_table=pattern_table,
-                apply_config=apply_config
+                apply_config=apply_config,
+                annotation_state_view=annotation_state_view,
             )
 
 
@@ -546,17 +549,19 @@ with per_file_tab:
             df_display
         ):
             selected_file_data = df_display.iloc[st.session_state.selected_row_index]
-            selected_file = selected_file_data["startNode"]
-            st.markdown(f"**Displaying Tag Comparison for file:** `{selected_file}`")
-            file_space_series = df_patterns_file[df_patterns_file["startNode"] == selected_file]["startNodeSpace"]
+            selected_file_ext_id = selected_file_data["startNode"]
+            selected_file_name = selected_file_data["fileName"]
+            st.markdown(f"**Displaying Tag Comparison for file:**")
+            st.markdown(f"`{selected_file_name} ({selected_file_ext_id})`")
+            file_space_series = df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id]["startNodeSpace"]
             if not file_space_series.empty:
                 file_space = file_space_series.iloc[0]
-                file_node_id = NodeId(space=file_space, external_id=selected_file)
-                df_potential_tags_details = df_patterns_file[df_patterns_file["startNode"] == selected_file][
-                    ["startNodeText", "endNodeResourceType"]
+                file_node_id = NodeId(space=file_space, external_id=selected_file_ext_id)
+                df_potential_tags_details = df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id][
+                    ["startNodeText", "endNodeResourceType", "status"]
                 ]
                 df_actual_annotations_details = (
-                    df_annotations_file[df_annotations_file["startNode"] == selected_file][
+                    df_annotations_file[df_annotations_file["startNode"] == selected_file_ext_id][
                         ["startNodeText", "endNodeResourceType"]
                     ]
                     if not df_annotations_file.empty
@@ -581,14 +586,14 @@ with per_file_tab:
                     df_potential_tags_details["startNodeText"].isin({potential_map[t] for t in norm_unmatched})
                 ].drop_duplicates(subset=["startNodeText", "endNodeResourceType"])
 
-                if st.button("Create in Canvas", key=f"canvas_btn_{selected_file}"):
+                if st.button("Create in Canvas", key=f"canvas_btn_{selected_file_ext_id}"):
                     with st.spinner("Generating Industrial Canvas with bounding boxes..."):
                         # The 'regions' column is no longer available in the RAW table.
                         # You will need to adjust the canvas generation logic to handle this.
                         # For now, we will pass an empty list.
                         potential_tags_for_canvas = build_unmatched_tags_with_regions(
                             df=df_metrics_input,
-                            file_id=selected_file,
+                            file_id=selected_file_ext_id,
                             potential_new_annotations=potential_new_annotations_set
                         )
                         canvas_url = generate_file_canvas(
@@ -631,7 +636,7 @@ with per_file_tab:
                     unmatched_display.insert(0, "Select", False)
                     
                     occurrences = (
-                        df_patterns_file[df_patterns_file["startNode"] == selected_file].groupby("startNodeText")
+                        df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id].groupby("startNodeText")
                         .size()
                         .reset_index(name="occurrenceCount")
                     )
@@ -681,11 +686,12 @@ with per_file_tab:
                         target_entities_view,
                         file_resource_property,
                         target_entities_resource_property,
-                        associated_files=[selected_file],
+                        associated_files=[selected_file_ext_id],
                         tab="per_file",
                         db_name=db_name,
                         pattern_table=pattern_table,
-                        apply_config=apply_config
+                        apply_config=apply_config,
+                        annotation_state_view=annotation_state_view,
                     )
                         
         else:
