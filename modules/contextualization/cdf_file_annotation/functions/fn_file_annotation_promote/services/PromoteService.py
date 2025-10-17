@@ -84,21 +84,14 @@ class GeneralPromoteService(IPromoteService):
         )
 
         # RAW database and table configuration
-        # Prefer promote_function config if available, otherwise fallback to finalize_function config
-        if self.config.promote_function:
-            self.raw_db = self.config.promote_function.raw_db
-            self.raw_pattern_table = self.config.promote_function.raw_table_doc_pattern
-            self.raw_doc_doc_table = self.config.promote_function.raw_table_doc_doc
-            self.raw_doc_tag_table = self.config.promote_function.raw_table_doc_tag
-        else:
-            # Backward compatibility: use finalize_function config
-            self.logger.warning(
-                "promote_function config not found. Using finalize_function config for backward compatibility."
-            )
-            self.raw_db = self.config.finalize_function.apply_service.raw_db
-            self.raw_pattern_table = self.config.finalize_function.apply_service.raw_table_doc_pattern
-            self.raw_doc_doc_table = self.config.finalize_function.apply_service.raw_table_doc_doc
-            self.raw_doc_tag_table = self.config.finalize_function.apply_service.raw_table_doc_tag
+        self.raw_db = self.config.promote_function.raw_db
+        self.raw_pattern_table = self.config.promote_function.raw_table_doc_pattern
+        self.raw_doc_doc_table = self.config.promote_function.raw_table_doc_doc
+        self.raw_doc_tag_table = self.config.promote_function.raw_table_doc_tag
+
+        # Promote flags
+        self.delete_rejected_edges: bool = self.config.promote_function.delete_rejected_edges
+        self.delete_suggested_edges: bool = self.config.promote_function.delete_suggested_edges
 
         # Injected service dependencies
         self.entity_search_service = entity_search_service
@@ -166,6 +159,9 @@ class GeneralPromoteService(IPromoteService):
 
         edges_to_update: list[EdgeApply] = []
         raw_rows_to_update: list[RowWrite] = []
+        # TODO: think about whether we need to delete the cooresponding raw row of edges that we delete OR if it should be placed in another RAW table when rejected
+        # raw_rows_to_delete: list[RowWrite] = []
+        edges_to_delete: list[EdgeApply] = []
 
         # Track results for this batch
         batch_promoted: int = 0

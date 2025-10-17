@@ -220,6 +220,76 @@ class FinalizeFunction(BaseModel, alias_generator=to_camel):
     apply_service: ApplyServiceConfig
 
 
+# Promote Related Configs
+class TextNormalizationConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for text normalization and variation generation.
+
+    Controls how text is normalized for matching and what variations are generated
+    to improve match rates across different naming conventions.
+
+    These flags affect both the normalize() function (for cache keys and direct matching)
+    and generate_text_variations() function (for query-based matching).
+    """
+
+    remove_special_characters: bool = True
+    convert_to_lowercase: bool = True
+    strip_leading_zeros: bool = True
+
+
+class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for the EntitySearchService in the promote function.
+
+    Controls entity search and text normalization behavior:
+    - Queries entities directly (server-side IN filter on entity/file aliases)
+    - Text normalization for generating search variations
+
+    Uses efficient server-side filtering on the smaller entity dataset rather than
+    the larger annotation edge dataset for better performance at scale.
+    """
+
+    enable_existing_annotations_search: bool = True
+    enable_global_entity_search: bool = True
+    max_entity_search_limit: int = Field(default=1000, gt=0, le=10000)
+    text_normalization: TextNormalizationConfig
+
+
+class PromoteCacheServiceConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for the CacheService in the promote function.
+
+    Controls caching behavior for text→entity mappings.
+    """
+
+    cache_table_name: str
+
+
+class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for the promote function.
+
+    The promote function resolves pattern-mode annotations by finding matching entities
+    and updating annotation edges from pointing to a sink node to pointing to actual entities.
+
+    Configuration is organized by service interface:
+    - entitySearchService: Controls entity search strategies
+    - cacheService: Controls caching behavior
+
+    Batch size is controlled via getCandidatesQuery.limit field.
+    """
+
+    get_candidates_query: QueryConfig | list[QueryConfig]
+    raw_db: str
+    raw_table_doc_pattern: str
+    raw_table_doc_tag: str
+    raw_table_doc_doc: str
+    delete_rejected_edges: bool
+    delete_suggested_edges: bool
+    entity_search_service: EntitySearchServiceConfig
+    cache_service: PromoteCacheServiceConfig
+
+
 class DataModelViews(BaseModel, alias_generator=to_camel):
     core_annotation_view: ViewPropertyConfig
     annotation_state_view: ViewPropertyConfig
@@ -232,6 +302,7 @@ class Config(BaseModel, alias_generator=to_camel):
     prepare_function: PrepareFunction
     launch_function: LaunchFunction
     finalize_function: FinalizeFunction
+    promote_function: PromoteFunctionConfig
 
     @classmethod
     def parse_direct_relation(cls, value: Any) -> Any:
