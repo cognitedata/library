@@ -1,7 +1,7 @@
 workflowExternalId: {{ workflowExternalId }}
-version: "v1"
+version: {{ launchWorkflowVersion }}
 workflowDefinition:
-  description: "A workflow for annotating P&ID and documents."
+  description: "Create diagram detect jobs for files marked to annotate."
   tasks:
     - externalId: fn_launch
       type: "function"
@@ -20,6 +20,11 @@ workflowDefinition:
       timeout: 600
       onFailure: "abortWorkflow"
 
+workflowExternalId: {{ workflowExternalId }}
+version: {{ finalizeWorkflowVersion }}
+workflowDefinition:
+  description: "Process the diagram detect jobs created by the launch workflow"
+  tasks:
     - externalId: fn_finalize_thread_1
       type: "function"
       parameters:
@@ -105,6 +110,11 @@ workflowDefinition:
       timeout: 600
       onFailure: "abortWorkflow"
       
+workflowExternalId: {{ workflowExternalId }}
+version: {{ promoteWorkflowVersion }}
+workflowDefinition:
+  description: "Attempt to automatically promote annotation edges created from the pattern mode results in the finalize workflow"
+  tasks:
     - externalId: fn_promote
       type: "function"
       parameters:

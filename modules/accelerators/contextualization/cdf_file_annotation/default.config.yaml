@@ -41,7 +41,9 @@ functionClientSecret: ${IDP_CLIENT_SECRET}
 # used in /workflows
 workflowSchedule: "3-59/15 * * * *" # NOTE: runs every 15 minutes with a 3 minute offset
 workflowExternalId: wf_file_annotation
-workflowVersion: v1
+launchWorkflowVersion: v1_launch
+finalizeWorkflowVersion: v1_finalize
+promoteWorkflowVersion: v1_promote
 
 # used in /auth
 groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
