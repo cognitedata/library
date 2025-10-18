@@ -3,25 +3,27 @@ triggerRule:
   triggerType: schedule
   cronExpression: "{{workflowSchedule}}"
 workflowExternalId: {{workflowExternalId}}
-workflowVersion: {{workflowVersion}}
+workflowVersion: {{launchWorkflowVersion}}
 authentication:
   clientId: {{functionClientId}}
   clientSecret: {{functionClientSecret}}
+
 externalId: {{workflowExternalId}}
 triggerRule:
   triggerType: schedule
   cronExpression: "{{workflowSchedule}}"
 workflowExternalId: {{workflowExternalId}}
-workflowVersion: {{workflowVersion}}
+workflowVersion: {{finalizeWorkflowVersion}}
 authentication:
   clientId: {{functionClientId}}
   clientSecret: {{functionClientSecret}}
+
 externalId: {{workflowExternalId}}
 triggerRule:
   triggerType: schedule
   cronExpression: "{{workflowSchedule}}"
 workflowExternalId: {{workflowExternalId}}
-workflowVersion: {{workflowVersion}}
+workflowVersion: {{promoteWorkflowVersion}}
 authentication:
   clientId: {{functionClientId}}
   clientSecret: {{functionClientSecret}}
