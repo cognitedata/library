@@ -81,8 +81,8 @@ class AnnotationState:
     sourceUpdatedTime: str = field(
         default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     )
-    sourceCreatedUser: str = "fn_dm_context_annotation_launch"
-    sourceUpdatedUser: str = "fn_dm_context_annotation_launch"
+    sourceCreatedUser: str = "fn_dm_context_annotation_finalize"
+    sourceUpdatedUser: str = "fn_dm_context_annotation_finalize"
 
     def _create_external_id(self) -> str:
         """
@@ -309,7 +309,7 @@ class PerformanceTracker:
 
     def generate_ep_run(
         self,
-        caller: Literal["Launch", "Finalize"],
+        caller: Literal["Prepare", "Launch", "Finalize"],
         function_id: str | None,
         call_id: str | None,
     ) -> str:

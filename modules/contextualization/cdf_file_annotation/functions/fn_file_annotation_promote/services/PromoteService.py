@@ -278,12 +278,7 @@ class GeneralPromoteService(IPromoteService):
             # Backward compatibility: hardcoded filter
             query_filter = {
                 "and": [
-                    {
-                        "equals": {
-                            "property": ["edge", "endNode"],
-                            "value": {"space": self.sink_node_ref.space, "externalId": self.sink_node_ref.external_id},
-                        }
-                    },
+                    {"equals": {"property": ["edge", "space"], "value": self.sink_node_ref.space}},
                     {"equals": {"property": self.core_annotation_view.as_property_ref("status"), "value": "Suggested"}},
                     {
                         "not": {
@@ -302,6 +297,7 @@ class GeneralPromoteService(IPromoteService):
             sources=[self.core_annotation_view.as_view_id()],
             filter=query_filter,
             limit=limit,
+            space=self.sink_node_ref.space
         )
 
     def _find_entity_with_cache(self, text: str, annotation_type: str, entity_space: str) -> list[Node] | list:
