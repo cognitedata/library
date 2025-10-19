@@ -35,7 +35,7 @@
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-# Launch Trigger: Fires when AnnotationState instances have status "New" or "Retry"
+# Launch Trigger: Fires when AnnotationState instances have status "New" or "Retry" AND linkedFile exists
 - externalId: {{launchWorkflowTrigger}}
   triggerRule:
     triggerType: dataModeling
@@ -44,9 +44,12 @@
         states_to_launch:
           nodes:
             filter:
-              in:
-                property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'annotationStatus']
-                values: ['New', 'Retry']
+              and:
+                - in:
+                    property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'annotationStatus']
+                    values: ['New', 'Retry']
+                - exists:
+                    property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'linkedFile']
           limit: 50
       select:
         states_to_launch:
