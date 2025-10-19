@@ -1,3 +1,13 @@
+- name: Prepare File Annotations
+  externalId: {{ prepareFunctionExternalId }}
+  owner: "Anonymous"
+  description: "Create annotation state instances for files marked ToAnnotate."
+  metadata:
+    version: {{ prepareFunctionVersion }}
+
+  runtime: "py311"
+  functionPath: "handler.py"
+
 - name: Launch File Annotations
   externalId: {{ launchFunctionExternalId }}
   owner: "Anonymous"

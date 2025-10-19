@@ -1,9 +1,39 @@
-externalId: {{workflowExternalId}}
-triggerRule:
-  triggerType: schedule
-  cronExpression: "{{workflowSchedule}}"
-workflowExternalId: {{workflowExternalId}}
-workflowVersion: {{workflowVersion}}
-authentication:
-  clientId: {{functionClientId}}
-  clientSecret: {{functionClientSecret}}
+- externalId: {{prepareWorkflowTrigger}}
+  triggerRule:
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
+  workflowExternalId: {{workflowExternalId}}
+  workflowVersion: {{prepareWorkflowVersion}}
+  authentication:
+    clientId: {{functionClientId}}
+    clientSecret: {{functionClientSecret}}
+
+- externalId: {{launchWorkflowTrigger}}
+  triggerRule:
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
+  workflowExternalId: {{workflowExternalId}}
+  workflowVersion: {{launchWorkflowVersion}}
+  authentication:
+    clientId: {{functionClientId}}
+    clientSecret: {{functionClientSecret}}
+
+- externalId: {{finalizeWorkflowTrigger}}
+  triggerRule:
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
+  workflowExternalId: {{workflowExternalId}}
+  workflowVersion: {{finalizeWorkflowVersion}}
+  authentication:
+    clientId: {{functionClientId}}
+    clientSecret: {{functionClientSecret}}
+
+- externalId: {{promoteWorkflowTrigger}}
+  triggerRule:
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
+  workflowExternalId: {{workflowExternalId}}
+  workflowVersion: {{promoteWorkflowVersion}}
+  authentication:
+    clientId: {{functionClientId}}
+    clientSecret: {{functionClientSecret}}
