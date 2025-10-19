@@ -152,16 +152,16 @@ config:
     rawTableDocPattern: {{ rawTableDocPattern }}
     rawTableDocTag: {{ rawTableDocTag }}
     rawTableDocDoc: {{ rawTableDocDoc }}
-    deleteRejectedEdges: true
-    deleteSuggestedEdges: true
+    deleteRejectedEdges: True
+    deleteSuggestedEdges: True
     entitySearchService:
-      enableExistingAnnotationsSearch: true  # Primary: Query annotation edges (fast, checks existing annotation edges)
-      enableGlobalEntitySearch: true  # Fallback: Global entity search - (slow, unstable as instance count grows)
+      enableExistingAnnotationsSearch: True  # Primary: Query annotation edges (fast, checks existing annotation edges)
+      enableGlobalEntitySearch: True  # Fallback: Global entity search - (slow, unstable as instance count grows)
       maxEntitySearchLimit: 1000  # Max entities to fetch in global search
       textNormalization:
-        removeSpecialCharacters: true  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")
-        convertToLowercase: true  # Convert to lowercase (e.g., "V0912" → "v0912")
-        stripLeadingZeros: true  # Remove leading zeros (e.g., "v0912" → "v912")
+        removeSpecialCharacters: True  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")
+        convertToLowercase: False  # Convert to lowercase (e.g., "V0912" → "v0912")
+        stripLeadingZeros: True  # Remove leading zeros (e.g., "v0912" → "v912")
     cacheService:
       cacheTableName: {{ rawTablePromoteCache }}
 
