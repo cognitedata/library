@@ -1,157 +1,42 @@
-# Prepare Trigger: Fires when files have "ToAnnotate" tag without annotation processing tags
+# All triggers run on schedule (every 10 minutes with 3 minute offset)
+# Note: Scheduled triggers are used because the current function implementations
+# are not designed for event-driven execution. See TRIGGER_ARCHITECTURE.md for
+# details on future refactoring to enable data modeling event triggers.
+
 - externalId: {{prepareWorkflowTrigger}}
   triggerRule:
-    triggerType: dataModeling
-    dataModelingQuery:
-      with:
-        files_to_prepare:
-          nodes:
-            filter:
-              and:
-                - equals:
-                    property: ["node", "space"]
-                    value: {{fileInstanceSpace}}
-                - in:
-                    property: [{{fileSchemaSpace}}, '{{fileExternalId}}/{{fileVersion}}', 'tags']
-                    values: ['ToAnnotate']
-                - not:
-                    in:
-                      property: [{{fileSchemaSpace}}, '{{fileExternalId}}/{{fileVersion}}', 'tags']
-                      values: ['AnnotationInProcess', 'Annotated', 'AnnotationFailed']
-          limit: 100
-      select:
-        files_to_prepare:
-          sources:
-            - source:
-                type: view
-                space: {{fileSchemaSpace}}
-                externalId: {{fileExternalId}}
-                version: {{fileVersion}}
-              properties:
-                - name
-                - tags
-    batchSize: 100
-    batchTimeout: 60
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{prepareWorkflowVersion}}
   authentication:
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-# Launch Trigger: Fires when AnnotationState instances have status "New" or "Retry" AND linkedFile exists
 - externalId: {{launchWorkflowTrigger}}
   triggerRule:
-    triggerType: dataModeling
-    dataModelingQuery:
-      with:
-        states_to_launch:
-          nodes:
-            filter:
-              and:
-                - equals:
-                    property: ["node", "space"]
-                    value: {{fileInstanceSpace}}
-                - in:
-                    property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'annotationStatus']
-                    values: ['New', 'Retry']
-                - exists:
-                    property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'linkedFile']
-          limit: 50
-      select:
-        states_to_launch:
-          sources:
-            - source:
-                type: view
-                space: {{annotationStateSchemaSpace}}
-                externalId: {{annotationStateExternalId}}
-                version: {{annotationStateVersion}}
-              properties:
-                - annotationStatus
-                - linkedFile
-                - attemptCount
-    batchSize: 50
-    batchTimeout: 30
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{launchWorkflowVersion}}
   authentication:
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-# Finalize Trigger: Fires when AnnotationState instances have status "Processing"
 - externalId: {{finalizeWorkflowTrigger}}
   triggerRule:
-    triggerType: dataModeling
-    dataModelingQuery:
-      with:
-        jobs_to_finalize:
-          nodes:
-            filter:
-              and:
-                - equals:
-                    property: ["node", "space"]
-                    value: {{fileInstanceSpace}}
-                - equals:
-                    property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'annotationStatus']
-                    value: 'Processing'
-                - exists:
-                    property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'diagramDetectJobId']
-          limit: 20
-      select:
-        jobs_to_finalize:
-          sources:
-            - source:
-                type: view
-                space: {{annotationStateSchemaSpace}}
-                externalId: {{annotationStateExternalId}}
-                version: {{annotationStateVersion}}
-              properties:
-                - annotationStatus
-                - diagramDetectJobId
-                - patternModeJobId
-                - linkedFile
-    batchSize: 20
-    batchTimeout: 60
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{finalizeWorkflowVersion}}
   authentication:
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-# Promote Trigger: Fires when annotation edges have status "Suggested" and haven't been promoted yet
 - externalId: {{promoteWorkflowTrigger}}
   triggerRule:
-    triggerType: dataModeling
-    dataModelingQuery:
-      with:
-        edges_to_promote:
-          edges:
-            filter:
-              and:
-                - equals:
-                    property: ["edge", "space"]
-                    value: {{patternModeInstanceSpace}}
-                - equals:
-                    property: [cdf_cdm, 'CogniteDiagramAnnotation/v1', 'status']
-                    value: 'Suggested'
-                - not:
-                    in:
-                      property: [cdf_cdm, 'CogniteDiagramAnnotation/v1', 'tags']
-                      values: ['PromoteAttempted']
-          limit: 100
-      select:
-        edges_to_promote:
-          sources:
-            - source:
-                type: view
-                space: cdf_cdm
-                externalId: CogniteDiagramAnnotation
-                version: v1
-              properties:
-                - status
-                - tags
-                - startNodeText
-    batchSize: 100
-    batchTimeout: 300
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{promoteWorkflowVersion}}
   authentication:
