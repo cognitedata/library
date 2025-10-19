@@ -117,11 +117,41 @@
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-# Promote Trigger: Keep as scheduled for now (runs every 10 minutes)
+# Promote Trigger: Fires when annotation edges have status "Suggested" and haven't been promoted yet
 - externalId: {{promoteWorkflowTrigger}}
   triggerRule:
-    triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
+    triggerType: dataModeling
+    dataModelingQuery:
+      with:
+        edges_to_promote:
+          edges:
+            filter:
+              and:
+                - equals:
+                    property: ["edge", "space"]
+                    value: {{patternModeInstanceSpace}}
+                - equals:
+                    property: [cdf_cdm, 'CogniteDiagramAnnotation/v1', 'status']
+                    value: 'Suggested'
+                - not:
+                    in:
+                      property: [cdf_cdm, 'CogniteDiagramAnnotation/v1', 'tags']
+                      values: ['PromoteAttempted']
+          limit: 100
+      select:
+        edges_to_promote:
+          sources:
+            - source:
+                type: view
+                space: cdf_cdm
+                externalId: CogniteDiagramAnnotation
+                version: v1
+              properties:
+                - status
+                - tags
+                - startNodeText
+    batchSize: 100
+    batchTimeout: 300
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{promoteWorkflowVersion}}
   authentication:

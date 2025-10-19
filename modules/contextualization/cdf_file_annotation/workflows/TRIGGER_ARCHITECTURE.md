@@ -16,6 +16,9 @@ Prepare Function creates AnnotationState with status="New"
 Launch Function creates diagram detect jobs, sets status="Processing"
   ↓ (triggers v1_finalize)
 Finalize Function processes results, sets status="Annotated"/"Failed"
+  └─ (if pattern-mode enabled) Creates annotation edges with status="Suggested"
+      ↓ (triggers v1_promote)
+Promote Function attempts to resolve pattern-mode annotations to actual entities
 ```
 
 ### Trigger Configurations
@@ -141,9 +144,50 @@ with:
 
 ---
 
+#### 4. Promote Trigger (`wf_promote_trigger`)
+
+**Fires when:** Annotation edges have `status="Suggested"` AND `tags` does NOT contain `"PromoteAttempted"`
+
+**Batch Config:**
+
+- Size: 100 edges
+- Timeout: 300 seconds (5 minutes)
+
+**Query:**
+
+```yaml
+with:
+  edges_to_promote:
+    edges:
+      filter:
+        and:
+          - equals:
+              property: ["edge", "space"]
+              value: patternModeInstanceSpace
+          - equals:
+              property: [cdf_cdm, "CogniteDiagramAnnotation/v1", "status"]
+              value: "Suggested"
+          - not:
+              in:
+                property: [cdf_cdm, "CogniteDiagramAnnotation/v1", "tags"]
+                values: ["PromoteAttempted"]
+```
+
+**Function Input:** `${workflow.input.items}` - Array of annotation edges (pattern-mode annotations)
+
+**Loop Prevention:** Function adds `"PromoteAttempted"` tag to edges, preventing re-triggering
+
+**Note:** This trigger queries **edges** (not nodes) since promote processes annotation relationships. The trigger fires when the finalize function creates pattern-mode annotations (edges pointing to the sink node with `status="Suggested"`).
+
+---
+
 ## Instance Space Filtering
 
-**All triggers include instance space filtering** to ensure they only fire for instances in the configured `{{fileInstanceSpace}}`. This is achieved by filtering on the node's space property:
+**All triggers include instance space filtering** to ensure they only fire for instances in the configured `{{fileInstanceSpace}}`.
+
+### Node-based Triggers (Prepare, Launch, Finalize)
+
+For triggers that query nodes, filtering is achieved by checking the node's space property:
 
 ```yaml
 - equals:
@@ -170,6 +214,20 @@ filter:
     -  # ... other filters
 ```
 
+### Edge-based Triggers (Promote)
+
+For the promote trigger that queries edges, filtering is achieved by checking the edge's own space property:
+
+```yaml
+- equals:
+    property: ["edge", "space"]
+    value: { { patternModeInstanceSpace } }
+```
+
+This ensures only pattern-mode annotation edges stored in your configured pattern mode results instance space trigger the promote workflow. Pattern-mode edges are created by the finalize function and stored in a dedicated instance space (`patternModeInstanceSpace`, typically `sp_dat_pattern_mode_results`).
+
+### Benefits
+
 This approach ensures:
 
 - ✅ **Isolation**: Triggers only fire for instances in the configured instance space
@@ -177,7 +235,10 @@ This approach ensures:
 - ✅ **Multi-tenancy**: Supports multiple isolated environments using the same data model
 - ✅ **Performance**: Reduces query scope to only relevant instances
 
-The `fileInstanceSpace` variable is configured in `default.config.yaml` and used in both the triggers and the extraction pipeline config for consistent instance space filtering across the entire workflow.
+The `fileInstanceSpace` and `patternModeInstanceSpace` variables are configured in `default.config.yaml`:
+
+- `fileInstanceSpace`: Used for node-based triggers (prepare, launch, finalize) to filter files and annotation states
+- `patternModeInstanceSpace`: Used for edge-based triggers (promote) to filter pattern-mode annotation edges
 
 ---
 

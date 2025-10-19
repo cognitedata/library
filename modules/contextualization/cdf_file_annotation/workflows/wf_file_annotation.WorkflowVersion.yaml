@@ -153,6 +153,7 @@
               {
                 "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
                 "logLevel": "INFO",
+                "triggerInput": "${workflow.input.items}"
               }
           isAsyncComplete: false
         name: Promote File Annotations
