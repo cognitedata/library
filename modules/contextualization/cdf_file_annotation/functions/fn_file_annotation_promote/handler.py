@@ -51,7 +51,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
     start_time: datetime = datetime.now(timezone.utc)
 
     config: Config
-    config, client = create_config_service(function_data=data)
+    config, client = create_config_service(function_data=data, client=client)
     logger: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "DEBUG"), data.get("logPath"))
     tracker: PromoteTracker = PromoteTracker()
 
