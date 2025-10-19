@@ -26,7 +26,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     2. Create an instance of the launch function and create implementations of the interfaces
     3. Run the launch instance until...
         4. It's been 7 minutes
-        5. There are no files left that need to be annoated
+        5. There are no files left that need to be launched
     NOTE: Cognite functions have a run-time limit of 10 minutes.
     Don't want the function to die at the 10minute mark since there's no guarantee all code will execute.
     Thus we set a timelimit of 7 minutes (conservative) so that code execution is guaranteed.
@@ -52,15 +52,6 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
 
     run_status: str = "success"
     try:
-        while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
-            if launch_instance.prepare() == "Done":
-                break
-            logger_instance.info(tracker_instance.generate_local_report())
-
-        overall_report: str = tracker_instance.generate_overall_report()
-        logger_instance.info(overall_report, "BOTH")
-        tracker_instance.reset()
-
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
             if launch_instance.run() == "Done":
                 return {"status": run_status, "data": data}
@@ -90,7 +81,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     1. Create an instance of config, logger, and tracker
     2. Create an instance of the Launch function and create implementations of the interfaces
     3. Run the launch instance until
-        4. There are no files left that need to be annoated
+        4. There are no files left that need to be launched
     """
     log_level = config_file.get("logLevel", "DEBUG")
     config_instance, client = create_config_service(function_data=config_file)
@@ -109,14 +100,6 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         function_call_info={"function_id": None, "call_id": None},
     )
     try:
-        while True:
-            if launch_instance.prepare() == "Done":
-                break
-            logger_instance.info(tracker_instance.generate_local_report())
-
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
-        tracker_instance.reset()
-
         while True:
             if launch_instance.run() == "Done":
                 break

@@ -1,7 +1,29 @@
 - workflowExternalId: {{ workflowExternalId }}
+  version: {{ prepareWorkflowVersion }}
+  workflowDefinition:
+    description: "Create annotation state instances for files marked to annotate."
+    tasks:
+      - externalId: fn_prepare
+        type: "function"
+        parameters:
+          function:
+            externalId: {{ prepareFunctionExternalId }}
+            data:
+              {
+                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+                "logLevel": "INFO",
+              }
+          isAsyncComplete: false
+        name: Prepare File Annotations
+        description: Prepare
+        retries: 0
+        timeout: 600
+        onFailure: "abortWorkflow"
+
+- workflowExternalId: {{ workflowExternalId }}
   version: {{ launchWorkflowVersion }}
   workflowDefinition:
-    description: "Create diagram detect jobs for files marked to annotate."
+    description: "Create diagram detect jobs for annotation state instances marked new or retry."
     tasks:
       - externalId: fn_launch
         type: "function"
@@ -113,7 +135,7 @@
 - workflowExternalId: {{ workflowExternalId }}
   version: {{ promoteWorkflowVersion }}
   workflowDefinition:
-    description: "Attempt to automatically promote annotation edges created from the pattern mode results in the finalize workflow"
+    description: "Attempt to automatically promote annotation edges created from the pattern mode results in the finalize workflow."
     tasks:
       - externalId: fn_promote
         type: "function"
