@@ -212,7 +212,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     )
                     is None,
                 )
-                self.logger.info(f"\t- {annotation_msg}\n\t- {pattern_msg}")
+                self.logger.info(f"\t- {annotation_msg}")
+                self.logger.info(f"\t- {pattern_msg}")
 
                 # Logic to handle multi-page files
                 page_count = results.get("regular", {}).get("pageCount", 1)
