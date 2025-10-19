@@ -77,7 +77,7 @@
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-# Finalize Trigger: Fires when AnnotationState instances have status "Processing"
+# Finalize Trigger: Fires when AnnotationState instances have status "Processing" TODO: may need to only make one thread
 - externalId: {{finalizeWorkflowTrigger}}
   triggerRule:
     triggerType: dataModeling
