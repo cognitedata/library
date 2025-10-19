@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 - workflowExternalId: {{ workflowExternalId }}
   version: {{ prepareWorkflowVersion }}
   workflowDefinition:
@@ -19,6 +20,30 @@
         retries: 0
         timeout: 600
         onFailure: "abortWorkflow"
+=======
+<<<<<<< Updated upstream
+workflowExternalId: {{ workflowExternalId }}
+version: "v1"
+workflowDefinition:
+  description: "A workflow for annotating P&ID and documents."
+  tasks:
+    - externalId: fn_launch
+      type: "function"
+      parameters:
+        function:
+          externalId: {{ launchFunctionExternalId }}
+          data:
+            {
+              "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+              "logLevel": "INFO",
+            }
+        isAsyncComplete: false
+      name: Launch File Annotations
+      description: Launch
+      retries: 0
+      timeout: 600
+      onFailure: "abortWorkflow"
+>>>>>>> Stashed changes
 
 - workflowExternalId: {{ workflowExternalId }}
   version: {{ launchWorkflowVersion }}
@@ -98,6 +123,131 @@
         timeout: 600
         onFailure: "abortWorkflow"
 
+<<<<<<< Updated upstream
+=======
+    - externalId: fn_finalize_thread_5
+      type: "function"
+      parameters:
+        function:
+          externalId: {{ finalizeFunctionExternalId }}
+          data:
+            {
+              "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+              "logLevel": "INFO",
+            }
+        isAsyncComplete: false
+      name: Finalize File Annotations - Thread 5
+      description: Finalize
+      retries: 0
+      timeout: 600
+      onFailure: "abortWorkflow"
+=======
+- workflowExternalId: {{ workflowExternalId }}
+  version: {{ prepareWorkflowVersion }}
+  workflowDefinition:
+    description: "Create annotation state instances for files marked to annotate."
+    tasks:
+      - externalId: fn_prepare
+        type: "function"
+        parameters:
+          function:
+            externalId: {{ prepareFunctionExternalId }}
+            data:
+              {
+                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+                "logLevel": "INFO",
+                "triggerInput": "${workflow.input.items}"
+              }
+          isAsyncComplete: false
+        name: Prepare File Annotations
+        description: Prepare
+        retries: 0
+        timeout: 600
+        onFailure: "abortWorkflow"
+
+- workflowExternalId: {{ workflowExternalId }}
+  version: {{ launchWorkflowVersion }}
+  workflowDefinition:
+    description: "Create diagram detect jobs for annotation state instances marked new or retry."
+    tasks:
+      - externalId: fn_launch
+        type: "function"
+        parameters:
+          function:
+            externalId: {{ launchFunctionExternalId }}
+            data:
+              {
+                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+                "logLevel": "INFO",
+                "triggerInput": "${workflow.input.items}"
+              }
+          isAsyncComplete: false
+        name: Launch File Annotations
+        description: Launch
+        retries: 0
+        timeout: 600
+        onFailure: "abortWorkflow"
+
+- workflowExternalId: {{ workflowExternalId }}
+  version: {{ finalizeWorkflowVersion }}
+  workflowDefinition:
+    description: "Process the diagram detect jobs created by the launch workflow"
+    tasks:
+      - externalId: fn_finalize_thread_1
+        type: "function"
+        parameters:
+          function:
+            externalId: {{ finalizeFunctionExternalId }}
+            data:
+              {
+                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+                "logLevel": "INFO",
+                "triggerInput": "${workflow.input.items}"
+              }
+          isAsyncComplete: false
+        name: Finalize File Annotations - Thread 1 
+        description: Finalize
+        retries: 0
+        timeout: 600
+        onFailure: "abortWorkflow"
+
+      - externalId: fn_finalize_thread_2
+        type: "function"
+        parameters:
+          function:
+            externalId: {{ finalizeFunctionExternalId }}
+            data:
+              {
+                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+                "logLevel": "INFO",
+                "triggerInput": "${workflow.input.items}"
+              }
+          isAsyncComplete: false
+        name: Finalize File Annotations - Thread 2
+        description: Finalize
+        retries: 0
+        timeout: 600
+        onFailure: "abortWorkflow"
+
+      - externalId: fn_finalize_thread_3
+        type: "function"
+        parameters:
+          function:
+            externalId: {{ finalizeFunctionExternalId }}
+            data:
+              {
+                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
+                "logLevel": "INFO",
+                "triggerInput": "${workflow.input.items}"
+              }
+          isAsyncComplete: false
+        name: Finalize File Annotations - Thread 3
+        description: Finalize
+        retries: 0
+        timeout: 600
+        onFailure: "abortWorkflow"
+
+>>>>>>> Stashed changes
       - externalId: fn_finalize_thread_4
         type: "function"
         parameters:
@@ -107,6 +257,10 @@
               {
                 "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
                 "logLevel": "INFO",
+<<<<<<< Updated upstream
+=======
+                "triggerInput": "${workflow.input.items}"
+>>>>>>> Stashed changes
               }
           isAsyncComplete: false
         name: Finalize File Annotations - Thread 4
@@ -124,6 +278,10 @@
               {
                 "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
                 "logLevel": "INFO",
+<<<<<<< Updated upstream
+=======
+                "triggerInput": "${workflow.input.items}"
+>>>>>>> Stashed changes
               }
           isAsyncComplete: false
         name: Finalize File Annotations - Thread 5
@@ -131,6 +289,10 @@
         retries: 0
         timeout: 600
         onFailure: "abortWorkflow"
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
       
 - workflowExternalId: {{ workflowExternalId }}
   version: {{ promoteWorkflowVersion }}
