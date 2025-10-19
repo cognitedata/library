@@ -36,12 +36,15 @@ with:
   files_to_prepare:
     nodes:
       filter:
-        And:
-          - In:
+        and:
+          - equals:
+              property: ["node", "space"]
+              value: fileInstanceSpace
+          - in:
               property: [fileSchemaSpace, "fileExternalId/version", "tags"]
               values: ["ToAnnotate"]
-          - Not:
-              In:
+          - not:
+              in:
                 property: [fileSchemaSpace, "fileExternalId/version", "tags"]
                 values: ["AnnotationInProcess", "Annotated", "AnnotationFailed"]
 ```
@@ -69,6 +72,9 @@ with:
     nodes:
       filter:
         and:
+          - equals:
+              property: ["node", "space"]
+              value: fileInstanceSpace
           - in:
               property:
                 [
@@ -108,8 +114,11 @@ with:
   jobs_to_finalize:
     nodes:
       filter:
-        And:
-          - Equals:
+        and:
+          - equals:
+              property: ["node", "space"]
+              value: fileInstanceSpace
+          - equals:
               property:
                 [
                   annotationStateSchemaSpace,
@@ -117,7 +126,7 @@ with:
                   "annotationStatus",
                 ]
               value: "Processing"
-          - Exists:
+          - exists:
               property:
                 [
                   annotationStateSchemaSpace,
@@ -129,6 +138,46 @@ with:
 **Function Input:** `${workflow.input.items}` - Array of AnnotationState instances with job IDs
 
 **Loop Prevention:** Function updates `annotationStatus="Annotated"/"Failed"`, preventing re-triggering
+
+---
+
+## Instance Space Filtering
+
+**All triggers include instance space filtering** to ensure they only fire for instances in the configured `{{fileInstanceSpace}}`. This is achieved by filtering on the node's space property:
+
+```yaml
+- equals:
+    property: ["node", "space"]
+    value: { { fileInstanceSpace } }
+```
+
+**Example from Prepare Trigger:**
+
+```yaml
+filter:
+  and:
+    - equals:
+        property: ["node", "space"]
+        value: { { fileInstanceSpace } }
+    - in:
+        property:
+          [
+            { { fileSchemaSpace } },
+            "{{fileExternalId}}/{{fileVersion}}",
+            "tags",
+          ]
+        values: ["ToAnnotate"]
+    -  # ... other filters
+```
+
+This approach ensures:
+
+- ✅ **Isolation**: Triggers only fire for instances in the configured instance space
+- ✅ **Consistency**: Matches the behavior of scheduled functions using the extraction pipeline config
+- ✅ **Multi-tenancy**: Supports multiple isolated environments using the same data model
+- ✅ **Performance**: Reduces query scope to only relevant instances
+
+The `fileInstanceSpace` variable is configured in `default.config.yaml` and used in both the triggers and the extraction pipeline config for consistent instance space filtering across the entire workflow.
 
 ---
 
@@ -273,6 +322,7 @@ finalizeWorkflowTrigger: wf_finalize_trigger
 
 # Data model configuration
 fileSchemaSpace: <your-file-schema-space>
+fileInstanceSpace: <your-file-instance-space> # IMPORTANT: Filters trigger scope
 fileExternalId: <your-file-external-id>
 fileVersion: <your-file-version>
 
@@ -280,6 +330,8 @@ annotationStateSchemaSpace: sp_hdm
 annotationStateExternalId: FileAnnotationState
 annotationStateVersion: v1.0.0
 ```
+
+**Note:** The `fileInstanceSpace` variable is critical for ensuring triggers only fire for instances in your configured space. This must match the instance space used in your extraction pipeline configuration.
 
 ## References
 
