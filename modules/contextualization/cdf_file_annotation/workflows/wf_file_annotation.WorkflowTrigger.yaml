@@ -1,20 +1,3 @@
-<<<<<<< Updated upstream
-- externalId: {{prepareWorkflowTrigger}}
-  triggerRule:
-    triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
-=======
-<<<<<<< Updated upstream
-externalId: {{workflowExternalId}}
-triggerRule:
-  triggerType: schedule
-  cronExpression: "{{workflowSchedule}}"
-workflowExternalId: {{workflowExternalId}}
-workflowVersion: {{workflowVersion}}
-authentication:
-  clientId: {{functionClientId}}
-  clientSecret: {{functionClientSecret}}
-=======
 # Prepare Trigger: Fires when files have "ToAnnotate" tag without annotation processing tags
 - externalId: {{prepareWorkflowTrigger}}
   triggerRule:
@@ -46,19 +29,12 @@ authentication:
                 - tags
     batchSize: 100
     batchTimeout: 60
->>>>>>> Stashed changes
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{prepareWorkflowVersion}}
   authentication:
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-<<<<<<< Updated upstream
-- externalId: {{launchWorkflowTrigger}}
-  triggerRule:
-    triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
-=======
 # Launch Trigger: Fires when AnnotationState instances have status "New" or "Retry"
 - externalId: {{launchWorkflowTrigger}}
   triggerRule:
@@ -86,19 +62,12 @@ authentication:
                 - attemptCount
     batchSize: 50
     batchTimeout: 30
->>>>>>> Stashed changes
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{launchWorkflowVersion}}
   authentication:
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-<<<<<<< Updated upstream
-- externalId: {{finalizeWorkflowTrigger}}
-  triggerRule:
-    triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
-=======
 # Finalize Trigger: Fires when AnnotationState instances have status "Processing"
 - externalId: {{finalizeWorkflowTrigger}}
   triggerRule:
@@ -130,17 +99,13 @@ authentication:
                 - linkedFile
     batchSize: 20
     batchTimeout: 60
->>>>>>> Stashed changes
   workflowExternalId: {{workflowExternalId}}
   workflowVersion: {{finalizeWorkflowVersion}}
   authentication:
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
 
-<<<<<<< Updated upstream
-=======
 # Promote Trigger: Keep as scheduled for now (runs every 10 minutes)
->>>>>>> Stashed changes
 - externalId: {{promoteWorkflowTrigger}}
   triggerRule:
     triggerType: schedule
@@ -150,7 +115,3 @@ authentication:
   authentication:
     clientId: {{functionClientId}}
     clientSecret: {{functionClientSecret}}
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
