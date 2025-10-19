@@ -309,7 +309,7 @@ class PerformanceTracker:
 
     def generate_ep_run(
         self,
-        caller: Literal["Launch", "Finalize"],
+        caller: Literal["Prepare", "Launch", "Finalize"],
         function_id: str | None,
         call_id: str | None,
     ) -> str:
