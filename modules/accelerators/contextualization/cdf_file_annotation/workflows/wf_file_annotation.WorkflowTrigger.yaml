@@ -8,6 +8,9 @@
           nodes:
             filter:
               and:
+                - equals:
+                    property: ["node", "space"]
+                    value: {{fileInstanceSpace}}
                 - in:
                     property: [{{fileSchemaSpace}}, '{{fileExternalId}}/{{fileVersion}}', 'tags']
                     values: ['ToAnnotate']
@@ -45,6 +48,9 @@
           nodes:
             filter:
               and:
+                - equals:
+                    property: ["node", "space"]
+                    value: {{fileInstanceSpace}}
                 - in:
                     property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'annotationStatus']
                     values: ['New', 'Retry']
@@ -81,6 +87,9 @@
           nodes:
             filter:
               and:
+                - equals:
+                    property: ["node", "space"]
+                    value: {{fileInstanceSpace}}
                 - equals:
                     property: [{{annotationStateSchemaSpace}}, '{{annotationStateExternalId}}/{{annotationStateVersion}}', 'annotationStatus']
                     value: 'Processing'
