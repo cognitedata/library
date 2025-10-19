@@ -68,6 +68,9 @@ config:
             negate: False
             operator: In
             targetProperty: annotationStatus
+          - negate: False
+            operator: Exists
+            targetProperty: linkedFile
         limit: 1000
       getTargetEntitiesQuery:
         targetView:
@@ -116,7 +119,7 @@ config:
             negate: False
             operator: Equals
             targetProperty: annotationStatus
-          - negate: False # # NOTE: Do not change unless there's a good reason
+          - negate: False # NOTE: Do not change unless there's a good reason
             operator: Exists
             targetProperty: diagramDetectJobId
     applyService:

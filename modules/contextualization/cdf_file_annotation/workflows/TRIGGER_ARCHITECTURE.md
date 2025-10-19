@@ -54,7 +54,7 @@ with:
 
 #### 2. Launch Trigger (`wf_launch_trigger`)
 
-**Fires when:** AnnotationState instances have `annotationStatus` IN ["New", "Retry"]
+**Fires when:** AnnotationState instances have `annotationStatus` IN ["New", "Retry"] AND `linkedFile` exists
 
 **Batch Config:**
 
@@ -68,14 +68,22 @@ with:
   states_to_launch:
     nodes:
       filter:
-        In:
-          property:
-            [
-              annotationStateSchemaSpace,
-              "annotationStateExternalId/version",
-              "annotationStatus",
-            ]
-          values: ["New", "Retry"]
+        and:
+          - in:
+              property:
+                [
+                  annotationStateSchemaSpace,
+                  "annotationStateExternalId/version",
+                  "annotationStatus",
+                ]
+              values: ["New", "Retry"]
+          - exists:
+              property:
+                [
+                  annotationStateSchemaSpace,
+                  "annotationStateExternalId/version",
+                  "linkedFile",
+                ]
 ```
 
 **Function Input:** `${workflow.input.items}` - Array of AnnotationState instances
@@ -194,7 +202,7 @@ Prepare Trigger:
   Result → ✅ Won't re-trigger (tags changed)
 
 Launch Trigger:
-  Fires on → AnnotationState.status IN ["New", "Retry"]
+  Fires on → AnnotationState.status IN ["New", "Retry"] AND linkedFile exists
   Function → updates status="Processing"
   Result → ✅ Won't re-trigger (status changed)
 
