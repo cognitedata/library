@@ -1,3 +1,13 @@
+- externalId: {{prepareWorkflowTrigger}}
+  triggerRule:
+    triggerType: schedule
+    cronExpression: "{{workflowSchedule}}"
+  workflowExternalId: {{workflowExternalId}}
+  workflowVersion: {{prepareWorkflowVersion}}
+  authentication:
+    clientId: {{functionClientId}}
+    clientSecret: {{functionClientSecret}}
+
 - externalId: {{launchWorkflowTrigger}}
   triggerRule:
     triggerType: schedule
