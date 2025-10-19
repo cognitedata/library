@@ -64,15 +64,12 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         return {"status": run_status, "message": msg}
     finally:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
-        # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured
-        # else run log will be too messy.
-        if tracker_instance.files_failed != 0 or tracker_instance.files_success != 0 or run_status == "failure":
-            function_id = function_call_info.get("function_id")
-            call_id = function_call_info.get("call_id")
-            pipeline_instance.update_extraction_pipeline(
-                msg=tracker_instance.generate_ep_run("Launch", function_id, call_id)
-            )
-            pipeline_instance.upload_extraction_pipeline(status=run_status)
+        function_id = function_call_info.get("function_id")
+        call_id = function_call_info.get("call_id")
+        pipeline_instance.update_extraction_pipeline(
+            msg=tracker_instance.generate_ep_run("Launch", function_id, call_id)
+        )
+        pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
 def run_locally(config_file: dict[str, str], log_path: str | None = None):
