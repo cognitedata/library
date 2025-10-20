@@ -1,5 +1,7 @@
 import sys
 import threading
+import time
+import random
 from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 
@@ -47,6 +49,9 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     )
 
     run_status: str = "success"
+    # NOTE: a random delay to stagger API requests. Used to prevent API load shedding that can return empty results under high concurrency.
+    delay = random.uniform(0.1, 1.0)
+    time.sleep(delay)
     try:
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
             if finalize_instance.run() == "Done":

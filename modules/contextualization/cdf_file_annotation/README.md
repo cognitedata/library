@@ -1,4 +1,4 @@
-# Cognite Data Model-Based Annotation Function
+# Cognite Data Model-Based Annotation Module
 
 ## Overview
 
@@ -7,188 +7,25 @@ The Annotation template is a framework designed to automate the process of annot
 ## Key Features
 
 - **Configuration-Driven Workflow:** The entire process is controlled by a single config.yaml file, allowing adaptation to different data models and operational parameters without code changes.
-- **Dual Annotation Modes**: Simultaneously runs standard entity matching and a new pattern-based detection mode to create a comprehensive indexed reference catalog.
+- **Dual Annotation Modes**: Simultaneously runs standard entity matching and pattern-based detection mode:
+  - **Standard Mode**: Links files to known entities in your data model with confidence-based approval thresholds.
+  - **Pattern Mode**: Automatically generates regex-like patterns from entity aliases and detects all matching text in files, creating a comprehensive searchable catalog of potential entities for review and approval.
+- **Intelligent Pattern Generation:** Automatically analyzes entity aliases to generate pattern samples, with support for manual pattern overrides at global, site, or unit levels.
 - **Large Document Support (\>50 Pages):** Automatically handles files with more than 50 pages by breaking them into manageable chunks, processing them iteratively, and tracking the overall progress.
 - **Parallel Execution Ready:** Designed for concurrent execution with a robust optimistic locking mechanism to prevent race conditions when multiple finalize function instances run in parallel.
-- **Detailed Reporting:** Local logs and processed annotation details stored in CDF RAW tables, fucntion logs, and extraction pipeline runs for auditing and analysis.
-- **Local Running and Debugging:** Both the launch and finalize handler can be ran locally and have default setups in the 'Run & Debug' tab in vscode. Requires a .env file to be placed in the directory.
-
-<video src="https://github.com/user-attachments/assets/b33c6a5f-0078-46b6-9f5a-dae30713ae5e"></video>
+- **Comprehensive Reporting:** Annotations stored in three dedicated RAW tables (doc-to-doc links, doc-to-tag links, and pattern detections) plus extraction pipeline logs for full traceability.
+- **Local Running and Debugging:** Both the launch and finalize handler can be run locally and have default setups in the 'Run & Debug' tab in VSCode. Requires a .env file to be placed in the directory.
 
 ## Getting Started
 
-Deploying this annotation module into a new Cognite Data Fusion (CDF) project is a streamlined process. Since all necessary resources (Data Sets, Extraction Pipelines, Functions, etc.) are bundled into a single module, you only need to configure one file to get started.
+Ready to deploy? Check out the **[Deployment Guide](DEPLOYMENT.md)** for step-by-step instructions on:
 
-### Prerequisites
+- Prerequisites and data preparation requirements
+- CDF Toolkit setup
+- Module integration and configuration
+- Local development and debugging
 
-- Python 3.11+
-- An active Cognite Data Fusion (CDF) project.
-- The required Python packages are listed in the `cdf_file_annotation/functions/fn_file_annotation_launch/requirements.txt` and `cdf_file_annotation/functions/fn_file_annotation_finalize/requirements.txt` files.
-- Alias and tag generation is abstracted out of the annotation function. Thus, you'll need to create a transformation that populates the `aliases` and `tags` property of your file and target entity view.
-  - The `aliases` property is used to match files with entities and should contain a list of alternative names or identifiers that can be found in the files image.
-  - The `tags` property serves multiple purposes and consists of the following...
-    - (`DetectInDiagrams`) Identifies files and assets to include as entities filtered by primary scope and secondary scope (if provided).
-    - (`ScopeWideDetect`) Identifies files and asset to include as entities filtered by a primary scope.
-    - (`ToAnnotate`) Identifies files that need to be annotated.
-    - (`AnnotationInProcess`) Identifies files that are in the process of being annotated.
-    - (`Annotated`) Identifies files that have been annotated.
-    - (`AnnotationFailed`) Identifies files that have failed the annotation process. Either by erroring out or by receiving 0 possible matches.
-  - Don't worry if these concepts don't immediately make sense. Aliases and tags are explained in greater detail in the detailed_guides/ documentation. The template also includes a jupyter notebook that prepare the files and assets for annotation if using the toolkit's quickstart module.
-
-### Deployment Steps
-
-_**NOTE:** I'm constantly improving this template, thus some parts of the video walkthroughs are from an older version. The video tutorials below are still **relevant**. Any breaking changes will receive a new video tutorial._
-
-_(if videos fail to load, try loading page in incognito or re-sign into github) ~ Hope y'all enjoy :)_
-
-1. **Create a CDF Project through Toolkit**
-   - Follow the guide [here](https://docs.cognite.com/cdf/deploy/cdf_toolkit/)
-   - (optional) Initialize the quickstart package using toolkit CLI
-
-```bash
-poetry init
-poetry add cognite-toolkit
-poetry run cdf modules init <project-name>
-```
-
-<video src="https://github.com/user-attachments/assets/4dfa8966-a419-47b9-8ee1-4fea331705fd"></video>
-
-<video src="https://github.com/user-attachments/assets/bc165848-5f8c-4eff-9a38-5b2288ec7e23"></video>
-
-2. **Integrate the Module**
-   - Move the `local_setup/` folder to the root and unpack .vscode/ and .env.tmpl
-   - Update the default.config.yaml file with project-specific configurations
-   - Add the module name to the list of selected modules in your config.{env}.yaml file
-   - Make sure to create a .env file with credentials pointing to your CDF project
-
-<video src="https://github.com/user-attachments/assets/78ef2f59-4189-4059-90d6-c480acb3083e"></video>
-
-<video src="https://github.com/user-attachments/assets/32df7e8b-cc27-4675-a813-1a72406704d5"></video>
-
-3. **Build and Deploy the Module**
-
-   - (optional) Build and deploy the quickstart template modules
-   - Build and deploy this module
-
-```bash
-poetry run cdf build --env dev
-poetry run cdf deploy --dry-run
-poetry run cdf deploy
-```
-
-```yaml
-# config.<env>.yaml used in examples below
-environment:
-  name: dev
-  project: <insert>
-  validation-type: dev
-  selected:
-    - modules/
-
-variables:
-  modules:
-    # stuff from quickstart package...
-    organization: tx
-
-    # ...
-
-    cdf_ingestion:
-      workflow: ingestion
-      groupSourceId: <insert>
-      ingestionClientId: ${IDP_CLIENT_ID} # Changed from ${INGESTION_CLIENT_ID}
-      ingestionClientSecret: ${IDP_CLIENT_SECRET} # Changed from ${INGESTION_CLIENT_SECRET}
-      pandidContextualizationFunction: contextualization_p_and_id_annotater
-      contextualization_connection_writer: contextualization_connection_writer
-      schemaSpace: sp_enterprise_process_industry
-      schemaSpace2: cdf_cdm
-      schemaSpace3: cdf_idm
-      instanceSpaces:
-        - springfield_instances
-        - cdf_cdm_units
-      runWorkflowUserIds:
-        - <insert>
-
-    contextualization:
-      cdf_file_annotation:
-        # used in /data_sets, /data_models, /functions, /extraction_pipelines, and /workflows
-        annotationDatasetExternalId: ds_file_annotation
-
-        # used in /data_models and /extraction_pipelines
-        annotationStateExternalId: FileAnnotationState
-        annotationStateInstanceSpace: sp_dat_cdf_annotation_states
-        annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
-        annotationStateVersion: v1.0.1
-        fileSchemaSpace: sp_enterprise_process_industry
-        fileExternalId: txFile
-        fileVersion: v1
-
-        # used in /raw and /extraction_pipelines
-        rawDb: db_file_annotation
-        rawTableDocTag: annotation_documents_tags
-        rawTableDocDoc: annotation_documents_docs
-        rawTableCache: annotation_entities_cache
-
-        # used in /extraction_pipelines
-        extractionPipelineExternalId: ep_file_annotation
-        targetEntitySchemaSpace: sp_enterprise_process_industry
-        targetEntityExternalId: txEquipment
-        targetEntityVersion: v1
-
-        # used in /functions and /workflows
-        launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
-        launchFunctionVersion: v1.0.0
-        finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
-        finalizeFunctionVersion: v1.0.0
-        functionClientId: ${IDP_CLIENT_ID}
-        functionClientSecret: ${IDP_CLIENT_SECRET}
-
-        # used in /workflows
-        workflowSchedule: "*/10 * * * *"
-        workflowExternalId: wf_file_annotation
-        workflowVersion: v1
-
-        # used in /auth
-        groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
-
-
-    # ...
-```
-
-<video src="https://github.com/user-attachments/assets/0d85448d-b886-4ff1-96bb-415ef5efad2f"></video>
-
-<video src="https://github.com/user-attachments/assets/0508acce-cb3c-4fbf-a1c2-5c781d9b3de7"></video>
-
-4. **Run the Workflow**
-
-   After deployment, the annotation process is managed by a workflow that orchestrates the `Launch` and `Finalize` functions. The workflow is automatically triggered based on the schedule defined in the configuration. You can monitor the progress and logs of the functions in the CDF UI.
-
-   - (optional) Run the ingestion workflow from the quickstart package to create instances of <org>File, <org>Asset, etc
-     - (optional) Checkout the instantiated files that have been annotated using the annotation function from the quickstart package
-   - (optional) Run the local_setup.ipynb to setup the files for annotation
-   - Run the File Annotation Workflow
-
-<video src="https://github.com/user-attachments/assets/1bd1b4fe-42c6-4cd7-9cde-66e51a27c8f8"></video>
-
-<video src="https://github.com/user-attachments/assets/b189910c-6eca-41c3-9f45-dbe83693ea42"></video>
-
-<video src="https://github.com/user-attachments/assets/b5d932c2-4b58-4b04-95cf-dd748aa3e3b1"></video>
-
-<video src="https://github.com/user-attachments/assets/fa267c9f-472d-4ad5-a35b-0102394de7e2"></video>
-
-### Local Development and Debugging
-
-This template is configured for easy local execution and debugging directly within Visual Studio Code.
-
-1.  **Create Environment File**: Before running locally, you must create a `.env` file in the root directory. This file will hold the necessary credentials and configuration for connecting to your CDF project. Populate it with the required environment variables for `IDP_CLIENT_ID`, `CDF_CLUSTER`, etc. In the `local_runs/` folder you'll find a .env template.
-
-2.  **Use the VS Code Debugger**: The repository includes a pre-configured `local_runs/.vscode/launch.json` file. Please move the .vscode/ folder to the top level of your repo.
-
-    - Navigate to the "Run and Debug" view in the VS Code sidebar.
-    - You will see dropdown options for launching the different functions (e.g., `Launch Function`, `Finalize Function`).
-    - Select the function you wish to run and click the green "Start Debugging" arrow. This will start the function on your local machine, with the debugger attached, allowing you to set breakpoints and inspect variables.
-    - Feel free to change/adjust the arguments passed into the function call to point to a test_extraction_pipeline and/or change the log level.
-
-<video src="https://github.com/user-attachments/assets/f8c66306-1502-4e44-ac48-6b24f612900c"></video>
+For a quick overview, deploying this annotation module into a new Cognite Data Fusion (CDF) project is a streamlined process. Since all necessary resources (Data Sets, Extraction Pipelines, Functions, etc.) are bundled into a single module, you only need to configure one file to get started.
 
 ## How It Works
 
@@ -204,52 +41,170 @@ The template operates in three main phases, orchestrated by CDF Workflows. Since
 
 ### Launch Phase
 
-![LaunchService](https://github.com/user-attachments/assets/3e5ba403-50bb-4f6a-a723-be8947c65ebc)
-
 - **Goal**: Launch the annotation jobs for files that are ready.
 - **Process**:
   1.  It queries for `AnnotationState` instances with a "New" or "Retry" status.
-  2.  It groups these files by a primary scope to provide context.
-  3.  For each group, it fetches the relevant file and target entity information, using a cache to avoid redundant lookups.
+  2.  It groups these files by a primary scope (e.g., site, unit) to provide operational context.
+  3.  For each group, it fetches the relevant file and target entity information using an intelligent caching system:
+      - Checks if a valid cache exists in RAW (based on scope and time limit).
+      - If cache is stale or missing, queries the data model for entities within scope.
+      - Automatically generates pattern samples from entity aliases (e.g., "FT-101A" → "[FT]-000[A]").
+      - Retrieves manual pattern overrides from RAW catalog (GLOBAL, site-level, or unit-level).
+      - Merges and deduplicates auto-generated and manual patterns.
+      - Stores the combined entity list and pattern samples in RAW cache for reuse.
   4.  It calls the Cognite Diagram Detect API to initiate two async jobs:
-      - A `standard annotation` job to find and link known entities.
-      - A `pattern mode` job to detect all potential tags and build an indexed reference catalog.
-  5.  It updates the `AnnotationState` instance with both the `diagramDetectJobId` and `patternModeJobId` and sets the overall `annotationStatus` to "Processing".
+      - A `standard annotation` job to find and link known entities with confidence scoring.
+      - A `pattern mode` job (if enabled) to detect all text matching the pattern samples, creating a searchable reference catalog.
+  5.  It updates the `AnnotationState` instance with both the `diagramDetectJobId` and `patternModeJobId` (if applicable) and sets the overall `annotationStatus` to "Processing".
+<details>
+<summary>Click to view Mermaid flowchart for Launch Phase</summary>
+
+```mermaid
+flowchart TD
+    Start([Start Launch Phase]) --> QueryFiles[Query AnnotationState<br/>for New or Retry status]
+    QueryFiles --> CheckFiles{Any files<br/>to process?}
+    CheckFiles -->|No| End([End])
+    CheckFiles -->|Yes| GroupFiles[Group files by<br/>primary scope<br/>e.g., site, unit]
+
+    GroupFiles --> NextScope{Next scope<br/>group?}
+    NextScope -->|Yes| CheckCache{Valid cache<br/>exists in RAW?}
+
+    CheckCache -->|No - Stale/Missing| QueryEntities[Query data model for<br/>entities within scope]
+    QueryEntities --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → #91;FT#93;-000#91;A#93;]
+    GenPatterns --> GetManual[Retrieve manual pattern<br/>overrides from RAW catalog<br/>GLOBAL, site, or unit level]
+    GetManual --> MergePatterns[Merge and deduplicate<br/>auto-generated and<br/>manual patterns]
+    MergePatterns --> StoreCache[Store entity list and<br/>pattern samples in<br/>RAW cache]
+    StoreCache --> UseCache[Use entities and patterns]
+
+    CheckCache -->|Yes - Valid| LoadCache[Load entities and<br/>patterns from RAW cache]
+    LoadCache --> UseCache
+
+    UseCache --> ProcessBatch[Process files in batches<br/>up to max batch size]
+    ProcessBatch --> SubmitJobs[Submit Diagram Detect jobs:<br/>1 Standard annotation<br/>2 Pattern mode if enabled]
+    SubmitJobs --> UpdateState[Update AnnotationState:<br/>- Set status to Processing<br/>- Store both job IDs]
+    UpdateState --> NextScope
+    NextScope -->|No more groups| QueryFiles
+
+    style Start fill:#d4f1d4
+    style End fill:#f1d4d4
+    style CheckFiles fill:#fff4e6
+    style CheckCache fill:#fff4e6
+    style NextScope fill:#fff4e6
+    style UseCache fill:#e6f3ff
+    style UpdateState fill:#e6f3ff
+```
+
+</details>
 
 ### Finalize Phase
 
-![FinalizeService](https://github.com/user-attachments/assets/152d9eaf-afdb-46fe-9125-11430ff10bc9)
-
 - **Goal**: Retrieve, process, and store the results of completed annotation jobs.
 - **Process**:
-  1.  It queries for `AnnotationState` instances with a "Processing" status.
-  2.  It waits until both the standard and pattern modejobs for a given file are complete.
-  3.  It then retrieves and merges the results from both jobs.
-  4.  It will optionally clean old annotations first and then:
-      - Applies the standard annotations by creating edges in the data model, writing the results to a dedicated RAW table.
-      - Processes the pattern mode results, writing them to a dedicated RAW table to populate the reference catalog.
-  5.  It updates the `AnnotationState` status to "Annotated" or "Failed" and tags the file accordingly.
+  1.  It queries for `AnnotationState` instances with a "Processing" or "Finalizing" status (using optimistic locking to claim jobs).
+  2.  It waits until both the standard and pattern mode jobs for a given file are complete.
+  3.  It retrieves and processes the results from both jobs:
+      - Creates a stable hash for each detection to enable deduplication between standard and pattern results.
+      - Filters standard annotations by confidence thresholds (auto-approve vs. suggest).
+      - Skips pattern detections that duplicate standard annotations.
+  4.  It optionally cleans old annotations first (on first run for multi-page files), then:
+      - **Standard annotations**: Creates edges in the data model linking files to specific entities, writes results to RAW tables (`doc_tag` for assets, `doc_doc` for file-to-file links).
+      - **Pattern annotations**: Creates edges linking files to a configurable "sink node" for review, writes results to a dedicated `doc_pattern` RAW table for the searchable catalog.
+  5.  Updates the file node tag from "AnnotationInProcess" to "Annotated".
+  6.  Updates the `AnnotationState` status to "Annotated", "Failed", or back to "New" (if more pages remain), tracking page progress for large files.
+<details>
+<summary>Click to view Mermaid flowchart for Finalize Phase</summary>
+
+```mermaid
+flowchart TD
+    Start([Start Finalize Phase]) --> QueryState[Query for ONE AnnotationState<br/>with Processing status<br/>Use optimistic locking to claim it]
+    QueryState --> CheckState{Found annotation<br/>state instance?}
+    CheckState -->|No| End([End])
+    CheckState -->|Yes| GetJobId[Extract job ID and<br/>pattern mode job ID]
+
+    GetJobId --> FindFiles[Find ALL files with<br/>the same job ID]
+    FindFiles --> CheckJobs{Both standard<br/>and pattern jobs<br/>complete?}
+    CheckJobs -->|No| ResetStatus[Update AnnotationStates<br/>back to Processing<br/>Wait 30 seconds]
+    ResetStatus --> QueryState
+
+    CheckJobs -->|Yes| RetrieveResults[Retrieve results from<br/>both completed jobs]
+    RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
+    MergeResults --> LoopFiles[For each file in merged results]
+
+    LoopFiles --> ProcessResults[Process file results:<br/>- Create stable hash for deduplication<br/>- Filter standard by confidence threshold<br/>- Skip pattern duplicates]
+
+    ProcessResults --> CheckClean{First run for<br/>multi-page file?}
+    CheckClean -->|Yes| CleanOld[Clean old annotations]
+    CheckClean -->|No| CreateEdges
+    CleanOld --> CreateEdges[Create edges in data model]
+
+    CreateEdges --> StandardEdges[Standard annotations:<br/>Link file to entities<br/>Write to doc_tag and doc_doc RAW tables]
+    StandardEdges --> PatternEdges[Pattern annotations:<br/>Link file to sink node<br/>Write to doc_pattern RAW table]
+
+    PatternEdges --> UpdateTag[Update file tag:<br/>AnnotationInProcess → Annotated]
+    UpdateTag --> PrepareUpdate[Prepare AnnotationState update:<br/>- Annotated if complete<br/>- Failed if error<br/>- New if more pages remain<br/>Track page progress]
+
+    PrepareUpdate --> MoreFiles{More files in<br/>merged results?}
+    MoreFiles -->|Yes| LoopFiles
+    MoreFiles -->|No| BatchUpdate[Batch update ALL<br/>AnnotationState instances<br/>for this job]
+
+    BatchUpdate --> QueryState
+
+    style Start fill:#d4f1d4
+    style End fill:#f1d4d4
+    style CheckState fill:#fff4e6
+    style CheckJobs fill:#fff4e6
+    style CheckClean fill:#fff4e6
+    style MoreFiles fill:#fff4e6
+    style MergeResults fill:#e6f3ff
+    style ProcessResults fill:#e6f3ff
+    style CreateEdges fill:#e6f3ff
+    style BatchUpdate fill:#e6f3ff
+```
+
+</details>
 
 ## Configuration
 
-The templates behavior is entirely controlled by the `ep_file_annotation.config.yaml` file. This YAML file is parsed by Pydantic models in the code, ensuring a strongly typed and validated configuration.
+The template's behavior is entirely controlled by the `ep_file_annotation.config.yaml` file. This YAML file is parsed by Pydantic models in the code, ensuring a strongly typed and validated configuration.
 
 Key configuration sections include:
 
-- `dataModelViews`: Defines the data model views for files, annotation states, and target entities.
-- `prepareFunction`: Configures the queries to find files to annotate.
-- `launchFunction`: Sets parameters for the annotation job, such as batch size, entity matching properties, and a new `patternMode: true` flag to enable the pattern detection feature.
-- `finalizeFunction`: Defines how to process and apply the final annotations.
+- `dataModelViews`: Defines the data model views for files, annotation states, core annotations, and target entities.
+- `prepareFunction`: Configures the queries to find files to annotate and optionally reset.
+- `launchFunction`: Sets parameters for the annotation job:
+  - `batchSize`: Maximum files per diagram detect call (1-50).
+  - `patternMode`: Boolean flag to enable pattern-based detection alongside standard matching.
+  - `primaryScopeProperty` / `secondaryScopeProperty`: Properties used for batching and cache scoping (e.g., "site", "unit").
+  - `cacheService`: Configuration for entity cache storage and time limits.
+  - `annotationService`: Diagram detect parameters including `pageRange` for multi-page file processing.
+- `finalizeFunction`: Defines how to process and apply the final annotations:
+  - `autoApprovalThreshold` / `autoSuggestThreshold`: Confidence thresholds for standard annotations.
+  - `cleanOldAnnotations`: Whether to remove existing annotations before applying new ones.
+  - `maxRetryAttempts`: Retry limit for failed files.
+  - `sinkNode`: Target node for pattern mode annotations pending review.
 
-This file allows for deep customization. For example, you can use a list of query configurations to combine them with `OR` logic, or you can set `primaryScopeProperty` to `None` to process files that are not tied to a specific scope.
+This file allows for deep customization. For example, you can use a list of query configurations to combine them with `OR` logic, or you can set `primaryScopeProperty` to `None` to process files that are not tied to a specific scope. Manual pattern samples can be added to the RAW catalog at `GLOBAL`, site, or unit levels to override or supplement auto-generated patterns.
 
-## Detailed Guides
+## Documentation
 
-This README provides a high-level overview of the template's purpose and architecture. To gain a deeper understanding of how to configure and extend the template, I highly recommend exploring the detailed guides located in the `cdf_file_annotation/detailed_guides/` directory:
+This README provides a high-level overview of the template's purpose and architecture. For more detailed information:
 
-- **`CONFIG.md`**: A document outlining the `ep_file_annotation.config.yaml` file to control the behavior of the Annotation Function.
-- **`CONFIG_PATTERNS.md`**: A guide with recipes for common operational tasks, such as processing specific subsets of data, reprocessing files for debugging, and tuning performance by adjusting the configuration.
-- **`DEVELOPING.md`**: A guide for developers who wish to extend the template's functionality. It details the interface-based architecture and provides a step-by-step walkthrough on how to create and integrate your own custom service implementations for specialized logic.
+### Deployment & Setup
+
+- **[Deployment Guide](DEPLOYMENT.md)**: Step-by-step instructions for deploying to CDF, including prerequisites, configuration, and local debugging setup.
+
+### Configuration & Usage
+
+- **[CONFIG.md](detailed_guides/CONFIG.md)**: Comprehensive guide to the `ep_file_annotation.config.yaml` file and all configuration options.
+- **[CONFIG_PATTERNS.md](detailed_guides/CONFIG_PATTERNS.md)**: Recipes for common operational tasks, including processing specific subsets, reprocessing files, and performance tuning.
+
+### Development & Extension
+
+- **[DEVELOPING.md](detailed_guides/DEVELOPING.md)**: Guide for developers extending the template's functionality, including the interface-based architecture and how to create custom service implementations.
+
+### Contributing
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: Guidelines for contributing to this project, including the issue/PR workflow, code standards, and review process.
 
 ## Design Philosophy
 
@@ -280,7 +235,16 @@ Instead of using a simpler store like a RAW table to track the status of each fi
 When processing tens of thousands of files, naively fetching context for each file is inefficient. This module implements a significant optimization based on experiences with large-scale projects.
 
 - **Rationale:** For many projects, the entities relevant to a given file are often co-located within the same site or operational unit. By grouping files based on these properties before processing, we can create a highly effective cache.
-- **Implementation:** The `launchFunction` configuration allows specifying a `primary_scope_property` and an optional `secondary_scope_property`. The `LaunchService` uses these properties to organize all files into ordered batches. The cache for entities is then loaded once for each context, drastically reducing the number of queries to CDF and improving overall throughput.
+- **Implementation:** The `launchFunction` configuration allows specifying a `primary_scope_property` and an optional `secondary_scope_property`. The `LaunchService` uses these properties to organize all files into ordered batches. For each unique scope combination:
+
+  1. Check if a valid cache exists in RAW (scoped by primary/secondary values and time limit).
+  2. If stale or missing, query the data model for all relevant entities within that scope.
+  3. Transform entities into the format required by diagram detect.
+  4. Automatically generate pattern samples by analyzing entity alias properties.
+  5. Retrieve and merge manual pattern overrides from the RAW catalog.
+  6. Store the complete entity list and pattern samples in RAW for reuse.
+
+  This cache is loaded once per scope and reused for all files in that batch, drastically reducing the number of queries to CDF and improving overall throughput. The pattern generation process extracts common naming conventions from aliases, creating regex-like patterns that can match variations (e.g., detecting "FT-102A" even if only "FT-101A" was in the training data).
 
 ### Interface-Based Extensibility
 
@@ -291,6 +255,6 @@ The template is designed around a core set of abstract interfaces (e.g., `IDataM
 
 ## About Me
 
-Hey everyone\! I'm Jack Zhao, the creator of this template. I want to give a huge shoutout to Thomas Molbach, Noah Karsky, and Darren Downtain for providing invaluable input from a solution architect's point of view. I also want to thank Khaled Shaheen and Gayatri Babel for their help in building this.
+Hey everyone\! I'm Jack Zhao, the creator of this template. I want to give a huge shoutout to Thomas Molbach, Noah Karsky, and Darren Downtain for providing invaluable input from a solution architect's point of view. I also want to thank Lucas Guimaraes, Khaled Shaheen and Gayatri Babel for their help in building this.
 
 This code is my attempt to create a standard template that 'breaks' the cycle where projects build simple tools, outgrow them, and are then forced to build a new and often hard-to-reuse solution. My current belief is that it's impossible for a template to have long-term success if it's not built on the fundamental premise of being extended. Customer needs will evolve, and new product features will create new opportunities for optimization.

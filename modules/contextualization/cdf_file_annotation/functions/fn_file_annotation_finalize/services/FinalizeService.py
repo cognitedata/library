@@ -84,6 +84,23 @@ class GeneralFinalizeService(AbstractFinalizeService):
         self.call_id: int | None = function_call_info.get("call_id")
 
     def run(self) -> Literal["Done"] | None:
+        """
+        Main execution loop for finalizing diagram detection jobs.
+
+        Retrieves completed jobs, fetches their results, processes annotations for each file,
+        and updates annotation state instances. Handles multi-page files by tracking progress
+        and requeueing files with remaining pages.
+
+        Args:
+            None
+
+        Returns:
+            "Done" if no jobs available, None if processing should continue.
+
+        Raises:
+            CogniteAPIError: Various API errors are handled gracefully (version conflicts,
+                           timeouts, etc.).
+        """
         self.logger.info("Starting Finalize Function", section="START")
         try:
             job_id, pattern_mode_job_id, file_to_state_map = self.retrieve_service.get_job_id()
@@ -146,7 +163,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
             return
 
         self.logger.info(
-            f"Both jobs ({job_id}, {pattern_mode_job_id}) complete. Applying all annotations.", section="END"
+            f"Both jobs ({job_id}, {pattern_mode_job_id}) complete. Applying all annotations.",
+            section="END",
         )
 
         merged_results = {
@@ -155,7 +173,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
         }
         if pattern_mode_job_results:
             for item in pattern_mode_job_results["items"]:
-                key = (item["fileInstanceId"]["space"], item["fileInstanceId"]["externalId"])
+                key = (
+                    item["fileInstanceId"]["space"],
+                    item["fileInstanceId"]["externalId"],
+                )
                 if key in merged_results:
                     merged_results[key]["pattern"] = item
                 else:
@@ -174,7 +195,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
             annotation_state_node = file_to_state_map[file_id]
             current_attempt = cast(
-                int, annotation_state_node.properties[self.annotation_state_view.as_view_id()]["attemptCount"]
+                int,
+                annotation_state_node.properties[self.annotation_state_view.as_view_id()]["attemptCount"],
             )
             next_attempt = current_attempt + 1
 
@@ -245,7 +267,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
         # Batch update the state nodes at the end
         if annotation_state_node_applies:
             self.logger.info(
-                f"Updating {len(annotation_state_node_applies)} annotation state instances", section="START"
+                f"Updating {len(annotation_state_node_applies)} annotation state instances",
+                section="START",
             )
             try:
                 self.apply_service.update_instances(list_node_apply=annotation_state_node_applies)
@@ -253,7 +276,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     f"\t- {count_success} set to Annotated/New\n\t- {count_retry} set to Retry\n\t- {count_failed} set to Failed"
                 )
             except Exception as e:
-                self.logger.error(f"Error during batch update of annotation states: {e}", section="END")
+                self.logger.error(
+                    f"Error during batch update of annotation states: {e}",
+                    section="END",
+                )
 
         self.tracker.add_files(success=count_success, failed=(count_failed + count_retry))
         return None
@@ -269,7 +295,25 @@ class GeneralFinalizeService(AbstractFinalizeService):
         pattern_mode_message: str | None = None,
     ) -> NodeApply:
         """
-        Create a node apply from the node passed into the function.
+        Creates a NodeApply to update an annotation state instance with processing results.
+
+        Updates status, attempt count, timestamps, and page tracking for multi-page files.
+        The annotatedPageCount and pageCount properties are updated based on progress through
+        the file's pages.
+
+        Args:
+            node: The annotation state node to update.
+            status: New annotation status (ANNOTATED, FAILED, NEW, RETRY).
+            attempt_count: Current attempt count for this file.
+            annotated_page_count: Number of pages successfully annotated so far.
+            page_count: Total number of pages in the file.
+            annotation_message: Message describing regular annotation results.
+            pattern_mode_message: Message describing pattern mode results.
+
+        Returns:
+            NodeApply object ready to be applied to update the annotation state.
+
+        NOTE: Create a node apply from the node passed into the function.
         The annotatedPageCount and pageCount properties won't be set if this is the first time the job has been run for the specific node.
         Thus, we set it here and include logic to handle the scneario where it is set.
         NOTE: Always want to use the latest page count from the diagram detect results
@@ -314,7 +358,19 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
     def _check_all_pages_annotated(self, node: Node, page_count: int) -> int:
         """
-        The annotatedPageCount and pageCount properties won't be set if this is the first time the job has been run for the specific node.
+        Calculates how many pages have been annotated after this batch completes.
+
+        Handles progressive annotation of multi-page files by tracking which pages have been
+        processed based on the configured page_range batch size.
+
+        Args:
+            node: The annotation state node being processed.
+            page_count: Total number of pages in the file from diagram detect results.
+
+        Returns:
+            Number of pages annotated after this batch (includes previous batches).
+
+        NOTE: The annotatedPageCount and pageCount properties won't be set if this is the first time the job has been run for the specific node.
         - if annotated_page_count is not set (first run):
             - if page_range >= to the page count:
                 - annotated_page_count = page_count b/c all of the pages were passed into the FileReference during LaunchService
@@ -354,7 +410,18 @@ class GeneralFinalizeService(AbstractFinalizeService):
         failed: bool = False,
     ):
         """
-        Updates the properties of FileAnnnotationState
+        Updates annotation state instances in bulk, typically for error scenarios.
+
+        Used when jobs are incomplete or failed to reset job IDs and update status for
+        retry or re-queuing.
+
+        Args:
+            batch: BatchOfNodes containing annotation state nodes to update.
+            status: New annotation status to set for all nodes.
+            failed: Whether this is a failure scenario (clears job IDs if True).
+
+        Returns:
+            None
         """
         if len(batch.nodes) == 0:
             return

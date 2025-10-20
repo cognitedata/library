@@ -321,10 +321,7 @@ with overall_tab:
             df_unmatched_filtered = df_metrics_input[df_metrics_input["startNodeText"].isin(unmatched_tags_list)]
 
             tag_to_files_unmatched = (
-                df_unmatched_filtered.groupby("startNodeText")["startNode"]
-                .unique()
-                .apply(list)
-                .to_dict()
+                df_unmatched_filtered.groupby("startNodeText")["startNode"].unique().apply(list).to_dict()
             )
 
             potential_status_map = build_potential_status_map(df_potential_sources) if "tags" in df_potential_sources.columns else {}
@@ -369,7 +366,9 @@ with overall_tab:
             selected_indices = unmatched_data_editor[unmatched_data_editor.Select].index.tolist()
 
             if len(selected_indices) > 1:
-                new_selection = [idx for idx in selected_indices if idx != st.session_state.selected_unmatched_overall_index]
+                new_selection = [
+                    idx for idx in selected_indices if idx != st.session_state.selected_unmatched_overall_index
+                ]
                 st.session_state.selected_unmatched_overall_index = new_selection[0] if new_selection else None
                 st.rerun()
             elif len(selected_indices) == 1:
@@ -398,7 +397,6 @@ with overall_tab:
                 annotation_state_view=annotation_state_view,
                 secondary_scope_prop=secondary_scope_property,
             )
-
 
 
 # ==========================================
@@ -758,7 +756,7 @@ with per_file_tab:
                 
                     unmatched_display = potential_df[["startNodeText", "endNodeResourceType", "Status"]].copy()
                     unmatched_display.insert(0, "Select", False)
-                    
+
                     occurrences = (
                         df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id].groupby("startNodeText")
                         .size()
@@ -791,9 +789,11 @@ with per_file_tab:
                     )
 
                     selected_indices = unmatched_data_editor[unmatched_data_editor.Select].index.tolist()
-                    
+
                     if len(selected_indices) > 1:
-                        new_selection = [idx for idx in selected_indices if idx != st.session_state.selected_unmatched_per_file_index]
+                        new_selection = [
+                            idx for idx in selected_indices if idx != st.session_state.selected_unmatched_per_file_index
+                        ]
                         st.session_state.selected_unmatched_per_file_index = new_selection[0] if new_selection else None
                         st.rerun()
                     elif len(selected_indices) == 1:
@@ -819,7 +819,7 @@ with per_file_tab:
                         annotation_state_view=annotation_state_view,
                         secondary_scope_prop=secondary_scope_property,
                     )
-                        
+
         else:
             st.info("✔️ Select a file in the table above to see a detailed breakdown of its tags.")
 
@@ -844,9 +844,8 @@ with management_tab:
             "key": st.column_config.TextColumn("Scope Key", disabled=True),
             "sample": st.column_config.TextColumn("Pattern String", required=True),
             "annotation_type": st.column_config.SelectboxColumn(
-                "Annotation Type",
-                options=["diagrams.FileLink", "diagrams.AssetLink"],
-                required=True),
+                "Annotation Type", options=["diagrams.FileLink", "diagrams.AssetLink"], required=True
+            ),
             "resource_type": st.column_config.TextColumn("Resource Type", required=True),
             "scope_level": st.column_config.SelectboxColumn(
                 "Scope Level",
@@ -880,9 +879,7 @@ with management_tab:
         st.write("2. Enter Pattern Details")
         new_pattern = st.text_input("Pattern String", placeholder="e.g., [PI]-00000")
         new_annotation_type = st.selectbox(
-            "Annotation Type",
-            ["diagrams.FileLink", "diagrams.AssetLink"],
-            key="new_annotation_type_selector"
+            "Annotation Type", ["diagrams.FileLink", "diagrams.AssetLink"], key="new_annotation_type_selector"
         )
         new_resource_type = st.text_input("Resource Type", placeholder="e.g., Asset")
 
