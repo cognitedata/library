@@ -66,7 +66,6 @@ target_entities_view = view_config["target_entities"]
 
 apply_config = ep_config.get("finalizeFunction", {}).get("applyService", {})
 secondary_scope_property = ep_config.get("launchFunction", {}).get("secondaryScopeProperty")
-report_config = ep_config.get("finalizeFunction", {}).get("reportService", {})
 cache_config = ep_config.get("launchFunction", {}).get("cacheService", {})
 db_name = apply_config.get("rawDb")
 pattern_table = apply_config.get("rawTableDocPattern")
