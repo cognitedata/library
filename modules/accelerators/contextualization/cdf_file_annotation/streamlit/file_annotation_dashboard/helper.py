@@ -769,6 +769,15 @@ def create_tag_connection(
                 )
 
                 row_data["endNodeResourceType"] = resource_type
+
+                existing_tags = row_data.get("tags")
+                if existing_tags is None:
+                    row_data["tags"] = ["PromotedManually"]
+                else:
+                    if "PromotedManually" not in existing_tags:
+                        existing_tags.append("PromotedManually")
+                        row_data["tags"] = existing_tags
+
                 row_data["status"] = "Approved"
 
                 updated_rows.append(RowWrite(key=edge_external_id, columns=row_data))
