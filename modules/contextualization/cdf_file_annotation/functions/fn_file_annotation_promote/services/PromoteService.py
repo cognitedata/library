@@ -220,28 +220,41 @@ class GeneralPromoteService(IPromoteService):
             # Update tracker with batch results
             self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
 
-            if edges_to_update:
-                self.client.data_modeling.instances.apply(edges=edges_to_update)
-                self.logger.info(
-                    f"Successfully updated {len(edges_to_update)} edges in data model:\n"
-                    f"  ├─ Promoted: {batch_promoted}\n"
-                    f"  ├─ Rejected: {batch_rejected}\n"
-                    f"  └─ Ambiguous: {batch_ambiguous}",
-                    section="BOTH",
-                )
+            try:
+                if edges_to_update:
+                    self.client.data_modeling.instances.apply(edges=edges_to_update)
+                    self.logger.info(
+                        f"Successfully updated {len(edges_to_update)} edges in data model:\n"
+                        f"  ├─ Promoted: {batch_promoted}\n"
+                        f"  ├─ Rejected: {batch_rejected}\n"
+                        f"  └─ Ambiguous: {batch_ambiguous}",
+                        section="BOTH",
+                    )
+            except Exception as e:
+                self.logger.error(str(e), "BOTH")
 
-            if edges_to_delete:
-                self.client.data_modeling.instances.delete(edges=edges_to_delete)
-                self.logger.info(f"Successfully deleted {len(edges_to_delete)} edges from data model.", section="END")
+            try:
+                if edges_to_delete:
+                    self.client.data_modeling.instances.delete(edges=edges_to_delete)
+                    self.logger.info(
+                        f"Successfully deleted {len(edges_to_delete)} edges from data model.", section="END"
+                    )
+            except Exception as e:
+                self.logger.error(str(e), "BOTH")
 
-            if raw_rows_to_update:
-                self.client.raw.rows.insert(
-                    db_name=self.raw_db,
-                    table_name=self.raw_pattern_table,
-                    row=raw_rows_to_update,
-                    ensure_parent=True,
-                )
-                self.logger.info(f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END")
+            try:
+                if raw_rows_to_update:
+                    self.client.raw.rows.insert(
+                        db_name=self.raw_db,
+                        table_name=self.raw_pattern_table,
+                        row=raw_rows_to_update,
+                        ensure_parent=True,
+                    )
+                    self.logger.info(
+                        f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END"
+                    )
+            except Exception as e:
+                self.logger.error(str(e), "BOTH")
 
             if not edges_to_update and not edges_to_delete and not raw_rows_to_update:
                 self.logger.info("No edges were updated in this run.", section="END")
@@ -267,37 +280,18 @@ class GeneralPromoteService(IPromoteService):
             EdgeList of candidate edges, or None if no candidates found.
             Limited by getCandidatesQuery.limit (default 500 if -1/unlimited).
         """
-        # Use query config if available
-        if self.config.promote_function and self.config.promote_function.get_candidates_query:
-            query_filter = build_filter_from_query(self.config.promote_function.get_candidates_query)
-            limit = get_limit_from_query(self.config.promote_function.get_candidates_query)
-            # If limit is -1 (unlimited), use sensible default
-            if limit == -1:
-                limit = 500
-        else:
-            # Backward compatibility: hardcoded filter
-            query_filter = {
-                "and": [
-                    {"equals": {"property": ["edge", "space"], "value": self.sink_node_ref.space}},
-                    {"equals": {"property": self.core_annotation_view.as_property_ref("status"), "value": "Suggested"}},
-                    {
-                        "not": {
-                            "containsAny": {
-                                "property": self.core_annotation_view.as_property_ref("tags"),
-                                "values": ["PromoteAttempted"],
-                            }
-                        }
-                    },
-                ]
-            }
-            limit = 500  # Default batch size
+        query_filter = build_filter_from_query(self.config.promote_function.get_candidates_query)
+        limit = get_limit_from_query(self.config.promote_function.get_candidates_query)
+        # If limit is -1 (unlimited), use sensible default
+        if limit == -1:
+            limit = 500
 
         return self.client.data_modeling.instances.list(
             instance_type="edge",
             sources=[self.core_annotation_view.as_view_id()],
             filter=query_filter,
             limit=limit,
-            space=self.sink_node_ref.space
+            space=self.sink_node_ref.space,
         )
 
     def _find_entity_with_cache(self, text: str, annotation_type: str, entity_space: str) -> list[Node] | list:
