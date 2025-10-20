@@ -763,6 +763,15 @@ def create_tag_connection(
                 resource_type = selected_entity["resourceType"] if selected_entity["resourceType"] else entity_view.external_id
 
                 row_data["endNodeResourceType"] = resource_type
+
+                existing_tags = row_data.get("tags")
+                if existing_tags is None:
+                    row_data["tags"] = ["PromotedManually"]
+                else:
+                    if "PromotedManually" not in existing_tags:
+                        existing_tags.append("PromotedManually")
+                        row_data["tags"] = existing_tags
+
                 row_data["status"] = "Approved"
 
                 updated_rows.append(
