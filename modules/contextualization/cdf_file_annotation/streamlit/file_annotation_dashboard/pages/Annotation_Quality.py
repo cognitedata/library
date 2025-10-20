@@ -64,18 +64,17 @@ annotation_state_view = view_config["annotation_state"]
 file_view = view_config["file"]
 target_entities_view = view_config["target_entities"]
 
+apply_config = ep_config.get("finalizeFunction", {}).get("applyService", {})
 secondary_scope_property = ep_config.get("launchFunction", {}).get("secondaryScopeProperty")
-report_config = ep_config.get("finalizeFunction", {}).get("reportService", {})
 cache_config = ep_config.get("launchFunction", {}).get("cacheService", {})
-db_name = report_config.get("rawDb")
-pattern_table = report_config.get("rawTableDocPattern")
-tag_table = report_config.get("rawTableDocTag")
-doc_table = report_config.get("rawTableDocDoc")
+db_name = apply_config.get("rawDb")
+pattern_table = apply_config.get("rawTableDocPattern")
+tag_table = apply_config.get("rawTableDocTag")
+doc_table = apply_config.get("rawTableDocDoc")
 cache_table = cache_config.get("rawTableCache")
 manual_patterns_table = cache_config.get("rawManualPatternsCatalog")
 file_resource_property = ep_config.get("launchFunction", {}).get("fileResourceProperty", "")
 target_entities_resource_property = ep_config.get("launchFunction", {}).get("targetEntitiesResourceProperty", "")
-apply_config = ep_config.get("finalizeFunction", {}).get("applyService", {})
 
 if not all([db_name, pattern_table, tag_table, doc_table, cache_table, manual_patterns_table]):
     st.error("Could not find all required RAW table names in the pipeline configuration.")
