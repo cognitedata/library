@@ -517,6 +517,40 @@ def normalize(s):
     return re.sub(r"\d+", strip_leading_zeros, s)
 
 
+def derive_annotation_status(tags, row_status=None, default_status="Pattern found"):
+    if tags is None:
+        tags = []
+
+    if "PromotedAuto" in tags:
+        return "Automatically Promoted"
+
+    if "PromotedManually" in tags:
+        return "Manually Promoted"
+
+    if "AmbiguousMatch" in tags:
+        return "Ambiguous"
+
+    if "PromoteAttempted" in tags:
+        return "No match found"
+
+    return default_status
+
+
+def build_potential_status_map(df_candidates: pd.DataFrame) -> dict:
+    status_map = {}
+    if df_candidates is None or df_candidates.empty:
+        return status_map
+
+    for _, r in df_candidates.iterrows():
+        text = r.get("startNodeText")
+        if not text:
+            continue
+        status_label = derive_annotation_status(r.get("tags"), row_status=r.get("status"))
+        status_map.setdefault(text, status_label)
+
+    return status_map
+
+
 @st.cache_data(ttl=600)
 def fetch_potential_annotations(db_name: str, table_name: str, file_external_id: str) -> pd.DataFrame:
     """Fetches potential annotations for a specific file from the patterns RAW table."""
