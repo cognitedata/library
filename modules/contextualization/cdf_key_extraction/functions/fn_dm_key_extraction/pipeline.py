@@ -1,3 +1,4 @@
+from html import entities
 from cognite.client import data_modeling as dm
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
@@ -6,6 +7,8 @@ from logger import CogniteFunctionLogger
 from typing import Any, Optional
 
 from config import Config, SourceViewConfig
+
+from ExtractionRuleManager import ExtractionRuleManager
 
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client import CogniteClient
@@ -33,22 +36,43 @@ def key_extraction(
         logger.debug(f"Initiate RAW upload queue used to store ouput from key extraction")
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level="INFO")
 
-        # if needed, we will not do key extraction on entities that have already been processed, if so desired al a the config
-        entities_to_exclude = read_table_keys(client, config.parameters.raw_db, config.parameters.raw_table_key)
+        extraction_rule_manager = ExtractionRuleManager(config.data.extraction_rules, config.data.field_selection_strategy, logger)
 
-        logger.debug("Get entities (ex: time series)")
+        # TODO Check if extraction rule manager instantiation went well. Log number of rules found, the type of each, their sources, etc...
+        if not extraction_rule_manager:
+            logger.error("Failed to instantiate ExtractionRuleManager")
+            return
+
+        # Log extraction rule information
+        extraction_rule_manager.get_info()
+
+        # If we are not overwriting keys, we don't need to process the existing ones. but if there are new rules????
+        if not config.parameters.overwrite:
+            entities_to_exclude = read_table_keys(client, config.parameters.raw_db, config.parameters.raw_table_key)
+            logger.debug(f"Persisting existing keys extracted for {len(entities_to_exclude)} entities")
+        else:
+            entities_to_exclude = []
+            logger.debug("Removing old keys")
+        
+        logger.debug("Geting entities...")
 
         # TODO wrap this in performance benchmark
-        entities = get_target_entities(client, config, logger, entities_to_exclude)
+        entities_source_fields = get_target_entities(client, config, logger, entities_to_exclude)
 
-        entities_to_exclude = []
+        # Now that we have our entities and our extraction rule manager, we can begin the extraction
+        # create an empty dictionary where the key is external id of an entity and the value is a list of keys extracted
+        entities_keys_extracted = dict.fromkeys(entities_source_fields, [])
 
-        # Delete pre-existing keys made in previous runs
-        if config.parameters.remove_old_keys:
-            logger.debug(f"Run all entities, delete state content in RAW since we are rerunning based on all input")
-            # TODO Get the entities that we are going to extract keys from, delete all rows with those keys (externalId)
-            # delete_table(client, config.parameters.raw_db, config.parameters.raw_table_key)
-            # delete_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
+        for rule in extraction_rule_manager.get_sorted_rules():
+
+            for entity in entities_source_fields.keys():
+                keys = extraction_rule_manager.execute_rule(
+                    rule,
+                    entities_source_fields[entity],
+                    entities_keys_extracted[entity]
+                )
+                
+                entities_keys_extracted[entity].extend(keys)
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
@@ -87,41 +111,55 @@ def get_target_entities(
     config: Config,
     logger: CogniteFunctionLogger,
     excluded_entities: list[str] # List of external ids to exclude in the query
-) -> list[dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
 
-    entities_source = []
+    if config.data.source_views == []:
+        logger.error("No Source Views defined for key extraction")
+        raise ValueError("No Source Views defined for key extraction")
+
+    entities_source = {}
     type = "entities"
 
-    entity_view_config= config.data.target_query.target_view
-    entity_view_id = entity_view_config.as_view_id()
+    entity_view_configs = config.data.source_views
 
-    logger.debug(f"Get new entities from view: {entity_view_id}, based on config: {entity_view_config}")
-    is_selected = get_query_filter(type, config.data.target_query, config.parameters.run_all, excluded_entities, ogger)
+    for entity_view_config in entity_view_configs:
+        entity_view_id = entity_view_config.as_view_id()
 
-    new_entities = client.data_modeling.instances.list(
-        space=entity_view_config.instance_space,
-        sources=[entity_view_id],
-        filter=is_selected,
-        limit=-1
-    )
+        logger.debug(f"Get new entities from view: {entity_view_id}, based on config: {entity_view_config}")
+        is_selected = get_query_filter(type, entity_view_config, config.parameters.run_all, excluded_entities, logger)
 
-    item_updates = []
+        new_entities = client.data_modeling.instances.list(
+            instance_type="node",
+            space=entity_view_config.instance_space,
+            sources=[entity_view_id],
+            filter=is_selected,
+            limit=100
+        )
 
-    for entity in new_entities:
-        for rule in config.data.extraction_rules:
-            new_item = [{"external_id": entity.external_id}]
-            entity_dump = entity.dump()
-            for source_field in rule.method_parameters.source_fields:
-                if entity_dump.get(source_field.name, None) is None:
-                    if source_field.required:
-                        logger.error(f"Missing required field '{source_field.name}' in entity: {entity_dump}")
-                        continue
-                else:
-                    new_item[source_field.name] = entity_dump[str(source_field.name)]
+        item_updates = {}
 
-            item_updates.append(new_item)
+        for entity in new_entities:
+            entity_external_id = entity.external_id
+            entity_props_dump = entity.dump()['properties'][entity_view_id.space][f'{entity_view_id.external_id}/{entity_view_id.version}']
+            
+            # Initialize entity fields dictionary if not exists
+            if entity_external_id not in item_updates:
+                item_updates[entity_external_id] = {}
+            
+            # Collect all source fields from all extraction rules for this entity
+            for rule in config.data.extraction_rules:
+                for source_field in rule.source_fields:
+                    field_value = entity_props_dump.get(source_field.field_name, None)
+                    
+                    if field_value is None:
+                        if source_field.required:
+                            logger.warning(f"Missing required field '{source_field.field_name}' in entity: {entity_external_id}")
+                    else:
+                        # Add the field to the entity's field collection
+                        item_updates[entity_external_id][source_field.field_name] = field_value
 
-    logger.info(f"Num new entities: {len(item_updates)} from view: {entity_view_id}")
+        logger.info(f"Num new entities: {len(item_updates)} from view: {entity_view_id}")
+        entities_source.update(item_updates)
 
     return entities_source
 
@@ -161,7 +199,7 @@ def get_query_filter(
 ) -> dm.filters.Filter:
     entity_view_id = entity_config.as_view_id()
     is_view = dm.filters.HasData(views=[entity_view_id])
-    is_selected = dm.filters.And(is_view)
+    is_selected = is_view
     dbg_msg = f"For for view: {entity_view_id} - Entity filter: HasData = True"
 
     # Check if the view entity already is matched or not
@@ -191,7 +229,7 @@ def get_query_filter(
         is_selected = dm.filters.And(is_selected, is_excluded)
         dbg_msg = f"{dbg_msg} Entity filtering on: '{len(excluded_entities)}' entities IN: 'external_id'"
 
-    if len(entity_config.filters) > 0:
+    if entity_config.filters and len(entity_config.filters) > 0:
         is_selected = dm.filters.And(is_selected, entity_config.build_filter())
 
     logger.debug(dbg_msg)

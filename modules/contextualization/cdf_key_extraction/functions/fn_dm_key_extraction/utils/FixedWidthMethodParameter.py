@@ -1,7 +1,5 @@
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Union
 from pydantic import BaseModel, Field
-
-from .DataStructures import SourceFieldParameter
 
 class FieldDefinition(BaseModel):
     name: str = Field(..., description="Field identifier")
@@ -44,12 +42,4 @@ class FixedWidthMethodParameter(BaseModel):
 
     encoding: EncodingOption = Field(
         "utf-8", description="Text encoding (e.g., 'utf-8', 'latin-1')."
-    )
-
-    source_fields: Optional[List[SourceFieldParameter]] = Field(
-        None, description="List of source field paths to extract data from."
-    )
-
-    priority: int = Field(
-        100, description="THe priority of the rule in the order of rules applied to the target field"
     )

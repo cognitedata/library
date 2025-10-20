@@ -1,7 +1,5 @@
-from typing import Optional, List, Literal, Dict, Any
+from typing import Optional, List, Literal, Dict, Any, Union
 from pydantic import BaseModel, Field
-
-from .DataStructures import SourceFieldParameter
 
 class HeuristicStrategy(BaseModel):
     """
@@ -46,12 +44,4 @@ class HeuristicMethodParameter(BaseModel):
 
     validation: Optional[List[Dict[str, Any]]] = Field(
         None, description="Post-extraction validation checks (optional)."
-    )
-
-    source_fields: Optional[List[SourceFieldParameter]] = Field(
-        None, description="List of source field paths to extract data from."
-    )
-
-    priority: int = Field(
-        100, description="THe priority of the rule in the order of rules applied to the target field"
     )

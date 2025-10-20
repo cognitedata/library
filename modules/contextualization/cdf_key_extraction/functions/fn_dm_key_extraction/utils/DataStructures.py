@@ -22,11 +22,11 @@ class FilterOperator(str, Enum):
     making them directly usable where a string is expected (e.g., serialization).
     """
 
-    EQUALS = "Equals"  # Checks for equality against a single value.
-    EXISTS = "Exists"  # Checks if a property exists (is not null).
-    CONTAINSALL = "ContainsAll"  # Checks if an item contains all specified values for a given property
-    IN = "In"  # Checks if a value is within a list of specified values. Not implementing CONTAINSANY b/c IN is usually more suitable
-    SEARCH = "Search"  # Performs full text search on a specified property
+    EQUALS = "EQUALS"  # Checks for equality against a single value.
+    EXISTS = "EXISTS"  # Checks if a property exists (is not null).
+    CONTAINSALL = "CONTAINSALL"  # Checks if an item contains all specified values for a given property
+    IN = "IN"  # Checks if a value is within a list of specified values. Not implementing CONTAINSANY b/c IN is usually more suitable
+    SEARCH = "SEARCH"  # Performs full text search on a specified property
 
 class FieldRole(Enum):
     """Defines the role of the field in the data extraction process."""
@@ -45,7 +45,7 @@ class SourceFieldParameter(BaseModel):
                             description="Name or path to the metadata field (e.g., 'description', 'metadata.tagIds').")
     field_type: str = Field(..., description="Data type of the field (e.g., 'string', 'array', 'object').")
     required: bool = Field(..., description="Whether the field must exist (skip entity if missing) (e.g., false).")
-    priority: int = Field(..., description="Order of precedence when multiple fields match (e.g., 1).")
+    priority: int = Field(None, description="Order of precedence when multiple fields match (e.g., 1).")
     role: FieldRole = Field(..., description="Role in extraction: 'target', 'context', 'validation'.")
 
     # 2. Optional fields are defined next, using None or default_factory

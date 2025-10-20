@@ -1,7 +1,5 @@
-from typing import Optional, List, Literal, Dict, Any
+from typing import Optional, List, Literal, Dict, Any, Union
 from pydantic import BaseModel, Field, model_validator, ValidationError
-
-from .DataStructures import SourceFieldParameter
 
 class RegexOptions(BaseModel):
     """
@@ -57,12 +55,4 @@ class RegexMethodParameter(BaseModel):
 
     early_termination: bool = Field(
         False, description="Stop after first match (e.g., False)."
-    )
-
-    source_fields: Optional[List[SourceFieldParameter]] = Field(
-        None, description="List of source field paths to extract data from (optional)."
-    )
-
-    priority: int = Field(
-        100, description="THe priority of the rule in the order of rules applied to the target field"
     )

@@ -1,8 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 
-from dataclasses import dataclass
-from typing import Any, Literal, Union, Optional, List, Dict
+from typing import Any, Literal, Union, Optional, List
 
 from utils.FixedWidthMethodParameter import FixedWidthMethodParameter
 from utils.HeuristicMethodParameter import HeuristicMethodParameter
@@ -15,17 +14,15 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
 from cognite.client.data_classes.data_modeling.ids import ViewId
-from pydantic import BaseModel, Field, field_validator
-from pydantic.alias_generators import to_camel
+from pydantic import BaseModel, Field
 
-from utils.DataStructures import \
-    FilterOperator
+from utils.DataStructures import FilterOperator, SourceFieldParameter
 
 # Configuration classes
 class Parameters(BaseModel):
     debug: bool
     run_all: bool
-    remove_old_keys: bool
+    overwrite: bool
     raw_db: str
     raw_table_state: str
     raw_table_key: str
@@ -99,15 +96,16 @@ class SourceViewConfig(BaseModel):
     """
     # 1. Mandatory Fields
     view_external_id: str = Field(..., description="External ID of the data model view (e.g., 'txEquipment').")
-    view_space: str = Field(...,
-                            description="Space where the view is defined (e.g., 'sp_enterprise_process_industry').")
+    view_space: str = Field(..., description="Space where the view is defined (e.g., 'sp_enterprise_process_industry').")   
     view_version: str = Field(..., description="Version of the view schema (e.g., 'v1').")
+    instance_space: str = Field(..., description="The instance space that holds the target instances.")
+    
     entity_type: EntityType = Field(..., description="Type of entity for processing context (e.g., DataType.ASSET).")
     batch_size: int = Field(..., description="Number of entities to process per batch (e.g., 100).")
 
     # 2. Optional Fields with Defaults/Mutable Defaults
     filters: Optional[List[FilterConfig]] = Field(
-        None, alias="filter",  # Use alias if input JSON/YAML uses 'filter' instead of 'filters'
+        None,  # Use alias if input JSON/YAML uses 'filter' instead of 'filters'
         description="CDF DMS filter to limit query scope (optional)."
     )
 
@@ -119,7 +117,7 @@ class SourceViewConfig(BaseModel):
 
     def as_view_id(self) -> ViewId:
         return ViewId(
-            schema_space=self.view_space,
+            space=self.view_space,
             external_id=self.view_external_id,
             version=self.view_version
         )
@@ -127,7 +125,7 @@ class SourceViewConfig(BaseModel):
     def build_filter(self) -> Filter:
         target_view = ViewPropertyConfig(
             schema_space=self.view_space,
-            instance_space=self.view_space,
+            instance_space=self.instance_space,
             external_id=self.view_external_id,
             version=self.view_version,
             search_property=""
@@ -170,6 +168,14 @@ class ExtractionRuleConfig(BaseModel):
     method_parameters: ExtractionMethod = Field(
         ..., alias='parameters'
         # Optional: Use alias if your input JSON/YAML uses a different field name (e.g., 'parameters')
+    )
+
+    source_fields: Union[List[SourceFieldParameter], SourceFieldParameter] = Field(
+        None, description="List of source field paths to extract data from."
+    )
+
+    priority: int = Field(
+        100, description="The priority of the rule in the order of rules applied to the target field"
     )
 
 class ConfigData(BaseModel):

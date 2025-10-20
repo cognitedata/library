@@ -1,8 +1,6 @@
 from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field
 
-from .DataStructures import SourceFieldParameter
-
 class TokenizationParameters(BaseModel):
     """
     Configuration for breaking down source fields into individual tokens.
@@ -64,12 +62,4 @@ class TokenReassemblyMethodParameter(BaseModel):
 
     validation: ValidationParameters = Field(
         ..., description="Configuration for validating tokens and the final result."
-    )
-
-    source_fields: Optional[List[SourceFieldParameter]] = Field(
-        None, description="List of source field paths to extract data from (optional)."
-    )
-
-    priority: int = Field(
-        100, description="THe priority of the rule in the order of rules applied to the target field"
     )
