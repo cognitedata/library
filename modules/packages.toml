@@ -103,3 +103,12 @@ modules = [
     "atlas_ai/ootb_agents/",
     "atlas_ai/root_cause_analysis/rca_with_atlas"
 ]
+
+[packages.notebooks]
+id = "dp:notebooks:performance:testing"
+title = "Example of CDF Performance Testing Module"
+description = "Deploy all notebooks in one package."
+modules = [
+    "notebooks/cdf_performace_testing/",
+]
+
