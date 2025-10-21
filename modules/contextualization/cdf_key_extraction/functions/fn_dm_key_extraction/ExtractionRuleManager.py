@@ -11,7 +11,7 @@ from logger import CogniteFunctionLogger
 from config import ExtractionRuleConfig
 
 
-def regex_method(input_str: str, params: RegexMethodParameter) -> List[Dict[str, Union[str, Dict[str, str]]]]:
+def regex_method(input_str: str, params: RegexMethodParameter) -> dict:
 
     # Compile the pattern first
     flags = 0
@@ -29,7 +29,7 @@ def regex_method(input_str: str, params: RegexMethodParameter) -> List[Dict[str,
     pattern = re.compile(params.pattern, flags)
     validation_pattern = re.compile(params.validation_pattern) if params.validation_pattern else None
 
-    results = []
+    results = {}
 
     # Iterate through all matches found in the input string
     for match in pattern.finditer(input_str):
@@ -43,7 +43,8 @@ def regex_method(input_str: str, params: RegexMethodParameter) -> List[Dict[str,
 
         result_data: Dict[str, Union[str, Dict[str, str]]] = {
             "match": extracted_value,
-            "components": {}
+            "components": {},
+            "confidence": 1.0
         }
 
         # 2a. Named Capture Groups and Reassembly
@@ -63,12 +64,12 @@ def regex_method(input_str: str, params: RegexMethodParameter) -> List[Dict[str,
                 # Handle cases where a format placeholder doesn't match a captured group
                 result_data["reassembled_value"] = "ERROR: Reassembly failed"
 
-            results.append(result_data['reassembled_value'])
+            results.update({result_data['reassembled_value']: 1.0})
         else:
             # 2b. just add the match instead
-            results.append(result_data['match'])
+            results.update({result_data['match']: 1.0})
 
-        # 3. Early Termination Check (Performance Optimization)
+        # 3. Early Termination Check (Performance Optimization, only do first match)
         if params.early_termination:
             break
 
@@ -79,13 +80,13 @@ def regex_method(input_str: str, params: RegexMethodParameter) -> List[Dict[str,
     # What do these results even look like when we get a match?
     return results
 
-def fixed_width_method(self, params: FixedWidthMethodParameter) -> str:
+def fixed_width_method(self, params: FixedWidthMethodParameter) -> dict:
     pass
 
-def heuristic_method(self, params: HeuristicMethodParameter) -> str:
+def heuristic_method(self, params: HeuristicMethodParameter) -> dict:
     pass
 
-def token_reassembly_method(self, params: TokenReassemblyMethodParameter) -> str:
+def token_reassembly_method(self, params: TokenReassemblyMethodParameter) -> dict:
     pass
 
 class ExtractionRuleManager:
@@ -104,15 +105,13 @@ class ExtractionRuleManager:
     def get_sorted_rules(self) -> list[str]:
         return list(self.sorted_rules.keys())
 
-    def execute_rule(self, rule_id: str, entity_source_fields: dict[str, str], entity_keys_extracted: list[str]) -> list[str]:
+    def execute_rule(self, rule_id: str, entity_source_fields: dict[str, str], entity_keys_extracted: list[str]) -> dict[str, list[str]]:
         rule = self.sorted_rules.get(rule_id, None)
         if not rule:
             raise Exception(f"Rule {rule_id} not found")
 
-        value_queue = []
-
-        # This might need to be a dict[str, float] where the key is the key extracted and the value is the confidence score
-        key_results = []
+        # Initialize the dictionary to store results for each source field
+        field_results: dict[str, list[str]] = {}
         
         # Dynamic method assignment based on rule.method
         method_mapping = {
@@ -126,49 +125,54 @@ class ExtractionRuleManager:
         if rule_function is None:
             raise Exception(f"Error: Unknown method '{rule.method}'")
             
+        # TODO need a better understanding of composite field rules. Such as composite strategies and what to do with them...
         if isinstance(rule.source_fields, list):
             field_order = rule.source_fields.copy()
             field_order.sort(key=lambda x: x.priority if x.priority is not None else 100)
 
             for source_field in field_order:
-                value = entity_source_fields.get(source_field.field_name, None)
+                field_name = source_field.field_name
+                value = entity_source_fields.get(field_name, None)
                 if value is None:
                     if source_field.required:
-                        self.logger.warning(f"Missing required field '{source_field.field_name}' in entity: {entity_source_fields}")
+                        self.logger.warning(f"Missing required field '{field_name}' in entity: {entity_source_fields}")
                     continue
-                value_queue.append(value)
+
+                # Initialize the list for the current field if it doesn't exist
+                if field_name not in field_results:
+                    field_results[field_name] = []
+
+                rule_results = rule_function(value, rule.method_parameters)
+
+                highest_confidence = 0
+                for key, score in rule_results.items():
+                    if key:
+                        if self.strategy == "highest_confidence" and score > highest_confidence:
+                            highest_confidence = score
+                            field_results[field_name] = [key]
+                        
+                        else:
+                            field_results[field_name].append(key)
+                            if self.strategy == "first_match":
+                                # We want to return all of the keys extracted with no duplicates
+                                return field_results
         else:
-            value_queue.append(entity_source_fields.get(rule.source_fields.field_name, None))
+            field_name = rule.source_fields.field_name
+            value = entity_source_fields.get(field_name, None)
 
-        while value_queue:
-            # Return type of rules function is dict[str, float] where alias -> score
-            key_scores = rule_function(value_queue.pop(0), rule.method_parameters)
+            if field_name not in field_results:
+                field_results[field_name] = []
 
-            if key:
-                # if the key already exists, aggregate the confidence score :)
-                current_score = key_results.get(key, None)
-                if current_score:
-                    key_results[key] = (current_score + score)/2.0
+            rule_results = rule_function(value, rule.method_parameters)
+
+            for key, score in rule_results.items():
+                if key:
+                    field_results[field_name].append(key)
+                    self.logger.debug(f"Extracted key '{key}' from field '{field_name}' with a score of {score} using rule '{rule_id}'")
                 else:
-                    key_results.update({key: score})
-
-                self.logger.debug(f"Extracted key '{key}' with a score of {score} using rule '{rule_id}'")
-            else:
-                self.logger.warning(f"Failed to extract key using rule '{rule_id}'")
-
-            if (self.strategy == "first_match" or self.strategy == "highest_priority") and key_results:
-                # Since we already sort the rules and the fields by priority, if we found a key result, we can return it
-                return key_results
+                    self.logger.warning(f"Failed to extract key from field '{field_name}' using rule '{rule_id}'")
         
-        if self.strategy == "merge_all" and key_results:
-                # We want to return all of the keys extracted with no duplicates
-                return list(set(key_results))
-        elif self.strategy == "highest_confidence" and key_results:
-            # we want to return the key with the highest confidence score
-            return max(key_results, key=key_results.get)
-        else:
-            self.logger.warning(f"Either no keys were extracted by the rule {rule_id}, or an unknown field selection strategy was defined.")
-            return []
+        return field_results
 
     def get_info(self):
         """Print a nice formatted info box about the extraction rules."""

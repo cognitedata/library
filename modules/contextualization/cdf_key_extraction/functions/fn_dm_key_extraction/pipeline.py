@@ -24,7 +24,7 @@ def key_extraction(
         config: Config
 ) -> None:
     pipeline_ext_id = data["ExtractionPipelineExtId"]
-    patterns_matched = 0
+    keys_extracted = 0
     try:
         logger.info(
             f"Starting Key Extraction Function with loglevel = {data.get('logLevel', 'INFO')},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
@@ -61,35 +61,71 @@ def key_extraction(
 
         # Now that we have our entities and our extraction rule manager, we can begin the extraction
         # create an empty dictionary where the key is external id of an entity and the value is a list of keys extracted
-        entities_keys_extracted = dict.fromkeys(entities_source_fields, [])
+        entities_keys_extracted = dict.fromkeys(entities_source_fields, {})
 
         for rule in extraction_rule_manager.get_sorted_rules():
-
             for entity in entities_source_fields.keys():
-                keys = extraction_rule_manager.execute_rule(
+                field_keys = extraction_rule_manager.execute_rule(
                     rule,
                     entities_source_fields[entity],
                     entities_keys_extracted[entity]
                 )
                 
-                entities_keys_extracted[entity].extend(keys)
+                # We may want to replace this code with the code that adds a new row to the raw_uploader
+                entities_keys_extracted[entity].update(field_keys)
+                keys_extracted += len(field_keys)
+
+        # Perhaps do a clean up step here
+
+        # Check if the raw table for keys exists
+        create_table(client, config.parameters.raw_db, config.parameters.raw_table_key)
+
+        # check if the raw table for state exists
+        create_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
+
+        # Start to upload the keys found to the raw_table_key table
+        for ext_id, field_keys in entities_keys_extracted.items():
+            if field_keys:
+                columns = {}
+                for field_name, keys in field_keys.items():
+                    columns[field_name] = keys
+            
+                raw_uploader.add_to_upload_queue(
+                    database=config.parameters.raw_db,
+                    table=config.parameters.raw_table_key,
+                    raw_row=Row(key=ext_id, columns=columns)
+                )
+
+        # maybe some diagnostics, logging, dashboard metrics here?
+
+        # trigger the upload queue
+        raw_uploader.upload()
+
+        # update the pipeline run
+        update_pipeline_run(
+            client=client,
+            logger=logger,
+            xid=pipeline_ext_id,
+            status="success",
+            keys_extracted=keys_extracted
+        )
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
-        update_pipeline_run(client, logger, pipeline_ext_id, "failure", patterns_matched)
+        update_pipeline_run(client, logger, pipeline_ext_id, "failure", keys_extracted)
 
 def update_pipeline_run(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     xid: str,
     status: str,
-    patterns_matched: Optional[int],
+    keys_extracted: Optional[int],
     error: Optional[str] = None
 ) -> None:
 
     if status == "success":
         msg = (
-
+            f"Succesfully extracted {keys_extracted} keys"
         )
         logger.info(msg)
     else:
@@ -156,12 +192,33 @@ def get_target_entities(
                             logger.warning(f"Missing required field '{source_field.field_name}' in entity: {entity_external_id}")
                     else:
                         # Add the field to the entity's field collection
+
+                        if source_field.preprocessing:
+                            field_value = apply_preprocessing(field_value, source_field.preprocessing)
+
                         item_updates[entity_external_id][source_field.field_name] = field_value
 
         logger.info(f"Num new entities: {len(item_updates)} from view: {entity_view_id}")
         entities_source.update(item_updates)
 
     return entities_source
+
+def apply_preprocessing(field_value: str, preprocessing: list[str]) -> str:
+    for task in preprocessing:
+        match task:
+            case 'trim':
+                field_value = field_value.strip()
+            case 'lowercase':
+                field_value = field_value.lower()
+            case 'uppercase':
+                field_value = field_value.upper()
+            case _:
+                pass
+    
+    return field_value
+
+def table_exists(client: CogniteClient, db_name: str, tb_name: str) -> bool:
+    return db_name in client.raw.databases.list(-1) and tb_name in client.raw.tables.list(db_name, -1)
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
     try:
