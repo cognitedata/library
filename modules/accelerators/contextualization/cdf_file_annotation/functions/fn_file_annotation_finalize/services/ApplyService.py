@@ -19,6 +19,7 @@ from cognite.client.data_classes.data_modeling import (
 )
 from cognite.client.data_classes.filters import And, Equals, Not
 from cognite.client import data_modeling as dm
+from cognite.client.data_classes.annotation_types.primitives import BoundingBox
 
 from services.ConfigService import Config, ViewPropertyConfig
 from utils.DataStructures import DiagramAnnotationStatus
@@ -291,27 +292,17 @@ class GeneralApplyService(IApplyService):
             entity = entities[0]
 
             external_id = self._create_pattern_annotation_id(file_id, detect_annotation)
-            now = datetime.now(timezone.utc).replace(microsecond=0)
             annotation_type = entity.get(
                 "annotation_type",
                 self.config.data_model_views.target_entities_view.annotation_type,
             )
-            annotation_properties = {
-                "name": file_id.external_id,
-                "confidence": detect_annotation.get("confidence", 0.0),
-                "status": DiagramAnnotationStatus.SUGGESTED.value,
-                "tags": [],
-                "startNodePageNumber": detect_annotation.get("region", {}).get("page"),
-                "startNodeXMin": min(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMin": min(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeXMax": max(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMax": max(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeText": detect_annotation.get("text"),
-                "sourceCreatedUser": self.FUNCTION_ID,
-                "sourceUpdatedUser": self.FUNCTION_ID,
-                "sourceCreatedTime": now.isoformat(),
-                "sourceUpdatedTime": now.isoformat(),
-            }
+            annotation_properties = self._create_annotation_properties_from_detection(
+                file_id=file_id,
+                detect_annotation=detect_annotation,
+                status=DiagramAnnotationStatus.SUGGESTED.value,
+            )
+            # Add pattern-specific property
+            annotation_properties["tags"] = []
             edge_apply = EdgeApply(
                 space=self.sink_node_ref.space,
                 external_id=external_id,
@@ -379,22 +370,11 @@ class GeneralApplyService(IApplyService):
                 continue
 
             external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation)
-            now = datetime.now(timezone.utc).replace(microsecond=0)
-            annotation_properties = {
-                "name": file_instance_id.external_id,
-                "confidence": detect_annotation.get("confidence"),
-                "status": status,
-                "startNodePageNumber": detect_annotation.get("region", {}).get("page"),
-                "startNodeXMin": min(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMin": min(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeXMax": max(v.get("x", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeYMax": max(v.get("y", 0) for v in detect_annotation.get("region", {}).get("vertices", [])),
-                "startNodeText": detect_annotation.get("text"),
-                "sourceCreatedUser": self.FUNCTION_ID,
-                "sourceUpdatedUser": self.FUNCTION_ID,
-                "sourceCreatedTime": now.isoformat(),
-                "sourceUpdatedTime": now.isoformat(),
-            }
+            annotation_properties = self._create_annotation_properties_from_detection(
+                file_id=file_instance_id,
+                detect_annotation=detect_annotation,
+                status=status,
+            )
             edge = EdgeApply(
                 space=file_instance_id.space,
                 external_id=external_id,
@@ -527,3 +507,77 @@ class GeneralApplyService(IApplyService):
             (end_node.space, end_node.external_id) if end_node else None,
             (type_.space, type_.external_id) if type_ else None,
         )
+
+    def _extract_bounding_box_from_region(self, region: dict[str, Any]) -> BoundingBox | None:
+        """
+        Extracts and creates a BoundingBox from a diagram detection region.
+
+        Converts the vertices array from the diagram detect API response into a proper
+        BoundingBox object, computing the min/max coordinates from all vertices.
+
+        Args:
+            region: Dictionary containing 'vertices' list with x/y coordinates.
+
+        Returns:
+            BoundingBox object with computed boundaries, or None if vertices are invalid.
+        """
+        vertices = region.get("vertices", [])
+        if not vertices:
+            return None
+
+        x_coords = [v.get("x", 0) for v in vertices]
+        y_coords = [v.get("y", 0) for v in vertices]
+
+        return BoundingBox(x_min=min(x_coords), x_max=max(x_coords), y_min=min(y_coords), y_max=max(y_coords))
+
+    def _create_annotation_properties_from_detection(
+        self,
+        file_id: NodeId,
+        detect_annotation: dict[str, Any],
+        status: str,
+        bounding_box: BoundingBox | None = None,
+    ) -> dict[str, Any]:
+        """
+        Creates annotation properties dictionary from a detection result.
+
+        Extracts common annotation properties including confidence, status, text, page number,
+        and bounding box coordinates. Uses BoundingBox object for coordinate handling.
+
+        Args:
+            file_id: NodeId of the file being annotated.
+            detect_annotation: Dictionary containing detection result data.
+            status: Annotation status (APPROVED, SUGGESTED, etc.).
+            bounding_box: Optional pre-computed BoundingBox object.
+
+        Returns:
+            Dictionary of annotation properties ready for EdgeApply or RAW table insertion.
+        """
+        region = detect_annotation.get("region", {})
+        if bounding_box is None:
+            bounding_box = self._extract_bounding_box_from_region(region)
+
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        properties = {
+            "name": file_id.external_id,
+            "confidence": detect_annotation.get("confidence", 0.0),
+            "status": status,
+            "startNodePageNumber": region.get("page"),
+            "startNodeText": detect_annotation.get("text"),
+            "sourceCreatedUser": self.FUNCTION_ID,
+            "sourceUpdatedUser": self.FUNCTION_ID,
+            "sourceCreatedTime": now.isoformat(),
+            "sourceUpdatedTime": now.isoformat(),
+        }
+
+        # Add bounding box coordinates if available
+        if bounding_box:
+            properties.update(
+                {
+                    "startNodeXMin": bounding_box.x_min,
+                    "startNodeYMin": bounding_box.y_min,
+                    "startNodeXMax": bounding_box.x_max,
+                    "startNodeYMax": bounding_box.y_max,
+                }
+            )
+
+        return properties
