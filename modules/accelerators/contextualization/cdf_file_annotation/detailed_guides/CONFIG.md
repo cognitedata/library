@@ -108,13 +108,48 @@ Settings for processing completed annotation jobs. Parsed by the `FinalizeFuncti
 
   - `autoApprovalThreshold` (float): Confidence score threshold for automatically approving standard annotations (e.g., `1.0` for exact matches only). _(Pydantic field: `auto_approval_threshold`)_
   - `autoSuggestThreshold` (float): Confidence score threshold for suggesting standard annotations for review (e.g., `1.0`). _(Pydantic field: `auto_suggest_threshold`)_
-  - `sinkNode` (`SinkNodeConfig`): Configuration for the target node where pattern mode annotations are linked for review. _(Pydantic field: `sink_node`)_
+  - `sinkNode` (`NodeId`): Configuration for the target node where pattern mode annotations are linked for review. _(Pydantic field: `sink_node`)_
     - `space` (str): The space where the sink node resides.
     - `externalId` (str): The external ID of the sink node. _(Pydantic field: `external_id`)_
   - `rawDb` (str): RAW database for storing annotation reports. _(Pydantic field: `raw_db`)_
   - `rawTableDocTag` (str): RAW table name for document-to-asset annotation links (e.g., `doc_tag`). _(Pydantic field: `raw_table_doc_tag`)_
   - `rawTableDocDoc` (str): RAW table name for document-to-document annotation links (e.g., `doc_doc`). _(Pydantic field: `raw_table_doc_doc`)_
   - `rawTableDocPattern` (str): RAW table name for pattern mode detections, creating a searchable catalog of potential entity matches (e.g., `doc_pattern`). _(Pydantic field: `raw_table_doc_pattern`)_
+
+---
+
+## 5. `promoteFunction`
+
+Settings for automatically resolving pattern-mode annotations. Parsed by the `PromoteFunctionConfig` Pydantic model.
+
+The promote function resolves pattern-mode annotations by finding matching entities and updating annotation edges from pointing to a sink node to pointing to actual entities. Batch size is controlled via `getCandidatesQuery.limit` field.
+
+- **Direct Parameters:**
+
+  - `getCandidatesQuery` (`QueryConfig | list[QueryConfig]`): Query to find pattern-mode edges to promote. The batch size is controlled by the `limit` field in the query configuration. _(Pydantic field: `get_candidates_query`)_
+  - `rawDb` (str): RAW database for storing promotion results. _(Pydantic field: `raw_db`)_
+  - `rawTableDocPattern` (str): RAW table name for pattern mode detections (e.g., `doc_pattern`). _(Pydantic field: `raw_table_doc_pattern`)_
+  - `rawTableDocTag` (str): RAW table name for document-to-asset annotation links (e.g., `doc_tag`). _(Pydantic field: `raw_table_doc_tag`)_
+  - `rawTableDocDoc` (str): RAW table name for document-to-document annotation links (e.g., `doc_doc`). _(Pydantic field: `raw_table_doc_doc`)_
+  - `deleteRejectedEdges` (bool): If `True`, deletes edges that have been rejected (no match found). _(Pydantic field: `delete_rejected_edges`)_
+  - `deleteSuggestedEdges` (bool): If `True`, deletes edges with ambiguous matches that remain as "Suggested". _(Pydantic field: `delete_suggested_edges`)_
+
+- **`entitySearchService`** (`EntitySearchServiceConfig`):
+
+  Controls entity search strategies and text normalization behavior. Uses efficient server-side filtering on the smaller entity dataset rather than the larger annotation edge dataset for better performance at scale.
+
+  - `enableGlobalEntitySearch` (bool): Enables searching for matching entities via data model queries. _(Pydantic field: `enable_global_entity_search`)_
+  - `maxEntitySearchLimit` (int): Maximum number of entities to retrieve in a single search query (default: `1000`, range: 1-10000). _(Pydantic field: `max_entity_search_limit`)_
+  - `textNormalization` (`TextNormalizationConfig`): Controls how text is normalized for matching and what variations are generated to improve match rates across different naming conventions. _(Pydantic field: `text_normalization`)_
+    - `removeSpecialCharacters` (bool): If `True`, removes special characters from text for matching (default: `True`). _(Pydantic field: `remove_special_characters`)_
+    - `convertToLowercase` (bool): If `True`, converts text to lowercase for matching (default: `True`). _(Pydantic field: `convert_to_lowercase`)_
+    - `stripLeadingZeros` (bool): If `True`, strips leading zeros from numeric portions of text (default: `True`). _(Pydantic field: `strip_leading_zeros`)_
+
+- **`cacheService`** (`PromoteCacheServiceConfig`):
+
+  Controls caching behavior for text→entity mappings. The persistent RAW cache accumulates successful mappings over time and is shared between automated promotions and manual promotions from the Streamlit dashboard.
+
+  - `cacheTableName` (str): RAW table name for the persistent text→entity cache (e.g., `promote_cache`). _(Pydantic field: `cache_table_name`)_
 
 ---
 
