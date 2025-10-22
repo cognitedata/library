@@ -99,7 +99,41 @@ launchFunction:
   # ... (rest of launchFunction config)
 ```
 
-### Recipe 4: Fine-Tuning the Diagram Detection API
+### Recipe 4: Enabling and Configuring Pattern Mode
+
+**Goal:** Enable pattern-based detection alongside standard entity matching to create a comprehensive searchable catalog of potential entity occurrences in files.
+
+**Scenario:** You want to detect all text in files that matches patterns generated from entity aliases (e.g., "FT-101A" generates pattern "[FT]-000[A]"), in addition to standard exact entity matching.
+
+**Configuration:**
+Enable `patternMode` in the `launchFunction` section and configure the sink node in `finalizeFunction.applyService`.
+
+```yaml
+# In ep_file_annotation.config.yaml
+
+launchFunction:
+  patternMode: True # Enable pattern detection mode
+  # ... (other configs)
+  cacheService:
+    rawManualPatternsCatalog: "manual_patterns_catalog" # Table for manual pattern overrides
+
+finalizeFunction:
+  # ... (other configs)
+  applyService:
+    sinkNode:
+      space: "sp_pattern_review" # Space where pattern detections are linked
+      externalId: "pattern_detection_sink" # Sink node for review
+    rawTableDocPattern: "doc_pattern" # RAW table for pattern detections
+```
+
+**Pattern Mode Features:**
+
+- **Auto-generation**: Automatically creates regex-like patterns from entity aliases
+- **Manual overrides**: Add custom patterns to RAW table at GLOBAL, site, or unit levels
+- **Deduplication**: Automatically skips pattern detections that duplicate standard annotations
+- **Separate catalog**: Pattern detections stored separately for review in `doc_pattern` RAW table
+
+### Recipe 5: Fine-Tuning the Diagram Detection API
 
 **Goal:** Adjust the behavior of the diagram detection model, for example, by making it more or less strict about fuzzy text matching.
 
@@ -119,7 +153,7 @@ launchFunction:
       # ... (other DiagramDetectConfig properties)
 ```
 
-### Recipe 5: Combining Queries with OR Logic
+### Recipe 6: Combining Queries with OR Logic
 
 **Goal:** To select files for processing that meet one of several distinct criteria. This is useful when you want to combine different sets of filters with a logical OR.
 
@@ -165,7 +199,7 @@ prepareFunction:
           targetProperty: tags
 ```
 
-### Recipe 6: Annotating Files Without a Scope
+### Recipe 7: Annotating Files Without a Scope
 
 **Goal:** To annotate files that do not have a `primaryScopeProperty` (e.g., `city`). This is useful for processing files that are not assigned to a specific city or for a global-level annotation process.
 
@@ -190,7 +224,7 @@ launchFunction:
 
 This section covers high-level architectural decisions about how the template finds and partitions data. The choice between these patterns is fundamental and depends on your organization's requirements for governance, security, and operational structure.
 
-### Recipe 7: Global Scoping (Searching Across All Spaces)
+### Recipe 8: Global Scoping (Searching Across All Spaces)
 
 **Goal:** To run a single, unified annotation process that finds and annotates all new files based on their properties, regardless of which physical `instanceSpace` they reside in.
 
@@ -220,24 +254,24 @@ dataModelViews:
 - When a single team uses a single, consistent set of rules to annotate all files across the organization.
 - For simpler systems where strict data partitioning between different domains is not a requirement.
 
-### Recipe 8: Isolated Scoping (Targeting a Specific Space)
+### Recipe 9: Isolated Scoping (Targeting a Specific Space)
 
 **Goal:** To run a dedicated annotation process that operates only within a single, physically separate data partition.
 
-**Scenario:** Your organization requires that data from the Austin city be kept separate. The annotation workflow for Austin must _only_ find and process files tagged `ToAnnotate` that physically reside in the `sp_dat_files_austin` instance space.
+**Scenario:** Your organization has multiple sites (Oslo, Houston, Austin). Each site's annotation workflow must only process files that reside in that site's instance space.
 
-**Configuration:**
-Explicitly set the `instanceSpace` property specifically within the **`dataModelViews.fileView`** section of your configuration file.
+**Configuration (use env-driven variables):**
+Explicitly set the `instanceSpace` via variables in the **`dataModelViews.fileView`** section of each site's config file.
 
 ```yaml
-# In ep_file_annotation.config.yaml for the Austin workflow
+# In ep_file_annotation_oslo.config.yaml
 
 dataModelViews:
   fileView:
-    schemaSpace: "sp_tx" # The central "blueprint"
-    instanceSpace: "sp_dat_files_austin" # Pointing to the specific instance space
-    externalId: "txFile"
-    version: "v1"
+    schemaSpace: { { fileSchemaSpace } }
+    instanceSpace: { { osloFileInstanceSpace } }
+    externalId: { { fileExternalId } }
+    version: { { fileVersion } }
 ```
 
 #### **Pros & Cons for Annotation**
@@ -260,3 +294,144 @@ To use the recommended "Isolated Scoping" pattern to annotate files across your 
 4.  **Create and Trigger Separate Workflows:** Define separate workflows, one for each city. The Austin workflow would be triggered with the Austin extraction pipeline external ID, and the Houston workflow with its respective pipeline ID.
 
 This ensures that each annotation process runs in its own isolated, controlled, and configurable environment.
+
+---
+
+## Environment-Driven Multi-Site Configuration (Recommended)
+
+For large-scale, multi-site deployments, drive all site-specific values from your environment file (e.g., `config.dev.yaml`). Define variables per site (oslo, houston, austin) and reference them across your module configs. This keeps each site's setup isolated yet centrally managed.
+
+### 1) Define site variables in config.<env>.yaml
+
+```yaml
+environment:
+  name: dev
+  project: <your-project>
+
+variables:
+  # Shared versions
+  modules:
+    data_model_version: v3.0.1
+
+    # Function and workflow identifiers
+    cdf_files_annotation_functions:
+      annotationStateSchemaSpace: sp_hdm
+      annotationStateExternalId: FileAnnotationState
+      annotationStateVersion: v1.0.4
+      prepareFunctionExternalId: fn_file_annotation_prepare
+      launchFunctionExternalId: fn_file_annotation_launch
+      finalizeFunctionExternalId: fn_file_annotation_finalize
+      promoteFunctionExternalId: fn_file_annotation_promote
+
+    # Site-specific bindings
+    cdf_files_annotation_functions/cdf_cognite_files_annotation_setup:
+      # --- oslo ---
+      osloExtractionPipelineExternalId: ep_ctx_files_annotation_oslo
+      osloPatternModeInstanceSpace: sp_dat_pattern_mode_results_oslo
+      osloFileInstanceSpace: sp_dat_edms_files_oslo
+      osloTargetInstanceSpace: sp_dat_assets_oslo
+      osloRawDb: db_files_annotation_oslo
+
+      # --- houston ---
+      houstonExtractionPipelineExternalId: ep_ctx_files_annotation_houston
+      houstonPatternModeInstanceSpace: sp_dat_pattern_mode_results_houston
+      houstonFileInstanceSpace: sp_dat_edms_files_houston
+      houstonTargetInstanceSpace: sp_dat_assets_houston
+      houstonRawDb: db_files_annotation_houston
+
+      # --- austin ---
+      austinExtractionPipelineExternalId: ep_ctx_files_annotation_austin
+      austinPatternModeInstanceSpace: sp_dat_pattern_mode_results_austin
+      austinFileInstanceSpace: sp_dat_edms_files_austin
+      austinTargetInstanceSpace: sp_dat_assets_austin
+      austinRawDb: db_files_annotation_austin
+
+      # Shared RAW tables (names only)
+      rawTableDocTag: annotation_documents_tags
+      rawTableDocDoc: annotation_documents_docs
+      rawTableDocPattern: annotation_documents_patterns
+      rawTableCache: annotation_entities_cache
+      rawTablePromoteCache: annotation_tags_cache
+      rawManualPatternsCatalog: manual_patterns_catalog
+
+      # File / entity view identifiers
+      fileSchemaSpace: <insert>
+      fileExternalId: <insert>
+      fileVersion: <insert>
+      targetEntitySchemaSpace: <insert>
+      targetEntityExternalId: <insert>
+```
+
+Note: Ignore archived or unused sites (e.g., `cbg`, `gvl`, `spp`) in your environment when creating examples or deploying.
+
+### 2) Reference variables inside each site's ep config
+
+```yaml
+externalId: { { osloExtractionPipelineExternalId } }
+config:
+  dataModelViews:
+    coreAnnotationView:
+      schemaSpace: cdf_cdm
+      externalId: CogniteDiagramAnnotation
+      version: v1
+    annotationStateView:
+      schemaSpace: { { annotationStateSchemaSpace } }
+      instanceSpace: { { osloFileInstanceSpace } }
+      externalId: { { annotationStateExternalId } }
+      version: { { annotationStateVersion } }
+    fileView:
+      schemaSpace: { { fileSchemaSpace } }
+      instanceSpace: { { osloFileInstanceSpace } }
+      externalId: { { fileExternalId } }
+      version: { { fileVersion } }
+      annotationType: diagrams.FileLink
+    targetEntitiesView:
+      schemaSpace: { { targetEntitySchemaSpace } }
+      instanceSpace: { { osloTargetInstanceSpace } }
+      externalId: { { targetEntityExternalId } }
+      version: { { data_model_version } }
+      annotationType: diagrams.AssetLink
+
+  launchFunction:
+    primaryScopeProperty: sysSite
+    secondaryScopeProperty: sysUnit
+    cacheService:
+      rawDb: { { osloRawDb } }
+      rawTableCache: { { rawTableCache } }
+      rawManualPatternsCatalog: { { rawManualPatternsCatalog } }
+
+  finalizeFunction:
+    applyService:
+      rawDb: { { osloRawDb } }
+      rawTableDocTag: { { rawTableDocTag } }
+      rawTableDocDoc: { { rawTableDocDoc } }
+      rawTableDocPattern: { { rawTableDocPattern } }
+      sinkNode:
+        space: { { osloPatternModeInstanceSpace } }
+        externalId: { { patternDetectSink } }
+
+  promoteFunction:
+    rawDb: { { osloRawDb } }
+    rawTableDocPattern: { { rawTableDocPattern } }
+    rawTableDocTag: { { rawTableDocTag } }
+    rawTableDocDoc: { { rawTableDocDoc } }
+    cacheService:
+      cacheTableName: { { rawTablePromoteCache } }
+```
+
+Repeat for Houston/Austin by swapping the `oslo*` variables for `houston*` / `austin*`.
+
+### 3) Workflows reference the site pipeline variable
+
+```yaml
+parameters:
+  function:
+    externalId: { { launchFunctionExternalId } }
+    data:
+      {
+        "ExtractionPipelineExtId": { { osloExtractionPipelineExternalId } },
+        "logLevel": "INFO",
+      }
+```
+
+This pattern keeps site-specific values in your environment file and reuses the same module templates for all sites.

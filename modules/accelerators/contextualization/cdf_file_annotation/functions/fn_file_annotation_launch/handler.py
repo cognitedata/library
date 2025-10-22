@@ -26,7 +26,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     2. Create an instance of the launch function and create implementations of the interfaces
     3. Run the launch instance until...
         4. It's been 7 minutes
-        5. There are no files left that need to be annoated
+        5. There are no files left that need to be launched
     NOTE: Cognite functions have a run-time limit of 10 minutes.
     Don't want the function to die at the 10minute mark since there's no guarantee all code will execute.
     Thus we set a timelimit of 7 minutes (conservative) so that code execution is guaranteed.
@@ -47,19 +47,11 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         client=client,
         logger=logger_instance,
         tracker=tracker_instance,
+        function_call_info=function_call_info,
     )
 
     run_status: str = "success"
     try:
-        while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
-            if launch_instance.prepare() == "Done":
-                break
-            logger_instance.info(tracker_instance.generate_local_report())
-
-        overall_report: str = tracker_instance.generate_overall_report()
-        logger_instance.info(overall_report, "BOTH")
-        tracker_instance.reset()
-
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
             if launch_instance.run() == "Done":
                 return {"status": run_status, "data": data}
@@ -72,15 +64,12 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         return {"status": run_status, "message": msg}
     finally:
         logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
-        # only want to report on the count of successful and failed files in ep_logs if there were files that were processed or an error occured
-        # else run log will be too messy.
-        if tracker_instance.files_failed != 0 or tracker_instance.files_success != 0 or run_status == "failure":
-            function_id = function_call_info.get("function_id")
-            call_id = function_call_info.get("call_id")
-            pipeline_instance.update_extraction_pipeline(
-                msg=tracker_instance.generate_ep_run("Launch", function_id, call_id)
-            )
-            pipeline_instance.upload_extraction_pipeline(status=run_status)
+        function_id = function_call_info.get("function_id")
+        call_id = function_call_info.get("call_id")
+        pipeline_instance.update_extraction_pipeline(
+            msg=tracker_instance.generate_ep_run("Launch", function_id, call_id)
+        )
+        pipeline_instance.upload_extraction_pipeline(status=run_status)
 
 
 def run_locally(config_file: dict[str, str], log_path: str | None = None):
@@ -89,7 +78,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     1. Create an instance of config, logger, and tracker
     2. Create an instance of the Launch function and create implementations of the interfaces
     3. Run the launch instance until
-        4. There are no files left that need to be annoated
+        4. There are no files left that need to be launched
     """
     log_level = config_file.get("logLevel", "DEBUG")
     config_instance, client = create_config_service(function_data=config_file)
@@ -105,16 +94,9 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         client=client,
         logger=logger_instance,
         tracker=tracker_instance,
+        function_call_info={"function_id": None, "call_id": None},
     )
     try:
-        while True:
-            if launch_instance.prepare() == "Done":
-                break
-            logger_instance.info(tracker_instance.generate_local_report())
-
-        logger_instance.info(tracker_instance.generate_overall_report(), "BOTH")
-        tracker_instance.reset()
-
         while True:
             if launch_instance.run() == "Done":
                 break
@@ -129,7 +111,7 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.close()
 
 
-def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
+def _create_launch_service(config, client, logger, tracker, function_call_info) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_cache_service(config, client, logger)
     data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
@@ -141,11 +123,12 @@ def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchSer
         data_model_service=data_model_instance,
         cache_service=cache_instance,
         annotation_service=annotation_instance,
+        function_call_info=function_call_info,
     )
     return launch_instance
 
 
-def _create_local_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
+def _create_local_launch_service(config, client, logger, tracker, function_call_info) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_cache_service(config, client, logger)
     data_model_instance: IDataModelService = create_general_data_model_service(config, client, logger)
     annotation_instance: IAnnotationService = create_general_annotation_service(config, client, logger)
@@ -157,6 +140,7 @@ def _create_local_launch_service(config, client, logger, tracker) -> AbstractLau
         data_model_service=data_model_instance,
         cache_service=cache_instance,
         annotation_service=annotation_instance,
+        function_call_info=function_call_info,
     )
     return launch_instance
 

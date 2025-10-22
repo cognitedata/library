@@ -1,0 +1,70 @@
+{
+    "version": "0.1.0",
+    "configurations": [
+      {
+        "name": "Prepare Handler",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/functions/fn_file_annotation_prepare/handler.py",
+        "console": "integratedTerminal",
+        "args": [
+          "ep_file_annotation",
+          "DEBUG", //ensure that this adheres to -> log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+          "annotation_logs/launch_thread_1.log"
+        ]
+      },
+      {
+        "name": "Launch Handler",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/functions/fn_file_annotation_launch/handler.py",
+        "console": "integratedTerminal",
+        "args": [
+          "ep_file_annotation",
+          "DEBUG", //ensure that this adheres to -> log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+          "annotation_logs/launch_thread_1.log"
+        ]
+      },
+      {
+        "name": "Finalize Handler - Single Thread",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize/handler.py",
+        "console": "integratedTerminal",
+        "args": [
+          "ep_file_annotation",
+          "DEBUG", //ensure that this adheres to -> log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+          "Singular",
+          "annotation_logs/finalize_thread_1.log",
+        ]
+      },
+      {
+        "name": "Finalize Handler - Multiple Threads",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/functions/fn_file_annotation_finalize/handler.py",
+        "console": "integratedTerminal",
+        "args": [
+          "ep_file_annotation",
+          "DEBUG", //ensure that this adheres to -> log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+          "Parallel",
+          "annotation_logs/finalize_thread_1.log",
+          "annotation_logs/finalize_thread_2.log",
+          "annotation_logs/finalize_thread_3.log",
+          "annotation_logs/finalize_thread_4.log"
+        ]
+      },
+      {
+        "name": "Promote Handler",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "<insert>/modules/accelerators/contextualization/cdf_file_annotation/functions/fn_file_annotation_promote/handler.py",
+        "console": "integratedTerminal",
+        "args": [
+          "ep_file_annotation",
+          "DEBUG", //ensure that this adheres to -> log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+          "annotation_logs/promote_thread_1.log"
+        ]
+      }
+    ]
+  }
