@@ -129,11 +129,15 @@ with overall_tab:
                 unique_values = sorted(df_file_meta[selected_metadata_prop].dropna().unique().tolist())
                 with filter_col2:
                     selected_metadata_values = st.multiselect(
-                        f"Select Value(s) for {selected_metadata_prop}", options=unique_values, on_change=reset_selection
+                        f"Select Value(s) for {selected_metadata_prop}",
+                        options=unique_values,
+                        on_change=reset_selection,
                     )
                 if selected_metadata_values:
                     selected_file_ids = set(
-                        df_file_meta[df_file_meta[selected_metadata_prop].isin(selected_metadata_values)]["fileExternalId"].tolist()
+                        df_file_meta[df_file_meta[selected_metadata_prop].isin(selected_metadata_values)][
+                            "fileExternalId"
+                        ].tolist()
                     )
 
         if selected_file_ids:
@@ -150,11 +154,17 @@ with overall_tab:
 
         df_metrics_input = df_metrics_input.copy()
 
-        df_potential_sources = df_metrics_input[df_metrics_input["status"].isin(["Suggested", "Rejected"]) ]
+        df_potential_sources = df_metrics_input[df_metrics_input["status"].isin(["Suggested", "Rejected"])]
         potential_tags_original = set(df_potential_sources["startNodeText"].dropna())
 
-        annotations_from_tables = set(df_annotations_input["startNodeText"]) if not df_annotations_input.empty and "startNodeText" in df_annotations_input.columns else set()
-        approved_from_patterns = set(df_metrics_input[df_metrics_input["status"] == "Approved"]["startNodeText"].dropna())
+        annotations_from_tables = (
+            set(df_annotations_input["startNodeText"])
+            if not df_annotations_input.empty and "startNodeText" in df_annotations_input.columns
+            else set()
+        )
+        approved_from_patterns = set(
+            df_metrics_input[df_metrics_input["status"] == "Approved"]["startNodeText"].dropna()
+        )
 
         actual_annotations_original = annotations_from_tables.union(approved_from_patterns)
 
@@ -187,7 +197,9 @@ with overall_tab:
         chart_data = []
         for resource_type in all_resource_types[1:]:
             df_patterns_filtered = df_metrics_input[df_metrics_input["endNodeResourceType"] == resource_type]
-            df_patterns_candidate_rt = df_patterns_filtered[df_patterns_filtered["status"].isin(["Suggested", "Rejected"])]
+            df_patterns_candidate_rt = df_patterns_filtered[
+                df_patterns_filtered["status"].isin(["Suggested", "Rejected"])
+            ]
             df_patterns_approved_rt = df_patterns_filtered[df_patterns_filtered["status"] == "Approved"]
 
             df_annotations_filtered = (
@@ -202,7 +214,9 @@ with overall_tab:
                 if not df_annotations_filtered.empty and "startNodeText" in df_annotations_filtered.columns
                 else set()
             )
-            actual = actual.union(set(df_patterns_approved_rt["startNodeText"].dropna()) if not df_patterns_approved_rt.empty else set())
+            actual = actual.union(
+                set(df_patterns_approved_rt["startNodeText"].dropna()) if not df_patterns_approved_rt.empty else set()
+            )
             norm_potential = {normalize(p) for p in candidate_set}
             norm_actual = {normalize(a) for a in actual}
 
@@ -294,7 +308,9 @@ with overall_tab:
             for text in annotations_from_tables:
                 actual_status_map.setdefault(text, "Regularly Annotated")
 
-            actual_rows = [(t, actual_status_map.get(t, "Regularly Annotated")) for t in sorted(list(actual_annotations_set))]
+            actual_rows = [
+                (t, actual_status_map.get(t, "Regularly Annotated")) for t in sorted(list(actual_annotations_set))
+            ]
             st.dataframe(
                 pd.DataFrame(actual_rows, columns=["Tag", "Status"]),
                 use_container_width=True,
@@ -324,9 +340,13 @@ with overall_tab:
                 df_unmatched_filtered.groupby("startNodeText")["startNode"].unique().apply(list).to_dict()
             )
 
-            potential_status_map = build_potential_status_map(df_potential_sources) if "tags" in df_potential_sources.columns else {}
+            potential_status_map = (
+                build_potential_status_map(df_potential_sources) if "tags" in df_potential_sources.columns else {}
+            )
 
-            unmatched_display["Status"] = unmatched_display["text"].apply(lambda t: potential_status_map.get(t, "Suggested"))
+            unmatched_display["Status"] = unmatched_display["text"].apply(
+                lambda t: potential_status_map.get(t, "Suggested")
+            )
 
             tag_occurrences = (
                 df_unmatched_filtered.groupby("startNodeText")["startNode"]
@@ -380,7 +400,7 @@ with overall_tab:
         if st.session_state.selected_unmatched_overall_index is not None:
             selected_tag_row = unmatched_display.loc[st.session_state.selected_unmatched_overall_index]
             selected_tag_text = selected_tag_row["text"]
-            
+
             associated_files = tag_to_files_unmatched.get(selected_tag_text, [])
 
             show_connect_unmatched_ui(
@@ -419,15 +439,23 @@ with per_file_tab:
 
         df_patterns_file = df_patterns_file.copy()
 
-        df_patterns_agg_all = df_patterns_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="allPatterns")
+        df_patterns_agg_all = (
+            df_patterns_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="allPatterns")
+        )
 
-        potential_rows = df_patterns_file[df_patterns_file["status"].isin(["Suggested", "Reproved", "Rejected"]) ]
+        potential_rows = df_patterns_file[df_patterns_file["status"].isin(["Suggested", "Reproved", "Rejected"])]
         if potential_rows.empty:
             df_patterns_agg_file = pd.DataFrame(columns=["startNode", "potentialTags"])
         else:
-            df_patterns_agg_file = potential_rows.groupby("startNode")["startNodeText"].apply(set).reset_index(name="potentialTags")
+            df_patterns_agg_file = (
+                potential_rows.groupby("startNode")["startNodeText"].apply(set).reset_index(name="potentialTags")
+            )
 
-        df_annotations_agg_file = df_annotations_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="actualAnnotations") if not df_annotations_file.empty else pd.DataFrame(columns=["startNode", "actualAnnotations"])
+        df_annotations_agg_file = (
+            df_annotations_file.groupby("startNode")["startNodeText"].apply(set).reset_index(name="actualAnnotations")
+            if not df_annotations_file.empty
+            else pd.DataFrame(columns=["startNode", "actualAnnotations"])
+        )
 
         approved_rows = df_patterns_file[df_patterns_file["status"] == "Approved"]
         df_approved_agg = (
@@ -446,7 +474,11 @@ with per_file_tab:
             lambda x: x if isinstance(x, set) else set()
         )
         df_quality_file["actualAnnotations"] = df_quality_file.apply(
-            lambda r: r["actualAnnotations"].union(r["approvedPatterns"]) if isinstance(r["actualAnnotations"], set) else r["approvedPatterns"],
+            lambda r: (
+                r["actualAnnotations"].union(r["approvedPatterns"])
+                if isinstance(r["actualAnnotations"], set)
+                else r["approvedPatterns"]
+            ),
             axis=1,
         )
 
@@ -641,7 +673,9 @@ with per_file_tab:
             selected_file_name = selected_file_data["fileName"]
             st.markdown(f"**Displaying Tag Comparison for file:**")
             st.markdown(f"`{selected_file_name} ({selected_file_ext_id})`")
-            file_space_series = df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id]["startNodeSpace"]
+            file_space_series = df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id][
+                "startNodeSpace"
+            ]
             if not file_space_series.empty:
                 file_space = file_space_series.iloc[0]
                 file_node_id = NodeId(space=file_space, external_id=selected_file_ext_id)
@@ -656,12 +690,24 @@ with per_file_tab:
                     else pd.DataFrame(columns=["startNodeText", "endNodeResourceType"])
                 )
 
-                df_potential_details_candidate = df_potential_tags_details[df_potential_tags_details["status"].isin(["Suggested", "Reproved", "Rejected"]) ]
-                df_potential_details_approved = df_potential_tags_details[df_potential_tags_details["status"] == "Approved"]
+                df_potential_details_candidate = df_potential_tags_details[
+                    df_potential_tags_details["status"].isin(["Suggested", "Reproved", "Rejected"])
+                ]
+                df_potential_details_approved = df_potential_tags_details[
+                    df_potential_tags_details["status"] == "Approved"
+                ]
 
                 potential_set = set(df_potential_details_candidate["startNodeText"].dropna())
-                actual_from_table = set(df_actual_annotations_details["startNodeText"]) if not df_actual_annotations_details.empty else set()
-                approved_in_file = set(df_potential_details_approved["startNodeText"].dropna()) if not df_potential_details_approved.empty else set()
+                actual_from_table = (
+                    set(df_actual_annotations_details["startNodeText"])
+                    if not df_actual_annotations_details.empty
+                    else set()
+                )
+                approved_in_file = (
+                    set(df_potential_details_approved["startNodeText"].dropna())
+                    if not df_potential_details_approved.empty
+                    else set()
+                )
                 actual_set = actual_from_table.union(approved_in_file)
 
                 norm_potential = {normalize(p) for p in potential_set}
@@ -682,25 +728,38 @@ with per_file_tab:
 
                 if not potential_df.empty:
                     potential_df = potential_df.copy()
-                    potential_df["Status"] = potential_df["startNodeText"].apply(lambda t: potential_status_map_file.get(t, "Suggested"))
+                    potential_df["Status"] = potential_df["startNodeText"].apply(
+                        lambda t: potential_status_map_file.get(t, "Suggested")
+                    )
 
                 if "tags" in df_potential_tags_details.columns:
                     df_approved_rows = (
-                        df_potential_details_approved[["startNodeText", "endNodeResourceType", "tags", "status"]]
-                        .drop_duplicates(subset=["startNodeText", "endNodeResourceType"])
-                    ) if not df_potential_details_approved.empty else pd.DataFrame(columns=["startNodeText", "endNodeResourceType", "tags", "status"]) 
+                        (
+                            df_potential_details_approved[
+                                ["startNodeText", "endNodeResourceType", "tags", "status"]
+                            ].drop_duplicates(subset=["startNodeText", "endNodeResourceType"])
+                        )
+                        if not df_potential_details_approved.empty
+                        else pd.DataFrame(columns=["startNodeText", "endNodeResourceType", "tags", "status"])
+                    )
                 else:
                     df_approved_rows = pd.DataFrame(columns=["startNodeText", "endNodeResourceType", "tags", "status"])
 
                 if not df_approved_rows.empty:
                     df_approved_rows = df_approved_rows.copy()
                     df_approved_rows["Status"] = df_approved_rows.apply(
-                        lambda r: derive_annotation_status(r.get("tags") if "tags" in r.index else None, row_status=r.get("status")),
+                        lambda r: derive_annotation_status(
+                            r.get("tags") if "tags" in r.index else None, row_status=r.get("status")
+                        ),
                         axis=1,
                     )
                     df_approved_rows = df_approved_rows[["startNodeText", "endNodeResourceType", "Status"]]
 
-                docs_rows = actual_df.copy() if not actual_df.empty else pd.DataFrame(columns=["startNodeText", "endNodeResourceType"])
+                docs_rows = (
+                    actual_df.copy()
+                    if not actual_df.empty
+                    else pd.DataFrame(columns=["startNodeText", "endNodeResourceType"])
+                )
                 if not docs_rows.empty:
                     docs_rows = docs_rows.copy()
                     docs_rows["Status"] = "Regularly Annotated"
@@ -716,7 +775,7 @@ with per_file_tab:
                         potential_tags_for_canvas = build_unmatched_tags_with_regions(
                             df=df_metrics_input,
                             file_id=selected_file_ext_id,
-                            potential_new_annotations=potential_new_annotations_set
+                            potential_new_annotations=potential_new_annotations_set,
                         )
                         canvas_url = generate_file_canvas(
                             file_id=file_node_id,
@@ -753,12 +812,13 @@ with per_file_tab:
                         "💡 Potential New Annotations in this File",
                         len(potential_df),
                     )
-                
+
                     unmatched_display = potential_df[["startNodeText", "endNodeResourceType", "Status"]].copy()
                     unmatched_display.insert(0, "Select", False)
 
                     occurrences = (
-                        df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id].groupby("startNodeText")
+                        df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id]
+                        .groupby("startNodeText")
                         .size()
                         .reset_index(name="occurrenceCount")
                     )
@@ -889,7 +949,9 @@ with management_tab:
 
         secondary_scope_value = ""
         if scope_level == "Secondary Scope":
-            secondary_scope_value = st.text_input(f"Secondary Scope Value ({secondary_scope_property or 'not configured'})")
+            secondary_scope_value = st.text_input(
+                f"Secondary Scope Value ({secondary_scope_property or 'not configured'})"
+            )
 
         submit_button = st.form_submit_button(label="Add New Pattern")
 
