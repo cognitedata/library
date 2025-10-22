@@ -393,14 +393,16 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 annotated_page_count = page_count
             else:
                 annotated_page_count = self.page_range
-            self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages")
+            self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages", "BOTH")
         else:
             start_page = annotated_page_count + 1
             if (annotated_page_count + self.page_range) >= page_count:
                 annotated_page_count = page_count
             else:
                 annotated_page_count += self.page_range
-            self.logger.info(f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages")
+            self.logger.info(
+                f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages", "BOTH"
+            )
 
         return annotated_page_count
 
