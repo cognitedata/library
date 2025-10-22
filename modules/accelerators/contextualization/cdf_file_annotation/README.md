@@ -36,14 +36,47 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
 
 - **Goal**: Identify files that need to be annotated or have their status reset.
 - **Process**:
+
   1.  It queries for files that are marked for re-annotation and resets their status.
   2.  It then queries for new files tagged for annotation (e.g., with a "ToAnnotate" tag).
   3.  For each new file, it creates a corresponding `AnnotationState` instance in the data model, marking it with a "New" status.
+
+<details>
+<summary>Click to view Mermaid flowchart for Prepare Phase</summary>
+
+  ```mermaid
+  flowchart TD
+      Start([Start Prepare Phase]) --> QueryReset[Query for files marked<br/>for re-annotation<br/>e.g., status to reset]
+      QueryReset --> CheckReset{Any files<br/>to reset?}
+      CheckReset -->|Yes| ResetStatus[Reset AnnotationState status<br/>for these files]
+      CheckReset -->|No| QueryNew
+      ResetStatus --> QueryNew[Query for new files<br/>tagged for annotation<br/>e.g., with ToAnnotate tag]
+
+      QueryNew --> CheckNew{Any new files<br/>to process?}
+      CheckNew -->|No| End([End])
+      CheckNew -->|Yes| LoopFiles[For each new file]
+
+      LoopFiles --> CreateState[Create AnnotationState<br/>instance in data model<br/>with New status]
+      CreateState --> MoreFiles{More files?}
+      MoreFiles -->|Yes| LoopFiles
+      MoreFiles -->|No| End
+
+      style Start fill:#d4f1d4
+      style End fill:#f1d4d4
+      style CheckReset fill:#fff4e6
+      style CheckNew fill:#fff4e6
+      style MoreFiles fill:#fff4e6
+      style CreateState fill:#e6f3ff
+      style ResetStatus fill:#e6f3ff
+  ```
+
+</details>
 
 ### Launch Phase
 
 - **Goal**: Launch the annotation jobs for files that are ready.
 - **Process**:
+
   1.  It queries for `AnnotationState` instances with a "New" or "Retry" status.
   2.  It groups these files by a primary scope (e.g., site, unit) to provide operational context.
   3.  For each group, it fetches the relevant file and target entity information using an intelligent caching system:
@@ -57,6 +90,7 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
       - A `standard annotation` job to find and link known entities with confidence scoring.
       - A `pattern mode` job (if enabled) to detect all text matching the pattern samples, creating a searchable reference catalog.
   5.  It updates the `AnnotationState` instance with both the `diagramDetectJobId` and `patternModeJobId` (if applicable) and sets the overall `annotationStatus` to "Processing".
+
 <details>
 <summary>Click to view Mermaid flowchart for Launch Phase</summary>
 
@@ -66,26 +100,26 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
       QueryFiles --> CheckFiles{Any files<br/>to process?}
       CheckFiles -->|No| End([End])
       CheckFiles -->|Yes| GroupFiles[Group files by<br/>primary scope<br/>e.g., site, unit]
-  
+
       GroupFiles --> NextScope{Next scope<br/>group?}
       NextScope -->|Yes| CheckCache{Valid cache<br/>exists in RAW?}
-  
+
       CheckCache -->|No - Stale/Missing| QueryEntities[Query data model for<br/>entities within scope]
       QueryEntities --> GenPatterns[Auto-generate pattern samples<br/>from entity aliases<br/>e.g., FT-101A → #91;FT#93;-000#91;A#93;]
       GenPatterns --> GetManual[Retrieve manual pattern<br/>overrides from RAW catalog<br/>GLOBAL, site, or unit level]
       GetManual --> MergePatterns[Merge and deduplicate<br/>auto-generated and<br/>manual patterns]
       MergePatterns --> StoreCache[Store entity list and<br/>pattern samples in<br/>RAW cache]
       StoreCache --> UseCache[Use entities and patterns]
-  
+
       CheckCache -->|Yes - Valid| LoadCache[Load entities and<br/>patterns from RAW cache]
       LoadCache --> UseCache
-  
+
       UseCache --> ProcessBatch[Process files in batches<br/>up to max batch size]
       ProcessBatch --> SubmitJobs[Submit Diagram Detect jobs:<br/>1 Standard annotation<br/>2 Pattern mode if enabled]
       SubmitJobs --> UpdateState[Update AnnotationState:<br/>- Set status to Processing<br/>- Store both job IDs]
       UpdateState --> NextScope
       NextScope -->|No more groups| QueryFiles
-  
+
       style Start fill:#d4f1d4
       style End fill:#f1d4d4
       style CheckFiles fill:#fff4e6
@@ -101,6 +135,7 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
 
 - **Goal**: Retrieve, process, and store the results of completed annotation jobs.
 - **Process**:
+
   1.  It queries for `AnnotationState` instances with a "Processing" or "Finalizing" status (using optimistic locking to claim jobs).
   2.  It waits until both the standard and pattern mode jobs for a given file are complete.
   3.  It retrieves and processes the results from both jobs:
@@ -112,6 +147,7 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
       - **Pattern annotations**: Creates edges linking files to a configurable "sink node" for review, writes results to a dedicated `doc_pattern` RAW table for the searchable catalog.
   5.  Updates the file node tag from "AnnotationInProcess" to "Annotated".
   6.  Updates the `AnnotationState` status to "Annotated", "Failed", or back to "New" (if more pages remain), tracking page progress for large files.
+
 <details>
 <summary>Click to view Mermaid flowchart for Finalize Phase</summary>
 
@@ -121,35 +157,35 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
       QueryState --> CheckState{Found annotation<br/>state instance?}
       CheckState -->|No| End([End])
       CheckState -->|Yes| GetJobId[Extract job ID and<br/>pattern mode job ID]
-  
+
       GetJobId --> FindFiles[Find ALL files with<br/>the same job ID]
       FindFiles --> CheckJobs{Both standard<br/>and pattern jobs<br/>complete?}
       CheckJobs -->|No| ResetStatus[Update AnnotationStates<br/>back to Processing<br/>Wait 30 seconds]
       ResetStatus --> QueryState
-  
+
       CheckJobs -->|Yes| RetrieveResults[Retrieve results from<br/>both completed jobs]
       RetrieveResults --> MergeResults[Merge regular and pattern<br/>results by file ID<br/>Creates unified result per file]
       MergeResults --> LoopFiles[For each file in merged results]
-  
-      LoopFiles --> ProcessResults[Process file results:<br/>- Create stable hash for deduplication<br/>- Filter standard by confidence threshold<br/>- Skip pattern duplicates]
-  
+
+      LoopFiles --> ProcessResults[Process file results:<br/>- Filter standard by confidence threshold<br/>- Capture regular annotations bounding box and page in a set<br/>- Skip pattern duplicates by checking if bounding box exist in set]
+
       ProcessResults --> CheckClean{First run for<br/>multi-page file?}
       CheckClean -->|Yes| CleanOld[Clean old annotations]
       CheckClean -->|No| CreateEdges
       CleanOld --> CreateEdges[Create edges in data model]
-  
+
       CreateEdges --> StandardEdges[Standard annotations:<br/>Link file to entities<br/>Write to doc_tag and doc_doc RAW tables]
       StandardEdges --> PatternEdges[Pattern annotations:<br/>Link file to sink node<br/>Write to doc_pattern RAW table]
-  
+
       PatternEdges --> UpdateTag[Update file tag:<br/>AnnotationInProcess → Annotated]
       UpdateTag --> PrepareUpdate[Prepare AnnotationState update:<br/>- Annotated if complete<br/>- Failed if error<br/>- New if more pages remain<br/>Track page progress]
-  
+
       PrepareUpdate --> MoreFiles{More files in<br/>merged results?}
       MoreFiles -->|Yes| LoopFiles
       MoreFiles -->|No| BatchUpdate[Batch update ALL<br/>AnnotationState instances<br/>for this job]
-  
+
       BatchUpdate --> QueryState
-  
+
       style Start fill:#d4f1d4
       style End fill:#f1d4d4
       style CheckState fill:#fff4e6
@@ -168,6 +204,7 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
 
 - **Goal**: Automatically resolve pattern-mode annotations by finding matching entities and updating edges from sink node to actual entities.
 - **Process**:
+
   1. Queries for pattern-mode annotation edges (edges pointing to the sink node with status "Suggested").
   2. Groups candidates by unique text to process each text only once per batch.
   3. For each unique text:
@@ -182,6 +219,7 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
      - **Rejected**: No match found → edge stays on sink node, added "PromoteAttempted" tag.
      - **Suggested**: Multiple ambiguous matches → kept for manual review, added "AmbiguousMatch" tag.
   5. Runs continuously (designed for repeated execution) until all resolvable pattern annotations are promoted.
+
 <details>
 <summary>Click to view Mermaid flowchart for Promote Phase</summary>
 
@@ -191,40 +229,40 @@ The template operates in four main phases, orchestrated by CDF Workflows. Since 
       QueryEdges --> CheckEdges{Any edges<br/>to promote?}
       CheckEdges -->|No| End([End])
       CheckEdges -->|Yes| GroupText[Group edges by<br/>unique text + type<br/>Process each text once]
-  
+
       GroupText --> NextText{Next unique<br/>text?}
       NextText -->|Yes| GenVariations[Generate text variations<br/>Case, special chars, zeros<br/>e.g., V-0912 → 8 variations]
-  
+
       GenVariations --> CheckMemCache{In-memory<br/>cache hit?}
       CheckMemCache -->|Yes| UseMemCache[Use cached entity<br/>TIER 1: Fastest]
       CheckMemCache -->|No| CheckRAWCache{Persistent RAW<br/>cache hit?}
-  
+
       CheckRAWCache -->|Yes| UseRAWCache[Use cached entity<br/>TIER 2: Fast<br/>Populate in-memory cache]
       CheckRAWCache -->|No| SearchEntities[Query entities via<br/>data model<br/>TIER 3: Server-side IN filter<br/>on aliases property]
-  
+
       SearchEntities --> CacheResult{Match found<br/>and unambiguous?}
       CacheResult -->|Yes| CachePositive[Cache positive result<br/>in-memory + RAW]
       CacheResult -->|No match| CacheNegative[Cache negative result<br/>in-memory only]
       CacheResult -->|Ambiguous| NoCache[Don't cache<br/>ambiguous results]
-  
+
       UseMemCache --> ProcessResult
       UseRAWCache --> ProcessResult
       CachePositive --> ProcessResult[Determine result type:<br/>Single match, No match,<br/>or Ambiguous]
       CacheNegative --> ProcessResult
       NoCache --> ProcessResult
-  
+
       ProcessResult --> UpdateEdges{Result type?}
       UpdateEdges -->|Single Match| ApproveEdges[Update ALL edges with this text:<br/>- Point to matched entity<br/>- Status: Approved<br/>- Tag: PromotedAuto<br/>- Update RAW pattern table]
       UpdateEdges -->|No Match| RejectEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Rejected<br/>- Tag: PromoteAttempted<br/>- Update RAW pattern table]
       UpdateEdges -->|Ambiguous| FlagEdges[Update ALL edges with this text:<br/>- Keep on sink node<br/>- Status: Suggested<br/>- Tags: PromoteAttempted,<br/>  AmbiguousMatch<br/>- Update RAW pattern table]
-  
+
       ApproveEdges --> BatchUpdate[Batch update edges<br/>and RAW rows in CDF]
       RejectEdges --> BatchUpdate
       FlagEdges --> BatchUpdate
-  
+
       BatchUpdate --> NextText
       NextText -->|No more texts| QueryEdges
-  
+
       style Start fill:#d4f1d4
       style End fill:#f1d4d4
       style CheckEdges fill:#fff4e6
