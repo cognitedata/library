@@ -124,7 +124,7 @@ class GeneralApplyService(IApplyService):
                     annotation,
                     processed_bounding_boxes,
                 )
-                regular_edges.extend(edges.values())
+                regular_edges.extend(edges)
 
         # Step 2: Process pattern annotations, skipping those with spatial overlap
         pattern_edges, pattern_rows = [], []
@@ -363,7 +363,7 @@ class GeneralApplyService(IApplyService):
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, Any],
         processed_bounding_boxes: set[tuple[int, str]],
-    ) -> dict[tuple[tuple[str, str] | None, tuple[str, str] | None, tuple[str, str] | None], EdgeApply]:
+    ) -> list[EdgeApply]:
         """
         Converts a single detection annotation into edge applies and RAW row writes.
 
@@ -380,9 +380,9 @@ class GeneralApplyService(IApplyService):
             processed_bounding_boxes: Set of (page, bounding_box_yaml) tuples to track annotations meeting confidence thresholds (modified in place).
 
         Returns:
-            Dictionary mapping edge unique keys to EdgeApply objects (deduplicated by start/end/type).
+            List of EdgeApply objects for each entity in the detection that meets confidence thresholds.
         """
-        diagram_annotations = {}
+        edges = []
         bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
         page = detect_annotation["region"].get("page")
         for entity in detect_annotation.get("entities", []):
@@ -421,9 +421,7 @@ class GeneralApplyService(IApplyService):
                     )
                 ],
             )
-            key = self._get_edge_apply_unique_key(edge)
-            if key not in diagram_annotations:
-                diagram_annotations[key] = edge
+            edges.append(edge)
 
             doc_log = {
                 "externalId": external_id,
@@ -442,7 +440,7 @@ class GeneralApplyService(IApplyService):
                 doc_doc.append(RowWrite(key=external_id, columns=doc_log))
             else:
                 doc_tag.append(RowWrite(key=external_id, columns=doc_log))
-        return diagram_annotations
+        return edges
 
     def _create_stable_hash(self, raw_annotation: dict[str, Any], bounding_box: BoundingBox) -> str:
         """
@@ -517,30 +515,6 @@ class GeneralApplyService(IApplyService):
         if len(prefix) > self.EXTERNAL_ID_LIMIT - 11:
             prefix = prefix[: self.EXTERNAL_ID_LIMIT - 11]
         return f"{prefix}:{hash_}"
-
-    def _get_edge_apply_unique_key(
-        self, edge_apply_instance: EdgeApply
-    ) -> tuple[tuple[str, str] | None, tuple[str, str] | None, tuple[str, str] | None]:
-        """
-        Generates a unique key for an edge based on its start node, end node, and type.
-
-        Used for deduplication to prevent creating multiple edges with identical connections.
-
-        Args:
-            edge_apply_instance: EdgeApply object to generate key for.
-
-        Returns:
-            Tuple of (start_node_tuple, end_node_tuple, type_tuple) for deduplication,
-            where each tuple contains (space, external_id), or None if the component is missing.
-        """
-        start_node = edge_apply_instance.start_node
-        end_node = edge_apply_instance.end_node
-        type_ = edge_apply_instance.type
-        return (
-            (start_node.space, start_node.external_id) if start_node else None,
-            (end_node.space, end_node.external_id) if end_node else None,
-            (type_.space, type_.external_id) if type_ else None,
-        )
 
     def _extract_bounding_box_from_region(self, region: dict[str, Any]) -> BoundingBox:
         """
