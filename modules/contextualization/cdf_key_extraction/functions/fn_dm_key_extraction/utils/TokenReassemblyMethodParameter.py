@@ -27,6 +27,7 @@ class AssemblyRule(BaseModel):
     """
     format: str = Field(..., description="Template with placeholders (e.g., '{site}-{unit}-{tag}').")
     priority: int = Field(..., description="Rule precedence (e.g., 10).")
+    name: str = Field("TOKEN_ASSEMBLY", description="A name for the assembly rule.")
 
     # Use Field() for default value {} and description
     conditions: Dict[str, Any] = Field(

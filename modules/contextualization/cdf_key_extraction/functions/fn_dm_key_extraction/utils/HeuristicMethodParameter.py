@@ -30,6 +30,10 @@ class HeuristicMethodParameter(BaseModel):
     """
     # All fields are defined here, with defaults handled via = None or Field()
 
+    name: str = Field(
+        "HEURISTIC", description="The name of the rule (e.g., 'Extract Project ID')."
+    )
+
     heuristic_strategies: List[HeuristicStrategy] = Field(
         ..., description="List of heuristic strategies (HeuristicStrategy) to apply."
     )

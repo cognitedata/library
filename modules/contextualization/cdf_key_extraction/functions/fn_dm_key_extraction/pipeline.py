@@ -72,8 +72,18 @@ def key_extraction(
                 )
                 
                 # We may want to replace this code with the code that adds a new row to the raw_uploader
-                entities_keys_extracted[entity].update(field_keys)
-                keys_extracted += len(field_keys)
+                for field_rule_name, keys in field_keys.items():
+                    if field_rule_name in entities_keys_extracted[entity]:
+                        # Extend the existing list of keys
+                        entities_keys_extracted[entity][field_rule_name].extend(keys)
+                    else:
+                        # Add the new field_rule and its keys
+                        entities_keys_extracted[entity][field_rule_name] = keys
+                
+                keys_extracted += sum(len(keys) for keys in field_keys.values())
+
+            # TODO probably going to want some sort of staistic here for # of keys extracted, success rate, etc...
+            logger.info(f"Finished processing entities for rule ID: {rule}")
 
         # Perhaps do a clean up step here
 
@@ -84,12 +94,12 @@ def key_extraction(
         create_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
 
         # Start to upload the keys found to the raw_table_key table
-        for ext_id, field_keys in entities_keys_extracted.items():
-            if field_keys:
+        for ext_id, field_rule_keys in entities_keys_extracted.items():
+            if field_rule_keys:
                 columns = {}
-                for field_name, keys in field_keys.items():
-                    columns[field_name] = keys
-            
+                for field_rule_name, keys in field_rule_keys.items():
+                    columns[field_rule_name.upper()] = keys
+
                 raw_uploader.add_to_upload_queue(
                     database=config.parameters.raw_db,
                     table=config.parameters.raw_table_key,

@@ -3,21 +3,22 @@ config:
   parameters:
     debug: true
     run_all: true
-    remove_old_keys: true
-    raw_db: bingus
-    raw_table_state: bingus
-    raw_table_key: bingus
+    overwrite: true
+    raw_db: db_key_extraction
+    raw_table_state: key_extraction_state
+    raw_table_key: flow_control_valve_keys
   data:
     source_views:
-      - view_external_id: "txEquipment"
-        view_space: "sp_enterprise_process_industry"
-        view_version: "v1"
+      - view_external_id: "mpcAsset"
+        view_space: "sp_mdm_mpc"
+        view_version: "v2.4.19"
+        instance_space: "sp_dat_indp_sap_gvl"
         entity_type: "asset"
         batch_size: 100
         filters:
           - operator: EQUALS
             target_property: "name"
-            values: "Bingus"
+            values: "212-MPT-0001"
         include_properties:
           - "name"
           - "description"
@@ -29,22 +30,53 @@ config:
         method: "regex"
         parameters:
           name: "flow_control_valve"
-          pattern: '\b[A-Z]{2,3}V[-_]?\d{2,4}[A-Z]?\b'
+          pattern: '\d{4}$'
+          early_termination: true
           regex_options:
             multiline: false
             dotall: false
             ignore_case: false
             unicode: true
-          validation_pattern: '^[A-Z]{2,3}V\d{2,4}[A-Z]?$'  # Post-extraction validation
-          source_fields:
-            - field_name: "name"
-              field_type: "string"
-              required: true
-              max_length: 500
-              seperator: ','
-              priority: 1
-              role: "target"
-              preprocessing:
-                - 'trim'
-                - 'lowercase'
+        source_fields:
+          - field_name: "name"
+            field_type: "string"
+            required: true
+            max_length: 500
+            seperator: ','
+            priority: 1
+            role: "target"
+            preprocessing:
+              - 'trim'
+              - 'lowercase'
+      - rule_id: "2"
+        method: "regex"
+        parameters:
+          name: "flow_control_valve_2"
+          pattern: '^(?P<one>[A-Z]{2,3}-[A-Z])(?:-\d+){0,}-(?P<two>[A-Z]{3})-(?P<three>\d{4})$'
+          early_termination: true
+          capture_groups:
+            - name: "one"
+              component_type: "equipment_tag"
+            - name: "two"
+              component_type: "equipment_type"
+            - name: "three"
+              component_type: "equipment_type"
+          reassemble_format: "{one}-{two}-{three}"
+          # key should come out to 'GV-R-MPT-0001'
+          regex_options:
+            multiline: false
+            dotall: false
+            ignore_case: false
+            unicode: true
+        source_fields:
+          - field_name: "sourceId"
+            field_type: "string"
+            required: true
+            max_length: 500
+            seperator: ','
+            priority: 1
+            role: "target"
+            preprocessing:
+              - 'trim'
+              - 'upper'
     field_selection_strategy: 'first_match'

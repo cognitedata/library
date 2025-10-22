@@ -103,7 +103,7 @@ def run_locally():
     # Test data
     data = {
         "logLevel": "DEBUG",
-        "ExtractionPipelineExtId": "ctx_key_extraction_regex"
+        "ExtractionPipelineExtId": "ctx_key_extraction_fixed_width_parsing"
     }
 
     log_level = data.get("logLevel", "DEBUG")

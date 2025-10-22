@@ -1,45 +1,86 @@
 externalId: 'ctx_key_extraction_fixed_width_parsing'
 config:
-  source_views:
-    - view_external_id: "txEquipment"
-      view_space: "sp_enterprise_process_industry"
-      view_version: "v1"
-      entity_type: "asset"
-      batch_size: 100
-      filter:
-        equals:
-          property: [ "node", "type" ]
-          value: "Equipment"
-      include_properties:
-        - "name"
-        - "description"
-        - "tagIds"
-        - "equipmentType"
-        - "specifications"
-  extraction_rules:
-    - name: "tag_from_name"
-      source_fields:
-        - field_name: "name"
-          field_type: "string"
-          required: true
-          max_length: 500
-      method: "fixed_width"
-      field_definitions:
-        - name: "tag_id"
-          start_position: 0
-          end_position: 12
-          trim: true
-          required: true
-        - name: "description"
-          start_position: 13
-          end_position: 63
-          trim: true
-          required: false
-        - name: "equipment_type"
-          start_position: 64
-          end_position: 70
-          trim: true
-          required: false
-      line_pattern: '^\s*[A-Z0-9]'  # Only process lines starting with alphanumeric
-      skip_lines: 2  # Skip header rows
-      stop_on_empty: true
+  parameters:
+    debug: true
+    run_all: true
+    overwrite: true
+    raw_db: db_key_extraction
+    raw_table_state: key_extraction_state
+    raw_table_key: fixed_width_testing
+  data:
+    source_views:
+      - view_external_id: "mpcAsset"
+        view_space: "sp_mdm_mpc"
+        view_version: "v2.4.19"
+        instance_space: "sp_dat_indp_sap_spp"
+        entity_type: "asset"
+        batch_size: 100
+        filters:
+          - operator: CONTAINSALL
+            target_property: "tags"
+            values:
+              - 'fixed width'
+        include_properties:
+          - "name"
+          - "description"
+    extraction_rules:
+      - rule_id: "1"
+        name: "no_line_number"
+        source_fields:
+          - field_name: "description"
+            field_type: "string"
+            required: true
+            max_length: 500
+        method: "fixed width"
+        parameters:
+          field_definitions:
+            - name: "tag_id"
+              start_position: 0
+              end_position: 11
+              trim: true
+              required: true
+            - name: "description"
+              start_position: 13
+              end_position: 59
+              trim: true
+              required: true
+            - name: "equipment_type"
+              start_position: 60
+              end_position: 68
+              trim: true
+              required: true
+          line_pattern: '^\s*[A-Z0-9]'  # Only process lines starting with alphanumeric
+          skip_lines: 2  # Skip header rows
+          stop_on_empty: true
+      - rule_id: "2"
+        name: "with_line_number"
+        source_fields:
+          - field_name: "description"
+            field_type: "string"
+            required: true
+            max_length: 500
+        method: "fixed width"
+        parameters:
+          field_definitions:
+            - name: "tag_id"
+              start_position: 0
+              end_position: 11
+              trim: true
+              required: true
+              line: 3
+            - name: "description"
+              start_position: 13
+              end_position: 59
+              trim: true
+              required: false
+              line: 4
+            - name: "equipment_type"
+              start_position: 60
+              end_position: 68
+              trim: true
+              required: false
+              line: 5
+          line_pattern: '^\s*[A-Z0-9]'  # Only process lines starting with alphanumeric
+          skip_lines: 2  # Skip header rows
+          stop_on_empty: true
+    field_selection_strategy: 'merge_all'

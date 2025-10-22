@@ -29,6 +29,10 @@ class RegexMethodParameter(BaseModel):
 
         return self
 
+    name: str = Field(
+        "REGEX", description="The name of the rule (e.g., 'Extract Project ID')."
+    )
+
     pattern: str = Field(
         ..., description="Regular expression pattern (e.g., '\\bP[-_]?\\d{2,4}[A-Z]?\\b')."
     )

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
 
@@ -41,12 +41,11 @@ class SourceFieldParameter(BaseModel):
     """
 
     # 1. Required fields are defined first (using Field(..., description="..."))
-    field_name: str = Field(...,
-                            description="Name or path to the metadata field (e.g., 'description', 'metadata.tagIds').")
+    field_name: str = Field(..., description="Name or path to the metadata field (e.g., 'description', 'metadata.tagIds').")
     field_type: str = Field(..., description="Data type of the field (e.g., 'string', 'array', 'object').")
     required: bool = Field(..., description="Whether the field must exist (skip entity if missing) (e.g., false).")
     priority: int = Field(None, description="Order of precedence when multiple fields match (e.g., 1).")
-    role: FieldRole = Field(..., description="Role in extraction: 'target', 'context', 'validation'.")
+    role: FieldRole = Field(None, description="Role in extraction: 'target', 'context', 'validation'.")
 
     # 2. Optional fields are defined next, using None or default_factory
     separator: Optional[str] = Field(
@@ -58,7 +57,7 @@ class SourceFieldParameter(BaseModel):
     )
 
     # FIX: Use default_factory for the mutable default (List)
-    preprocessing: List[str] = Field(
-        default_factory=[],
+    preprocessing: Union[List[str], str, None] = Field(
+        None,
         description="Preprocessing steps before extraction (optional, e.g., ['trim', 'lowercase'])."
     )
