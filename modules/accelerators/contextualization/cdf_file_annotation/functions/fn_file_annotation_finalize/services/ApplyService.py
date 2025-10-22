@@ -299,7 +299,7 @@ class GeneralApplyService(IApplyService):
                 continue
             entity = entities[0]
 
-            external_id = self._create_pattern_annotation_id(file_id, detect_annotation)
+            external_id = self._create_pattern_annotation_id(file_id, detect_annotation, bounding_box)
             annotation_type = entity.get(
                 "annotation_type",
                 self.config.data_model_views.target_entities_view.annotation_type,
@@ -351,7 +351,7 @@ class GeneralApplyService(IApplyService):
         doc_doc: list[RowWrite],
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, Any],
-        existing_bounding_boxes: set,
+        processed_bounding_boxes: set,
     ) -> dict[tuple, EdgeApply]:
         """
         Converts a single detection annotation into edge applies and RAW row writes.
@@ -380,9 +380,9 @@ class GeneralApplyService(IApplyService):
             else:
                 continue
 
-            existing_bounding_boxes.add((page, bounding_box.dump_yaml()))
+            processed_bounding_boxes.add((page, bounding_box.dump_yaml()))
 
-            external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation)
+            external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation, bounding_box)
             annotation_properties = self._create_annotation_properties_from_detection(
                 file_id=file_instance_id,
                 detect_annotation=detect_annotation,
@@ -431,7 +431,7 @@ class GeneralApplyService(IApplyService):
                 doc_tag.append(RowWrite(key=external_id, columns=doc_log))
         return diagram_annotations
 
-    def _create_stable_hash(self, raw_annotation: dict[str, Any]) -> str:
+    def _create_stable_hash(self, raw_annotation: dict[str, Any], bounding_box: BoundingBox) -> str:
         """
         Generates a stable hash for an annotation to enable deduplication.
 
@@ -446,16 +446,16 @@ class GeneralApplyService(IApplyService):
         """
         text = raw_annotation.get("text", "")
         region = raw_annotation.get("region", {})
-        vertices = region.get("vertices", [])
-        sorted_vertices = sorted(vertices, key=lambda v: (v.get("x", 0), v.get("y", 0)))
         stable_representation = {
             "text": text,
             "page": region.get("page"),
-            "vertices": sorted_vertices,
+            "bounding_box": bounding_box.dump_yaml(),
         }
         return sha256(json.dumps(stable_representation, sort_keys=True).encode()).hexdigest()[:10]
 
-    def _create_annotation_id(self, file_id: NodeId, entity: dict[str, Any], raw_annotation: dict[str, Any]) -> str:
+    def _create_annotation_id(
+        self, file_id: NodeId, entity: dict[str, Any], raw_annotation: dict[str, Any], bounding_box: BoundingBox
+    ) -> str:
         """
         Creates a unique external ID for a regular annotation edge.
 
@@ -470,7 +470,7 @@ class GeneralApplyService(IApplyService):
         Returns:
             Unique external ID string for the annotation edge.
         """
-        hash_ = self._create_stable_hash(raw_annotation)
+        hash_ = self._create_stable_hash(raw_annotation, bounding_box)
         text = raw_annotation.get("text", "")
         naive = f"{file_id.external_id}:{entity.get('external_id')}:{text}:{hash_}"
         if len(naive) < self.EXTERNAL_ID_LIMIT:
@@ -480,7 +480,9 @@ class GeneralApplyService(IApplyService):
             prefix = prefix[: self.EXTERNAL_ID_LIMIT - 11]
         return f"{prefix}:{hash_}"
 
-    def _create_pattern_annotation_id(self, file_id: NodeId, raw_annotation: dict[str, Any]) -> str:
+    def _create_pattern_annotation_id(
+        self, file_id: NodeId, raw_annotation: dict[str, Any], bounding_box: BoundingBox
+    ) -> str:
         """
         Creates a unique external ID for a pattern annotation edge.
 
@@ -494,7 +496,7 @@ class GeneralApplyService(IApplyService):
         Returns:
             Unique external ID string for the pattern annotation edge.
         """
-        hash_ = self._create_stable_hash(raw_annotation)
+        hash_ = self._create_stable_hash(raw_annotation, bounding_box)
         text = raw_annotation.get("text", "")
         prefix = f"pattern:{file_id.external_id}:{text}"
         if len(prefix) > self.EXTERNAL_ID_LIMIT - 11:
