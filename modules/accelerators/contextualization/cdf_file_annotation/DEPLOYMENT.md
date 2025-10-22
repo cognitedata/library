@@ -40,6 +40,8 @@ The `tags` property serves multiple purposes and consists of the following:
 
 _**NOTE:** I'm constantly improving this template, thus some parts of the video walkthroughs are from an older version. The video tutorials below are still **relevant**. Any breaking changes will receive a new video tutorial._
 
+_(10/22/2025) Currently working on updating the videos with the latest code and toolkit alpha feature. Below videos will outline the correct steps but **not** the up to date variables to add to config.env.yaml file. Please refer to the config.default.yaml file to see what variables are needed._
+
 _(If videos fail to load, try loading the page in incognito or re-sign into GitHub)_
 
 ### Step 1: Create a CDF Project through Toolkit
