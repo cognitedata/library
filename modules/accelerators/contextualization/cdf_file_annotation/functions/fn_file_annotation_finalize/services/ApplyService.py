@@ -75,8 +75,8 @@ class GeneralApplyService(IApplyService):
     def process_and_apply_annotations_for_file(
         self,
         file_node: Node,
-        regular_item: dict | None,
-        pattern_item: dict | None,
+        regular_item: dict[str, Any] | None,
+        pattern_item: dict[str, Any] | None,
         clean_old: bool,
     ) -> tuple[str, str]:
         """
@@ -86,10 +86,14 @@ class GeneralApplyService(IApplyService):
         creates annotation edges in the data model, writes annotation data to RAW tables,
         and updates the file node's tag status.
 
+        The function uses spatial deduplication to prevent creating duplicate annotations when the same
+        region is detected by both regular and pattern modes. Only annotations from regular mode that
+        meet confidence thresholds are tracked, ensuring pattern annotations aren't incorrectly filtered.
+
         Args:
             file_node: The file node instance to annotate.
-            regular_item: Dictionary containing regular diagram detect results.
-            pattern_item: Dictionary containing pattern mode diagram detect results.
+            regular_item: Dictionary containing regular diagram detect results with 'annotations' key.
+            pattern_item: Dictionary containing pattern mode diagram detect results with 'annotations' key.
             clean_old: Whether to delete existing annotations before applying new ones.
 
         Returns:
@@ -106,9 +110,10 @@ class GeneralApplyService(IApplyService):
                 f"\t- Deleted {deleted_counts['doc']} doc, {deleted_counts['tag']} tag, and {deleted_counts['pattern']} pattern annotations."
             )
 
-        # Step 1: Process regular annotations and collect their stable hashes
+        # Step 1: Process regular annotations and collect their spatial locations
+        # Set stores (page, bounding_box_yaml) tuples to prevent duplicate annotations
         regular_edges, doc_rows, tag_rows = [], [], []
-        processed_bounding_boxes = set()
+        processed_bounding_boxes: set[tuple[int, str]] = set()
         if regular_item and regular_item.get("annotations"):
             for annotation in regular_item["annotations"]:
                 edges = self._detect_annotation_to_edge_applies(
@@ -121,7 +126,7 @@ class GeneralApplyService(IApplyService):
                 )
                 regular_edges.extend(edges.values())
 
-        # Step 2: Process pattern annotations, skipping any that were already processed
+        # Step 2: Process pattern annotations, skipping those with spatial overlap
         pattern_edges, pattern_rows = [], []
         if pattern_item and pattern_item.get("annotations"):
             pattern_edges, pattern_rows = self._process_pattern_results(
@@ -169,7 +174,11 @@ class GeneralApplyService(IApplyService):
             f"Created {len(pattern_rows)} new pattern detections.",
         )
 
-    def update_instances(self, list_node_apply=None, list_edge_apply=None) -> InstancesApplyResult:
+    def update_instances(
+        self,
+        list_node_apply: list[NodeApply] | NodeApply | None = None,
+        list_edge_apply: list[EdgeApply] | EdgeApply | None = None,
+    ) -> InstancesApplyResult:
         """
         Applies node and/or edge updates to the data model.
 
@@ -266,19 +275,21 @@ class GeneralApplyService(IApplyService):
         )
 
     def _process_pattern_results(
-        self, result_item: dict, file_node: Node, existing_bounding_boxes: set
+        self, result_item: dict[str, Any], file_node: Node, existing_bounding_boxes: set[tuple[int, str]]
     ) -> tuple[list[EdgeApply], list[RowWrite]]:
         """
         Processes pattern mode detection results into annotation edges and RAW rows.
 
         Creates pattern-based annotations that link to a sink node rather than specific entities,
         allowing review and approval of pattern-detected annotations before linking to actual entities.
-        Skips patterns already covered by regular detection results.
+        Uses spatial deduplication to skip patterns already covered by regular detection results that
+        met confidence thresholds.
 
         Args:
-            result_item: Dictionary containing pattern mode detection results.
+            result_item: Dictionary containing pattern mode detection results with 'annotations' key.
             file_node: The file node being annotated.
-            existing_hashes: Set of annotation hashes from regular detection to avoid duplicates.
+            existing_bounding_boxes: Set of (page, bounding_box_yaml) tuples from regular annotations
+                                    that met confidence thresholds. Used to avoid duplicate annotations.
 
         Returns:
             A tuple containing:
@@ -351,23 +362,25 @@ class GeneralApplyService(IApplyService):
         doc_doc: list[RowWrite],
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, Any],
-        processed_bounding_boxes: set,
-    ) -> dict[tuple, EdgeApply]:
+        processed_bounding_boxes: set[tuple[int, str]],
+    ) -> dict[tuple[tuple[str, str] | None, tuple[str, str] | None, tuple[str, str] | None], EdgeApply]:
         """
         Converts a single detection annotation into edge applies and RAW row writes.
 
         Creates annotation edges linking the file to detected entities, applying confidence thresholds
         to determine approval/suggestion status. Also creates corresponding RAW table entries.
+        Only annotations meeting confidence thresholds are added to the processed_bounding_boxes set for spatial deduplication with pattern mode results.
 
         Args:
             file_instance_id: NodeId of the file being annotated.
             source_id: Source ID of the file for RAW table logging.
-            doc_doc: List to append doc-to-doc annotation RAW rows to.
-            doc_tag: List to append doc-to-tag annotation RAW rows to.
-            detect_annotation: Dictionary containing a single detection result.
+            doc_doc: List to append doc-to-doc annotation RAW rows to (modified in place).
+            doc_tag: List to append doc-to-tag annotation RAW rows to (modified in place).
+            detect_annotation: Dictionary containing a single detection result with 'region', 'entities', 'confidence', and 'text' keys.
+            processed_bounding_boxes: Set of (page, bounding_box_yaml) tuples to track annotations meeting confidence thresholds (modified in place).
 
         Returns:
-            Dictionary mapping edge keys to EdgeApply objects (deduplicated by start/end/type).
+            Dictionary mapping edge unique keys to EdgeApply objects (deduplicated by start/end/type).
         """
         diagram_annotations = {}
         bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
@@ -433,13 +446,14 @@ class GeneralApplyService(IApplyService):
 
     def _create_stable_hash(self, raw_annotation: dict[str, Any], bounding_box: BoundingBox) -> str:
         """
-        Generates a stable hash for an annotation to enable deduplication.
+        Generates a stable hash for an annotation to enable unique identification.
 
-        Creates a deterministic hash based on annotation text, page, and bounding box vertices,
-        ensuring that identical detections from regular and pattern mode are recognized as duplicates.
+        Creates a deterministic hash based on annotation text, page, and bounding box coordinates.
+        This hash is used as part of the annotation external ID to ensure stable, reproducible annotation identifiers across re-runs.
 
         Args:
-            raw_annotation: Dictionary containing annotation detection data.
+            raw_annotation: Dictionary containing annotation detection data with 'text' and 'region' keys.
+            bounding_box: BoundingBox object containing the spatial coordinates of the annotation.
 
         Returns:
             10-character hash string representing the annotation.
@@ -459,16 +473,16 @@ class GeneralApplyService(IApplyService):
         """
         Creates a unique external ID for a regular annotation edge.
 
-        Combines file ID, entity ID, detected text, and hash to create a human-readable
-        yet unique identifier, truncating if necessary to stay within CDF's 256 character limit.
+        Combines file ID, entity ID, detected text, and a stable hash to create a human-readable yet unique identifier, truncating if necessary to stay within CDF's 256 character limit.
 
         Args:
             file_id: NodeId of the file being annotated.
-            entity: Dictionary containing the detected entity information.
-            raw_annotation: Dictionary containing annotation detection data.
+            entity: Dictionary containing the detected entity information with 'external_id' key.
+            raw_annotation: Dictionary containing annotation detection data with 'text' and 'region' keys.
+            bounding_box: BoundingBox object used for generating the stable hash component.
 
         Returns:
-            Unique external ID string for the annotation edge.
+            Unique external ID string for the annotation edge (max 256 characters).
         """
         hash_ = self._create_stable_hash(raw_annotation, bounding_box)
         text = raw_annotation.get("text", "")
@@ -491,10 +505,11 @@ class GeneralApplyService(IApplyService):
 
         Args:
             file_id: NodeId of the file being annotated.
-            raw_annotation: Dictionary containing annotation detection data.
+            raw_annotation: Dictionary containing annotation detection data with 'text' and 'region' keys.
+            bounding_box: BoundingBox object used for generating the stable hash component.
 
         Returns:
-            Unique external ID string for the pattern annotation edge.
+            Unique external ID string for the pattern annotation edge (max 256 characters).
         """
         hash_ = self._create_stable_hash(raw_annotation, bounding_box)
         text = raw_annotation.get("text", "")
@@ -503,7 +518,9 @@ class GeneralApplyService(IApplyService):
             prefix = prefix[: self.EXTERNAL_ID_LIMIT - 11]
         return f"{prefix}:{hash_}"
 
-    def _get_edge_apply_unique_key(self, edge_apply_instance: EdgeApply) -> tuple:
+    def _get_edge_apply_unique_key(
+        self, edge_apply_instance: EdgeApply
+    ) -> tuple[tuple[str, str] | None, tuple[str, str] | None, tuple[str, str] | None]:
         """
         Generates a unique key for an edge based on its start node, end node, and type.
 
@@ -513,7 +530,8 @@ class GeneralApplyService(IApplyService):
             edge_apply_instance: EdgeApply object to generate key for.
 
         Returns:
-            Tuple of (start_node_tuple, end_node_tuple, type_tuple) for deduplication.
+            Tuple of (start_node_tuple, end_node_tuple, type_tuple) for deduplication,
+            where each tuple contains (space, external_id), or None if the component is missing.
         """
         start_node = edge_apply_instance.start_node
         end_node = edge_apply_instance.end_node
@@ -529,13 +547,13 @@ class GeneralApplyService(IApplyService):
         Extracts and creates a BoundingBox from a diagram detection region.
 
         Converts the vertices array from the diagram detect API response into a proper
-        BoundingBox object, computing the min/max coordinates from all vertices.
+        BoundingBox object by computing the min/max coordinates from all vertices.
 
         Args:
-            region: Dictionary containing 'vertices' list with x/y coordinates.
+            region: Dictionary containing 'vertices' list with 'x' and 'y' coordinates.
 
         Returns:
-            BoundingBox object with computed boundaries, or None if vertices are invalid.
+            BoundingBox object with computed x_min, x_max, y_min, y_max boundaries.
         """
         vertices = region.get("vertices", [])
         x_coords = [v.get("x", 0) for v in vertices]
@@ -553,17 +571,18 @@ class GeneralApplyService(IApplyService):
         """
         Creates annotation properties dictionary from a detection result.
 
-        Extracts common annotation properties including confidence, status, text, page number,
-        and bounding box coordinates. Uses BoundingBox object for coordinate handling.
+        Extracts common annotation properties including confidence, status, text, page number, and bounding box coordinates for use in EdgeApply objects or RAW table entries.
 
         Args:
             file_id: NodeId of the file being annotated.
-            detect_annotation: Dictionary containing detection result data.
-            status: Annotation status (APPROVED, SUGGESTED, etc.).
-            bounding_box: Optional pre-computed BoundingBox object.
+            detect_annotation: Dictionary containing detection result data with 'confidence', 'text',
+                             and 'region' keys.
+            status: Annotation status string (e.g., 'Approved', 'Suggested').
+            bounding_box: Optional pre-computed BoundingBox object. If None, will be extracted from
+                         the detection region.
 
         Returns:
-            Dictionary of annotation properties ready for EdgeApply or RAW table insertion.
+            Dictionary of annotation properties ready for EdgeApply or RAW table insertion, including standard fields and bounding box coordinates.
         """
         region = detect_annotation.get("region", {})
         if bounding_box is None:
