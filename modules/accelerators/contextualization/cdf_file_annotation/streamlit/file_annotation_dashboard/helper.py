@@ -586,8 +586,10 @@ def fetch_entities(entity_view: ViewPropertyConfig, resource_property: str, seco
 
         row["name"] = props.get("name")
         row["resourceType"] = props.get(resource_property)
+
         if secondary_scope_prop:
             row[secondary_scope_prop] = props.get(secondary_scope_prop)
+        
         for k, v in props.items():
             if k not in row:
                 row[k] = v
@@ -798,9 +800,7 @@ def create_tag_connection(
                 row_data["endNode"] = selected_entity["externalId"]
                 row_data["endNodeSpace"] = selected_entity["space"]
 
-                resource_type = (
-                    selected_entity["resourceType"] if selected_entity["resourceType"] else entity_view.external_id
-                )
+                resource_type = selected_entity["resourceType"] if selected_entity["resourceType"] else entity_view.external_id
 
                 row_data["endNodeResourceType"] = resource_type
 
@@ -812,6 +812,13 @@ def create_tag_connection(
                         existing_tags.append("PromotedManually")
                         row_data["tags"] = existing_tags
 
+                row_data["status"] = "Approved"
+
+                resource_type = (
+                    selected_entity["resourceType"] if selected_entity["resourceType"] else entity_view.external_id
+                )
+
+                row_data["endNodeResourceType"] = resource_type
                 row_data["status"] = "Approved"
 
                 updated_rows.append(RowWrite(key=edge_external_id, columns=row_data))
