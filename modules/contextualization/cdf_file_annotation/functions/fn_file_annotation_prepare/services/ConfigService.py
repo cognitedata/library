@@ -249,7 +249,7 @@ class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
     the larger annotation edge dataset for better performance at scale.
     """
 
-    enable_existing_annotations_search: bool = True
+    # enable_existing_annotations_search: bool = True # NOTE: Could be useful in the future - currently unused
     enable_global_entity_search: bool = True
     max_entity_search_limit: int = Field(default=1000, gt=0, le=10000)
     text_normalization: TextNormalizationConfig

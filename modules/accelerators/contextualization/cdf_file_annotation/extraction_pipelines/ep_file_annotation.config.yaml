@@ -155,8 +155,7 @@ config:
     deleteRejectedEdges: True
     deleteSuggestedEdges: True
     entitySearchService:
-      enableExistingAnnotationsSearch: True  # Primary: Query annotation edges (fast, checks existing annotation edges)
-      enableGlobalEntitySearch: True  # Fallback: Global entity search - (slow, unstable as instance count grows)
+      enableGlobalEntitySearch: True
       maxEntitySearchLimit: 1000  # Max entities to fetch in global search
       textNormalization:
         removeSpecialCharacters: True  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")

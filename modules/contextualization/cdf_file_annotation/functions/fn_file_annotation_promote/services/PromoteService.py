@@ -331,7 +331,7 @@ class GeneralPromoteService(IPromoteService):
             if (text, annotation_type) in self.cache_service._memory_cache:
                 return []
 
-        # TIER 3 & 4: Use EntitySearchService (edges → global search)
+        # TIER 3 & 4: Use EntitySearchService
         found_nodes: list[Node] = self.entity_search_service.find_entity(text, annotation_type, entity_space)
 
         # Update cache based on result
