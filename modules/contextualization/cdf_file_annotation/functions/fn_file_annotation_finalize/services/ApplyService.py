@@ -108,18 +108,25 @@ class GeneralApplyService(IApplyService):
 
         # Step 1: Process regular annotations and collect their stable hashes
         regular_edges, doc_rows, tag_rows = [], [], []
-        processed_hashes = set()
+        processed_bounding_boxes = set()
         if regular_item and regular_item.get("annotations"):
             for annotation in regular_item["annotations"]:
-                stable_hash = self._create_stable_hash(annotation)
-                processed_hashes.add(stable_hash)
-                edges = self._detect_annotation_to_edge_applies(file_id, source_id, doc_rows, tag_rows, annotation)
+                edges = self._detect_annotation_to_edge_applies(
+                    file_id,
+                    source_id,
+                    doc_rows,
+                    tag_rows,
+                    annotation,
+                    processed_bounding_boxes,
+                )
                 regular_edges.extend(edges.values())
 
         # Step 2: Process pattern annotations, skipping any that were already processed
         pattern_edges, pattern_rows = [], []
         if pattern_item and pattern_item.get("annotations"):
-            pattern_edges, pattern_rows = self._process_pattern_results(pattern_item, file_node, processed_hashes)
+            pattern_edges, pattern_rows = self._process_pattern_results(
+                pattern_item, file_node, processed_bounding_boxes
+            )
 
         # Step 3: Update the file node tag
         node_apply = file_node.as_write()
@@ -259,7 +266,7 @@ class GeneralApplyService(IApplyService):
         )
 
     def _process_pattern_results(
-        self, result_item: dict, file_node: Node, existing_hashes: set
+        self, result_item: dict, file_node: Node, existing_bounding_boxes: set
     ) -> tuple[list[EdgeApply], list[RowWrite]]:
         """
         Processes pattern mode detection results into annotation edges and RAW rows.
@@ -282,8 +289,9 @@ class GeneralApplyService(IApplyService):
         source_id = cast(str, file_node.properties.get(self.file_view_id, {}).get("sourceId"))
         doc_patterns, edge_applies = [], []
         for detect_annotation in result_item.get("annotations", []):
-            stable_hash = self._create_stable_hash(detect_annotation)
-            if stable_hash in existing_hashes:
+            bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
+            page = detect_annotation["region"].get("page")
+            if (page, bounding_box.dump_yaml()) in existing_bounding_boxes:
                 continue  # Skip creating a pattern edge if a regular one already exists for this detection
 
             entities = detect_annotation.get("entities", [])
@@ -343,6 +351,7 @@ class GeneralApplyService(IApplyService):
         doc_doc: list[RowWrite],
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, Any],
+        existing_bounding_boxes: set,
     ) -> dict[tuple, EdgeApply]:
         """
         Converts a single detection annotation into edge applies and RAW row writes.
@@ -361,6 +370,8 @@ class GeneralApplyService(IApplyService):
             Dictionary mapping edge keys to EdgeApply objects (deduplicated by start/end/type).
         """
         diagram_annotations = {}
+        bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
+        page = detect_annotation["region"].get("page")
         for entity in detect_annotation.get("entities", []):
             if detect_annotation.get("confidence", 0.0) >= self.approve_threshold:
                 status = DiagramAnnotationStatus.APPROVED.value
@@ -369,11 +380,14 @@ class GeneralApplyService(IApplyService):
             else:
                 continue
 
+            existing_bounding_boxes.add((page, bounding_box.dump_yaml()))
+
             external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation)
             annotation_properties = self._create_annotation_properties_from_detection(
                 file_id=file_instance_id,
                 detect_annotation=detect_annotation,
                 status=status,
+                bounding_box=bounding_box,
             )
             edge = EdgeApply(
                 space=file_instance_id.space,
@@ -508,7 +522,7 @@ class GeneralApplyService(IApplyService):
             (type_.space, type_.external_id) if type_ else None,
         )
 
-    def _extract_bounding_box_from_region(self, region: dict[str, Any]) -> BoundingBox | None:
+    def _extract_bounding_box_from_region(self, region: dict[str, Any]) -> BoundingBox:
         """
         Extracts and creates a BoundingBox from a diagram detection region.
 
@@ -522,9 +536,6 @@ class GeneralApplyService(IApplyService):
             BoundingBox object with computed boundaries, or None if vertices are invalid.
         """
         vertices = region.get("vertices", [])
-        if not vertices:
-            return None
-
         x_coords = [v.get("x", 0) for v in vertices]
         y_coords = [v.get("y", 0) for v in vertices]
 
