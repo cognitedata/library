@@ -1,4 +1,3 @@
-from html import entities
 from cognite.client import data_modeling as dm
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
@@ -24,7 +23,10 @@ def key_extraction(
         config: Config
 ) -> None:
     pipeline_ext_id = data["ExtractionPipelineExtId"]
+    status = 'failure'
+    pipeline_run_id = None
     keys_extracted = 0
+
     try:
         logger.info(
             f"Starting Key Extraction Function with loglevel = {data.get('logLevel', 'INFO')},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
@@ -48,6 +50,7 @@ def key_extraction(
 
         # If we are not overwriting keys, we don't need to process the existing ones. but if there are new rules????
         if not config.parameters.overwrite:
+            logger.debug(f"Reading existing entities in table {config.parameters.raw_table_key} in database {config.parameters.raw_db}")
             entities_to_exclude = read_table_keys(client, config.parameters.raw_db, config.parameters.raw_table_key)
             logger.debug(f"Persisting existing keys extracted for {len(entities_to_exclude)} entities")
         else:
@@ -63,27 +66,39 @@ def key_extraction(
         # create an empty dictionary where the key is external id of an entity and the value is a list of keys extracted
         entities_keys_extracted = dict.fromkeys(entities_source_fields, {})
 
+        # ================== PROCESS EXTRACTION RULES ====================
+        # TODO we could wrap this in a performance benchmark or function
         for rule in extraction_rule_manager.get_sorted_rules():
             for entity in entities_source_fields.keys():
-                field_keys = extraction_rule_manager.execute_rule(
-                    rule,
-                    entities_source_fields[entity],
-                    entities_keys_extracted[entity]
-                )
-                
-                # We may want to replace this code with the code that adds a new row to the raw_uploader
-                for field_rule_name, keys in field_keys.items():
-                    if field_rule_name in entities_keys_extracted[entity]:
-                        # Extend the existing list of keys
-                        entities_keys_extracted[entity][field_rule_name].extend(keys)
-                    else:
-                        # Add the new field_rule and its keys
-                        entities_keys_extracted[entity][field_rule_name] = keys
-                
-                keys_extracted += sum(len(keys) for keys in field_keys.values())
+                try:
+                    logger.verbose('INFO', f"Processing entity: {entity} with rule: {rule}")
+                    field_keys = extraction_rule_manager.execute_rule(
+                        rule,
+                        entities_source_fields[entity],
+                        entities_keys_extracted[entity]
+                    )
+                    
+                    # We may want to replace this code with the code that adds a new row to the raw_uploader
+                    for field_rule_name, keys in field_keys.items():
+                        logger.verbose('DEBUG', f"Entity: {entity}, Field rule: {field_rule_name}, Keys: {keys}")
+                        if field_rule_name in entities_keys_extracted[entity]:
+                            # Extend the existing list of keys
+                            entities_keys_extracted[entity][field_rule_name].extend(keys)
+                        else:
+                            # Add the new field_rule and its keys
+                            entities_keys_extracted[entity][field_rule_name] = keys
+                    
+                        # TODO add keys extracted to some reporting service
+                        keys_extracted += sum(len(keys))
+                        logger.verbose('DEBUG', f"Total keys extracted so far: {keys_extracted}")
+                except Exception as e:
+                    logger.error(f"Error processing entity: {entity}, rule: {rule}, error: {e}")
 
             # TODO probably going to want some sort of staistic here for # of keys extracted, success rate, etc...
             logger.info(f"Finished processing entities for rule ID: {rule}")
+        # ================================================================
+
+        # TODO Based on selection strategy, take the highest confidence score, combine some stuff, who really knows...
 
         # Perhaps do a clean up step here
 
@@ -93,36 +108,53 @@ def key_extraction(
         # check if the raw table for state exists
         create_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
 
-        # Start to upload the keys found to the raw_table_key table
+        # ===========================
+        #| UPLOAD KEYS TO RAW TABLE |
+        # ===========================
+        # TODO wrap this in another function or performance benchmark
         for ext_id, field_rule_keys in entities_keys_extracted.items():
             if field_rule_keys:
                 columns = {}
                 for field_rule_name, keys in field_rule_keys.items():
                     columns[field_rule_name.upper()] = keys
 
+                new_row = Row(key=ext_id, columns=columns)
+                logger.verbose('DEBUG', f"Adding row to upload queue: {new_row}")
+
                 raw_uploader.add_to_upload_queue(
                     database=config.parameters.raw_db,
                     table=config.parameters.raw_table_key,
-                    raw_row=Row(key=ext_id, columns=columns)
+                    raw_row=new_row
                 )
 
         # maybe some diagnostics, logging, dashboard metrics here?
 
         # trigger the upload queue
-        raw_uploader.upload()
+        logger.debug(f'Uploading {raw_uploader.upload_queue_size} rows to RAW')
+        try:
+            raw_uploader.upload()
+        except Exception as e:
+            logger.error(f"Failed to upload rows to RAW, error: {e}")
+
+        # TODO there will probably be a more detailed way to define a success/failure, but this will do for now
+        if keys_extracted > 0 and raw_uploader.rows_written > 0:
+            status = "success"
 
         # update the pipeline run
-        update_pipeline_run(
+        pipeline_run_id = update_pipeline_run(
             client=client,
             logger=logger,
             xid=pipeline_ext_id,
-            status="success",
+            status=status,
             keys_extracted=keys_extracted
         )
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
-        update_pipeline_run(client, logger, pipeline_ext_id, "failure", keys_extracted)
+        pipeline_run_id = update_pipeline_run(client, logger, pipeline_ext_id, "failure", keys_extracted, msg)
+
+    # TODO Add the metrics to some reporting service, where we track the metrics based on pipeline_run_id
+    logger.info(f"Pipeline run ID: {pipeline_run_id}")
 
 def update_pipeline_run(
     client: CogniteClient,
@@ -131,7 +163,7 @@ def update_pipeline_run(
     status: str,
     keys_extracted: Optional[int],
     error: Optional[str] = None
-) -> None:
+) -> int:
 
     if status == "success":
         msg = (
@@ -139,18 +171,15 @@ def update_pipeline_run(
         )
         logger.info(msg)
     else:
-        msg = (
-
-        )
         logger.error(msg)
 
-    client.extraction_pipelines.runs.create(
+    return client.extraction_pipelines.runs.create(
         ExtractionPipelineRun(
             extpipe_external_id=xid,
             status=status,
             message=shorten(msg, 1000)
         )
-    )
+    ).id
 
 def get_target_entities(
     client: CogniteClient,
@@ -171,45 +200,55 @@ def get_target_entities(
     for entity_view_config in entity_view_configs:
         entity_view_id = entity_view_config.as_view_id()
 
-        logger.debug(f"Get new entities from view: {entity_view_id}, based on config: {entity_view_config}")
+        logger.debug(f"Building query filter...")
         is_selected = get_query_filter(type, entity_view_config, config.parameters.run_all, excluded_entities, logger)
 
-        new_entities = client.data_modeling.instances.list(
-            instance_type="node",
-            space=entity_view_config.instance_space,
-            sources=[entity_view_id],
-            filter=is_selected,
-            limit=100
-        )
+        new_entities = []
 
-        item_updates = {}
+        try:
+            logger.debug(f"Get new entities from view: {entity_view_id}")
+            new_entities = client.data_modeling.instances.list(
+                instance_type="node",
+                space=entity_view_config.instance_space,
+                sources=[entity_view_id],
+                filter=is_selected,
+                limit=100
+            )
 
-        for entity in new_entities:
-            entity_external_id = entity.external_id
-            entity_props_dump = entity.dump()['properties'][entity_view_id.space][f'{entity_view_id.external_id}/{entity_view_id.version}']
-            
-            # Initialize entity fields dictionary if not exists
-            if entity_external_id not in item_updates:
-                item_updates[entity_external_id] = {}
-            
-            # Collect all source fields from all extraction rules for this entity
-            for rule in config.data.extraction_rules:
-                for source_field in rule.source_fields:
-                    field_value = entity_props_dump.get(source_field.field_name, None)
-                    
-                    if field_value is None:
-                        if source_field.required:
-                            logger.warning(f"Missing required field '{source_field.field_name}' in entity: {entity_external_id}")
-                    else:
-                        # Add the field to the entity's field collection
+            logger.debug(f"Listed {len(new_entities)} new entities from view: {entity_view_id}")
 
-                        if source_field.preprocessing:
-                            field_value = apply_preprocessing(field_value, source_field.preprocessing)
+            item_updates = {}
 
-                        item_updates[entity_external_id][source_field.field_name] = field_value
+            for entity in new_entities:
+                entity_external_id = entity.external_id
+                entity_props_dump = entity.dump()['properties'][entity_view_id.space][f'{entity_view_id.external_id}/{entity_view_id.version}']
+                
+                # Initialize entity fields dictionary if not exists
+                if entity_external_id not in item_updates:
+                    item_updates[entity_external_id] = {}
+                
+                # Collect all source fields from all extraction rules for this entity
+                for rule in config.data.extraction_rules:
+                    for source_field in rule.source_fields:
+                        field_value = entity_props_dump.get(source_field.field_name, None)
+                        
+                        if field_value is None:
+                            if source_field.required:
+                                logger.verbose('WARNING', f"Missing required field '{source_field.field_name}' in entity: {entity_external_id}")
+                        else:
+                            # Add the field to the entity's field collection
 
-        logger.info(f"Num new entities: {len(item_updates)} from view: {entity_view_id}")
-        entities_source.update(item_updates)
+                            if source_field.preprocessing:
+                                logger.verbose('INFO', f"Applying preprocessing {source_field.preprocessing} to field '{source_field.field_name}' in entity: {entity_external_id}")
+                                field_value = apply_preprocessing(field_value, source_field.preprocessing)
+
+                            item_updates[entity_external_id][source_field.field_name] = field_value
+
+            logger.info(f"Num new entities: {len(item_updates)} from view: {entity_view_id}")
+            entities_source.update(item_updates)
+
+        except Exception as e:
+            logger.error(f"Error while extracting entities from view: {entity_view_id}, Error: {e!s}")
 
     return entities_source
 

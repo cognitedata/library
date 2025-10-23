@@ -46,6 +46,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
 
         # Load configuration with timing
         config = load_config_parameters(client, data)
+        logger = CogniteFunctionLogger(loglevel, config.parameters.verbose)
         # (
         #     benchmark.benchmark_function(
         #     "Config loading",

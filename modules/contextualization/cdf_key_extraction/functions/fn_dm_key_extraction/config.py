@@ -20,12 +20,13 @@ from utils.DataStructures import FilterOperator, SourceFieldParameter
 
 # Configuration classes
 class Parameters(BaseModel):
-    debug: bool
-    run_all: bool
-    overwrite: bool
-    raw_db: str
-    raw_table_state: str
-    raw_table_key: str
+    debug: bool = Field(False, description="Enable debug mode")
+    verbose: bool = Field(False, description="Enable verbose output")
+    run_all: bool = Field(True, description="Run all extraction rules")
+    overwrite: bool = Field(False, description="Overwrite existing results")
+    raw_db: str = Field(..., description="ID of the raw database")
+    raw_table_state: str = Field(..., description="ID of the state table in RAW")
+    raw_table_key: str = Field(..., description="ID of the key table in RAW")
 
 class EntityType(Enum):
     """
