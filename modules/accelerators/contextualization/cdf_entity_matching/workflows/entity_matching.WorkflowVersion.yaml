@@ -1,7 +1,7 @@
 workflowExternalId: {{ workflow }}
 version: 'v1'
 workflowDefinition:
-  description: 'Workflow that annotate files'
+  description: 'Workflow for entity matching'
   tasks:
     - externalId: 'fn_dm_context_metadata_update'
       type: 'function'
@@ -12,7 +12,7 @@ workflowDefinition:
       name: 'Metadata Update Function'
       description: 'Update aliases for timeseries and assets as prep for entity matching'
       retries: 3
-      timeout: null
+      timeout: 9000
       onFailure: 'abortWorkflow'
     - externalId: 'fn_dm_context_timeseries_entity_matching'
       type: 'function'
@@ -23,7 +23,7 @@ workflowDefinition:
       name: 'Entity matching Function'
       description: 'Contextualization of timeseries and assets using entity matching'
       retries: 3
-      timeout: null
+      timeout: 9000
       onFailure: 'abortWorkflow'
       dependsOn:
         - externalId: 'fn_dm_context_metadata_update'

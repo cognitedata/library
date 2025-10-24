@@ -1,7 +1,32 @@
-- name: Entity Matching Function
-  externalId: contextualization_entity_matcher
+# The directory with the function code should have the same name
+# and externalId as the function itself as defined below.
+- name: 'dm:context:timeseries:entity_matching'
+  externalId: 'fn_dm_context_timeseries_entity_matching'
+  dataSetExternalId: 'ds_timeseries_{{location_name}}' 
   owner: 'Anonymous'
-  description: Matches entities based on their properties
+  description: 'Contextualization of P&ID files creating annotations in Data model'
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    # The below two environment variables are set by the Toolkit
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  # Number of cores, not available in Azure
+  runtime: 'py311'
   functionPath: 'handler.py'
   # Data set id for the zip file with the code that is uploaded.
-  dataSetExternalId: {{ dataset }}
+- name: 'dm:context:metadata_update'
+  externalId: 'fn_dm_context_metadata_update'
+  dataSetExternalId: 'ds_timeseries_{{location_name}}' 
+  owner: 'Anonymous'
+  description: 'Update aliases for files and attests as prep for Contextualization of P&ID files'
+  metadata:
+    version: '{{function_version}}'
+  envVars:
+    # The below two environment variables are set by the Toolkit
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  # Number of cores, not available in Azure
+  runtime: 'py311'
+  functionPath: 'handler.py'
+  # Data set id for the zip file with the code that is uploaded.

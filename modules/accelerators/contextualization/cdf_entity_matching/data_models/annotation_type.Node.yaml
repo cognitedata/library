@@ -1,2 +1,2 @@
-space: {{ annotationSpace }}
+space: {{ assetInstanceSpace }}
 externalId: "entity.match"

@@ -1,4 +1,4 @@
-space: {{ annotationSpace }}
+space: {{ assetInstanceSpace }}
 externalId: {{ contextualizationId }}
 sources:
   - source:

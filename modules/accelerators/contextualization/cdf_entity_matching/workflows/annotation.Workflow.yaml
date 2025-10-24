@@ -1,3 +1,0 @@
-externalId: {{workflow}}
-description: Annotation process on files
-dataSetExternalId: 'ds_timeseries_{{location_name}}' 
