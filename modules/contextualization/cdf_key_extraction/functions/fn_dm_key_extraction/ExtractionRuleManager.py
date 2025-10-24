@@ -143,7 +143,7 @@ class ExtractionRuleManager:
                     continue
 
                 # This is where we call the rule function
-                rule_results = rule_function(value, field_name, rule.method_parameters)
+                rule_results = rule_function(value, field_name, rule_id, rule.method_parameters)
                 num_keys = self.parse_rule_results(rule_id, rule_results)
 
                 # we already sort on field priority, so this logic works for both strategies
@@ -419,21 +419,31 @@ class ExtractionRuleManager:
         pass
 
     @lru_cache(maxsize=32)
-    def get_condition_lambda(self, rule_id: str, assembly_rule_name: str) -> Callable[[Dict[str, str], bool]]:
+    def get_condition_lambda(self, rule_id: str, assembly_rule_name: str) -> Callable[[Dict[str, str]], bool]:
         """Create a lambda function to evaluate the conditions. Store the lambdas in cache"""
         lambdas = []
 
         # Get the rule params using rule id and the conditions using assembly_rule_name
-        rule = TokenReassemblyMethodParameter(self.sorted_rules.get(rule_id, None))
+        rule: TokenReassemblyMethodParameter = self.sorted_rules.get(rule_id, None).method_parameters
 
         # Grab the conditions for the assembly rule
-        conditions = rule.assembly_rules.get(assembly_rule_name, {"conditions": {}}).get("conditions", {})
+        conditions = next((rule.conditions for rule in rule.assembly_rules if rule.name == assembly_rule_name), None)
 
         if not conditions:
             self.logger.verbose("DEBUG", f'No valid conditions found for assembly rule {assembly_rule_name} in rule {rule_id}. !!This rule will be applied unconditionally!!')
             return lambda _: True
 
         for condition, data in conditions.items():
+            if condition.endswith('_missing'):
+                cnd_prop = condition.removesuffix('_missing')
+
+                if cnd_prop not in [p.name for p in rule.tokenization.token_patterns]:
+                    raise ValueError(f"Condition '{condition}' references unknown token pattern '{cnd_prop}'")
+                
+                is_missing = bool(data) # boolean
+                lambdas.append(lambda tokens: tokens.get(cnd_prop, "") == "" and is_missing)
+                self.logger.verbose('DEBUG', f"Condition '{condition}': {cnd_prop} is {'not' if not is_missing else ''} missing added to lambdas for rule {rule_id}")
+                continue
             match condition:
                 case 'all_required_present':
                     if bool(data):
@@ -443,15 +453,6 @@ class ExtractionRuleManager:
                         # some required tokens must be missing
                         lambdas.append(lambda tokens: not all(tokens.get(p.name, "") != "" for p in rule.tokenization.token_patterns if p.required))
                     self.logger.verbose('DEBUG', f'Condition {condition}:  {'all required tokens must be present' if bool(data) else 'some required tokens must be missing'}  added to lambdas for rule {rule_id}')
-                case condition.endswith('_missing'):
-                    cnd_prop = condition.removesuffix('_missing')
-
-                    if cnd_prop not in [p.name for p in rule.tokenization.token_patterns]:
-                        raise ValueError(f"Condition '{condition}' references unknown token pattern '{cnd_prop}'")
-                    
-                    is_missing = bool(data) # boolean
-                    lambdas.append(lambda tokens: tokens.get(cnd_prop, "") == "" and is_missing)
-                    self.logger.verbose('DEBUG', f"Condition '{condition}': {cnd_prop} is {'not' if not is_missing else ''} missing added to lambdas for rule {rule_id}")
                 case 'context_match':
                     # Get property and value from condition
                     cnd_prop = data.get('property', None)
@@ -511,14 +512,19 @@ class ExtractionRuleManager:
                 self.regex_cache.update({token_regex_name: token_regex})
 
             try:
-                ext_token = token_dump[token.position]
-                ext_token_match = token_regex.match(ext_token)
-                if ext_token_match:
-                    tokens.update({token.name: ext_token_match.group()})
+                if token.position < len(token_dump):        
+                    ext_token = token_dump[token.position]
+                    ext_token_match = token_regex.fullmatch(ext_token)
+                    if ext_token_match:
+                        tokens.update({token.name: ext_token_match.group()})
+                    else:
+                        tokens.update({token.name: ""})
+                        if token.required:
+                            self.logger.verbose("WARNING", f"Required token '{token.name}' is missing.")
                 else:
-                    tokens.update({token.name: ""})
-                    if token.required:
-                        self.logger.verbose("WARNING", f"Required token '{token.name}' is missing.")
+                        tokens.update({token.name: ""})
+                        if token.required:
+                            self.logger.verbose("WARNING", f"Required token '{token.name}' is missing.")
             except Exception as e:
                 raise ValueError(f'Unable to exract token(s), error msg: {e}')
 
@@ -562,7 +568,7 @@ class ExtractionRuleManager:
                 else:
                     validation_pattern = (
                         re.compile(params.validation_pattern)
-                        if params.validation_pattern
+                        if params.validation.validation_pattern
                         else None
                     )
 

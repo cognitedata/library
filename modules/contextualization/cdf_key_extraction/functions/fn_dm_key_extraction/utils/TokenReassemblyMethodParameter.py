@@ -29,6 +29,10 @@ class TokenizationParameters(BaseModel):
         None, description="Maximum tokens to extract (e.g., 6)."
     )
 
+    min_tokens: Optional[int] = Field(
+        None, description="Minimum tokens to extract (e.g. 2)"
+    )
+
     extract_from_multiple_fields: Optional[List[str]] = Field(
         None, description="Cross-field token extraction (e.g., ['name', 'description']).",
         alias="cross_field_extraction_paths"  # Example of using an alias if needed

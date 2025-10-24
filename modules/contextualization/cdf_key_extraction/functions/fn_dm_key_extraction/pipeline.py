@@ -32,7 +32,7 @@ def key_extraction(
             f"Starting Key Extraction Function with loglevel = {data.get('logLevel', 'INFO')},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
 
         if config.parameters.debug:
-            logger = CogniteFunctionLogger("DEBUG")
+            logger = CogniteFunctionLogger("DEBUG", config.parameters.verbose)
             logger.debug(f"**** Write debug messages and only process one entity *****")
 
         logger.debug(f"Initiate RAW upload queue used to store ouput from key extraction")
@@ -83,13 +83,13 @@ def key_extraction(
                         logger.verbose('DEBUG', f"Entity: {entity}, Field rule: {field_rule_name}, Keys: {keys}")
                         if field_rule_name in entities_keys_extracted[entity]:
                             # Extend the existing list of keys
-                            entities_keys_extracted[entity][field_rule_name].extend(keys)
+                            entities_keys_extracted[entity].update({field_rule_name: keys})
                         else:
                             # Add the new field_rule and its keys
-                            entities_keys_extracted[entity][field_rule_name] = keys
+                            entities_keys_extracted[entity] = {field_rule_name: keys}
                     
                         # TODO add keys extracted to some reporting service
-                        keys_extracted += sum(len(keys))
+                        keys_extracted += len(keys)
                         logger.verbose('DEBUG', f"Total keys extracted so far: {keys_extracted}")
                 except Exception as e:
                     logger.error(f"Error processing entity: {entity}, rule: {rule}, error: {e}")
@@ -137,17 +137,24 @@ def key_extraction(
             logger.error(f"Failed to upload rows to RAW, error: {e}")
 
         # TODO there will probably be a more detailed way to define a success/failure, but this will do for now
-        if keys_extracted > 0 and raw_uploader.rows_written > 0:
-            status = "success"
+        if keys_extracted > 0:
+            pipeline_run_id = update_pipeline_run(
+                client=client,
+                logger=logger,
+                xid=pipeline_ext_id,
+                status="success",
+                keys_extracted=keys_extracted
+            )
+        else:
+            pipeline_run_id = update_pipeline_run(
+                client=client,
+                logger=logger,
+                xid=pipeline_ext_id,
+                status="failure",
+                keys_extracted=keys_extracted,
+                error="No keys were extracted and no keys were uploaded"
+            )
 
-        # update the pipeline run
-        pipeline_run_id = update_pipeline_run(
-            client=client,
-            logger=logger,
-            xid=pipeline_ext_id,
-            status=status,
-            keys_extracted=keys_extracted
-        )
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
@@ -171,7 +178,8 @@ def update_pipeline_run(
         )
         logger.info(msg)
     else:
-        logger.error(msg)
+        msg = error
+        logger.error(error)
 
     return client.extraction_pipelines.runs.create(
         ExtractionPipelineRun(
@@ -212,7 +220,7 @@ def get_target_entities(
                 space=entity_view_config.instance_space,
                 sources=[entity_view_id],
                 filter=is_selected,
-                limit=100
+                limit=entity_view_config.batch_size
             )
 
             logger.debug(f"Listed {len(new_entities)} new entities from view: {entity_view_id}")
@@ -271,12 +279,14 @@ def table_exists(client: CogniteClient, db_name: str, tb_name: str) -> bool:
 
 def create_table(client: CogniteClient, raw_db: str, tbl: str) -> None:
     try:
-        client.raw.databases.create(raw_db)
+        if raw_db not in client.raw.databases.list(limit=-1).as_names():
+            client.raw.databases.create(raw_db)
     except Exception:
         pass
 
     try:
-        client.raw.tables.create(raw_db, tbl)
+        if tbl not in client.raw.tables.list(raw_db, limit=-1).as_names():
+            client.raw.tables.create(raw_db, tbl)
     except Exception:
         pass
 
