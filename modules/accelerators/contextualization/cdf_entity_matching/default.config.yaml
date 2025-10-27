@@ -8,7 +8,7 @@ location_name: LOC
 source_name: SOURCE
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
-schemaSpace: cdf_cdm
+schemaSpace: sp_enterprise_process_industry
 viewVersion: v1
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances

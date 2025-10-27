@@ -1,7 +1,7 @@
 externalId: 'ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching'
 config:
   parameters:
-    debug: True
+    debug: False
     runAll: True
     removeOldAssetLinks: True
     rawDb: 'ds_timeseries_{{location_name}}_{{source_name}}'
@@ -19,7 +19,7 @@ config:
       version: {{ viewVersion }}
       searchProperty: name
       filterProperty: tags
-      filterValues: ["root:VAL"]
+      filterValues: ["root:WMT"]
     entityView:
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ timeseriesInstanceSpace }}

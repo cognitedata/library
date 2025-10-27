@@ -10,9 +10,9 @@ with parentLookup as (
     d1.`WMT_TAG_ID_ANCESTOR` = d2.`WMT_TAG_ID`
   where
     isnotnull(d1.`WMT_TAG_NAME`) AND
-    cast(d1.`WMT_CATEGORY_ID` as INT) = 1157 AND
-    isnotnull(d2.`WMT_TAG_NAME`) AND
-    cast(d2.`WMT_CATEGORY_ID` as INT) = 1157
+    -- cast(d1.`WMT_CATEGORY_ID` as INT) = 1157 AND
+    isnotnull(d2.`WMT_TAG_NAME`)
+    -- AND cast(d2.`WMT_CATEGORY_ID` as INT) = 1157
 )
 select
 	concat('WMT:', cast(d3.`WMT_TAG_NAME` as STRING)) as externalId,
@@ -30,6 +30,6 @@ left join
 on
  concat('WMT:', cast(d3.`WMT_TAG_NAME` as STRING)) = parentLookup.externalId
 where
-  isnotnull(d3.`WMT_TAG_NAME`) AND
+  isnotnull(d3.`WMT_TAG_NAME`)
 /* Inspection of the WMT_TAG_DESC looks like asset are category 1157 while equipment is everything else */
-  cast(d3.`WMT_CATEGORY_ID` as INT) = 1157
+  --AND cast(d3.`WMT_CATEGORY_ID` as INT) = 1157

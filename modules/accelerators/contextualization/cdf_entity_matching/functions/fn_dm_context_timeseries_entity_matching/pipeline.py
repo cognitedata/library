@@ -796,6 +796,7 @@ def select_and_apply_matches(
     # Use set instead of list for O(1) lookups
     good_matches_set = {f"{match['asset_ext_id']}_{match['entity_ext_id']}"
                         for match in good_matches}
+    matched_entity_ids = {match["entity_ext_id"] for match in good_matches}
     new_good_matches = []
     try:
         for match in match_results:
@@ -813,9 +814,11 @@ def select_and_apply_matches(
 
                     new_good_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
                 else:
-                    bad_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
+                    if match["source"]["entity_ext_id"] not in matched_entity_ids:
+                        bad_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
             else:
-                bad_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
+                if match["source"]["entity_ext_id"] not in matched_entity_ids:
+                    bad_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
 
         logger.info(f"INFO: Got {len(new_good_matches)} matches with score >= {config.parameters.auto_approval_threshold}")
         logger.info(f"INFO: Got {len(bad_matches)} matches with score < {config.parameters.auto_approval_threshold}")
