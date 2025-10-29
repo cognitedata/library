@@ -77,6 +77,25 @@ def key_extraction(
                         entities_source_fields[entity],
                         entities_keys_extracted[entity]
                     )
+
+                    # TODO the output here is dict{field_rule_name: keys} where keys is a dictionary of key -> score
+                    # We should add some logic to package the results of the rule into a nice JSON object like so:
+                    # {"tag": "<input_str>",
+                    #     "entity_type": "<entity_type>",
+                    #     "keys": [
+                    #     "bogus",
+                    #     "blargus"
+                    #     ],
+                    #     "metadata": {
+                        #     "timestamp": "2025-10-29T06:30:05.645731",
+                        #     "total_aliases": 2,
+                        #     "rules_applied": [
+                        #         "case_variants"
+                        #     ],
+                        #     "entity_type": "asset",
+                        #     "context": null
+                    #     }
+                    # },
                     
                     # We may want to replace this code with the code that adds a new row to the raw_uploader
                     for field_rule_name, keys in field_keys.items():

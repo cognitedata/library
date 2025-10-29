@@ -1,9 +1,12 @@
 import ast
 from functools import lru_cache
 import re
+import collections
 from typing import Any, Callable, Dict, Literal, Optional, Union
 
 from config import ExtractionRuleConfig
+from cognite.client import CogniteClient
+from cognite.client.data_classes.data_modeling.ids import NodeId
 from logger import CogniteFunctionLogger
 from utils.FixedWidthMethodParameter import FixedWidthMethodParameter
 from utils.HeuristicMethodParameter import HeuristicMethodParameter
@@ -36,12 +39,14 @@ class ExtractionRuleManager:
         self, 
         extraction_rules: list[ExtractionRuleConfig], 
         strategy: Literal["first_match", "highest_priority", "merge_all", "highest_confidence"], 
-        logger: CogniteFunctionLogger
+        logger: CogniteFunctionLogger,
+        client: CogniteClient
     ):
         extraction_rules.sort(key=lambda x: x.priority)
         self.sorted_rules = {r.rule_id: r for r in extraction_rules}
         self.logger = logger
         self.strategy = strategy
+        self.client = client
         self.field_results: dict[str, list[str]] = {}
 
         # Dynamic method assignment based on rule.method
@@ -102,8 +107,8 @@ class ExtractionRuleManager:
     def execute_rule(
         self, 
         rule_id: str, 
-        entity_source_fields: dict[str, str], 
-        entity_keys_extracted: dict[str, list[str]]
+        entity_source_fields: dict[str, str],
+        entity_keys_extracted: dict[str, list[str]],
     ) -> dict[str, list[str]]:
         """Execute a specific rule on the provided entity source fields and may use existing keys extracted in future methods."""
         rule = self.sorted_rules.get(rule_id, None)
@@ -114,7 +119,10 @@ class ExtractionRuleManager:
         self.field_results: dict[str, list[str]] = {}
         
         rule_function = self.method_mapping.get(rule.method)
-        if rule_function is None:
+
+        if rule.method == 'heuristic' and isinstance(rule.params, HeuristicMethodParameter):
+            rule.method_parameters.current_node_id = NodeId(space=entity_source_fields.get('space', ''), external_id=entity_source_fields.get('external_id', ''))
+        elif rule_function is None:
             raise Exception(f"Error: Unknown method '{rule.method}'")
         else:
             self.logger.verbose('INFO', f'Using rule function for method: {rule.method}')
@@ -143,7 +151,7 @@ class ExtractionRuleManager:
                     continue
 
                 # This is where we call the rule function
-                rule_results = rule_function(value, field_name, rule_id, rule.method_parameters)
+                rule_results = rule_function(value, field_name, rule_id, rule.method_parameters) #TODO we need to add the NodeId of the current entity for heuristic calls
                 num_keys = self.parse_rule_results(rule_id, rule_results)
 
                 # we already sort on field priority, so this logic works for both strategies
@@ -163,7 +171,7 @@ class ExtractionRuleManager:
                 return self.field_results
 
             # Run the function
-            rule_results = rule_function(value, rule.method_parameters)
+            rule_results = rule_function(value, rule.method_parameters) #TODO we need to add the NodeId of the current entity for heuristic calls
             num_keys = self.parse_rule_results(rule_id, rule_results)
 
             if (num_keys > 0 and self.strategy == "first_match"):
@@ -293,7 +301,7 @@ class ExtractionRuleManager:
         records = []
 
         # ===============================================================
-        # |           GENERATE RECORDS VIA RULES / PRE PROCESSING      |
+        # |           GENERATE RECORDS VIA RULES / PRE PROCESSING       |
         # ===============================================================
         # Only use record_length if record_delimiter is not given
         if (not params.record_delimiter and 
@@ -407,6 +415,146 @@ class ExtractionRuleManager:
         
         return {'_'.join([field_name, params.name]): results}
 
+    def positional_detection(
+        self,
+        input_str: str,
+        config: list[dict]
+    ) -> tuple[list[str], float]:
+        """
+        Identifies tags based on their position relative to known markers.
+        Config example:
+        [
+            {"position": "start_of_field", "pattern": r"^[A-Z0-9-_]{5,15}\b"},
+            {"position": "after_keyword", "keywords": ["Tag:", "Equipment ID:", "Ref:"], "offset": 1},
+            {"position": "between_delimiters", "start_delimiter": "[", "end_delimiter": "]", "pattern": r"[A-Z0-9-_]+"}
+        ]
+        """
+        results = []
+        score = 0.0
+
+        for rule in config:
+            match rule["position"]:
+                case "start_of_field":
+                    pattern = rule.get("pattern", None)
+
+                    if not pattern:
+                        continue
+
+                    m = re.match(pattern, input_str)
+                    if m:
+                        results.append(m.group())
+                        score += rule.get("confidence_boost", 0.0)
+                case "after_keyword":
+                    keywords = rule.get("keywords", [])
+                    offset = rule.get("offset", 1)
+                    for kw in keywords:
+                        # Find the keyword in the string
+                        idx = input_str.find(kw)
+                        if idx != -1:
+                            # Split after the keyword
+                            after = input_str[idx + len(kw):].strip()
+                            tokens = after.split(sep=rule.get("separator", "-"))
+                            if len(tokens) >= offset:
+                                results.append(tokens[offset - 1])
+                                score += rule.get("confidence_boost", 0.0)
+                case "between_delimiters":
+                    start = rule.get("start_delimiter", "[")
+                    end = rule.get("end_delimiter", "]")
+                    pattern = rule.get("pattern", r"[A-Z0-9-_]+")
+                    # Find all occurrences between delimiters
+                    regex = re.compile(re.escape(start) + r"(" + pattern + r")" + re.escape(end))
+                    matches = regex.findall(input_str)
+                    results.extend(matches)
+                    score += rule.get("confidence_boost", 0.0) * len(matches)
+                case _:
+                    continue
+
+        return results, score
+
+    def frequency_analysis(
+        self,
+        input_str: str,
+        config: dict,
+        current_node_id: NodeId
+    ) -> tuple[list[str], float]:
+        """
+        Identifies tags or patterns based on statistical frequency analysis.
+        Config example:
+        {
+            "analyze_corpus": True,
+            "min_frequency": 5,
+            "common_prefix_detection": {
+                "enable": True,
+                "min_prefix_frequency": 10,
+                "prefix_length": [2, 3, 4]
+            },
+            "pattern_extraction": {
+                "n_gram_analysis": True,
+                "n_gram_sizes": [3, 4, 5],
+                "structural_pattern_learning": True
+            }
+        }
+        """
+        results = []
+        score = 0.0
+
+        # If we need to get the whole corpus of thee entity, we need to grab it from CDF
+        if config.get("analyze_corpus", False):
+            # TODO setup a graphql query or something here to yoink literally every property
+            self.client.data_modeling.instances.retrieve()
+        else:
+            corpus = [input_str]
+
+        # 1. Frequency analysis: Find substrings in input_str that appear at least min_frequency times in corpus
+        min_freq = config.get("min_frequency", 3)
+        substr_freq = collections.Counter()
+        frequent_tokens = set()
+        for entry in :
+            for word in entry.split():
+                substr_freq[word] += 1
+
+        for word in input_str.split():
+            if substr_freq[word] >= min_freq:
+                frequent_tokens.add(word)
+
+        # 2. Common prefix detection
+        prefix_conf = config.get("common_prefix_detection", {})
+        if prefix_conf.get("enable", False):
+            min_prefix_freq = prefix_conf.get("min_prefix_frequency", 3)
+            prefix_lengths = prefix_conf.get("prefix_length", [2, 3, 4])
+            prefix_counter = collections.Counter()
+            for entry in frequent_tokens:
+                for length in prefix_lengths:
+                    if len(entry) >= length:
+                        prefix = entry[:length]
+                        prefix_counter[prefix] += 1
+            for length in prefix_lengths:
+                if len(input_str) >= length:
+                    prefix = input_str[:length]
+                    if prefix_counter[prefix] >= min_prefix_freq:
+                        results.append(prefix)
+                        score += 0.05
+
+        # 3. Pattern extraction (n-gram analysis)
+        pattern_conf = config.get("pattern_extraction", {})
+        if pattern_conf.get("n_gram_analysis", False):
+            n_gram_sizes = pattern_conf.get("n_gram_sizes", [3, 4, 5])
+            ngram_counter = collections.Counter()
+            for entry in corpus:
+                for n in n_gram_sizes:
+                    for i in range(len(entry) - n + 1):
+                        ngram = entry[i:i+n]
+                        ngram_counter[ngram] += 1
+            for n in n_gram_sizes:
+                for i in range(len(input_str) - n + 1):
+                    ngram = input_str[i:i+n]
+                    if ngram_counter[ngram] >= min_freq:
+                        results.append(ngram)
+                        score += 0.02
+
+        # 4. (Optional) Structural pattern learning could be implemented with regex pattern mining or ML
+
+        return list(set(results)), score
 
     def heuristic_method(
         self,
@@ -416,7 +564,128 @@ class ExtractionRuleManager:
         params: HeuristicMethodParameter
     ) -> dict:
         """Process input using heuristic methods."""
-        pass
+        # ===============================================================
+        # |           PRE PROCESSING                                    |
+        # ===============================================================
+
+        # Create a dictionary of each strategy configured and its resulting score
+        strategy_names = [param.name for param in params]
+        strategy_scores = dict.fromkeys(strategy_scores, 0.0)
+        strategy_extractions = dict.fromkeys(strategy_scores, [])
+
+        agg_method = params.scoring.aggregation_method
+        results = {}
+
+        if agg_method not in ["weighted_average", "max", "consensus"]:
+            self.logger.verbose('ERROR', f'Unknown aggregation method found in config, terminating rule: {agg_method}')
+
+        # ===============================================================
+        # |           APPLY STRATEGIES                                  |
+        # ===============================================================
+        # Here is where we extract CANDIDATES, not the final keys. The final keys will be determined by the confidence modifiers performed later.
+
+        for strategy in params.heuristic_strategies:
+            match strategy.method:
+                case 'positional_detection':
+                    self.logger.verbose('DEBUG', f'Executing positional_detection strategy...')
+                    # Maybe we have a Heuristic agent do this for us.....? Maybe?
+                    # self.client.ai.tools.documents.ask_question()
+                    keys, score = self.positional_detection(input_str, strategy.rules)
+
+                    strategy_scores[strategy.name] += score
+                    strategy_extractions[strategy.name].extend(keys)
+
+                    pass
+                case 'frequency_analysis':
+                    self.logger.verbose('DEBUG', f'Executing frequency_analysis strategy...')
+                    
+                    keys, score = self.frequency_analysis(input_str, strategy.rules, params.current_node_id)
+                    pass
+                case 'context_inference':
+                    self.logger.verbose('DEBUG', f'Executing context_inference strategy...')
+                    pass
+                case 'example_based_learning':
+                    self.logger.verbose('DEBUG', f'Executing example_based_learning strategy...')
+                    self.logger.verbose('DEBUG', 'Please wait to use this rule until it is implemented.....')
+                    raise NotImplementedError("Example-based learning strategy is not implemented yet.")
+                case _:
+                    self.logger.verbose('WARNING', f'Unknown strategy found in config, skipping: {strategy.method}')
+                    pass
+
+        self.logger.verbose('INFO', f'Finished executing strategies for input: {input_str}')
+        self.logger.verbose('INFO', f'Aggregating scores via {agg_method} method')
+
+        # ===============================================================
+        # |                        Confidence Adjustments               |
+        # ===============================================================
+
+        # TODO we have to apply each of these strategies to each key candidate extracted in the strategies portion
+
+        for mod in params.confidence_modifiers:
+            condition = mod.get('condition', None)
+
+            if not condition:
+                self.logger.verbose('WARNING', f'Confidence modifier {mod} is missing a condition or is invalid, skipping...')
+                continue
+
+            match condition:
+                case 'multiple_strategies_agree':
+                    pass
+                case 'field_name_indicates_tag':
+                    pass
+                case 'extracted_value_length':
+                    pass
+                case 'extracted_value_in_known_catalog':
+                    pass
+
+        # ===============================================================
+        # |           SCORE AGGREGATION                                 |
+        # ===============================================================
+        
+        # remove any strategies that scored 0.0
+        strategies = [s for s in strategies if strategy_scores[s.name] > 0.0]
+
+        match agg_method:
+            case 'weighted_average':
+                pass
+            case 'max':
+                pass
+            case 'consensus':
+                pass
+            case _:
+                self.logger.verbose('ERROR', f'Unknown aggregation method encountered: {agg_method}')
+        
+        # ===============================================================
+        # |           VALIDATION                                        |
+        # ===============================================================
+        
+        if params.validation:
+            self.logger.verbose('INFO', f'Running validation checks...')
+            for check in params.validation:
+                match check.get('check', None):
+                    case 'length_range':
+                        self.logger.verbose('DEBUG', f'Checking length range...')
+                        # Implement length range check
+                    case 'character_composition':
+                        self.logger.verbose('DEBUG', f'Checking character composition...')
+                        # Implement character composition check
+                    case 'not_common_word':
+                        self.logger.verbose('DEBUG', f'Checking for not common word...')
+                        # Implement not common word check
+                    case 'format_consistency':
+                        self.logger.verbose('DEBUG', f'Checking format consistency...')
+                        # Implement format consistency check
+                    case _:
+                        self.logger.verbose('WARNING', f'Unknown validation check: {check}')
+
+        # End of validation checks, aggregate final results
+        for strategy in strategy_names:
+            results.update({strategy_extractions.get(strategy, ""): strategy_scores.get(strategy, 0.0)})
+
+        # for safety
+        params.current_node_id = None
+
+        return {'_'.join([field_name, params.name]): results}
 
     @lru_cache(maxsize=32)
     def get_condition_lambda(self, rule_id: str, assembly_rule_name: str) -> Callable[[Dict[str, str]], bool]:
@@ -580,6 +849,30 @@ class ExtractionRuleManager:
 
         return {'_'.join([field_name, params.method.replace(' ', '_')]): results}
 
+    def _calculate_confidence(
+        self, key_value: str, text: str
+    ) -> float:
+        """Calculate confidence score for extracted key."""
+        base_confidence = 0.5
+
+        # Adjust based on key characteristics
+        if len(key_value) >= 3:
+            base_confidence += 0.1
+        else:
+            base_confidence -= 0.1
+
+        # Check if key appears at start of field (higher confidence)
+        if text.strip().startswith(key_value):
+            base_confidence += 0.1
+        
+        if text.strip().endswith(key_value):
+            base_confidence += 0.1
+
+        # Check for word boundaries
+        if re.search(r"\b" + re.escape(key_value) + r"\b", text):
+            base_confidence += 0.05
+
+        return min(base_confidence, 1.0)
 
     def get_info(self):
         """Print a nice formatted info box about the extraction rules."""
