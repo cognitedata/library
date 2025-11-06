@@ -293,7 +293,9 @@ class OptimizedMetadataProcessor:
             tags_raw = properties.get("tags", [])
             aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
             tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
-            
+            org_aliases = aliases.copy()
+            org_tags = tags.copy()
+
             # Optimized parsing
             summary, upd_tags, upd_aliases = self._parse_norsok_tag_optimized(name, tags, aliases)
             
@@ -305,11 +307,11 @@ class OptimizedMetadataProcessor:
                 properties_dict["description"] = summary
                 update_needed = True
             
-            if upd_tags != tags:
+            if upd_tags != org_tags:
                 properties_dict["tags"] = upd_tags
                 update_needed = True
             
-            if upd_aliases != aliases:
+            if upd_aliases != org_aliases:
                 properties_dict["aliases"] = upd_aliases
                 update_needed = True
             
@@ -351,6 +353,8 @@ class OptimizedMetadataProcessor:
             tags = [str(x) for x in tags_raw] if isinstance(tags_raw, list) else []
             root_obj = properties.get("root", {})
             root = str(root_obj.get("externalId", "")) if isinstance(root_obj, dict) else ""
+            org_aliases = aliases.copy()
+            org_tags = tags.copy()
             
             # Optimized parsing
             upd_tags, upd_aliases = self._parse_asset_tag_optimized(name, aliases, root, tags)
@@ -359,11 +363,11 @@ class OptimizedMetadataProcessor:
             update_needed = False
             properties_dict = {}
             
-            if upd_tags != tags:
+            if upd_tags != org_tags:
                 properties_dict["tags"] = upd_tags
                 update_needed = True
             
-            if upd_aliases != aliases:
+            if upd_aliases != org_aliases:
                 properties_dict["aliases"] = upd_aliases
                 update_needed = True
             
@@ -401,13 +405,13 @@ class OptimizedMetadataProcessor:
             name = str(properties.get("name", ""))
             aliases_raw = properties.get("aliases", [])
             aliases = [str(x) for x in aliases_raw] if isinstance(aliases_raw, list) else []
-            
+            org_aliases = aliases.copy()
             # Optimized alias generation
             upd_aliases = self._get_file_alias_list_optimized(name, tuple(aliases))
             
             self.stats['processed'] += 1
             
-            if upd_aliases != aliases:
+            if upd_aliases != org_aliases:
                 self.stats['updated'] += 1
                 self.logger.debug(f"Updating file: {ext_id} with {len(upd_aliases)} aliases")
                 
@@ -454,9 +458,9 @@ class OptimizedMetadataProcessor:
                 equipment_number = None
                 if len(split_result) > 2:
                     equipment_number = '-'.join(split_result[2:])
-                if discipline_code not in tags:
+                if f"discipline:{discipline_code}" not in tags:
                     tags.append(f"discipline:{discipline_code}")
-                if area not in tags:
+                if f"area:{area}" not in tags:
                     tags.append(f"area:{area}")
             
                 summary = f"Area/System Code: {area}"
@@ -486,9 +490,10 @@ class OptimizedMetadataProcessor:
             upd_aliases = self._get_asset_alias_list_optimized(name, tuple(aliases))
             
             # Add root tag if not present
-            if root and f"root:{root}" not in tags:
-                tags.append(f"root:{root}")
-            
+            root_tag = root.split(':')[0] if root else None
+            if root_tag and f"root:{root_tag}" not in tags:
+                tags.append(f"root:{root_tag}")
+
             return tags, upd_aliases
             
         except Exception as e:

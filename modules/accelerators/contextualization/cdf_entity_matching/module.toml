@@ -2,24 +2,3 @@
 title = "Contextualization Entity Matching"
 id = "dp:acc:ctx:entity_matching"
 package_id = "dp:accelerators"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/data_sets/demo.DataSet.yaml"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/data_models/demo.Space.yaml"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/extraction_pipelines/ctx_files_direct_relation_write.config.yaml"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/extraction_pipelines/ctx_files_direct_relation_write.ExtractionPipeline.yaml"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/functions/contextualization_connection_writer"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/functions/write.Function.yaml"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/raw/contextualization_state.DataBase.yaml"

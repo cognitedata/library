@@ -1,16 +1,20 @@
+organization: YourOrg
+function_version: v1.0.0
+# Update LOC to your location
+location_name: LOC 
+# specify the name of the source making it possible to identify where the data originates 
+# from, ex: 'workmate', 'sap', 'oracle',..
+# Update SOURCE to your source
+source_name: SOURCE
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
-annotatorJob: ctx_entity_matching
-directRelationJob: ctx_files_direct_relation_write
-dataset: ingestion
-rawStateDatabase: contextualizationState
-rawStateTable: entityMatching
-schemaSpace: cdf_cdm
-annotationSpace: springfield_instances
-instanceSpaces:
-  - springfield_instances
-
-groupSourceId: <not set>
+schemaSpace: sp_enterprise_process_industry
+viewVersion: v1
+assetInstanceSpace: springfield_instances
+timeseriesInstanceSpace: springfield_instances
+          
 workflow: entity_matching
-workflowClientId: ${IDP_WF_CLIENT_ID}
-workflowClientSecret: ${IDP_WF_CLIENT_SECRET}
+### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}
+entity_matching_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8

@@ -104,11 +104,3 @@ modules = [
     "atlas_ai/root_cause_analysis/rca_with_atlas"
 ]
 
-[packages.rmdm_v1]
-id = "dp:rmdm_v1"
-title = "RMDM v1 Deployment Pack"
-description = "Deploy the Reliability and Maintenance Data Model v1."
-canCherryPick = false
-modules = [
-    "data_models/rmdm_v1"
-]

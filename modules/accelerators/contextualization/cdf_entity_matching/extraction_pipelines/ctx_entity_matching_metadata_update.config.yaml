@@ -3,7 +3,7 @@ config:
   parameters:
     debug: False
     debugTimeseries: 'VAL_23-KA-9101-M01_E_stop_active:VALUE'
-    runAll: False
+    runAll: True
     rawDb: 'ds_timeseries_{{location_name}}_{{source_name}}'
     rawTableState: 'ts_state_store'
   data:
