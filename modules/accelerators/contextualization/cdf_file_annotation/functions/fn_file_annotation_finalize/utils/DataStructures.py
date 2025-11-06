@@ -31,6 +31,7 @@ class EnvConfig:
 class DiagramAnnotationStatus(str, Enum):
     SUGGESTED = "Suggested"
     APPROVED = "Approved"
+    REJECTED = "Rejected"
 
 
 class AnnotationStatus(str, Enum):
@@ -80,8 +81,8 @@ class AnnotationState:
     sourceUpdatedTime: str = field(
         default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     )
-    sourceCreatedUser: str = "fn_dm_context_annotation_launch"
-    sourceUpdatedUser: str = "fn_dm_context_annotation_launch"
+    sourceCreatedUser: str = "fn_dm_context_annotation_finalize"
+    sourceUpdatedUser: str = "fn_dm_context_annotation_finalize"
 
     def _create_external_id(self) -> str:
         """
@@ -125,18 +126,17 @@ class entity:
         "external_id": file.external_id,
         "name": file.properties[job_config.file_view.as_view_id()]["name"],
         "space": file.space,
-        search_property: file.properties[job_config.file_view.as_view_id()][
-            search_property
-        ],
-        "annotation_type_external_id": job_config.file_view.type,
+        "annotation_type": job_config.file_view.type,
+        "resource_type": file.properties[job_config.file_view.as_view_id()][{resource_type}],
+        "search_property": file.properties[job_config.file_view.as_view_id()][{search_property}],
     }
-    Note: kind of prefer a generic variable name here as opposed to specific ones that changes based off config -> i.e.) for marathon the variable here would be aliases instead of search_property
     """
 
     external_id: str
     name: str
     space: str
-    annotation_type_external_id: Literal["diagrams.FileLink", "diagrams.AssetLink"] | None
+    annotation_type: Literal["diagrams.FileLink", "diagrams.AssetLink"] | None
+    resource_type: str
     search_property: list[str] = field(default_factory=list)
 
     def to_dict(self):
@@ -309,7 +309,7 @@ class PerformanceTracker:
 
     def generate_ep_run(
         self,
-        caller: Literal["Launch", "Finalize"],
+        caller: Literal["Prepare", "Launch", "Finalize"],
         function_id: str | None,
         call_id: str | None,
     ) -> str:

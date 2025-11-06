@@ -34,7 +34,9 @@ class IRetrieveService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_job_id(self) -> tuple[int, dict[NodeId, Node]] | tuple[None, None]:
+    def get_job_id(
+        self,
+    ) -> tuple[int, int | None, dict[NodeId, Node]] | tuple[None, None, None]:
         pass
 
 
@@ -55,6 +57,18 @@ class GeneralRetrieveService(IRetrieveService):
         self.job_api: str = f"/api/v1/projects/{self.client.config.project}/context/diagram/detect"
 
     def get_diagram_detect_job_result(self, job_id: int) -> dict | None:
+        """
+        Retrieves the results of a diagram detection job by job ID.
+
+        Polls the diagram detect API to check if a job has completed and returns the results
+        if available.
+
+        Args:
+            job_id: The diagram detection job ID to retrieve results for.
+
+        Returns:
+            Dictionary containing job results if completed, None if still processing or failed.
+        """
         url = f"{self.job_api}/{job_id}"
         result = None
         response = self.client.get(url)
@@ -69,9 +83,30 @@ class GeneralRetrieveService(IRetrieveService):
             self.logger.debug(f"{job_id} - Request to get job result failed with {response.status_code} code")
         return
 
-    def get_job_id(self) -> tuple[int, dict[NodeId, Node]] | tuple[None, None]:
+    def get_job_id(
+        self,
+    ) -> tuple[int, int | None, dict[NodeId, Node]] | tuple[None, None, None]:
         """
-        To ensure threads are protected, we do the following...
+        Retrieves and claims an available diagram detection job for processing.
+
+        Implements optimistic locking to ensure thread-safe job claiming across parallel
+        function executions. Queries for jobs ready to finalize and attempts to claim them
+        by updating their status to "Finalizing".
+
+        Args:
+            None
+
+        Returns:
+            A tuple containing:
+                - Regular diagram detection job ID
+                - Optional pattern mode job ID
+                - Dictionary mapping file NodeIds to their annotation state nodes
+            Returns (None, None, None) if no jobs are available.
+
+        Raises:
+            CogniteAPIError: If another thread has already claimed the job (version conflict).
+
+        NOTE: To ensure threads are protected, we do the following...
         1. Query for an available job id
         2. Find all annotation state nodes with that job id
         3. Claim those nodes by providing the existing version in the node apply request
@@ -86,7 +121,7 @@ class GeneralRetrieveService(IRetrieveService):
         sort_by_time.append(
             instances.InstanceSort(
                 property=self.annotation_state_view.as_property_ref("sourceUpdatedTime"),
-                direction="descending",
+                direction="ascending",
             )
         )
 
@@ -94,18 +129,21 @@ class GeneralRetrieveService(IRetrieveService):
             instance_type="node",
             sources=self.annotation_state_view.as_view_id(),
             space=self.annotation_state_view.instance_space,
-            limit=-1,
+            limit=1,
             filter=self.filter_jobs,
             sort=sort_by_time,
         )
 
         if len(annotation_state_instance) == 0:
-            return None, None
+            return None, None, None
 
         job_node: Node = annotation_state_instance.pop(-1)
         job_id: int = cast(
             int,
             job_node.properties[self.annotation_state_view.as_view_id()]["diagramDetectJobId"],
+        )
+        pattern_mode_job_id: int | None = job_node.properties[self.annotation_state_view.as_view_id()].get(
+            "patternModeJobId"
         )
 
         filter_job_id = Equals(
@@ -132,11 +170,27 @@ class GeneralRetrieveService(IRetrieveService):
             file_node_id = NodeId(space=file_reference["space"], external_id=file_reference["externalId"])
             file_to_state_map[file_node_id] = node
 
-        return job_id, file_to_state_map
+        return job_id, pattern_mode_job_id, file_to_state_map
 
     def _attempt_to_claim(self, list_job_nodes_to_claim: NodeApplyList) -> None:
         """
-        (Optimistic locking based off the node version)
+        Attempts to claim annotation state nodes using optimistic locking.
+
+        Updates node status from "Processing" to "Finalizing" while preserving existing version
+        for conflict detection. Includes client-side validation to handle read-after-write
+        consistency edge cases.
+
+        Args:
+            list_job_nodes_to_claim: NodeApplyList of annotation state nodes to claim.
+
+        Returns:
+            None
+
+        Raises:
+            CogniteAPIError: If another thread has claimed the job (version conflict) or if
+                            client-side lock bypass detection triggers.
+
+        NOTE: (Optimistic locking based off the node version)
         Attempt to 'claim' the annotation state nodes by updating the annotation status property.
         This relies on how the API applies changes to nodes. Specifically... if an existing version is provided in the nodes
         that are used for the .apply() endpoint, a version conflict will occur if another thread has already claimed the job.

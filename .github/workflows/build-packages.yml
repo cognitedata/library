@@ -33,38 +33,17 @@ jobs:
         HASH=$(grep "🔐 Hash:" build_output.txt | cut -d' ' -f3)
         echo "hash=$HASH" >> $GITHUB_OUTPUT
         
-    - name: Update README with release info
-      if: github.ref == 'refs/heads/cicd' && github.event_name == 'push'
-      run: |
-        HASH="${{ steps.build.outputs.hash }}"
-        URL="https://github.com/${{ github.repository }}/releases/download/latest/packages.zip"
-        
-        # Update the Current Release section in README
-        sed -i "s|url = \"{{placeholder_url}}\"|url = \"$URL\"|g" README.md
-        sed -i "s|checksum = \"{{placeholder_checksum}}\"|checksum = \"$HASH\"|g" README.md
-        
-    - name: Commit README changes
-      if: github.ref == 'refs/heads/cicd' && github.event_name == 'push'
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add README.md
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Update release info in README [skip ci]"
-          git push
-        fi
+    
         
     - name: Upload packages artifact
-      if: github.ref == 'refs/heads/cicd' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: actions/upload-artifact@v4
       with:
         name: packages
         path: packages.zip
         
     - name: Create/Update Release
-      if: github.ref == 'refs/heads/cicd' && github.event_name == 'push'
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: latest

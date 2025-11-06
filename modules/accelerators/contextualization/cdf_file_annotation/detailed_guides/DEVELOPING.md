@@ -26,11 +26,17 @@ While any service can be replaced, these are the most common candidates for cust
 
 - **`AbstractLaunchService`**: The orchestrator for the launch function. You would implement this if your project requires a fundamentally different file batching, grouping, or processing workflow that can't be achieved with the `primary_scope_property` and `secondary_scope_property` configuration.
 
+- **`AbstractFinalizeService`**: The orchestrator for the finalize function. Implement this if your project needs custom job claiming logic, result merging strategies, or unique annotation state update patterns.
+
 - **`IDataModelService`**: The gateway to Cognite Data Fusion. Implement this if your project needs highly optimized or complex queries to fetch files and entities that go beyond the declarative `QueryConfig` filter system.
 
-- **`IApplyService`**: The service responsible for writing annotations back to the data model. Implement this if your project has custom rules for how to set annotation properties (like status) or needs to create additional relationships in the data model.
+- **`IRetrieveService`**: Handles retrieving diagram detection job results and claiming jobs with optimistic locking. Implement this if you need custom job claiming strategies or want to integrate with external job tracking systems.
 
-- **`ICacheService`**: Manages the in-memory entity cache. You might implement this if your project has a different caching strategy (e.g., different cache key logic, or fetching context from an external system).
+- **`IApplyService`**: The service responsible for writing annotations back to the data model and RAW tables. Implement this if your project has custom rules for confidence thresholds, deduplication logic, or needs to create additional relationships in the data model or external systems.
+
+- **`ICacheService`**: Manages the in-memory entity cache and pattern generation. You might implement this if your project has a different caching strategy (e.g., different cache key logic, custom pattern generation algorithms, or fetching context from an external system).
+
+- **`IAnnotationService`**: Handles interaction with the Cognite Diagram Detect API. Implement this if you need custom retry logic, want to use a different annotation API, or need to pre/post-process annotation requests.
 
 ## How to Create a Custom Implementation
 
@@ -102,7 +108,7 @@ class HighPriorityLaunchService(GeneralLaunchService):
 ### Step 2: Use Your Custom Implementation
 
 ```python
-# In fn_dm_context_annotation_launch/handler.py
+# In fn_file_annotation_launch/handler.py
 
 # ... (other imports)
 from services.LaunchService import AbstractLaunchService
@@ -110,7 +116,7 @@ from services.LaunchService import AbstractLaunchService
 from services.my_custom_launch_service import HighPriorityLaunchService
 
 # 2. Instantiate your new custom class instead of GeneralLaunchService
-def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchService:
+def _create_launch_service(config, client, logger, tracker, function_call_info) -> AbstractLaunchService:
     cache_instance: ICacheService = create_general_cache_service(config, client, logger)
     data_model_instance: IDataModelService = create_general_data_model_service(
         config, client, logger
@@ -126,6 +132,7 @@ def _create_launch_service(config, client, logger, tracker) -> AbstractLaunchSer
         data_model_service=data_model_instance,
         cache_service=cache_instance,
         annotation_service=annotation_instance,
+        function_call_info=function_call_info,
     )
     return launch_instance
 

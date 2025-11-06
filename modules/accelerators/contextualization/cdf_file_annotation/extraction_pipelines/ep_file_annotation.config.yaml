@@ -7,16 +7,18 @@ config:
       version: v1
     annotationStateView:
       schemaSpace: {{ annotationStateSchemaSpace }}
-      instanceSpace: {{annotationStateInstanceSpace}}
+      instanceSpace: {{fileInstanceSpace}}
       externalId: {{ annotationStateExternalId }}
       version: {{ annotationStateVersion }}
     fileView:
       schemaSpace: {{ fileSchemaSpace }}
+      instanceSpace: {{fileInstanceSpace}}
       externalId: {{ fileExternalId }}
       version: {{ fileVersion }}
       annotationType: diagrams.FileLink
     targetEntitiesView:
       schemaSpace: {{ targetEntitySchemaSpace }}
+      instanceSpace: {{targetEntityInstanceSpace}}
       externalId: {{ targetEntityExternalId }}
       version: {{ targetEntityVersion }}
       annotationType: diagrams.AssetLink
@@ -52,6 +54,9 @@ config:
     targetEntitiesSearchProperty: aliases
     primaryScopeProperty: None
     secondaryScopeProperty:
+    patternMode: True
+    fileResourceProperty:
+    targetEntitiesResourceProperty:
     dataModelService:
       getFilesToProcessQuery:
         targetView:
@@ -63,6 +68,9 @@ config:
             negate: False
             operator: In
             targetProperty: annotationStatus
+          - negate: False
+            operator: Exists
+            targetProperty: linkedFile
         limit: 1000
       getTargetEntitiesQuery:
         targetView:
@@ -88,21 +96,15 @@ config:
       cacheTimeLimit: 24 # hours
       rawDb: {{ rawDb }}
       rawTableCache: {{ rawTableCache }}
+      rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
     annotationService:
       pageRange: 50
       partialMatch: True
-      minTokens: 2
       diagramDetectConfig:
         connectionFlags:
           noTextInbetween: True
           naturalReadingOrder: True
-        customizeFuzziness:
-          fuzzyScore: 0.93
-          maxBoxes:
-          minChars: 10
-        minFuzzyScore: 0.915
         readEmbeddedText: True
-        removeLeadingZeros: True
   finalizeFunction:
     cleanOldAnnotations: True
     maxRetryAttempts: 3
@@ -117,14 +119,48 @@ config:
             negate: False
             operator: Equals
             targetProperty: annotationStatus
-          - negate: False # # NOTE: Do not change unless there's a good reason
+          - negate: False # NOTE: Do not change unless there's a good reason
             operator: Exists
             targetProperty: diagramDetectJobId
     applyService:
       autoApprovalThreshold: 1.0
       autoSuggestThreshold: 1.0
-    reportService:
+      sinkNode:
+          space: {{ patternModeInstanceSpace }}
+          externalId: {{patternDetectSink}}
       rawDb: {{ rawDb }}
       rawTableDocTag: {{ rawTableDocTag }}
       rawTableDocDoc: {{ rawTableDocDoc }}
-      rawBatchSize: 10000
+      rawTableDocPattern: {{ rawTableDocPattern }}
+  promoteFunction:
+    getCandidatesQuery:
+      targetView:
+        schemaSpace: cdf_cdm
+        externalId: CogniteDiagramAnnotation
+        version: v1
+      filters:
+        - values: "Suggested"  # Only process suggested annotations
+          negate: False
+          operator: Equals
+          targetProperty: status
+        - values: ["PromoteAttempted"]  # Skip already attempted edges
+          negate: True
+          operator: In
+          targetProperty: tags
+      limit: 500  # Number of edges to process per batch
+    rawDb: {{ rawDb }}
+    rawTableDocPattern: {{ rawTableDocPattern }}
+    rawTableDocTag: {{ rawTableDocTag }}
+    rawTableDocDoc: {{ rawTableDocDoc }}
+    deleteRejectedEdges: True
+    deleteSuggestedEdges: True
+    entitySearchService:
+      enableGlobalEntitySearch: True
+      maxEntitySearchLimit: 1000  # Max entities to fetch in global search
+      textNormalization:
+        removeSpecialCharacters: True  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")
+        convertToLowercase: False  # Convert to lowercase (e.g., "V0912" → "v0912")
+        stripLeadingZeros: True  # Remove leading zeros (e.g., "v0912" → "v912")
+    cacheService:
+      cacheTableName: {{ rawTablePromoteCache }}
+
