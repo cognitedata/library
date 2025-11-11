@@ -1,0 +1,3 @@
+externalId: {{workflow}}
+description: Entity matching workflow for timeseries contextualization
+dataSetExternalId: 'ds_timeseries_{{location_name}}' 

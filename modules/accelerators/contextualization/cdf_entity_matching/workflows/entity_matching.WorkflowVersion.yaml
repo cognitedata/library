@@ -1,0 +1,29 @@
+workflowExternalId: {{ workflow }}
+version: 'v1'
+workflowDefinition:
+  description: 'Workflow for entity matching'
+  tasks:
+    - externalId: 'fn_dm_context_metadata_update'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_context_metadata_update'
+          data: { "ExtractionPipelineExtId": "ep_ctx_entity_matching_metadata_update" }
+      name: 'Metadata Update Function'
+      description: 'Update aliases for timeseries and assets as prep for entity matching'
+      retries: 3
+      timeout: 9000
+      onFailure: 'abortWorkflow'
+    - externalId: 'fn_dm_context_timeseries_entity_matching'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_context_timeseries_entity_matching'
+          data: { "ExtractionPipelineExtId": "ep_ctx_timeseries_{{location_name}}_{{source_name}}_entity_matching" }
+      name: 'Entity matching Function'
+      description: 'Contextualization of timeseries and assets using entity matching'
+      retries: 3
+      timeout: 9000
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'fn_dm_context_metadata_update'
