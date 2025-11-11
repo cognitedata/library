@@ -1,7 +1,0 @@
-[module]
-title = "Search configuration with location filter"
-id = "dp:industrial_tools:cdf_search"
-package_id = "dp:industrial_tools"
-
-[[extra_resources]]
-location = "accelerators/cdf_common/data_models/demo.Space.yaml"
