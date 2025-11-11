@@ -1,5 +1,0 @@
-[module]
-title = "InField Second Location"
-is_selected_by_default = false
-id = "dp:infield:infield_second_location"
-package_id = "dp:infield"
