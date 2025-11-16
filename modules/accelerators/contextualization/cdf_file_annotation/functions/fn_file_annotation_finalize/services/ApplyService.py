@@ -383,6 +383,8 @@ class GeneralApplyService(IApplyService):
             List of EdgeApply objects for each entity in the detection that meets confidence thresholds.
         """
         edges = []
+        # NOTE: File annotation endpoint returns multiple of the same entities when matched on different aliases
+        edge_external_id: list[str] = []
         bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
         page = detect_annotation["region"].get("page")
         for entity in detect_annotation.get("entities", []):
@@ -396,6 +398,12 @@ class GeneralApplyService(IApplyService):
             processed_bounding_boxes.add((page, bounding_box.dump_yaml()))
 
             external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation, bounding_box)
+
+            # skip when duplicate is present
+            if external_id in edge_external_id:
+                continue
+            edge_external_id.append(external_id)
+
             annotation_properties = self._create_annotation_properties_from_detection(
                 file_id=file_instance_id,
                 detect_annotation=detect_annotation,
