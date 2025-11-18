@@ -131,7 +131,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 return
             else:
                 raise e
@@ -264,7 +264,7 @@ class GeneralLaunchService(AbstractLaunchService):
                     and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
                 ):
                     # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                    self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                    self.logger.error(message="Ran into the following error", error=e)
                     return
                 else:
                     raise e
@@ -417,7 +417,7 @@ class LocalLaunchService(GeneralLaunchService):
                 )  # in a local run the ideal behavior is to not terminate the program because of this error, since it's expected
                 return
             else:
-                self.logger.error(f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 raise Exception(e)
         finally:
             batch.clear_pair()

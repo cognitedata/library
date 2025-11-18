@@ -119,7 +119,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 e.code == 408
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
+                self.logger.error(message="Ran into the following error", error=e, section="END")
                 return
             else:
                 raise e
@@ -243,7 +243,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     count_success += 1  # Still a success for this batch
 
             except Exception as e:
-                self.logger.error(f"Failed to process annotations for file {file_id}: {e}")
+                self.logger.error(f"Failed to process annotations for file {file_id}", error=e)
                 if next_attempt >= self.max_retries:
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,
@@ -278,7 +278,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 )
             except Exception as e:
                 self.logger.error(
-                    f"Error during batch update of annotation states: {e}",
+                    "Error during batch update of annotation states",
+                    error=e,
                     section="END",
                 )
 
@@ -462,7 +463,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
-                f"Ran into the following error:\n\t{str(e)}\nTrying again in 30 seconds",
+                f"Ran into the following error. Trying again in 30 seconds",
+                error=e,
                 section="END",
             )
             time.sleep(30)

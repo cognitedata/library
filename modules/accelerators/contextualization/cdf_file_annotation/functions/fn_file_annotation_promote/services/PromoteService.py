@@ -130,7 +130,7 @@ class GeneralPromoteService(IPromoteService):
                 self.logger.info("No Promote candidates found.", section="END")
                 return "Done"
         except Exception as e:
-            self.logger.error(f"Ran into the following error: {str(e)}")
+            self.logger.error("Ran into the following error", error=e)
             self.logger.info("Retrying in 15 seconds")
             time.sleep(15)
             return
@@ -231,7 +231,7 @@ class GeneralPromoteService(IPromoteService):
                         section="BOTH",
                     )
             except Exception as e:
-                self.logger.error(str(e), "BOTH")
+                self.logger.error("Error updating edges", error=e, section="BOTH")
 
             try:
                 if edges_to_delete:
@@ -240,7 +240,7 @@ class GeneralPromoteService(IPromoteService):
                         f"Successfully deleted {len(edges_to_delete)} edges from data model.", section="END"
                     )
             except Exception as e:
-                self.logger.error(str(e), "BOTH")
+                self.logger.error("Error deleting edges", error=e, section="BOTH")
 
             try:
                 if raw_rows_to_update:
@@ -254,7 +254,7 @@ class GeneralPromoteService(IPromoteService):
                         f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END"
                     )
             except Exception as e:
-                self.logger.error(str(e), "BOTH")
+                self.logger.error("Error updating RAW table", error=e, section="BOTH")
 
             if not edges_to_update and not edges_to_delete and not raw_rows_to_update:
                 self.logger.info("No edges were updated in this run.", section="END")

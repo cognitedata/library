@@ -1,5 +1,7 @@
 from typing import Literal
 import os
+import inspect
+from datetime import datetime
 
 
 class CogniteFunctionLogger:
@@ -24,19 +26,44 @@ class CogniteFunctionLogger:
                 print(f"[LOGGER_SETUP_ERROR] Could not open log file {self.filepath}: {e}")
                 self.write = False
 
+    def _get_timestamp(self) -> str:
+        return datetime.utcnow().isoformat(sep=" ", timespec="milliseconds")
+
     def _format_message_lines(self, prefix: str, message: str) -> list[str]:
+        """
+        Formats multi-line messages with consistent indentation.
+        Args:
+            prefix: The log level prefix (e.g., "[INFO]", "[ERROR]").
+            message: The message to format.
+
+        Returns:
+            List of formatted message lines with proper indentation.
+        """
+        timestamp = self._get_timestamp()
+        formatted_prefix = f"[{timestamp}] {prefix}"
+
         formatted_lines = []
         if "\n" not in message:
-            formatted_lines.append(f"{prefix} {message}")
+            formatted_lines.append(f"{formatted_prefix} {message}")
         else:
             lines = message.split("\n")
-            formatted_lines.append(f"{prefix}{lines[0]}")
-            padding = " " * len(prefix)
+            formatted_lines.append(f"{formatted_prefix} {lines[0]}")
+            padding = " " * len(formatted_prefix)
             for line_content in lines[1:]:
                 formatted_lines.append(f"{padding} {line_content}")
         return formatted_lines
 
     def _print(self, prefix: str, message: str) -> None:
+        """
+        Prints formatted log messages to console and optionally to file.
+
+        Args:
+            prefix: The log level prefix to prepend to the message.
+            message: The message to log.
+
+        Returns:
+            None
+        """
         lines_to_log = self._format_message_lines(prefix, message)
         if self.write and self.file_handler:
             try:
@@ -51,6 +78,16 @@ class CogniteFunctionLogger:
                 print(line)
 
     def debug(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+        """
+        Logs a debug-level message.
+
+        Args:
+            message: The debug message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level == "DEBUG":
@@ -59,6 +96,16 @@ class CogniteFunctionLogger:
             self._section()
 
     def info(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+        """
+        Logs an info-level message.
+
+        Args:
+            message: The informational message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level in ("DEBUG", "INFO"):
@@ -67,6 +114,16 @@ class CogniteFunctionLogger:
             self._section()
 
     def warning(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+        """
+        Logs a warning-level message.
+
+        Args:
+            message: The warning message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
         if self.log_level in ("DEBUG", "INFO", "WARNING"):
@@ -74,21 +131,64 @@ class CogniteFunctionLogger:
         if section == "END" or section == "BOTH":
             self._section()
 
-    def error(self, message: str, section: Literal["START", "END", "BOTH"] | None = None) -> None:
+    def error(
+        self, message: str, error: Exception | None = None, section: Literal["START", "END", "BOTH"] | None = None
+    ) -> None:
+        """
+        Logs an error-level message.
+
+        Args:
+            message: The error message to log.
+            section: Optional section separator position (START, END, or BOTH).
+
+        Returns:
+            None
+        """
         if section == "START" or section == "BOTH":
             self._section()
-        self._print("[ERROR]", message)
+
+        # Get caller information
+        stack = inspect.stack()
+        # Stack[0] is this function, [1] is caller usually.
+        # If wrapped, we might need to look further, but assuming direct call:
+        caller_frame = stack[1]
+        filename = os.path.basename(caller_frame.filename)
+        line_number = caller_frame.lineno
+        function_name = caller_frame.function
+
+        context_info = f"\nLocation: {filename}:{line_number} in method '{function_name}'"
+
+        error_info = ""
+        if error:
+            error_info = f"\nError Type: {type(error).__name__}\nError Message: {str(error)}"
+
+        full_message = f"{message}{context_info}{error_info}"
+
+        self._print("[ERROR]", full_message)
+
         if section == "END" or section == "BOTH":
             self._section()
 
     def _section(self) -> None:
+        """
+        Prints a visual separator line for log sections.
+
+        Returns:
+            None
+        """
+        separator = "--------------------------------------------------------------------------------"
+
         if self.write and self.file_handler:
-            self.file_handler.write(
-                "--------------------------------------------------------------------------------\n"
-            )
-        print("--------------------------------------------------------------------------------")
+            self.file_handler.write(f"{separator}\n")
+        print(separator)
 
     def close(self) -> None:
+        """
+        Closes the file handler if file logging is enabled.
+
+        Returns:
+            None
+        """
         if self.file_handler:
             try:
                 self.file_handler.close()
