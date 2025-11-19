@@ -74,13 +74,20 @@ class GeneralRetrieveService(IRetrieveService):
         response = self.client.get(url)
         if response.status_code == 200:
             job_results: dict = response.json()
+            status_count = job_results.get(
+                "statusCount", "Unable to fetch the status of the files being processed by this job"
+            )
             if job_results.get("status") == "Completed":
+                self.logger.info(f"Job complete - {status_count} - {job_id}")
+                self.logger.debug(f"Below is the full response:\n{response.text}")
                 result = job_results
                 return result
             else:
-                self.logger.debug(f"{job_id} - Job not complete")
+                self.logger.info(f"Job not complete - {status_count} - {job_id}")
+                self.logger.debug(f"Below is the full response:\n{response.text}")
         else:
-            self.logger.debug(f"{job_id} - Request to get job result failed with {response.status_code} code")
+            self.logger.info(f"Request to get the job results failed - {response.url}")
+            self.logger.info(f"Below is the full response:\n{response.text}")
         return
 
     def get_job_id(

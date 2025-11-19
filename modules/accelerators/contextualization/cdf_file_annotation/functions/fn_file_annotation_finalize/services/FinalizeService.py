@@ -127,13 +127,16 @@ class GeneralFinalizeService(AbstractFinalizeService):
         job_results: dict | None = None
         pattern_mode_job_results: dict | None = None
         try:
+            self.logger.info("(Regular) Retrieving diagram detect job results", "START")
             job_results = self.retrieve_service.get_diagram_detect_job_result(job_id)
             if pattern_mode_job_id:
+                self.logger.info("(Pattern) Retrieving diagram detect job results")
                 pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(pattern_mode_job_id)
         except Exception as e:
-            self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) is a bad gateway",
-                section="END",
+            self.logger.error(
+                message=f"Unfinalizing {len(file_to_state_map.keys())} files. Encountered an error.",
+                error=e,
+                section="BOTH",
             )
             self._update_batch_state(
                 batch=BatchOfNodes(nodes=list(file_to_state_map.values())),
@@ -152,7 +155,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         if not jobs_complete:
             self.logger.info(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) and/or pattern id ({pattern_mode_job_id}) not complete",
-                section="END",
+                section="BOTH",
             )
             self._update_batch_state(
                 batch=BatchOfNodes(nodes=list(file_to_state_map.values())),
@@ -394,7 +397,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 annotated_page_count = page_count
             else:
                 annotated_page_count = self.page_range
-            self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages", "BOTH")
+            self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages", "END")
         else:
             start_page = annotated_page_count + 1
             if (annotated_page_count + self.page_range) >= page_count:
@@ -402,7 +405,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             else:
                 annotated_page_count += self.page_range
             self.logger.info(
-                f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages", "BOTH"
+                f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages", "END"
             )
 
         return annotated_page_count
