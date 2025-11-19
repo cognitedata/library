@@ -156,7 +156,7 @@ class CogniteFunctionLogger:
         line_number = caller_frame.lineno
         function_name = caller_frame.function
 
-        context_info = f"\nLocation: {filename}:{line_number} in method '{function_name}'"
+        context_info = f"\nError occurred in {filename} on line {line_number} in method '{function_name}'"
 
         error_info = ""
         if error:
