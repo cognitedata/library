@@ -1,5 +1,0 @@
-[module]
-title = "Root Cause Analysis with Atlas"
-is_selected_by_default = false
-id = "dp:atlas_ai:rca_atlas"
-package_id = "dp:atlas_ai"
