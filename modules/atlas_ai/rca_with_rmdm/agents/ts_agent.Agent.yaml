@@ -1,0 +1,87 @@
+externalId: ts_agent
+name: RMDM Timeseries Agent
+description: "This agent is designed to retrieve time series data from the knowledge\n  graph and present trends, patterns and statistical analysis. This is a repurposed\n  / updated version of the TS agent that was created for Aker BP in the Atlas AI\n  pilot."
+instructions: "## INSTRUCTIONS\n- You are a maintenance professional and data analyst expert that has worked in\n  an industrial facility for 30 years.\n- Answer my questions.\n- Let me know if you need more information to answer a question.\n- When I ask you to plot time series datapoints, you only need to provide me with\n  the graph. Not the dataframe of the values.\n- Be proactive and ask follow-up questions.\n- Guide the user through the analysis workflow.\n- When you have retrieved time series for an asset, always ask the user if they\n  also want to see time series for children, siblings, or the parent asset(s) as\n  well.\n\n## GOAL\nYou are going to help the user analyze time series data for equipment or assets.\n  You are not to make assumptions or hallucinate, you are only going to answer\n  questions, present objective information and ask proactive follow-up questions\n  to guide the user through a data analysis workflow within the industrial domain.\n\n## ADDITIONAL CONTEXT\nThe data the user is interest in exists in an industrial knowledge graph. You have\n  been equipped with the necessary tools to fetch data from the graph and interact\n  with it, but it is helpful to have a surface level understanding of how the data\n  is structured.\n\nThe data types you will typically be asked to find are:\n- Time series (both metadata and datapoints)\n- Assets\n\nAll of the data types above are typically related to an asset (also called \"tag\"\n  or \"FLOC\") which exists as part of an asset hierarchy within the industrial knowledge\n  graph. That means a given asset will typically have a parent and multiple children\n  assets, also called sub-assets.\n\n### TIME SERIES ANALYSIS WORKFLOW\nA typical time series analysis workflow will generally follow these steps:\n1. Find an asset.\n2. Find related time series. Ideally the time series are directly related to the\n  asset of interest, but may in some cases be related to children, siblings, or the\n  parent of the asset as well.\n3. Plot and analyze the time series data to identify trends, patterns, anomalies,\n  etc.\n4. Provide insights and recommendations based on the analysis."
+model: azure/gpt-4o
+labels:
+- published
+tools:
+- name: Find time series
+  description: Use this tool to get information about time series.
+  type: queryKnowledgeGraph
+  configuration:
+    dataModels:
+    - space: rmdm
+      externalId: rmdm
+      version: v1
+      viewExternalIds:
+      - Timeseries_ext
+    instanceSpaces:
+      type: all
+- name: Find time series for related assets
+  description: "Use this tool when you need to find time series related to the children,\n    siblings or parent of an asset."
+  type: runPythonCode
+  configuration:
+    schema:
+      type: object
+      properties:
+        which:
+          type: string
+          default: "'siblings'"
+          description: "Which related assets to include. Can be \"parent\", \"siblings\", \"children\",\n            or \"all\". Defaults to \"siblings\"."
+        asset_external_id:
+          type: string
+          description: The external ID of the asset for which to find related assets
+            and timeseries.
+      required:
+      - asset_external_id
+    pythonCode: "from cognite.client.data_classes.filters import And, In, ContainsAny, Equals, Not\nfrom cognite.client.data_classes.data_modeling import ViewId, NodeList\nfrom cognite.client.data_classes.data_modeling.query import Query, Select, NodeResultSetExpression, SourceSelector, QueryResult, NodeListWithCursor\nfrom cognite.client import CogniteClient\n\nclient = CogniteClient()\nasset_view = client.data_modeling.views.retrieve(\n    ViewId(space=\"rmdm\", external_id=\"Asset\", version=\"v1\")\n)[0]\nasset_view_id = asset_view.as_id()\n\ndef construct_query(asset_external_id: str) -> Query:\n    return Query(\n        with_ = {\n            \"starting_asset\": NodeResultSetExpression(\n                filter = And(\n                    Equals([\"node\", \"externalId\"], value=asset_external_id),\n                    Equals([\"node\", \"space\"], value={\"parameter\": \"instance_space\"})\n                )\n            ),\n            \"children\": NodeResultSetExpression(\n                from_ = \"starting_asset\",\n                through=asset_view.as_property_ref(\"parent\"),\n                direction=\"inwards\",\n            ),\n            \"parent_asset\": NodeResultSetExpression(\n                from_ = \"starting_asset\",\n                through=asset_view.as_property_ref(\"parent\"),\n                direction=\"outwards\"\n            ),\n            \"siblings\": NodeResultSetExpression(\n                from_ = \"parent_asset\",\n                through=asset_view.as_property_ref(\"parent\"),\n                direction=\"inwards\",\n                filter=Not(Equals(property=[\"node\", \"externalId\"], value=asset_external_id))\n            ),\n        },\n        select = {\n            \"starting_asset\": Select(\n                [SourceSelector(asset_view_id, [\"*\"])]\n            ),\n            \"children\": Select(\n                [SourceSelector(asset_view_id, [\"*\"])]\n            ),\n            \"parent_asset\": Select(\n                [SourceSelector(asset_view_id, [\"*\"])]\n            ),\n            \"siblings\": Select(\n                [SourceSelector(asset_view_id, [\"*\"])]\n            ),\n        },\n        parameters = {\n            \"instance_space\": \"rmdm\"\n        }\n    )\n\ndef fetch_nearby_assets(client: CogniteClient, asset_external_id: str) -> QueryResult:\n    query = construct_query(asset_external_id)\n    result = client.data_modeling.instances.query(query)\n    return result\n\ndef get_related_timeseries(assets: NodeListWithCursor, query : str = \"\") -> NodeList:\n    timeseries = client.data_modeling.instances.search(\n        limit=None,\n        query=query,\n        properties=[\n            \"name\",\n            \"description\"\n        ],\n        filter=ContainsAny(\n            property=[\"cdf_cdm\", \"CogniteTimeSeries/v1\", \"assets\"],\n            values=[{\"space\":\"rmdm\",\"externalId\":asset.external_id} for asset in assets]\n        ),\n        view=ViewId(\"cdf_cdm\", \"CogniteTimeSeries\", \"v1\")\n    )\n    return timeseries\n\ndef dump_results(res):\n    toPush = []\n    for res_elem in res:\n        dump = res_elem.dump()\n        space = dump[\"space\"]\n        datamodel_space = list(dump[\"properties\"].keys())[0]\n        dm_ = list(dump[\"properties\"][datamodel_space].keys())[0]\n        \n        mydict = dump[\"properties\"][datamodel_space][dm_]\n        filtered_properties = {k: mydict[k] for k in mydict.keys() if type(mydict[k]) != type([]) }\n\n        filtered_main_properties = {k: dump[k] for k in ['externalId', 'space'] if k in dump }\n        \n        view = {\n            \"viewExternalId\": dm_.split(\"/\")[0],\n            \"viewSpace\":datamodel_space,\n            \"viewVersion\":dm_.split(\"/\")[1]\n        }\n        final_dump =  {**view, **filtered_main_properties, **filtered_properties}\n        toPush.append(final_dump)\n    return toPush\n\ndef handle(asset_external_id: str, which: str = \"siblings\") -> dict:\n    \"\"\"\n    Retrieve timeseries for parent, children and sibling assets related to a given asset in the industrial knowledge graph.\n\n    Args:\n        asset_external_id (str): The external ID of the asset for which to find related assets and timeseries.\n        which (str): Which related assets to include. Can be \"parent\", \"siblings\", \"children\", or \"all\". Defaults to \"siblings\".\n\n    Returns:\n        Dict: A dictionary containing the timeseries data for the related assets, or a message if no assets are found.\n    \"\"\"\n\n    allowed = [\"parent\", \"siblings\", \"children\", \"all\"]\n    if which not in allowed:\n        raise ValueError(f\"'which' must be one of {allowed}, got '{which}'\")\n    \n    nearby_assets = fetch_nearby_assets(client, asset_external_id)\n    if not nearby_assets:\n        return \"No assets found for the given external ID.\"\n\n    if which == \"all\":\n        keys_list = list(nearby_assets.keys())\n        assets = NodeList([])\n        for key in keys_list:\n            assets.extend(nearby_assets.get(key, []))\n    elif which == \"parent\":\n        assets = nearby_assets.get(\"parent_asset\", [])\n    elif which == \"children\":\n        assets = nearby_assets.get(\"children\", [])\n    elif which == \"siblings\":\n        assets = nearby_assets.get(\"siblings\", [])\n\n    timeseries = get_related_timeseries(assets)\n    \n    return {\"total_count\":len(timeseries), \"items\": dump_results(timeseries)}"
+- name: Compute time series average
+  description: "Tool to compute time series average with optional filtering. Allowed\n    filtering conditions are \"above\" or \"below.\" ALWAYS ask the user explicitly\n    if they want to filter values before computing the average."
+  type: runPythonCode
+  configuration:
+    schema:
+      type: object
+      properties:
+        end:
+          type: string
+          description: The end date of the time interval for computation in ISO format.
+        space:
+          type: string
+          description: The space of the timeseries.
+        start:
+          type: string
+          description: The start date of the time interval for computation in ISO format.
+        external_id:
+          type: string
+          description: The external id of the timeseries.
+        filter_condition:
+          type: string
+          default: "'none'"
+          description: "Either 'above' or 'below' to filter values before computing\n            average.\nDefaults to \"none\"."
+        filter_threshold:
+          type: number
+          default: 0
+          description: "Threshold value for filtering. Required if filter_condition\n            is specified.\nDefaults to 0."
+      required:
+      - end
+      - external_id
+      - space
+      - start
+    pythonCode: "from cognite.client.data_classes.data_modeling import NodeId\nfrom cognite.client.exceptions import CogniteNotFoundError\nfrom datetime import datetime\nimport numpy as np\nimport pytz\nimport pandas as pd\nimport gc\n\ndef convert_timezone(timestamp):\n    # Define the UTC and Europe/Oslo timezones\n    utc = pytz.utc\n    oslo = pytz.timezone(\"Europe/Oslo\")\n\n    # Convert the response timestamps to Europe/Oslo timezone\n    converted_time = pd.Timestamp(timestamp).tz_localize(utc).tz_convert(oslo)\n\n    return converted_time\n\ndef parse_datetime(dt):\n    \"\"\"\n    Parses a datetime input from a string into a timezone-aware datetime.\n    If the input is already a datetime, it is returned unchanged.\n    \"\"\"\n    if isinstance(dt, str):\n        if dt.endswith(\"Z\"):\n            dt = dt[:-1] + \"+02:00\"\n        return datetime.fromisoformat(dt)\n    return dt\n\ndef get_time_series_average(space, external_id, start, end, granularity):\n    dps = client.time_series.data.retrieve_arrays(\n            instance_id=NodeId(space, external_id),\n            start=start,\n            end=end,\n            aggregates=[\"average\"],\n            granularity=granularity\n        )\n    return dps\n\ndef get_raw_time_series_data(space, external_id, start, end):\n    dps = client.time_series.data.retrieve_arrays(\n            instance_id=NodeId(space, external_id),\n            start=start,\n            end=end\n        )\n    return dps\n\ndef handle(space:str, external_id:str, start:str, end:str, filter_condition:str=\"none\", filter_threshold:float=0):\n    \"\"\"Computes time series average with optional filtering.\n\n    Args:\n        space (str): The space of the timeseries.\n        external_id (str): The external id of the timeseries.\n        start (str): The start date of the time interval for computation in ISO format.\n        end (str): The end date of the time interval for computation in ISO format.\n        filter_condition (str, optional): Either 'above' or 'below' to filter values before computing average.\n            Defaults to \"none\".\n        filter_threshold (float, optional): Threshold value for filtering. Required if filter_condition is specified.\n            Defaults to 0.\n\n    Returns:\n        dict: A dictionary containing the computed average value rounded to 2 decimal places.\n            If no data remains after filtering, returns None for average with a message.\n            If data retrieval fails, returns an error message.\n    \"\"\"\n    # Explicit memory management for Pyodide environment\n    start = parse_datetime(start)\n    end = parse_datetime(end)\n    \n    try:\n        if filter_condition != \"none\" and filter_threshold:\n            # Get raw data for filtering\n            raw_data = get_time_series_average(space, external_id, start, end, \"1w\")\n            values = raw_data.average\n            \n            # Apply filtering\n            if filter_condition == \"above\":\n                filtered_values = values[values > filter_threshold]\n            elif filter_condition == \"below\":\n                filtered_values = values[values < filter_threshold]\n            else:\n                raise ValueError(\"filter_condition must be 'above' or 'below'\")\n            \n            # Check if any data remains after filtering\n            if len(filtered_values) == 0:\n                # Clean up before returning\n                del raw_data, values, filtered_values\n                gc.collect()\n                return {\"average\": None, \"message\": \"No data remaining after filtering\"}\n            \n            # Compute average of filtered values\n            average = float(np.mean(filtered_values))\n            \n            # Clean up large arrays\n            del raw_data, values, filtered_values\n            \n        else:\n            # Use aggregated data (more efficient when no filtering needed)\n            ts_arr = get_time_series_average(space, external_id, start, end, \"1w\")\n            ts_avg = ts_arr.average\n            average = float(np.mean(ts_avg))\n            \n            # Clean up arrays\n            del ts_arr, ts_avg\n            \n    except CogniteNotFoundError:\n        # Force garbage collection before returning error\n        gc.collect()\n        return \"Failed to retrieve time series data\"\n    \n    # Force garbage collection before returning result\n    gc.collect()\n    \n    res = {\"average\": round(average, 2)}\n    return res"
+
+- name: Find assets
+  description: Use this tool to get information about assets.
+  type: queryKnowledgeGraph
+  configuration:
+    dataModels:
+    - space: rmdm
+      externalId: rmdm
+      version: v1
+      viewExternalIds:
+      - Asset
+    instanceSpaces:
+      type: all 
+- name: Query time series data points
+  description: "This tool lets you fetch timeseries datapoints and values. Use it when\n    the user request for datapoints or values for a timeseries"
+  type: queryTimeSeriesDatapoints
