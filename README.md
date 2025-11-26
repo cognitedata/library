@@ -23,21 +23,33 @@ checksum = "sha256:..."
 
 ## Usage
 
+### 1. Add library reference to cdf.toml
+
+
 **Note:** The checksum below is a placeholder. For the current checksum, check the [latest release](https://github.com/cognitedata/library/releases/latest) or click the release badge above.
 
-Add this to cdf.toml:
-
-(if on version 0.5)
-```
-[alpha_flags] 
-external-libraries = true
-```
-
+Add this to your cdf.toml file: 
 ```
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
 checksum = "sha256:..."
 ```
+
+### 2. Enable alpha flag
+
+**Note:** If your Toolkit version is 0.7.0 or higher, you can skip this step
+
+Add this to your cdf.toml file: 
+```
+[alpha_flags] 
+external-libraries = true
+```
+
+### 3. Run the init command
+
+Run `cdf modules init` (new repo) or `cdf modules add` (existing repo). The Toolkit will present an interactive menu of the Deployment Packs offered. 
+
+
 ## Disclaimer
 
 The open-source Github repository ("Repository") is provided "as is", without
