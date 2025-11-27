@@ -2,133 +2,157 @@
 
 ## Overview
 
-The RMDM v1 module provides the core data model definitions for implementing Reliability Maintenance Data Model in your Cognite Data Fusion (CDF) environment. This module contains all the necessary containers, views, and space configurations to establish a comprehensive maintenance and reliability data framework.
+The **RMDM v1 module** provides the foundational data model definitions required to implement a **Reliability Maintenance Data Model** in your **Cognite Data Fusion (CDF)** environment. It includes all necessary containers, views, and space configurations to establish a comprehensive framework for **maintenance and reliability management**.
+
+This guide walks you through the concept of RMDM and the steps to download, configure, and deploy RMDM v1 using the **Cognite Toolkit**.
+
+## What is RMDM?
+
+**RMDM (Reliability Maintenance Data Model)** is a **domain-specific data model** introduced by Cognite to structure and unify reliability and maintenance-related data in **Cognite Data Fusion (CDF)**.
+
+It extends Cognite's **common data models (CDM, IDM)** to include **reliability-focused standards**, ensuring that maintenance and troubleshooting processes are supported with consistent, high-quality data.
+
+RMDM is built to be **ISO 14224** and **NORSOK Z-008** compliant, which are globally recognized standards for equipment reliability, failure modes, and maintenance management.
+
+## Why RMDM is Needed?
+
+- Maintenance programs rely on **static or incomplete data**, leading to inefficiencies.
+- Data is **siloed** across multiple systems (CMMS, DCS, Aveva, etc.), making it hard to transition from calendar-based to **condition-based maintenance (CBM)**.
+- RCAs (Root Cause Analyses) typically require **weeks of manual data gathering** due to the lack of standardized structures.
+- Poor standardization and naming conventions hinder data unification and collaboration.
+
+**RMDM solves this by providing a common foundation for structuring and classifying data, enabling faster, more effective RCA and troubleshooting.**
 
 ## Module Components
 
-This module contains:
-- **data_models/**: Core RMDM data model definitions
-  - `containers/`: Data model container definitions for all RMDM entities
-  - `views/`: Data model view definitions for all RMDM entities
-  - `rmdm_v1.datamodel.yaml`: Main data model configuration
-  - `rmdm.space.yaml`: Space configuration for the RMDM data model
+The RMDM v1 module is structured as follows:
+
+- **data_models/** – Core RMDM data model definitions
+- **containers/** – Container definitions for all RMDM entities
+- **views/** – View definitions for all RMDM entities
+- **rmdm_v1.datamodel.yaml** – Main data model configuration
+- **rmdm.space.yaml** – Space configuration for the RMDM data model
 
 ## Data Model Entities
 
-The RMDM v1 data model includes the following key entities:
+The RMDM v1 defines a comprehensive set of entities, grouped into key categories:
 
 ### Core Asset Entities
-- **Asset**: Physical or logical assets in the maintenance system
-- **Equipment**: Specific equipment items that require maintenance
-- **EquipmentClass**: Classification system for equipment types
-- **EquipmentFunction**: Functional categories for equipment
-- **EquipmentType**: Specific types of equipment
+
+- **Asset** – Physical or logical assets in the maintenance system
+- **Equipment** – Specific equipment items requiring maintenance
+- **EquipmentClass** – Classification system for equipment types
+- **EquipmentFunction** – Functional categories for equipment
+- **EquipmentType** – Specific types of equipment
 
 ### Maintenance Entities
-- **MaintenanceOrder**: Work orders for maintenance activities
-- **Notification**: System notifications and alerts
+
+- **MaintenanceOrder** – Work orders for maintenance activities
+- **Notification** – System notifications and alerts
 
 ### Failure Analysis Entities
-- **FailureNotification**: Notifications specifically related to failures
-- **FailureCause**: Root causes of equipment failures
-- **FailureMechanism**: Mechanisms through which failures occur
-- **FailureMode**: Specific modes of failure for equipment
+
+- **FailureNotification** – Notifications related to failures
+- **FailureCause** – Root causes of equipment failures
+- **FailureMechanism** – Mechanisms through which failures occur
+- **FailureMode** – Specific modes of failure for equipment
 
 ### Extended Entities
-- **File_ext**: Extended file metadata for maintenance documentation
-- **Timeseries_ext**: Extended time series data for monitoring and analysis
+
+- **File_ext** – Extended file metadata for maintenance documentation
+- **Timeseries_ext** – Extended time series data for monitoring and analysis
 
 ## Related Modules
 
-- **root_cause_analysis/**: Contains intelligent agents that work with this data model to provide RCA capabilities
+- **atlas_ai/rca_with_rmdm/** – Contains intelligent Atlas AI agents that work with this data model to provide RCA capabilities
 
 ## Deployment
 
-This document outlines the steps to deploy the Reliability Maintenance Data Model (RMDM) using the Cognite Toolkit. This process involves integrating this GitHub repository module into your local Toolkit setup and ensuring your configuration is correctly set up for deployment.
-
 ### Prerequisites
-- Basic understanding of Git and GitHub
-- Familiarity with the Cognite Data Fusion (CDF) Toolkit
-- Access to your CDF project
-- `cognite-toolkit` version >= 0.5.54
 
-### Step 1: Download the RMDM Module from GitHub
+Before you start, ensure you have the following:
 
-The first step is to obtain the RMDM module files from the specified GitHub repository.
+- You already have a Cognite Toolkit project set up locally.
+- Your project contains the standard `cdf.toml` file
+- You have valid authentication to your target CDF environment
 
-1. Navigate to your desired local directory where you manage your CDF Toolkit projects.
+### Step 1: Enable External Libraries
 
-2. Download the folder `rmdm_v1` from the following GitHub URL: 
-   ```
-   https://github.com/cognitedata/templates/tree/main/templates/modules/rmdm_v1
-   ```
+Edit your project's `cdf.toml` and add:
 
-You have a few options for downloading:
+```toml
+[alpha_flags]
+external-libraries = true
 
-#### Option A: Git Clone (Recommended for ongoing updates)
-If you plan to keep this repository synchronized or contribute, clone the entire templates repository and then navigate to the specific module.
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+```
+
+This allows the Toolkit to retrieve official library packages, including RMDM.
+
+### Step 2 (Optional but Recommended): Enable Usage Tracking
+
+To help improve the Deployment Pack and provide insight to the Value Delivery Accelerator team, you can enable anonymous usage tracking:
 
 ```bash
-git clone https://github.com/cognitedata/templates.git
+cdf collect opt-in
 ```
 
-After cloning, you will find the folder at `templates/modules/rmdm_v1`.
+This is optional, but highly recommended.
 
-#### Option B: Direct Download (For one-time setup)
-1. Go to the GitHub URL in your browser
-2. Click the "Code" button (usually green)
-3. Select "Download ZIP"
-4. After downloading and unzipping, locate the `templates/modules/rmdm_v1` path within the unzipped folder and extract the `rmdm_v1` folder
+### Step 3: Add the Module
 
-**Result:** You should now have a folder named `rmdm_v1` containing the RMDM module files on your local machine.
+Run:
 
-### Step 2: Add the Downloaded Folder to Your Toolkit Modules
-
-Now, integrate the downloaded RMDM module into your local Cognite Toolkit setup.
-
-1. Locate your local Cognite Toolkit project directory. This is typically where your cognite-toolkit files are stored, and you'll find a `modules/` folder within it.
-
-   > **Note:** If you don't have an existing Toolkit project, you might need to initialize one or use an existing one where you manage your CDF deployments.
-
-2. Move or copy the `rmdm_v1` folder (from Step 1) into the `modules/` directory (or a subfolder of it) in your local Cognite Toolkit setup.
-
-Your directory structure should now look something like this:
-
-```
-├── modules/
-│   └── rmdm_v1/
-│       └── data_models/
-├── config.dev.yml
-└── ...
+```bash
+cdf modules add
 ```
 
-### Step 3: Verify Your Cognite Data Fusion (CDF) Toolkit Version
+This opens the interactive module selection interface.
 
-It's crucial to ensure your `cognite-toolkit` version meets the minimum requirement for deploying this module.
+### Step 4: Select the RMDM Data Models Package
 
-1. Open your terminal or command prompt.
+From the menu, select:
 
-2. Run the following command to check your installed `cognite-toolkit` version:
-   ```bash
-   cdf --version
-   ```
+```
+Data models: Data models that extend the core data model
+```
 
-3. Ensure the reported version is `>=0.5.54`.
+Follow the prompts. Toolkit will:
 
-4. If your version is older, you need to upgrade. Use pip to upgrade:
-   ```bash
-   pip install --upgrade cognite-toolkit
-   ```
+- Download the RMDM module
+- Update the Toolkit configuration
+- Place the files into your project
 
-   > **Note:** If you are using Poetry or another package manager, refer to its documentation for upgrading packages.
+### Step 5: Verify Folder Structure
 
-### Step 4: Configure Your Deployment for the New Module
+After installation, your project should now contain:
 
-Finally, you need to instruct your Toolkit deployment to include the newly added RMDM module. This is typically done through your `config.dev.yml` file for local deployments or a GitHub Deploy file (e.g., a GitHub Actions workflow) for CI/CD pipelines.
+```
+modules/
+    └── data_models/
+        └── rmdm_v1/
+```
 
-### Next Steps: Running the Deployment
+If you see this structure, RMDM has been successfully added to your project.
 
-Once you have completed these setup steps, you can proceed with deploying the RMDM by either running the `cdf build` and `cdf deploy` commands from your terminal in your project's root directory or do a `git push` to deploy with GitHub Actions.
+### Step 6: Deploy to CDF
+
+Build and deploy as usual:
+
+```bash
+cdf build
+```
+
+```bash
+cdf deploy --dry-run
+```
+
+```bash
+cdf deploy
+```
+
+After deployment, the RMDM models, containers, and views will be available in your CDF environment.
 
 ## Module Structure
 
@@ -165,15 +189,19 @@ rmdm_v1/
 │   │   └── Timeseries_ext.view.yaml
 │   ├── rmdm_v1.datamodel.yaml
 │   └── rmdm.space.yaml
+├── module.toml
 └── README.md                   # This file
 ```
 
-## Prerequisites
-
-- Cognite Data Fusion (CDF) project access
-- `cognite-toolkit` version >= 0.5.54
-- Proper authentication and permissions for data model deployment
-
 ## Support
 
-For issues related to this data model or deployment questions, please refer to the Cognite documentation or contact your Cognite support team.
+For troubleshooting or deployment issues:
+
+- Refer to the [Cognite Documentation](https://docs.cognite.com)
+- Contact your **Cognite support team**
+
+## Cognite Hub Article
+
+For more detailed information and the latest updates, visit the official Cognite Hub article:
+
+[How to Deploy RMDM v1 (Reliability Maintenance Data Model) in Cognite Data Fusion](https://hub.cognite.com/deployment-packs-472/how-to-deploy-rmdm-v1-reliability-maintenance-data-model-in-cognite-data-fusion-5454)
