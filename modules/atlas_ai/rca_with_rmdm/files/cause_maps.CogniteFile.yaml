@@ -1,0 +1,11 @@
+- externalId: rca_canvas_builder_cause_maps
+  name: combined_cause_map.json
+  source: cause_maps_data/combined_cause_map.json
+  mimeType: application/json
+  dataSetExternalId: ds_rca_with_rmdm
+  space: rmdm
+  metadata:
+    module: rca_with_rmdm
+    type: cause_maps
+    description: Combined cause maps for RCA analysis across different equipment classes
+
