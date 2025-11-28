@@ -12,7 +12,7 @@ tools:
   configuration:
     dataModels:
     - space: rmdm
-      externalId: rmdm
+      externalId: rmdm_v1
       version: v1
       viewExternalIds:
       - FailureNotification
@@ -24,7 +24,7 @@ tools:
   configuration:
     dataModels:
     - space: rmdm
-      externalId: rmdm
+      externalId: rmdm_v1
       version: v1
       viewExternalIds:
       - Timeseries_ext
@@ -99,7 +99,7 @@ tools:
   configuration:
     dataModels:
     - space: rmdm
-      externalId: rmdm
+      externalId: rmdm_v1
       version: v1
       viewExternalIds:
       - Asset
