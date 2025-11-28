@@ -86,6 +86,7 @@ external-libraries = true
 
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
 ```
 
 This allows the Toolkit to retrieve official library packages, including RMDM.
@@ -105,8 +106,9 @@ This is optional, but highly recommended.
 Run:
 
 ```bash
-cdf modules add
+cdf modules init .
 ```
+> **⚠️ Disclaimer**: This command will overwrite your existing modules in the current directory. Make sure to commit any changes before running this command, or use it in a fresh project directory.
 
 This opens the interactive module selection interface.
 

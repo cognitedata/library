@@ -13,6 +13,7 @@ To access this deployment pack through the Cognite Toolkit, you need to add the 
 ```toml
 [alpha_flags]
 external-libraries = true
+agents = true
 
 [library.cognite]
 url = "https://github.com/cognitedata/library/raw/refs/heads/packages-menu/packages.zip"
@@ -24,6 +25,8 @@ Once you've added this configuration, you can find and initialize this module by
 ```bash
 cdf modules init .
 ```
+
+> **⚠️ Disclaimer**: This command will overwrite your existing modules in the current directory. Make sure to commit any changes before running this command, or use it in a fresh project directory.
 
 The Atlas AI Deployment Pack (which includes this RCA with RMDM module) will be available for selection.
 
