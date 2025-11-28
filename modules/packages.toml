@@ -33,11 +33,3 @@ modules = [
     "atlas_ai/rca_with_rmdm"
 ]
 
-[packages.performance]
-id = "dp:performance"
-title = "Performance Testing"
-description = "Tools and notebooks for CDF performance testing"
-modules = [
-    "cdf_performance_testing"
-]
-

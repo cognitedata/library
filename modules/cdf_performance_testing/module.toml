@@ -1,6 +1,0 @@
-[module]
-title = "CDF Performance Testing"
-is_selected_by_default = false
-id = "dp:performance:cdf_performance_testing"
-package_id = "dp:performance"
-
