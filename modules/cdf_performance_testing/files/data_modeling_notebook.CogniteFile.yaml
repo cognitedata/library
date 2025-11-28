@@ -1,0 +1,11 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_data_modeling_notebook'
+name: 'data_modeling_performance.ipynb'
+description: 'Performance testing notebook for data modeling operations in CDF'
+mimeType: 'application/x-ipynb+json'
+directory: 'notebooks/data_modeling'
+tags:
+  - 'performance'
+  - 'notebook'
+  - 'data_modeling'
+

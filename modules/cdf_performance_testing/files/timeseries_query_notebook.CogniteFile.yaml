@@ -1,0 +1,12 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_timeseries_query_notebook'
+name: 'timeseries_query_performance.ipynb'
+description: 'Performance testing notebook for time series query operations in CDF'
+mimeType: 'application/x-ipynb+json'
+directory: 'notebooks/time_series'
+tags:
+  - 'performance'
+  - 'notebook'
+  - 'timeseries'
+  - 'query'
+

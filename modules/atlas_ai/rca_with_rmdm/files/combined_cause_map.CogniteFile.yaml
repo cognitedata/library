@@ -1,0 +1,11 @@
+space: 'rmdm'
+externalId: 'rca_canvas_builder_cause_maps'
+name: 'combined_cause_map.json'
+description: 'Combined cause maps for RCA analysis across different equipment classes (HE, VE, PU, CO) based on ISO 14224 and OREDA standards'
+tags:
+  - 'cause_maps'
+  - 'rca'
+  - 'rmdm'
+mimeType: 'application/json'
+directory: 'files'
+

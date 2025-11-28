@@ -1,0 +1,11 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_requirements'
+name: 'requirements.txt'
+description: 'Python dependencies required for performance testing notebooks and scripts'
+mimeType: 'text/plain'
+directory: '.'
+tags:
+  - 'performance'
+  - 'config'
+  - 'requirements'
+

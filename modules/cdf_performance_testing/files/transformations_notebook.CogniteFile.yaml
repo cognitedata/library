@@ -1,0 +1,11 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_transformations_notebook'
+name: 'transformations_performance.ipynb'
+description: 'Performance testing notebook for transformations in CDF'
+mimeType: 'application/x-ipynb+json'
+directory: 'notebooks/transformations'
+tags:
+  - 'performance'
+  - 'notebook'
+  - 'transformations'
+

@@ -1,0 +1,10 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_timeseries_ingestion_notebook'
+name: 'timeseries_ingestion_performance.ipynb'
+description: 'Performance testing notebook for time series data ingestion in CDF'
+mimeType: 'application/x-ipynb+json'
+directory: 'notebooks/data_ingestion'
+tags:
+  - 'performance'
+  - 'notebook'
+  - 'timeseries'

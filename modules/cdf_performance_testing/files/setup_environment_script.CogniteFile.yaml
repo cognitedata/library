@@ -1,0 +1,11 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_setup_environment'
+name: 'setup_environment.py'
+description: 'Script to set up the environment for performance testing'
+mimeType: 'text/x-python'
+directory: 'scripts'
+tags:
+  - 'performance'
+  - 'script'
+  - 'setup'
+

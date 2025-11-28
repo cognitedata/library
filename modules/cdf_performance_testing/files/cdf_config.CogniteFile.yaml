@@ -1,0 +1,11 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_cdf_config'
+name: 'cdf_config.py'
+description: 'Configuration file for CDF connection and settings'
+mimeType: 'text/x-python'
+directory: 'configs'
+tags:
+  - 'performance'
+  - 'config'
+  - 'cdf'
+

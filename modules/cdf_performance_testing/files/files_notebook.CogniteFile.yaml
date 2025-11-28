@@ -1,0 +1,11 @@
+space: 'cdf_cdm'
+externalId: 'perf_test_files_notebook'
+name: 'files_performance.ipynb'
+description: 'Performance testing notebook for files operations in CDF'
+mimeType: 'application/x-ipynb+json'
+directory: 'notebooks/files'
+tags:
+  - 'performance'
+  - 'notebook'
+  - 'files'
+
