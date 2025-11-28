@@ -2,7 +2,7 @@ externalId: 'perf_test_timeseries_query_notebook'
 name: 'timeseries_query_performance.ipynb'
 source: 'performance_testing'
 dataSetExternalId: 'ds_performance_testing'
-directory: 'notebooks/time_series'
+directory: 'files'
 mimeType: 'application/x-ipynb+json'
 metadata:
   category: 'performance'

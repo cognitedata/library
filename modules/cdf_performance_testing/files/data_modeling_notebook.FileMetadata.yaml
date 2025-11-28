@@ -2,7 +2,7 @@ externalId: 'perf_test_data_modeling_notebook'
 name: 'data_modeling_performance.ipynb'
 source: 'performance_testing'
 dataSetExternalId: 'ds_performance_testing'
-directory: 'notebooks/data_modeling'
+directory: 'files'
 mimeType: 'application/x-ipynb+json'
 metadata:
   category: 'performance'
