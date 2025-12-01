@@ -11,6 +11,7 @@ from dependencies import (
     create_general_annotation_service,
     create_general_pipeline_service,
 )
+from services.ConfigService import format_launch_config
 from services.LaunchService import GeneralLaunchService, LocalLaunchService, AbstractLaunchService
 from services.CacheService import ICacheService
 from services.DataModelService import IDataModelService
@@ -41,7 +42,6 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     pipeline_instance: IPipelineService = create_general_pipeline_service(
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
-
     launch_instance: AbstractLaunchService = _create_launch_service(
         config=config_instance,
         client=client,
@@ -50,6 +50,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         function_call_info=function_call_info,
     )
 
+    logger_instance.info(format_launch_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
     run_status: str = "success"
     try:
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
@@ -88,7 +89,6 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     else:
         logger_instance = create_logger_service(log_level=log_level)
     tracker_instance = PerformanceTracker()
-
     launch_instance: AbstractLaunchService = _create_local_launch_service(
         config=config_instance,
         client=client,
@@ -96,6 +96,8 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         tracker=tracker_instance,
         function_call_info={"function_id": None, "call_id": None},
     )
+
+    logger_instance.info(format_launch_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START")
     try:
         while True:
             if launch_instance.run() == "Done":
