@@ -1,0 +1,27 @@
+# AI Property Extractor Configuration
+# This module extracts structured properties from unstructured text using LLM agents
+
+# Space for function (required in DATA_MODELING_ONLY mode)
+functionSpace: your_space
+
+# Extraction Pipeline
+extractionPipelineExternalId: ep_ai_property_extractor
+
+# View configuration (to be overridden per deployment)
+viewSpace: your_space
+viewExternalId: YourView
+viewVersion: v1
+
+# Extraction settings
+textProperty: description
+batchSize: 10
+
+# Workflow configuration
+workflow: wf_ai_property_extractor
+
+# Schedule (cron expression) - runs daily at 4 AM
+scheduleExpression: "0 4 * * *"
+
+### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}
