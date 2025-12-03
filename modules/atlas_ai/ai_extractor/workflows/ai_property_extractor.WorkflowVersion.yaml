@@ -1,0 +1,19 @@
+workflowExternalId: '{{workflow}}'
+version: 'v1'
+workflowDefinition:
+  description: 'Run AI Property Extractor function to extract properties from text'
+  tasks:
+    - externalId: '{{workflow}}_extraction_task'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_ai_property_extractor'
+          data:
+            logLevel: 'INFO'
+            ExtractionPipelineExtId: '{{extractionPipelineExternalId}}'
+        isAsyncComplete: false
+      name: 'AI Property Extraction'
+      description: 'Extract structured properties from text using LLM agent'
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'

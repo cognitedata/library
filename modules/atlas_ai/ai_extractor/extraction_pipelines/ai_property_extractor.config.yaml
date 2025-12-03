@@ -1,0 +1,21 @@
+externalId: '{{extractionPipelineExternalId}}'
+config:
+  agent:
+    externalId: ai_property_extractor_agent
+  view:
+    space: '{{viewSpace}}'
+    externalId: '{{viewExternalId}}'
+    version: '{{viewVersion}}'
+  extraction:
+    textProperty: '{{textProperty}}'
+    # List of property IDs to extract - customize per deployment
+    # Example: ["discipline", "priority", "category"]
+    propertiesToExtract: []
+    # Mapping from source property to target property
+    # Example: {"description": "ai_description", "title": "ai_title"}
+    aiPropertyMapping: {}
+  processing:
+    batchSize: {{batchSize}}
+    # Optional DM filters for instance selection
+    # Example: [{"type": "equals", "property": ["status"], "value": "active"}]
+    filters: []

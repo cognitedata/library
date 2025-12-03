@@ -1,0 +1,32 @@
+# Workflow Trigger for AI Property Extractor
+# 
+# Currently configured with a schedule trigger. To switch to a data modeling trigger,
+# replace the triggerRule section with something like:
+#
+# triggerRule:
+#   triggerType: dataModeling
+#   dataModelingQuery:
+#     with:
+#       instances:
+#         nodes:
+#           filter:
+#             hasData:
+#               - type: view
+#                 space: <your_space>
+#                 externalId: <your_view>
+#                 version: <your_version>
+#     select:
+#       instances: {}
+#
+# Consult the Cognite documentation for the exact format:
+# https://docs.cognite.com/cdf/data_workflows/triggers
+
+externalId: '{{workflow}}_trigger'
+triggerRule:
+  triggerType: schedule
+  cronExpression: '{{scheduleExpression}}'
+workflowExternalId: '{{workflow}}'
+workflowVersion: 'v1'
+authentication:
+  clientId: '{{workflowClientId}}'
+  clientSecret: '{{workflowClientSecret}}'
