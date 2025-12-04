@@ -25,7 +25,6 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
     1. Retrieves candidate edges (pattern-mode annotations pointing to sink node)
     2. Searches for matching entities using EntitySearchService (with caching)
     3. Updates edges and RAW tables based on search results
-    4. Pauses 10 seconds between batches
 
     Pattern-mode annotations are created when diagram detection finds text matching
     regex patterns but can't match it to the provided entity list. This function
