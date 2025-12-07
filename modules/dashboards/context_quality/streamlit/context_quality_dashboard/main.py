@@ -162,19 +162,12 @@ def gauge(col, title, value, metric_key, color_func, axis_range, suffix="%", key
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value,
-        title={'text': title, 'font': {'size': 14}},
-        number={'suffix': suffix, 'font': {'size': 28}},
-        gauge={
-            'axis': {'range': axis_range},
-            'bar': {'color': color}
-        }
+        title={'text': title},
+        number={'suffix': suffix},
+        gauge={'axis': {'range': axis_range}, 'bar': {'color': color}}
     ))
-    fig.update_layout(
-        width=300,
-        height=250,
-        margin=dict(l=30, r=30, t=80, b=30)
-    )
-    col.plotly_chart(fig, use_container_width=False, key=key)
+    fig.update_layout(height=300, margin=dict(l=20, r=20, t=120, b=80))
+    col.plotly_chart(fig, use_container_width=True, key=key)
     
     # Show help text below the gauge if provided
     if help_text:
@@ -186,8 +179,8 @@ def gauge_na(col, title, message="N/A", key=None, help_text=None):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=0,
-        title={'text': title, 'font': {'size': 14}},
-        number={'font': {'color': '#999999', 'size': 28}, 'suffix': ''},
+        title={'text': title},
+        number={'font': {'color': '#999999'}, 'suffix': ''},
         gauge={
             'axis': {'range': [0, 100], 'tickcolor': '#cccccc'},
             'bar': {'color': '#e0e0e0'},
@@ -196,9 +189,8 @@ def gauge_na(col, title, message="N/A", key=None, help_text=None):
         }
     ))
     fig.update_layout(
-        width=300,
-        height=250, 
-        margin=dict(l=30, r=30, t=80, b=30),
+        height=300, 
+        margin=dict(l=20, r=20, t=120, b=80),
         annotations=[
             dict(
                 text=message,
@@ -211,7 +203,7 @@ def gauge_na(col, title, message="N/A", key=None, help_text=None):
             )
         ]
     )
-    col.plotly_chart(fig, use_container_width=False, key=key)
+    col.plotly_chart(fig, use_container_width=True, key=key)
     
     # Show help text below the gauge if provided
     if help_text:
