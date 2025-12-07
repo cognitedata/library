@@ -228,12 +228,6 @@ response = client.functions.call(
 print(response)
 ```
 
-**Option 3: Using cdf-tk CLI**
-
-```bash
-cdf functions call context_quality_handler
-```
-
 ### Verify Function Execution
 
 The function will:
@@ -281,6 +275,43 @@ client.functions.schedules.create(
     )
 )
 ```
+
+---
+
+## Troubleshooting
+
+### Dashboard shows "Could not load metrics file"
+
+**Cause:** The Cognite Function has not been run yet, or it failed.
+
+**Solution:**
+1. Run the function manually (see above)
+2. Check function logs for errors
+3. Verify the file `contextualization_quality_metrics` exists in CDF Files
+
+### Metrics show all zeros
+
+**Cause:** The data model views are empty or misconfigured.
+
+**Solution:**
+1. Verify your data exists in the configured views
+2. Check that the view space, external_id, and version match your data model
+3. Modify lines 71-79 in `handler.py` if using a custom data model
+
+### Function times out
+
+**Cause:** Too much data to process within the 10-minute function limit.
+
+**Solution:**
+1. Reduce processing limits in configuration:
+   ```python
+   {
+       "max_timeseries": 50000,
+       "max_assets": 50000,
+       "max_equipment": 50000
+   }
+   ```
+2. Disable historical gap analysis: `"enable_historical_gaps": False`
 
 ---
 
@@ -604,43 +635,6 @@ Completeness = (365 - 30) / 365 × 100 = 91.8%
 - 🟢 **≥ 95%**: Excellent - Minimal data gaps
 - 🟡 **85-95%**: Warning - Some significant gaps
 - 🔴 **< 85%**: Critical - Major data gaps exist
-
----
-
-## Troubleshooting
-
-### Dashboard shows "Could not load metrics file"
-
-**Cause:** The Cognite Function has not been run yet, or it failed.
-
-**Solution:**
-1. Run the function manually (see above)
-2. Check function logs for errors
-3. Verify the file `contextualization_quality_metrics` exists in CDF Files
-
-### Metrics show all zeros
-
-**Cause:** The data model views are empty or misconfigured.
-
-**Solution:**
-1. Verify your data exists in the configured views
-2. Check that the view space, external_id, and version match your data model
-3. Modify lines 71-79 in `handler.py` if using a custom data model
-
-### Function times out
-
-**Cause:** Too much data to process within the 10-minute function limit.
-
-**Solution:**
-1. Reduce processing limits in configuration:
-   ```python
-   {
-       "max_timeseries": 50000,
-       "max_assets": 50000,
-       "max_equipment": 50000
-   }
-   ```
-2. Disable historical gap analysis: `"enable_historical_gaps": False`
 
 ---
 
