@@ -58,6 +58,15 @@
         list: false
         type: int64
       name: Diagram detect job Id
+    diagramDetectJobToken:
+      autoIncrement: false
+      immutable: false
+      nullable: true
+      type:
+        collation: ucs_basic
+        list: false
+        type: text
+      name: Diagram detect job token
     patternModeJobId:
       autoIncrement: false
       immutable: false
@@ -66,6 +75,15 @@
         list: false
         type: int64
       name: Pattern mode job Id
+    patternModeJobToken:
+      autoIncrement: false
+      immutable: false
+      nullable: true
+      type:
+        collation: ucs_basic
+        list: false
+        type: text
+      name: Pattern mode job token
     linkedFile:
       autoIncrement: false
       immutable: false

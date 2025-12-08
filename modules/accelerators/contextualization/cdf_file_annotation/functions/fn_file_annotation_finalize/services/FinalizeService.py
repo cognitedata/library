@@ -103,15 +103,15 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         self.logger.info("Starting Finalize Function", section="START")
         try:
-            job_id, pattern_mode_job_id, file_to_state_map = self.retrieve_service.get_job_id()
-            if not job_id or not file_to_state_map:
+            regular_job, pattern_mode_job, file_to_state_map = self.retrieve_service.get_job_id()
+            if not regular_job or not file_to_state_map:
                 self.logger.info("No diagram detect jobs found", section="END")
                 return "Done"
-            self.logger.info(f"Retrieved job id ({job_id}) and claimed {len(file_to_state_map.values())} files")
+            self.logger.info(f"Retrieved job {regular_job} and claimed {len(file_to_state_map.values())} files")
         except CogniteAPIError as e:
             if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
                 self.logger.info(
-                    message=f"Retrieved job id that has already been claimed. Grabbing another job.",
+                    message=f"Retrieved job that has already been claimed. Grabbing another job.",
                     section="END",
                 )
                 return
@@ -128,10 +128,14 @@ class GeneralFinalizeService(AbstractFinalizeService):
         pattern_mode_job_results: dict | None = None
         try:
             self.logger.info("(Regular) Retrieving diagram detect job results", "START")
-            job_results = self.retrieve_service.get_diagram_detect_job_result(job_id)
-            if pattern_mode_job_id:
+            job_results = self.retrieve_service.get_diagram_detect_job_result(
+                job_id=regular_job[0], job_token=regular_job[1]
+            )
+            if pattern_mode_job:
                 self.logger.info("(Pattern) Retrieving diagram detect job results")
-                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(pattern_mode_job_id)
+                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(
+                    job_id=pattern_mode_job[0], job_token=pattern_mode_job[1]
+                )
         except Exception as e:
             self.logger.error(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files. Encountered an error.",
@@ -148,13 +152,11 @@ class GeneralFinalizeService(AbstractFinalizeService):
         # 1. The main job is finished, AND
         # 2. EITHER pattern mode was not enabled (no pattern job ID)
         #    OR pattern mode was enabled AND its job is also finished.
-        jobs_complete: bool = job_results is not None and (
-            not pattern_mode_job_id or pattern_mode_job_results is not None
-        )
+        jobs_complete: bool = job_results is not None and (not pattern_mode_job or pattern_mode_job_results is not None)
 
         if not jobs_complete:
             self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) and/or pattern id ({pattern_mode_job_id}) not complete",
+                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job {regular_job} and/or pattern id {pattern_mode_job} not complete",
                 section="BOTH",
             )
             self._update_batch_state(
@@ -166,7 +168,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             return
 
         self.logger.info(
-            f"Both jobs ({job_id}, {pattern_mode_job_id}) complete. Applying all annotations.",
+            f"Both jobs {regular_job} and {pattern_mode_job} complete. Applying all annotations.",
             section="END",
         )
 
