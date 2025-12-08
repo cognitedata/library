@@ -178,8 +178,11 @@ class GeneralPromoteService(IPromoteService):
                     else self.target_entities_view.instance_space
                 )
 
+                # NOTE: This occurs when no instance space is set in the data model views section extraction pipelines config file
                 if not entity_space:
-                    self.logger.warning(f"Could not determine entity space for type '{annotation_type}'. Skipping.")
+                    self.logger.warning(
+                        f"Could not determine entity space for type '{annotation_type}'.\nPlease ensure an instance space is set in the Files and Target Entities data model views section of the extraction pipeline configuration.\nSkipping."
+                    )
                     continue
 
                 # Strategy: Check cache → query edges → fallback to global search
@@ -265,13 +268,7 @@ class GeneralPromoteService(IPromoteService):
         """
         Retrieves pattern-mode annotation edges that are candidates for promotion.
 
-        Uses query configuration from promote_function config if available, otherwise falls back
-        to hardcoded filter for backward compatibility.
-
-        Default query criteria (when no config):
-        - End node is the sink node (placeholder for unresolved entities)
-        - Status is "Suggested" (not yet approved/rejected)
-        - Tags do not contain "PromoteAttempted" (haven't been processed yet)
+        Uses query configuration from promote_function config.
 
         Args:
             None
@@ -284,7 +281,7 @@ class GeneralPromoteService(IPromoteService):
         limit = get_limit_from_query(self.config.promote_function.get_candidates_query)
         # If limit is -1 (unlimited), use sensible default
         if limit == -1:
-            limit = 500
+            limit = 500  # NOTE: This may or may not be needed. The main benefit of this is having the ability to ensure edges are processed in the 10minute time constraint of Serverless Functions
 
         return self.client.data_modeling.instances.list(
             instance_type="edge",
