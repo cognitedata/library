@@ -129,7 +129,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 return
             else:
                 raise e
@@ -150,7 +150,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 return
             else:
                 raise e
@@ -192,7 +192,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 section="END",
             )
         except Exception as e:
-            self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
+            self.logger.error(message="Ran into the following error", error=e, section="END")
             raise
 
         self.tracker.add_files(success=len(file_nodes))
