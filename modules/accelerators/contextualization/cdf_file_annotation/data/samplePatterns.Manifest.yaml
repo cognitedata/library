@@ -4,4 +4,3 @@ table:
   dbName: "{{ rawDb }}"
   tableName: "{{ rawManualPatternsCatalog }}"
 key: key
-
