@@ -644,6 +644,7 @@ For troubleshooting or deployment issues:
 
 - Refer to the [Cognite Documentation](https://docs.cognite.com)
 - Contact your **Cognite support team**
+- Join the Slack channel **#topic-deployment-packs** for community support and discussions
 
 ---
 
