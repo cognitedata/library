@@ -51,6 +51,14 @@
       containerPropertyIdentifier: diagramDetectJobId
       description: Diagram detect job Id
       name: Diagram detect job Id
+    diagramDetectJobToken:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: diagramDetectJobToken
+      description: Diagram detect job token. Used as header in client request.
+      name: Diagram detect job token
     patternModeJobId:
       container:
         externalId: {{ annotationStateExternalId }}
@@ -59,6 +67,14 @@
       containerPropertyIdentifier: patternModeJobId
       description: Diagram detect job Id with pattern mode
       name: Pattern mode job Id
+    patternModeJobToken:
+      container:
+        externalId: {{ annotationStateExternalId }}
+        space: {{ annotationStateSchemaSpace }}
+        type: container
+      containerPropertyIdentifier: patternModeJobToken
+      description: Diagram detect job token with pattern mode. Used as header in client request.
+      name: Pattern mode job token
     patternModeMessage:
       container:
         externalId: {{ annotationStateExternalId }}

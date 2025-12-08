@@ -81,8 +81,8 @@ class AnnotationState:
     sourceUpdatedTime: str = field(
         default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     )
-    sourceCreatedUser: str = "fn_dm_context_annotation_prepare"
-    sourceUpdatedUser: str = "fn_dm_context_annotation_prepare"
+    sourceCreatedUser: str = "fn_dm_context_annotation_launch"
+    sourceUpdatedUser: str = "fn_dm_context_annotation_launch"
 
     def _create_external_id(self) -> str:
         """
@@ -329,3 +329,133 @@ class PerformanceTracker:
         self.total_time_delta = timedelta(0)
         self.latest_run_time = datetime.now(timezone.utc)
         print("PerformanceTracker state has been reset")
+
+
+@dataclass
+class PromoteTracker:
+    """
+    Tracks metrics for the promote function.
+
+    Metrics:
+    - edges_promoted: Edges successfully promoted (single match found)
+    - edges_rejected: Edges rejected (no match found)
+    - edges_ambiguous: Edges with ambiguous matches (multiple entities found)
+    - total_runs: Number of batches processed
+    - total_time_delta: Cumulative runtime
+    """
+
+    edges_promoted: int = 0
+    edges_rejected: int = 0
+    edges_ambiguous: int = 0
+    total_runs: int = 0
+    total_time_delta: timedelta = field(default_factory=lambda: timedelta(0))
+    latest_run_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def _run_time(self) -> timedelta:
+        """Calculates time since last run started."""
+        time_delta: timedelta = datetime.now(timezone.utc) - self.latest_run_time
+        return time_delta
+
+    def _average_run_time(self) -> timedelta:
+        """Calculates average time per batch."""
+        if self.total_runs == 0:
+            return timedelta(0)
+        return self.total_time_delta / self.total_runs
+
+    def add_edges(self, promoted: int = 0, rejected: int = 0, ambiguous: int = 0) -> None:
+        """
+        Adds edge counts to the tracker.
+
+        Args:
+            promoted: Number of edges successfully promoted
+            rejected: Number of edges rejected (no match)
+            ambiguous: Number of edges with ambiguous matches
+        """
+        self.edges_promoted += promoted
+        self.edges_rejected += rejected
+        self.edges_ambiguous += ambiguous
+
+    def generate_local_report(self) -> str:
+        """
+        Generates a report for the current batch.
+
+        Returns:
+            String report with run time
+        """
+        self.total_runs += 1
+        time_delta: timedelta = self._run_time()
+        self.total_time_delta += time_delta
+        self.latest_run_time = datetime.now(timezone.utc)
+
+        report: str = f"Batch run time: {time_delta}"
+        return report
+
+    def generate_overall_report(self) -> str:
+        """
+        Generates a comprehensive report for all runs.
+
+        Returns:
+            String report with all metrics
+        """
+        total_edges: int = self.edges_promoted + self.edges_rejected + self.edges_ambiguous
+        report: str = (
+            f"Promote Function Summary\n"
+            f"- Total runs: {self.total_runs}\n"
+            f"- Total edges processed: {total_edges}\n"
+            f"  ├─ Promoted (auto): {self.edges_promoted}\n"
+            f"  ├─ Rejected (no match): {self.edges_rejected}\n"
+            f"  └─ Ambiguous (multiple matches): {self.edges_ambiguous}\n"
+            f"- Total run time: {self.total_time_delta}\n"
+            f"- Average run time: {self._average_run_time()}"
+        )
+        return report
+
+    def generate_ep_run(self, function_id: str | None, call_id: str | None) -> str:
+        """
+        Generates a report string for extraction pipeline logging.
+
+        Args:
+            function_id: Cognite Function ID
+            call_id: Cognite Function call ID
+
+        Returns:
+            String report for extraction pipeline
+        """
+        total_edges: int = self.edges_promoted + self.edges_rejected + self.edges_ambiguous
+        report: str = (
+            f"(caller:Promote, function_id:{function_id}, call_id:{call_id}) - "
+            f"total edges processed: {total_edges} - "
+            f"promoted: {self.edges_promoted} - "
+            f"rejected: {self.edges_rejected} - "
+            f"ambiguous: {self.edges_ambiguous}"
+        )
+        return report
+
+    def reset(self) -> None:
+        """Resets all tracker metrics to initial state."""
+        self.edges_promoted = 0
+        self.edges_rejected = 0
+        self.edges_ambiguous = 0
+        self.total_runs = 0
+        self.total_time_delta = timedelta(0)
+        self.latest_run_time = datetime.now(timezone.utc)
+        print("PromoteTracker state has been reset")
+
+
+def remove_protected_properties(node_apply: NodeApply) -> NodeApply:
+    """
+    In mid November the product team pushed a change that adds write-protection for 'isUploaded' and 'uploadedTime' to staging clusters.
+    The rationale is that CogniteFile and CogniteAsset forced the team to implement a system managed field concept.
+    This function effectively deletes the protected properties from the json object and adheres to the new standard set in place.
+    We don't use typed nodes like CogniteFile in this deployment pack since we need the properties associated with the view that we extended.
+    """
+    protected_properties = [
+        "isUploaded",
+        "uploadedTime",
+    ]  # NOTE: These are just the protected properties of CogniteFile. There are also protected properties for CogniteAsset, though we don't use it in this deployment pack.
+    for source in node_apply.sources:
+        # Safely remove the keys if they exist using .pop(key, None)
+        for property in protected_properties:
+            source.properties.pop(property, None)
+
+    return node_apply

@@ -30,13 +30,13 @@ class IRetrieveService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_diagram_detect_job_result(self, job_id: int) -> dict | None:
+    def get_diagram_detect_job_result(self, job_id: int, job_token: str) -> dict | None:
         pass
 
     @abc.abstractmethod
     def get_job_id(
         self,
-    ) -> tuple[int, int | None, dict[NodeId, Node]] | tuple[None, None, None]:
+    ) -> tuple[tuple[int, str], tuple[int | None, str | None], dict[NodeId, Node]] | tuple[None, None, None]:
         pass
 
 
@@ -56,7 +56,7 @@ class GeneralRetrieveService(IRetrieveService):
         self.filter_jobs: Filter = build_filter_from_query(config.finalize_function.retrieve_service.get_job_id_query)
         self.job_api: str = f"/api/v1/projects/{self.client.config.project}/context/diagram/detect"
 
-    def get_diagram_detect_job_result(self, job_id: int) -> dict | None:
+    def get_diagram_detect_job_result(self, job_id: int, job_token: str) -> dict | None:
         """
         Retrieves the results of a diagram detection job by job ID.
 
@@ -71,21 +71,28 @@ class GeneralRetrieveService(IRetrieveService):
         """
         url = f"{self.job_api}/{job_id}"
         result = None
-        response = self.client.get(url)
+        response = self.client.get(url, headers={"X-Job-Token": job_token})
         if response.status_code == 200:
             job_results: dict = response.json()
+            status_count = job_results.get(
+                "statusCount", "Unable to fetch the status of the files being processed by this job"
+            )
             if job_results.get("status") == "Completed":
+                self.logger.info(f"Job complete - {status_count} - {job_id}")
+                self.logger.debug(f"Below is the full response:\n{response.text}")
                 result = job_results
                 return result
             else:
-                self.logger.debug(f"{job_id} - Job not complete")
+                self.logger.info(f"Job not complete - {status_count} - {job_id}")
+                self.logger.debug(f"Below is the full response:\n{response.text}")
         else:
-            self.logger.debug(f"{job_id} - Request to get job result failed with {response.status_code} code")
+            self.logger.info(f"Request to get the job results failed - {response.url}")
+            self.logger.info(f"Below is the full response:\n{response.text}")
         return
 
     def get_job_id(
         self,
-    ) -> tuple[int, int | None, dict[NodeId, Node]] | tuple[None, None, None]:
+    ) -> tuple[tuple[int, str], tuple[int | None, str | None], dict[NodeId, Node]] | tuple[None, None, None]:
         """
         Retrieves and claims an available diagram detection job for processing.
 
@@ -98,8 +105,8 @@ class GeneralRetrieveService(IRetrieveService):
 
         Returns:
             A tuple containing:
-                - Regular diagram detection job ID
-                - Optional pattern mode job ID
+                - Regular diagram detection job ID, job token (used as header)
+                - Optional pattern mode job ID, pattern mode job token (used as header)
                 - Dictionary mapping file NodeIds to their annotation state nodes
             Returns (None, None, None) if no jobs are available.
 
@@ -138,13 +145,16 @@ class GeneralRetrieveService(IRetrieveService):
             return None, None, None
 
         job_node: Node = annotation_state_instance.pop(-1)
-        job_id: int = cast(
-            int,
-            job_node.properties[self.annotation_state_view.as_view_id()]["diagramDetectJobId"],
+        job_id: int = cast(int, job_node.properties[self.annotation_state_view.as_view_id()]["diagramDetectJobId"])
+        job_token: str = cast(
+            str, job_node.properties[self.annotation_state_view.as_view_id()]["diagramDetectJobToken"]
         )
         pattern_mode_job_id: int | None = job_node.properties[self.annotation_state_view.as_view_id()].get(
             "patternModeJobId"
         )
+        pattern_mode_job_token: str | None = job_node.properties[self.annotation_state_view.as_view_id()][
+            "patternModeJobToken"
+        ]
 
         filter_job_id = Equals(
             property=self.annotation_state_view.as_property_ref("diagramDetectJobId"),
@@ -170,7 +180,7 @@ class GeneralRetrieveService(IRetrieveService):
             file_node_id = NodeId(space=file_reference["space"], external_id=file_reference["externalId"])
             file_to_state_map[file_node_id] = node
 
-        return job_id, pattern_mode_job_id, file_to_state_map
+        return (job_id, job_token), (pattern_mode_job_id, pattern_mode_job_token), file_to_state_map
 
     def _attempt_to_claim(self, list_job_nodes_to_claim: NodeApplyList) -> None:
         """

@@ -92,9 +92,3 @@ capabilities:
           datasetScope:
             ids:
               - {{ annotationDatasetExternalId }}
-# Bug in /context/diagram/detect/ endpoint that requires this
-  - assetsAcl:
-      actions:
-        - READ
-      scope:
-        all: {}

@@ -13,6 +13,7 @@ from dependencies import (
     create_general_apply_service,
     create_general_pipeline_service,
 )
+from services.ConfigService import format_finalize_config
 from services.FinalizeService import AbstractFinalizeService, GeneralFinalizeService
 from services.ApplyService import IApplyService
 from services.RetrieveService import IRetrieveService
@@ -43,11 +44,11 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     pipeline_instance: IPipelineService = create_general_pipeline_service(
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
-
     finalize_instance = _create_finalize_service(
         config_instance, client, logger_instance, tracker_instance, function_call_info
     )
 
+    logger_instance.info(format_finalize_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
     run_status: str = "success"
     # NOTE: a random delay to stagger API requests. Used to prevent API load shedding that can return empty results under high concurrency.
     delay = random.uniform(0.1, 1.0)
@@ -92,7 +93,6 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance = create_logger_service(log_level=log_level)
 
     tracker_instance = PerformanceTracker()
-
     finalize_instance = _create_finalize_service(
         config_instance,
         client,
@@ -101,6 +101,9 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         function_call_info={"function_id": None, "call_id": None},
     )
 
+    logger_instance.info(
+        format_finalize_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
+    )
     try:
         while True:
             if finalize_instance.run():
