@@ -14,6 +14,7 @@ from utils.DataStructures import (
     AnnotationStatus,
     AnnotationState,
     PerformanceTracker,
+    remove_protected_properties,
 )
 
 
@@ -107,7 +108,7 @@ class GeneralPrepareService(AbstractPrepareService):
                     self.logger.info(f"Resetting {len(file_nodes_to_reset)} files")
                     reset_node_apply: list[NodeApply] = []
                     for file_node in file_nodes_to_reset:
-                        file_node_apply: NodeApply = file_node.as_write()
+                        file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
                         tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
                         if "AnnotationInProcess" in tags_property:
                             tags_property.remove("AnnotationInProcess")
@@ -177,7 +178,7 @@ class GeneralPrepareService(AbstractPrepareService):
             )
             annotation_state_instances.append(annotation_node_apply)
 
-            file_node_apply: NodeApply = file_node.as_write()
+            file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
             tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")

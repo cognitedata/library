@@ -22,7 +22,7 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes.annotation_types.primitives import BoundingBox
 
 from services.ConfigService import Config, ViewPropertyConfig
-from utils.DataStructures import DiagramAnnotationStatus
+from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
 from services.LoggerService import CogniteFunctionLogger
 
 
@@ -134,7 +134,7 @@ class GeneralApplyService(IApplyService):
             )
 
         # Step 3: Update the file node tag
-        node_apply = file_node.as_write()
+        node_apply = remove_protected_properties(file_node.as_write())
         node_apply.existing_version = None
         tags = cast(list[str], node_apply.sources[0].properties["tags"])
         if "AnnotationInProcess" in tags:
