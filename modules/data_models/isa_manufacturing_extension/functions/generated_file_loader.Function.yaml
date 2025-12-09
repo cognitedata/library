@@ -1,0 +1,6 @@
+name: Generate ISA Documentation Files
+externalId: generated_file_loader
+owner: ISA Manufacturing Team
+description: Generate documentation files from RAW asset and equipment data and upload them to Cognite Files.
+functionPath: ./handler.py
+dataSetExternalId: {{ datasetExternalId }}

@@ -1,0 +1,16 @@
+externalId: product_segment_tr
+name: ProductSegment
+destination:
+  dataModel:
+    space: {{ isaSchemaSpace }}
+    externalId: ISA_Manufacturing
+    version: v1
+    destinationType: ProductSegment
+  instanceSpace: {{ isaInstanceSpace }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+

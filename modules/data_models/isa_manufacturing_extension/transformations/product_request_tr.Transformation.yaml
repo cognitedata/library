@@ -1,0 +1,16 @@
+externalId: product_request_tr
+name: ProductRequest
+destination:
+  dataModel:
+    space: {{ isaSchemaSpace }}
+    externalId: ISA_Manufacturing
+    version: v1
+    destinationType: ProductRequest
+  instanceSpace: {{ isaInstanceSpace }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+

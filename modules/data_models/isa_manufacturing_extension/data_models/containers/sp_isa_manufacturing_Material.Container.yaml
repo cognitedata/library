@@ -1,0 +1,55 @@
+space: {{ isaSchemaSpace }}
+externalId: Material
+name: Material
+description: Master material definition used in manufacturing
+properties:
+  material_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: material_id
+  material_class:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: material_class
+  description:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: description
+  recipe:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: recipe
+  batch:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch
+indexes:
+  material_id_index:
+    properties:
+    - material_id
+    cursorable: true
+    indexType: btree
+

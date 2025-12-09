@@ -1,0 +1,15 @@
+externalId: unit_tr
+name: Unit
+destination:
+  dataModel:
+    space: {{ isaSchemaSpace }}
+    externalId: ISA_Manufacturing
+    version: v1
+    destinationType: Unit
+  instanceSpace: {{ isaInstanceSpace }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+

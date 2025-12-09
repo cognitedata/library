@@ -1,0 +1,60 @@
+space: {{ isaSchemaSpace }}
+externalId: ISAAsset
+name: ISAAsset
+description: Canonical ISA‑95 asset metadata (single asset tree)
+properties:
+  asset_specific:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    immutable: false
+    autoIncrement: false
+    name: asset_specific
+  erp_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: erp_id
+  equipment:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipment
+  timeSeries:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: timeSeries
+  files:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: files
+  object3D:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: object3D
+indexes:
+  asset_specific_idx:
+    properties:
+    - asset_specific
+    cursorable: true
+    indexType: btree

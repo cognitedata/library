@@ -1,0 +1,197 @@
+space: {{ isaSchemaSpace }}
+externalId: ISAAsset
+name: ISAAsset
+description: Canonical ISA‑95 asset tree
+implements:
+- space: cdf_cdm
+  externalId: CogniteAsset
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  parent:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_parent
+    name: Parent
+    description: >
+      Reference to the parent asset in the ISA-95 hierarchical asset tree, conforming to ISA-95 
+      functional location hierarchy principles. The parent relationship establishes the containment 
+      hierarchy where assets are organized in a tree structure from enterprise through site, area, 
+      process cell, and unit levels. This relationship enables hierarchical navigation, supports 
+      parent-child queries, and maintains the organizational structure defined by ISA-95 Level 0-4 
+      hierarchy. The parent relationship is fundamental to asset tree traversal and organizational 
+      reporting. [ISA-95 Level 0-4]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAAsset
+      version: {{ viewVersion }}
+      type: view
+  root:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_root
+    name: Root
+    description: >
+      Automatically maintained reference to the top-level root asset of the hierarchy, typically 
+      representing the enterprise or site level in ISA-95. The root relationship enables efficient 
+      tree traversal and provides a direct path to the hierarchy root without recursive parent 
+      navigation. This relationship follows ISA-95 functional location hierarchy principles and 
+      supports root-level queries, organizational filtering, and hierarchical data organization. 
+      The root is automatically updated when the asset hierarchy changes. [ISA-95]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAAsset
+      version: {{ viewVersion }}
+      type: view
+  path:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_path
+    name: Path
+    description: >
+      Automatically maintained ordered list of this asset's ancestors, starting with the root asset 
+      and ending with the immediate parent. The path enables efficient subtree filtering to find 
+      all assets under a parent without recursive queries. This relationship follows ISA-95 
+      functional location path conventions and supports hierarchical queries, organizational 
+      filtering, and path-based asset identification. The path is automatically updated when the 
+      asset hierarchy changes and provides a denormalized representation of the asset's position 
+      in the hierarchy. [ISA-95]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAAsset
+      version: {{ viewVersion }}
+      type: view
+  children:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAAsset
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ISAAsset
+        version: {{ viewVersion }}
+        type: view
+      identifier: parent
+    name: Children
+    description: >
+      Automatically maintained reverse relationship collection of all child assets that have this 
+      asset as their parent. The children relationship enables downward navigation in the ISA-95 
+      hierarchical asset tree, supporting subtree queries and hierarchical reporting. This 
+      relationship follows ISA-95 functional location hierarchy principles and provides efficient 
+      access to all assets contained within this asset. The children collection is automatically 
+      updated when child assets are added, removed, or reparented. [ISA-95]
+    connectionType: multi_reverse_direct_relation
+  equipment:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Equipment
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Equipment
+        version: {{ viewVersion }}
+        type: view
+      identifier: asset
+    name: Equipment
+    description: >
+      Reference to the Equipment entity associated with this asset, establishing the link between 
+      the ISA-95 asset hierarchy and ISA-88 Equipment Model. The equipment relationship enables 
+      navigation from asset to physical equipment, supporting equipment-centric queries and 
+      equipment-to-asset traceability. This relationship follows ISA-95 equipment-to-asset mapping 
+      principles and enables integration between asset management systems and equipment control 
+      systems. Equipment linked through this relationship represents physical equipment items 
+      that are part of the asset structure. [ISA-88, ISA-95]
+    connectionType: multi_reverse_direct_relation
+  timeSeries:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISATimeSeries
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ISATimeSeries
+        version: {{ viewVersion }}
+        type: view
+      identifier: assets
+    name: Time Series
+    description: >
+      Collection of time series data associated with this asset, enabling real-time and historical 
+      process data acquisition. Time series may include sensor readings, process measurements, 
+      asset status, and performance metrics. This relationship follows ISA-95 data acquisition 
+      standards for process data and enables asset performance analysis, condition monitoring, 
+      and predictive maintenance. Time series data is essential for operational visibility, 
+      troubleshooting, and asset optimization across the ISA-95 hierarchy. [ISA-95]
+    connectionType: multi_reverse_direct_relation
+  files:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAFile
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ISAFile
+        version: {{ viewVersion }}
+        type: view
+      identifier: assets
+    name: Files
+    description: >
+      Collection of document files associated with this asset, following ISA-95 asset documentation 
+      standards. Files may include asset datasheets, operation manuals, maintenance procedures, 
+      engineering drawings, certificates, P&IDs, and other asset-related documentation. This 
+      relationship enables comprehensive asset documentation management and supports engineering, 
+      operations, and maintenance activities. Document organization should follow ISA-95 document 
+      classification and naming conventions to ensure consistency and interoperability. [ISA-95]
+    connectionType: multi_reverse_direct_relation
+  activities:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: WorkOrder
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: WorkOrder
+        version: {{ viewVersion }}
+        type: view
+      identifier: assets
+    name: Work Orders
+    description: >
+      Reverse relationship collection of all WorkOrder entities associated with this asset. 
+      Work orders represent specific work instructions for manufacturing execution at ISA-95 
+      Level 3. This relationship enables asset-centric work order queries, supporting maintenance 
+      planning, work execution, and asset activity tracking. The work orders relationship links 
+      the asset hierarchy to operational activities, enabling comprehensive asset lifecycle 
+      management and operational visibility. [ISA-95 Level 3]
+    connectionType: multi_reverse_direct_relation
+  asset_specific:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAAsset
+      type: container
+    containerPropertyIdentifier: asset_specific
+    name: asset_specific
+    description: >
+      Flexible reference field that can point to any ISA-95 node type (Area, ProcessCell, Unit, 
+      Site, Enterprise, EquipmentModule) to establish specific asset-to-entity relationships. 
+      The asset_specific relationship enables linking assets to specific ISA-95 entities while 
+      maintaining the canonical asset hierarchy. This relationship supports flexible asset 
+      modeling where assets may be associated with multiple ISA-95 entity types, enabling 
+      cross-hierarchy relationships and supporting complex organizational structures. The 
+      asset_specific field provides a polymorphic relationship capability within the ISA-95 
+      data model. [ISA-95]
