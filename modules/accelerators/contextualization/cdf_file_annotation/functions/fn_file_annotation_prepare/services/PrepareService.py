@@ -14,6 +14,7 @@ from utils.DataStructures import (
     AnnotationStatus,
     AnnotationState,
     PerformanceTracker,
+    remove_protected_properties,
 )
 
 
@@ -107,7 +108,7 @@ class GeneralPrepareService(AbstractPrepareService):
                     self.logger.info(f"Resetting {len(file_nodes_to_reset)} files")
                     reset_node_apply: list[NodeApply] = []
                     for file_node in file_nodes_to_reset:
-                        file_node_apply: NodeApply = file_node.as_write()
+                        file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
                         tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
                         if "AnnotationInProcess" in tags_property:
                             tags_property.remove("AnnotationInProcess")
@@ -129,7 +130,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 return
             else:
                 raise e
@@ -150,7 +151,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 return
             else:
                 raise e
@@ -177,7 +178,7 @@ class GeneralPrepareService(AbstractPrepareService):
             )
             annotation_state_instances.append(annotation_node_apply)
 
-            file_node_apply: NodeApply = file_node.as_write()
+            file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
             tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")
@@ -192,7 +193,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 section="END",
             )
         except Exception as e:
-            self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
+            self.logger.error(message="Ran into the following error", error=e, section="END")
             raise
 
         self.tracker.add_files(success=len(file_nodes))

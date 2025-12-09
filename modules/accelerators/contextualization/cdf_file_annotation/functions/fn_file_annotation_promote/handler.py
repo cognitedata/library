@@ -1,6 +1,4 @@
-import os
 import sys
-import time
 from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 from dependencies import (
@@ -9,6 +7,7 @@ from dependencies import (
     create_entity_search_service,
     create_cache_service,
 )
+from services.ConfigService import format_promote_config
 from services.PromoteService import GeneralPromoteService
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
@@ -26,7 +25,6 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
     1. Retrieves candidate edges (pattern-mode annotations pointing to sink node)
     2. Searches for matching entities using EntitySearchService (with caching)
     3. Updates edges and RAW tables based on search results
-    4. Pauses 10 seconds between batches
 
     Pattern-mode annotations are created when diagram detection finds text matching
     regex patterns but can't match it to the provided entity list. This function
@@ -50,44 +48,42 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
     """
     start_time: datetime = datetime.now(timezone.utc)
 
-    config: Config
-    config, client = create_config_service(function_data=data, client=client)
-    logger: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "DEBUG"), data.get("logPath"))
-    tracker: PromoteTracker = PromoteTracker()
+    config_instance: Config
+    config_instance, client = create_config_service(function_data=data, client=client)
+    logger_instance: CogniteFunctionLogger = create_logger_service(data.get("logLevel", "DEBUG"), data.get("logPath"))
+    tracker_instance: PromoteTracker = PromoteTracker()
 
-    # Create service dependencies
-    entity_search_service: EntitySearchService = create_entity_search_service(config, client, logger)
-    cache_service: CacheService = create_cache_service(config, client, logger, entity_search_service)
-
-    # Create promote service with injected dependencies
+    entity_search_service: EntitySearchService = create_entity_search_service(config_instance, client, logger_instance)
+    cache_service: CacheService = create_cache_service(config_instance, client, logger_instance, entity_search_service)
     promote_service: GeneralPromoteService = GeneralPromoteService(
         client=client,
-        config=config,
-        logger=logger,
-        tracker=tracker,
+        config=config_instance,
+        logger=logger_instance,
+        tracker=tracker_instance,
         entity_search_service=entity_search_service,
         cache_service=cache_service,
     )
 
+    logger_instance.info(format_promote_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
     run_status: str = "success"
     try:
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
             result: str | None = promote_service.run()
             if result == "Done":
-                logger.info("No more candidates to process. Exiting.", section="END")
+                logger_instance.info("No more candidates to process. Exiting.", section="END")
                 break
             # Log batch report and pause between batches
-            logger.info(tracker.generate_local_report(), section="START")
+            logger_instance.info(tracker_instance.generate_local_report(), section="START")
         return {"status": run_status, "data": data}
     except Exception as e:
         run_status = "failure"
         msg: str = f"{str(e)}"
-        logger.error(f"An unexpected error occurred: {msg}", section="BOTH")
+        logger_instance.error(f"An unexpected error occurred: {msg}", section="BOTH")
         return {"status": run_status, "message": msg}
     finally:
         # Generate overall summary report
-        logger.info(tracker.generate_overall_report(), section="BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")
 
 
 def run_locally(config_file: dict) -> None:
@@ -116,43 +112,43 @@ def run_locally(config_file: dict) -> None:
     client: CogniteClient = create_client(env_vars)
 
     # Mock function_call_info for local runs
-    config: Config
-    config, client = create_config_service(function_data=config_file)
-    logger: CogniteFunctionLogger = create_logger_service(
+    config_instance: Config
+    config_instance, client = create_config_service(function_data=config_file)
+    logger_instance: CogniteFunctionLogger = create_logger_service(
         config_file.get("logLevel", "DEBUG"), config_file.get("logPath")
     )
-    tracker: PromoteTracker = PromoteTracker()
+    tracker_instance: PromoteTracker = PromoteTracker()
 
     # Create service dependencies
-    entity_search_service: EntitySearchService = create_entity_search_service(config, client, logger)
-    cache_service: CacheService = create_cache_service(config, client, logger, entity_search_service)
+    entity_search_service: EntitySearchService = create_entity_search_service(config_instance, client, logger_instance)
+    cache_service: CacheService = create_cache_service(config_instance, client, logger_instance, entity_search_service)
 
     # Create promote service with injected dependencies
     promote_service: GeneralPromoteService = GeneralPromoteService(
         client=client,
-        config=config,
-        logger=logger,
-        tracker=tracker,
+        config=config_instance,
+        logger=logger_instance,
+        tracker=tracker_instance,
         entity_search_service=entity_search_service,
         cache_service=cache_service,
     )
-
+    logger_instance.info(format_promote_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START")
     try:
         # Run in a loop for a maximum of 7 minutes b/c serverless functions can run for max 10 minutes before hardware dies
         while True:
             result: str | None = promote_service.run()
             if result == "Done":
-                logger.info("No more candidates to process. Exiting.", section="END")
+                logger_instance.info("No more candidates to process. Exiting.", section="END")
                 break
             # Log batch report and pause between batches
-            logger.info(tracker.generate_local_report(), section="START")
+            logger_instance.info(tracker_instance.generate_local_report(), section="START")
     except Exception as e:
         run_status = "failure"
         msg: str = f"{str(e)}"
-        logger.error(f"An unexpected error occurred: {msg}", section="BOTH")
+        logger_instance.error(f"An unexpected error occurred: {msg}", section="BOTH")
     finally:
         # Generate overall summary report
-        logger.info(tracker.generate_overall_report(), section="BOTH")
+        logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")
 
 
 if __name__ == "__main__":

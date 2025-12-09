@@ -101,13 +101,13 @@ class GeneralCacheService(ICacheService):
 
         # Attempt to retrieve from the cache
         if row and row.columns and self._validate_cache(row.columns["LastUpdateTimeUtcIso"]):
-            self.logger.debug(f"Cache valid for key: {key}. Retrieving entities and patterns.")
+            self.logger.info(f"Cache is up-to-date for key: {key}\nEntities and patterns loaded from: CACHE.")
             asset_entities: list[dict] = row.columns.get("AssetEntities", [])
             file_entities: list[dict] = row.columns.get("FileEntities", [])
             combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
             return (asset_entities + file_entities), combined_pattern_samples
 
-        self.logger.info(f"Refreshing RAW entities cache and patterns cache for key: {key}")
+        self.logger.info(f"Cache is out-of-date for key: {key}\nEntities and patterns loaded from: CDF (Fresh Fetch)")
 
         # Fetch data
         asset_instances, file_instances = data_model_service.get_instances_entities(
