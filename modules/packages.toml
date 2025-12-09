@@ -33,3 +33,12 @@ modules = [
     "atlas_ai/rca_with_rmdm"
 ]
 
+[packages.dashboards]
+id = "dp:dashboards"
+title = "Dashboards"
+description = "Streamlit dashboards and visualization modules"
+canCherryPick = true
+modules = [
+    "dashboards/context_quality"
+]
+

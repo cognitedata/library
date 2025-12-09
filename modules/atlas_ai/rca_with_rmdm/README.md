@@ -4,11 +4,28 @@
 
 The Root Cause Analysis (RCA) module provides intelligent Atlas AI agents for advanced root cause analysis capabilities in your Cognite Data Fusion (CDF) environment. This module is designed to work with the RMDM (Reliability Maintenance Data Model) v1 data model deployed in CDF.
 
-## Getting Started
+## Dependencies
 
-### Installation with Cognite Toolkit
+> ⚠️ **Important:** This module requires the **data_models/rmdm_v1/** module to be deployed in your CDF project **before** deploying these agents.
 
-To access this deployment pack through the Cognite Toolkit, you need to add the following configuration to your `cdf.toml` file:
+All agents in this module connect to and query the RMDM data model within CDF to access equipment, failure notifications, time series, and other maintenance-related data.
+
+---
+
+## Deployment
+
+### Prerequisites
+
+Before you start, ensure you have the following:
+
+- You already have a Cognite Toolkit project set up locally
+- Your project contains the standard `cdf.toml` file
+- You have valid authentication to your target CDF environment
+- **The RMDM v1 data model is already deployed** (see `data_models/rmdm_v1/`)
+
+### Step 1: Enable External Libraries and Agents
+
+Edit your project's `cdf.toml` and add:
 
 ```toml
 [alpha_flags]
@@ -16,11 +33,25 @@ external-libraries = true
 agents = true
 
 [library.cognite]
-url = "https://github.com/cognitedata/library/raw/refs/heads/packages-menu/packages.zip"
-checksum = "sha256:78d67c3a7079e5019027aa48939a0e2aab04231fd928879571c89fbb354f3f0b"
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
 ```
 
-Once you've added this configuration, you can find and initialize this module by running:
+This allows the Toolkit to retrieve official library packages and enables Atlas AI agent deployment.
+
+### Step 2 (Optional but Recommended): Enable Usage Tracking
+
+To help improve the Deployment Pack and provide insight to the Value Delivery Accelerator team, you can enable anonymous usage tracking:
+
+```bash
+cdf collect opt-in
+```
+
+This is optional, but highly recommended.
+
+### Step 3: Add the Module
+
+Run:
 
 ```bash
 cdf modules init .
@@ -28,11 +59,66 @@ cdf modules init .
 
 > **⚠️ Disclaimer**: This command will overwrite your existing modules in the current directory. Make sure to commit any changes before running this command, or use it in a fresh project directory.
 
-The Atlas AI Deployment Pack (which includes this RCA with RMDM module) will be available for selection.
+This opens the interactive module selection interface.
 
-## Dependencies
+### Step 4: Select the Atlas AI Deployment Pack
 
-This module requires the **data_models/rmdm_v1/** module to be deployed in your CDF project. All agents in this module connect to and query the RMDM data model within CDF to access equipment, failure notifications, time series, and other maintenance-related data.
+From the menu, select:
+
+```
+Atlas AI Deployment Pack: Deploy all Atlas AI modules in one package.
+```
+
+Then select **RCA with RMDM** module.
+
+Follow the prompts. Toolkit will:
+
+- Download the RCA agents module
+- Update the Toolkit configuration
+- Place the files into your project
+
+### Step 5: Verify Folder Structure
+
+After installation, your project should now contain:
+
+```
+modules/
+    └── atlas_ai/
+        └── rca_with_rmdm/
+            ├── agents/
+            │   ├── cause_map_agent.Agent.yaml
+            │   ├── rca_agent.Agent.yaml
+            │   └── ts_agent.Agent.yaml
+            ├── data_sets/
+            │   └── rca_resources.DataSet.yaml
+            ├── files/
+            │   ├── combined_cause_map.CogniteFile.yaml
+            │   └── combined_cause_map.json
+            ├── module.toml
+            └── README.md
+```
+
+If you see this structure, the RCA agents module has been successfully added to your project.
+
+### Step 6: Deploy to CDF
+
+Build and deploy as usual:
+
+```bash
+cdf build
+```
+
+```bash
+cdf deploy --dry-run
+```
+
+```bash
+cdf deploy
+```
+
+After deployment, the RCA agents will be available in your CDF environment's Atlas AI.
+
+---
 
 ## Agents
 
@@ -88,4 +174,14 @@ All three agents connect to the RMDM data model (space: `rmdm`, version: `v1`) d
 - Image analysis for visual inspection
 - Time series data retrieval and computation
 
-These agents work together to provide a complete root cause analysis experience, from identifying equipment and failures, to analyzing historical data, to generating visual cause maps that help identify the root causes of equipment failures. 
+These agents work together to provide a complete root cause analysis experience, from identifying equipment and failures, to analyzing historical data, to generating visual cause maps that help identify the root causes of equipment failures.
+
+---
+
+## Support
+
+For troubleshooting or deployment issues:
+
+- Refer to the [Cognite Documentation](https://docs.cognite.com)
+- Contact your **Cognite support team**
+- Join the Slack channel **#topic-deployment-packs** for community support and discussions
