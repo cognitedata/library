@@ -4,27 +4,39 @@
 
 This module provides an **ISA-95/ISA-88** based manufacturing domain model for Cognite Data Fusion (CDF). It defines spaces, containers, views, and a composed data model, along with optional RAW seed data, SQL transformations, and a workflow to orchestrate data loading.
 
+This module follows Cognite's best practices for data modeling, focusing on practical, operational design rather than academic theory. It is optimized for industrial scale, high performance, and flexibility.
+
+### Key Principles
+
+- Leverages Cognite Data Modeling (Service + AI)
+- Follows best practices for extending the Core Data Model (CDM)
+- Supports both direct and reverse direct relationships
+- Uses AI-friendly naming and descriptions to improve navigation and ensure accurate AI outputs
+- Builds the data model around the Asset Hierarchy to simplify navigation and centralize relationship information
+- Extends the Asset Hierarchy across multiple containers and views, reusing the same externalId to make navigation, search, and grouping easier
+
+### Performance & Structure
+
+- Uses purpose-specific (not generic) containers, allowing targeted indexing for faster queries
+- Ensures smooth compatibility with CDF services such as Search and Canvas
+- Clearly separates properties according to ISA-95 hierarchy levels
+
+### User Experience
+
+- Improved navigation in Search and Canvas through well-structured properties and hierarchy
+- Optimized for common use cases, especially AI-driven ones, where "Asset" data is brought into Canvas. Organizing asset properties by parent asset levels improves clarity and user experience
+
+
 ### Data Model Architecture Diagram
 
 The following diagram illustrates the relationships and hierarchies within the ISA-95/ISA-88 manufacturing data model:
 
-![ISA Manufacturing Data Model Architecture](docs/isa_manufacturing_data_model_architecture.png)
+![ISA Manufacturing Data Model Architecture](docs/ISA%20DM-ISA%20DM.drawio.svg)
 
 **To add/update the diagram:**
 1. Open the [draw.io diagram](https://app.diagrams.net/#G1CaqCBT31dTvaiEquCXdbszJiLUcvIODv#%7B%22pageId%22%3A%22M35xxQWvoPat2sPLS8Kb%22%7D) in your browser
-2. Export the diagram as PNG or SVG:
-   - Go to **File → Export as → PNG** (or SVG for better quality)
-   - Set appropriate resolution (recommended: 1920x1080 or higher for clarity)
-   - Save the file as `isa_manufacturing_data_model_architecture.png` in the `docs/` directory
-3. Ensure the diagram shows:
-   - Entity relationships and hierarchies
-   - ISA-95 organizational structure
-   - ISA-88 procedural model
-   - Cross-hierarchy connections
-   - Process data integration points
-
-*Note: If the diagram is not visible, create the `docs/` directory in the module root and add the exported image file.*
-
+2. Make a copy of the diagram, and make your changes relevant for the project
+   
 The diagram shows:
 - **ISA-95 Organizational Hierarchy** (vertical structure): Enterprise → Site → Area → ProcessCell → Unit → EquipmentModule
 - **ISA-88 Procedural Hierarchy** (recipe execution): Recipe → Procedure → UnitProcedure → Operation → Phase
@@ -187,12 +199,12 @@ environment:
   name: dev
   project: <your-project>
   selected:
-    - isa_manufacturing_extension_v2
+    - isa_manufacturing_extension
 
 variables:
   modules:
     isa_manufacturing_extension_v2:
-      schemaSpace: sp_isa_manufacturing
+      isaSchemaSpace: sp_isa_manufacturing
       isaInstanceSpace: sp_isa_instance_space
       datasetExternalId: ds_isa_manufacturing
       viewVersion: v1
