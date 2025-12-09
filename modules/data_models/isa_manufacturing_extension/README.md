@@ -186,34 +186,16 @@ isa_manufacturing_extension_v2/
 ## Deployment (Cognite Toolkit)
 
 ### Prerequisites
+Before you start, ensure you have:
+
+- A Cognite Toolkit project set up locally
+- Your project contains the standard `cdf.toml` file
+- Valid authentication to your target CDF environment
 - Access to a CDF project and credentials
 - `cognite-toolkit` >= 0.6.61
-- A configured environment file (e.g., `templates/config.dev.yaml`)
-- **Feature Flag**: The `FDX_VIEW_SWITCHER` feature flag must be enabled in your CDF project (see configuration section below)
 
-### Configure the environment
-1. Ensure the module is selected in your env config, e.g. in `templates/config.dev.yaml`:
 
-```yaml
-environment:
-  name: dev
-  project: <your-project>
-  selected:
-    - isa_manufacturing_extension
-
-variables:
-  modules:
-    isa_manufacturing_extension_v2:
-      isaSchemaSpace: sp_isa_manufacturing
-      isaInstanceSpace: sp_isa_instance_space
-      datasetExternalId: ds_isa_manufacturing
-      viewVersion: v1
-      workflowVersion: '1'
-```
-
-2. Review and, if needed, adjust shared variables such as `schemaSpace`, `isaSchemaSpace`, `viewVersion`, datasets, and instance spaces.
-
-3. **Enable Feature Flags** (Required for CDF):
+ **Enable Feature Flags** (Required for CDF):
    - Navigate to [Cognite Unleash Feature Flags - FDX_VIEW_SWITCHER](https://unleash-apps.cogniteapp.com/projects/default/features/FDX_VIEW_SWITCHER)
    - Enable the `FDX_VIEW_SWITCHER` feature flag for your CDF project
    - This feature flag enables the view switcher functionality in CDF Data Modeling, which is required for:
@@ -224,29 +206,101 @@ variables:
    - **Note**: Feature flags are project-specific, so ensure you enable it for the correct CDF project
    - **Access**: You need appropriate permissions in your CDF project to enable feature flags. Contact your CDF administrator if you don't have access.
 
-### Build and deploy
-From the repository root (where `cdf.toml` resides):
+
+### Step 1: Enable External Libraries
+
+Edit your project's `cdf.toml` and add:
+
+```toml
+[alpha_flags]
+external-libraries = true
+
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
+```
+
+This allows the Toolkit to retrieve official library packages.
+
+### Step 2 (Optional but Recommended): Enable Usage Tracking
+
+To help improve the Deployment Pack:
 
 ```bash
-cdf --version
-cdf auth login
-cdf build --env dev
-cdf deploy --env dev
+cdf collect opt-in
 ```
+
+### Step 3: Add the Module
+
+Run:
+
+```bash
+cdf modules init .
+```
+
+> **⚠️ Disclaimer**: This command will overwrite existing modules. Commit changes before running, or use a fresh directory.
+
+This opens the interactive module selection interface.
+
+### Step 4: Select the ISA Data Models Package
+
+From the menu, select:
+
+```
+Data models: Data models that extend the core data model
+```
+
+Follow the prompts. Toolkit will:
+
+- Download the ISA module
+- Update the Toolkit configuration
+- Place the files into your project
+
+### Step 5: Verify Folder Structure
+
+After installation, your project should now contain:
+
+```
+modules/
+    └── data_models/
+        └── id = isa_manufacturing_extension/
+```
+
+If you see this structure, ISA Model has been successfully added to your project.
+
+### Step 6: Deploy to CDF
+
+Build and deploy:
+
+```bash
+cdf build
+```
+
+```bash
+cdf deploy --dry-run
+```
+
+```bash
+cdf deploy
+```
+
+---
+
 
 - This will create/update spaces, containers, views, the composed data model, dataset, RAW resources, transformations, and workflows defined by this module.
 
 ### Run the workflow / transformations
 - After deployment, trigger `wf_isa_manufacturing` via the CDF Workflows UI or API to execute the transformations in order.
+- The workflow reads from RAW tables (including optional seed data in CSV format) and populates the ISA-95/ISA-88 data model instances.
 - Alternatively, run individual transformations from the CDF UI if you prefer ad‑hoc execution during development.
 
-## Workflow: Data Loading and Transformation
-
-The module includes a comprehensive workflow (`wf_isa_manufacturing`) that orchestrates the loading of test data and execution of all transformations in the correct dependency order. The workflow reads from RAW tables (including optional seed data in CSV format) and populates the ISA-95/ISA-88 data model instances.
 
 ### Workflow Execution Flow
 
-The workflow executes transformations in the following sequence:
+![ISA Manufacturing Data Model Architecture](docs/isa_workflow.jpg)
+
+
+Some of the workflow executes transformations:
 
 1. **Build ISA Asset Tree** (`isa_asset_tr`)
    - Creates the base `ISAAsset` hierarchy from RAW data
