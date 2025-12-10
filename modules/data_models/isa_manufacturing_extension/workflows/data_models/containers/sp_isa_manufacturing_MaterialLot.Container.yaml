@@ -1,0 +1,54 @@
+space: {{ isaSchemaSpace }}
+externalId: MaterialLot
+name: MaterialLot
+description: Specific lot or batch of a material
+properties:
+  material_lot_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: material_lot_id
+  material:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: material
+  lot_number:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lot_number
+  manufacture_date:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: manufacture_date
+  expiry_date:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: expiry_date
+indexes:
+  material_lot_id_index:
+    properties:
+    - material_lot_id
+    cursorable: true
+    indexType: btree
+

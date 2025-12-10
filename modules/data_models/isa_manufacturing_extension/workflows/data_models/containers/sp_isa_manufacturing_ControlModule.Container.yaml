@@ -1,0 +1,55 @@
+space: {{ isaSchemaSpace }}
+externalId: ControlModule
+name: ControlModule
+description: Basic regulatory or logic control element (ISA-88 Level 1-2)
+properties:
+  control_module_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: control_module_id
+  # control_module_name:
+  #   type:
+  #     list: false
+  #     collation: ucs_basic
+  #     type: text
+  #   immutable: false
+  #   nullable: false
+  #   autoIncrement: false
+  #   name: control_module_name
+  control_type:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: control_type
+  controller_address:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: controller_address
+  equipment_module:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipment_module
+indexes:
+  control_module_id_index:
+    properties:
+    - control_module_id
+    cursorable: true
+    indexType: btree

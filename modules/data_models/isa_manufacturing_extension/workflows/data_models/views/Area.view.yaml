@@ -1,0 +1,89 @@
+space: {{ isaSchemaSpace }}
+externalId: Area
+name: Area
+description: Logical or physical grouping of process cells within a site (ISA-95 Level 4)
+version: {{ viewVersion }}
+properties:
+  area_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Area
+      type: container
+    containerPropertyIdentifier: area_id
+    name: area_id
+    description: >
+      Unique identifier for the area entity, conforming to ISA-95 Level 4 hierarchy standards. 
+      This identifier serves as the primary key for the area and ensures consistent tracking across 
+      all manufacturing operations. The area_id follows ISA-95 naming conventions for functional 
+      location identification, enabling traceability from design through operations and maintenance 
+      phases. This field is mandatory and immutable once assigned. [ISA-95 Level 4]
+  area_name:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Area
+      type: container
+    containerPropertyIdentifier: area_name
+    name: area_name
+    description: >
+      Human-readable name for the area, representing a logical or physical grouping of process cells 
+      within a manufacturing site as defined by ISA-95 Level 4. The area name typically describes 
+      the functional purpose or physical location of the area (e.g., "Production Area A", 
+      "Packaging Zone", "Quality Control Area"). This name should align with ISA-95 functional 
+      location naming standards and be descriptive enough for operational personnel to identify the 
+      area's purpose and scope within the manufacturing facility. [ISA-95 Level 4]
+  area_type:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Area
+      type: container
+    containerPropertyIdentifier: area_type
+    name: area_type
+    description: >
+      Classification or categorization of the area according to its primary function or operational 
+      characteristics. Common area types in ISA-95 Level 4 include production areas, storage areas, 
+      quality control areas, maintenance areas, and administrative zones. This classification enables 
+      filtering, reporting, and operational analysis by area function. The area_type should follow 
+      standardized classification schemes to ensure consistency across the enterprise and support 
+      cross-facility comparisons and analytics. [ISA-95 Level 4]
+  site:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Area
+      type: container
+    containerPropertyIdentifier: site
+    name: site
+    description: >
+      Reference to the parent Site entity that contains this area, establishing the ISA-95 Level 4 
+      hierarchical relationship. The site relationship enables navigation from area to site level and 
+      supports organizational queries across the manufacturing hierarchy. This relationship follows 
+      ISA-95 parent-child location hierarchy principles, ensuring proper containment relationships for 
+      functional locations within the physical site boundary. [ISA-95 Level 4]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Site
+      version: {{ viewVersion }}
+      type: view
+  # Reverse relationships
+  process_cells:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessCell
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProcessCell
+        version: {{ viewVersion }}
+        type: view
+      identifier: area
+    name: process_cells
+    description: >
+      Reverse relationship collection of all ProcessCell entities that belong to this area. Process 
+      cells represent collections of units that perform specific manufacturing functions as defined 
+      in ISA-95 Level 4. This relationship enables querying all process cells within an area for 
+      operational planning, resource allocation, and performance analysis. The relationship follows 
+      ISA-95 hierarchical containment principles where areas contain process cells, which in turn 
+      contain units. [ISA-95 Level 4]
+    connectionType: multi_reverse_direct_relation
+

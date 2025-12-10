@@ -1,0 +1,46 @@
+space: {{ isaSchemaSpace }}
+externalId: ProcessCell
+name: ProcessCell
+description: Collection of units that perform a specific manufacturing function (ISA-95 Level 4)
+properties:
+  process_cell_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: process_cell_id
+  process_cell_name:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: process_cell_name
+  process_cell_type:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: process_cell_type
+  area:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: area
+indexes:
+  process_cell_id_index:
+    properties:
+    - process_cell_id
+    cursorable: true
+    indexType: btree

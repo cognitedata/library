@@ -270,6 +270,8 @@ If you see this structure, ISA Model has been successfully added to your project
 
 ### Step 6: Deploy to CDF
 
+Update your config.dev.yaml file with <b>project</b> and changes in spaces or versions
+
 Build and deploy:
 
 ```bash

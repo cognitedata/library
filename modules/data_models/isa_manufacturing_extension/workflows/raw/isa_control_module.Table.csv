@@ -1,0 +1,57 @@
+key,control_module_id,control_module_name,control_type,controller_address,equipment_module_externalId,description
+CTRL_EM_R12_CHARGE_FLOW_PID,CM-R12-FLOW,Charge Flow PID Loop,Regulatory,PLC-R12:K1:FIC101,EM_R12_CHARGE,PID loop modulating charge line flow into UNIT_R12 to maintain recipe setpoints.
+CTRL_EM_R12_CHARGE_TEMP_PID,CM-R12-TEMP,Charge Temperature PID,Regulatory,PLC-R12:K1:TIC102,EM_R12_CHARGE,PID controller regulating charge stream temperature for Reactor R12 feed.
+CTRL_EM_R12_CHARGE_LEVEL_SIS,CM-R12-LSIS,Charge Level Safety Interlock,Safety,PLC-R12:K1:LSL103,EM_R12_CHARGE,Safety loop tripping charge pumps on low/high reactor level conditions.
+CTRL_EM_R12_CHARGE_FEED_SEQ,CM-R12-FSEQ,Charge Feed Sequencer,Sequence,PLC-R12:K1:SEQ1,EM_R12_CHARGE,Sequence logic coordinating charge feed valve lineup and pump start.
+CTRL_EM_FILL_PUMP_SPEED_VFD,CM-FILL-VFD,Fill Pump Speed Controller,MotorControl,PLC-FILL:K2:SPD201,EM_FILL_PUMP,Variable-speed controller driving the fill transfer pump motor.
+CTRL_EM_FILL_PUMP_PRESS_PID,CM-FILL-PRES,Fill Discharge Pressure PID,Regulatory,PLC-FILL:K2:PIC202,EM_FILL_PUMP,PID loop holding fill discharge pressure during bottle filling.
+CTRL_EM_FILL_PUMP_RUN_INTERLOCK,CM-FILL-ILK,Fill Pump Run Interlock,Interlock,PLC-FILL:K2:IL203,EM_FILL_PUMP,Interlock ensuring fill pump only runs with permissives satisfied.
+CTRL_EM_FILL_PUMP_TEMP_ALARM,CM-FILL-ALM,Fill Seal Temp Alarm,Alarm,PLC-FILL:K2:AL204,EM_FILL_PUMP,Alarm logic notifying operators of elevated pump seal temperatures.
+CTRL_EM_R13_MIX_SPEED_PID,CM-R13-SPD,Mixer Speed PID Loop,Regulatory,PLC-R13:K3:SPC301,EM_R13_MIX,Closed-loop control maintaining mixer speed for Reactor R13.
+CTRL_EM_R13_MIX_TORQUE_MON,CM-R13-TORQ,Mixer Torque Monitor,Monitoring,PLC-R13:K3:TM302,EM_R13_MIX,Monitoring block tracking mixer torque to detect abnormal loads.
+CTRL_EM_R13_MIX_START_SEQ,CM-R13-SEQ,Mixer Start Sequencer,Sequence,PLC-R13:K3:SEQ3,EM_R13_MIX,Sequencer coordinating mixer purge and start-up steps.
+CTRL_EM_R13_MIX_VIB_ALARM,CM-R13-VIB,Mixer Vibration Alarm,Alarm,PLC-R13:K3:VIB304,EM_R13_MIX,Alarm raising alerts when mixer vibration exceeds thresholds.
+CTRL_EM_QC_CHROM_FLOW_PID,CM-QC-FLOW,Chromatography Flow PID,Regulatory,PLC-QC:K4:FIC401,EM_QC_CHROM,Flow PID regulating chromatography column influent.
+CTRL_EM_QC_CHROM_PRESS_CTRL,CM-QC-PRES,Chromatography Pressure Control,Regulatory,PLC-QC:K4:PIC402,EM_QC_CHROM,Pressure control loop safeguarding chromatography column pressure.
+CTRL_EM_QC_CHROM_VALVE_SEQ,CM-QC-SEQ,Chromatography Valve Sequencer,Sequence,PLC-QC:K4:SEQ4,EM_QC_CHROM,Valve sequencing managing chromatography step transitions.
+CTRL_EM_QC_CHROM_COLUMN_TEMP,CM-QC-TEMP,Column Jacket Temperature Control,Regulatory,PLC-QC:K4:TIC403,EM_QC_CHROM,PID maintaining chromatography column jacket temperature.
+CTRL_EM_BLDR_MOTOR_SPEED_VFD,CM-BLDR-VFD,Blender Motor Speed Controller,MotorControl,PLC-BLDR:K5:VFD501,EM_BLDR_MOTOR,Drive controller setting blender motor speed ramps.
+CTRL_EM_BLDR_MOTOR_OVERCURR,CM-BLDR-OC,Blender Motor Overcurrent Trip,Safety,PLC-BLDR:K5:OC502,EM_BLDR_MOTOR,Safety trip opening motor contactor on overcurrent.
+CTRL_EM_BLDR_MOTOR_START_SEQ,CM-BLDR-SEQ,Blender Start/Stop Sequence,Sequence,PLC-BLDR:K5:SEQ5,EM_BLDR_MOTOR,Sequencer handling blender start-up/shutdown steps.
+CTRL_EM_BLDR_MOTOR_BRAKE_CTRL,CM-BLDR-BRK,Blender Brake Control,Discrete,PLC-BLDR:K5:BRK503,EM_BLDR_MOTOR,Discrete logic actuating blender mechanical brake.
+CTRL_EM_BLDR_CTRL_HMI_PERMISS,CM-BLDR-HMI,Blender HMI Permissive Logic,Logic,PLC-BLDR:K6:HMI601,EM_BLDR_CTRL,Logic granting HMI control authority when conditions met.
+CTRL_EM_BLDR_CTRL_SAFETY,CM-BLDR-SIS,Blender Safety Interlock,Safety,PLC-BLDR:K6:SIS602,EM_BLDR_CTRL,SIS preventing blender operation when safety circuit is violated.
+CTRL_EM_BLDR_CTRL_RECIPE_LOAD,CM-BLDR-RCP,Blender Recipe Loader,Sequence,PLC-BLDR:K6:RCP603,EM_BLDR_CTRL,Sequence loading approved recipes into blender automation.
+CTRL_EM_BLDR_CTRL_DIAG,CM-BLDR-DIAG,Blender Diagnostics Monitor,Monitoring,PLC-BLDR:K6:DIA604,EM_BLDR_CTRL,Diagnostic monitoring collecting blender health metrics.
+CTRL_EM_CONV_DRV1_SPEED_PID,CM-CONV-SPD,Conveyor Drive Speed PID,Regulatory,PLC-CONV:K7:SPD701,EM_CONV_DRV1,Speed PID balancing conveyor throughput and accumulation.
+CTRL_EM_CONV_DRV1_JAM_DET,CM-CONV-JAM,Conveyor Jam Detection,Alarm,PLC-CONV:K7:JAM702,EM_CONV_DRV1,Alarm logic watching sensors for conveyor jams.
+CTRL_EM_CONV_DRV1_SAFETY_LASER,CM-CONV-SAFE,Conveyor Safety Scanner Logic,Safety,PLC-CONV:K7:SIS703,EM_CONV_DRV1,Safety logic tied to laser scanners stopping conveyor motion.
+CTRL_EM_CONV_DRV1_LOAD_MON,CM-CONV-LOAD,Conveyor Load Monitor,Monitoring,PLC-CONV:K7:LM704,EM_CONV_DRV1,Monitoring block trending conveyor load torque.
+CTRL_EM_COMP_CTRL_PRESS_PID,CM-COMP-PRES,Compressor Discharge Pressure PID,Regulatory,PLC-COMP:K8:PIC801,EM_COMP_CTRL,PID loop maintaining compressor discharge pressure.
+CTRL_EM_COMP_CTRL_TEMP_CTRL,CM-COMP-TEMP,Compressor Temperature Control,Regulatory,PLC-COMP:K8:TIC802,EM_COMP_CTRL,Temperature control protecting compressor internals.
+CTRL_EM_COMP_CTRL_PURGE_SEQ,CM-COMP-SEQ,Compressor Purge Sequencer,Sequence,PLC-COMP:K8:SEQ8,EM_COMP_CTRL,Sequence automating compressor purge cycles.
+CTRL_EM_COMP_CTRL_SAFETY_TRIP,CM-COMP-SIS,Compressor Safety Shutdown,Safety,PLC-COMP:K8:SIS803,EM_COMP_CTRL,Safety interlock tripping compressor during hazardous states.
+CTRL_EM_R14_HEAT_TEMP_PID,CM-R14-TEMP,Reactor R14 Heater PID,Regulatory,PLC-R14:K9:TIC901,EM_R14_HEAT,PID controlling R14 jacket temperature via heater module.
+CTRL_EM_R14_HEAT_FLOW_CTRL,CM-R14-FLOW,Heater Circulation Flow Control,Regulatory,PLC-R14:K9:FIC902,EM_R14_HEAT,Flow control ensuring heater circulation meets spec.
+CTRL_EM_R14_HEAT_OVERHEAT_TRIP,CM-R14-OT,Heater Overheat Trip,Safety,PLC-R14:K9:OT903,EM_R14_HEAT,Overheat trip shutting heaters when temperature exceeds limits.
+CTRL_EM_R14_HEAT_START_SEQ,CM-R14-SEQ,Heater Warmup Sequencer,Sequence,PLC-R14:K9:SEQ9,EM_R14_HEAT,Sequencer stepping through controlled heater warmup.
+CTRL_EM_R15_VALVE_POS_CTRL,CM-R15-POS,Valve Positioner Control,Regulatory,PLC-R15:K10:POS1001,EM_R15_VALVE,Control loop positioning valves for Reactor R15 manifold.
+CTRL_EM_R15_VALVE_PRESS_PROT,CM-R15-PSV,Valve Manifold Pressure Protection,Safety,PLC-R15:K10:PSV1002,EM_R15_VALVE,Safety logic venting manifold under high pressure.
+CTRL_EM_R15_VALVE_SWITCH_SEQ,CM-R15-SEQ,Valve Lineup Sequencer,Sequence,PLC-R15:K10:SEQ10,EM_R15_VALVE,Sequence coordinating valve alignment for campaigns.
+CTRL_EM_R15_VALVE_LEAK_MON,CM-R15-LEAK,Valve Leak Monitor,Monitoring,PLC-R15:K10:LM1003,EM_R15_VALVE,Monitoring logic detecting valve leakage conditions.
+CTRL_EM_QA_SENS_PH_CTRL,CM-QA-PH,QA pH Control Loop,Regulatory,PLC-QA:K11:PH1101,EM_QA_SENS,Closed-loop pH control for QA sensor skid.
+CTRL_EM_QA_SENS_COND_CTRL,CM-QA-COND,QA Conductivity Control,Regulatory,PLC-QA:K11:CD1102,EM_QA_SENS,Conductivity loop adjusting QA sensor calibration baths.
+CTRL_EM_QA_SENS_CAL_SEQ,CM-QA-CAL,QA Sensor Calibration Sequence,Sequence,PLC-QA:K11:CAL11,EM_QA_SENS,Sequence guiding automated QA sensor calibration.
+CTRL_EM_QA_SENS_FAILSAFE,CM-QA-SAFE,QA Sensor Failsafe Logic,Safety,PLC-QA:K11:SIS1103,EM_QA_SENS,Safety logic isolating QA cell on sensor faults.
+CTRL_EM_QC_UV_GAIN_CTRL,CM-QC-UVG,QC UV Gain Control,Regulatory,PLC-QC:K12:UV1201,EM_QC_UV,Gain control loop for QC UV detector amplifier.
+CTRL_EM_QC_UV_LAMP_SEQ,CM-QC-UVL,QC UV Lamp Warmup Sequence,Sequence,PLC-QC:K12:SEQ12,EM_QC_UV,Sequencer managing UV lamp preheat cycles.
+CTRL_EM_QC_UV_TEMP_ALARM,CM-QC-UVT,QC UV Module Temperature Alarm,Alarm,PLC-QC:K12:TAL1202,EM_QC_UV,Alarm tracking UV module enclosure temperature.
+CTRL_EM_QC_UV_INTENSITY_MON,CM-QC-UVM,QC UV Intensity Monitor,Monitoring,PLC-QC:K12:IM1203,EM_QC_UV,Monitoring logic logging UV intensity drift.
+CTRL_EM_QC_FRACTION_POS_CTRL,CM-QC-FPOS,Fraction Collector Position Control,Regulatory,PLC-QC:K13:POS1301,EM_QC_FRACTION,Position loop aligning fraction collector arm.
+CTRL_EM_QC_FRACTION_OVERFLOW,CM-QC-OFW,Fraction Overflow Protection,Safety,PLC-QC:K13:OF1302,EM_QC_FRACTION,Safety logic halting collection on overflow condition.
+CTRL_EM_QC_FRACTION_SEQ,CM-QC-FSEQ,Fraction Tube Sequencer,Sequence,PLC-QC:K13:SEQ13,EM_QC_FRACTION,Sequence managing fraction tube indexing.
+CTRL_EM_QC_FRACTION_JAM_ALARM,CM-QC-FALM,Fraction Rack Jam Alarm,Alarm,PLC-QC:K13:JAM1303,EM_QC_FRACTION,Alarm detecting jams in fraction rack mechanisms.
+CTRL_EM_PILOT_CTRL_TEMP_PID,CM-PILOT-TEMP,Pilot Reactor Temperature PID,Regulatory,PLC-PILOT:K14:TIC1401,EM_PILOT_CTRL,Temperature PID loop for pilot reactor jacket.
+CTRL_EM_PILOT_CTRL_PRESS_CTRL,CM-PILOT-PRES,Pilot Reactor Pressure Control,Regulatory,PLC-PILOT:K14:PIC1402,EM_PILOT_CTRL,Pressure control ensuring safe pilot reactor operation.
+CTRL_EM_PILOT_CTRL_BATCH_SEQ,CM-PILOT-SEQ,Pilot Batch Sequencer,Sequence,PLC-PILOT:K14:SEQ14,EM_PILOT_CTRL,Sequencer orchestrating pilot batch procedural steps.
+CTRL_EM_PILOT_CTRL_SAFETY,CM-PILOT-SIS,Pilot Emergency Shutdown,Safety,PLC-PILOT:K14:SIS1403,EM_PILOT_CTRL,Safety system tripping pilot reactor on critical events.
