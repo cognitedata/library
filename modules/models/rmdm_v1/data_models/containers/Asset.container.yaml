@@ -1,0 +1,34 @@
+space: rmdm
+externalId: Asset
+name: RM Asset
+properties:
+  functionCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Function Code
+    description: A code to identify the function of this equipment according to NORSOK
+      ZDP-002 and Aveva codes
+  functionCodeDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Function Code Description
+    description: A human readable description of the function of this asset.
+constraints:
+  cdf_cdm_CogniteAsset:
+    require:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

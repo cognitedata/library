@@ -1,0 +1,53 @@
+space: rmdm
+externalId: Timeseries_ext
+name: RM Timeseries
+properties:
+  pointType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Point Type
+    description: The data type of the timeseries e.g. Int32, String, Float64 etc.
+  pointSource:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Point Source
+    description: Additional information about the source of the timeseries.
+  contextMatchString:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Context Match String
+    description: Another type of identifier for this timeseries.
+  contextClass:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Context Class
+    description: The root asset/functional location that this timeseries belongs to.
+constraints:
+  cdf_cdm_CogniteTimeSeries:
+    require:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

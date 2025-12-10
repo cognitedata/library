@@ -1,0 +1,15 @@
+externalId: process_cell_tr
+name: ProcessCell
+destination:
+  dataModel:
+    space: {{ isaSchemaSpace }}
+    externalId: ISA_Manufacturing
+    version: v1
+    destinationType: ProcessCell
+  instanceSpace: {{ isaInstanceSpace }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+

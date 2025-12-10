@@ -1,0 +1,35 @@
+space: rmdm
+externalId: FailureMechanism
+name: RM Failure Mechanism
+properties:
+  code:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Code
+    description: A standardized identifier assigned to assets, failures, or maintenance
+      records.
+  category:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Category
+    description: A classification system used to group assets, failures, or maintenance
+      activities.
+constraints:
+  cdf_cdm_CogniteDescribable:
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

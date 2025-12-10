@@ -1,0 +1,14 @@
+externalId: equipment_module_tr
+name: EquipmentModule
+destination:
+  dataModel:
+    space: {{ isaSchemaSpace }}
+    externalId: ISA_Manufacturing
+    version: v1
+    destinationType: EquipmentModule
+  instanceSpace: {{ isaInstanceSpace }}
+  type: instances
+dataSetExternalId: {{ datasetExternalId }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

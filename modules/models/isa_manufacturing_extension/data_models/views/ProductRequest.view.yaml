@@ -1,0 +1,186 @@
+space: {{ isaSchemaSpace }}
+externalId: ProductRequest  
+name: ProductRequest
+description: Request to produce specific quantities of products (ISA-95 Level 3)
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  product_request_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: product_request_id
+    name: Product Request ID
+    description: >
+      Unique identifier for the product request entity, conforming to ISA-95 Level 3 product 
+      request standards. A product request represents a request to produce specific quantities 
+      of products. The product_request_id serves as the primary key and enables consistent tracking 
+      across all manufacturing operations, from request creation through production execution to 
+      completion. This identifier should align with product planning systems and support 
+      integration with product planning and production management systems. [ISA-95 Level 3]
+  request_number:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: request_number
+    name: Request Number
+    description: >
+      Human-readable request number or identifier assigned to the product request, typically used 
+      for operational reference and displayed on product planning documents, labels, and reports. The 
+      request_number follows ISA-95 Level 3 naming conventions and may include request date, sequence 
+      numbers, or other organizational identifiers. This number is often used in product planning, 
+      production planning, and customer-facing documentation. The request_number 
+      should be unique within the site or product planning context to ensure proper identification. 
+      [ISA-95 Level 3]
+  product_definition:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductDefinition
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProductDefinition
+        version: {{ viewVersion }}
+        type: view
+      identifier: product_request
+    name: Product Definition
+    description: >
+      Reverse relationship collection of all ProductDefinition entities that are associated with this product request. 
+      Product definitions represent the definition of the product process and resources. This relationship enables 
+      product request-to-product definition navigation, supporting product definition-level production planning analysis and 
+      production tracking. This relationship is essential for understanding how product definitions are defined and executed within the product request. [ISA-95 Level 3]
+    connectionType: multi_reverse_direct_relation
+  quantity_requested:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: quantity_requested
+    name: Quantity Requested
+    description: >
+      The quantity of product to be produced by this product request, expressed as a numeric 
+      value. The quantity_requested represents the planned or requested production quantity for this 
+      request. This value is critical for production planning, product consumption calculations, 
+      capacity planning, and inventory management. The quantity_requested should be interpreted in 
+      conjunction with quantity_unit to determine the complete quantity specification. [ISA-95 Level 3]
+  quantity_unit:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: quantity_unit
+    name: Quantity Unit
+    description: >
+      The unit of measure for the quantity_requested value, conforming to standard unit of measure 
+      conventions (e.g., "kg", "L", "pieces", "m³"). The quantity_unit provides the dimensional 
+      context for the quantity_requested numeric value, enabling proper quantity calculations and 
+      conversions. This field should follow standardized unit naming conventions (e.g., ISO 80000, 
+      SI units) to ensure consistency and interoperability across systems and organizations. 
+      [ISA-95 Level 3]
+  priority:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: priority
+    name: Priority
+    description: >
+      Priority level or ranking assigned to the product request, indicating its relative importance 
+      for product planning and resource allocation. Common priority levels include "High", 
+      "Medium", "Low", or numeric rankings. The priority enables product planning systems to 
+      prioritize requests and allocate resources accordingly. Higher priority requests are typically 
+      scheduled earlier and receive preferential resource allocation. [ISA-95 Level 3]
+  due_date:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: due_date
+    name: Due Date
+    description: >
+      Target completion date for the product request, enabling due-date-based product planning 
+      and request fulfillment tracking. The due_date is critical for product planning, scheduling 
+      optimization, and customer delivery commitments. This date enables calculation of request 
+      urgency, scheduling prioritization, and on-time delivery performance metrics. The due_date 
+      may be derived from customer request requirements or internal product planning. [ISA-95 Level 3]
+  request_status:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: request_status
+    name: Request Status
+    description: >
+      Current status of the product request according to ISA-95 Level 3 request lifecycle. Common 
+      request statuses include "Planned", "Released", "In Progress", "On Hold", "Completed", 
+      "Cancelled", "Archived". The request_status provides real-time visibility into request progress 
+      and enables status-based queries, reporting, and workflow automation. Status transitions 
+      should follow ISA-95 request lifecycle definitions to ensure consistent request state management 
+      across the product planning system. [ISA-95 Level 3]
+  unit:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: unit
+    name: Unit
+    description: >
+      Reference to the Unit entity that will be used to produce the product requested, establishing the 
+      physical location context for the request. The unit relationship enables unit-level request 
+      reporting, multi-unit production analysis, and organizational filtering. This relationship enables 
+      navigation from product request to unit level, supporting unit-level production planning analysis and 
+      production tracking. This relationship is essential for ISA-95 Level 3 production tracking, where product requests produce specific products. [ISA-95 Level 3, ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      version: {{ viewVersion }}
+      type: view
+  files:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: files
+    name: Files
+    description: >
+      Collection of document files associated with this product request, following ISA-95 Level 3 product 
+      request documentation standards. Files may include request specifications, production orders, 
+      certificates, shipping documents, and other product request-related documentation. This relationship 
+      enables comprehensive product request documentation management and supports operations, production planning, 
+      and fulfillment activities. Document organization should follow ISA-95 Level 3 document 
+      classification and naming conventions. [ISA-95 Level 3]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAFile
+      version: {{ viewVersion }}
+      type: view
+  work_orders:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      type: container
+    containerPropertyIdentifier: work_orders
+    name: Work orders
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: WorkOrder
+      version: {{ viewVersion }}
+      type: view
+    description: >
+      Relationship collection of all WorkOrder entities that are executed on this product request. 
+      Work orders represent specific work instructions for manufacturing execution at ISA-88. 
+      This relationship enables product request-to-work order navigation, supporting product request utilization analysis, 
+      work order sequencing, and resource allocation. Work orders link batch execution to specific product requests, enabling 
+      product request performance and utilization analysis. [ISA-88]

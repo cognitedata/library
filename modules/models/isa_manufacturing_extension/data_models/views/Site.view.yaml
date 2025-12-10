@@ -1,0 +1,140 @@
+space: {{ isaSchemaSpace }}
+externalId: Site
+name: Site
+description: Physical location where manufacturing operations are performed (ISA-95 Level 4)
+version: {{ viewVersion }}
+properties:
+  site_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Site
+      type: container
+    containerPropertyIdentifier: site_id
+    name: Site id
+    description: >
+      Unique identifier for the site entity, conforming to ISA-95 Level 4 hierarchy standards. 
+      A site represents a physical location where manufacturing operations are performed. The 
+      site_id serves as the primary key and ensures consistent tracking across all manufacturing 
+      operations. This identifier should align with ISA-95 naming conventions for functional 
+      location identification, enabling traceability from design through operations and maintenance 
+      phases. [ISA-95 Level 4]
+  site_name:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Site
+      type: container
+    containerPropertyIdentifier: site_name
+    name: Site name
+    description: >
+      Human-readable name for the site, representing a physical location where manufacturing 
+      operations are performed as defined by ISA-95 Level 4. The site name typically describes 
+      the physical location or facility name (e.g., "Houston Manufacturing Plant", "Site A", 
+      "Main Production Facility"). This name should align with ISA-95 functional location naming 
+      standards and be descriptive enough for operational personnel to identify the site's location 
+      and purpose. [ISA-95 Level 4]
+  location:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Site
+      type: container
+    containerPropertyIdentifier: location
+    name: Location
+    description: >
+      Geographic location or address of the site, enabling location-based queries and geographic 
+      analysis. The location may include street address, city, state/province, or geographic 
+      coordinates. This field is critical for multi-site operations, logistics planning, and 
+      geographic reporting. The location should follow standardized address formats to ensure 
+      consistency and interoperability. [ISA-95 Level 4]
+  country:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Site
+      type: container
+    containerPropertyIdentifier: country
+    name: Country
+    description: >
+      Country where the site is located, enabling country-based queries and international 
+      operations analysis. The country should follow standardized country code conventions (e.g., 
+      ISO 3166-1 alpha-2 or alpha-3 codes) to ensure consistency and interoperability. This field 
+      is critical for multi-country operations, regulatory compliance, and international reporting. 
+      [ISA-95 Level 4]
+  enterprise:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Site
+      type: container
+    containerPropertyIdentifier: enterprise
+    name: Enterprise
+    description: >
+      Reference to the parent Enterprise entity that contains this site, establishing the ISA-95 
+      Level 0 to Level 4 hierarchical relationship. The enterprise relationship enables navigation 
+      from site to enterprise level and supports organizational queries across the manufacturing 
+      hierarchy. This relationship follows ISA-95 organizational hierarchy principles, ensuring 
+      proper containment relationships for functional locations within the enterprise boundary. 
+      [ISA-95 Level 0-4]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Enterprise
+      version: {{ viewVersion }}
+      type: view
+  areas:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Area
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Area
+        version: {{ viewVersion }}
+        type: view
+      identifier: site
+    name: Areas
+    description: >
+      Reverse relationship collection of all Area entities that belong to this site, establishing 
+      the ISA-95 Level 4 hierarchical relationship where sites contain areas. Areas represent 
+      logical or physical groupings of process cells within a site. This relationship enables 
+      querying all areas within a site for operational planning, resource allocation, and 
+      performance analysis. [ISA-95 Level 4]
+    connectionType: multi_reverse_direct_relation
+  batches:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Batch
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Batch
+        version: {{ viewVersion }}
+        type: view
+      identifier: site
+    name: Batches
+    description: >
+      Reverse relationship collection of all Batch entities that were executed at this site. 
+      Batches represent specific instances of production runs executed according to recipes. This 
+      relationship enables site-level batch reporting, supporting site-level production analysis 
+      and batch execution tracking. [ISA-88, ISA-95 Level 4]
+    connectionType: multi_reverse_direct_relation
+  personnel:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Personnel
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Personnel
+        version: {{ viewVersion }}
+        type: view
+      identifier: site
+    name: Personnel
+    description: >
+      Reverse relationship collection of all Personnel entities that are assigned to this site. 
+      Personnel represent individuals involved in manufacturing operations. This relationship 
+      enables site-level personnel management, supporting site-level organizational queries and 
+      personnel assignment tracking. [ISA-95 Level 3, ISA-95 Level 4]
+    connectionType: multi_reverse_direct_relation

@@ -1,0 +1,106 @@
+space: {{ isaSchemaSpace }}
+externalId: UnitProcedure
+name: UnitProcedure
+description: Procedural element that defines operations for a specific unit (ISA-88)
+version: {{ viewVersion }}
+properties:
+  unit_procedure_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      type: container
+    containerPropertyIdentifier: unit_procedure_id
+    name: Unit Procedure ID
+    description: >
+      Unique identifier for the unit procedure entity, conforming to ISA-88 procedural element 
+      standards. A unit procedure represents a procedural element that defines operations for 
+      a specific unit. The unit_procedure_id serves as the primary key and enables traceability 
+      of unit procedures throughout the batch execution lifecycle. This identifier is critical 
+      for unit-procedure-level batch tracking, recipe execution, and process analysis. [ISA-88]
+  unit_procedure_name:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      type: container
+    containerPropertyIdentifier: unit_procedure_name
+    name: Unit Procedure Name
+    description: >
+      Human-readable name for the unit procedure, typically describing the processing task or 
+      function for a specific unit (e.g., "Reaction Unit Procedure", "Distillation Unit Procedure", 
+      "Transfer Unit Procedure"). The unit_procedure_name follows ISA-88 naming conventions for 
+      unit procedures and should be descriptive enough for process engineers and operators to 
+      understand the unit procedure's purpose. This name is often used in control system displays, 
+      batch records, and operational documentation. [ISA-88]
+  procedure:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      type: container
+    containerPropertyIdentifier: procedure
+    name: Procedure
+    description: >
+      Reference to the Procedure entity that contains this unit procedure, establishing the ISA-88 
+      hierarchical relationship where procedures contain unit procedures. The procedure relationship 
+      enables navigation from unit procedure to procedure level, supporting procedural-level unit 
+      procedure analysis and recipe design. This relationship is essential for understanding how 
+      unit procedures contribute to procedure execution and enables unit-procedure-level recipe 
+      data analysis. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Procedure
+      version: {{ viewVersion }}
+      type: view
+  unit:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      type: container
+    containerPropertyIdentifier: unit
+    name: Unit
+    description: >
+      Reference to the Unit entity that this unit procedure is executed on, establishing the ISA-88 
+      relationship between unit procedures and equipment units. The unit relationship enables 
+      navigation from unit procedure to unit level, supporting unit-level unit procedure analysis 
+      and resource allocation. This relationship is essential for understanding how unit procedures 
+      utilize specific units and enables unit utilization analysis. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      version: {{ viewVersion }}
+      type: view
+  sequence_number:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      type: container
+    containerPropertyIdentifier: sequence_number
+    name: Sequence Number
+    description: >
+      Numeric value indicating the order or sequence in which this unit procedure should be executed 
+      within the procedure, following ISA-88 unit procedure sequencing standards. The sequence_number 
+      enables proper unit procedure ordering and supports sequential execution logic in batch 
+      recipes. This value is critical for recipe execution, unit procedure scheduling, and process 
+      flow control. Lower sequence numbers indicate earlier execution order. [ISA-88]
+  # Reverse relationships
+  operations:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Operation
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Operation
+        version: {{ viewVersion }}
+        type: view
+      identifier: unit_procedure
+    name: Operations
+    description: >
+      Reverse relationship collection of all Operation entities that belong to this unit procedure. 
+      Operations represent procedural elements that group phases for specific processing tasks. 
+      This relationship enables unit-procedure-to-operation navigation, supporting detailed unit 
+      procedure analysis at the operation level, including operation sequencing, duration, and 
+      resource utilization. Operations provide an intermediate level of procedural granularity 
+      between unit procedures and phases. [ISA-88]
+    connectionType: multi_reverse_direct_relation

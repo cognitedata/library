@@ -20,8 +20,8 @@ id = "dp:models"
 title = "Data models"
 description = "Data models that extend the core data model"
 modules = [
-    "data_models/rmdm_v1",
-    "data_models/isa_manufacturing_extension",
+    "models/rmdm_v1",
+    "models/isa_manufacturing_extension",
 ]
 
 [packages.atlas_ai]
