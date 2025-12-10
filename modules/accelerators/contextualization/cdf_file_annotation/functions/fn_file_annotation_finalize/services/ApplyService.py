@@ -22,7 +22,7 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes.annotation_types.primitives import BoundingBox
 
 from services.ConfigService import Config, ViewPropertyConfig
-from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
+from utils.DataStructures import DiagramAnnotationStatus
 from services.LoggerService import CogniteFunctionLogger
 
 
@@ -134,19 +134,9 @@ class GeneralApplyService(IApplyService):
                 pattern_item, file_node, processed_bounding_boxes
             )
 
-        # Step 3: Update the file node tag
-        node_apply = remove_protected_properties(file_node.as_write())
-        node_apply.existing_version = None
-        tags = cast(list[str], node_apply.sources[0].properties["tags"])
-        if "AnnotationInProcess" in tags:
-            tags[tags.index("AnnotationInProcess")] = "Annotated"
-        elif "Annotated" not in tags:
-            self.logger.warning(
-                f"File {file_id.external_id} was processed, but 'AnnotationInProcess' tag was not found."
-            )
-
-        # Step 4: Apply all data model and RAW changes
-        self.update_instances(list_node_apply=node_apply, list_edge_apply=regular_edges + pattern_edges)
+        # Step 3: Apply all data model and RAW changes
+        self.update_instances(list_edge_apply=regular_edges + pattern_edges)
+        db_name = self.config.finalize_function.apply_service.raw_db
         if doc_rows:
             self.client.raw.rows.insert(
                 db_name=self.raw_tables.raw_db,

@@ -16,11 +16,7 @@ from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
 from services.RetrieveService import IRetrieveService
 from services.ApplyService import IApplyService
-from utils.DataStructures import (
-    BatchOfNodes,
-    PerformanceTracker,
-    AnnotationStatus,
-)
+from utils.DataStructures import BatchOfNodes, PerformanceTracker, AnnotationStatus, remove_protected_properties
 
 
 class AbstractFinalizeService(abc.ABC):
@@ -188,7 +184,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     merged_results[key] = {"pattern": item}
 
         count_retry, count_failed, count_success = 0, 0, 0
-        annotation_state_node_applies = []
+        annotation_state_node_applies: list[NodeApply] = []
+        file_node_applies: list[NodeApply] = []
 
         for (space, external_id), results in merged_results.items():
             file_id = NodeId(space, external_id)
@@ -225,6 +222,16 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 annotated_pages = self._check_all_pages_annotated(annotation_state_node, page_count)
 
                 if annotated_pages == page_count:
+                    file_node_apply: NodeApply = remove_protected_properties(file_node.as_apply())
+                    file_node_apply.existing_version = None
+                    tags = cast(list[str], file_node_apply.sources[0].properties["tags"])
+                    if "AnnotationInProcess" in tags:
+                        tags[tags.index("AnnotationInProcess")] = "Annotated"
+                    elif "Annotated" not in tags:
+                        self.logger.warning(
+                            f"File {file_id.external_id} was processed, but 'AnnotationInProcess' tag was not found."
+                        )
+                    file_node_applies.append(file_node_apply)
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,
                         AnnotationStatus.ANNOTATED,
@@ -250,6 +257,16 @@ class GeneralFinalizeService(AbstractFinalizeService):
             except Exception as e:
                 self.logger.error(f"Failed to process annotations for file {file_id}", error=e)
                 if next_attempt >= self.max_retries:
+                    file_node_apply: NodeApply = remove_protected_properties(file_node.as_apply())
+                    file_node_apply.existing_version = None
+                    tags = cast(list[str], file_node_apply.sources[0].properties["tags"])
+                    if "AnnotationInProcess" in tags:
+                        tags[tags.index("AnnotationInProcess")] = "AnnotationFailed"
+                    elif "AnnotationFailed" not in tags:
+                        self.logger.warning(
+                            f"File {file_id.external_id} failed processing, but 'AnnotationInProcess' tag was not found."
+                        )
+                    file_node_applies.append(file_node_apply)
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,
                         AnnotationStatus.FAILED,
@@ -271,13 +288,13 @@ class GeneralFinalizeService(AbstractFinalizeService):
             annotation_state_node_applies.append(job_node_to_update)
 
         # Batch update the state nodes at the end
-        if annotation_state_node_applies:
+        if annotation_state_node_applies or file_node_applies:
             self.logger.info(
                 f"Updating {len(annotation_state_node_applies)} annotation state instances",
                 section="START",
             )
             try:
-                self.apply_service.update_instances(list_node_apply=annotation_state_node_applies)
+                self.apply_service.update_instances(list_node_apply=(annotation_state_node_applies + file_node_applies))
                 self.logger.info(
                     f"\t- {count_success} set to Annotated/New\n\t- {count_retry} set to Retry\n\t- {count_failed} set to Failed"
                 )
