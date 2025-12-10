@@ -3,8 +3,9 @@
 
 # Schema space for ISA manufacturing views and containers
 # This space contains all ISA-95/ISA-88 data model definitions
-
-# The schema space for the ISA manufacturing data model definitions
+# Note: Templates use {{ isaSchemaSpace }}, which maps to this variable
+# The module config in config.dev.yaml uses 'schemaSpace' as an alias
+schemaSpace: sp_isa_manufacturing
 isaSchemaSpace: sp_isa_manufacturing
 
 # Instance space for ISA manufacturing data instances

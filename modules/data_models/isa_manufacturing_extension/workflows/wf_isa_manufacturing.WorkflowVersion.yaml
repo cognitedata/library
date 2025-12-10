@@ -351,6 +351,20 @@ workflowDefinition:
       onFailure: 'skipTask'
       dependsOn:
         - externalId: 'wf_isa_manufacturing_t_product_segment'
+    # ProcessParameter
+    - externalId: 'wf_isa_manufacturing_t_process_parameter'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'process_parameter_tr'
+          concurrencyPolicy: fail
+      name: 'ProcessParameter'
+      description: Create ProcessParameter nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_isa_manufacturing_t_product_segment'
     # UnitProcedure
     - externalId: 'wf_isa_manufacturing_t_unit_procedure'
       type: 'transformation'

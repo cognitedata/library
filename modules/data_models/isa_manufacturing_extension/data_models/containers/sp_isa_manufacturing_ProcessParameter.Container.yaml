@@ -12,15 +12,6 @@ properties:
     nullable: false
     autoIncrement: false
     name: process_parameter_id
-  name:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: name
   unit_of_measure:
     type:
       list: false

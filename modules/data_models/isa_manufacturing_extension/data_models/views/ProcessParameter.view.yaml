@@ -15,7 +15,7 @@ properties:
       externalId: ProcessParameter
       type: container
     containerPropertyIdentifier: process_parameter_id
-    name: process_parameter_id
+    name: Process Parameter ID
     description: >
       Unique identifier for the process parameter entity, conforming to ISA-88 recipe parameter 
       standards. A process parameter represents a parameter defined in a recipe or procedure that 
@@ -25,11 +25,11 @@ properties:
       process analysis. [ISA-88]
   name:
     container:
-      space: {{ isaSchemaSpace }}
-      externalId: ProcessParameter
+      space: cdf_cdm
+      externalId: CogniteDescribable
       type: container
     containerPropertyIdentifier: name
-    name: name
+    name: Process Parameter Name
     description: >
       Human-readable name for the process parameter, typically describing the parameter's purpose 
       or measurement (e.g., "Temperature", "Pressure", "Flow Rate", "pH", "Agitation Speed"). 
@@ -42,7 +42,7 @@ properties:
       externalId: ProcessParameter
       type: container
     containerPropertyIdentifier: unit_of_measure
-    name: unit_of_measure
+    name: Unit of Measure
     description: >
       The unit of measure for the process parameter value, conforming to standard unit of measure 
       conventions (e.g., "°C", "bar", "L/min", "pH", "rpm"). The unit_of_measure provides the 
@@ -55,7 +55,7 @@ properties:
       externalId: ProcessParameter
       type: container
     containerPropertyIdentifier: target_value
-    name: target_value
+    name: Target Value
     description: >
       The target or setpoint value for the process parameter, expressed as a numeric value in 
       the specified unit_of_measure. The target_value represents the desired operating condition 
@@ -68,7 +68,7 @@ properties:
       externalId: ProcessParameter
       type: container
     containerPropertyIdentifier: min_value
-    name: min_value
+    name: Min Value
     description: >
       The minimum acceptable value for the process parameter, expressed as a numeric value in the 
       specified unit_of_measure. The min_value represents the lower bound of the acceptable 
@@ -81,7 +81,7 @@ properties:
       externalId: ProcessParameter
       type: container
     containerPropertyIdentifier: max_value
-    name: max_value
+    name: Max Value
     description: >
       The maximum acceptable value for the process parameter, expressed as a numeric value in the 
       specified unit_of_measure. The max_value represents the upper bound of the acceptable 
@@ -94,7 +94,7 @@ properties:
       externalId: ProcessParameter
       type: container
     containerPropertyIdentifier: phases
-    name: phases
+    name: Phases
     description: >
       Reverse relationship collection of all Phase entities that are associated with this process parameter. Phases 
       represent the lowest level procedural elements in ISA-88 that perform specific processing activities. This relationship enables 
@@ -111,7 +111,7 @@ properties:
       externalId: ProcessParameter
       type: container
     containerPropertyIdentifier: product_segment
-    name: product_segment
+    name: Product Segment
     description: >
       Reference to the ProductSegment entities that are associated with this process parameter, establishing 
       the relationship between process parameters and product segments. Product segments represent segments for product activities 

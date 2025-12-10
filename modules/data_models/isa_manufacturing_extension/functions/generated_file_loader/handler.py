@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import FileMetadata
-from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData, ViewId
+from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData, NodeId, ViewId
 from cognite.client.data_classes.raw import Row
 from cognite.client.exceptions import CogniteAPIError
 
@@ -23,6 +23,7 @@ VIEW_VERSION = os.getenv("ISA_VIEW_VERSION", "v1")
 ISA_FILE_VIEW = ViewId(SCHEMA_SPACE, "ISAFile", VIEW_VERSION)
 MIME_TYPE = "application/pdf"
 TIMESTAMP_FMT = "%Y-%m-%dT%H:%M:%SZ"
+MAX_PENDING_LINK_BATCH = 1000
 
 
 def _escape_pdf(text: str) -> str:
@@ -45,19 +46,54 @@ def render_pdf(title: str, lines: Iterable[str]) -> bytes:
         stream_lines.append(f"({line}) Tj")
         stream_lines.append("0 -18 Td")
     stream_lines.append("ET")
-    stream = "\n".join(stream_lines)
+    stream_content = "\r\n".join(stream_lines).encode("latin-1")
 
-    pdf = (
-        "%PDF-1.4\n"
-        "1 0 obj<< /Type /Catalog /Pages 2 0 R>>endobj\n"
-        "2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1>>endobj\n"
-        "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources<< /Font<< /F1 5 0 R>>>>endobj\n"
-        f"4 0 obj<< /Length {len(stream)} >>stream\n{stream}\nendstream endobj\n"
-        "5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica>>endobj\n"
-        "xref\n0 6\n0000000000 65535 f \n0000000010 00000 n \n0000000061 00000 n \n0000000122 00000 n \n0000000273 00000 n \n0000000386 00000 n \n"
-        "trailer<< /Size 6 /Root 1 0 R>>\nstartxref\n456\n%%EOF\n"
+    import io
+
+    buffer = io.BytesIO()
+    write = buffer.write
+
+    write(b"%PDF-1.4\r\n%\xe2\xe3\xcf\xd3\r\n")
+
+    offsets: list[int] = []
+
+    def add_object(content: bytes) -> None:
+        obj_number = len(offsets) + 1
+        offsets.append(buffer.tell())
+        write(f"{obj_number} 0 obj\r\n".encode("ascii"))
+        write(content)
+        write(b"\r\nendobj\r\n")
+
+    add_object(b"<< /Type /Catalog /Pages 2 0 R >>")
+    add_object(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
+    add_object(
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>"
     )
-    return pdf.encode("utf-8")
+
+    stream_body = (
+        f"<< /Length {len(stream_content)} >>\r\n".encode("ascii")
+        + b"stream\r\n"
+        + stream_content
+        + b"\r\nendstream"
+    )
+    add_object(stream_body)
+    add_object(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+
+    startxref = buffer.tell()
+    write(b"xref\r\n")
+    write(f"0 {len(offsets) + 1}\r\n".encode("ascii"))
+    write(b"0000000000 65535 f \r\n")
+    for offset in offsets:
+        write(f"{offset:010} 00000 n \r\n".encode("ascii"))
+
+    write(b"trailer\r\n")
+    write(f"<< /Size {len(offsets) + 1} /Root 1 0 R >>\r\n".encode("ascii"))
+    write(b"startxref\r\n")
+    write(f"{startxref}\r\n".encode("ascii"))
+    write(b"%%EOF\r\n")
+
+    return buffer.getvalue()
 
 
 def load_raw_table(client: CogniteClient, table: str) -> List[Dict[str, str]]:
@@ -73,11 +109,22 @@ def _resolve_data_set_id(client: CogniteClient) -> int:
     if ds is None:
         raise ValueError(f"Dataset {DATA_SET_EXTERNAL_ID} not found")
     return ds.id
+def _set_pending_instance_ids(client: CogniteClient, items: List[dict[str, dict[str, str]]]) -> None:
+    if not items:
+        return
 
-def _delete_files(client: CogniteClient, files: List[FileMetadata]) -> None:
-    file_ids = [file.id for file in files]
-    client.files.delete(id=file_ids)
-    print(f"Deleted {len(file_ids)} classic files")
+    resource_path = f"{client.files._RESOURCE_PATH}/set-pending-instance-ids"  # type: ignore[attr-defined]
+    for idx in range(0, len(items), MAX_PENDING_LINK_BATCH):
+        chunk = items[idx : idx + MAX_PENDING_LINK_BATCH]
+        try:
+            response = client.files._post(resource_path, json={"items": chunk}, api_subversion="alpha")
+            if response.ok:
+                print(f"Linked {len(chunk)} files to pending instance IDs.")
+        except CogniteAPIError as err:
+            if err.code == 409:
+                print("Some pending instance IDs were already linked; skipping duplicates.")
+                continue
+            raise
 
 
 def _run(client: CogniteClient) -> dict[str, int]:
@@ -98,6 +145,7 @@ def _run(client: CogniteClient) -> dict[str, int]:
     created_files: List[FileMetadata] = []
     file_nodes: List[NodeApply] = []
     raw_rows: List[Row] = []
+    pending_links: List[dict[str, dict[str, str]]] = []
 
     for equipment in equipment_rows:
         eq_key = equipment.get("key", "").strip()
@@ -139,7 +187,8 @@ def _run(client: CogniteClient) -> dict[str, int]:
         )
         created_files.append(file_metadata)
 
-        file_node_external_id = f"ISA_Manufacturing_{external_id}"
+        node_id = NodeId(INSTANCE_SPACE, external_id)
+        file_node_external_id = external_id
         file_node = NodeApply(
             space=INSTANCE_SPACE,
             external_id=file_node_external_id,
@@ -170,6 +219,15 @@ def _run(client: CogniteClient) -> dict[str, int]:
                 },
             )
         )
+        pending_links.append(
+            {
+                "pendingInstanceId": node_id.dump(include_instance_type=False),
+                "id": file_metadata.id,
+            }
+        )
+    if pending_links:
+        _set_pending_instance_ids(client, pending_links)
+
     nodes_to_apply = file_nodes
     if nodes_to_apply:
         print(f"Upserting {len(nodes_to_apply)} nodes into data model")
@@ -178,8 +236,6 @@ def _run(client: CogniteClient) -> dict[str, int]:
     if raw_rows:
         print(f"Upserting {len(raw_rows)} rows into RAW table {DB_NAME}/{FILE_TABLE}")
         client.raw.rows.insert(DB_NAME, FILE_TABLE, raw_rows)
-    
-    _delete_files(client, created_files)
 
     print(f"Created {len(created_files)} file nodes")
     return {"files_created": len(created_files), "nodes_written": len(nodes_to_apply)}
