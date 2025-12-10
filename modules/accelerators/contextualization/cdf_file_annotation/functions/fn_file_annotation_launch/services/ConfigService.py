@@ -165,23 +165,6 @@ class DataModelServiceConfig(BaseModel, alias_generator=to_camel):
     get_file_entities_query: QueryConfig | list[QueryConfig]
 
 
-class RawTablesConfig(BaseModel, alias_generator=to_camel):
-    """
-    Consolidated configuration for RAW database and tables used across all functions.
-
-    This section centralizes all RAW storage configuration to avoid duplication
-    and ensure consistency across prepare, launch, finalize, and promote functions.
-    """
-
-    raw_db: str
-    raw_table_cache: str
-    raw_table_doc_tag: str
-    raw_table_doc_doc: str
-    raw_table_doc_pattern: str
-    raw_table_promote_cache: str
-    raw_manual_patterns_catalog: str
-
-
 class CacheServiceConfig(BaseModel, alias_generator=to_camel):
     cache_time_limit: int
 
@@ -292,9 +275,26 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
     target_entities_view: ViewPropertyConfig
 
 
+class RawTables(BaseModel, alias_generator=to_camel):
+    """
+    Consolidated configuration for RAW database and tables used across all functions.
+
+    This section centralizes all RAW storage configuration to avoid duplication
+    and ensure consistency across prepare, launch, finalize, and promote functions.
+    """
+
+    raw_db: str
+    raw_table_cache: str
+    raw_table_doc_tag: str
+    raw_table_doc_doc: str
+    raw_table_doc_pattern: str
+    raw_table_promote_cache: str
+    raw_manual_patterns_catalog: str
+
+
 class Config(BaseModel, alias_generator=to_camel):
     data_model_views: DataModelViews
-    raw_tables: RawTablesConfig
+    raw_tables: RawTables
     prepare_function: PrepareFunction
     launch_function: LaunchFunction
     finalize_function: FinalizeFunction

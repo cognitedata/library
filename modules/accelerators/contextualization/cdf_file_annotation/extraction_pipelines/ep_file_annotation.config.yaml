@@ -1,13 +1,5 @@
 externalId: {{ extractionPipelineExternalId }}
 config:
-  rawTables:
-    rawDb: {{ rawDb }}
-    rawTableCache: {{ rawTableCache }}
-    rawTableDocTag: {{ rawTableDocTag }}
-    rawTableDocDoc: {{ rawTableDocDoc }}
-    rawTableDocPattern: {{ rawTableDocPattern }}
-    rawTablePromoteCache: {{ rawTablePromoteCache }}
-    rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
   dataModelViews:
     coreAnnotationView:
       schemaSpace: cdf_cdm
@@ -30,6 +22,14 @@ config:
       externalId: {{ targetEntityExternalId }}
       version: {{ targetEntityVersion }}
       annotationType: diagrams.AssetLink
+  rawTables:
+    rawDb: {{ rawDb }}
+    rawTableCache: {{ rawTableCache }}
+    rawTableDocTag: {{ rawTableDocTag }}
+    rawTableDocDoc: {{ rawTableDocDoc }}
+    rawTableDocPattern: {{ rawTableDocPattern }}
+    rawTablePromoteCache: {{ rawTablePromoteCache }}
+    rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
   prepareFunction:
     # getFilesForAnnotationResetQuery:
     #   targetView:
