@@ -165,11 +165,25 @@ class DataModelServiceConfig(BaseModel, alias_generator=to_camel):
     get_file_entities_query: QueryConfig | list[QueryConfig]
 
 
-class CacheServiceConfig(BaseModel, alias_generator=to_camel):
-    cache_time_limit: int
+class RawTablesConfig(BaseModel, alias_generator=to_camel):
+    """
+    Consolidated configuration for RAW database and tables used across all functions.
+
+    This section centralizes all RAW storage configuration to avoid duplication
+    and ensure consistency across prepare, launch, finalize, and promote functions.
+    """
+
     raw_db: str
     raw_table_cache: str
+    raw_table_doc_tag: str
+    raw_table_doc_doc: str
+    raw_table_doc_pattern: str
+    raw_table_promote_cache: str
     raw_manual_patterns_catalog: str
+
+
+class CacheServiceConfig(BaseModel, alias_generator=to_camel):
+    cache_time_limit: int
 
 
 class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):
@@ -207,10 +221,6 @@ class ApplyServiceConfig(BaseModel, alias_generator=to_camel):
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
     auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
     sink_node: NodeId
-    raw_db: str
-    raw_table_doc_tag: str
-    raw_table_doc_doc: str
-    raw_table_doc_pattern: str
 
 
 class FinalizeFunction(BaseModel, alias_generator=to_camel):
@@ -255,16 +265,6 @@ class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
     text_normalization: TextNormalizationConfig
 
 
-class PromoteCacheServiceConfig(BaseModel, alias_generator=to_camel):
-    """
-    Configuration for the CacheService in the promote function.
-
-    Controls caching behavior for text→entity mappings.
-    """
-
-    cache_table_name: str
-
-
 class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     """
     Configuration for the promote function.
@@ -274,20 +274,15 @@ class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
 
     Configuration is organized by service interface:
     - entitySearchService: Controls entity search strategies
-    - cacheService: Controls caching behavior
 
     Batch size is controlled via getCandidatesQuery.limit field.
+    RAW database and table configuration is centralized in rawTables section.
     """
 
     get_candidates_query: QueryConfig | list[QueryConfig]
-    raw_db: str
-    raw_table_doc_pattern: str
-    raw_table_doc_tag: str
-    raw_table_doc_doc: str
     delete_rejected_edges: bool
     delete_suggested_edges: bool
     entity_search_service: EntitySearchServiceConfig
-    cache_service: PromoteCacheServiceConfig
 
 
 class DataModelViews(BaseModel, alias_generator=to_camel):
@@ -299,6 +294,7 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
 
 class Config(BaseModel, alias_generator=to_camel):
     data_model_views: DataModelViews
+    raw_tables: RawTablesConfig
     prepare_function: PrepareFunction
     launch_function: LaunchFunction
     finalize_function: FinalizeFunction
