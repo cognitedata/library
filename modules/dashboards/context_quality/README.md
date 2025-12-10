@@ -62,26 +62,18 @@ checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b
 
 This allows the Toolkit to retrieve official library packages.
 
-> **📝 Note: Understanding Library Sources**
+> **📝 Note: Replacing the Default Library**
 >
-> You may notice your `cdf.toml` already contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. Here's the difference:
+> By default, a Cognite Toolkit project contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. This provides core modules like Quickstart, SourceSystem, Common, etc.
 >
-> | Library | URL | Contents |
-> |---------|-----|----------|
-> | `toolkit-data` | `github.com/cognitedata/toolkit-data/...` | Core modules (Quickstart, SourceSystem, Common, etc.) - added by default when you run `cdf init` |
-> | `cognite` (library) | `github.com/cognitedata/library/...` | Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, etc.) |
+> **These two library sections cannot coexist.** To use this Deployment Pack, you must **replace** the `toolkit-data` section with `library.cognite`:
 >
-> **You should keep both library sections** in your `cdf.toml`. They are independent and can coexist:
+> | Replace This | With This |
+> |--------------|-----------|
+> | `[library.toolkit-data]` | `[library.cognite]` |
+> | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
 >
-> ```toml
-> [library.toolkit-data]
-> url = "https://github.com/cognitedata/toolkit-data/releases/download/latest/packages.zip"
-> checksum = "sha256:..."
->
-> [library.cognite]
-> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-> checksum = "sha256:..."
-> ```
+> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, Context Quality Dashboard, etc.).
 
 > **⚠️ Checksum Warning**
 >
