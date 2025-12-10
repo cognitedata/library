@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Literal, cast, Optional
+from typing import Any, Literal, Optional
 
 import yaml
 from cognite.client.data_classes.contextualization import (
@@ -343,21 +343,21 @@ def build_filter_from_query(query: QueryConfig | list[QueryConfig]) -> Filter:
 def _format_query_summary(query: QueryConfig | list[QueryConfig], query_name: str) -> str:
     """Format a query configuration into a readable summary string."""
     lines = [f"  {query_name}:"]
-    
+
     queries = query if isinstance(query, list) else [query]
-    
+
     for i, q in enumerate(queries):
         if len(queries) > 1:
             lines.append(f"    Query {i + 1}:")
             indent = "      "
         else:
             indent = "    "
-        
+
         # View information
         view = q.target_view
         view_str = f"{view.schema_space}/{view.external_id}/{view.version}"
         lines.append(f"{indent}- Target view: {view_str}")
-        
+
         # Filter information
         filter_parts = []
         for f in q.filters:
@@ -370,54 +370,46 @@ def _format_query_summary(query: QueryConfig | list[QueryConfig], query_name: st
                 filter_str = f"{f.target_property} = {f.values}"
             else:
                 filter_str = f"{f.target_property} {f.operator.value} {f.values}"
-            
+
             if f.negate:
                 filter_str = f"NOT ({filter_str})"
             filter_parts.append(filter_str)
-        
+
         filter_combined = " AND ".join(filter_parts)
         lines.append(f"{indent}- Filter: {filter_combined}")
-        
+
         # Limit information
         if q.limit is not None and q.limit != -1:
             lines.append(f"{indent}- Limit: {q.limit}")
-    
+
     return "\n".join(lines)
 
 
 def format_prepare_config(config: Config, pipeline_ext_id: str) -> str:
     """
     Format the prepare function configuration for logging.
-    
+
     Args:
         config: The configuration object
         pipeline_ext_id: The extraction pipeline external ID
-    
+
     Returns:
         Formatted configuration string ready for logging
     """
-    lines = [
-        "=" * 80,
-        f"FUNCTION: Prepare ({pipeline_ext_id})",
-        "=" * 80,
-        "",
-        "PREPARE SERVICE CONFIG"
-    ]
-    
+    lines = ["=" * 80, f"FUNCTION: Prepare ({pipeline_ext_id})", "=" * 80, "", "PREPARE SERVICE CONFIG"]
+
     # Files to Annotate Query
-    lines.append(_format_query_summary(
-        config.prepare_function.get_files_to_annotate_query,
-        "Files to Annotate Query"
-    ))
-    
+    lines.append(_format_query_summary(config.prepare_function.get_files_to_annotate_query, "Files to Annotate Query"))
+
     # Files for Annotation Reset Query (if configured)
     if config.prepare_function.get_files_for_annotation_reset_query is not None:
         lines.append("")
-        lines.append(_format_query_summary(
-            config.prepare_function.get_files_for_annotation_reset_query,
-            "Files for Annotation Reset Query"
-        ))
-    
+        lines.append(
+            _format_query_summary(
+                config.prepare_function.get_files_for_annotation_reset_query, "Files for Annotation Reset Query"
+            )
+        )
+
     lines.extend(["", "=" * 80])
     return "\n".join(lines)
 

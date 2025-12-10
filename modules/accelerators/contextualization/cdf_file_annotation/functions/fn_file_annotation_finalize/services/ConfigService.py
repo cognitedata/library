@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Literal, cast, Optional
+from typing import Any, Literal, Optional
 
 import yaml
 from cognite.client.data_classes.contextualization import (

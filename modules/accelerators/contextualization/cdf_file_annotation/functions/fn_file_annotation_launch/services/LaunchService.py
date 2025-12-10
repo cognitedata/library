@@ -1,6 +1,6 @@
 import time
 import abc
-from typing import cast, Literal
+from typing import Literal
 from datetime import datetime, timezone
 from collections import defaultdict
 from cognite.client import CogniteClient
@@ -20,7 +20,6 @@ from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import (
     BatchOfPairedNodes,
     AnnotationStatus,
-    AnnotationState,
     PerformanceTracker,
     FileProcessingBatch,
 )

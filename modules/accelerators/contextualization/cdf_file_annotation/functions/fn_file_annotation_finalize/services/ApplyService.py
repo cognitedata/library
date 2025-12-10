@@ -14,14 +14,12 @@ from cognite.client.data_classes.data_modeling import (
     Node,
     NodeId,
     NodeApply,
-    EdgeId,
     InstancesApplyResult,
 )
-from cognite.client.data_classes.filters import And, Equals, Not
-from cognite.client import data_modeling as dm
+from cognite.client.data_classes.filters import Equals
 from cognite.client.data_classes.annotation_types.primitives import BoundingBox
 
-from services.ConfigService import Config, ViewPropertyConfig
+from services.ConfigService import Config
 from utils.DataStructures import DiagramAnnotationStatus
 from services.LoggerService import CogniteFunctionLogger
 
@@ -136,7 +134,6 @@ class GeneralApplyService(IApplyService):
 
         # Step 3: Apply all data model and RAW changes
         self.update_instances(list_edge_apply=regular_edges + pattern_edges)
-        db_name = self.config.finalize_function.apply_service.raw_db
         if doc_rows:
             self.client.raw.rows.insert(
                 db_name=self.raw_tables.raw_db,

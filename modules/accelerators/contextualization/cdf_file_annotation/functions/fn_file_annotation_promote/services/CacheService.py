@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Callable, Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
