@@ -1,8 +1,8 @@
-# ISA Manufacturing Extension v2
+# ISA Manufacturing Extension
 
 ## Overview
 
-This module provides an **ISA-95/ISA-88** based manufacturing domain model for Cognite Data Fusion (CDF). It defines spaces, containers, views, and a composed data model, along with optional RAW seed data, SQL transformations, and a workflow to orchestrate data loading.
+This module provides an **ISA-95/ISA-88** based manufacturing domain model for Cognite Data Fusion (CDF). It defines spaces, containers, views, and a composed data model, along with optional RAW seed data, SQL transformations, and a workflow to orchestrate data loading. The model is not 100% complete for any customers, but contains place holders and structures where project can add properties add & remove views as required by customer.
 
 This module follows Cognite's best practices for data modeling, focusing on practical, operational design rather than academic theory. It is optimized for industrial scale, high performance, and flexibility.
 
@@ -33,11 +33,10 @@ The following diagram illustrates the relationships and hierarchies within the I
 
 ![ISA Manufacturing Data Model Architecture](ISA%20DM-ISA%20DM.drawio.svg)
 
-**To add/update the diagram:**
-1. Open the [draw.io diagram](https://app.diagrams.net/#G1CaqCBT31dTvaiEquCXdbszJiLUcvIODv#%7B%22pageId%22%3A%22M35xxQWvoPat2sPLS8Kb%22%7D) in your browser
-2. Make a copy of the diagram, and make your changes relevant for the project
-   
+The draw.io diagram is available on request where changes relevant for the project can be added   
+
 The diagram shows:
+
 - **ISA-95 Organizational Hierarchy** (vertical structure): Enterprise → Site → Area → ProcessCell → Unit → EquipmentModule
 - **ISA-88 Procedural Hierarchy** (recipe execution): Recipe → Procedure → UnitProcedure → Operation → Phase
 - **ISA-95 Level 3 Production Management**: ProductDefinition → ProductRequest → ProductSegment
@@ -65,7 +64,7 @@ The data model integrates both standards to provide a comprehensive manufacturin
 ## Module structure
 
 ```
-isa_manufacturing_extension_v2/
+isa_manufacturing_extension/
 ├── data_models/
 │   ├── containers/                 # Container definitions for all ISA entities
 │   │   ├── sp_isa_manufacturing_Area.Container.yaml
@@ -77,34 +76,24 @@ isa_manufacturing_extension_v2/
 │   │   ├── Batch.view.yaml
 │   │   ├── ...
 │   │   └── WorkOrder.view.yaml
-│   ├── ISA_Manufacturing.DataModel.yaml  # Aggregated data model referencing views
+│   ├── ISA_Manufacturing_EDM.DataModel.yaml  # Aggregated data model referencing views
+│   ├── ISA_Manufacturing_SLM.DataModel.yaml  # Aggregated data model referencing views
 │   ├── sp_isa_manufacturing.Space.yaml   # Schema space (views/containers)
 │   └── sp_isa_instance.Space.yaml        # Instance space (optional)
 ├── data_sets/
 │   └── isa_manufacturing.DataSet.yaml    # Dataset used by this module
 ├── locations/
-│   └── isaManufacturingDM.LocationFilter.yaml  # Location filter(s) for access control
+│   ├── isaManufacturingEDM.LocationFilter.yaml  # EDM Location filter(s) for access control
+│   └── isaManufacturingSLM.LocationFilter.yaml  # SLM Location filter(s) for access control
 ├── raw/
 │   ├── isa_asset.Table.yaml             # RAW table definition(s)
 │   ├── isa_asset.Table.csv              # Optional seed data
-│   ├── isa_equipment.Table.yaml         # Equipment RAW table
-│   ├── isa_equipment.Table.csv           # Equipment seed data
-│   ├── isa_timeseries.Table.yaml         # TimeSeries RAW table
-│   ├── isa_timeseries.Table.csv          # TimeSeries seed data
-│   ├── isa_work_order.Table.yaml         # WorkOrder RAW table
+│   ├── ...
 │   └── isa_work_order.Table.csv          # WorkOrder seed data
 ├── transformations/
 │   ├── area_tr.Transformation.{sql,yaml}          # Area transformation
 │   ├── enterprise_tr.Transformation.{sql,yaml}    # Enterprise transformation
-│   ├── site_tr.Transformation.{sql,yaml}          # Site transformation
-│   ├── process_cell_tr.Transformation.{sql,yaml}  # ProcessCell transformation
-│   ├── unit_tr.Transformation.{sql,yaml}          # Unit transformation
-│   ├── equipment_module_tr.Transformation.{sql,yaml} # EquipmentModule transformation
-│   ├── equipment_tr.Transformation.{sql,yaml}    # Equipment transformation
-│   ├── equipment_module_link_equipment_tr.Transformation.{sql,yaml} # Equipment linking
-│   ├── isa_asset_tr.Transformation.{sql,yaml}     # ISAAsset transformation
-│   ├── work_order_tr.Transformation.{sql,yaml}    # WorkOrder transformation
-│   ├── work_order_timeseries_tr.Transformation.{sql,yaml} # WorkOrder-TimeSeries linking
+│   ├── ...
 │   └── timeseries_tr.Transformation.{sql,yaml}    # ISATimeSeries transformation
 └── workflows/
     ├── wf_isa_manufacturing.Workflow.yaml
@@ -114,7 +103,7 @@ isa_manufacturing_extension_v2/
 ### What each part does
 - **data_models/containers**: Column-level schemas for each entity (Area, Batch, Equipment, …). Names are prefixed with `sp_isa_manufacturing_` and bound to the `sp_isa_manufacturing` space.
 - **data_models/views**: Logical views over containers with relationships; many views `implement` standard `cdf_cdm` interfaces (e.g., `CogniteActivity`, `CogniteDescribable`).
-- **ISA_Manufacturing.DataModel.yaml**: The compositional data model that includes all views from this module and referenced `cdf_cdm` interfaces.
+- **ISA_Manufacturing_EDM.DataModel.yaml**: The compositional data model that includes all views from this module and referenced `cdf_cdm` interfaces.
 - **Spaces**: `sp_isa_manufacturing.Space.yaml` defines the schema space; `sp_isa_instance.Space.yaml` can hold instances.
 - **data_sets**: CDF dataset used by transformations and for lineage.
 - **raw**: Optional RAW table(s) and seed data to bootstrap asset trees or mappings.
@@ -182,7 +171,7 @@ isa_manufacturing_extension_v2/
 
 5. Access control / locations
    - If you need to scope data by location, update or add a `locations/*LocationFilter.yaml` and ensure relevant groups/locations exist in your environment.
-   - There are 2 included locatoion examples 
+   - There are 2 included location examples on called EDM = Enterprise data Model, including all views and interfaces. The Solution Level Model (SLM), only including ISA-specific views 
 
 ## Deployment (Cognite Toolkit)
 
