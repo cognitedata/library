@@ -39,6 +39,47 @@ checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b
 
 This allows the Toolkit to retrieve official library packages and enables Atlas AI agent deployment.
 
+> **📝 Note: Understanding Library Sources**
+>
+> You may notice your `cdf.toml` already contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. Here's the difference:
+>
+> | Library | URL | Contents |
+> |---------|-----|----------|
+> | `toolkit-data` | `github.com/cognitedata/toolkit-data/...` | Core modules (Quickstart, SourceSystem, Common, etc.) - added by default when you run `cdf init` |
+> | `cognite` (library) | `github.com/cognitedata/library/...` | Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, etc.) |
+>
+> **You should keep both library sections** in your `cdf.toml`. They are independent and can coexist:
+>
+> ```toml
+> [library.toolkit-data]
+> url = "https://github.com/cognitedata/toolkit-data/releases/download/latest/packages.zip"
+> checksum = "sha256:..."
+>
+> [library.cognite]
+> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+> checksum = "sha256:..."
+> ```
+
+> **⚠️ Checksum Warning**
+>
+> When running `cdf modules add`, you may see a warning like:
+>
+> ```
+> WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
+> Please verify the checksum with the source and update cdf.toml if needed.
+> This may indicate that the package content has changed.
+> ```
+>
+> **This is expected behavior.** The checksum in this documentation may be outdated because it gets updated with every release. The package will still download successfully despite the warning.
+>
+> **To resolve the warning:** Copy the new checksum value shown in the warning message and update your `cdf.toml` with it. For example, if the warning shows `sha256:da2b33d60c66700f...`, update your config to:
+>
+> ```toml
+> [library.cognite]
+> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+> checksum = "sha256:da2b33d60c66700f..."
+> ```
+
 ### Step 2 (Optional but Recommended): Enable Usage Tracking
 
 To help improve the Deployment Pack and provide insight to the Value Delivery Accelerator team, you can enable anonymous usage tracking:
