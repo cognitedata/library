@@ -31,7 +31,7 @@ This module follows Cognite's best practices for data modeling, focusing on prac
 
 The following diagram illustrates the relationships and hierarchies within the ISA-95/ISA-88 manufacturing data model:
 
-![ISA Manufacturing Data Model Architecture](docs/ISA%20DM-ISA%20DM.drawio.svg)
+![ISA Manufacturing Data Model Architecture](ISA%20DM-ISA%20DM.drawio.svg)
 
 **To add/update the diagram:**
 1. Open the [draw.io diagram](https://app.diagrams.net/#G1CaqCBT31dTvaiEquCXdbszJiLUcvIODv#%7B%22pageId%22%3A%22M35xxQWvoPat2sPLS8Kb%22%7D) in your browser
@@ -182,6 +182,7 @@ isa_manufacturing_extension_v2/
 
 5. Access control / locations
    - If you need to scope data by location, update or add a `locations/*LocationFilter.yaml` and ensure relevant groups/locations exist in your environment.
+   - There are 2 included locatoion examples 
 
 ## Deployment (Cognite Toolkit)
 
@@ -235,26 +236,21 @@ cdf collect opt-in
 Run:
 
 ```bash
-cdf modules init .
+cdf modules init . --clean
 ```
 
 > **⚠️ Disclaimer**: This command will overwrite existing modules. Commit changes before running, or use a fresh directory.
 
 This opens the interactive module selection interface.
 
-### Step 4: Select the ISA Data Models Package
+### Step 4: Select the ISA Data Models Package (NOTE: use Space bar to select module)
 
 From the menu, select:
 
 ```
-Data models: Data models that extend the core data model
+Data models: Data models that extend the core data model 
+  └── ISA 88/95 Manufacturing Data Model template
 ```
-
-Follow the prompts. Toolkit will:
-
-- Download the ISA module
-- Update the Toolkit configuration
-- Place the files into your project
 
 ### Step 5: Verify Folder Structure
 
@@ -265,31 +261,35 @@ modules/
     └── data_models/
         └── id = isa_manufacturing_extension/
 ```
+If you want to add more modules, continue with yes ('y') else no ('N')
 
-If you see this structure, ISA Model has been successfully added to your project.
+And continue with creation, yes ('Y') => this then creates a folder structure in your destination with all the files from your selected modules.
+
 
 ### Step 6: Deploy to CDF
 
-Update your config.dev.yaml file with <b>project</b> and changes in spaces or versions
+__NOTE__: Update your __config.dev.yaml__ file with __project__ and changes in spaces or versions 
 
-Build and deploy:
-
+Build deployment structure:
 ```bash
 cdf build
 ```
 
-```bash
+Optional dry run:
+```bash  (optional)
 cdf deploy --dry-run
 ```
 
+Deploy module to your CDF project
 ```bash
 cdf deploy
 ```
 
 ---
 
-
+- Note that the deployment uses a set of CDF capabilities, so you might need to add this to the CDF security group used by Toolkit to deploy
 - This will create/update spaces, containers, views, the composed data model, dataset, RAW resources, transformations, and workflows defined by this module.
+
 
 ### Run the workflow / transformations
 - After deployment, trigger `wf_isa_manufacturing` via the CDF Workflows UI or API to execute the transformations in order.
@@ -299,7 +299,7 @@ cdf deploy
 
 ### Workflow Execution Flow
 
-![ISA Manufacturing Data Model Architecture](docs/isa_workflow.jpg)
+![ISA Manufacturing Data Model Architecture](isa_workflow.jpg)
 
 
 Some of the workflow executes transformations:
@@ -486,7 +486,7 @@ The following example illustrates how ISA-95 Level 3 production management integ
    - Links to Equipment for execution
    - Assigns Personnel for work execution
 
-4. **Batch** (ISA-88) executes:
+4. **Batch** (Records) (ISA-88) executes:
    - References Recipe (ISA-88 procedural model)
    - Executes Phases (ISA-88) with ProcessParameters
    - Links to WorkOrder for work management context

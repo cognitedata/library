@@ -1,7 +1,7 @@
 space: {{ isaSchemaSpace }}
-externalId: ISA_Manufacturing
+externalId: ISA_Manufacturing_EDM
 name: ISA Manufacturing Data Model
-description: ISA-95/88 based manufacturing domain model, aggregating all ISA views
+description: ISA-95/88 based manufacturing domain model, aggregating all ISA. This is the Enterprise Data Model (EDM) for the ISA Manufacturing domain, including all views and interfaces.
 version: {{ viewVersion }}
 views:
 

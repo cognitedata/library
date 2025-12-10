@@ -1,16 +1,14 @@
 space: {{ isaSchemaSpace }}
 externalId: ISA_Manufacturing_SLM
 name: ISA Manufacturing Data Model SLM
-description: ISA-95/88 based manufacturing domain model, aggregating all ISA views SLM
+description: ISA-95/88 based manufacturing domain model, aggregating all ISA views in the ISA Manufacturing domain. This is the Solution Level Model (SLM) for the ISA Manufacturing domain, only including ISA-specific views.
 version: {{ viewVersion }}
 views:
-
-
-- space: {{ isaSchemaSpace }}
-  externalId: ISAAsset
-  version: {{ viewVersion }}
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
   type: view
-- space: {{ isaSchemaSpace }}
+- space: cdf_cdm
   externalId: Area
   version: {{ viewVersion }}
   type: view
