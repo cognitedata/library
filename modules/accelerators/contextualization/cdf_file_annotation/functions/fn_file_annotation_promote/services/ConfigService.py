@@ -243,8 +243,7 @@ class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
     """
 
     # enable_existing_annotations_search: bool = True # NOTE: Could be useful in the future - currently unused
-    enable_global_entity_search: bool = True
-    max_entity_search_limit: int = Field(default=1000, gt=0, le=10000)
+    # enable_global_entity_search: bool = True # NOTE: Could be used in the future - currently unused
     text_normalization: TextNormalizationConfig
 
 
@@ -426,8 +425,6 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
         [
             "",
             "ENTITY SEARCH SERVICE",
-            f"  • Enable global entity search: {entity_search.enable_global_entity_search}",
-            f"  • Max entity search limit: {entity_search.max_entity_search_limit}",
             "  • Text normalization:",
             f"    - Remove special characters: {text_norm.remove_special_characters}",
             f"    - Convert to lowercase: {text_norm.convert_to_lowercase}",

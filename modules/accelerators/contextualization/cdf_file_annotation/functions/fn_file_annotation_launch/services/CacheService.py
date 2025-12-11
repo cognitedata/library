@@ -6,10 +6,7 @@ from datetime import datetime, timezone, timedelta
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite, Row
 from cognite.client.exceptions import CogniteNotFoundError
-from cognite.client.data_classes.data_modeling import (
-    Node,
-    NodeList,
-)
+from cognite.client.data_classes.data_modeling import NodeList
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger

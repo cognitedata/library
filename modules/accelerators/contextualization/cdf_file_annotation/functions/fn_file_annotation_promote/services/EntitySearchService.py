@@ -38,7 +38,7 @@ class EntitySearchService(IEntitySearchService):
 
     **Why query entities directly instead of annotation edges?**
     - Entity dataset is smaller and stable (~1,000-10,000 entities)
-    - Annotation edges grow quadratically (Files × Entities = potentially millions)
+    - Annotation edges grow quadratically (Files x Entities = potentially millions)
     - Neither startNodeText nor aliases properties are indexed
     - Without indexes, smaller dataset = better performance
     - Entity count doesn't increase as more files are annotated
