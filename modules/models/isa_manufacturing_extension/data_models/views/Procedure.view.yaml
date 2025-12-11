@@ -1,0 +1,113 @@
+space: {{ isaSchemaSpace }}
+externalId: Procedure
+name: Procedure
+description: Top-level procedural element that coordinates unit procedures (ISA-88)
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSchedulable
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  procedure_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Procedure
+      type: container
+    containerPropertyIdentifier: procedure_id
+    name: Procedure ID
+    description: >
+      Unique identifier for the procedure entity, conforming to ISA-88 procedural element 
+      standards. A procedure represents the top-level procedural element that coordinates unit 
+      procedures for batch execution. The procedure_id serves as the primary key and enables 
+      traceability of procedures throughout the batch execution lifecycle. This identifier is 
+      critical for procedural-level batch tracking, recipe execution, and process analysis. [ISA-88]
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    name: Procedure Name
+    description: >
+      Human-readable name for the procedure, typically describing the overall process or function 
+      (e.g., "Production Procedure", "Cleaning Procedure", "Quality Check Procedure"). The 
+      procedure_name follows ISA-88 naming conventions for procedures and should be descriptive 
+      enough for process engineers and operators to understand the procedure's purpose. This name 
+      is often used in control system displays, batch records, and operational documentation. [ISA-88]
+  sequence_number:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Procedure
+      type: container
+    containerPropertyIdentifier: sequence_number
+    name: Sequence Number
+    description: >
+      Numeric value indicating the order or sequence in which this procedure should be executed 
+      within the recipe, following ISA-88 procedure sequencing standards. The sequence_number 
+      enables proper procedure ordering and supports sequential execution logic in batch recipes. 
+      This value is critical for recipe execution, procedure scheduling, and process flow control. 
+      Lower sequence numbers indicate earlier execution order. [ISA-88]
+  recipe:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Procedure
+      type: container
+    containerPropertyIdentifier: recipe
+    name: Recipe
+    description: >
+      Reference to the Recipe entity that contains this procedure, establishing the ISA-88 
+      hierarchical relationship where recipes contain procedures. The recipe relationship enables 
+      navigation from procedure to recipe level, supporting recipe-level procedural analysis and 
+      recipe design. This relationship is essential for understanding how procedures contribute to 
+      recipe execution and enables procedural-level recipe data analysis. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Recipe
+      version: {{ viewVersion }}
+      type: view
+  batch:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Procedure
+      type: container
+    containerPropertyIdentifier: batch
+    name: Batch
+    description: >
+      Reference to the Batch entity that this procedure is part of, establishing the relationship 
+      between procedures and batch execution. The batch relationship enables navigation from 
+      procedure to batch level, supporting batch-level procedure analysis and execution tracking. 
+      This relationship is essential for understanding how procedures contribute to batch execution 
+      and enables procedure-level batch data analysis. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Batch
+      version: {{ viewVersion }}
+      type: view
+  # Reverse relationships
+  unit_procedures:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: UnitProcedure
+        version: {{ viewVersion }}
+        type: view
+      identifier: procedure
+    name: Unit Procedures
+    description: >
+      Reverse relationship collection of all UnitProcedure entities that belong to this procedure. 
+      Unit procedures represent procedural elements that define operations for specific units. This 
+      relationship enables procedure-to-unit-procedure navigation, supporting detailed procedural 
+      analysis at the unit procedure level, including unit procedure sequencing, duration, and 
+      resource allocation. Unit procedures link procedural control to specific equipment units, 
+      enabling equipment performance and utilization analysis. [ISA-88]
+    connectionType: multi_reverse_direct_relation

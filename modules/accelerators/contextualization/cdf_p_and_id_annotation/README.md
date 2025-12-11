@@ -1,6 +1,6 @@
 # cdf_p_and_id_annotation
 
-The module creates a simple data pipeline for processing files from
+The module creates a simple data pipeline for annotation files from
 your location. The processing here is related to the
 annotation/contextualization mapping of tags in P&ID documents
 to assets and files.

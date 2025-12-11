@@ -1,0 +1,55 @@
+space: {{ isaSchemaSpace }}
+externalId: Site
+name: Site
+description: Physical location where manufacturing operations are performed (ISA-95 Level 4)
+properties:
+  site_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: site_id
+  site_name:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: site_name
+  location:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: location
+  country:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: country
+  enterprise:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: enterprise
+indexes:
+  site_id_index:
+    properties:
+    - site_id
+    cursorable: true
+    indexType: btree

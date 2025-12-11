@@ -1,0 +1,100 @@
+space: {{ isaSchemaSpace }}
+externalId: ProductRequest  
+name: ProductRequest
+description: Request to produce specific quantities of products (ISA-95 Level 3)
+properties:
+  product_request_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: product_request_id
+  request_number:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: request_number
+  priority:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: priority
+  due_date:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: due_date
+  quantity_requested:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: quantity_requested
+  quantity_unit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: quantity_unit
+  request_status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: request_status
+  unit:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unit
+  files:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: files
+  work_orders:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: work_orders
+indexes:
+  product_request_id_index:
+    properties:
+    - product_request_id
+    cursorable: true
+    indexType: btree
+  request_number_index:
+    properties:
+    - request_number
+    cursorable: true
+    indexType: btree

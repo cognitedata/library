@@ -1,0 +1,21 @@
+key,recipe_id,recipe_name,recipe_version,recipe_type,created_date,status,description,material_externalId
+REC_MR_R12_CHARGE_V1,MR-R12-CHARGE,R12 Charge Preparation Recipe,v1.0,Master,2023-11-15T08:00:00Z,Active,Baseline master recipe for preparing charge slurry in Reactor R12,MAT-R12-CHARGE-SLURRY
+REC_MR_R12_CHARGE_V2,MR-R12-CHARGE,R12 Charge Preparation Recipe,v2.0,Master,2024-02-20T07:45:00Z,Under Review,Revised recipe with updated solids profile for Reactor R12 charge,MAT-R12-CHARGE-SLURRY-V2
+REC_MR_R12_CHARGE_V3,MR-R12-CHARGE,R12 Charge Preparation Recipe,v3.0,Master,2024-04-02T09:10:00Z,Draft,Trial recipe assessing high solids adjustments for R12 charge,MAT-R12-CHARGE-SLURRY-V3
+REC_MR_R13_POLYMER_V1,MR-R13-POLYMER,R13 Polymerization Master Recipe,v1.0,Master,2024-01-05T10:30:00Z,Approved,Master recipe governing primary polymerization cycle in Reactor R13,MAT-R13-POLYMER-RESIN
+REC_MR_R13_POLYMER_V2,MR-R13-POLYMER,R13 Polymerization Master Recipe,v2.0,Master,2024-03-12T12:00:00Z,Under Review,Second iteration of R13 polymerization with catalyst tuning,MAT-R13-POLYMER-RESIN-V2
+REC_MR_R13_POSTCURE_V1,MR-R13-POSTCURE,R13 Post-Cure Recipe,v1.0,Control,2024-02-28T08:40:00Z,Active,Post-cure sequence that conditions polymer resin prior to finishing,MAT-R13-POSTCURE-COATING
+REC_MR_FILL_TRANSFER_V2,MR-FILL-TRANSFER,Fill Transfer and Conditioning Recipe,v2.1,Master,2023-09-27T06:45:00Z,Active,Production recipe transferring conditioned product into the fill loop,MAT-FILL-FINAL-PRODUCT
+REC_MR_FILL_TRANSFER_V3,MR-FILL-TRANSFER,Fill Transfer and Conditioning Recipe,v3.0,Master,2024-05-18T05:20:00Z,Draft,Commissioning recipe for next-generation fill transfer configuration,MAT-FILL-FINAL-PRODUCT-V3
+REC_MR_FILL_STERILE_V1,MR-FILL-STERILE,Sterile Fill and Pack Recipe,v1.0,Master,2024-01-18T04:55:00Z,Approved,Aseptic fill recipe covering sterile preparation and packaging steps,MAT-FILL-STERILE-LOT
+REC_MR_FILL_REWORK_V1,MR-FILL-REWORK,Fill Line Rework Recipe,v1.0,General,2024-03-05T03:10:00Z,Active,Recipe to reprocess deviated fill batches back into specification,MAT-FILL-REWORK-BATCH
+REC_SR_R12_CLEAN_V1,SR-R12-CLEAN,R12 CIP Cleaning Recipe,v1.0,Site,2023-12-01T05:30:00Z,Active,Site-standard CIP cycle flushing Reactor R12 and associated piping,MAT-R12-CIP-SOLUTION
+REC_SR_R12_CLEAN_V2,SR-R12-CLEAN,R12 CIP Cleaning Recipe,v2.0,Site,2024-04-25T06:05:00Z,Planned,Upcoming CIP revision incorporating low-foam chemistry for R12,MAT-R12-CIP-SOLUTION-V2
+REC_SR_FILL_CLEAN_V1,SR-FILL-CLEAN,Fill Line CIP Recipe,v1.0,Site,2024-02-01T05:05:00Z,Active,Clean-in-place program for the fill manifold and surge tank circuits,MAT-FILL-CIP-SOLUTION
+REC_MR_QC_CHROM_V1,MR-QC-CHROM,Quality Chromatography Procedure Recipe,v1.2,Master,2024-02-12T09:00:00Z,Under Review,QC chromatography run covering column prep load and elution,MAT-QC-ELUENT
+REC_MR_QC_STABILITY_V1,MR-QC-STABILITY,Stability Study Sample Prep Recipe,v1.0,General,2024-03-22T11:35:00Z,Active,Recipe for preparing aliquots used in stability monitoring campaigns,MAT-QC-STABILITY-CONTROL
+REC_MR_QC_MICRO_V1,MR-QC-MICRO,QC Microbiology Media Preparation,v1.0,General,2024-04-14T07:25:00Z,Active,Recipe creating culture media for microbiological quality testing,MAT-QC-MICRO-MEDIA
+REC_MR_BLDR_BLEND_V3,MR-BLDR-BLEND,Blender Homogenization Recipe,v3.0,Master,2023-07-03T11:15:00Z,Deprecated,Legacy blender homogenization sequence retained for comparison,MAT-BLDR-BLEND
+REC_MR_BLDR_BLEND_V4,MR-BLDR-BLEND,Blender Homogenization Recipe,v4.0,Master,2024-03-30T13:10:00Z,Active,Current production recipe generating dried blender granulate,MAT-BLDR-DRY
+REC_MR_PACK_LABEL_V1,MR-PACK-LABEL,Packaging and Labeling Recipe,v1.0,General,2024-02-08T10:45:00Z,Active,Packaging recipe coordinating labeling serialization and release,MAT-PACK-LABELS
+

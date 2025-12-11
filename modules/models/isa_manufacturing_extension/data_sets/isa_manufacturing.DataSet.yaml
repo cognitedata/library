@@ -1,0 +1,7 @@
+- externalId: ds_isa_manufacturing
+  name: ISA Manufacturing
+  description: Dataset for ISA Manufacturing demo (assets, overlays, transformations)
+  writeProtected: false
+  metadata:
+    origin: cognite-toolkit
+

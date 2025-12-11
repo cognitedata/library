@@ -1,0 +1,176 @@
+space: {{ isaSchemaSpace }}
+externalId: Unit
+name: Unit
+description: Basic equipment entity that can carry out one or more processing activities (ISA-88)
+version: {{ viewVersion }}
+properties:
+  unit_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      type: container
+    containerPropertyIdentifier: unit_id
+    name: Unit id
+    description: >
+      Unique identifier for the unit entity, conforming to ISA-88 Equipment Model standards. 
+      A unit represents a basic equipment entity that can carry out one or more processing activities. 
+      The unit_id serves as the primary key and enables traceability of units throughout the 
+      manufacturing lifecycle. This identifier should align with ISA-88 equipment classification 
+      standards and support integration with control systems and engineering databases. [ISA-88]
+  unit_name:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      type: container
+    containerPropertyIdentifier: unit_name
+    name: Unit name
+    description: >
+      Human-readable name for the unit, typically describing its processing capability or function 
+      (e.g., "Reactor Unit 1", "Distillation Column A", "Mixing Unit"). The unit_name follows 
+      ISA-88 naming conventions for units and should be descriptive enough for process engineers 
+      and operators to understand the unit's function. This name is often used in control system 
+      displays, batch recipes, and operational documentation. [ISA-88]
+  unit_class:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      type: container
+    containerPropertyIdentifier: unit_class
+    name: Unit class
+    description: >
+      Classification of the unit according to its functional class or processing capability, 
+      following ISA-88 unit classifications. Common unit classes include reactor units, separation 
+      units, mixing units, heating/cooling units, and transfer units. The unit_class enables 
+      filtering and analysis by unit function, supports recipe design patterns, and facilitates 
+      unit reuse across different processes. This classification should follow standardized unit 
+      class taxonomies for consistency. [ISA-88]
+  capacity:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      type: container
+    containerPropertyIdentifier: capacity
+    name: Capacity
+    description: >
+      The maximum processing capacity or throughput of the unit, expressed as a numeric value. 
+      The capacity represents the unit's design or rated capacity for processing materials, energy, 
+      or products. This value is critical for production planning, batch sizing, resource 
+      allocation, and capacity utilization analysis. The capacity should be interpreted in 
+      conjunction with capacity_unit to determine the complete capacity specification. [ISA-88]
+  capacity_unit:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      type: container
+    containerPropertyIdentifier: capacity_unit
+    name: Capacity unit
+    description: >
+      The unit of measure for the capacity value, conforming to standard unit of measure 
+      conventions (e.g., "kg", "L", "m³/h", "kW"). The capacity_unit provides the dimensional 
+      context for the capacity numeric value, enabling proper capacity calculations and 
+      conversions. This field should follow standardized unit naming conventions (e.g., ISO 80000, 
+      SI units) to ensure consistency and interoperability across systems and organizations. [ISA-88]
+  process_cell:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Unit
+      type: container
+    containerPropertyIdentifier: process_cell
+    name: Process cell
+    description: >
+      Reference to the parent ProcessCell entity that contains this unit, establishing the ISA-95 
+      Level 4 hierarchical relationship. The process_cell relationship enables navigation from 
+      unit to process cell level and supports organizational queries across the manufacturing 
+      hierarchy. This relationship follows ISA-95 parent-child location hierarchy principles, 
+      ensuring proper containment relationships for functional locations within the process cell 
+      boundary. [ISA-88, ISA-95 Level 4]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessCell
+      version: {{ viewVersion }}
+      type: view
+  equipment_modules:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: EquipmentModule
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: EquipmentModule
+        version: {{ viewVersion }}
+        type: view
+      identifier: unit
+    name: Equipment modules
+    description: >
+      Reverse relationship collection of all ISA Asset entities that are specifically associated 
+      with this unit through the asset_specific relationship. This enables the unit to be linked 
+      to the broader asset hierarchy while maintaining ISA-88 unit relationships. Assets linked 
+      through this relationship may include equipment, functional locations, or other asset types 
+      that are operationally scoped to this unit. [ISA-88, ISA-95]
+    connectionType: multi_reverse_direct_relation
+  unit_procedures:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: UnitProcedure
+        version: {{ viewVersion }}
+        type: view
+      identifier: unit
+    name: Unit procedures
+    description: >
+      Reverse relationship collection of all UnitProcedure entities that are executed on this unit. 
+      Unit procedures represent procedural elements that define operations for specific units. 
+      This relationship enables unit-to-unit-procedure navigation, supporting unit utilization 
+      analysis, unit procedure sequencing, and resource allocation. Unit procedures link batch 
+      execution to specific equipment units, enabling equipment performance and utilization 
+      analysis. [ISA-88]
+    connectionType: multi_reverse_direct_relation
+  product_definition:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductDefinition
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProductDefinition
+        version: {{ viewVersion }}
+        type: view
+      identifier: unit
+    name: Product definition
+    description: >
+      Reverse relationship collection of all ProductDefinition entities that are associated with this unit. 
+      Product definitions represent the definition of the product process and resources. This relationship enables 
+      unit-to-product definition navigation, supporting product definition-level production planning analysis and 
+      navigation from unit to product definition level, supporting product definition-level production planning analysis and 
+      production tracking. This relationship is essential for understanding how product definitions are defined and executed within the unit. [ISA-95 Level 3]
+    connectionType: multi_reverse_direct_relation
+  product_requests:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProductRequest
+        version: {{ viewVersion }}
+        type: view
+      identifier: unit
+    name: Product requests
+    description: >
+      Reverse relationship collection of all ProductRequest entities that are executed on this unit. 
+      Product requests represent specific product requests for manufacturing execution at ISA-88. 
+      This relationship enables unit-to-product request navigation, supporting unit utilization analysis, 
+      product request sequencing, and resource allocation. Product requests link batch execution to specific 
+      units, enabling unit performance and utilization analysis. [ISA-88]
+    connectionType: multi_reverse_direct_relation
