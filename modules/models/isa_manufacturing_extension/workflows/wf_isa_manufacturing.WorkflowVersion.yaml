@@ -120,6 +120,20 @@ workflowDefinition:
       onFailure: 'skipTask'
       dependsOn:
         - externalId: 'wf_isa_manufacturing_t_equipment_module'
+    # Control Module Asset Overlay
+    - externalId: 'wf_isa_manufacturing_t_control_module_asset'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'control_module_asset_tr'
+          concurrencyPolicy: fail
+      name: 'Control Module Asset Overlay'
+      description: Create Control Module Asset nodes
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_isa_manufacturing_t_control_module'
     # Files - Transformation
     - externalId: 'wf_isa_manufacturing_t_files'
       type: 'transformation'
