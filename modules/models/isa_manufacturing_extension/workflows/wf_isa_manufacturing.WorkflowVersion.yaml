@@ -92,24 +92,6 @@ workflowDefinition:
       onFailure: 'skipTask'
       dependsOn:
         - externalId: 'wf_isa_manufacturing_t_isatree'
-    # Files - Function ( Generate Files )
-    - externalId: 'wf_isa_manufacturing_t_generated_files'
-      type: 'function'
-      parameters:
-        function:
-          externalId: 'generated_file_loader'
-      name: 'Generate Files'
-      description: Generate Files
-      retries: 3
-      timeout: 3600
-      onFailure: 'skipTask'
-      dependsOn:
-        - externalId: 'wf_isa_manufacturing_t_enterprise'
-        - externalId: 'wf_isa_manufacturing_t_site'
-        - externalId: 'wf_isa_manufacturing_t_area'
-        - externalId: 'wf_isa_manufacturing_t_process_cell'
-        - externalId: 'wf_isa_manufacturing_t_unit'
-        - externalId: 'wf_isa_manufacturing_t_equipment_module'
     # Personnel
     - externalId: 'wf_isa_manufacturing_t_personnel'
       type: 'transformation'
@@ -138,19 +120,6 @@ workflowDefinition:
       onFailure: 'skipTask'
       dependsOn:
         - externalId: 'wf_isa_manufacturing_t_equipment_module'
-    - externalId: 'wf_isa_manufacturing_t_control_module_asset'
-      type: 'transformation'
-      parameters:
-        transformation:
-          externalId: 'control_module_asset_tr'
-          concurrencyPolicy: fail
-      name: 'Control Module Asset'
-      description: Create Control Module Asset nodes
-      retries: 3
-      timeout: 3600
-      onFailure: 'skipTask'
-      dependsOn:
-        - externalId: 'wf_isa_manufacturing_t_control_module'
     # Files - Transformation
     - externalId: 'wf_isa_manufacturing_t_files'
       type: 'transformation'
@@ -164,7 +133,12 @@ workflowDefinition:
       timeout: 3600
       onFailure: 'skipTask'
       dependsOn:
-        - externalId: 'wf_isa_manufacturing_t_generated_files'
+        - externalId: 'wf_isa_manufacturing_t_enterprise'
+        - externalId: 'wf_isa_manufacturing_t_site'
+        - externalId: 'wf_isa_manufacturing_t_area'
+        - externalId: 'wf_isa_manufacturing_t_process_cell'
+        - externalId: 'wf_isa_manufacturing_t_unit'
+        - externalId: 'wf_isa_manufacturing_t_equipment_module'
     # Equipment
     - externalId: 'wf_isa_manufacturing_t_equipment'
       type: 'transformation'
