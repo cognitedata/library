@@ -288,7 +288,7 @@ cdf deploy
 
 ### Workflow Execution Flow
 
-![ISA Manufacturing Data Model Architecture](isa_workflow.jpg)
+![ISA Manufacturing Data Model Architecture](isa_workflow.png)
 
 
 Some of the workflow executes transformations:
