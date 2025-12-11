@@ -547,7 +547,7 @@ Critical Equipment Contextualization (%) = (Critical Equipment Linked / Total Cr
 
 These metrics measure how well time series data is linked to assets and the quality of the time series metadata.
 
-#### 3.1 TS to Asset Contextualization Rate ⭐ PRIMARY
+#### 3.1 TS to Asset Contextualization Rate 
 
 **What it measures:** The percentage of time series that are linked to at least one asset.
 
@@ -566,7 +566,7 @@ TS to Asset Rate (%) = (Time Series with Asset Link / Total Time Series) × 100
 
 ---
 
-#### 3.2 Asset Monitoring Coverage (Secondary)
+#### 3.2 Asset Monitoring Coverage
 
 **What it measures:** The percentage of assets that have at least one time series linked to them.
 
