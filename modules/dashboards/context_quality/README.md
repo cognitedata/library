@@ -4,7 +4,7 @@
 
 The **Contextualization Quality Dashboard** module provides a comprehensive solution for measuring, monitoring, and visualizing the **contextualization quality** of your data in **Cognite Data Fusion (CDF)**. It consists of two main components:
 
-1. **Cognite Function** (`context_quality_handler`) - Computes all quality metrics and saves them as a JSON file in CDF
+1. **Contextualization Quality Metrics Function** (external_id: `context_quality_handler`) - Computes all quality metrics and saves them as a JSON file in CDF
 2. **Streamlit Dashboard** (`context_quality_dashboard`) - Visualizes the pre-computed metrics with interactive gauges, charts, and tables
 
 This module helps data engineers and operations teams understand how well their data is contextualized across three key dimensions:
@@ -61,6 +61,39 @@ checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b
 ```
 
 This allows the Toolkit to retrieve official library packages.
+
+> **📝 Note: Replacing the Default Library**
+>
+> By default, a Cognite Toolkit project contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. This provides core modules like Quickstart, SourceSystem, Common, etc.
+>
+> **These two library sections cannot coexist.** To use this Deployment Pack, you must **replace** the `toolkit-data` section with `library.cognite`:
+>
+> | Replace This | With This |
+> |--------------|-----------|
+> | `[library.toolkit-data]` | `[library.cognite]` |
+> | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
+>
+> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, Context Quality Dashboard, etc.).
+
+> **⚠️ Checksum Warning**
+>
+> When running `cdf modules add`, you may see a warning like:
+>
+> ```
+> WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
+> Please verify the checksum with the source and update cdf.toml if needed.
+> This may indicate that the package content has changed.
+> ```
+>
+> **This is expected behavior.** The checksum in this documentation may be outdated because it gets updated with every release. The package will still download successfully despite the warning.
+>
+> **To resolve the warning:** Copy the new checksum value shown in the warning message and update your `cdf.toml` with it. For example, if the warning shows `sha256:da2b33d60c66700f...`, update your config to:
+>
+> ```toml
+> [library.cognite]
+> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+> checksum = "sha256:da2b33d60c66700f..."
+> ```
 
 ### Step 2 (Optional but Recommended): Enable Usage Tracking
 
@@ -172,6 +205,7 @@ If your project uses a **custom data model** instead of the CDM, modify lines **
 Alternatively, you can pass configuration overrides when calling the function:
 
 ```python
+# Call the Contextualization Quality Metrics function
 client.functions.call(
     external_id="context_quality_handler",
     data={
@@ -209,7 +243,7 @@ After deployment, trigger the function:
 
 **Option 1: Using the CDF UI**
 1. Navigate to **Functions** in the CDF UI
-2. Find `context_quality_handler`
+2. Find **Contextualization Quality Metrics** (external_id: `context_quality_handler`)
 3. Click **Run** or **Call**
 
 **Option 2: Using the SDK**
@@ -219,7 +253,7 @@ from cognite.client import CogniteClient
 
 client = CogniteClient()
 
-# Run with default configuration
+# Run the Contextualization Quality Metrics function with default configuration
 response = client.functions.call(
     external_id="context_quality_handler",
     data={}
@@ -228,14 +262,16 @@ response = client.functions.call(
 print(response)
 ```
 
-### Verify Function Execution
+### Verify Function Execution (Optional)
+
+> **💡 Tip:** You can verify function execution directly in the CDF UI by navigating to **Functions** → **Contextualization Quality Metrics** → **Logs/Calls** to inspect the runtime logs and execution status.
 
 The function will:
 1. Query all Time Series, Assets, and Equipment from the configured views
 2. Compute all quality metrics
 3. Save results to a Cognite File: `contextualization_quality_metrics`
 
-You can verify the file exists:
+**Alternative: Verify via SDK**
 
 ```python
 file = client.files.retrieve(external_id="contextualization_quality_metrics")
@@ -246,16 +282,19 @@ print(f"File created: {file.name}, Size: {file.size} bytes")
 
 ## Launching the Dashboard
 
-Once the function has run successfully:
+Once the function has run successfully, follow these steps to access the dashboard:
 
-1. Navigate to **Streamlit Apps** in the CDF UI
-2. Find **Contextualization Quality** dashboard
-3. Click to launch
+1. **Log in to CDF** — Open [Cognite Data Fusion](https://fusion.cognite.com) and sign in to your project
+2. **Navigate to Industrial Tools** — In the left sidebar, click on **Industrial Tools**
+3. **Open Custom Apps** — Select **Custom Apps** from the menu
+4. **Launch the Dashboard** — Click on **Contextualization Quality** to open the app
 
-The dashboard will load the pre-computed metrics and display:
-- **Asset Hierarchy Quality** tab
-- **Equipment-Asset Quality** tab
-- **Time Series Contextualization** tab
+> **⚠️ Note:** If you see "Could not load metrics file", the Cognite Function has not been run yet. Return to the [Run the Function](#run-the-function) section and execute it first.
+
+The dashboard will load the pre-computed metrics and display three tabs:
+- **Asset Hierarchy Quality** — Structural integrity of your asset tree
+- **Equipment-Asset Quality** — Equipment-to-asset mapping quality  
+- **Time Series Contextualization** — How well time series are linked to assets
 
 ---
 
@@ -266,6 +305,7 @@ For continuous monitoring, schedule the function to run periodically:
 ```python
 from cognite.client.data_classes import FunctionSchedule
 
+# Schedule the Contextualization Quality Metrics function
 client.functions.schedules.create(
     FunctionSchedule(
         name="Contextualization Quality Daily",
@@ -507,14 +547,35 @@ Critical Equipment Contextualization (%) = (Critical Equipment Linked / Total Cr
 
 These metrics measure how well time series data is linked to assets and the quality of the time series metadata.
 
-#### 3.1 Asset TS Association Rate
+#### 3.1 TS to Asset Contextualization Rate 
 
-**What it measures:** The percentage of assets that have at least one time series linked to them.
+**What it measures:** The percentage of time series that are linked to at least one asset.
+
+> ⚠️ **Why this is the primary metric:** An orphaned time series (not linked to any asset) cannot be associated with equipment, location, or business context. This makes the data difficult to discover and use. Every time series should be contextualized.
 
 **Formula:**
 
 ```
-Asset TS Association Rate (%) = (Assets with Time Series / Total Assets) × 100
+TS to Asset Rate (%) = (Time Series with Asset Link / Total Time Series) × 100
+```
+
+**Interpretation:**
+- 🟢 **≥ 95%**: Excellent - Nearly all TS are contextualized
+- 🟡 **90-95%**: Warning - Some orphaned time series exist
+- 🔴 **< 90%**: Critical - Many time series lack asset context
+
+---
+
+#### 3.2 Asset Monitoring Coverage
+
+**What it measures:** The percentage of assets that have at least one time series linked to them.
+
+> **Note:** It is acceptable for some assets (e.g., structural assets, buildings, organizational units) to not have time series. This metric helps identify assets that *could* benefit from monitoring data.
+
+**Formula:**
+
+```
+Asset Monitoring Coverage (%) = (Assets with Time Series / Total Assets) × 100
 ```
 
 **Interpretation:**
@@ -524,7 +585,7 @@ Asset TS Association Rate (%) = (Assets with Time Series / Total Assets) × 100
 
 ---
 
-#### 3.2 Critical Asset Coverage
+#### 3.3 Critical Asset Coverage
 
 **What it measures:** The percentage of critical assets that have time series linked. Critical assets are those with `criticality = "critical"` in their properties.
 
@@ -546,7 +607,7 @@ Critical Asset Coverage (%) = (Critical Assets with TS / Total Critical Assets) 
 
 ---
 
-#### 3.3 Source Unit Completeness
+#### 3.4 Source Unit Completeness
 
 **What it measures:** The percentage of time series that have the `sourceUnit` property populated. The source unit represents the original unit of measurement from the data source (e.g., "°C", "bar", "rpm").
 
@@ -563,7 +624,7 @@ Source Unit Completeness (%) = (TS with sourceUnit / Total TS) × 100
 
 ---
 
-#### 3.4 Target Unit Completeness (Standardized Unit)
+#### 3.5 Target Unit Completeness (Standardized Unit)
 
 **What it measures:** The percentage of time series with a standardized `unit` property. This represents the converted/normalized unit after any unit transformations.
 
@@ -575,7 +636,7 @@ Target Unit Completeness (%) = (TS with unit / Total TS) × 100
 
 ---
 
-#### 3.5 Unit Mapping Rate
+#### 3.6 Unit Mapping Rate
 
 **What it measures:** When both `sourceUnit` and `unit` are present, this metric tracks how many have matching values (indicating no conversion was needed or conversion is complete).
 
@@ -587,7 +648,7 @@ Unit Mapping Rate (%) = (TS where unit == sourceUnit / TS with both units) × 10
 
 ---
 
-#### 3.6 Data Freshness
+#### 3.7 Data Freshness
 
 **What it measures:** The percentage of time series that have been updated within the last N days (default: 30 days).
 
@@ -604,19 +665,21 @@ Data Freshness (%) = (TS updated within N days / Total TS) × 100
 
 ---
 
-#### 3.7 Processing Lag
+#### 3.8 Average Time Since Last TS Update
 
 **What it measures:** The average time difference between "now" and the `lastUpdatedTime` of time series.
+
+> ⚠️ **Important:** This metric tracks **metadata updates** (when the time series definition was last modified), NOT when the latest datapoint was ingested. For actual data freshness, see the "Data Freshness" metric which checks if TS have been updated within the last N days.
 
 **Formula:**
 
 ```
-Processing Lag (hours) = Σ(Now - lastUpdatedTime) / Count of valid TS
+Avg Time Since Last TS Update (hours) = Σ(Now - lastUpdatedTime) / Count of valid TS
 ```
 
 ---
 
-#### 3.8 Historical Data Completeness
+#### 3.9 Historical Data Completeness
 
 **What it measures:** The percentage of the time span that contains actual data (vs gaps). A gap is defined as a period longer than the threshold (default: 7 days) without any datapoints.
 

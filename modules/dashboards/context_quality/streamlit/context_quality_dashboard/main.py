@@ -72,7 +72,13 @@ def get_status_color_hierarchy(metric_name, value):
 
 
 def get_status_color_ts(metric_key, value):
-    if metric_key == "association":
+    if metric_key == "ts_to_asset":
+        # PRIMARY: TS should be linked to assets (orphaned TS are a problem)
+        if value >= 95: return "#4CAF50"
+        if value >= 90: return "#FFC107"
+        return "#F44336"
+    if metric_key == "asset_monitoring":
+        # SECONDARY: It's OK for some assets to not have TS
         if value > 80: return "#4CAF50"
         if value >= 70: return "#FFC107"
         return "#F44336"
@@ -178,7 +184,7 @@ def gauge(col, title, value, metric_key, color_func, axis_range, suffix="%", key
     
     # Show help text below the gauge if provided
     if help_text:
-        col.markdown(f"<div style='text-align:center;font-size:12px;color:#666;margin-top:-15px;'>ⓘ {help_text}</div>", unsafe_allow_html=True)
+        col.markdown(f"<div style='width:300px;text-align:center;font-size:12px;color:#666;margin-top:-15px;'>ⓘ {help_text}</div>", unsafe_allow_html=True)
 
 
 def gauge_na(col, title, message="N/A", key=None, help_text=None):
@@ -215,7 +221,7 @@ def gauge_na(col, title, message="N/A", key=None, help_text=None):
     
     # Show help text below the gauge if provided
     if help_text:
-        col.markdown(f"<div style='text-align:center;font-size:12px;color:#666;margin-top:-15px;'>ⓘ {help_text}</div>", unsafe_allow_html=True)
+        col.markdown(f"<div style='width:300px;text-align:center;font-size:12px;color:#666;margin-top:-15px;'>ⓘ {help_text}</div>", unsafe_allow_html=True)
 
 
 # ----------------------------------------------------
@@ -449,7 +455,12 @@ def render_time_series_dashboard(metrics: dict):
     st.markdown("---")
     
     # Extract metrics
-    association_rate = ts_metrics.get("ts_association_rate", 0)
+    # PRIMARY: TS to Asset Contextualization (orphaned TS are a problem)
+    ts_to_asset_rate = ts_metrics.get("ts_to_asset_rate", 0)
+    ts_with_asset_link = ts_metrics.get("ts_with_asset_link", 0)
+    ts_without_asset_link = ts_metrics.get("ts_without_asset_link", 0)
+    # SECONDARY: Asset Monitoring Coverage (OK for some assets to lack TS)
+    asset_monitoring_coverage = ts_metrics.get("ts_asset_monitoring_coverage", 0)
     associated_assets = ts_metrics.get("ts_associated_assets", 0)
     critical_coverage = ts_metrics.get("ts_critical_coverage")  # Can be None
     critical_with_ts = ts_metrics.get("ts_critical_with_ts", 0)
@@ -485,61 +496,79 @@ def render_time_series_dashboard(metrics: dict):
     col1, col2, col3, col4 = st.columns(4)
     metric_card(col1, "Total Time Series", f"{total_ts:,}",
                 help_text="Total number of unique time series")
-    metric_card(col2, "Total Assets", f"{total_assets:,}",
-                help_text="Total assets available for time series linking")
-    metric_card(col3, "Assets with TS", f"{associated_assets:,}",
+    metric_card(col2, "TS with Asset Link", f"{ts_with_asset_link:,}",
+                help_text="Time series linked to at least one asset (contextualized)")
+    metric_card(col3, "Orphaned TS", f"{ts_without_asset_link:,}",
+                help_text="Time series NOT linked to any asset (need contextualization)")
+    metric_card(col4, "Assets with TS", f"{associated_assets:,}",
                 help_text="Number of assets that have at least one time series linked")
-    metric_card(col4, "Fresh TS (30 days)", f"{fresh_count:,}",
-                help_text="Time series updated within the last 30 days")
     
     st.markdown("---")
     
     st.header("📊 Data Quality Metrics")
     
-    # METRIC CARDS (GAUGES) - Row 1
+    # METRIC CARDS (GAUGES) - Row 1: Contextualization
     g1, g2, g3 = st.columns(3)
-    gauge(g1, "Asset TS Association", association_rate, "association", 
-          get_status_color_ts, [0, 100], "%", key="ts_assoc",
+    
+    # PRIMARY: TS to Asset Contextualization (orphaned TS are a problem)
+    gauge(g1, "TS to Asset Contextualization", ts_to_asset_rate, "ts_to_asset", 
+          get_status_color_ts, [0, 100], "%", key="ts_to_asset",
+          help_text="% of time series linked to at least one asset (orphaned TS are a problem)")
+    
+    # SECONDARY: Asset Monitoring Coverage (OK for some assets to lack TS)
+    gauge(g2, "Asset Monitoring Coverage", asset_monitoring_coverage, "asset_monitoring", 
+          get_status_color_ts, [0, 100], "%", key="ts_asset_coverage",
           help_text="% of assets that have at least one time series linked")
     
     # Critical Asset Coverage - show N/A if no critical assets defined
     if has_critical_assets and critical_coverage is not None:
-        gauge(g2, "Critical Asset Coverage", critical_coverage, "critical_coverage", 
+        gauge(g3, "Critical Asset Coverage", critical_coverage, "critical_coverage", 
               get_status_color_ts, [0, 100], "%", key="ts_critical",
               help_text="% of critical assets with time series (should be 100%)")
     else:
-        gauge_na(g2, "Critical Asset Coverage", "No critical assets defined", key="ts_critical_na",
+        gauge_na(g3, "Critical Asset Coverage", "No critical assets defined", key="ts_critical_na",
                  help_text="% of critical assets with time series linked")
-    
-    # Source Unit Completeness (primary unit metric since sourceUnit has data)
-    gauge(g3, "Source Unit Completeness", source_unit_completeness, "unit_consistency", 
-          get_status_color_ts, [0, 100], "%", key="ts_src_unit",
-          help_text="% of time series with sourceUnit populated (e.g., °C, mm, %)")
     
     st.markdown("---")
     
-    # Row 2: Freshness, Historical Completeness, Target Unit
+    # Row 2: Data Quality - Freshness, Historical Completeness, Source Unit
     g4, g5, g6 = st.columns(3)
     gauge(g4, "Data Freshness (Last 30 Days)", data_freshness, "freshness", 
           get_status_color_ts, [0, 100], "%", key="ts_fresh",
           help_text="% of time series updated within the last 30 days")
     
-    # Historical Data Completeness - show N/A if not analyzed
+    # Historical Data Completeness - check config and show appropriate message
+    config = metadata.get("config", {})
+    gaps_enabled = config.get("enable_historical_gaps", True)  # Default True for newer versions
+    
     if historical_data_completeness is not None and ts_analyzed_for_gaps > 0:
         gauge(g5, "Historical Data Completeness", historical_data_completeness, "gap", 
               get_status_color_ts, [0, 100], "%", key="ts_gap",
               help_text="% of time span with actual data (100% - gap duration)")
-    else:
-        gauge_na(g5, "Historical Data Completeness", "Enable in config to analyze", key="ts_gap_na",
+    elif gaps_enabled and ts_analyzed_for_gaps == 0:
+        # Feature enabled but no TS were analyzed (possibly no TS data available)
+        gauge_na(g5, "Historical Data Completeness", "No time series data to analyze", key="ts_gap_na",
                  help_text="Detects gaps >7 days in historical data")
+    else:
+        gauge_na(g5, "Historical Data Completeness", "Disabled in config", key="ts_gap_na",
+                 help_text="Enable 'enable_historical_gaps' in function config")
     
+    # Source Unit Completeness
+    gauge(g6, "Source Unit Completeness", source_unit_completeness, "unit_consistency", 
+          get_status_color_ts, [0, 100], "%", key="ts_src_unit",
+          help_text="% of time series with sourceUnit populated (e.g., °C, mm, %)")
+    
+    st.write("")
+    
+    # Row 3: Target Unit (if available)
+    g7, g8, g9 = st.columns(3)
     # Target Unit Completeness (standardized unit)
     if target_unit_completeness > 0:
-        gauge(g6, "Target Unit (Standardized)", target_unit_completeness, "unit_consistency", 
+        gauge(g7, "Target Unit (Standardized)", target_unit_completeness, "unit_consistency", 
               get_status_color_ts, [0, 100], "%", key="ts_tgt_unit",
               help_text="% of time series with standardized unit populated")
     else:
-        gauge_na(g6, "Target Unit (Standardized)", "No standardized units defined", key="ts_tgt_unit_na",
+        gauge_na(g7, "Target Unit (Standardized)", "No standardized units defined", key="ts_tgt_unit_na",
                  help_text="% of time series with standardized unit populated")
     
     st.markdown("---")
@@ -550,18 +579,21 @@ def render_time_series_dashboard(metrics: dict):
     
     if processing_lag_hours is not None:
         c1.metric(
-            "Average Processing Lag",
+            "Avg Time Since Last TS Update",
             f"{processing_lag_hours:.2f} hours",
-            help="Average time difference between 'now' and the Time Series' lastUpdatedTime."
+            help="Average time since the Time Series metadata was last modified (lastUpdatedTime). Note: This is metadata update time, not the timestamp of the latest datapoint."
         )
     else:
-        c1.metric("Average Processing Lag", "N/A")
+        c1.metric("Avg Time Since Last TS Update", "N/A")
     
     # Data Breakdown
     c2.markdown("### Data Breakdown")
     c2.markdown(f"""
     | Metric | Value |
     |--------|-------|
+    | Total Time Series | {total_ts:,} |
+    | TS with Asset Link | {ts_with_asset_link:,} |
+    | Orphaned TS (no asset) | {ts_without_asset_link:,} |
     | Total Assets | {total_assets:,} |
     | Assets with TS | {associated_assets:,} |
     | Total Critical Assets | {critical_total:,} |
