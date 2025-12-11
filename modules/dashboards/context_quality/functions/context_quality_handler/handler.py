@@ -205,6 +205,7 @@ class CombinedAccumulator:
     
     # ----- TIME SERIES DATA -----
     assets_with_ts: Set[str] = field(default_factory=set)
+    ts_with_asset_link: int = 0  # TS that have at least one asset link
     total_ts_instances: int = 0  # Total instances (including duplicates)
     ts_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique TS
     # Unit metrics
@@ -301,15 +302,21 @@ def process_timeseries_batch(
             continue
         acc.ts_ids_seen.add(ts_id)
         
-        # Track assets with TS
+        # Track assets with TS and TS with asset links
         props = get_props(ts, ts_view)
         assets_ref = props.get("assets") or []
         if isinstance(assets_ref, dict):
             assets_ref = [assets_ref]
+        
+        has_asset_link = False
         for a in assets_ref:
             aid = a.get("externalId")
             if aid:
                 acc.assets_with_ts.add(aid)
+                has_asset_link = True
+        
+        if has_asset_link:
+            acc.ts_with_asset_link += 1
         
         # Unit Metrics - get from view properties first, fallback to dump
         unit = props.get("unit")
@@ -538,7 +545,16 @@ def compute_ts_metrics(acc: CombinedAccumulator) -> dict:
     """Compute all time series contextualization metrics."""
     associated_assets = len(acc.assets_with_ts)
     
-    association_rate = (
+    # TS to Asset Rate: % of time series that are linked to at least one asset
+    # This is the PRIMARY metric - orphaned TS (not linked to asset) are a problem
+    ts_to_asset_rate = (
+        (acc.ts_with_asset_link / acc.total_ts * 100)
+        if acc.total_ts else 0.0
+    )
+    
+    # Asset Monitoring Coverage: % of assets that have at least one TS linked
+    # This is SECONDARY - it's OK for some assets to not have TS
+    asset_monitoring_coverage = (
         (associated_assets / acc.total_assets * 100)
         if acc.total_assets else 0.0
     )
@@ -595,7 +611,12 @@ def compute_ts_metrics(acc: CombinedAccumulator) -> dict:
     )
     
     return {
-        "ts_association_rate": round(association_rate, 2),
+        # PRIMARY: TS to Asset Contextualization (orphaned TS are a problem)
+        "ts_to_asset_rate": round(ts_to_asset_rate, 2),
+        "ts_with_asset_link": acc.ts_with_asset_link,
+        "ts_without_asset_link": acc.total_ts - acc.ts_with_asset_link,
+        # SECONDARY: Asset Monitoring Coverage (OK for some assets to lack TS)
+        "ts_asset_monitoring_coverage": round(asset_monitoring_coverage, 2),
         "ts_associated_assets": associated_assets,
         "ts_critical_coverage": round(critical_coverage, 2) if critical_coverage is not None else None,
         "ts_critical_with_ts": acc.critical_assets_with_ts,
@@ -1060,6 +1081,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
                 "max_assets": max_assets,
                 "max_equipment": max_eq,
                 "freshness_days": freshness_days,
+                "enable_historical_gaps": enable_gaps,
             },
         },
         "timeseries_metrics": ts_metrics,
@@ -1079,7 +1101,8 @@ def handle(data: dict, client: CogniteClient) -> dict:
     logger.info(f"  Assets:       {acc.total_asset_instances:,} / {acc.total_assets:,} / {acc.asset_duplicates:,}")
     logger.info(f"  Equipment:    {acc.total_equipment_instances:,} / {acc.total_equipment:,} / {acc.equipment_duplicates:,}")
     logger.info("-" * 50)
-    logger.info(f"TS Association:          {ts_metrics['ts_association_rate']}%")
+    logger.info(f"TS to Asset Rate:        {ts_metrics['ts_to_asset_rate']}%")
+    logger.info(f"Asset Monitoring:        {ts_metrics['ts_asset_monitoring_coverage']}%")
     logger.info(f"TS Critical Coverage:    {ts_metrics['ts_critical_coverage']}%")
     logger.info(f"Hierarchy Completion:    {hierarchy_metrics['hierarchy_completion_rate']}%")
     logger.info(f"Hierarchy Orphan Rate:   {hierarchy_metrics['hierarchy_orphan_rate']}%")

@@ -78,7 +78,7 @@ Before you start, ensure you have the following:
 
 ### Step 1: Enable External Libraries
 
-Edit your project's `cdf.toml` and add:
+Edit your project's `cdf.toml` and add the following configuration:
 
 ```toml
 [alpha_flags]
@@ -90,6 +90,39 @@ checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b
 ```
 
 This allows the Toolkit to retrieve official library packages, including RMDM.
+
+> **📝 Note: Replacing the Default Library**
+>
+> By default, a Cognite Toolkit project contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. This provides core modules like Quickstart, SourceSystem, Common, etc.
+>
+> **These two library sections cannot coexist.** To use this Deployment Pack, you must **replace** the `toolkit-data` section with `library.cognite`:
+>
+> | Replace This | With This |
+> |--------------|-----------|
+> | `[library.toolkit-data]` | `[library.cognite]` |
+> | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
+>
+> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, Context Quality Dashboard, etc.).
+
+> **⚠️ Checksum Warning**
+>
+> When running `cdf modules add`, you may see a warning like:
+>
+> ```
+> WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
+> Please verify the checksum with the source and update cdf.toml if needed.
+> This may indicate that the package content has changed.
+> ```
+>
+> **This is expected behavior.** The checksum in this documentation may be outdated because it gets updated with every release. The package will still download successfully despite the warning.
+>
+> **To resolve the warning:** Copy the new checksum value shown in the warning message and update your `cdf.toml` with it. For example, if the warning shows `sha256:da2b33d60c66700f...`, update your config to:
+>
+> ```toml
+> [library.cognite]
+> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+> checksum = "sha256:da2b33d60c66700f..."
+> ```
 
 ### Step 2 (Optional but Recommended): Enable Usage Tracking
 
