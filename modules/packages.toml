@@ -10,7 +10,7 @@ id = "dp:contextualization"
 title = "Contextualization"
 description = "Module templates for data contextualization"
 modules = [
-    "accelerators/contextualization/cdf_p_and_id_parser",
+    "accelerators/contextualization/cdf_p_and_id_annotation",
     "accelerators/contextualization/cdf_file_annotation",
     "accelerators/contextualization/cdf_entity_matching",
 ]
