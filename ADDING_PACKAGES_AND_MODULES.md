@@ -97,19 +97,14 @@ modules = [
 
 1. `python validate_packages.py`
    - Confirms every package entry is well-formed, each referenced module exists, and all `extra_resources` locations resolve. Fix any reported path or metadata issues before proceeding.
-2. `python build_packages.py`
-   - Produces `packages.zip` and prints the SHA256 checksum you must copy into `README.md` (and any release notes) once you publish a new release.
-3. Run targeted Toolkit smoke tests
-   - From a sample Toolkit repo, reference your local `packages.zip` in `cdf.toml`, then run `cdf modules add` to ensure every module imports without manual tweaks.
-4. Submit a PR
-   - Include the new module/package folders, the updated `packages.toml`, and any README updates. Reference this guide so reviewers know the validation steps you performed.
+2. A GitHub action will build the package when PR are merged to `main`. If you want to test, run `python build_packages.py` locally and include packages.zip in the branch. 
 
 ## Quick Reference
 
 - Every module needs `module.toml`, assets, and documentation.
 - Every package entry in `modules/packages.toml` must list only valid module folders.
 - Always run `python validate_packages.py` before pushing.
-- Rebuild `packages.zip` with `python build_packages.py` prior to cutting a release.
+- Remove `packages.zip` from the branch before cutting a release.
 
 Following the checklist ensures consumers can pull the latest Cognite Template library and immediately deploy your additions via the Toolkit.
 
