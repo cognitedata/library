@@ -1,0 +1,59 @@
+externalId: '{{extractionPipelineExternalId}}'
+name: 'AI Property Extractor'
+dataSetExternalId: ds_ai_extractor
+description: 'Extraction pipeline for AI-based property extraction from text fields'
+documentation: |
+  # AI Property Extractor
+
+  This extraction pipeline manages the configuration and status for the AI Property Extractor function.
+
+  ## Overview
+
+  The AI Property Extractor uses LLM agents to extract structured property values from unstructured 
+  text fields in data modeling instances. It reads a text property from instances and populates 
+  other properties based on the extracted values.
+
+  ## Configuration
+
+  The configuration is stored in the extraction pipeline config and includes:
+
+  ```yaml
+  agent:
+    externalId: <agent_external_id>  # The agent to use for text parsing
+  
+  view:
+    space: <space>                   # Data model space
+    externalId: <view_external_id>   # View external ID
+    version: <version>               # View version
+  
+  extraction:
+    textProperty: <property_name>    # Property containing text to parse
+    propertiesToExtract: [...]       # List of property IDs to extract
+    aiPropertyMapping: {...}         # Optional mapping from source to target properties
+  
+  processing:
+    batchSize: <number>              # Number of instances to process per batch
+    filters: {...}                   # Optional DM filters for instance selection
+  ```
+
+  ## AI Property Mapping
+
+  The `aiPropertyMapping` allows you to write extracted values to different properties than 
+  the source. For example, extracting from "description" metadata but writing to "ai_description":
+
+  ```yaml
+  aiPropertyMapping:
+    description: ai_description
+    title: ai_title
+  ```
+
+  ## Running the Function
+
+  The function expects the following data:
+
+  ```json
+  {
+    "logLevel": "INFO",
+    "ExtractionPipelineExtId": "ep_ai_property_extractor"
+  }
+  ```
