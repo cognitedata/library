@@ -7,33 +7,10 @@ to assets and files.
 
 Key features are:
 
-- Update of metadata and aliases for Files and Assets/Tags.
-  - Configuration in extraction pipeline matching the names and structure
-    of data modeling. See list examples list and description in list for
-    annotation function.
-  - DEBUG mode
-    - Extensive logging
-    - Processing one file name provided as input in configuration
-  - Metadata and aliases for files
-    - Using AI / LMM endpoint in CDF to generate a summary that will be used
-      as a description (if no description exist for document)
-    - Summary is used to generate tags – if processing diagrams are found in
-      the text, the tag PID is added with other keywords as tags to the
-      document metadata
-    - Generation different alias versions of the file name used for matching
-      between P&ID diagrams. Full file name containing version and revision
-      is usually not used in the diagrams referring to other diagrams. For
-      this reason aliases of the file name is created to reflect this an make
-      the matching more precise.
-  - Alias for Assets/Tags
-    - Creating asset alias without system numbers, making matching with this
-      more precise.
-    - Process uses a raw table to store State, preventing processing of items
-      already processed.
-
-NOTE this code should be updated to reflect the project need for file name
-and asset matching depending on naming standards in the company’s P&ID
-documents
+- Tagging transformations for filtering input
+  - **Asset Tagging Transformation** (`tr_asset_tagging`): Adds 'PID' tag to assets to enable filtering in the annotation process. This transformation serves as an example of how to filter which assets are included in the annotation matching process.
+  - **File Tagging Transformation** (`tr_file_tagging`): Adds 'PID' tag to files to enable filtering in the annotation process. This transformation serves as an example of how to filter which files are included in the annotation matching process.
+  - These transformations can be customized based on your project's needs for identifying which assets and files should be processed for P&ID annotation.
 
 - Run P&ID annotation process
   - Configuration in extraction pipeline matching the names and structure of
@@ -87,38 +64,47 @@ This module manages the following resources:
        running transformation, function (contextualization) and updating files
 
 2. data set:
-   - ID: `ds_files_{{location_name}}`
+   - ID: `{{files_dataset}}` (default: `ds_files_LOC`)
      - Content: Data lineage, used Links to used functions, extraction
-       pipelines, transformation, and raw tables
+       pipelines, transformations, and raw tables
 
 3. extraction pipeline:
    - ID: `ep_ctx_files_{{location_name}}_{{source_name}}_pandid_annotation`
      - Content: Documentation and configuration for a CDF function running
        P&ID contextualization/annotation (see function for more description)
-   - ID: `ep_ctx_file_metadata_update`
-     - Content: Documentation and configuration for a CDF function updating
-       aliases for asset & files (see function for more description)
 
-4. function:
+4. transformations:
+   - ID: `asset_tagging_tr`
+     - Content: Adds 'PID' tag to assets. This transformation serves as an example
+       of how to filter which assets are included in the annotation process by
+       adding tags that can be used in the annotation configuration's filterProperty.
+   - ID: `file_tagging_tr`
+     - Content: Adds 'PID' tag to files. This transformation serves as an example
+       of how to filter which files are included in the annotation process by
+       adding tags that can be used in the annotation configuration's filterProperty.
+
+5. function:
    - ID: `fn_dm_context_files_{{location_name}}_{{source_name}}_annotation`
-     - Content: reads new/updated files using the SYNC api. Extracts all
+     - Content: Reads new/updated files using the SYNC api. Extracts all
        tags in P&ID that match tags from Asset & Files to create CDF
        annotations used for linking found objects in the document to
        other resource types in CDF
-   - ID: `fn_dm_context_{{location_name}}_{{source_name}}_alias_update`
-     - Content: Reads new/updated assets and files to create & update the
-       alias property.
 
-5. raw: in database : ds_files_{{source_name}}_{{location_name}}
-   - ID: documents_docs
-     - Content: DB with table for with all
+6. raw: in database `{{files_dataset}}` (typically `ds_files_{{location_name}}_{{source_name}}`)
+   - ID: `documents_docs`
+     - Content: Table storing document-to-document relationships found in P&ID files
+   - ID: `documents_tags`
+     - Content: Table storing document-to-tag relationships found in P&ID files
+   - ID: `files_state_store`
+     - Content: Table storing state/cursor information for incremental processing
 
-6. workflow
-   - ID: `wf_{{location_name}}_files_annotation`
-     - Content: Start Function:
-       `fn_dm_context_{{location_name}}_{{source_name}}_alias_update` and then
-       Function:
-       `fn_dm_context_files_{{location_name}}_{{source_name}}_annotation`
+7. workflow
+   - ID: `{{workflow}}` (default: `entity_matching`)
+     - Content: Orchestrates the P&ID annotation process:
+       1. Runs `asset_tagging_tr` transformation to tag assets
+       2. Runs `file_tagging_tr` transformation to tag files
+       3. Runs `fn_dm_context_files_{{location_name}}_{{source_name}}_annotation`
+          function to perform annotation (depends on both tagging transformations)
 
 ## Variables
 
@@ -145,6 +131,12 @@ The following variables are required and defined in this module:
 >   - Instance space related to equipment (if used)
 > - assetInstanceSpace:
 >   - Instance space related to assets / tags / functional locations
+> - annotationSchemaSpace:
+>   - Schema space for the annotation view (typically `cdf_cdm`)
+> - organization:
+>   - Organization name used in view external IDs (e.g., `YourOrg`)
+> - workflow:
+>   - External ID for the workflow (default: `entity_matching`)
 > - functionClientId:
 >   - Environment variable that contains the value for Application ID for
 >     system account used to run function
@@ -159,6 +151,24 @@ The following variables are required and defined in this module:
   poetry shell
   cdf build
   cdf deploy
+
+### Tagging Transformations
+
+The module includes two example transformations that demonstrate how to filter input to the annotation process:
+
+1. **Asset Tagging** (`tr_asset_tagging`):
+   - Adds the 'PID' tag to assets that should be included in the P&ID annotation process
+   - Uses upsert mode to update existing assets or add tags to new ones
+   - The transformation checks if the 'PID' tag already exists before adding it
+   - Customize this transformation based on your project's criteria for which assets should be annotated
+
+2. **File Tagging** (`tr_file_tagging`):
+   - Adds the 'PID' tag to files that should be included in the P&ID annotation process
+   - Uses upsert mode to update existing files or add tags to new ones
+   - The transformation checks if the 'PID' tag already exists before adding it
+   - Customize this transformation based on your project's criteria for which files should be annotated
+
+These transformations run before the annotation function in the workflow, ensuring that only tagged assets and files are considered during the annotation matching process. The tags added by these transformations are then used in the annotation configuration's `filterProperty` and `filterValues` settings.
 
 ### P&ID configuration
 
@@ -215,7 +225,7 @@ config:
   parameters:
     debug: False
     debugFile: 'PH-ME-P-0156-001.pdf'
-    runAll: False
+    runAll: True
     cleanOldAnnotations: False
     rawDb: 'ds_files_{{location_name}}_{{source_name}}'
     rawTableState: 'files_state_store'
@@ -225,14 +235,14 @@ config:
     autoSuggestThreshold: 0.50
   data:
     annotationView:
-      schemaSpace: {{ schemaSpace }}
+      schemaSpace: {{ annotationSchemaSpace }}
       externalId: CogniteDiagramAnnotation
       version: {{ viewVersion }}
     annotationJob:
       fileView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ fileInstanceSpace }}
-        externalId: CogniteFile
+        externalId: {{organization}}File
         version: {{ viewVersion }}
         searchProperty: aliases
         type: diagrams.FileLink
@@ -240,20 +250,16 @@ config:
         filterValues: ["PID", "ISO", "PLOT PLANS"]
       entityViews:
         - schemaSpace: {{ schemaSpace }}
-          instanceSpace: {{ equipmentInstanceSpace }}
-          externalId: CogniteEquipment
-          version: {{ viewVersion }}
-          searchProperty: aliases
-          type: diagrams.FileLink
-        - schemaSpace: {{ schemaSpace }}
           instanceSpace: {{ assetInstanceSpace }}
-          externalId: CogniteAsset
+          externalId: {{organization}}Asset
           version: {{ viewVersion }}
           searchProperty: aliases
           type: diagrams.AssetLink
           filterProperty: tags
           filterValues: ["PID"] 
 ```
+
+**Note**: The `filterProperty` and `filterValues` configuration allows you to filter which files and assets are included in the annotation process. The tagging transformations (`tr_asset_tagging` and `tr_file_tagging`) add the 'PID' tag to demonstrate how to prepare your data for filtering. You can customize these transformations based on your project's needs.
 
 #### Running functions locally
 

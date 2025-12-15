@@ -41,6 +41,15 @@ capabilities:
         - WRITE
       scope:
         all: {}
+    # query-specific capabilities
+  - transformationsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ files_dataset }}
   - labelsAcl:
       actions:
         - READ
@@ -53,3 +62,27 @@ capabilities:
         - WRITE
       scope:
         all: {}
+  - workflowOrchestrationAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ schemaSpace }}
+            - {{ annotationSchemaSpace }}
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ annotationSchemaSpace }}
+            - {{ assetInstanceSpace }}
+            - {{ fileInstanceSpace }}
+
