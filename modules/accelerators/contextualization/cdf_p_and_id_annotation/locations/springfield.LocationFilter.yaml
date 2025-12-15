@@ -1,0 +1,10 @@
+externalId: springfield_location
+name: 'Springfield Location'
+description: 'This is a description of the location Springfield Location, including all views and interfaces.'
+dataModels:
+  - externalId: YourOrgProcessIndustries
+    space: {{schemaSpace}}
+    version: v1
+instanceSpaces:
+  - {{fileInstanceSpace}}
+dataModelingType: DATA_MODELING_ONLY

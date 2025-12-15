@@ -1,0 +1,35 @@
+# Per location, configure both InFieldLocationConfig and LocationFilter
+# quickstart only supports configuration of the fields listed in this example.
+externalId: ext_infield_{{first_location}}_config
+name: InField quickstart {{first_location}}
+description: Example on how to set up a location for infield quickstart
+dataModels:
+  - space: cdf_cdm
+    externalId: CogniteCore
+    version: v1 # should be latest version of the data model
+  - space: cdf_idm
+    externalId: CogniteProcessIndustries
+    version: v1 # should be latest version of the data model
+  - space: cdf_infield
+    externalId: InFieldOnCDM
+    version: v1 # should be latest version of the data model
+instanceSpaces: # InField only support getting data from 1 source space and the app space. Source space must be defined first in the list.
+  - sp_asset_{{first_location}}_source
+  - sp_infield_{{first_location}}_app_data
+views: # Views can be replaced with customer extentions of these views.
+  - externalId: CogniteMaintenanceOrder
+    space: cdf_idm
+    version: v1
+    representsEntity: MAINTENANCE_ORDER
+  - externalId: CogniteOperation
+    space: cdf_idm
+    version: v1
+    representsEntity: OPERATION
+  - externalId: CogniteNotification
+    space: cdf_idm
+    version: v1
+    representsEntity: NOTIFICATION
+  - externalId: CogniteAsset
+    space: cdf_cdm
+    version: v1
+    representsEntity: ASSET

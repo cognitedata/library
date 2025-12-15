@@ -1,0 +1,14 @@
+externalId: file_tagging_tr
+name: File Tagging
+destination:
+  dataModel:
+    space: {{ schemaSpace }}
+    externalId: YourOrgProcessIndustries
+    version: v1
+    destinationType: YourOrgFile
+  instanceSpace: {{ fileInstanceSpace }}
+  type: instances
+dataSetExternalId: {{ files_dataset }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

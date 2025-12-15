@@ -15,6 +15,16 @@ modules = [
     "accelerators/contextualization/cdf_entity_matching",
 ]
 
+[packages.infield_quickstart]
+id = "dp:infield_quickstart"
+title = "Infield Quickstart"
+description = "Accelerate Infield App Configuration"
+modules = [
+    "accelerators/infield_quickstart/cdf_apm_base",
+    "accelerators/infield_quickstart/cdf_infield_common",
+    "accelerators/infield_quickstart/cdf_infield_location"
+]
+
 [packages.models]
 id = "dp:models"
 title = "Data models"
