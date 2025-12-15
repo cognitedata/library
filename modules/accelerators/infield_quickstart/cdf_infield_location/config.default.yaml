@@ -1,0 +1,5 @@
+applicationsconfiguration_source_id: <change_me>
+module_version: '1'
+# the following properties are required for
+# infield and must be updated for each location
+infield_location_normal_users_source_id: <change_me>
