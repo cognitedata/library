@@ -5,6 +5,30 @@ your location. The processing here is related to the
 annotation/contextualization mapping of tags in P&ID documents
 to assets and files.
 
+## Why Use This Module?
+
+**Save Time and Accelerate Your P&ID Contextualization**
+
+This module is built from **production-proven code** that has been successfully deployed across multiple customer environments. Instead of building a P&ID annotation pipeline from scratch—which typically takes weeks or months of development, testing, and iteration—you can deploy this module in hours and start contextualizing your P&ID documents immediately.
+
+**Key Benefits:**
+
+- ⚡ **Production-Ready**: Battle-tested code based on real-world implementations from several customers running in production environments
+- 🚀 **Quick Deployment**: Get up and running in hours, not weeks. Simple configuration and deployment process
+- 🔧 **Easy to Extend**: Clean, modular architecture makes it straightforward to customize for your specific needs
+- 📈 **Scalable Foundation**: Currently runs in a single-threaded process, but designed to be easily extended with parallel processing and async modules for handling large volumes of P&ID files
+- 🎯 **Proven Results**: Leverage best practices and lessons learned from multiple production deployments
+
+**Time Savings:**
+
+- **Development Time**: Save weeks of development time by using proven, production-ready code
+- **Maintenance**: Reduce ongoing maintenance burden with stable, tested code
+- **Iteration Speed**: Quickly adapt and extend the module to meet your specific requirements
+
+Whether you're processing hundreds or thousands of P&ID documents, this module provides a solid foundation that can scale with your needs. Start with the single-threaded implementation for immediate value, then extend to parallel/async processing as your volume grows.
+
+## Key Features
+
 Key features are:
 
 - Tagging transformations for filtering input
@@ -53,6 +77,16 @@ Key features are:
     - Use threshold configuration to automatically approve or suggest annotations
     - Create annotation in DM service
     - Log status from process to extraction pipeline log
+
+**Performance & Scalability:**
+
+The current implementation processes files sequentially in a single-threaded mode, which is ideal for getting started quickly and handling moderate volumes of P&ID files. For production environments with large-scale requirements (thousands of files), the module can be extended with:
+
+- **Parallel Processing**: Process multiple files concurrently to reduce overall processing time
+- **Async Operations**: Implement asynchronous I/O operations for better resource utilization
+- **Batch Optimization**: Optimize batch sizes based on your infrastructure and file characteristics
+
+The modular architecture makes these extensions straightforward, allowing you to scale the solution as your needs grow.
 
 ## Managed resources
 
@@ -271,8 +305,12 @@ for logging on to your CDF project
 
 #### Cognite Function runtime
 
-Using Cognite Functions to run workloads will be limited by the underlying
-resources in the cloud provider functions. Hence processing many P&ID
-documents will not be optimal in a CDF function since it will time
-out and fail. One solution for this is to do the initial one-time job locally
-and let the function deal with all new and updated files.
+The current implementation processes files sequentially, which works well for incremental processing of new and updated files. However, when processing large volumes of P&ID documents (hundreds or thousands), Cognite Functions may be limited by timeout constraints and underlying cloud provider resources.
+
+**Recommended Approach:**
+- Use the function for **incremental processing** of new and updated files (the default `runAll: False` mode)
+- For **initial bulk processing**, run the function locally or extend it with parallel/async processing capabilities
+- The modular architecture makes it straightforward to extend the function with parallel processing for handling large-scale initial loads
+
+**Future Scalability:**
+The codebase is designed to be easily extended with parallel processing and async modules, allowing you to scale from processing dozens to thousands of P&ID files efficiently. This makes it a future-proof solution that grows with your needs.
