@@ -23,8 +23,5 @@ functionClientSecret: ${IDP_CLIENT_SECRET}
 
 workflow: entity_matching
 
-# source ID from Azure AD for the corresponding groups, ex 'c74797ce-9191-4a4a-9186-8fe21c54c3de'
-entity_matching_processing_group_source_id: <not set>
-
 # source ID from Entra ID for the corresponding groups, ex 'c74797ce-9191-4a4a-9186-8fe21c54c3de'
 files_location_processing_group_source_id: <not set>
