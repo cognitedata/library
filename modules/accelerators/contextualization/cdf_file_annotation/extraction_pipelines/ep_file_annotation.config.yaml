@@ -101,7 +101,7 @@ config:
             operator: In
             targetProperty: tags
     cacheService:
-      cacheTimeLimit: 24 # hours
+      cacheTimeLimit: 0 # NOTE: Please set this variable when aliasing rules are standardized. Recommendation is to set to 24 (measured in hours).
     annotationService:
       pageRange: 50
       partialMatch: True
