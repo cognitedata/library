@@ -13,7 +13,7 @@ viewVersion: v1
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
           
-workflow: entity_matching
+workflow: EntityMatching
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
 workflowClientId: ${IDP_CLIENT_ID}
 workflowClientSecret: ${IDP_CLIENT_SECRET}
