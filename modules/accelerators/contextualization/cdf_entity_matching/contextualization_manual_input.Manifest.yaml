@@ -1,0 +1,5 @@
+kind: RawRows
+type: rawTable
+table:
+  dbName: ds_timeseries_LOC_SOURCE
+  tableName: contextualization_manual_input
