@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Callable, Any
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
@@ -111,8 +111,8 @@ class CacheService(ICacheService):
         self.target_entities_view_id = target_entities_view.as_view_id()
 
         # Extract RAW database and cache table configuration
-        self.raw_db: str = config.promote_function.raw_db
-        self.cache_table_name: str = config.promote_function.cache_service.cache_table_name
+        self.raw_db: str = config.raw_tables.raw_db
+        self.cache_table_name: str = config.raw_tables.raw_table_promote_cache
 
         self.function_id = "fn_file_annotation_promote"
 
