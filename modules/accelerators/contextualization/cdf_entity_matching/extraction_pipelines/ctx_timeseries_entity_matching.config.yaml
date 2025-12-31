@@ -18,8 +18,8 @@ config:
       externalId: {{organization}}Asset
       version: {{ viewVersion }}
       searchProperty: name
-      # filterProperty: tags
-      # filterValues: ["root:WMT"]
+      filterProperty: tags
+      filterValues: ["root:WMT"]
     entityView:
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ timeseriesInstanceSpace }}
