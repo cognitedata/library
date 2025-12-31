@@ -1,6 +1,5 @@
 [module]
 title = "Open Industrial Data Sync"
-version = "1.0.0"
 description = "Synchronizes time series data from Open Industrial Data (publicdata) to simulate real-time streaming data"
 is_selected_by_default = false
 id = "dp:acc:open_industrial_data_sync"

@@ -1,5 +1,5 @@
 [module]
 title = "Example of Minimum Extension of the Cognite Process Industry Model"
 is_selected_by_default = false
-id = "dp:acc:models:cdf_process_industry_extension"
-package_id = "dp:accelerators"
+id = "dp:models:cdf_process_industry_extension"
+package_id = "dp:quickstart"

@@ -53,3 +53,23 @@ modules = [
     "dashboards/context_quality"
 ]
 
+[packages.quickstart]
+id = "dp:quickstart"
+title = "Quickstart Deployment Pack"
+description = "Quickstart deployment pack for CDF help you showcase CDF capabilities in a quick and easy way."
+canCherryPick = false # This package is not meant to be cherry picked, it is a complete deployment pack.
+modules = [
+    "accelerators/cdf_common",
+    "accelerators/cdf_ingestion",
+    "accelerators/contextualization/cdf_file_annotation",
+    "accelerators/contextualization/cdf_entity_matching",
+    "accelerators/contextualization/cdf_connection_sql",
+    "accelerators/industrial_tools/cdf_search",
+    "accelerators/open_industrial_data_sync",
+    "accelerators/sourcesystem/cdf_pi",
+    "accelerators/sourcesystem/cdf_sap_assets",
+    "accelerators/sourcesystem/cdf_sap_events",
+    "accelerators/sourcesystem/cdf_sharepoint",
+    "dashboards/rpt_quality",
+    "models/cdf_process_industry_extension",
+]

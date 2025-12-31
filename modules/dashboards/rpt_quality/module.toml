@@ -1,6 +1,6 @@
 [module]
 title = "Quality Reports - Contextualization Rate"
 is_selected_by_default = false
-id = "dp:acc:rpt_quality"
-package_id = "dp:accelerators"
+id = "dp:dashboards:rpt_quality"
+package_id = "dp:quickstart"
 
