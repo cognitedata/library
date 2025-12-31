@@ -1,5 +1,5 @@
 kind: RawRows
 type: rawTable
 table:
-  dbName: ds_timeseries_LOC_SOURCE
+  dbName: db_entity_matching
   tableName: contextualization_rule_input
