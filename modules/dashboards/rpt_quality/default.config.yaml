@@ -1,0 +1,12 @@
+organization: ORG
+schemaSpace: sp_enterprise_process_industry
+datamodelVersion: v1.0
+dataset: ingestion
+functionClientId: ${IDP_CLIENT_ID}
+functionClientSecret: ${IDP_CLIENT_SECRET}
+annotation_db: db_file_annotation
+annotation_patterns_tbl: annotation_documents_patterns
+annotation_docs_tbl: annotation_documents_docs
+annotation_tags_tbl: annotation_documents_tags
+contextualization_rate_workflow: "0 0 29 2 *"
+workflow_timeout_per_job: 3600
