@@ -1,0 +1,5 @@
+[module]
+title = "Contextualization Direct Relation Transformations"
+is_selected_by_default = false
+id = "dp:acc:contextualization:cdf_connection_sql"
+package_id = "dp:accelerators"
