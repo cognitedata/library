@@ -159,8 +159,8 @@ scheduleCronExpression: "*/10 * * * *"
 **OID Connection** (connects to publicdata):
 ```yaml
 oid_connection:
-  tenant_id: ...        # Azure AD tenant for OID (default provided)
-  client_id: ...        # Application ID for OID (default provided)
+  tenant_id: ...        # Azure AD tenant for OID (default provided: 48d5043c-cf70-4c49-881c-c638f5796997)
+  client_id: ...        # Application ID for OID (default provided: 1b90ede3-271e-401b-81a0-a4d52bea3273)
   cluster: api          # CDF cluster
   project: publicdata   # Project name
 ```
