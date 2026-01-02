@@ -53,7 +53,7 @@ modules = [
     "dashboards/context_quality"
 ]
 
-[packages.quickstart]
+[packages.quickstartdp]
 id = "dp:quickstart"
 title = "Quickstart Deployment Pack"
 description = "Quickstart deployment pack for CDF help you showcase CDF capabilities in a quick and easy way."
