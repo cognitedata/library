@@ -180,11 +180,110 @@ The following variables are required and defined in this module:
 > - files_location_processing_group_source_id:
 >   - Object ID from Azure AD for used to link to the CDF group created
 
-## Usage
+## Deployment
 
-  poetry shell
-  cdf build
-  cdf deploy
+### Prerequisites
+
+Before you start, ensure you have:
+
+- A Cognite Toolkit project set up locally
+- Your project contains the standard `cdf.toml` file
+- Valid authentication to your target CDF environment
+
+### Step 1: Enable External Libraries
+
+Edit your project's `cdf.toml` and add:
+
+```toml
+[alpha_flags]
+external-libraries = true
+
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
+```
+
+This allows the Toolkit to retrieve official library packages.
+
+> **📝 Note: Replacing the Default Library**
+>
+> By default, a Cognite Toolkit project contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. This provides core modules like Quickstart, SourceSystem, Common, etc.
+>
+> **These two library sections cannot coexist.** To use this Deployment Pack, you must **replace** the `toolkit-data` section with `library.cognite`:
+>
+> | Replace This | With This |
+> |--------------|-----------|
+> | `[library.toolkit-data]` | `[library.cognite]` |
+> | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
+>
+> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, P&ID Annotation, etc.).
+
+> **⚠️ Checksum Warning**
+>
+> When running `cdf modules add`, you may see a warning like:
+>
+> ```
+> WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
+> Please verify the checksum with the source and update cdf.toml if needed.
+> This may indicate that the package content has changed.
+> ```
+>
+> **This is expected behavior.** The checksum in this documentation may be outdated because it gets updated with every release. The package will still download successfully despite the warning.
+>
+> **To resolve the warning:** Copy the new checksum value shown in the warning message and update your `cdf.toml` with it. For example, if the warning shows `sha256:da2b33d60c66700f...`, update your config to:
+>
+> ```toml
+> [library.cognite]
+> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+> checksum = "sha256:da2b33d60c66700f..."
+> ```
+
+### Step 2: Add the Module
+
+Run:
+
+```bash
+cdf modules init .
+```
+
+> **⚠️ Disclaimer**: This command will overwrite existing modules. Commit changes before running, or use a fresh directory.
+
+### Step 3: Select the Contextualization Package
+
+From the menu, select:
+
+```
+Contextualization: Module templates for data contextualization
+```
+
+Then select **Contextualization P&ID Annotation**.
+
+> **⚠️ Important: Module Selection**
+>
+> When the module selection menu appears:
+> ```
+> Which modules in contextualization would you like to add?
+> ▶ ○ Contextualization P&ID Annotation
+>   ○ Contextualization File Annotation
+>   ○ Contextualization Entity Matching
+> ```
+>
+> You must **press Space** to select the module (the `○` becomes `●`), **then press Enter** to confirm:
+> ```
+> ▶ ● Contextualization P&ID Annotation   ← Selected (filled circle)
+>   ○ Contextualization File Annotation
+>   ○ Contextualization Entity Matching
+> ```
+>
+> If you only press Enter without pressing Space first, no modules will be added!
+
+### Step 4: Build and Deploy
+
+```bash
+poetry shell
+cdf build
+cdf deploy
+```
 
 ### Tagging Transformations
 
@@ -290,7 +389,7 @@ config:
           searchProperty: aliases
           type: diagrams.AssetLink
           filterProperty: tags
-          filterValues: ["PID"] 
+          filterValues: ["PID"]
 ```
 
 **Note**: The `filterProperty` and `filterValues` configuration allows you to filter which files and assets are included in the annotation process. The tagging transformations (`tr_asset_tagging` and `tr_file_tagging`) add the 'PID' tag to demonstrate how to prepare your data for filtering. You can customize these transformations based on your project's needs.
