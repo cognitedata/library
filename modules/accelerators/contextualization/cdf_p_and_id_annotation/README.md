@@ -258,6 +258,25 @@ Contextualization: Module templates for data contextualization
 
 Then select **Contextualization P&ID Annotation**.
 
+> **⚠️ Important: Module Selection**
+>
+> When the module selection menu appears:
+> ```
+> Which modules in contextualization would you like to add?
+> ▶ ○ Contextualization P&ID Annotation
+>   ○ Contextualization File Annotation
+>   ○ Contextualization Entity Matching
+> ```
+>
+> You must **press Space** to select the module (the `○` becomes `●`), **then press Enter** to confirm:
+> ```
+> ▶ ● Contextualization P&ID Annotation   ← Selected (filled circle)
+>   ○ Contextualization File Annotation
+>   ○ Contextualization Entity Matching
+> ```
+>
+> If you only press Enter without pressing Space first, no modules will be added!
+
 ### Step 4: Build and Deploy
 
 ```bash
