@@ -1,23 +1,22 @@
-import sys
-import threading
-import time
 import random
-from datetime import datetime, timezone, timedelta
-from cognite.client import CogniteClient
+import sys
+import time
+from datetime import datetime, timedelta, timezone
 
+from cognite.client import CogniteClient
 from dependencies import (
     create_config_service,
-    create_logger_service,
-    create_write_logger_service,
-    create_general_retrieve_service,
     create_general_apply_service,
     create_general_pipeline_service,
+    create_general_retrieve_service,
+    create_logger_service,
+    create_write_logger_service,
 )
+from services.ApplyService import IApplyService
 from services.ConfigService import format_finalize_config
 from services.FinalizeService import AbstractFinalizeService, GeneralFinalizeService
-from services.ApplyService import IApplyService
-from services.RetrieveService import IRetrieveService
 from services.PipelineService import IPipelineService
+from services.RetrieveService import IRetrieveService
 from utils.DataStructures import PerformanceTracker
 
 
@@ -119,29 +118,6 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
         logger_instance.close()
 
 
-def run_locally_parallel(
-    config_file: dict[str, str],
-    log_path_1: str | None = None,
-    log_path_2: str | None = None,
-    log_path_3: str | None = None,
-    log_path_4: str | None = None,
-):
-    thread_1 = threading.Thread(target=run_locally, args=(config_file, log_path_1))
-    thread_2 = threading.Thread(target=run_locally, args=(config_file, log_path_2))
-    thread_3 = threading.Thread(target=run_locally, args=(config_file, log_path_3))
-    thread_4 = threading.Thread(target=run_locally, args=(config_file, log_path_4))
-
-    thread_1.start()
-    thread_2.start()
-    thread_3.start()
-    thread_4.start()
-
-    thread_1.join()
-    thread_2.join()
-    thread_3.join()
-    thread_4.join()
-
-
 def _create_finalize_service(config, client, logger, tracker, function_call_info) -> AbstractFinalizeService:
     """
     Instantiate Finalize with interfaces.
@@ -166,12 +142,5 @@ if __name__ == "__main__":
         "ExtractionPipelineExtId": sys.argv[1],
         "logLevel": sys.argv[2],
     }
-    run_mode = sys.argv[3]
-    log_path_1 = sys.argv[4]
-    if run_mode == "Parallel":
-        log_path_2 = sys.argv[5]
-        log_path_3 = sys.argv[6]
-        log_path_4 = sys.argv[7]
-        run_locally_parallel(config_file, log_path_1, log_path_2, log_path_3, log_path_4)
-    else:
-        run_locally(config_file, log_path_1)
+    log_path = sys.argv[3] if len(sys.argv) > 3 else None
+    run_locally(config_file, log_path)

@@ -1,10 +1,10 @@
-externalId: '{{ directRelationJob }}'
+externalId: {{ directRelationJob }}
 config:
   state:
     rawDatabase: {{ rawStateDatabase }}
     rawTable: {{ rawStateTable }}
   data:
-    annotationSpace: '{{ annotationSpace }}'
+    annotationSpace: {{ annotationSpace }}
     directRelationMappings:
       - startNodeView:
           space: {{ schemaSpace }}

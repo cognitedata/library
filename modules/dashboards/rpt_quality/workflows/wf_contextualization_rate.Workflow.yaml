@@ -1,0 +1,3 @@
+externalId: wf_contextualization_rate
+description: Generates contextualization rate report data for {{ organization }}
+dataSetExternalId: {{ dataset }}

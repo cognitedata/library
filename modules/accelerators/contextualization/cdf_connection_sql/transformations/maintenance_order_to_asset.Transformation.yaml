@@ -1,0 +1,14 @@
+externalId: {{ maintenanceOrderToAssetTransformationExternalId }}
+dataSetExternalId: {{ dataset }}
+name: Maintenance Order to Asset Connection Transformation
+destination:
+  type: instances
+  dataModel:
+    space: {{ schemaSpace }}
+    externalId: {{ organization }}ProcessIndustries
+    destinationType: {{ organization }}MaintenanceOrder
+    version: {{ datamodelVersion }}
+  instanceSpace: {{ instanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

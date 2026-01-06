@@ -1,0 +1,6 @@
+location: springfield
+locationName: Springfield
+organization: ORG
+schemaSpace: sp_enterprise_process_industry
+datamodelVersion: v1.0
+instanceSpace: springfield_instances

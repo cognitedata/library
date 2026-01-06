@@ -1,0 +1,10 @@
+sourceName: Springfield Sharepoint
+sourceId: springfield_sharepoint
+schemaSpace: sp_enterprise_process_industry
+fileTransformationExternalId: files_metadata_springfield
+dataset: ingestion
+organization: ORG
+datamodelVersion: v1.0
+instanceSpace: springfield_instances
+rawSourceDatabase: ingestion
+

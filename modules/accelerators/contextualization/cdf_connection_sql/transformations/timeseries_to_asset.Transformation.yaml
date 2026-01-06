@@ -1,0 +1,15 @@
+externalId: {{ timeSeriesToAssetTransformationExternalId }}
+dataSetExternalId: {{ dataset }}
+name: TimeSeries to asset Connection Transformation
+destination:
+  type: instances
+  dataModel:
+    space: {{ schemaSpace }}
+    externalId: {{ organization }}ProcessIndustries
+    destinationType: {{ organization }}TimeSeries
+    version: {{ datamodelVersion }}
+  instanceSpace: {{ instanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+

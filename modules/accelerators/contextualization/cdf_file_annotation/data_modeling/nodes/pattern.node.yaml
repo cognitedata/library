@@ -1,0 +1,11 @@
+- space: {{patternModeInstanceSpace}}
+  externalId: {{patternDetectSink}}
+  sources:
+    - source:
+        space: cdf_cdm
+        externalId: CogniteFile # Using CogniteFile as a base type for simplicity
+        version: 'v1'
+        type: view
+      properties:
+        name: 'Pattern Detection Sink Node'
+        description: 'A single, static node used as the end target for all pattern detection edges. The actual detection details are stored on the edge itself.'

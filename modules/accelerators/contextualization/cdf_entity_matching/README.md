@@ -116,9 +116,9 @@ cdf_entity_matching/
 ```yaml
 # Core Settings
 function_version: '1.0.0'
-organization: YourOrg
-location_name: LOC
-source_name: SOURCE
+organization: ORG
+location_name: Springfield
+source_name: springfield
 
 # Data Model Configuration
 schemaSpace: sp_enterprise_process_industry
@@ -161,18 +161,51 @@ DEBUG_MODE=false
 - Timeseries and asset data available
 - Authentication credentials configured
 
-### 2. Deploy the Module
+### 2. Configure the Module
+
+Update your `config.<env>.yaml` under the module variables section:
+
+```yaml
+variables:
+  modules:
+    cdf_entity_matching:
+      function_version: '1.0.0'
+      organization: YOUR_ORG
+      location_name: Your Location
+      source_name: your_source
+      schemaSpace: sp_enterprise_process_industry
+      annotationSchemaSpace: cdf_cdm
+      viewVersion: v1
+      fileInstanceSpace: your_instances
+      equipmentInstanceSpace: your_instances
+      assetInstanceSpace: your_instances
+      functionClientId: ${IDP_CLIENT_ID}
+      functionClientSecret: ${IDP_CLIENT_SECRET}
+      workflow: annotation
+      files_dataset: ingestion
+```
+
+### 3. Deploy the Module
+
+> **Note**: To upload sample rule and manual mapping data, enable the data plugin in your `cdf.toml` file:
+> ```toml
+> [plugins]
+> data = true
+> ```
 
 ```bash
-# Deploy using CDF Toolkit
+# Deploy module
 cdf deploy --env your-environment
+
+# Upload sample data to RAW
+cdf data upload dir modules/contextualization/cdf_entity_matching/upload_data
 
 # Or deploy individual components
 cdf functions deploy
 cdf workflows deploy
 ```
 
-### 3. Configure Workflows
+### 4. Configure Workflows
 
 The module includes automated workflows that:
 1. **Trigger entity matching** on new timeseries data
@@ -180,7 +213,7 @@ The module includes automated workflows that:
 3. **Monitor processing** and handle errors
 4. **Maintain state** for incremental updates
 
-### 4. Monitor Execution
+### 5. Monitor Execution
 
 ```bash
 # Check function logs

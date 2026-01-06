@@ -1,7 +1,7 @@
-from typing import Literal
-import os
 import inspect
+import os
 from datetime import datetime
+from typing import Literal
 
 
 class CogniteFunctionLogger:

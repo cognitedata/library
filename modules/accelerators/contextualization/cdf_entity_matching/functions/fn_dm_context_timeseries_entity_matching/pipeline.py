@@ -1,57 +1,45 @@
-import sys
-import traceback
 import json
 import re
+import sys
+import traceback
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Optional
-from collections import defaultdict
-
-
-from cognite.client.data_classes.data_modeling import (
-    DirectRelationReference,
-    NodeOrEdgeData,
-    NodeList,
-    Node,
-    NodeApply,
-)
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes import (
-    ExtractionPipelineRun,
-    ContextualizationJob, 
-    Row
-)
 from cognite.client import data_modeling as dm
+from cognite.client.data_classes import ExtractionPipelineRun, Row
+from cognite.client.data_classes.data_modeling import (
+    DirectRelationReference,
+    NodeApply,
+    NodeOrEdgeData,
+)
+from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
-from cognite.client.exceptions import CogniteAPIError
-
-from cognite.client.data_classes.data_modeling.query import Query, NodeResultSetExpression, Select, SourceSelector
-
 from config import Config, ViewPropertyConfig
-from logger import CogniteFunctionLogger
-
 from constants import (
+    COL_KEY_MAN_CONTEXTUALIZED,
+    COL_KEY_MAN_MAPPING_ASSET,
+    COL_KEY_MAN_MAPPING_ENTITY,
+    COL_KEY_RULE_REGEXP_ASSET,
+    COL_KEY_RULE_REGEXP_ENTITY,
+    COL_MATCH_KEY,
+    FUNCTION_ID,
+    ML_MODEL_FEATURE_TYPE,
     STAT_STORE_MATCH_MODEL_ID,
     STAT_STORE_VALUE,
-    FUNCTION_ID,
-    COL_KEY_MAN_MAPPING_ENTITY,
-    COL_KEY_MAN_MAPPING_ASSET,
-    COL_KEY_MAN_CONTEXTUALIZED,
-    ML_MODEL_FEATURE_TYPE,
-    COL_MATCH_KEY,
-    COL_KEY_RULE_REGEXP_ENTITY,
-    COL_KEY_RULE_REGEXP_ASSET,
 )
+from logger import CogniteFunctionLogger
 
 sys.path.append(str(Path(__file__).parent))
 
 # 🚀 OPTIMIZATION IMPORTS
 try:
     from pipeline_optimizations import (
-        time_operation,
+        cleanup_memory,
         monitor_memory_usage,
-        cleanup_memory
+        time_operation,
     )
     OPTIMIZATIONS_AVAILABLE = True
 except ImportError:
@@ -100,19 +88,19 @@ def asset_entity_matching(
         matching_model_id = None
         if config.parameters.debug:
             logger = CogniteFunctionLogger("DEBUG")
-            logger.debug(f"**** Write debug messages and only process one entity *****")
+            logger.debug("**** Write debug messages and only process one entity *****")
 
-        logger.debug(f"Initiate RAW upload queue used to store output from entity matching")
+        logger.debug("Initiate RAW upload queue used to store output from entity matching")
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level="INFO")
 
         # Check if we should run all entities (then delete state content in RAW) or just new entities
         if config.parameters.run_all:
-            logger.debug(f"Run all entities, delete state content in RAW since we are rerunning based on all input")
+            logger.debug("Run all entities, delete state content in RAW since we are rerunning based on all input")
             delete_table(client, config.parameters.raw_db, config.parameters.raw_tale_ctx_bad)
             delete_table(client, config.parameters.raw_db, config.parameters.raw_tale_ctx_good)
             delete_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
         else:
-            logger.debug(f"Get entity entity matching model ID from state store")
+            logger.debug("Get entity entity matching model ID from state store")
             matching_model_id = read_state_store(client, config, logger, STAT_STORE_MATCH_MODEL_ID)
 
         logger.debug("Read manual mappings to be used in entity matching")
@@ -137,7 +125,7 @@ def asset_entity_matching(
         logger.debug("Get all assets that are input for matching assets ( based on TAG filtering given in config)")
         asset_dest = get_all_assets(client, logger, config, rule_mappings)
         if len(asset_dest) == 0:
-            logger.warning(f"No assets found based on configuration, please check the configuration")
+            logger.warning("No assets found based on configuration, please check the configuration")
             update_pipeline_run(client, logger, pipeline_ext_id, "success", match_count, not_matches_count, None)
             return
 

@@ -1,0 +1,85 @@
+name: gp_oid_sync
+sourceId: {{ groupSourceId }}
+metadata:
+  origin: cdf-project-templates
+capabilities:
+  # Minimum runtime capabilities
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions:
+        - CREATE
+      scope:
+        all: {}
+  
+  # Function capabilities
+  - functionsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  
+  # Time series capabilities (core functionality)
+  # - timeSeriesAcl:
+  #     actions:
+  #       - READ
+  #       - WRITE
+  #     scope:
+  #       datasetScope:
+  #         ids:
+  #           - {{ oidDatasetExternalId }}
+  
+  # Data model instances (for writing time series data)
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+        - WRITE
+        - WRITE_PROPERTIES
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instanceSpace }}
+  
+  # Data models (for reading schemas)
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{ instanceSpace }}
+  
+  # Extraction pipeline capabilities
+  - extractionConfigsAcl:
+      actions:
+        - READ
+      scope:
+        datasetScope:
+          ids:
+            - {{ oidDatasetExternalId }}
+  - extractionRunsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - {{ oidDatasetExternalId }}
+  - extractionPipelinesAcl:
+      actions:
+        - READ
+      scope:
+        datasetScope:
+          ids:
+            - {{ oidDatasetExternalId }}
+

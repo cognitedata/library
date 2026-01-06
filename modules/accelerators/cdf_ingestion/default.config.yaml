@@ -1,0 +1,34 @@
+workflow: ingestion
+dataset: ingestion
+# Update GROUP_SOURCE_ID to your group source ID
+groupSourceId: <GROUP_SOURCE_ID>
+
+ingestionClientId: ${INGESTION_CLIENT_ID}
+ingestionClientSecret: ${INGESTION_CLIENT_SECRET}
+rawSourceDatabase: ingestion
+rawStateDatabase: contextualizationState
+schemaSpace: sp_enterprise_process_industry
+schemaSpace2: cdf_cdm
+schemaSpace3: cdf_idm
+instanceSpaces:
+  - springfield_instances
+  - cdf_cdm_units
+runWorkflowUserIds:
+  # Update RUN_WORKFLOW_USER_ID to your run workflow user ID
+  - <RUN_WORKFLOW_USER_ID>
+
+runWorkflowSchedule: "0 0 29 2 *"
+timeseriesTransformationExternalId: pi_timeseries_springfield_aveva_pi
+assetTransformationExternalId: sap_assets_springfield_s4hana
+equipmentTransformationExternalId: sap_equipment_springfield_s4hana
+equipmentToAssetTransformationExternalId: sap_equipment_to_asset_springfield_s4hana
+maintenanceOrderTransformationExternalId: sap_maintenance_orders_springfield_s4hana
+operationTransformationExternalId: sap_operations_springfield_s4hana
+operationToMaintenanceOrderTransformationExternalId: sap_operation_to_maintenance_order_springfield_s4hana
+fileTransformationExternalId: files_metadata_springfield
+maintenanceOrderToAssetTransformationExternalId: maintenance_order_to_asset
+operationToAssetTransformationExternalId: operation_to_asset
+activityToTimeSeriesTransformationExternalId: activity_to_timeseries
+timeSeriesToAssetTransformationExternalId: timeseries_to_asset
+timeSeriesToEquipmentTransformationExternalId: timeseries_to_equipment
+

@@ -3,7 +3,7 @@ name: 'ctx:entity_matching_metadata_update'
 dataSetExternalId: 'ds_timeseries_{{location_name}}' 
 description: 'Update / add alias and tags timeseries and assets'
 rawTables:
-  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+  - dbName: '{{ dbName }}'
     tableName: 'timeseries_state_store'
 source: '{{source_name}}'
 documentation: >
