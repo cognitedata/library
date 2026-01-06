@@ -4,14 +4,78 @@ Configuration models for the AI Property Extractor.
 Uses Pydantic for validation and parsing of extraction pipeline configuration.
 """
 
+import json
 from typing import Any, Dict, List, Optional
 
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
+
+
+def parse_json_string(v: Any, expected_type: type) -> Any:
+    """
+    Parse a JSON string to dict/list, or return value as-is if already parsed.
+    Also handles empty values by returning None.
+    
+    Args:
+        v: The value to parse (could be str, dict, list, or None)
+        expected_type: Expected type (dict or list)
+    
+    Returns:
+        Parsed value or None if empty
+    """
+    if v is None:
+        return None
+    
+    # If it's a string, try to parse as JSON
+    if isinstance(v, str):
+        v = v.strip()
+        if not v:
+            return None
+        try:
+            v = json.loads(v)
+        except json.JSONDecodeError:
+            # If it can't be parsed, return None for safety
+            return None
+    
+    # Normalize empty collections to None
+    if isinstance(v, (list, dict)) and len(v) == 0:
+        return None
+    
+    return v
+
+
+# Default prompt template used when none is configured
+DEFAULT_PROMPT_TEMPLATE = """You are an expert data analyst. You will receive a free text. Your task is to extract the relevant values for the following structured properties, as best as possible, from that text.
+
+For each property, you will be given:
+- externalId: A unique identifier for the property.
+- name: The display name.
+- description: A detailed explanation of what should be filled into this property.
+
+For each property, return the best-matching value you can extract from the text, or null if no relevant information is found. Output a dictionary in JSON with property externalId as key and the extracted value (or null) as value.
+{custom_instructions}
+
+Here is the text to analyze:
+{text}
+
+Here are the properties to fill:
+{properties}
+
+Remember:
+- Return only parsable JSON with property externalId keys.
+- Use null for missing fields.
+- If a property is a list, return a JSON array.
+
+Example output:
+{{
+  "Property_XYZ": "value 1",
+  "Property_ABC": null,
+  "Property_List": ["value1", "value2"]
+}}"""
 
 
 class AgentConfig(BaseModel, alias_generator=to_camel):
@@ -47,6 +111,18 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
         default=None,
         description="Mapping from source property to target property (e.g., {'description': 'ai_description'})"
     )
+    
+    @field_validator('properties_to_extract', mode='before')
+    @classmethod
+    def parse_properties_to_extract(cls, v):
+        """Parse JSON string to list, handle empty values."""
+        return parse_json_string(v, list)
+    
+    @field_validator('ai_property_mapping', mode='before')
+    @classmethod
+    def parse_ai_property_mapping(cls, v):
+        """Parse JSON string to dict, handle empty values."""
+        return parse_json_string(v, dict)
 
 
 class ProcessingConfig(BaseModel, alias_generator=to_camel):
@@ -61,6 +137,36 @@ class ProcessingConfig(BaseModel, alias_generator=to_camel):
         default=None,
         description="Optional filters for instance selection"
     )
+    
+    @field_validator('filters', mode='before')
+    @classmethod
+    def parse_filters(cls, v):
+        """Parse JSON string to list, handle empty values."""
+        return parse_json_string(v, list)
+
+
+class PromptConfig(BaseModel, alias_generator=to_camel):
+    """Configuration for the LLM prompt."""
+    custom_instructions: Optional[str] = Field(
+        default=None,
+        description="Additional instructions appended to the base prompt to customize LLM behavior"
+    )
+    template: Optional[str] = Field(
+        default=None,
+        description="Custom prompt template. Available placeholders: {text}, {properties}, {custom_instructions}"
+    )
+    
+    def get_template(self) -> str:
+        """Get the prompt template, falling back to default if not configured."""
+        if self.template and self.template.strip():
+            return self.template
+        return DEFAULT_PROMPT_TEMPLATE
+    
+    def get_custom_instructions(self) -> str:
+        """Get custom instructions, returning empty string if not configured."""
+        if self.custom_instructions and self.custom_instructions.strip():
+            return f"\n\n{self.custom_instructions}"
+        return ""
 
 
 class Config(BaseModel, alias_generator=to_camel):
@@ -69,6 +175,7 @@ class Config(BaseModel, alias_generator=to_camel):
     view: ViewConfig
     extraction: ExtractionConfig
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
+    prompt: PromptConfig = Field(default_factory=PromptConfig)
 
 
 def load_config(client: CogniteClient, function_data: Dict[str, Any], logger=None) -> Config:

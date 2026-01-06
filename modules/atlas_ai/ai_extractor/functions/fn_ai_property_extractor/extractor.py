@@ -38,12 +38,42 @@ class LLMPropertyExtractor:
     # Property types that cannot be set directly
     REVERSE_RELATION_TYPES = (MultiReverseDirectRelation, SingleReverseDirectRelation)
     
+    # Default prompt template used when none is configured
+    DEFAULT_PROMPT_TEMPLATE = """You are an expert data analyst. You will receive a free text. Your task is to extract the relevant values for the following structured properties, as best as possible, from that text.
+
+For each property, you will be given:
+- externalId: A unique identifier for the property.
+- name: The display name.
+- description: A detailed explanation of what should be filled into this property.
+
+For each property, return the best-matching value you can extract from the text, or null if no relevant information is found. Output a dictionary in JSON with property externalId as key and the extracted value (or null) as value.
+{custom_instructions}
+
+Here is the text to analyze:
+{text}
+
+Here are the properties to fill:
+{properties}
+
+Remember:
+- Return only parsable JSON with property externalId keys.
+- Use null for missing fields.
+- If a property is a list, return a JSON array.
+
+Example output:
+{{
+  "Property_XYZ": "value 1",
+  "Property_ABC": null,
+  "Property_List": ["value1", "value2"]
+}}"""
+    
     def __init__(
         self, 
         client: CogniteClient, 
         agent_external_id: str,
         logger=None,
-        custom_prompt_instructions: Optional[str] = None
+        custom_prompt_instructions: Optional[str] = None,
+        prompt_template: Optional[str] = None
     ):
         """
         Initialize the LLM Property Extractor.
@@ -53,10 +83,12 @@ class LLMPropertyExtractor:
             agent_external_id: External ID of the agent to use for text parsing
             logger: Optional logger instance
             custom_prompt_instructions: Optional custom instructions to add to the prompt
+            prompt_template: Optional custom prompt template with placeholders {text}, {properties}, {custom_instructions}
         """
         self.client = client
         self.agent_external_id = agent_external_id
-        self.custom_prompt_instructions = custom_prompt_instructions
+        self.custom_prompt_instructions = custom_prompt_instructions or ""
+        self.prompt_template = prompt_template if prompt_template and prompt_template.strip() else self.DEFAULT_PROMPT_TEMPLATE
         self.logger = logger
         self._agent = None
     
@@ -77,7 +109,7 @@ class LLMPropertyExtractor:
     
     def _build_prompt(self, text: str, properties_to_fill: Dict[str, Dict[str, str]]) -> str:
         """
-        Build the LLM prompt for property extraction.
+        Build the LLM prompt for property extraction using the configured template.
         
         Args:
             text: The text to extract properties from
@@ -86,37 +118,17 @@ class LLMPropertyExtractor:
         Returns:
             Formatted prompt string
         """
-        base_instructions = """You are an expert data analyst. You will receive a free text. Your task is to extract the relevant values for the following structured properties, as best as possible, from that text.
-
-For each property, you will be given:
-- externalId: A unique identifier for the property.
-- name: The display name.
-- description: A detailed explanation of what should be filled into this property.
-
-For each property, return the best-matching value you can extract from the text, or null if no relevant information is found. Output a dictionary in JSON with property externalId as key and the extracted value (or null) as value."""
-
-        if self.custom_prompt_instructions:
-            base_instructions += f"\n\n{self.custom_prompt_instructions}"
+        # Format custom instructions (add newlines if present)
+        custom_instructions = ""
+        if self.custom_prompt_instructions and self.custom_prompt_instructions.strip():
+            custom_instructions = f"\n\n{self.custom_prompt_instructions}"
         
-        prompt = f"""{base_instructions}
-
-Here is the text to analyze:
-{text}
-
-Here are the properties to fill:
-{json.dumps(properties_to_fill, indent=2)}
-
-Remember:
-- Return only parsable JSON with property externalId keys.
-- Use null for missing fields.
-- If a property is a list, return a JSON array.
-
-Example output:
-{{
-  "Property_XYZ": "value 1",
-  "Property_ABC": null,
-  "Property_List": ["value1", "value2"]
-}}"""
+        # Build the prompt using the template
+        prompt = self.prompt_template.format(
+            text=text,
+            properties=json.dumps(properties_to_fill, indent=2),
+            custom_instructions=custom_instructions
+        )
         
         return prompt.strip()
     

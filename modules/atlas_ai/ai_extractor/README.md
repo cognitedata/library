@@ -21,16 +21,15 @@ The AI Property Extractor uses a Cognite Agent to analyze free text from a speci
 
 ## Configuration
 
+All configuration is managed through your project's `config.<env>.yaml` or the module's `default.config.yaml`. The extraction pipeline configuration is automatically built from these variables during deployment.
+
 ### Required Variables
 
 Add these to your project's `config.<env>.yaml` or override in `default.config.yaml`:
 
 ```yaml
-# Dataset for all resources (must exist in CDF)
-dataset: ds_ai_extractor
-
-# Extraction Pipeline
-extractionPipelineExternalId: ep_ai_property_extractor
+# Agent configuration
+agentExternalId: ai_property_extractor_agent
 
 # View to process
 viewSpace: your_space # Data model space
@@ -41,6 +40,22 @@ viewVersion: v1 # View version
 textProperty: description # Property containing text to parse
 batchSize: 10 # Instances per batch
 
+# Properties to extract - JSON array of property IDs from the view
+# Use '[]' or empty string to extract all non-filled properties
+propertiesToExtract: '["discipline", "priority", "category"]'
+
+# AI Property Mapping - JSON object mapping source to target properties
+# Use '{}' or empty string for no mapping
+aiPropertyMapping: '{ "description": "ai_description" }'
+
+# Optional DM filters - JSON array for instance selection
+processingFilters: "[]"
+
+# Custom prompt instructions - additional instructions appended to the base prompt
+customPromptInstructions: ""
+
+# For custom prompt templates, edit extraction_pipelines/ai_property_extractor.config.yaml directly
+
 # Workflow
 workflow: wf_ai_property_extractor
 scheduleExpression: "0 4 * * *" # Cron: daily at 4 AM
@@ -48,26 +63,6 @@ scheduleExpression: "0 4 * * *" # Cron: daily at 4 AM
 # Authentication for workflow trigger
 workflowClientId: ${IDP_CLIENT_ID}
 workflowClientSecret: ${IDP_CLIENT_SECRET}
-```
-
-### Extraction Pipeline Config
-
-The extraction pipeline configuration (in `extraction_pipelines/ai_property_extractor.config.yaml`) controls what gets extracted. Customize these values directly in the config file:
-
-```yaml
-config:
-  extraction:
-    textProperty: "description" # Source text field
-    propertiesToExtract: # Properties to extract
-      - discipline
-      - priority
-      - category
-    aiPropertyMapping: # Optional: write to different properties
-      description: ai_description # Extract 'description' -> write to 'ai_description'
-      title: ai_title
-  processing:
-    batchSize: 10
-    filters: [] # Optional DM filters
 ```
 
 ### AI Property Mapping
@@ -80,8 +75,7 @@ The `aiPropertyMapping` feature allows you to extract values using one property'
 **Example**: If your view has both `description` (from source system) and `ai_description` (for AI values):
 
 ```yaml
-aiPropertyMapping:
-  description: ai_description
+aiPropertyMapping: '{ "description": "ai_description" }'
 ```
 
 This will:
@@ -89,6 +83,17 @@ This will:
 1. Use the `description` property's name and description for the LLM prompt
 2. Write the extracted value to `ai_description`
 3. Only process if `ai_description` is empty (preserves existing values)
+
+### Prompt Customization
+
+Customize LLM behavior with `customPromptInstructions` or provide a complete `promptTemplate`:
+
+```yaml
+customPromptInstructions: |
+  Focus on extracting technical specifications.
+  Use ISO 8601 format for dates (YYYY-MM-DD).
+  For priority, use: "High", "Medium", or "Low".
+```
 
 ## Prerequisites
 
@@ -155,34 +160,28 @@ For a `Notification` view with properties:
 - `discipline`, `priority`, `category` (to be extracted)
 - `ai_description` (AI-generated summary)
 
-Configure:
+Configure in `default.config.yaml`:
 
 ```yaml
-# default.config.yaml
 viewSpace: your_space
 viewExternalId: Notification
+viewVersion: v1
 textProperty: longText
-```
 
-```yaml
-# extraction_pipelines/ai_property_extractor.config.yaml
-config:
-  extraction:
-    textProperty: "longText"
-    propertiesToExtract:
-      - discipline
-      - priority
-      - category
-      - description
-    aiPropertyMapping:
-      description: ai_description
+propertiesToExtract: '["discipline", "priority", "category", "description"]'
+aiPropertyMapping: '{ "description": "ai_description" }'
+
+customPromptInstructions: |
+  This is a maintenance notification.
+  For discipline, use standard codes like MECH, ELEC, INST, PROC.
 ```
 
 ## Troubleshooting
 
-| Issue                   | Solution                                                       |
-| ----------------------- | -------------------------------------------------------------- |
-| "Agent not found"       | Verify agent `ai_property_extractor_agent` is deployed         |
-| "View not found"        | Check `viewSpace`, `viewExternalId`, `viewVersion` are correct |
-| No instances processed  | Verify view has instances and text property is populated       |
-| Properties not updating | Check target properties exist and aren't already filled        |
+| Issue                   | Solution                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| "Agent not found"       | Verify agent `ai_property_extractor_agent` is deployed                        |
+| "View not found"        | Check `viewSpace`, `viewExternalId`, `viewVersion` are correct                |
+| No instances processed  | Verify view has instances and text property is populated                      |
+| Properties not updating | Check target properties exist and aren't already filled                       |
+| Poor extraction quality | Add descriptive property names/descriptions or use `customPromptInstructions` |

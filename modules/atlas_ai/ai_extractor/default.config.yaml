@@ -2,19 +2,46 @@
 # This module extracts structured properties from unstructured text using LLM agents
 
 # Space for function (required in DATA_MODELING_ONLY mode)
-functionSpace: your_space
+functionSpace: springfield_instances # Default fro quick start module
 
 # Extraction Pipeline
 extractionPipelineExternalId: ep_ai_property_extractor
 
+# Agent configuration
+agentExternalId: ai_property_extractor_agent
+
 # View configuration (to be overridden per deployment)
-viewSpace: your_space
-viewExternalId: YourView
+viewSpace: cdf_cdm
+viewExternalId: CogniteAsset
 viewVersion: v1
 
 # Extraction settings
 textProperty: description
 batchSize: 10
+
+# Properties to extract - list of property IDs from the view
+# Leave empty to extract all non-filled properties
+# Use JSON array format: '["discipline", "priority", "category"]'
+propertiesToExtract: '["tags"]'
+
+# AI Property Mapping - map source properties to different target properties
+# This allows AI-generated values to be written to separate fields
+# Use JSON object format: '{"description": "ai_description", "title": "ai_title"}'
+# Leave empty string '' or '{}' for no mapping
+aiPropertyMapping: '{}'
+
+# Optional DM filters for instance selection
+# Use JSON array format: '[{"type": "equals", "property": ["status"], "value": "active"}]'
+processingFilters: '[]'
+
+# Custom prompt instructions - additional instructions appended to the base prompt
+# Use this to customize LLM behavior for your specific use case
+# Example: "Focus on extracting technical specifications. Use ISO date format for dates."
+customPromptInstructions: ""
+
+# NOTE: For custom prompt templates, edit the extraction pipeline config directly
+# after deployment (in extraction_pipelines/ai_property_extractor.config.yaml or in CDF).
+# Multi-line templates with special characters cannot be safely templated via variables.
 
 # Workflow configuration
 workflow: wf_ai_property_extractor
