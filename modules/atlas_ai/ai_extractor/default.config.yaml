@@ -22,7 +22,7 @@ batchSize: 10
 # Properties to extract - list of property IDs from the view
 # Leave empty to extract all non-filled properties
 # Use JSON array format: '["discipline", "priority", "category"]'
-propertiesToExtract: '["tags"]'
+propertiesToExtract: ["tags"]
 
 # AI Property Mapping - map source properties to different target properties
 # This allows AI-generated values to be written to separate fields
@@ -32,7 +32,7 @@ aiPropertyMapping: '{}'
 
 # Optional DM filters for instance selection
 # Use JSON array format: '[{"type": "equals", "property": ["status"], "value": "active"}]'
-processingFilters: '[]'
+processingFilters: []
 
 # Custom prompt instructions - additional instructions appended to the base prompt
 # Use this to customize LLM behavior for your specific use case
