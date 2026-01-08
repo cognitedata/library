@@ -44,8 +44,6 @@ cdf_connection_sql/
 │   ├── 📄 maintenance_order_to_asset.Transformation.sql
 │   ├── 📄 operation_to_asset.Transformation.yaml
 │   ├── 📄 operation_to_asset.Transformation.sql
-│   ├── 📄 timeseries_to_asset.Transformation.yaml
-│   ├── 📄 timeseries_to_asset.Transformation.sql
 │   ├── 📄 timeseries_to_equipment.Transformation.yaml
 │   └── 📄 timeseries_to_equipment.Transformation.sql
 ├── 📄 default.config.yaml               # Module configuration
@@ -61,7 +59,6 @@ cdf_connection_sql/
 | `activity_to_timeseries` | CogniteActivity | CogniteTimeSeries | First tag → timeseries name pattern |
 | `maintenance_order_to_asset` | MaintenanceOrder | Asset | `sysTagsFound` → asset name |
 | `operation_to_asset` | Operation | Asset | Tag matching |
-| `timeseries_to_asset` | TimeSeries | Asset | `sysTagsFound` → asset name |
 | `timeseries_to_equipment` | TimeSeries | Equipment | Tag matching |
 
 ### 1. TimeSeries to Asset
@@ -125,7 +122,6 @@ instanceSpace: springfield_instances
 activityToTimeSeriesTransformationExternalId: activity_to_timeseries
 maintenanceOrderToAssetTransformationExternalId: maintenance_order_to_asset
 operationToAssetTransformationExternalId: operation_to_asset
-timeSeriesToAssetTransformationExternalId: timeseries_to_asset
 timeSeriesToEquipmentTransformationExternalId: timeseries_to_equipment
 ```
 
@@ -167,7 +163,6 @@ variables:
       activityToTimeSeriesTransformationExternalId: activity_to_timeseries
       maintenanceOrderToAssetTransformationExternalId: maintenance_order_to_asset
       operationToAssetTransformationExternalId: operation_to_asset
-      timeSeriesToAssetTransformationExternalId: timeseries_to_asset
       timeSeriesToEquipmentTransformationExternalId: timeseries_to_equipment
 ```
 
@@ -185,13 +180,13 @@ cdf transformations deploy
 
 ```bash
 # Run individual transformation
-cdf transformations run timeseries_to_asset
+cdf transformations run timeseries_to_equipment
 
 # Check transformation status
-cdf transformations status timeseries_to_asset
+cdf transformations status timeseries_to_equipment
 
 # View transformation logs
-cdf transformations logs timeseries_to_asset
+cdf transformations logs timeseries_to_equipment
 ```
 
 ## 📊 Data Flow
@@ -211,11 +206,7 @@ graph TD
         G[CogniteTimeSeries]
     end
     
-    subgraph "Transformations"
-        A --> H[timeseries_to_asset]
-        E --> H
-        H --> I[TimeSeries.assets + sysTagsLinked]
-        
+    subgraph "Transformations"        
         A --> J[timeseries_to_equipment]
         F --> J
         J --> K[TimeSeries.equipment]
@@ -306,10 +297,10 @@ Test transformation SQL before running:
 
 ```bash
 # Preview transformation results
-cdf transformations preview timeseries_to_asset --limit 10
+cdf transformations preview timeseries_to_equipment --limit 10
 
 # Check transformation configuration
-cdf transformations inspect timeseries_to_asset
+cdf transformations inspect timeseries_to_equipment
 ```
 
 ## 📚 Dependencies

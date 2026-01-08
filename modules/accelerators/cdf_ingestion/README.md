@@ -105,7 +105,6 @@ Runs after population with appropriate dependencies:
 | `maintenanceOrderToAssetTransformationExternalId` | assets, maintenance orders, operations |
 | `operationToAssetTransformationExternalId` | equipment, maintenance orders, operations |
 | `activityToTimeSeriesTransformationExternalId` | timeseries, maintenance orders, operations |
-| `timeSeriesToAssetTransformationExternalId` | timeseries, assets |
 | `timeSeriesToEquipmentTransformationExternalId` | timeseries, equipment |
 
 ## 🔧 Configuration
@@ -155,7 +154,6 @@ fileTransformationExternalId: files_metadata_springfield
 maintenanceOrderToAssetTransformationExternalId: maintenance_order_to_asset
 operationToAssetTransformationExternalId: operation_to_asset
 activityToTimeSeriesTransformationExternalId: activity_to_timeseries
-timeSeriesToAssetTransformationExternalId: timeseries_to_asset
 timeSeriesToEquipmentTransformationExternalId: timeseries_to_equipment
 ```
 
@@ -251,9 +249,6 @@ graph TD
     subgraph "Phase 2: Contextualization"
         G --> I[TimeSeries to Equipment]
         A --> I
-        
-        B --> J[TimeSeries to Asset]
-        A --> J
         
         B --> K[Maintenance Order to Asset]
         D --> K

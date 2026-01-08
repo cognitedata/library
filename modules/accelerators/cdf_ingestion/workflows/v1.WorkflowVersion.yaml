@@ -103,16 +103,6 @@ workflowDefinition:
         - externalId: {{ maintenanceOrderTransformationExternalId }}
         - externalId: {{ operationTransformationExternalId }}
         - externalId: {{ operationToMaintenanceOrderTransformationExternalId }}
-    - externalId: {{ timeSeriesToAssetTransformationExternalId }}
-      type: transformation
-      parameters:
-        transformation:
-          externalId: {{ timeSeriesToAssetTransformationExternalId }}
-          concurrencyPolicy: fail
-      onFailure: abortWorkflow
-      dependsOn:
-        - externalId: {{ timeseriesTransformationExternalId }}
-        - externalId: {{ assetTransformationExternalId }}
     - externalId: {{ timeSeriesToEquipmentTransformationExternalId }}
       type: transformation
       parameters:
