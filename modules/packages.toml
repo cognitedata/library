@@ -29,9 +29,11 @@ modules = [
 id = "dp:models"
 title = "Data models"
 description = "Data models that extend the core data model"
+canCherryPick = true
 modules = [
     "models/rmdm_v1",
     "models/isa_manufacturing_extension",
+    "models/cdf_process_industry_extension",
 ]
 
 [packages.atlas_ai]
@@ -66,10 +68,23 @@ modules = [
     "accelerators/contextualization/cdf_connection_sql",
     "accelerators/industrial_tools/cdf_search",
     "accelerators/open_industrial_data_sync",
-    "accelerators/sourcesystem/cdf_pi",
-    "accelerators/sourcesystem/cdf_sap_assets",
-    "accelerators/sourcesystem/cdf_sap_events",
-    "accelerators/sourcesystem/cdf_sharepoint",
+    "sourcesystem/cdf_pi",
+    "sourcesystem/cdf_sap_assets",
+    "sourcesystem/cdf_sap_events",
+    "sourcesystem/cdf_sharepoint",
     "dashboards/rpt_quality",
     "models/cdf_process_industry_extension",
+]
+
+
+[packages.sourcesystem]
+id = "dp:sourcesystem"
+title = "Source Systems"
+description = "Source systems modules"
+canCherryPick = true
+modules = [
+    "sourcesystem/cdf_pi",
+    "sourcesystem/cdf_sap_assets",
+    "sourcesystem/cdf_sap_events",
+    "sourcesystem/cdf_sharepoint",
 ]
