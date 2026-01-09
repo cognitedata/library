@@ -10,7 +10,7 @@ dbName: db_entity_matching
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
 schemaSpace: sp_enterprise_process_industry
-viewVersion: v1
+viewVersion: v1.0
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
           

@@ -123,7 +123,7 @@ source_name: springfield
 # Data Model Configuration
 schemaSpace: sp_enterprise_process_industry
 annotationSchemaSpace: cdf_cdm
-viewVersion: v1
+viewVersion: v1.0
 fileInstanceSpace: springfield_instances
 equipmentInstanceSpace: springfield_instances
 assetInstanceSpace: springfield_instances
@@ -175,7 +175,7 @@ variables:
       source_name: your_source
       schemaSpace: sp_enterprise_process_industry
       annotationSchemaSpace: cdf_cdm
-      viewVersion: v1
+      viewVersion: v1.0
       fileInstanceSpace: your_instances
       equipmentInstanceSpace: your_instances
       assetInstanceSpace: your_instances
