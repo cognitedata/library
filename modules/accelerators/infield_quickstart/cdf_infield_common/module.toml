@@ -1,5 +1,5 @@
 [module]
 title = "InField Quickstart common"
 is_selected_by_default = true
-id = "dp:infield_quickstart:common"
+id = "Infield Quickstart"
 package_id = "dp:infield_quickstart"

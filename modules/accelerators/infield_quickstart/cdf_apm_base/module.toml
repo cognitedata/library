@@ -1,5 +1,5 @@
 [module]
 title = "APM Base"
 is_selected_by_default = false
-id = "dp:infield_quickstart:apm_base"
+id = "Infield Quickstart"
 package_id = "dp:infield_quickstart"
