@@ -1,6 +1,6 @@
 [module]
 title = "Contextualization P&ID Diagram Parser"
-id = "dp:acc:ctx:p_and_id_parser"
+id = "P&ID Parser"
 package_id = "dp:accelerators"
 
 [[extra_resources]]

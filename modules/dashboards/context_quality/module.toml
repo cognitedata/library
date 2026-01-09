@@ -1,5 +1,5 @@
 [module]
 title = "Context Quality Dashboard"
-id = "dp:dashboards:context_quality"
+id = "Contextualization Quality"
 package_id = "dp:dashboards"
 
