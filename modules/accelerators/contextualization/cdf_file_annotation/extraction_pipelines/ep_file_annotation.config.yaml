@@ -22,6 +22,14 @@ config:
       externalId: {{ targetEntityExternalId }}
       version: {{ targetEntityVersion }}
       annotationType: diagrams.AssetLink
+  rawTables:
+    rawDb: {{ rawDb }}
+    rawTableCache: {{ rawTableCache }}
+    rawTableDocTag: {{ rawTableDocTag }}
+    rawTableDocDoc: {{ rawTableDocDoc }}
+    rawTableDocPattern: {{ rawTableDocPattern }}
+    rawTablePromoteCache: {{ rawTablePromoteCache }}
+    rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
   prepareFunction:
     # getFilesForAnnotationResetQuery:
     #   targetView:
@@ -93,10 +101,7 @@ config:
             operator: In
             targetProperty: tags
     cacheService:
-      cacheTimeLimit: 24 # hours
-      rawDb: {{ rawDb }}
-      rawTableCache: {{ rawTableCache }}
-      rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
+      cacheTimeLimit: 0 # NOTE: Please set this variable when aliasing rules are standardized. Recommendation is to set to 24 (measured in hours).
     annotationService:
       pageRange: 50
       partialMatch: True
@@ -128,10 +133,6 @@ config:
       sinkNode:
           space: {{ patternModeInstanceSpace }}
           externalId: {{patternDetectSink}}
-      rawDb: {{ rawDb }}
-      rawTableDocTag: {{ rawTableDocTag }}
-      rawTableDocDoc: {{ rawTableDocDoc }}
-      rawTableDocPattern: {{ rawTableDocPattern }}
   promoteFunction:
     getCandidatesQuery:
       targetView:
@@ -148,10 +149,6 @@ config:
           operator: In
           targetProperty: tags
       limit: 500  # Number of edges to process per batch
-    rawDb: {{ rawDb }}
-    rawTableDocPattern: {{ rawTableDocPattern }}
-    rawTableDocTag: {{ rawTableDocTag }}
-    rawTableDocDoc: {{ rawTableDocDoc }}
     deleteRejectedEdges: True
     deleteSuggestedEdges: True
     entitySearchService:
@@ -161,6 +158,4 @@ config:
         removeSpecialCharacters: True  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")
         convertToLowercase: False  # Convert to lowercase (e.g., "V0912" → "v0912")
         stripLeadingZeros: True  # Remove leading zeros (e.g., "v0912" → "v912")
-    cacheService:
-      cacheTableName: {{ rawTablePromoteCache }}
 

@@ -57,9 +57,9 @@ class GeneralCacheService(ICacheService):
         self.config = config
         self.logger = logger
 
-        self.db_name: str = config.launch_function.cache_service.raw_db
-        self.tbl_name: str = config.launch_function.cache_service.raw_table_cache
-        self.manual_patterns_tbl_name: str = config.launch_function.cache_service.raw_manual_patterns_catalog
+        self.db_name: str = config.raw_tables.raw_db
+        self.tbl_name: str = config.raw_tables.raw_table_cache
+        self.manual_patterns_tbl_name: str = config.raw_tables.raw_manual_patterns_catalog
         self.cache_time_limit: int = config.launch_function.cache_service.cache_time_limit  # in hours
 
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
