@@ -6,7 +6,7 @@ location_name: Springfield
 # from, ex: 'workmate', 'sap', 'oracle',..
 # Update SOURCE to your source
 source_name: springfield
-dbName: db_entity_matching
+dbName: db_asset_entity_matching
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
 schemaSpace: sp_enterprise_process_industry

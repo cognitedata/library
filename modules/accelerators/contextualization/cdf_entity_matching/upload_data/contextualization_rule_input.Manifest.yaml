@@ -1,5 +1,5 @@
 kind: RawRows
 type: rawTable
 table:
-  dbName: db_entity_matching
+  dbName: db_asset_entity_matching
   tableName: contextualization_rule_input

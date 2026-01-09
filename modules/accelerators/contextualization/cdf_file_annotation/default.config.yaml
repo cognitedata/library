@@ -7,10 +7,10 @@ annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
 annotationStateVersion: v1.0.0
 patternModeInstanceSpace: sp_dat_pattern_mode_results
 patternDetectSink: pattern_detection_sink_node
-fileSchemaSpace: <insert>
-fileInstanceSpace: <insert>
-fileExternalId: <insert>
-fileVersion: <insert>
+fileSchemaSpace: sp_enterprise_process_industry
+fileInstanceSpace: springfield_instances
+fileExternalId: ORGFile
+fileVersion: v1.0
 
 # used in /raw and /extraction_pipelines
 rawDb: db_file_annotation
@@ -23,15 +23,15 @@ rawTablePromoteCache: annotation_tags_cache
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation
-targetEntitySchemaSpace: <insert>
-targetEntityInstanceSpace: <insert>
-targetEntityExternalId: <insert>
-targetEntityVersion: <insert>
+targetEntitySchemaSpace: sp_enterprise_process_industry
+targetEntityInstanceSpace: springfield_instances
+targetEntityExternalId: ORGAsset
+targetEntityVersion: v1.0
 
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
-functionSpace: <insert> # space where function code files are stored
+functionSpace: springfield_functions # space where function code files are stored
 
 # function external IDs (folder names must match these)
 prepareFunctionExternalId: fn_file_annotation_prepare
