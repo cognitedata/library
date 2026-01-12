@@ -24,7 +24,7 @@ class PipelineHealthUI:
 
         st.write(f"Project selected: {self.client.config.project if self.client else 'No CDF client available yet'}")
 
-        pipeline_ids = DataFetcher.find_pipelines(self.client, "files_annotation")
+        pipeline_ids = DataFetcher.find_pipelines(self.client)
 
         if not pipeline_ids:
             st.info("No active file annotation pipelines found to monitor.")
