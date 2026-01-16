@@ -10,3 +10,7 @@ datamodelVersion: v1.0
 instanceSpace: springfield_instances
 rawSourceDatabase: ingestion
 
+workflow: sap_s4hana_population_events
+groupSourceId: <GROUP_SOURCE_ID>
+workflowClientId: ${SAP_SPRINGFIELD_S4HANA_CLIENT_ID}
+workflowClientSecret: ${SAP_SPRINGFIELD_S4HANA_CLIENT_SECRET}

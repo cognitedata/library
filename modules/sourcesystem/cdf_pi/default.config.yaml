@@ -8,3 +8,7 @@ datamodelVersion: v1.0
 instanceSpace: springfield_instances
 rawSourceDatabase: ingestion
 
+groupSourceId: <GROUP_SOURCE_ID>
+workflow: aveva_pi_population
+workflowClientId: ${AVEVA_PI_SPRINGFIELD_CLIENT_ID}
+workflowClientSecret: ${AVEVA_PI_SPRINGFIELD_CLIENT_SECRET}

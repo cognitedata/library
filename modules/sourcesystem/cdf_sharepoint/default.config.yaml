@@ -8,3 +8,7 @@ datamodelVersion: v1.0
 instanceSpace: springfield_instances
 rawSourceDatabase: ingestion
 
+groupSourceId: <GROUP_SOURCE_ID>
+workflow: files_metadata_population
+workflowClientId: ${SHAREPOINT_SERVICE_PRINCIPAL_CLIENT_ID}
+workflowClientSecret: ${SHAREPOINT_SERVICE_PRINCIPAL_CLIENT_SECRET}
