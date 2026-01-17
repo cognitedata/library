@@ -58,3 +58,10 @@ indexes:
     - asset_specific
     cursorable: true
     indexType: btree
+constraints:
+  requiresCogniteAsset:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container

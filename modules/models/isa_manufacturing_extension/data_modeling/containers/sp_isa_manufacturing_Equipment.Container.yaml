@@ -1,27 +1,9 @@
 space: {{ isaSchemaSpace }}
-externalId: WorkOrder
-name: WorkOrder
-description: Specific work instruction for manufacturing execution (ISA-95 Level 3)
+externalId: Equipment
+name: Equipment
+description: Physical equipment used in manufacturing processes (ISA-88 Equipment Model)
 properties:
-  work_order_id:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: work_order_id
-  work_order_number:
-    type:
-      list: false
-      collation: ucs_basic
-      type: text
-    immutable: false
-    nullable: false
-    autoIncrement: false
-    name: work_order_number
-  work_type:
+  equipment_id:
     type:
       list: false
       collation: ucs_basic
@@ -29,8 +11,8 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: work_type
-  work_status:
+    name: equipment_id
+  equipment_name:
     type:
       list: false
       collation: ucs_basic
@@ -38,63 +20,94 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: work_status
-  assigned_personnel:
+    name: equipment_name
+  equipment_class:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipment_class
+  equipment_type:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipment_type
+  unit:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unit
+  manufacturer:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: manufacturer
+  model:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: model
+  serial_number:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: serial_number
+  timeSeries:
     type:
       list: true
       type: direct
     immutable: false
     nullable: true
     autoIncrement: false
-    name: assigned_personnel
-  equipment:
+    name: timeSeries
+  files:
     type:
       list: true
       type: direct
     immutable: false
     nullable: true
     autoIncrement: false
-    name: equipment
-  planned_start_time:
+    name: files
+  workOrders:
     type:
-      list: false
-      type: timestamp
+      list: true
+      type: direct
     immutable: false
     nullable: true
     autoIncrement: false
-    name: planned_start_time
-  planned_end_time:
-    type:
-      list: false
-      type: timestamp
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: planned_end_time
-  actual_start_time:
-    type:
-      list: false
-      type: timestamp
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: actual_start_time
-  actual_end_time:
-    type:
-      list: false
-      type: timestamp
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: actual_end_time
+    name: workOrders
 indexes:
-  work_order_id_index:
+  equipment_id_index:
     properties:
-    - work_order_id
+    - equipment_id
     cursorable: true
     indexType: btree
-  work_order_number_index:
-    properties:
-    - work_order_number
-    cursorable: true
-    indexType: btree
+constraints:
+  requiresCogniteEquipment:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container

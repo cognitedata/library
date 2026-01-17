@@ -53,3 +53,10 @@ indexes:
     - control_module_id
     cursorable: true
     indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container

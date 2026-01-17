@@ -84,3 +84,10 @@ indexes:
     - product_definition_id
     cursorable: true
     indexType: btree
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container

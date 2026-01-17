@@ -1,9 +1,9 @@
 space: {{ isaSchemaSpace }}
-externalId: Material
-name: Material
-description: Master material definition used in manufacturing
+externalId: MaterialLot
+name: MaterialLot
+description: Specific lot or batch of a material
 properties:
-  material_id:
+  material_lot_id:
     type:
       list: false
       collation: ucs_basic
@@ -11,8 +11,16 @@ properties:
     immutable: false
     nullable: false
     autoIncrement: false
-    name: material_id
-  material_class:
+    name: material_lot_id
+  material:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: material
+  lot_number:
     type:
       list: false
       collation: ucs_basic
@@ -20,36 +28,33 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: material_class
-  description:
+    name: lot_number
+  manufacture_date:
     type:
       list: false
-      collation: ucs_basic
-      type: text
+      type: timestamp
     immutable: false
     nullable: true
     autoIncrement: false
-    name: description
-  recipe:
+    name: manufacture_date
+  expiry_date:
     type:
-      list: true
-      type: direct
+      list: false
+      type: timestamp
     immutable: false
     nullable: true
     autoIncrement: false
-    name: recipe
-  batch:
-    type:
-      list: true
-      type: direct
-    immutable: false
-    nullable: true
-    autoIncrement: false
-    name: batch
+    name: expiry_date
 indexes:
-  material_id_index:
+  material_lot_id_index:
     properties:
-    - material_id
+    - material_lot_id
     cursorable: true
     indexType: btree
-
+constraints:
+  requiresCogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container

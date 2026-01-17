@@ -42,3 +42,10 @@ indexes:
     - operation_id
     cursorable: true
     indexType: btree
+constraints:
+  requiresCogniteActivity:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container

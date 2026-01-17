@@ -106,4 +106,17 @@ indexes:
     - batch_number
     cursorable: true
     indexType: btree
+constraints:
+  requiresCogniteSourceable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+  requiresCogniteSchedulable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
 
