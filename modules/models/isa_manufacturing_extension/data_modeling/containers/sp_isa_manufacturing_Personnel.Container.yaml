@@ -52,8 +52,4 @@ constraints:
       externalId: CogniteDescribable
       type: container
 
-    constraintType: requires
-    require:
-      space: cdf_cdm
-      externalId: CogniteSourceable
-      type: container
+
