@@ -2,16 +2,16 @@
 -- ASSET TRANSFORMATION SQL
 -- =============================================================================
 -- This SQL supports two modes:
---   1. ENTITY_MATCHING MODE (default): Uses WMT:<name> external IDs, no tags/aliases
+--   1. COMMON MODE (default): Uses WMT:<name> external IDs, no tags/aliases
 --   2. FILE_ANNOTATION MODE: Uses ast_<id> external IDs, includes tags/aliases
 --
 -- To switch modes:
---   - Comment/uncomment the sections marked with [ENTITY_MATCHING] or [FILE_ANNOTATION]
+--   - Comment/uncomment the sections marked with [COMMON] or [FILE_ANNOTATION]
 --   - Ensure only ONE mode is active at a time
 -- =============================================================================
 
 -- =============================================================================
--- [ENTITY_MATCHING MODE] - Parent Lookup via JOIN on WMT_TAG_NAME
+-- [COMMON MODE] - Parent Lookup via JOIN on WMT_TAG_NAME
 -- Comment this CTE when using FILE_ANNOTATION mode
 -- =============================================================================
 with parentLookup as (

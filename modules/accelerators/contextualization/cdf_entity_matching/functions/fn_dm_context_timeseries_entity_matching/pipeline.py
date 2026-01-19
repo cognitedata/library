@@ -293,6 +293,39 @@ def read_manual_mappings(
     return manual_mappings
 
 
+def resolve_asset_external_id(
+    client: CogniteClient,
+    config: Config,
+    logger: CogniteFunctionLogger,
+    asset_ref: str
+) -> Optional[str]:
+    if not asset_ref:
+        return None
+
+    # Temporary compatibility for old WMT:<TAG_NAME> references
+    if asset_ref.startswith("WMT:"):
+        asset_name = asset_ref.split("WMT:", 1)[1]
+        asset_view = config.data.asset_view
+        is_view = dm.filters.HasData(views=[asset_view.as_view_id()])
+        by_name = dm.filters.Equals(asset_view.as_property_ref("name"), asset_name)
+        by_alias = dm.filters.In(asset_view.as_property_ref("aliases"), [asset_name])
+        is_selected = dm.filters.And(is_view, dm.filters.Or(by_name, by_alias))
+
+        assets = client.data_modeling.instances.list(
+            space=asset_view.instance_space,
+            sources=[asset_view.as_view_id()],
+            filter=is_selected,
+            limit=1,
+        )
+        if assets:
+            logger.debug(f"Resolved manual asset ref {asset_ref} -> {assets[0].external_id}")
+            return assets[0].external_id
+
+        logger.warning(f"Manual asset ref {asset_ref} not found by name/aliases; using as-is")
+
+    return asset_ref
+
+
 def apply_manual_mappings(
     client: CogniteClient, 
     logger: CogniteFunctionLogger,
@@ -327,6 +360,10 @@ def apply_manual_mappings(
         for entity in all_entities:
             if entity.external_id in lookup_mapping:
                 asset_ext_id = lookup_mapping[entity.external_id]
+                asset_ext_id = resolve_asset_external_id(client, config, logger, asset_ext_id)
+                if not asset_ext_id:
+                    logger.warning(f"Manual mapping asset ref is empty for entity: {entity.external_id}, skipping")
+                    continue
             else:
                 continue
 
