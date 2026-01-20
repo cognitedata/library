@@ -13,7 +13,8 @@ schemaSpace: sp_enterprise_process_industry
 viewVersion: v1.0
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
-          
+functionSpace: springfield_functions
+
 workflow: EntityMatching
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
 workflowClientId: ${IDP_CLIENT_ID}
