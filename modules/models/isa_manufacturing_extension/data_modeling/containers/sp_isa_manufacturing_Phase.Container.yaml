@@ -1,7 +1,7 @@
 space: {{ isaSchemaSpace }}
 externalId: Phase
 name: Phase
-description: Lowest level procedural element that performs a specific processing activity (ISA-88)
+description: The lowest level of procedural element in the procedural control model.
 properties:
   phase_id:
     type:

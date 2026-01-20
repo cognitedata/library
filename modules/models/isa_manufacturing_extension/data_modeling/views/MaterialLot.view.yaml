@@ -1,7 +1,9 @@
 space: {{ isaSchemaSpace }}
 externalId: MaterialLot
 name: MaterialLot
-description: Specific lot or batch of a material
+description: A unique amount of material having a set of common traits. Some examples of common
+  traits are material source, the master recipe used to produce the material, and distinct
+  physical properties.
 implements:
 - space: cdf_cdm
   externalId: CogniteDescribable

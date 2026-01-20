@@ -1,7 +1,9 @@
 space: {{ isaSchemaSpace }}
 externalId: ProcessCell
 name: ProcessCell
-description: Collection of units that perform a specific manufacturing function (ISA-95 Level 4)
+description: A logical grouping of equipment that includes the equipment required for production of
+  one or more batches. It defines the span of logical control of one set of process equipment within
+  an area. This term applies to both the physical equipment and the equipment entity.
 version: {{ viewVersion }}
 properties:
   process_cell_id:

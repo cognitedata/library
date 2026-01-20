@@ -1,7 +1,9 @@
 space: {{ isaSchemaSpace }}
 externalId: UnitProcedure
 name: UnitProcedure
-description: Procedural element that defines operations for a specific unit (ISA-88)
+description: A strategy for carrying out a contiguous process within a unit. It consists of
+  contiguous operations and the algorithm necessary for the initiation, organization, and control
+  of those operations.
 properties:
   unit_procedure_id:
     type:

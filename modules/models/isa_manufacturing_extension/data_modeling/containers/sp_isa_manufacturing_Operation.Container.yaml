@@ -1,7 +1,8 @@
 space: {{ isaSchemaSpace }}
 externalId: Operation
 name: Operation
-description: Procedural element that groups phases for a specific processing task (ISA-88)
+description: A procedural element defining an independent processing activity consisting of the
+  algorithm necessary for the initiation, organization, and control of phases.
 properties:
   operation_id:
     type:
