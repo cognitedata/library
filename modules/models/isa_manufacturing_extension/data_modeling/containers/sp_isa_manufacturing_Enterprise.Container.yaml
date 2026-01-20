@@ -1,7 +1,7 @@
 space: {{ isaSchemaSpace }}
 externalId: Enterprise
 name: Enterprise
-description: Top-level organizational entity in ISA-95 hierarchy representing the entire business enterprise
+description: An organization that coordinates the operation of one or more sites.
 properties:
   enterprise_id:
     type:

@@ -1,7 +1,9 @@
 space: {{ isaSchemaSpace }}
 externalId: Site
 name: Site
-description: Physical location where manufacturing operations are performed (ISA-95 Level 4)
+description: A component of a batch manufacturing enterprise that is identified by physical,
+  geographical, or logical segmentation within the enterprise. A site may contain areas, process
+  cells, units, equipment modules, and control modules.
 properties:
   site_id:
     type:

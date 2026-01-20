@@ -1,7 +1,11 @@
 space: {{ isaSchemaSpace }}
 externalId: Batch
 name: Batch
-description: Specific instance of a production run executed according to a recipe (ISA-88)
+description: 1) The material that is being produced or that has been produced by a single execution
+  of a batch process. 2) An entity that represents the production of a material at any point in the
+  process. Batch means both the material made by and during the process and also an entity that
+  represents the production of that material. Batch is used as an abstract contraction of the words
+  "the production of a batch."
 implements:
 - space: cdf_cdm
   externalId: CogniteSchedulable

@@ -1,7 +1,9 @@
 space: {{ isaSchemaSpace }}
 externalId: Recipe
 name: Recipe
-description: Master recipe defining the manufacturing process steps and parameters (ISA-88)
+description: The necessary set of information that uniquely defines the production requirements
+  for a specific product. There are four types of recipes defined in this standard - general, site,
+  master, and control.
 properties:
   recipe_id:
     type:

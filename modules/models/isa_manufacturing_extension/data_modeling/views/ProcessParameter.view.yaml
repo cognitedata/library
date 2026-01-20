@@ -1,7 +1,9 @@
 space: {{ isaSchemaSpace }}
 externalId: ProcessParameter
 name: ProcessParameter
-description: Parameter defined in recipe or procedure to be controlled/monitored
+description: Information that is needed to manufacture a material but does not fall into the
+  classification of process input or process output. Examples of process parameter information
+  are temperature, pressure, and time.
 implements:
 - space: cdf_cdm
   externalId: CogniteDescribable

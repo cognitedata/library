@@ -1,7 +1,9 @@
 space: {{ isaSchemaSpace }}
 externalId: Area
 name: Area
-description: Logical or physical grouping of process cells within a site (ISA-95 Level 4)
+description: A component of a batch manufacturing site that is identified by physical, geographical, 
+  or logical segmentation within the site. An area may contain process cells, units, equipment modules, 
+  and control modules.
 properties:
   area_id:
     type:
