@@ -14,6 +14,10 @@ viewVersion: v1.0
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
 functionSpace: springfield_functions
+AssetSearchProperty: name
+AssetFilterValues: ["root:WMT"]
+EntitySearchProperty: aliases
+EntityFilterValues: ["site:VAL"]
 
 workflow: EntityMatching
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###

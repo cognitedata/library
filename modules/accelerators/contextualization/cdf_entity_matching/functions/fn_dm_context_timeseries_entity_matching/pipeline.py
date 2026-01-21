@@ -556,9 +556,10 @@ def get_new_entities(
             item_update = clean_asset_links(config, entity.external_id, item_update)
 
         # add entities for files used to match between file references in P&ID to other files
-        if "aliases" in entity.properties[entity_view_id]:
-            aliases = entity.properties[entity_view_id]["aliases"]
-            entity_names = aliases if isinstance(aliases, list) else [str(aliases)]
+        search_prop = entity_view_config.search_property
+        if search_prop in entity.properties[entity_view_id]:
+            prop_value = entity.properties[entity_view_id][search_prop]
+            entity_names = prop_value if isinstance(prop_value, list) else [str(prop_value)]
         else:
             entity_names = [org_name]
         for entity_name in entity_names: 

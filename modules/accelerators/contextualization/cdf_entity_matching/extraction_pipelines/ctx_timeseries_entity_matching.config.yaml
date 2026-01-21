@@ -17,14 +17,14 @@ config:
       instanceSpace: {{ assetInstanceSpace }}
       externalId: {{organization}}Asset
       version: {{ viewVersion }}
-      searchProperty: name
+      searchProperty: {{ AssetSearchProperty }}
       filterProperty: tags
-      filterValues: ["root:WMT"]
+      filterValues: {{ AssetFilterValues }}
     entityView:
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ timeseriesInstanceSpace }}
       externalId: {{organization}}TimeSeries
       version: {{ viewVersion }}
-      searchProperty: aliases
+      searchProperty: {{ EntitySearchProperty }}
       filterProperty: tags
-      filterValues: ["site:VAL"]
+      filterValues: {{ EntityFilterValues }}

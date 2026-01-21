@@ -58,7 +58,7 @@ modules = [
 [packages.quickstartdp]
 id = "dp:quickstart"
 title = "Quickstart Deployment Pack"
-description = "Quickstart deployment pack for CDF help you showcase CDF capabilities in a quick and easy way."
+description = "DP to showcase CDF capabilities in a quick and easy way."
 canCherryPick = false # This package is not meant to be cherry picked, it is a complete deployment pack.
 modules = [
     "accelerators/cdf_common",
@@ -87,4 +87,15 @@ modules = [
     "sourcesystem/cdf_sap_assets",
     "sourcesystem/cdf_sap_events",
     "sourcesystem/cdf_sharepoint",
+]
+
+
+[packages.common]
+id = "dp:common"
+title = "Common"
+description = "Common modules"
+canCherryPick = true
+modules = [
+    "accelerators/cdf_common",
+    "accelerators/cdf_ingestion",
 ]
