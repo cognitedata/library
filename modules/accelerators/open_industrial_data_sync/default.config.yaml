@@ -8,7 +8,7 @@ extractionPipelineExternalId: ep_oid_sync
 functionExternalId: fn_oid_sync
 functionSpace: springfield_functions
 scheduleExternalId: schedule_oid_sync
-scheduleCronExpression: "*/10 * * * *"
+scheduleCronExpression: "0 0 29 2 *"
 openIdClientSecret: ${OPEN_ID_CLIENT_SECRET}
 schemaSpace: sp_enterprise_process_industry
 organization: ORG

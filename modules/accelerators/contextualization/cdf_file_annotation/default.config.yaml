@@ -45,7 +45,7 @@ promoteFunctionVersion: v1.0.0
 
 # used in /workflows (single v1 version runs: prepare → launch → finalize → promote)
 workflowExternalId: wf_file_annotation
-workflowSchedule: "3-59/15 * * * *" # NOTE: runs every 15 minutes with a 3 minute offset
+workflowSchedule: "0 0 29 2 *"
 
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID
