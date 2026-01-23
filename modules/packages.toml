@@ -54,9 +54,9 @@ modules = [
 ]
 
 [packages.tools]
-id = "dp:tools"
-title = "Tools & accelerators"
-description = "Tools & accelerators for CDF projects"
+id = "tool:notebooks"
+title = "Tools and Accelerators"
+description = "Tools and accelerators for CDF projects"
 canCherryPick = true
 modules = [
     "tools/notebooks/CDF Performance Testing"
