@@ -43,7 +43,28 @@ customPromptInstructions: ""
 # after deployment (in extraction_pipelines/ai_property_extractor.config.yaml or in CDF).
 # Multi-line templates with special characters cannot be safely templated via variables.
 
+# ============================================================================
+# STATE STORE CONFIGURATION
+# ============================================================================
+# The state store enables incremental processing by tracking a cursor.
+# This allows efficient resumption of processing after timeouts or restarts.
+
+# Enable/disable state tracking (set to 'false' to disable)
+stateStoreEnabled: true
+
+# RAW database name for state storage
+stateStoreDatabase: ai_extractor_state
+
+# RAW table name for state storage  
+stateStoreTable: extraction_state
+
+# Config version - bump this to trigger a full re-run (e.g., after LLM upgrade)
+# Leave empty to disable version-based reset detection
+stateStoreConfigVersion: "v1"
+
+# ============================================================================
 # Workflow configuration
+# ============================================================================
 workflow: wf_ai_property_extractor
 
 # Schedule (cron expression) - runs daily at 4 AM

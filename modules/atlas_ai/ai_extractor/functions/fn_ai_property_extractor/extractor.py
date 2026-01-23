@@ -10,6 +10,7 @@ Main Features:
 - Automatic type coercion for different property types
 - Support for both single values and lists
 - AI property mapping: write AI-generated values to separate properties (e.g., description -> ai_description)
+- Write modes: add_new_only (default), append (for lists), overwrite
 """
 
 import json
@@ -20,6 +21,8 @@ from cognite.client.data_classes.agents import Message
 from cognite.client.data_classes.data_modeling import View, NodeApply, NodeOrEdgeData
 import cognite.client.data_classes.data_modeling.data_types as dtypes
 from cognite.client.data_classes.data_modeling.views import MultiReverseDirectRelation, SingleReverseDirectRelation
+
+from config import PropertyConfig, WriteMode
 
 
 class LLMPropertyExtractor:
@@ -294,12 +297,78 @@ Example output:
         else:
             return coerce_single_value(value)
     
+    def _apply_write_mode(
+        self,
+        new_value: Any,
+        current_value: Any,
+        write_mode: WriteMode,
+        prop_is_list: bool
+    ) -> tuple[Any, bool]:
+        """
+        Apply write mode logic to determine the final value to write.
+        
+        Args:
+            new_value: The new value extracted by LLM
+            current_value: The current value in the instance (may be None)
+            write_mode: The write mode to apply
+            prop_is_list: Whether the property is a list type
+        
+        Returns:
+            Tuple of (final_value, should_write):
+            - final_value: The value to write (merged, new, or unchanged)
+            - should_write: Whether to include this property in the update
+        """
+        if new_value is None:
+            return None, False
+        
+        if write_mode == WriteMode.OVERWRITE:
+            # Always overwrite with new value
+            return new_value, True
+        
+        if write_mode == WriteMode.ADD_NEW_ONLY:
+            # Only write if current value is empty/None
+            if current_value is None or current_value == "" or current_value == []:
+                return new_value, True
+            else:
+                self._log("debug", f"Skipping (add_new_only): target already has value")
+                return current_value, False
+        
+        if write_mode == WriteMode.APPEND:
+            # Append mode - only valid for lists
+            if not prop_is_list:
+                self._log("warning", f"Append mode not supported for non-list properties, treating as add_new_only")
+                if current_value is None or current_value == "":
+                    return new_value, True
+                else:
+                    return current_value, False
+            
+            # Handle list append with deduplication
+            current_list = current_value if isinstance(current_value, list) else []
+            new_list = new_value if isinstance(new_value, list) else [new_value]
+            
+            # Deduplicate: add only items not already in current list
+            merged = list(current_list)  # Copy current
+            for item in new_list:
+                if item not in merged:
+                    merged.append(item)
+            
+            # Only write if there are new items
+            if len(merged) > len(current_list):
+                return merged, True
+            else:
+                self._log("debug", f"Skipping (append): no new items to add")
+                return current_list, False
+        
+        # Default fallback (should not reach here)
+        return new_value, True
+    
     def _create_node_apply(
         self, 
         instance, 
         parsed_dict: Dict[str, Any], 
         view: View,
-        property_mapping: Optional[Dict[str, str]] = None
+        property_mapping: Optional[Dict[str, str]] = None,
+        property_configs: Optional[Dict[str, PropertyConfig]] = None
     ) -> Optional[NodeApply]:
         """
         Create a NodeApply object from parsed properties.
@@ -310,12 +379,16 @@ Example output:
             view: The view defining the properties
             property_mapping: Optional mapping from source property to target property
                              e.g., {"description": "ai_description"}
+            property_configs: Optional dict of PropertyConfig objects keyed by source property
+                             Used to apply write modes (append, overwrite, add_new_only)
         
         Returns:
             NodeApply object ready for CDF ingestion, or None if no properties to update
         """
         new_properties = {}
         property_mapping = property_mapping or {}
+        property_configs = property_configs or {}
+        instance_properties = instance.properties.get(view.as_id(), {})
         
         for source_prop_id, value in parsed_dict.items():
             if value is None:
@@ -338,8 +411,26 @@ Example output:
             prop_type = type(prop_definition.type)
             prop_is_list = getattr(prop_definition.type, "is_list", False)
             
+            # Coerce value to proper type
             coerced_value = self._coerce_value_to_type(value, prop_type, prop_is_list)
-            new_properties[target_prop_id] = coerced_value
+            
+            # Get current value from instance
+            current_value = instance_properties.get(target_prop_id)
+            
+            # Get write mode from property config (default to ADD_NEW_ONLY for safety)
+            prop_config = property_configs.get(source_prop_id)
+            write_mode = prop_config.write_mode if prop_config else WriteMode.ADD_NEW_ONLY
+            
+            # Apply write mode logic
+            final_value, should_write = self._apply_write_mode(
+                new_value=coerced_value,
+                current_value=current_value,
+                write_mode=write_mode,
+                prop_is_list=prop_is_list
+            )
+            
+            if should_write:
+                new_properties[target_prop_id] = final_value
         
         if not new_properties:
             return None
@@ -356,7 +447,8 @@ Example output:
         view: View,
         text_property: str,
         properties_to_extract: Optional[List[str]] = None,
-        ai_property_mapping: Optional[Dict[str, str]] = None
+        ai_property_mapping: Optional[Dict[str, str]] = None,
+        property_configs: Optional[List[PropertyConfig]] = None
     ) -> Optional[NodeApply]:
         """
         Extract and fill properties from an instance's text field.
@@ -370,25 +462,33 @@ Example output:
             properties_to_extract: Optional list of property IDs to extract. 
                                    If None, all non-filled properties will be extracted.
                                    Only properties in this list will be extracted.
+                                   Ignored if property_configs is provided.
             ai_property_mapping: Optional mapping from source property to target property.
                                 e.g., {"description": "ai_description"}
-                                When a property in properties_to_extract has a mapping,
-                                it will be written to the target property instead.
-                                The source property's metadata is used for LLM extraction.
-                                The TARGET property is checked for being filled (not source).
+                                Ignored if property_configs is provided.
+            property_configs: Optional list of PropertyConfig objects with per-property write modes.
+                             If provided, takes precedence over properties_to_extract and ai_property_mapping.
         
         Returns:
             NodeApply object with extracted properties, or None if no extraction needed/possible
         """
-        ai_property_mapping = ai_property_mapping or {}
+        # Build property mapping and config dict from PropertyConfig objects
+        if property_configs:
+            ai_property_mapping = {}
+            property_configs_dict = {}
+            properties_to_extract = []
+            for pc in property_configs:
+                properties_to_extract.append(pc.property)
+                if pc.target_property and pc.target_property != pc.property:
+                    ai_property_mapping[pc.property] = pc.target_property
+                property_configs_dict[pc.property] = pc
+        else:
+            ai_property_mapping = ai_property_mapping or {}
+            property_configs_dict = {}
         
-        # Get the text to parse
+        # Get the text to parse (query already filters for text existence)
         instance_properties = instance.properties.get(view.as_id(), {})
         text = instance_properties.get(text_property)
-        
-        if not text:
-            self._log("debug", f"No text in property '{text_property}' for instance {instance.external_id}")
-            return None
         
         # Determine which properties to extract
         if properties_to_extract is not None:
@@ -403,7 +503,7 @@ Example output:
         # For each candidate property, determine:
         # 1. The source property (for LLM extraction metadata)
         # 2. The target property (where to write the value)
-        # 3. Whether the target is filled or not
+        # 3. Whether we should process based on write mode
         
         properties_to_process = []  # Source properties to send to LLM
         property_mapping = {}       # source -> target mapping
@@ -431,11 +531,21 @@ Example output:
                 self._log("warning", f"Target property '{target_prop}' is a reverse relation, skipping")
                 continue
             
-            # Only process if TARGET property is not filled
-            target_non_filled = self._get_non_filled_properties(instance, view, [target_prop])
-            if target_prop not in target_non_filled:
-                # Target is already filled, skip
+            # Get write mode from property config
+            prop_config = property_configs_dict.get(source_prop)
+            write_mode = prop_config.write_mode if prop_config else WriteMode.ADD_NEW_ONLY
+            
+            # Determine if we should process this property based on write mode
+            current_value = instance_properties.get(target_prop)
+            has_value = current_value is not None and current_value != "" and current_value != []
+            
+            if write_mode == WriteMode.ADD_NEW_ONLY and has_value:
+                # Skip if target already has value
+                self._log("debug", f"Skipping property '{source_prop}' (add_new_only mode, target already filled)")
                 continue
+            
+            # For overwrite and append modes, always process
+            # The _apply_write_mode method will handle the merge logic
             
             properties_to_process.append(source_prop)
             property_mapping[source_prop] = target_prop
@@ -461,8 +571,14 @@ Example output:
             if k in properties_to_process
         }
         
-        # Create and return NodeApply
-        return self._create_node_apply(instance, filtered_parsed_values, view, property_mapping)
+        # Create and return NodeApply with property configs for write mode handling
+        return self._create_node_apply(
+            instance, 
+            filtered_parsed_values, 
+            view, 
+            property_mapping,
+            property_configs_dict
+        )
     
     def extract_properties_from_instances(
         self,
@@ -471,6 +587,7 @@ Example output:
         text_property: str,
         properties_to_extract: Optional[List[str]] = None,
         ai_property_mapping: Optional[Dict[str, str]] = None,
+        property_configs: Optional[List[PropertyConfig]] = None,
         dry_run: bool = True
     ) -> List[NodeApply]:
         """
@@ -482,9 +599,12 @@ Example output:
             text_property: The property name containing the text to parse
             properties_to_extract: Optional list of property IDs to extract.
                                    If None, all non-filled properties will be extracted.
+                                   Ignored if property_configs is provided.
             ai_property_mapping: Optional mapping from source to target properties.
                                 e.g., {"description": "ai_description"}
-                                When a property has a mapping, it writes to target instead.
+                                Ignored if property_configs is provided.
+            property_configs: Optional list of PropertyConfig objects with per-property write modes.
+                             If provided, takes precedence over properties_to_extract and ai_property_mapping.
             dry_run: If True, return NodeApply objects without applying to CDF (default: True)
         
         Returns:
@@ -502,7 +622,8 @@ Example output:
                     view=view,
                     text_property=text_property,
                     properties_to_extract=properties_to_extract,
-                    ai_property_mapping=ai_property_mapping
+                    ai_property_mapping=ai_property_mapping,
+                    property_configs=property_configs
                 )
                 
                 if node_apply:

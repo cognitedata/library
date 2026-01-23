@@ -5,14 +5,28 @@ Uses Pydantic for validation and parsing of extraction pipeline configuration.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
+
+
+class WriteMode(str, Enum):
+    """
+    Write mode for property extraction.
+    
+    - add_new_only: Only write if target property is empty (default, safest)
+    - append: Append new values to existing lists (deduplicates)
+    - overwrite: Always overwrite with new value
+    """
+    ADD_NEW_ONLY = "add_new_only"
+    APPEND = "append"
+    OVERWRITE = "overwrite"
 
 
 def parse_json_string(v: Any, expected_type: type) -> Any:
@@ -46,6 +60,55 @@ def parse_json_string(v: Any, expected_type: type) -> Any:
         return None
     
     return v
+
+
+class PropertyConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for a single property extraction.
+    
+    Supports per-property write modes and optional target property mapping.
+    """
+    property: str = Field(
+        ...,
+        description="The source property ID to extract from the view"
+    )
+    target_property: Optional[str] = Field(
+        default=None,
+        description="Target property ID to write to. Defaults to source property if not specified."
+    )
+    write_mode: WriteMode = Field(
+        default=WriteMode.ADD_NEW_ONLY,
+        description="How to handle existing values: add_new_only, append, or overwrite"
+    )
+    
+    def get_target_property(self) -> str:
+        """Get the target property, defaulting to source property if not specified."""
+        return self.target_property or self.property
+
+
+class StateStoreConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for the state store.
+    
+    The state store uses CDF RAW to track extraction progress via a cursor.
+    This enables efficient incremental processing of large datasets.
+    """
+    enabled: bool = Field(
+        default=True,
+        description="Whether to enable state tracking"
+    )
+    raw_database: str = Field(
+        default="ai_extractor_state",
+        description="RAW database name for state storage"
+    )
+    raw_table: str = Field(
+        default="extraction_state",
+        description="RAW table name for state storage"
+    )
+    config_version: Optional[str] = Field(
+        default=None,
+        description="Config version string. Changing this triggers a full re-run."
+    )
 
 
 # Default prompt template used when none is configured
@@ -98,18 +161,34 @@ class ViewConfig(BaseModel, alias_generator=to_camel):
 
 
 class ExtractionConfig(BaseModel, alias_generator=to_camel):
-    """Configuration for property extraction."""
+    """
+    Configuration for property extraction.
+    
+    Supports two configuration styles:
+    1. New style (recommended): Use 'properties' list with per-property write modes
+    2. Legacy style: Use 'propertiesToExtract' list and 'aiPropertyMapping' dict
+    
+    If 'properties' is provided, it takes precedence over legacy fields.
+    """
     text_property: str = Field(
         ..., 
         description="The property containing text to extract from"
     )
+    
+    # New-style per-property configuration with write modes
+    properties: Optional[List[PropertyConfig]] = Field(
+        default=None,
+        description="List of property configurations with per-property write modes"
+    )
+    
+    # Legacy fields (maintained for backward compatibility)
     properties_to_extract: Optional[List[str]] = Field(
         default=None,
-        description="List of property IDs to extract. If None, all non-filled properties are extracted."
+        description="[Legacy] List of property IDs to extract. Use 'properties' instead for write mode support."
     )
     ai_property_mapping: Optional[Dict[str, str]] = Field(
         default=None,
-        description="Mapping from source property to target property (e.g., {'description': 'ai_description'})"
+        description="[Legacy] Mapping from source property to target property. Use 'properties' instead."
     )
     
     @field_validator('properties_to_extract', mode='before')
@@ -123,6 +202,53 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
     def parse_ai_property_mapping(cls, v):
         """Parse JSON string to dict, handle empty values."""
         return parse_json_string(v, dict)
+    
+    @field_validator('properties', mode='before')
+    @classmethod
+    def parse_properties(cls, v):
+        """Parse JSON string to list of property configs."""
+        return parse_json_string(v, list)
+    
+    def get_property_configs(self) -> List[PropertyConfig]:
+        """
+        Get list of property configurations.
+        
+        Converts legacy format to PropertyConfig objects if needed.
+        Returns empty list if no properties are configured.
+        """
+        # If new-style properties are configured, use them
+        if self.properties:
+            return self.properties
+        
+        # Convert legacy format to PropertyConfig objects
+        if self.properties_to_extract:
+            ai_mapping = self.ai_property_mapping or {}
+            return [
+                PropertyConfig(
+                    property=prop,
+                    target_property=ai_mapping.get(prop),
+                    write_mode=WriteMode.ADD_NEW_ONLY  # Legacy behavior
+                )
+                for prop in self.properties_to_extract
+            ]
+        
+        return []
+    
+    def get_properties_to_extract(self) -> Optional[List[str]]:
+        """Get list of source property IDs to extract (for backward compatibility)."""
+        if self.properties:
+            return [p.property for p in self.properties]
+        return self.properties_to_extract
+    
+    def get_ai_property_mapping(self) -> Optional[Dict[str, str]]:
+        """Get source->target property mapping (for backward compatibility)."""
+        if self.properties:
+            mapping = {}
+            for p in self.properties:
+                if p.target_property and p.target_property != p.property:
+                    mapping[p.property] = p.target_property
+            return mapping if mapping else None
+        return self.ai_property_mapping
 
 
 class ProcessingConfig(BaseModel, alias_generator=to_camel):
@@ -176,6 +302,7 @@ class Config(BaseModel, alias_generator=to_camel):
     extraction: ExtractionConfig
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     prompt: PromptConfig = Field(default_factory=PromptConfig)
+    state_store: StateStoreConfig = Field(default_factory=StateStoreConfig)
 
 
 def load_config(client: CogniteClient, function_data: Dict[str, Any], logger=None) -> Config:

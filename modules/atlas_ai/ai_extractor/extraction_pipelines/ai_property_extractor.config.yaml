@@ -8,8 +8,18 @@ config:
     version: '{{viewVersion}}'
   extraction:
     textProperty: '{{textProperty}}'
+    # Legacy format (still supported):
     propertiesToExtract: '{{propertiesToExtract}}'
     aiPropertyMapping: '{{aiPropertyMapping}}'
+    # New format with per-property write modes (takes precedence if provided):
+    # properties:
+    #   - property: tags
+    #     targetProperty: ai_tags  # Optional, defaults to source property
+    #     writeMode: append        # append | overwrite | add_new_only (default)
+    #   - property: category
+    #     writeMode: add_new_only
+    #   - property: priority
+    #     writeMode: overwrite
   processing:
     batchSize: {{ batchSize }}
     filters: '{{processingFilters}}'
@@ -54,3 +64,9 @@ config:
     # }
     # -----------------------------------------------
     template: ""
+  # State store configuration for incremental processing
+  stateStore:
+    enabled: {{ stateStoreEnabled }}
+    rawDatabase: '{{stateStoreDatabase}}'
+    rawTable: '{{stateStoreTable}}'
+    configVersion: '{{stateStoreConfigVersion}}'

@@ -19,111 +19,249 @@ The AI Property Extractor uses a Cognite Agent to analyze free text from a speci
 | **Function**            | Cognite Function that performs the extraction               |
 | **Workflow**            | Orchestrates the function execution with scheduling         |
 
-## Configuration
+## How It Works
 
-All configuration is managed through your project's `config.<env>.yaml` or the module's `default.config.yaml`. The extraction pipeline configuration is automatically built from these variables during deployment.
+1. The function queries instances from the configured view that:
+   - Have the text property populated (content to extract from)
+   - Have at least one target property empty (needs to be filled)
+2. For each batch, instances are sent to the LLM agent for property extraction
+3. Extracted values are written back to the instances
+4. The function continues processing batches until either:
+   - All instances are processed (no more empty properties), or
+   - 9 minutes have elapsed (stays within function timeout limits)
 
-### Required Variables
+---
 
-Add these to your project's `config.<env>.yaml` or override in `default.config.yaml`:
+## Configuration Reference
+
+Configuration is managed through `default.config.yaml` (or your project's `config.<env>.yaml`). The extraction pipeline configuration is automatically built from these variables during deployment.
+
+### Module Variables (`default.config.yaml`)
+
+| Variable | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `functionSpace` | string | Yes | - | Space for function deployment (required in DATA_MODELING_ONLY mode) |
+| `extractionPipelineExternalId` | string | Yes | `ep_ai_property_extractor` | External ID of the extraction pipeline |
+| `agentExternalId` | string | Yes | `ai_property_extractor_agent` | External ID of the LLM agent to use |
+| `viewSpace` | string | Yes | - | Data model space containing the view |
+| `viewExternalId` | string | Yes | - | External ID of the view to process |
+| `viewVersion` | string | Yes | `v1` | Version of the view |
+| `textProperty` | string | Yes | - | Property containing text to extract from |
+| `batchSize` | integer | No | `10` | Number of instances to process per batch (1-100) |
+| `propertiesToExtract` | JSON array | No | `[]` | List of property IDs to extract. Empty = all non-filled properties |
+| `aiPropertyMapping` | JSON object | No | `{}` | Map source properties to different target properties |
+| `processingFilters` | JSON array | No | `[]` | Additional DM filters for instance selection |
+| `customPromptInstructions` | string | No | `""` | Additional instructions appended to the LLM prompt |
+| `workflow` | string | Yes | `wf_ai_property_extractor` | Workflow external ID |
+| `scheduleExpression` | string | Yes | `0 4 * * *` | Cron expression for scheduled runs |
+| `workflowClientId` | string | Yes | - | Client ID for workflow authentication |
+| `workflowClientSecret` | string | Yes | - | Client secret for workflow authentication |
+
+### Extraction Pipeline Config Structure
+
+The extraction pipeline config (stored in CDF) has this structure:
 
 ```yaml
-# Agent configuration
-agentExternalId: ai_property_extractor_agent
+agent:
+  externalId: string           # Required: Agent external ID
 
-# View to process
-viewSpace: your_space # Data model space
-viewExternalId: YourView # View external ID
-viewVersion: v1 # View version
+view:
+  space: string                # Required: View space
+  externalId: string           # Required: View external ID  
+  version: string              # Optional: View version (default: "v1")
 
-# Extraction settings
-textProperty: description # Property containing text to parse
-batchSize: 10 # Instances per batch
+extraction:
+  textProperty: string         # Required: Property with source text
+  propertiesToExtract: list    # Optional: Property IDs to extract
+  aiPropertyMapping: dict      # Optional: Source-to-target property mapping
 
-# Properties to extract - JSON array of property IDs from the view
-# Use '[]' or empty string to extract all non-filled properties
+processing:
+  batchSize: integer           # Optional: Instances per batch (1-100, default: 10)
+  filters: list                # Optional: DM filters for instance selection
+
+prompt:
+  customInstructions: string   # Optional: Additional prompt instructions
+  template: string             # Optional: Complete custom prompt template
+```
+
+---
+
+## Configuration Details
+
+### `propertiesToExtract`
+
+Specifies which properties the LLM should extract values for.
+
+```yaml
+# Extract specific properties
 propertiesToExtract: '["discipline", "priority", "category"]'
 
-# AI Property Mapping - JSON object mapping source to target properties
-# Use '{}' or empty string for no mapping
-aiPropertyMapping: '{ "description": "ai_description" }'
-
-# Optional DM filters - JSON array for instance selection
-processingFilters: "[]"
-
-# Custom prompt instructions - additional instructions appended to the base prompt
-customPromptInstructions: ""
-
-# For custom prompt templates, edit extraction_pipelines/ai_property_extractor.config.yaml directly
-
-# Workflow
-workflow: wf_ai_property_extractor
-scheduleExpression: "0 4 * * *" # Cron: daily at 4 AM
-
-# Authentication for workflow trigger
-workflowClientId: ${IDP_CLIENT_ID}
-workflowClientSecret: ${IDP_CLIENT_SECRET}
+# Extract all non-filled properties (leave empty)
+propertiesToExtract: []
 ```
 
-### AI Property Mapping
+**Behavior:**
+- If specified, only these properties are extracted
+- If empty/null, all non-filled, non-reverse-relation properties are extracted
+- Properties must exist in the view
 
-The `aiPropertyMapping` feature allows you to extract values using one property's metadata but write to a different property. This is useful for:
+### `aiPropertyMapping`
 
-- Keeping source system values separate from AI-generated values
-- Creating AI-augmented fields alongside original fields
-
-**Example**: If your view has both `description` (from source system) and `ai_description` (for AI values):
+Maps source properties to different target properties. Useful for keeping original data separate from AI-generated values.
 
 ```yaml
-aiPropertyMapping: '{ "description": "ai_description" }'
+aiPropertyMapping: '{"description": "ai_description", "title": "ai_title"}'
 ```
 
-This will:
+**Behavior:**
+- Uses source property's name and description for the LLM prompt
+- Writes extracted value to the target property
+- Only processes if the **target** property is empty
+- Both source and target must exist in the view
 
-1. Use the `description` property's name and description for the LLM prompt
-2. Write the extracted value to `ai_description`
-3. Only process if `ai_description` is empty (preserves existing values)
+**Example Use Case:**
+Your view has `description` (from SAP) and `ai_description` (for AI values):
 
-### Prompt Customization
+```yaml
+propertiesToExtract: '["description"]'
+aiPropertyMapping: '{"description": "ai_description"}'
+```
 
-Customize LLM behavior with `customPromptInstructions` or provide a complete `promptTemplate`:
+This extracts based on the `description` field's metadata but writes to `ai_description`.
+
+### `processingFilters`
+
+Additional Data Modeling filters to select which instances to process.
+
+```yaml
+# Only process active items
+processingFilters: '[{"type": "equals", "property": "status", "value": "active"}]'
+
+# Only process items with specific prefix
+processingFilters: '[{"type": "prefix", "property": "externalId", "value": "NOTIF-"}]'
+```
+
+**Supported filter types:**
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `equals` | Exact match | `{"type": "equals", "property": "status", "value": "active"}` |
+| `in` | Match any value in list | `{"type": "in", "property": "type", "value": ["A", "B"]}` |
+| `prefix` | String prefix match | `{"type": "prefix", "property": "name", "value": "PUMP-"}` |
+| `exists` | Property has a value | `{"type": "exists", "property": "description"}` |
+| `not_exists` | Property is empty | `{"type": "not_exists", "property": "processed"}` |
+
+### `batchSize`
+
+Number of instances processed per iteration.
+
+```yaml
+batchSize: 25
+```
+
+**Behavior:**
+- The function runs in a loop, processing `batchSize` instances at a time
+- Continues until no more instances need processing OR 9 minutes elapsed
+- Higher values = fewer API calls but more memory usage
+- Range: 1-100
+
+### `customPromptInstructions`
+
+Additional instructions appended to the default prompt to customize LLM behavior.
 
 ```yaml
 customPromptInstructions: |
   Focus on extracting technical specifications.
   Use ISO 8601 format for dates (YYYY-MM-DD).
-  For priority, use: "High", "Medium", or "Low".
+  For priority, use exactly one of: "High", "Medium", "Low".
+  For discipline, use standard codes: MECH, ELEC, INST, PROC.
 ```
+
+### `prompt.template`
+
+Complete replacement for the default prompt template. Edit in `extraction_pipelines/ai_property_extractor.config.yaml` after deployment.
+
+**Required placeholders:**
+- `{text}` - The text to analyze
+- `{properties}` - JSON object with property metadata
+- `{custom_instructions}` - Where customInstructions are inserted
+
+```yaml
+prompt:
+  template: |
+    You are an expert at extracting structured data.
+    {custom_instructions}
+    
+    Text: {text}
+    
+    Properties to extract: {properties}
+    
+    Return valid JSON only.
+```
+
+---
+
+## Function Input Parameters
+
+When calling the function directly, these parameters are supported:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `ExtractionPipelineExtId` | string | No | `ep_ai_property_extractor` | Extraction pipeline with config |
+| `logLevel` | string | No | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+
+```python
+client.functions.call(
+    external_id="fn_ai_property_extractor",
+    data={
+        "ExtractionPipelineExtId": "ep_ai_property_extractor",
+        "logLevel": "DEBUG"
+    }
+)
+```
+
+---
 
 ## Prerequisites
 
-1. **Dataset**: Created automatically by the module (`ds_ai_extractor` by default)
-2. **View**: The target view must exist with the specified properties
-3. **Agent Capabilities**: Ensure your project has Atlas AI / Agents enabled
-4. **Authentication**: Set `IDP_CLIENT_ID` and `IDP_CLIENT_SECRET` environment variables
+1. **View**: The target view must exist with the specified properties
+2. **Agent**: Ensure your project has Atlas AI / Agents enabled
+3. **Authentication**: Set `IDP_CLIENT_ID` and `IDP_CLIENT_SECRET` environment variables
+
+---
 
 ## Usage
 
 ### Manual Execution
 
-Call the function directly:
-
 ```python
 from cognite.client import CogniteClient
 
 client = CogniteClient()
-client.functions.call(
+result = client.functions.call(
     external_id="fn_ai_property_extractor",
     data={
-        "logLevel": "INFO",
+        "logLevel": "DEBUG",
         "ExtractionPipelineExtId": "ep_ai_property_extractor"
     }
 )
+print(result.response)
 ```
 
 ### Scheduled Execution
 
-The workflow trigger runs the extraction on a schedule (default: daily at 4 AM). Modify `scheduleExpression` to change the schedule.
+The workflow runs on the configured schedule (default: daily at 4 AM). Modify `scheduleExpression` to change:
+
+```yaml
+# Every hour
+scheduleExpression: "0 * * * *"
+
+# Every 15 minutes
+scheduleExpression: "*/15 * * * *"
+
+# Weekdays at 6 AM
+scheduleExpression: "0 6 * * 1-5"
+```
 
 ### Data Model Trigger (Advanced)
 
@@ -146,19 +284,23 @@ triggerRule:
       instances: {}
 ```
 
+---
+
 ## Monitoring
 
-- **Extraction Pipeline Runs**: Check `Integrate > Extraction pipelines` in CDF for run status
-- **Function Logs**: View logs in `Build > Functions`
-- **Workflow Runs**: Monitor in `Build > Workflows`
+- **Extraction Pipeline Runs**: `Integrate > Extraction pipelines` - run status and messages
+- **Function Logs**: `Build > Functions` - detailed execution logs
+- **Workflow Runs**: `Build > Workflows` - workflow execution history
+
+---
 
 ## Example: Notification Property Extraction
 
 For a `Notification` view with properties:
 
-- `longText` (source text)
+- `longText` (source text from SAP)
 - `discipline`, `priority`, `category` (to be extracted)
-- `ai_description` (AI-generated summary)
+- `ai_summary` (AI-generated summary)
 
 Configure in `default.config.yaml`:
 
@@ -167,21 +309,37 @@ viewSpace: your_space
 viewExternalId: Notification
 viewVersion: v1
 textProperty: longText
+batchSize: 20
 
 propertiesToExtract: '["discipline", "priority", "category", "description"]'
-aiPropertyMapping: '{ "description": "ai_description" }'
+aiPropertyMapping: '{"description": "ai_summary"}'
+
+processingFilters: '[{"type": "equals", "property": "status", "value": "open"}]'
 
 customPromptInstructions: |
-  This is a maintenance notification.
-  For discipline, use standard codes like MECH, ELEC, INST, PROC.
+  This is a maintenance notification from an industrial plant.
+  
+  For discipline, use exactly one of these codes:
+  - MECH (mechanical)
+  - ELEC (electrical)  
+  - INST (instrumentation)
+  - PROC (process)
+  
+  For priority, use exactly one of: "High", "Medium", "Low"
+  
+  For category, identify the type of work: "Repair", "Inspection", "Replacement", "Calibration"
 ```
+
+---
 
 ## Troubleshooting
 
-| Issue                   | Solution                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------- |
-| "Agent not found"       | Verify agent `ai_property_extractor_agent` is deployed                        |
-| "View not found"        | Check `viewSpace`, `viewExternalId`, `viewVersion` are correct                |
-| No instances processed  | Verify view has instances and text property is populated                      |
-| Properties not updating | Check target properties exist and aren't already filled                       |
-| Poor extraction quality | Add descriptive property names/descriptions or use `customPromptInstructions` |
+| Issue | Solution |
+|-------|----------|
+| "Agent not found" | Verify agent `ai_property_extractor_agent` is deployed |
+| "View not found" | Check `viewSpace`, `viewExternalId`, `viewVersion` are correct |
+| No instances processed | Verify: (1) view has instances, (2) text property is populated, (3) target properties are empty |
+| Properties not updating | Check target properties exist in view and aren't already filled |
+| Poor extraction quality | Add descriptive property names/descriptions in your view, or use `customPromptInstructions` |
+| Function timeout | Reduce `batchSize` or simplify `customPromptInstructions` |
+| JSON parse errors | Ensure `propertiesToExtract`, `aiPropertyMapping`, `processingFilters` are valid JSON |
