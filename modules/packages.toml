@@ -54,7 +54,7 @@ modules = [
 ]
 
 [packages.tools]
-id = "tool:notebooks"
+id = "tools:notebooks"
 title = "Tools and Accelerators"
 description = "Tools and accelerators for CDF projects"
 canCherryPick = true
