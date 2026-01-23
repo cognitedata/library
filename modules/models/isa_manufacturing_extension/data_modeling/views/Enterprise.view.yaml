@@ -1,0 +1,71 @@
+space: {{ isaSchemaSpace }}
+externalId: Enterprise
+name: Enterprise
+description: An organization that coordinates the operation of one or more sites.
+version: {{ viewVersion }}
+properties:
+  enterprise_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Enterprise
+      type: container
+    containerPropertyIdentifier: enterprise_id
+    name: enterprise_id
+    description: >
+      Unique identifier for the enterprise entity, representing the top-level organizational 
+      entity in the ISA-95 hierarchy. The enterprise represents the entire business enterprise 
+      and serves as the root of the manufacturing hierarchy. The enterprise_id follows ISA-95 
+      Level 0 organizational identification standards and enables consistent tracking across all 
+      sites, areas, and manufacturing operations within the enterprise. This identifier is critical 
+      for multi-enterprise systems and enterprise-level reporting and analysis. [ISA-95 Level 0]
+  enterprise_name:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Enterprise
+      type: container
+    containerPropertyIdentifier: enterprise_name
+    name: enterprise_name
+    description: >
+      Human-readable name for the enterprise, typically representing the legal business entity 
+      or corporate organization name. The enterprise_name follows ISA-95 Level 0 naming 
+      conventions and should align with official corporate naming standards. This name is 
+      used in enterprise-level reporting, organizational hierarchies, and cross-enterprise 
+      data integration. The enterprise_name should be consistent with corporate identity and 
+      legal entity registrations. [ISA-95 Level 0]
+  enterprise_type:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Enterprise
+      type: container
+    containerPropertyIdentifier: enterprise_type
+    name: enterprise_type
+    description: >
+      Classification or categorization of the enterprise according to its business type, industry 
+      sector, or organizational structure. Common enterprise types include manufacturing, 
+      pharmaceutical, chemical, food and beverage, and discrete manufacturing. The enterprise_type 
+      enables filtering and analysis by business sector, supports industry-specific data models, 
+      and facilitates cross-industry comparisons. This classification should follow standardized 
+      industry classification schemes (e.g., NAICS, SIC) for consistency and interoperability. 
+      [ISA-95 Level 0]
+  sites:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Site
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Site
+        version: {{ viewVersion }}
+        type: view
+      identifier: enterprise
+    name: sites
+    description: >
+      Reverse relationship collection of all Site entities that belong to this enterprise, 
+      establishing the ISA-95 Level 0 to Level 4 hierarchical relationship. Sites represent 
+      physical locations where manufacturing operations are performed. This relationship enables 
+      enterprise-level site management, multi-site reporting, and organizational queries across 
+      all manufacturing facilities within the enterprise. The sites relationship follows ISA-95 
+      organizational hierarchy principles. [ISA-95 Level 0-4]
+    connectionType: multi_reverse_direct_relation

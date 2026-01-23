@@ -1,6 +1,6 @@
 [module]
 title = "Contextualization File Annotation"
-id = "dp:acc:ctx:file_annotation"
+id = "CDF File Annotation"
 package_id = "dp:accelerators"
 
 

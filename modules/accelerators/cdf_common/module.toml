@@ -1,5 +1,5 @@
 [module]
 title = "cdf_common"
 is_selected_by_default = false
-id = "dp:acc:cdf_common"
+id = "CDF Common"
 package_id = "dp:accelerators"

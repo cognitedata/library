@@ -1,0 +1,67 @@
+space: {{ isaSchemaSpace }}
+externalId: Unit
+name: Unit
+description: A collection of associated control modules and/or equipment modules and other process
+  equipment in which one or more major processing activities can be conducted. Units are presumed to
+  operate on only one batch at a time. Units operate relatively independently of one another. This
+  term applies to both the physical equipment and the equipment entity. Examples of major processing
+  activities are react, crystallize, and make a solution.
+properties:
+  unit_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: unit_id
+  unit_name:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: unit_name
+  unit_class:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unit_class
+  capacity:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: capacity
+  capacity_unit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: capacity_unit
+  process_cell:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: process_cell
+indexes:
+  unit_id_index:
+    properties:
+    - unit_id
+    cursorable: true
+    indexType: btree

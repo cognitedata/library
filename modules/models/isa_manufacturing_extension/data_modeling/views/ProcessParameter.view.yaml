@@ -1,0 +1,127 @@
+space: {{ isaSchemaSpace }}
+externalId: ProcessParameter
+name: ProcessParameter
+description: Information that is needed to manufacture a material but does not fall into the
+  classification of process input or process output. Examples of process parameter information
+  are temperature, pressure, and time.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  process_parameter_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      type: container
+    containerPropertyIdentifier: process_parameter_id
+    name: Process Parameter ID
+    description: >
+      Unique identifier for the process parameter entity, conforming to ISA-88 recipe parameter 
+      standards. A process parameter represents a parameter defined in a recipe or procedure that 
+      needs to be controlled or monitored during batch execution. The process_parameter_id serves 
+      as the primary key and enables traceability of process parameters throughout the recipe 
+      lifecycle. This identifier is critical for parameter tracking, recipe version control, and 
+      process analysis. [ISA-88]
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    name: Process Parameter Name
+    description: >
+      Human-readable name for the process parameter, typically describing the parameter's purpose 
+      or measurement (e.g., "Temperature", "Pressure", "Flow Rate", "pH", "Agitation Speed"). 
+      The name follows ISA-88 parameter naming conventions and should be descriptive enough for 
+      process engineers and operators to understand the parameter's function. This name is often 
+      used in control system displays, batch records, and operational documentation. [ISA-88]
+  unit_of_measure:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      type: container
+    containerPropertyIdentifier: unit_of_measure
+    name: Unit of Measure
+    description: >
+      The unit of measure for the process parameter value, conforming to standard unit of measure 
+      conventions (e.g., "°C", "bar", "L/min", "pH", "rpm"). The unit_of_measure provides the 
+      dimensional context for parameter values, enabling proper parameter calculations and 
+      conversions. This field should follow standardized unit naming conventions (e.g., ISO 80000, 
+      SI units) to ensure consistency and interoperability across systems and organizations. [ISA-88]
+  target_value:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      type: container
+    containerPropertyIdentifier: target_value
+    name: Target Value
+    description: >
+      The target or setpoint value for the process parameter, expressed as a numeric value in 
+      the specified unit_of_measure. The target_value represents the desired operating condition 
+      for the parameter during batch execution. This value is critical for process control, recipe 
+      execution, and setpoint compliance monitoring. The target_value should be interpreted in 
+      conjunction with min_value and max_value to determine the acceptable operating range. [ISA-88]
+  min_value:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      type: container
+    containerPropertyIdentifier: min_value
+    name: Min Value
+    description: >
+      The minimum acceptable value for the process parameter, expressed as a numeric value in the 
+      specified unit_of_measure. The min_value represents the lower bound of the acceptable 
+      operating range for the parameter during batch execution. This value is critical for process 
+      control, alarm limits, and quality assurance. Values below min_value may trigger alarms or 
+      indicate out-of-specification conditions. [ISA-88]
+  max_value:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      type: container
+    containerPropertyIdentifier: max_value
+    name: Max Value
+    description: >
+      The maximum acceptable value for the process parameter, expressed as a numeric value in the 
+      specified unit_of_measure. The max_value represents the upper bound of the acceptable 
+      operating range for the parameter during batch execution. This value is critical for process 
+      control, alarm limits, and quality assurance. Values above max_value may trigger alarms or 
+      indicate out-of-specification conditions. [ISA-88]
+  phases:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      type: container
+    containerPropertyIdentifier: phases
+    name: Phases
+    description: >
+      Reverse relationship collection of all Phase entities that are associated with this process parameter. Phases 
+      represent the lowest level procedural elements in ISA-88 that perform specific processing activities. This relationship enables 
+      navigation from process parameter to phase level, supporting phase-level production planning analysis and 
+      production tracking. This relationship is essential for ISA-88 production tracking, where process parameters are used to track phases. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      version: {{ viewVersion }}
+      type: view
+  product_segment:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      type: container
+    containerPropertyIdentifier: product_segment
+    name: Product Segment
+    description: >
+      Reference to the ProductSegment entities that are associated with this process parameter, establishing 
+      the relationship between process parameters and product segments. Product segments represent segments for product activities 
+      and resource allocation. This relationship enables navigation from process parameter to product segment level, supporting 
+      product segment-level production planning analysis and production tracking. This relationship is essential for ISA-95 Level 3 
+      production tracking, where process parameters are used to track product segments. [ISA-95 Level 3]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductSegment
+      version: {{ viewVersion }}
+      type: view

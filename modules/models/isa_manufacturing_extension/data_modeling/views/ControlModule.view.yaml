@@ -1,0 +1,86 @@
+space: {{ isaSchemaSpace }}
+externalId: ControlModule
+name: ControlModule
+description: The lowest level grouping of equipment in the physical model that can carry out basic
+  control.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  control_module_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ControlModule
+      type: container
+    containerPropertyIdentifier: control_module_id
+    name: Control Module ID
+    description: >
+      Unique identifier for the control module entity, conforming to ISA-88 Level 1-2 control 
+      hierarchy standards. A control module represents a basic regulatory or logic control element 
+      that performs a single control function. The control_module_id serves as the primary key 
+      and enables traceability of control logic throughout the equipment lifecycle. This identifier 
+      should align with ISA-88 equipment identification standards and support integration with 
+      control system documentation and engineering databases. [ISA-88 Level 1-2]    
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    name: Control Module Name
+    description: >
+      Human-readable name for the control module, typically describing its control function or 
+      purpose (e.g., "Temperature Control", "Level Control", "Flow Control"). The control_module_name 
+      follows ISA-88 naming conventions for control modules and should be descriptive enough for 
+      control engineers and operators to understand the module's function. This name is often 
+      used in control system displays, documentation, and operator interfaces. [ISA-88]
+  control_type:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ControlModule
+      type: container
+    containerPropertyIdentifier: control_type
+    name: Control Type
+    description: >
+      Classification of the control module according to its control function type, following ISA-88 
+      control module classifications. Common control types include regulatory control (PID loops), 
+      discrete control (on/off, interlock), sequence control, and logic control. The control_type 
+      enables filtering and analysis by control function, supports control system design patterns, 
+      and facilitates maintenance and troubleshooting activities. This classification should follow 
+      standardized control type taxonomies for consistency. [ISA-88]
+  controller_address:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ControlModule
+      type: container
+    containerPropertyIdentifier: controller_address
+    name: Controller Address
+    description: >
+      Address or identifier of the controller or control system where the control module is 
+      implemented. The controller_address provides the necessary information to locate and 
+      interface with the control module within the broader control architecture. This may include 
+      network addresses, PLC tags, DCS identifiers, or other addressing schemes used in industrial 
+      control systems. Accurate controller addressing is essential for system integration, 
+      diagnostics, and remote monitoring of control module performance. [ISA-88]
+  equipment_module:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: ControlModule
+      type: container
+    containerPropertyIdentifier: equipment_module
+    name: Equipment Module
+    description: >
+      Reference to the EquipmentModule entity that contains or uses this control module. This 
+      relationship establishes the ISA-88 hierarchical structure where control modules are 
+      components of equipment modules. The equipment_module relationship enables navigation from 
+      control logic to equipment functionality, supporting equipment-level control analysis and 
+      maintenance activities. This relationship is essential for understanding how control 
+      modules contribute to equipment module operations. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: EquipmentModule
+      version: {{ viewVersion }}
+      type: view
