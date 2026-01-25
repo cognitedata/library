@@ -74,7 +74,8 @@ def render_metadata_sidebar(metrics: dict):
         st.sidebar.markdown(f"- Duplicates: {ts_dups:,}")
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### Batches Processed")
+    st.sidebar.markdown("### 🔄 API Fetch Iterations")
+    st.sidebar.caption("Number of API calls made to retrieve data")
     batches = metadata.get("batches_processed", {})
     st.sidebar.markdown(f"- Assets: {batches.get('assets', 0):,}")
     st.sidebar.markdown(f"- Equipment: {batches.get('equipment', 0):,}")

@@ -7,13 +7,14 @@ The **Contextualization Quality Dashboard** module provides a comprehensive solu
 1. **Contextualization Quality Metrics Function** (external_id: `context_quality_handler`) - Computes all quality metrics and saves them as a JSON file in CDF
 2. **Streamlit Dashboard** (`context_quality_dashboard`) - Visualizes the pre-computed metrics with interactive gauges, charts, and tables
 
-This module helps data engineers and operations teams understand how well their data is contextualized across five key dimensions:
+This module helps data engineers and operations teams understand how well their data is contextualized across six key dimensions:
 
 - **Asset Hierarchy Quality** - Structural integrity of the asset tree
 - **Equipment-Asset Relationships** - Quality of equipment-to-asset mappings
 - **Time Series Contextualization** - How well time series are linked to assets
 - **Maintenance Workflow Quality** - Quality of maintenance data from RMDM v1 (notifications, work orders, failure documentation)
 - **File Annotation Quality** - Quality of P&ID diagram annotations linking files to assets/equipment
+- **3D Model Contextualization** - Quality of 3D object linking to assets (NEW)
 
 ---
 
@@ -28,12 +29,14 @@ context_quality/
 │   ├── context_quality_handler/
 │   │   ├── handler.py                       # Main Cognite Function orchestration
 │   │   └── metrics/                         # Modular metric computation
+│   │       ├── __init__.py                  # Exports all metric functions
 │   │       ├── common.py                    # Shared utilities and data classes
 │   │       ├── asset_hierarchy.py           # Asset hierarchy metrics
 │   │       ├── equipment.py                 # Equipment-asset metrics
 │   │       ├── timeseries.py                # Time series metrics
 │   │       ├── maintenance.py               # Maintenance workflow metrics (RMDM v1)
 │   │       ├── file_annotation.py           # File annotation metrics (CDM)
+│   │       ├── model_3d.py                  # 3D model contextualization metrics (NEW)
 │   │       └── storage.py                   # File storage utilities
 │   └── context_quality.Function.yaml        # Function configuration
 ├── streamlit/
@@ -41,14 +44,16 @@ context_quality/
 │   │   ├── main.py                          # Streamlit dashboard entry point
 │   │   ├── requirements.txt                 # Python dependencies
 │   │   └── dashboards/                      # Modular dashboard components
+│   │       ├── __init__.py                  # Exports all dashboard functions
 │   │       ├── common.py                    # Shared UI components & color functions
 │   │       ├── sidebar.py                   # Sidebar with metadata
-│   │       ├── configuration.py             # Configuration & Run tab (NEW)
+│   │       ├── configuration.py             # Configuration & Run tab
 │   │       ├── asset_hierarchy.py           # Asset Hierarchy tab
 │   │       ├── equipment.py                 # Equipment-Asset tab
 │   │       ├── timeseries.py                # Time Series tab
 │   │       ├── maintenance.py               # Maintenance Workflow tab (RMDM v1)
 │   │       ├── file_annotation.py           # File Annotation tab (CDM)
+│   │       ├── model_3d.py                  # 3D Model Contextualization tab (NEW)
 │   │       └── ai_summary.py                # AI-powered insights generator
 │   └── context_quality_dashboard.Streamlit.yaml  # Streamlit app configuration
 ├── module.toml                              # Module metadata
@@ -179,55 +184,157 @@ cdf deploy
 
 ---
 
-## Getting Started (Post-Deployment)
+## Getting Started (Step-by-Step Guide)
 
-After deployment, the easiest way to get started is through the **dashboard itself**:
+This section provides detailed instructions for first-time users. Follow each step carefully.
 
-### Step 1: Open the Dashboard
+### Step 1: Open CDF Fusion in Your Browser
 
-1. Log in to [Cognite Data Fusion](https://fusion.cognite.com)
-2. Navigate to **Industrial Tools** → **Custom Apps**
-3. Click on **Contextualization Quality**
+1. Open your web browser (Chrome, Firefox, or Edge recommended)
+2. Go to [https://fusion.cognite.com](https://fusion.cognite.com)
+3. Log in with your company credentials
+4. Select your CDF project from the project selector (top-left corner)
 
-### Step 2: Configure Data Model Views
+### Step 2: Navigate to the Dashboard
 
-The dashboard opens to the **⚙️ Configure & Run** tab. Here you can:
+1. Look at the left sidebar menu
+2. Click on **"Industrial Tools"** (it may show as an icon with a gear/wrench)
+3. In the expanded menu, click on **"Custom Apps"**
+4. You will see a list of available Streamlit applications
+5. Find and click on **"Contextualization Quality"**
+6. The dashboard will open in a new view
 
-1. **Configure views for each dashboard:**
-   - 🌳 **Asset Hierarchy** — Configure the Asset view
-   - 🔧 **Equipment-Asset** — Configure the Equipment view
-   - ⏱️ **Time Series** — Configure the Time Series view
-   - 🛠️ **Maintenance** — Configure Notification, MaintenanceOrder, FailureNotification views
-   - 📄 **File Annotation** — Configure the Diagram Annotation view
+### Step 3: Understanding the Dashboard Layout
 
-2. **Use defaults or customize:**
-   - Defaults are set for **Cognite Core Data Model (CDM)** and **RMDM v1**
-   - Modify space, view external ID, and version for your custom data models
-   - Disable dashboards you don't need (e.g., Maintenance if RMDM is not deployed)
+When the dashboard opens, you will see:
 
-### Step 3: Run the Metrics Function
+- **Left Sidebar**: Shows metadata about the last metrics run (when it was computed, how many items were processed)
+- **Main Area with Tabs**: 
+  - ⚙️ **Configure & Run** (first tab - this is where you start)
+  - 🌳 Asset Hierarchy
+  - 🔧 Equipment-Asset
+  - ⏱️ Time Series
+  - 🛠️ Maintenance Workflow
+  - 📄 File Annotation
+  - 🎮 3D Model
 
-1. Click **▶️ Run Function** to trigger the metrics computation
-2. The dashboard will show the function status: **Running** → **Completed** → **Failed**
-3. Click **🔄 Check Status** to refresh the status while running
-4. Once completed, click **📊 View Dashboard** to see your metrics
+### Step 4: Configure Your Data Model Views
 
-> ⚠️ **Function Not Available?**
->
-> If you see an error saying the function was not found:
-> 1. **Wait 2-5 minutes** — The function may still be deploying
-> 2. **Verify deployment** — Go to **Data management** → **Build solutions** → **Functions** and check that `context_quality_handler` exists and has status "Ready"
-> 3. **Re-deploy if needed** — Run `cdf deploy` again from your project directory
+1. **You should already be on the "⚙️ Configure & Run" tab** (it opens by default)
 
-### Step 4: View Your Metrics
+2. **Expand the "🌳 Asset Hierarchy Dashboard" section** by clicking on it:
+   - You will see three text fields:
+     - **Space**: Enter your data model space (default: `cdf_cdm`)
+     - **View External ID**: Enter the view name (default: `CogniteAsset`)
+     - **View Version**: Enter the version (default: `v1`)
+   - If you're using the standard Cognite Core Data Model, leave these as defaults
+   - If you have a custom data model, enter your space/view/version
 
-After the function completes, navigate to the other tabs to see your contextualization quality metrics:
+3. **Repeat for other dashboards you want to use**:
+   - Click on each dashboard section to expand it
+   - Configure the views for Equipment, Time Series, Maintenance, File Annotation, and 3D Model
+   - If you don't have RMDM data, you can uncheck "Enable Maintenance Metrics"
+   - If you don't have P&ID annotations, you can uncheck "Enable File Annotation Metrics"
+   - If you don't have 3D objects, you can uncheck "Enable 3D Metrics"
 
-- **🌳 Asset Hierarchy** — Hierarchy completion, orphan detection, depth/breadth analysis
-- **🔧 Equipment-Asset** — Equipment association rates, metadata completeness
-- **⏱️ Time Series** — TS-to-asset contextualization, unit completeness, freshness
-- **🛠️ Maintenance** — Notification/work order linkage, failure documentation
-- **📄 File Annotation** — P&ID annotation confidence, status distribution
+4. **Configure Processing Limits (Optional)**:
+   - Scroll down to find **"📊 Processing Limits (Advanced)"**
+   - Click to expand it
+   - These limits control how many items the function will process
+   - Default is 150,000 for most item types
+   - Increase if you have more data, or decrease if you want faster runs
+
+### Step 5: Run the Metrics Function
+
+1. **Scroll to the top of the Configure & Run tab**
+
+2. **Click the blue "▶️ Run Function" button**
+   - If you see an error "Function not found", the function is still deploying
+   - Wait 2-5 minutes and refresh the page (press F5 or click the refresh button)
+   - Try clicking the button again
+
+3. **Watch the status indicator**:
+   - After clicking Run, you'll see a **Call ID** appear
+   - The status will show as **"⏳ Running"**
+   - Click the **"🔄 Check Status"** button to refresh the status
+
+4. **Wait for completion**:
+   - The function typically takes 1-5 minutes depending on data volume
+   - Keep clicking "Check Status" every 30 seconds or so
+   - When complete, the status will change to **"✅ Completed"**
+
+5. **If the function fails**:
+   - The status will show **"❌ Failed"**
+   - Check the function logs in CDF (see Troubleshooting section)
+   - Common issues: wrong view names, no data in views, function timeout
+
+### Step 6: View Your Metrics
+
+1. **Once the function shows "✅ Completed"**, click the **"📊 View Dashboard"** button
+   - This will take you to the Asset Hierarchy tab
+
+2. **Or manually navigate to any tab**:
+   - Click on the **"🌳 Asset Hierarchy"** tab to see hierarchy metrics
+   - Click on the **"🔧 Equipment-Asset"** tab to see equipment metrics
+   - And so on for other tabs
+
+3. **On each dashboard tab you will see**:
+   - **Gauge charts** showing key metrics as percentages
+   - **Summary statistics** with counts
+   - **💡 Insights** section with rule-based recommendations
+   - **🤖 AI Insights** section where you can click "Generate Insights" for AI-powered analysis
+   - **📋 Detailed Statistics** (click to expand) for raw numbers
+
+### Step 7: Generate AI Insights (Optional)
+
+1. **Scroll down on any dashboard tab** to find the **"🤖 AI Insights"** section
+
+2. **Click the "✨ Generate Insights" button**
+   - The AI will analyze your metrics
+   - After a few seconds, you'll see a summary with:
+     - What's working well
+     - What needs attention
+     - Recommended actions
+
+3. **Note**: AI Insights require the Cognite AI service to be enabled in your project
+
+---
+
+## Batch Processing (For Large Datasets 150k+ Items)
+
+If you have more than 150,000 assets, time series, or other items, use batch processing mode:
+
+### Enabling Batch Processing
+
+1. **Go to the "⚙️ Configure & Run" tab**
+
+2. **Scroll down to find "🔄 Batch Processing Mode"** and click to expand
+
+3. **Check the "Enable Batch Processing" checkbox**
+
+4. **Configure batch settings**:
+   - **Batch Size**: How many items per batch (default: 200,000)
+   - **Number of Batches**: How many batches to run (e.g., 3 batches for 600k items)
+
+### Running Batches
+
+1. **Click "▶️ Run Batch 0"** to start the first batch
+   - Wait for it to complete (status will show ✅)
+
+2. **Click "▶️ Run Batch 1"** for the second batch
+   - Continue until all batches are complete
+
+3. **If a batch fails**:
+   - You'll see a **"🔄 Retry"** button next to the failed batch
+   - Click Retry to re-run just that batch
+
+4. **Run Aggregation**:
+   - After all batches are complete, click **"🔗 Run Aggregation"**
+   - This combines all batch results into final metrics
+   - Wait for aggregation to complete
+
+5. **View results**:
+   - Once aggregation is complete, click "📊 View Dashboard"
 
 ---
 
@@ -237,8 +344,8 @@ After the function completes, navigate to the other tabs to see your contextuali
 
 The easiest way to configure data model views is through the **⚙️ Configure & Run** tab in the dashboard. This allows you to:
 
-- Configure views for each of the 5 dashboards
-- Enable/disable specific metrics (Maintenance, File Annotation)
+- Configure views for each of the 6 dashboards
+- Enable/disable specific metrics (Maintenance, File Annotation, 3D)
 - Adjust processing limits
 - Run the function with your custom configuration
 
@@ -255,6 +362,7 @@ Each dashboard has its own configurable views:
 | ⏱️ Time Series | Time Series View | `cdf_cdm` |
 | 🛠️ Maintenance | Notification, MaintenanceOrder, FailureNotification Views | `rmdm` |
 | 📄 File Annotation | CogniteDiagramAnnotation View | `cdf_cdm` |
+| 🎮 3D Model | Asset View, Cognite3DObject View | `cdf_cdm` |
 
 ### Default Configuration
 
@@ -293,9 +401,15 @@ DEFAULT_CONFIG = {
     "annotation_view_external_id": "CogniteDiagramAnnotation",
     "annotation_view_version": "v1",
     
+    # Dashboard 6: 3D Model
+    "object3d_view_space": "cdf_cdm",
+    "object3d_view_external_id": "Cognite3DObject",
+    "object3d_view_version": "v1",
+    
     # Feature Flags
     "enable_maintenance_metrics": True,
     "enable_file_annotation_metrics": True,
+    "enable_3d_metrics": True,
     
     # Processing Limits
     "max_assets": 150000,
@@ -304,6 +418,7 @@ DEFAULT_CONFIG = {
     "max_notifications": 150000,
     "max_maintenance_orders": 150000,
     "max_annotations": 200000,
+    "max_3d_objects": 150000,
 }
 ```
 
@@ -324,6 +439,7 @@ client.functions.call(
         "asset_view_external_id": "MyAssetView",
         "asset_view_version": "v1",
         "enable_maintenance_metrics": False,  # Disable if RMDM not available
+        "enable_3d_metrics": True,
     }
 )
 ```
@@ -332,16 +448,115 @@ client.functions.call(
 
 ### Project-Specific Field Names
 
-Different projects may use different property names for certain fields. Here are the key fields you may need to customize:
+Different projects may use different property names for certain fields. Below is a comprehensive reference of all properties used by each view, organized by dashboard.
 
-| Field | Default Property Name | Location to Modify |
-|-------|----------------------|-------------------|
-| Asset Criticality | `criticality` | Line 402 in `handler.py` |
-| Equipment Criticality | `criticality` | Line 444 in `handler.py` |
-| Asset Type | `type` or `assetClass` | Line 414 in `handler.py` |
-| Equipment Type | `equipmentType` | Line 440 in `handler.py` |
-| Serial Number | `serialNumber` | Line 442 in `handler.py` |
-| Manufacturer | `manufacturer` | Line 443 in `handler.py` |
+#### CogniteAsset View (Asset Hierarchy, Time Series, 3D Model)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `parent` | Parent asset reference | Hierarchy completion, depth calculation | `metrics/asset_hierarchy.py` | 41 |
+| `criticality` | Asset criticality level | Critical asset coverage (TS, 3D) | `metrics/asset_hierarchy.py` | 42 |
+| `type` | Asset type classification | Type consistency checking | `metrics/asset_hierarchy.py` | 54 |
+| `assetClass` | Alternative asset type field | Type consistency (fallback) | `metrics/asset_hierarchy.py` | 54 |
+| `object3D` | Link to 3D object | Asset → 3D coverage | `metrics/model_3d.py` | 147 |
+| `technicalObjectAbcIndicator` | SAP criticality indicator | Critical asset 3D rate | `metrics/model_3d.py` | 159 |
+
+#### CogniteEquipment View (Equipment-Asset)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `asset` | Link to parent asset | Equipment association rate | `metrics/common.py` | 152 |
+| `equipmentType` | Equipment type/class | Type consistency, categorization | `metrics/equipment.py` | 39 |
+| `serialNumber` | Equipment serial number | Serial number completeness | `metrics/equipment.py` | 41 |
+| `manufacturer` | Manufacturer name | Manufacturer completeness | `metrics/equipment.py` | 42 |
+| `criticality` | Equipment criticality | Critical equipment metrics | `metrics/equipment.py` | 43 |
+
+#### CogniteTimeSeries View (Time Series)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `assets` | Linked assets (list) | TS→Asset contextualization | `metrics/timeseries.py` | 37 |
+| `unit` | Standardized unit | Unit completeness | `metrics/timeseries.py` | 52 |
+| `sourceUnit` | Original source unit | Source unit completeness, mapping | `metrics/timeseries.py` | 53 |
+
+#### Notification View - RMDM (Maintenance Workflow)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `asset` | Linked asset reference | Notification→Asset rate | `metrics/maintenance.py` | 72 |
+| `equipment` | Linked equipment (list) | Notification→Equipment rate | `metrics/maintenance.py` | 73 |
+| `maintenanceOrder` | Linked work order | Notification→Work Order rate | `metrics/maintenance.py` | 74 |
+| `status` | Notification status | Status tracking | `metrics/maintenance.py` | 75 |
+| `statusDescription` | Alternative status field | Status tracking (fallback) | `metrics/maintenance.py` | 75 |
+
+#### MaintenanceOrder View - RMDM (Maintenance Workflow)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `assets` | Linked assets (list) | Work Order→Asset rate | `metrics/maintenance.py` | 118 |
+| `mainAsset` | Primary linked asset | Work Order→Asset rate | `metrics/maintenance.py` | 119 |
+| `equipment` | Linked equipment (list) | Work Order→Equipment rate | `metrics/maintenance.py` | 123 |
+| `status` | Work order status | Completion tracking | `metrics/maintenance.py` | 124 |
+| `statusDescription` | Alternative status field | Completion tracking (fallback) | `metrics/maintenance.py` | 124 |
+| `actualEndTime` | Completion timestamp | Work order completion rate | `metrics/maintenance.py` | 127 |
+
+#### FailureNotification View - RMDM (Maintenance Workflow)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `failureMode` | Failure mode reference | Failure mode documentation rate | `metrics/maintenance.py` | 170 |
+| `failureMechanism` | Failure mechanism reference | Failure mechanism documentation rate | `metrics/maintenance.py` | 171 |
+| `failureCause` | Failure cause (string) | Failure cause documentation rate | `metrics/maintenance.py` | 172 |
+
+#### CogniteDiagramAnnotation View (File Annotation)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `status` | Annotation status | Approved/Suggested/Rejected distribution | `metrics/file_annotation.py` | 168 |
+| `confidence` | Confidence score (0-1) | Confidence distribution, average | `metrics/file_annotation.py` | 183 |
+| `startNodePageNumber` | Page number in document | Page coverage analysis | `metrics/file_annotation.py` | 202 |
+
+#### Cognite3DObject View (3D Model)
+
+| Property | Purpose | Used For | File | Line |
+|----------|---------|----------|------|------|
+| `asset` | Reverse relation to asset | 3D→Asset contextualization rate | `metrics/model_3d.py` | 205 |
+| `xMin`, `xMax` | X-axis bounding box | Bounding box completeness | `metrics/model_3d.py` | 220 |
+| `yMin`, `yMax` | Y-axis bounding box | Bounding box completeness | `metrics/model_3d.py` | 220 |
+| `zMin`, `zMax` | Z-axis bounding box | Bounding box completeness | `metrics/model_3d.py` | 220 |
+| `cadNodes` | CAD node references | Model type distribution | `metrics/model_3d.py` | 232 |
+| `images360` | 360° image references | Model type distribution | `metrics/model_3d.py` | 233 |
+| `pointCloudVolumes` | Point cloud references | Model type distribution | `metrics/model_3d.py` | 234 |
+
+#### How to Modify Property Names
+
+If your data model uses different property names, locate the file and line from the table above and modify the `props.get("propertyName")` call.
+
+**Example:** If your asset criticality is stored in a property called `priorityLevel` instead of `criticality`:
+
+1. Open `metrics/asset_hierarchy.py`
+2. Go to line 42
+3. Change:
+   ```python
+   if props.get("criticality") == "critical":
+   ```
+   to:
+   ```python
+   if props.get("priorityLevel") == "critical":
+   ```
+
+**Example:** If your equipment type is stored in `equipmentClass` instead of `equipmentType`:
+
+1. Open `metrics/equipment.py`
+2. Go to line 39
+3. Change:
+   ```python
+   equipment_type=props.get("equipmentType"),
+   ```
+   to:
+   ```python
+   equipment_type=props.get("equipmentClass"),
+   ```
 
 ---
 
@@ -436,9 +651,11 @@ client.functions.schedules.create(
 
 **Solution:**
 1. Reduce processing limits in the **⚙️ Configure & Run** tab under "Processing Limits (Advanced)"
-2. Disable features you don't need:
+2. Use **Batch Processing Mode** for large datasets (200k+ items)
+3. Disable features you don't need:
    - Uncheck "Enable Maintenance Metrics" if RMDM is not needed
    - Uncheck "Enable File Annotation Metrics" if P&ID annotations are not needed
+   - Uncheck "Enable 3D Metrics" if 3D objects are not needed
 
 ### Maintenance tab shows warning
 
@@ -449,11 +666,29 @@ client.functions.schedules.create(
 2. Disable maintenance metrics in the **⚙️ Configure & Run** tab, OR
 3. Configure custom view names if your RMDM uses different view names
 
+### 3D Model tab shows "No 3D objects found"
+
+**Cause:** The Cognite3DObject view is empty or misconfigured.
+
+**Solution:**
+1. Verify 3D objects exist in your project
+2. Check the configured view space/external_id/version matches your data model
+3. Ensure "Enable 3D Metrics" is checked in the configuration
+
+### Batch files not found during aggregation
+
+**Cause:** Batch files may have been deleted or not created properly.
+
+**Solution:**
+1. Reset batches using the "❌ Reset Batches" button
+2. Re-run all batches from the beginning
+3. Ensure each batch shows "✅ Completed" before running aggregation
+
 ---
 
 ## Metrics Reference
 
-The Contextualization Quality module computes **35+ metrics** across four categories. Below is a detailed explanation of each metric, including formulas and interpretation guidelines.
+The Contextualization Quality module computes **40+ metrics** across six categories. Below is a detailed explanation of each metric, including formulas and interpretation guidelines.
 
 ---
 
@@ -1157,6 +1392,139 @@ These values are used to calculate:
 
 ---
 
+### 6. 3D Model Contextualization Metrics
+
+These metrics measure the quality of 3D model associations with assets. The data comes from the CDM `CogniteAsset` and `Cognite3DObject` views.
+
+#### Prerequisites
+
+> ⚠️ **3D Models Required:** These metrics require 3D models (CAD, 360° images, or point clouds) to be uploaded and linked in your CDF project.
+
+**Required Views:**
+
+| View | Space | Description |
+|------|-------|-------------|
+| `CogniteAsset` | `cdf_cdm` | Assets with optional `object3D` property |
+| `Cognite3DObject` | `cdf_cdm` | 3D objects with spatial and asset relationship data |
+
+#### Configuration
+
+Configure the 3D views in `metrics/common.py` or via the dashboard:
+
+```python
+"object3d_view_space": "cdf_cdm",
+"object3d_view_external_id": "Cognite3DObject",
+"object3d_view_version": "v1",
+```
+
+To disable 3D metrics entirely, set:
+
+```python
+"enable_3d_metrics": False,
+```
+
+---
+
+#### 6.1 3D Object Contextualization Rate (PRIMARY METRIC)
+
+**What it measures:** The percentage of 3D objects that are linked to an asset.
+
+**Why it's the primary metric:** This shows what percentage of your 3D modeling effort is actually useful - orphaned 3D objects (not linked to assets) cannot be discovered or used in context-aware applications.
+
+**Formula:**
+
+```
+3D Contextualization Rate (%) = (3D Objects Linked to Assets / Total 3D Objects) × 100
+```
+
+**Interpretation:**
+- 🟢 **≥ 90%**: Excellent - Most 3D objects are contextualized
+- 🟡 **70-90%**: Good - Some 3D objects need linking
+- 🟡 **50-70%**: Moderate - Significant number of orphaned 3D objects
+- 🔴 **< 50%**: Critical - Most 3D objects are not linked to assets
+
+---
+
+#### 6.2 Asset 3D Coverage
+
+**What it measures:** The percentage of assets that have a 3D object linked to them (Asset → 3D direction).
+
+**Formula:**
+
+```
+Asset 3D Coverage (%) = (Assets with 3D Object / Total Assets) × 100
+```
+
+**Interpretation:**
+- 🟢 **≥ 70%**: Good - Most assets have 3D representations
+- 🟡 **40-70%**: Moderate - Some assets lack 3D
+- 🔴 **< 40%**: Low - 3D coverage may need expansion
+
+---
+
+#### 6.3 Critical Asset 3D Rate
+
+**What it measures:** The percentage of critical assets (identified by `technicalObjectAbcIndicator = 'A'` or similar) that have 3D objects linked.
+
+**Why it's critical:** Critical assets should have 3D representations for effective maintenance visualization and training.
+
+**Formula:**
+
+```
+Critical Asset 3D Rate (%) = (Critical Assets with 3D / Total Critical Assets) × 100
+```
+
+**Interpretation:**
+- 🟢 **100%**: Perfect - All critical assets have 3D
+- 🟡 **≥ 80%**: Good - Most critical assets covered
+- 🔴 **< 80%**: Priority gap - Critical assets need 3D linking
+
+---
+
+#### 6.4 Bounding Box Completeness
+
+**What it measures:** The percentage of 3D objects that have complete spatial definitions (all 6 bounding box coordinates: xMin, xMax, yMin, yMax, zMin, zMax).
+
+**Why it matters:** Complete bounding boxes enable spatial queries, collision detection, and proper visualization.
+
+**Formula:**
+
+```
+Bounding Box Completeness (%) = (Objects with Complete BBox / Total 3D Objects) × 100
+```
+
+**Interpretation:**
+- 🟢 **≥ 90%**: Excellent - Good spatial data quality
+- 🟡 **70-90%**: Moderate - Some objects have incomplete spatial data
+- 🔴 **< 70%**: Warning - Many objects lack proper spatial definitions
+
+---
+
+#### 6.5 Bounding Box Distribution
+
+**What it measures:** The breakdown of 3D objects by bounding box status:
+
+| Status | Description |
+|--------|-------------|
+| **Complete** | All 6 coordinates present |
+| **Partial** | Some coordinates missing |
+| **Missing** | No bounding box data |
+
+---
+
+#### 6.6 Model Type Distribution
+
+**What it measures:** The breakdown of 3D objects by model type:
+
+| Type | Property | Description |
+|------|----------|-------------|
+| **CAD Models** | `cadNodes` | Traditional CAD/BIM geometry |
+| **360° Images** | `images360` | Panoramic/spherical images |
+| **Point Clouds** | `pointCloudVolumes` | Laser scan data |
+| **Multi-Model** | Multiple | Objects appearing in multiple model types |
+
+---
+
 ## AI-Powered Insights
 
 Each dashboard includes an **🤖 AI Insights** section that uses the Cognite AI Chat Completions API to generate contextual summaries of the metrics.
@@ -1185,6 +1553,7 @@ The AI is trained with explicit rules based on domain expert guidance:
 | **Time Series** | TS→Asset Contextualization | Asset Monitoring Coverage |
 | **Maintenance** | WO→Notification, WO→Asset | Notification→WO, Maintenance Coverage |
 | **File Annotation** | Confidence Score, Approved Rate | File Processing Rate (if reference not provided) |
+| **3D Model** | 3D Contextualization Rate, Critical Asset 3D | Asset 3D Coverage |
 
 The AI will NOT flag informational metrics as problems, even if the values are low.
 
@@ -1203,5 +1572,4 @@ For troubleshooting or deployment issues:
 - Join the Slack channel **#topic-deployment-packs** for community support and discussions
 
 ---
-
 

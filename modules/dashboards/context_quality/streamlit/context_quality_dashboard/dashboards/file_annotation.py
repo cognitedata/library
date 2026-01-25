@@ -238,13 +238,16 @@ def render_file_annotation_dashboard(metrics: dict):
             ],
             marker_colors=["#4CAF50", "#FFC107", "#F44336"],
             hole=0.4,
-            textinfo="percent+label"
+            textinfo="percent",
+            textposition="inside",
+            hoverinfo="label+percent+value"
         )])
         fig.update_layout(
             title="Confidence Distribution",
             height=300,
             margin=dict(l=20, r=20, t=40, b=20),
-            showlegend=False
+            showlegend=True,
+            legend=dict(orientation="h", y=-0.1, x=0.5, xanchor="center")
         )
         st.plotly_chart(fig, use_container_width=True, key="conf_pie")
     

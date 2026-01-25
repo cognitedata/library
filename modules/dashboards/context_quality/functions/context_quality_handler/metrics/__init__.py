@@ -34,6 +34,7 @@ from .common import (
     TIMEOUT_SECONDS,
     METRICS_FILE_EXTERNAL_ID,
     METRICS_FILE_NAME,
+    BATCH_FILE_PREFIX,
 )
 
 from .timeseries import (
@@ -69,6 +70,20 @@ from .file_annotation import (
     compute_file_annotation_metrics,
 )
 
+from .model_3d import (
+    Model3DAccumulator,
+    process_asset_3d_batch,
+    process_3d_object_batch,
+    compute_3d_metrics,
+)
+
 from .storage import (
     save_metrics_to_file,
+    # Batch processing functions
+    get_batch_file_external_id,
+    save_batch_file,
+    list_batch_files,
+    load_batch_file,
+    load_and_merge_all_batches,
+    delete_batch_files,
 )

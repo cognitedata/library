@@ -33,6 +33,25 @@ def render_time_series_dashboard(metrics: dict):
     computed_at = metadata.get("computed_at", "Unknown")
     st.info(f"📅 Metrics computed at: {computed_at}")
     
+    # Important note about data sources
+    with st.expander("ℹ️ **Understanding Metric Sources** — Click to learn more", expanded=False):
+        st.markdown("""
+        **Metrics calculated from Time Series METADATA** (fast, no datapoint access):
+        - TS → Asset Contextualization — from `assets` property
+        - Asset Monitoring Coverage — from `assets` property  
+        - Critical Asset Coverage — from `assets` property + asset criticality
+        - Source/Target Unit Completeness — from `sourceUnit` and `unit` properties
+        - Data Freshness — from `lastUpdatedTime` ⚠️ *This is when the TS definition was last modified, NOT when data was last ingested*
+        - Processing Lag — from `lastUpdatedTime` ⚠️ *Same limitation as above*
+        
+        **Metrics calculated from ACTUAL DATA POINTS** (requires datapoint retrieval):
+        - Historical Data Completeness — analyzes actual datapoint timestamps
+        - Gap Count/Duration — detects gaps between consecutive datapoints
+        - Total Time Span — first to last datapoint timestamp
+        
+        💡 *Metadata-based metrics are fast but may not reflect actual data ingestion status. For true data freshness, check the Historical Data Completeness section.*
+        """)
+    
     st.markdown("---")
     
     # Extract metrics

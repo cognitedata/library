@@ -19,6 +19,9 @@ TIMEOUT_SECONDS = 600
 METRICS_FILE_EXTERNAL_ID = "contextualization_quality_metrics"
 METRICS_FILE_NAME = "contextualization_quality_metrics.json"
 
+# Batch processing config
+BATCH_FILE_PREFIX = "cq_batch_"  # Batch files: cq_batch_0.json, cq_batch_1.json, etc.
+
 
 # ----------------------------------------------------
 # CONFIGURATION
@@ -50,6 +53,10 @@ DEFAULT_CONFIG = {
     "annotation_view_space": "cdf_cdm",
     "annotation_view_external_id": "CogniteDiagramAnnotation",
     "annotation_view_version": "v1",
+    # View configurations - CDM 3D Objects
+    "object3d_view_space": "cdf_cdm",
+    "object3d_view_external_id": "Cognite3DObject",
+    "object3d_view_version": "v1",
     # Limits
     "max_timeseries": 150000,
     "max_assets": 150000,
@@ -57,9 +64,11 @@ DEFAULT_CONFIG = {
     "max_notifications": 150000,
     "max_maintenance_orders": 150000,
     "max_annotations": 200000,
+    "max_3d_objects": 150000,
     # Feature flags
     "enable_maintenance_metrics": True,  # Enable RMDM maintenance workflow metrics
     "enable_file_annotation_metrics": True,  # Enable CDM file annotation metrics
+    "enable_3d_metrics": True,  # Enable 3D model contextualization metrics
     # TS specific
     "freshness_days": 30,
     "enable_historical_gaps": True,  # Enabled: analyzes time series for data gaps
@@ -69,6 +78,12 @@ DEFAULT_CONFIG = {
     # File storage
     "file_external_id": METRICS_FILE_EXTERNAL_ID,
     "file_name": METRICS_FILE_NAME,
+    # Batch processing mode (for large datasets 200k+)
+    "batch_mode": False,  # Enable batch processing
+    "batch_index": 0,     # Current batch index (0, 1, 2, ...)
+    "batch_size": 200000, # Instances per batch
+    "total_batches": None,  # Total number of batches (optional, for progress tracking)
+    "is_aggregation": False,  # True for final aggregation run
 }
 
 # Equipment-Asset type mappings for consistency check
@@ -341,3 +356,247 @@ class CombinedAccumulator:
     def order_duplicates(self) -> int:
         """Number of duplicate order instances."""
         return self.total_order_instances - self.total_orders
+    
+    def to_dict(self) -> dict:
+        """
+        Serialize accumulator to dict for JSON storage (batch mode).
+        Sets are converted to lists for JSON compatibility.
+        """
+        return {
+            # Metadata
+            "now": self.now.isoformat(),
+            "freshness_days": self.freshness_days,
+            
+            # Time Series Data
+            "assets_with_ts": list(self.assets_with_ts),
+            "ts_with_asset_link": self.ts_with_asset_link,
+            "total_ts_instances": self.total_ts_instances,
+            "ts_ids_seen": list(self.ts_ids_seen),
+            "unit_checks": self.unit_checks,
+            "has_source_unit": self.has_source_unit,
+            "has_target_unit": self.has_target_unit,
+            "has_any_unit": self.has_any_unit,
+            "units_match": self.units_match,
+            "source_units_seen": list(self.source_units_seen),
+            "fresh_count": self.fresh_count,
+            "lag_sum": self.lag_sum,
+            "lag_count": self.lag_count,
+            "ts_with_data": self.ts_with_data,
+            "ts_analyzed_for_gaps": self.ts_analyzed_for_gaps,
+            "total_time_span_days": self.total_time_span_days,
+            "total_gap_duration_days": self.total_gap_duration_days,
+            "gap_count": self.gap_count,
+            "longest_gap_days": self.longest_gap_days,
+            
+            # Asset Data
+            "total_asset_instances": self.total_asset_instances,
+            "asset_ids_seen": list(self.asset_ids_seen),
+            "critical_assets_total": self.critical_assets_total,
+            "critical_assets_with_ts": self.critical_assets_with_ts,
+            "parent_of": self.parent_of,
+            "children_count_map": self.children_count_map,
+            "asset_type_map": self.asset_type_map,
+            
+            # Equipment Data
+            "equipment_list": [
+                {
+                    "equipment_id": e.equipment_id,
+                    "equipment_type": e.equipment_type,
+                    "asset_id": e.asset_id,
+                    "serial_number": e.serial_number,
+                    "manufacturer": e.manufacturer,
+                    "criticality": e.criticality,
+                }
+                for e in self.equipment_list
+            ],
+            "equipment_to_asset": self.equipment_to_asset,
+            "assets_with_equipment": self.assets_with_equipment,
+            "total_equipment_instances": self.total_equipment_instances,
+            "equipment_ids_seen": list(self.equipment_ids_seen),
+            
+            # Maintenance Data
+            "notification_ids_seen": list(self.notification_ids_seen),
+            "total_notification_instances": self.total_notification_instances,
+            "notifications_with_order": self.notifications_with_order,
+            "notifications_with_asset": self.notifications_with_asset,
+            "notifications_with_equipment": self.notifications_with_equipment,
+            "assets_with_notifications": list(self.assets_with_notifications),
+            "equipment_with_notifications": list(self.equipment_with_notifications),
+            
+            "order_ids_seen": list(self.order_ids_seen),
+            "total_order_instances": self.total_order_instances,
+            "orders_with_asset": self.orders_with_asset,
+            "orders_with_equipment": self.orders_with_equipment,
+            "orders_completed": self.orders_completed,
+            "assets_with_orders": list(self.assets_with_orders),
+            "equipment_with_orders": list(self.equipment_with_orders),
+            "orders_with_notification": list(self.orders_with_notification),
+            
+            "failure_notification_ids_seen": list(self.failure_notification_ids_seen),
+            "total_failure_notification_instances": self.total_failure_notification_instances,
+            "failure_notif_with_mode": self.failure_notif_with_mode,
+            "failure_notif_with_mechanism": self.failure_notif_with_mechanism,
+            "failure_notif_with_cause": self.failure_notif_with_cause,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "CombinedAccumulator":
+        """
+        Deserialize accumulator from dict (batch mode).
+        Lists are converted back to sets.
+        """
+        acc = cls(freshness_days=data.get("freshness_days", 30))
+        
+        # Parse timestamp
+        now_str = data.get("now")
+        if now_str:
+            try:
+                acc.now = datetime.fromisoformat(now_str)
+            except:
+                pass
+        
+        # Time Series Data
+        acc.assets_with_ts = set(data.get("assets_with_ts", []))
+        acc.ts_with_asset_link = data.get("ts_with_asset_link", 0)
+        acc.total_ts_instances = data.get("total_ts_instances", 0)
+        acc.ts_ids_seen = set(data.get("ts_ids_seen", []))
+        acc.unit_checks = data.get("unit_checks", 0)
+        acc.has_source_unit = data.get("has_source_unit", 0)
+        acc.has_target_unit = data.get("has_target_unit", 0)
+        acc.has_any_unit = data.get("has_any_unit", 0)
+        acc.units_match = data.get("units_match", 0)
+        acc.source_units_seen = set(data.get("source_units_seen", []))
+        acc.fresh_count = data.get("fresh_count", 0)
+        acc.lag_sum = data.get("lag_sum", 0.0)
+        acc.lag_count = data.get("lag_count", 0)
+        acc.ts_with_data = data.get("ts_with_data", 0)
+        acc.ts_analyzed_for_gaps = data.get("ts_analyzed_for_gaps", 0)
+        acc.total_time_span_days = data.get("total_time_span_days", 0.0)
+        acc.total_gap_duration_days = data.get("total_gap_duration_days", 0.0)
+        acc.gap_count = data.get("gap_count", 0)
+        acc.longest_gap_days = data.get("longest_gap_days", 0.0)
+        
+        # Asset Data
+        acc.total_asset_instances = data.get("total_asset_instances", 0)
+        acc.asset_ids_seen = set(data.get("asset_ids_seen", []))
+        acc.critical_assets_total = data.get("critical_assets_total", 0)
+        acc.critical_assets_with_ts = data.get("critical_assets_with_ts", 0)
+        acc.parent_of = data.get("parent_of", {})
+        acc.children_count_map = data.get("children_count_map", {})
+        acc.asset_type_map = data.get("asset_type_map", {})
+        
+        # Equipment Data
+        acc.equipment_list = [
+            EquipmentData(
+                equipment_id=e["equipment_id"],
+                equipment_type=e.get("equipment_type"),
+                asset_id=e.get("asset_id"),
+                serial_number=e.get("serial_number"),
+                manufacturer=e.get("manufacturer"),
+                criticality=e.get("criticality"),
+            )
+            for e in data.get("equipment_list", [])
+        ]
+        acc.equipment_to_asset = data.get("equipment_to_asset", {})
+        acc.assets_with_equipment = data.get("assets_with_equipment", {})
+        acc.total_equipment_instances = data.get("total_equipment_instances", 0)
+        acc.equipment_ids_seen = set(data.get("equipment_ids_seen", []))
+        
+        # Maintenance Data
+        acc.notification_ids_seen = set(data.get("notification_ids_seen", []))
+        acc.total_notification_instances = data.get("total_notification_instances", 0)
+        acc.notifications_with_order = data.get("notifications_with_order", 0)
+        acc.notifications_with_asset = data.get("notifications_with_asset", 0)
+        acc.notifications_with_equipment = data.get("notifications_with_equipment", 0)
+        acc.assets_with_notifications = set(data.get("assets_with_notifications", []))
+        acc.equipment_with_notifications = set(data.get("equipment_with_notifications", []))
+        
+        acc.order_ids_seen = set(data.get("order_ids_seen", []))
+        acc.total_order_instances = data.get("total_order_instances", 0)
+        acc.orders_with_asset = data.get("orders_with_asset", 0)
+        acc.orders_with_equipment = data.get("orders_with_equipment", 0)
+        acc.orders_completed = data.get("orders_completed", 0)
+        acc.assets_with_orders = set(data.get("assets_with_orders", []))
+        acc.equipment_with_orders = set(data.get("equipment_with_orders", []))
+        acc.orders_with_notification = set(data.get("orders_with_notification", []))
+        
+        acc.failure_notification_ids_seen = set(data.get("failure_notification_ids_seen", []))
+        acc.total_failure_notification_instances = data.get("total_failure_notification_instances", 0)
+        acc.failure_notif_with_mode = data.get("failure_notif_with_mode", 0)
+        acc.failure_notif_with_mechanism = data.get("failure_notif_with_mechanism", 0)
+        acc.failure_notif_with_cause = data.get("failure_notif_with_cause", 0)
+        
+        return acc
+    
+    def merge_from(self, other: "CombinedAccumulator"):
+        """
+        Merge another accumulator into this one (for batch aggregation).
+        Counts are summed, sets are unioned, maps are merged.
+        """
+        # Time Series Data
+        self.assets_with_ts.update(other.assets_with_ts)
+        self.ts_with_asset_link += other.ts_with_asset_link
+        self.total_ts_instances += other.total_ts_instances
+        self.ts_ids_seen.update(other.ts_ids_seen)
+        self.unit_checks += other.unit_checks
+        self.has_source_unit += other.has_source_unit
+        self.has_target_unit += other.has_target_unit
+        self.has_any_unit += other.has_any_unit
+        self.units_match += other.units_match
+        self.source_units_seen.update(other.source_units_seen)
+        self.fresh_count += other.fresh_count
+        self.lag_sum += other.lag_sum
+        self.lag_count += other.lag_count
+        self.ts_with_data += other.ts_with_data
+        self.ts_analyzed_for_gaps += other.ts_analyzed_for_gaps
+        self.total_time_span_days += other.total_time_span_days
+        self.total_gap_duration_days += other.total_gap_duration_days
+        self.gap_count += other.gap_count
+        self.longest_gap_days = max(self.longest_gap_days, other.longest_gap_days)
+        
+        # Asset Data
+        self.total_asset_instances += other.total_asset_instances
+        self.asset_ids_seen.update(other.asset_ids_seen)
+        self.critical_assets_total += other.critical_assets_total
+        self.critical_assets_with_ts += other.critical_assets_with_ts
+        self.parent_of.update(other.parent_of)
+        # Merge children_count_map (sum counts for same asset)
+        for asset_id, count in other.children_count_map.items():
+            self.children_count_map[asset_id] = self.children_count_map.get(asset_id, 0) + count
+        self.asset_type_map.update(other.asset_type_map)
+        
+        # Equipment Data
+        self.equipment_list.extend(other.equipment_list)
+        self.equipment_to_asset.update(other.equipment_to_asset)
+        # Merge assets_with_equipment (extend lists for same asset)
+        for asset_id, eq_list in other.assets_with_equipment.items():
+            if asset_id in self.assets_with_equipment:
+                self.assets_with_equipment[asset_id].extend(eq_list)
+            else:
+                self.assets_with_equipment[asset_id] = eq_list
+        self.total_equipment_instances += other.total_equipment_instances
+        self.equipment_ids_seen.update(other.equipment_ids_seen)
+        
+        # Maintenance Data
+        self.notification_ids_seen.update(other.notification_ids_seen)
+        self.total_notification_instances += other.total_notification_instances
+        self.notifications_with_order += other.notifications_with_order
+        self.notifications_with_asset += other.notifications_with_asset
+        self.notifications_with_equipment += other.notifications_with_equipment
+        self.assets_with_notifications.update(other.assets_with_notifications)
+        self.equipment_with_notifications.update(other.equipment_with_notifications)
+        
+        self.order_ids_seen.update(other.order_ids_seen)
+        self.total_order_instances += other.total_order_instances
+        self.orders_with_asset += other.orders_with_asset
+        self.orders_with_equipment += other.orders_with_equipment
+        self.orders_completed += other.orders_completed
+        self.assets_with_orders.update(other.assets_with_orders)
+        self.equipment_with_orders.update(other.equipment_with_orders)
+        self.orders_with_notification.update(other.orders_with_notification)
+        
+        self.failure_notification_ids_seen.update(other.failure_notification_ids_seen)
+        self.total_failure_notification_instances += other.total_failure_notification_instances
+        self.failure_notif_with_mode += other.failure_notif_with_mode
+        self.failure_notif_with_mechanism += other.failure_notif_with_mechanism
+        self.failure_notif_with_cause += other.failure_notif_with_cause

@@ -422,3 +422,71 @@ Annotation Types:
 - Asset Tag Annotations: {annot.get('annot_asset_tags', 0):,}
 - File Link Annotations: {annot.get('annot_file_links', 0):,}
 - Other Annotations: {annot.get('annot_other', 0):,}"""
+
+
+# =====================================================
+# 3D MODEL CONTEXTUALIZATION
+# =====================================================
+
+def get_3d_model_prompt() -> str:
+    """Get the system prompt for 3D model contextualization analysis."""
+    return """You are an expert in 3D model contextualization within industrial asset management systems.
+You analyze metrics about the relationship between 3D objects and physical assets.
+
+CRITICAL UNDERSTANDING:
+1. **3D → Asset Contextualization Rate** (MOST IMPORTANT): This shows what percentage of 3D objects 
+   are linked to assets. This is the key indicator - orphaned 3D objects (not linked to assets) 
+   represent wasted 3D modeling effort and limit the usefulness of digital twins.
+
+2. **Asset → 3D Coverage**: Shows what percentage of assets have 3D representations. 
+   Important for digital twin completeness.
+
+3. **Critical Asset 3D Rate**: Critical assets (marked with technicalObjectAbcIndicator='A' or similar)
+   MUST have 3D representations for effective maintenance and operations.
+
+4. **Bounding Box Completeness**: 3D objects need complete spatial definitions (xMin, xMax, yMin, yMax, 
+   zMin, zMax) for proper visualization and spatial queries.
+
+INTERPRETATION GUIDELINES:
+- 3D Contextualization Rate < 70%: Significant issue - many 3D objects are orphaned
+- 3D Contextualization Rate < 50%: Critical issue - most 3D work is not linked to assets
+- Critical Asset 3D Rate < 100%: Priority gap - critical assets need 3D for safety/maintenance
+- Bounding Box issues indicate data quality problems that affect visualization
+
+Be specific with numbers and provide actionable recommendations."""
+
+
+def format_3d_model_metrics(model3d: dict) -> str:
+    """Format 3D model metrics for AI prompt."""
+    total_objects = model3d.get('model3d_total_objects', 0)
+    objects_with_asset = model3d.get('model3d_objects_with_asset', 0)
+    unlinked = total_objects - objects_with_asset
+    
+    return f"""3D Model Contextualization Metrics:
+
+KEY METRIC (3D → Asset):
+- Total 3D Objects: {total_objects:,}
+- 3D Objects Linked to Assets: {objects_with_asset:,}
+- Unlinked (Orphaned) 3D Objects: {unlinked:,}
+- 3D Contextualization Rate: {model3d.get('model3d_contextualization_rate', 0)}%
+
+Asset Coverage (Asset → 3D):
+- Total Assets Checked: {model3d.get('model3d_total_assets', 0):,}
+- Assets with 3D Representation: {model3d.get('model3d_assets_with_3d', 0):,}
+- Asset 3D Coverage Rate: {model3d.get('model3d_asset_coverage', 0)}%
+
+Critical Asset 3D:
+- Total Critical Assets: {model3d.get('model3d_critical_total', 0):,}
+- Critical Assets with 3D: {model3d.get('model3d_critical_with_3d', 0):,}
+- Critical Asset 3D Rate: {model3d.get('model3d_critical_asset_rate', 0)}%
+
+Bounding Box Quality:
+- Complete Bounding Box: {model3d.get('model3d_bbox_complete_count', 0):,} ({model3d.get('model3d_bbox_completeness', 0)}%)
+- Partial Bounding Box: {model3d.get('model3d_bbox_partial_count', 0):,}
+- Missing Bounding Box: {model3d.get('model3d_bbox_none_count', 0):,}
+
+Model Type Distribution:
+- CAD Models: {model3d.get('model3d_cad_count', 0):,}
+- 360° Images: {model3d.get('model3d_360_count', 0):,}
+- Point Clouds: {model3d.get('model3d_pointcloud_count', 0):,}
+- Multi-Model Objects: {model3d.get('model3d_multi_model_count', 0):,}"""

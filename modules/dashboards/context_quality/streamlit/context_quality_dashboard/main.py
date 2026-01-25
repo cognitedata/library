@@ -11,6 +11,7 @@ Tabs:
 - Time Series Contextualization
 - Maintenance Workflow Quality (RMDM v1)
 - File Annotation Quality (CDM CogniteDiagramAnnotation)
+- 3D Model Contextualization (CDM Cognite3DObject)
 """
 
 import json
@@ -24,6 +25,7 @@ from dashboards import (
     render_time_series_dashboard,
     render_maintenance_dashboard,
     render_file_annotation_dashboard,
+    render_3d_model_dashboard,
     render_metadata_sidebar,
     render_configuration_panel,
 )
@@ -68,16 +70,6 @@ def load_metrics_from_file(external_id: str) -> dict:
 # ----------------------------------------------------
 st.title("⭐ Contextualization Quality Dashboard")
 st.write("Measure and monitor the contextualization quality of your data in CDF.")
-
-# Check if we need to show navigation prompt (after function completion)
-if st.session_state.get("navigate_to_tab") == "asset_hierarchy":
-    st.success("""
-    ✅ **Metrics computed successfully!** 
-    Click the **🌳 Asset Hierarchy** tab below to view your dashboard.
-    """)
-    # Clear the navigation flag
-    st.session_state["navigate_to_tab"] = None
-
 st.markdown("---")
 
 # Load metrics from Cognite File (silent - no error message here)
@@ -87,13 +79,14 @@ metrics = load_metrics_from_file(METRICS_FILE_EXTERNAL_ID)
 has_metrics = metrics is not None
 
 # Tab navigation - Configuration FIRST for better onboarding
-tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation = st.tabs([
+tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d = st.tabs([
     "⚙️ Configure & Run",
     "🌳 Asset Hierarchy",
     "🔧 Equipment-Asset",
     "⏱️ Time Series",
     "🛠️ Maintenance",
-    "📄 File Annotation"
+    "📄 File Annotation",
+    "🎮 3D Model"
 ])
 
 # Configuration tab - always available
@@ -109,7 +102,7 @@ if not has_metrics:
     1. Configure your data model views for each dashboard
     2. Run the metrics function
     
-    Once the function completes, click **View Dashboard** to see your metrics.
+    Once the function completes, the metrics will appear here automatically.
     """
     
     with tab_asset:
@@ -121,6 +114,8 @@ if not has_metrics:
     with tab_maintenance:
         st.info(no_metrics_message)
     with tab_annotation:
+        st.info(no_metrics_message)
+    with tab_3d:
         st.info(no_metrics_message)
 else:
     # Render sidebar with metadata
@@ -140,3 +135,7 @@ else:
 
     with tab_annotation:
         render_file_annotation_dashboard(metrics)
+
+    with tab_3d:
+        model3d_metrics = metrics.get("model3d_metrics", {})
+        render_3d_model_dashboard(model3d_metrics, metrics.get("metadata"))
