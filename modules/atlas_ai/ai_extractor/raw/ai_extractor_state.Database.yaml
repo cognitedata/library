@@ -1,4 +1,4 @@
 # RAW database for AI Property Extractor state store
 # Used to track extraction progress via a cursor-based high-water mark
 
-name: '{{ stateStoreDatabase }}'
+dbName: "{{ stateStoreDatabase }}"
