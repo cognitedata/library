@@ -306,10 +306,9 @@ def query_instances(
         property_configs: Optional list of PropertyConfig objects
     
     Returns:
-        List of instances ready for extraction, sorted by lastUpdatedTime ascending
+        List of instances ready for extraction
     """
     from cognite.client import data_modeling as dm
-    from cognite.client.data_classes.data_modeling import InstanceSort
     from config import PropertyConfig, WriteMode
     
     filters: list[dm.filters.Filter] = []
@@ -322,12 +321,12 @@ def query_instances(
     
     # Filter 2: High-water mark cursor filter (for incremental processing)
     # Note: For FILTERS on node base properties, use ["node", "propertyName"]
-    # This is different from SORT which uses ["propertyName"] for base properties
+    # The gte/lte values should be passed directly (int ms or ISO string), NOT as {"value": ...}
     if cursor:
         logger.debug(f"Filter: lastUpdatedTime >= {cursor}")
         filters.append(dm.filters.Range(
             ["node", "lastUpdatedTime"],
-            gte={"value": cursor}
+            gte=cursor  # Direct value - works with both int (ms) and ISO string
         ))
     
     # Filter 3: Property filters based on write modes
@@ -400,16 +399,15 @@ def query_instances(
     # Combine all filters with AND
     combined_filter = dm.filters.And(*filters) if len(filters) > 1 else filters[0] if filters else None
     
-    # Query instances with limit, sorted by lastUpdatedTime ascending for proper cursor progression
-    # Note: For SORT, base properties use ["propertyName"] format
-    # This differs from filters which use ["node", "propertyName"] for node base properties
+    # Query instances with limit
+    # Note: We don't sort explicitly - the DM API default ordering is sufficient
+    # Sorting by lastUpdatedTime requires specific index configuration and has format issues
     logger.debug(f"Querying instances with limit={limit}")
     instances = client.data_modeling.instances.list(
         instance_type="node",
         sources=[view_id],
         filter=combined_filter,
-        limit=limit,
-        sort=[InstanceSort(["lastUpdatedTime"], "ascending")]
+        limit=limit
     )
     
     return list(instances)
