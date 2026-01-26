@@ -321,10 +321,12 @@ def query_instances(
     logger.debug(f"Filter: text property '{config.extraction.text_property}' must exist")
     
     # Filter 2: High-water mark cursor filter (for incremental processing)
+    # Note: For base properties (lastUpdatedTime, createdTime, space, externalId),
+    # the property format is just ["propertyName"], not ["node", "propertyName"]
     if cursor:
         logger.debug(f"Filter: lastUpdatedTime >= {cursor}")
         filters.append(dm.filters.Range(
-            ["node", "lastUpdatedTime"],
+            ["lastUpdatedTime"],
             gte={"value": cursor}
         ))
     
@@ -399,13 +401,15 @@ def query_instances(
     combined_filter = dm.filters.And(*filters) if len(filters) > 1 else filters[0] if filters else None
     
     # Query instances with limit, sorted by lastUpdatedTime ascending for proper cursor progression
+    # Note: For base properties (lastUpdatedTime, createdTime, space, externalId),
+    # the property format is just ["propertyName"], not ["node", "propertyName"]
     logger.debug(f"Querying instances with limit={limit}")
     instances = client.data_modeling.instances.list(
         instance_type="node",
         sources=[view_id],
         filter=combined_filter,
         limit=limit,
-        sort=[InstanceSort(["node", "lastUpdatedTime"], "ascending")]
+        sort=[InstanceSort(["lastUpdatedTime"], "ascending")]
     )
     
     return list(instances)
