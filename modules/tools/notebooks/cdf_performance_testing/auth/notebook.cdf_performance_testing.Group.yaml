@@ -1,6 +1,6 @@
 # This role is used for the processing of asset data, creating an asset hierarchy
-name: 'gp_entity_matching_{{location_name}}_processing'
-sourceId: '{{entity_matching_processing_group_source_id}}'
+name: 'gp_notebook.cdf_performance_testing.Group'
+sourceId: <notebook.cdf_performance_testing_group_source_id>
 metadata:
   origin: 'cdf-project-templates'
 capabilities:
@@ -17,18 +17,6 @@ capabilities:
         - READ
       scope:
         all: {}
-  - extractionConfigsAcl:
-      actions:
-        - READ
-        - WRITE
-      scope:
-        all: {}
-  - extractionRunsAcl:
-      actions:
-        - READ
-        - WRITE
-      scope:
-        all: {}
   - dataModelsAcl:
       actions:
         - READ
@@ -41,23 +29,31 @@ capabilities:
         - WRITE
       scope:
         all: {}
-  - annotationsAcl:
+  - rawAcl:
       actions:
         - READ
         - WRITE
-        - SUGGEST
-        - REVIEW
+        - LIST
       scope:
         all: {}
-  - entitymatchingAcl:
+  - timeSeriesAcl:
       actions:
         - READ
         - WRITE
+        - LIST
       scope:
         all: {}
-  - functionsAcl:
+  - assetsAcl:
+      actions:  
+        - READ
+        - WRITE
+        - LIST
+      scope:
+        all: {}
+  - filesAcl:
       actions:
         - READ
         - WRITE
+        - LIST
       scope:
         all: {}
