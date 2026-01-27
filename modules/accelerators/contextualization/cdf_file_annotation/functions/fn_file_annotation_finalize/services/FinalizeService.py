@@ -143,6 +143,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 status=AnnotationStatus.RETRY,
                 failed=True,
             )
+            return
 
         # A job is considered complete if:
         # 1. The main job is finished, AND
