@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Common UI components and color functions for the dashboard.
 """
@@ -108,18 +109,18 @@ def get_status_color_maintenance(metric_key, value):
     - asset/equipment maintenance coverage: INFORMATIONAL - low values OK
     """
     
-    # INFORMATIONAL: Notification → Work Order (low values are acceptable)
+    # INFORMATIONAL: Notification -> Work Order (low values are acceptable)
     if metric_key == "notif_order":
         # Any value is OK - this is just informational
         return "#0068C9"  # Blue - informational
     
-    # CRITICAL: Work Order → Notification (should be ~100%)
+    # CRITICAL: Work Order -> Notification (should be ~100%)
     if metric_key == "order_notif":
         if value >= 95: return "#4CAF50"
         if value >= 80: return "#FFC107"
         return "#F44336"
     
-    # CRITICAL: Work Order → Asset (should be ~100%)
+    # CRITICAL: Work Order -> Asset (should be ~100%)
     if metric_key == "order_asset":
         if value >= 95: return "#4CAF50"
         if value >= 80: return "#FFC107"
@@ -177,7 +178,7 @@ def metric_card(col, title, value, metric_key=None, suffix="", color_func=get_st
     if help_text:
         # Escape quotes in help text for HTML attribute
         escaped_help = help_text.replace('"', '&quot;').replace("'", "&#39;")
-        help_icon = f"""<span title="{escaped_help}" style='cursor:help;margin-left:4px;color:#888;font-size:12px;'>ⓘ</span>"""
+        help_icon = f"""<span title="{escaped_help}" style='cursor:help;margin-left:4px;color:#888;font-size:12px;'>(i)</span>"""
     
     col.markdown(f"""
     <div style='background:#F7F9FB;padding:14px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-left:6px solid {color};text-align:center;'>
@@ -209,7 +210,7 @@ def gauge(col, title, value, metric_key, color_func, axis_range, suffix="%", key
     
     # Show help text below the gauge if provided
     if help_text:
-        col.markdown(f"<div style='width:300px;text-align:center;font-size:12px;color:#666;margin-top:-15px;'>ⓘ {help_text}</div>", unsafe_allow_html=True)
+        col.markdown(f"<div style='width:300px;text-align:center;font-size:12px;color:#666;margin-top:-15px;'>(i) {help_text}</div>", unsafe_allow_html=True)
 
 
 def gauge_na(col, title, message="N/A", key=None, help_text=None):
@@ -246,4 +247,4 @@ def gauge_na(col, title, message="N/A", key=None, help_text=None):
     
     # Show help text below the gauge if provided
     if help_text:
-        col.markdown(f"<div style='width:300px;text-align:center;font-size:12px;color:#666;margin-top:-15px;'>ⓘ {help_text}</div>", unsafe_allow_html=True)
+        col.markdown(f"<div style='width:300px;text-align:center;font-size:12px;color:#666;margin-top:-15px;'>(i) {help_text}</div>", unsafe_allow_html=True)

@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
 """
 3D Model Contextualization Dashboard.
 
 Displays metrics for 3D model associations:
-- 3D Object Contextualization (3D → Asset) - PRIMARY
-- Asset 3D Coverage (Asset → 3D)
+- 3D Object Contextualization (3D -> Asset) - PRIMARY
+- Asset 3D Coverage (Asset -> 3D)
 - Critical Asset 3D Association
 - Bounding Box Completeness
 
@@ -34,13 +35,13 @@ def _create_3d_cube_indicator(
     # Determine color based on value vs target (using standard dashboard colors)
     if value >= target:
         color = "#4CAF50"  # Green (Material Design)
-        status = "✓ Target Met"
+        status = "[OK] Target Met"
     elif value >= target * 0.7:
         color = "#FFC107"  # Yellow/Amber (Material Design)
-        status = "○ Approaching"
+        status = "[~] Approaching"
     else:
         color = "#F44336"  # Red (Material Design)
-        status = "✗ Below Target"
+        status = "[X] Below Target"
     
     fig = go.Figure()
     
@@ -141,7 +142,7 @@ def _create_model_type_bars(
 ) -> go.Figure:
     """Create horizontal bar chart for model type distribution."""
     
-    categories = ["CAD Models", "360° Images", "Point Clouds", "Multi-Model"]
+    categories = ["CAD Models", "360 Images", "Point Clouds", "Multi-Model"]
     values = [cad_count, img360_count, pointcloud_count, multi_count]
     colors = ["#3498db", "#9b59b6", "#1abc9c", "#e67e22"]
     
@@ -183,7 +184,7 @@ def _create_coverage_comparison(
 ) -> go.Figure:
     """Create a radar/spider chart comparing the 4 main metrics."""
     
-    categories = ["3D→Asset<br>Contextualization", "Asset→3D<br>Coverage", "Critical Asset<br>3D Rate", "BBox<br>Completeness"]
+    categories = ["3D->Asset<br>Contextualization", "Asset->3D<br>Coverage", "Critical Asset<br>3D Rate", "BBox<br>Completeness"]
     values = [contextualization_rate, asset_coverage, critical_coverage, bbox_completeness]
     
     # Close the polygon
@@ -242,23 +243,23 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
         metrics: The model3d_metrics dict from the function output
         metadata: Optional metadata dict
     """
-    st.header("🎮 3D Model Contextualization")
+    st.header("3D Model Contextualization")
     
     if not metrics:
         st.warning("""
-        ⚠️ **No 3D metrics available**
+        **No 3D metrics available**
         
         This could mean:
         - 3D metrics are disabled in configuration
         - No `Cognite3DObject` view data is available
         - The function hasn't been run yet
         
-        Enable 3D metrics in the **⚙️ Configure & Run** tab and ensure the 3D Object view is configured.
+        Enable 3D metrics in the **Configure & Run** tab and ensure the 3D Object view is configured.
         """)
         return
     
     # Extract metrics
-    # PRIMARY METRIC: 3D → Asset Contextualization
+    # PRIMARY METRIC: 3D -> Asset Contextualization
     contextualization_rate = metrics.get("model3d_contextualization_rate", 0)
     objects_with_asset = metrics.get("model3d_objects_with_asset", 0)
     
@@ -285,8 +286,8 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
     multi_count = metrics.get("model3d_multi_model_count", 0)
     
     # ===== HERO SECTION =====
-    st.subheader("🎯 3D Object Contextualization")
-    st.caption("Shows what percentage of 3D objects are linked to assets — the key indicator of 3D contextualization quality.")
+    st.subheader("3D Object Contextualization")
+    st.caption("Shows what percentage of 3D objects are linked to assets - the key indicator of 3D contextualization quality.")
     
     # Large hero gauge for the primary metric
     col_hero, col_overview = st.columns([2, 1])
@@ -295,7 +296,7 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
         st.plotly_chart(
             _create_3d_cube_indicator(
                 contextualization_rate,
-                "3D → Asset Contextualization",
+                "3D -> Asset Contextualization",
                 target=90.0,
                 subtitle=f"{objects_with_asset:,} / {total_objects:,} 3D objects linked to assets"
             ),
@@ -308,11 +309,11 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
         st.metric("Linked to Assets", f"{objects_with_asset:,}")
         unlinked = total_objects - objects_with_asset
         if total_objects == 0:
-            st.info("ℹ️ No 3D objects found in the configured view")
+            st.info("No 3D objects found in the configured view")
         elif unlinked > 0:
-            st.metric("⚠️ Not Linked", f"{unlinked:,}", delta=f"-{unlinked:,}", delta_color="inverse")
+            st.metric("Not Linked", f"{unlinked:,}", delta=f"-{unlinked:,}", delta_color="inverse")
         else:
-            st.success("✅ All 3D objects are contextualized!")
+            st.success("All 3D objects are contextualized!")
     
     # ===== OVERVIEW RADAR =====
     st.markdown("---")
@@ -323,7 +324,7 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
     
     # ===== ADDITIONAL METRICS ROW =====
     st.markdown("---")
-    st.subheader("📊 Additional Metrics")
+    st.subheader("Additional Metrics")
     
     col1, col2, col3 = st.columns(3)
     
@@ -331,7 +332,7 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
         st.plotly_chart(
             _create_3d_cube_indicator(
                 asset_coverage,
-                "Asset → 3D Coverage",
+                "Asset -> 3D Coverage",
                 target=70.0,
                 subtitle=f"{assets_with_3d:,} / {total_assets:,} assets have 3D"
             ),
@@ -362,7 +363,7 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
     
     # ===== DISTRIBUTION SECTION =====
     st.markdown("---")
-    st.subheader("📈 Distribution Analysis")
+    st.subheader("[Chart] Distribution Analysis")
     
     col1, col2 = st.columns(2)
     
@@ -388,53 +389,53 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
     
     # ===== INSIGHTS SECTION =====
     st.markdown("---")
-    st.subheader("💡 Insights")
+    st.subheader("Insights")
     
     insights = []
     
     # Handle case when no 3D objects exist
     if total_objects == 0:
-        insights.append(("ℹ️", "**No 3D objects found** — Configure the Cognite3DObject view in the Configuration tab to see 3D metrics."))
+        insights.append(("[i]", "**No 3D objects found** - Configure the Cognite3DObject view in the Configuration tab to see 3D metrics."))
     else:
-        # PRIMARY: 3D → Asset Contextualization insight (MOST IMPORTANT)
+        # PRIMARY: 3D -> Asset Contextualization insight (MOST IMPORTANT)
         if contextualization_rate >= 90:
-            insights.append(("✅", f"**Excellent 3D contextualization** — {contextualization_rate}% of 3D objects are linked to assets ({objects_with_asset:,} / {total_objects:,})"))
+            insights.append(("[OK]", f"**Excellent 3D contextualization** - {contextualization_rate}% of 3D objects are linked to assets ({objects_with_asset:,} / {total_objects:,})"))
         elif contextualization_rate >= 70:
-            insights.append(("⚠️", f"**Good 3D contextualization** — {contextualization_rate}% of 3D objects are linked. {total_objects - objects_with_asset:,} objects still need linking."))
+            insights.append(("[!]", f"**Good 3D contextualization** - {contextualization_rate}% of 3D objects are linked. {total_objects - objects_with_asset:,} objects still need linking."))
         elif contextualization_rate >= 50:
-            insights.append(("⚠️", f"**Moderate 3D contextualization** — {contextualization_rate}% of 3D objects are linked. Consider reviewing unlinked objects."))
+            insights.append(("[!]", f"**Moderate 3D contextualization** - {contextualization_rate}% of 3D objects are linked. Consider reviewing unlinked objects."))
         else:
-            insights.append(("❌", f"**Low 3D contextualization** — Only {contextualization_rate}% of 3D objects are linked to assets. This is a priority area for improvement."))
+            insights.append(("[X]", f"**Low 3D contextualization** - Only {contextualization_rate}% of 3D objects are linked to assets. This is a priority area for improvement."))
         
         # Bounding box insight
         if bbox_completeness >= 90:
-            insights.append(("✅", f"**Excellent bounding boxes** — {bbox_completeness}% of 3D objects have complete spatial definitions"))
+            insights.append(("[OK]", f"**Excellent bounding boxes** - {bbox_completeness}% of 3D objects have complete spatial definitions"))
         elif bbox_none > bbox_complete:
-            insights.append(("❌", f"**Missing bounding boxes** — {bbox_none:,} objects lack spatial definitions"))
+            insights.append(("[X]", f"**Missing bounding boxes** - {bbox_none:,} objects lack spatial definitions"))
         elif bbox_partial > 0:
-            insights.append(("⚠️", f"**Partial bounding boxes** — {bbox_partial:,} objects have incomplete spatial data"))
+            insights.append(("[!]", f"**Partial bounding boxes** - {bbox_partial:,} objects have incomplete spatial data"))
         
         # Multi-model insight
         if multi_count > 0:
-            insights.append(("🔗", f"**Multi-model coverage** — {multi_count:,} objects appear in multiple 3D sources (CAD, 360°, Point Cloud)"))
+            insights.append(("[+]", f"**Multi-model coverage** - {multi_count:,} objects appear in multiple 3D sources (CAD, 360, Point Cloud)"))
     
     # Asset 3D coverage insight (always show if assets exist)
     if total_assets > 0:
         if asset_coverage >= 70:
-            insights.append(("✅", f"**Good 3D coverage** — {asset_coverage}% of assets have 3D representations"))
+            insights.append(("[OK]", f"**Good 3D coverage** - {asset_coverage}% of assets have 3D representations"))
         elif asset_coverage >= 40:
-            insights.append(("⚠️", f"**Moderate 3D coverage** — {asset_coverage}% of assets have 3D representations. Consider prioritizing critical assets."))
+            insights.append(("[!]", f"**Moderate 3D coverage** - {asset_coverage}% of assets have 3D representations. Consider prioritizing critical assets."))
         elif asset_coverage > 0:
-            insights.append(("⚠️", f"**Low 3D coverage** — Only {asset_coverage}% of assets have 3D links."))
+            insights.append(("[!]", f"**Low 3D coverage** - Only {asset_coverage}% of assets have 3D links."))
     
     # Critical asset insight
     if critical_total > 0:
         if critical_rate == 100:
-            insights.append(("✅", f"**All critical assets** have 3D representations ({critical_with_3d:,} assets)"))
+            insights.append(("[OK]", f"**All critical assets** have 3D representations ({critical_with_3d:,} assets)"))
         elif critical_rate >= 80:
-            insights.append(("⚠️", f"**Most critical assets** have 3D ({critical_rate}%). {critical_total - critical_with_3d:,} still need linking."))
+            insights.append(("[!]", f"**Most critical assets** have 3D ({critical_rate}%). {critical_total - critical_with_3d:,} still need linking."))
         else:
-            insights.append(("❌", f"**Critical asset gap** — Only {critical_rate}% of critical assets have 3D. This is a priority area."))
+            insights.append(("[X]", f"**Critical asset gap** - Only {critical_rate}% of critical assets have 3D. This is a priority area."))
     
     for icon, text in insights:
         st.markdown(f"{icon} {text}")
@@ -451,7 +452,7 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
     # ===== STATS FOOTER =====
     st.markdown("---")
     
-    with st.expander("📋 Detailed Statistics", expanded=False):
+    with st.expander("Detailed Statistics", expanded=False):
         col1, col2, col3 = st.columns(3)
         
         with col1:

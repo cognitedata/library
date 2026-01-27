@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Maintenance Workflow Quality Dashboard (RMDM v1).
 """
@@ -19,7 +20,7 @@ from .ai_summary import (
 
 def render_maintenance_dashboard(metrics: dict):
     """Render the Maintenance Workflow Quality dashboard tab."""
-    st.title("🔧 Maintenance Workflow Quality Dashboard")
+    st.title("Maintenance Workflow Quality Dashboard")
     st.markdown("*Based on RMDM v1 Data Model*")
     
     maintenance = metrics.get("maintenance_metrics", {})
@@ -31,7 +32,7 @@ def render_maintenance_dashboard(metrics: dict):
     
     if not maintenance_enabled:
         st.warning("""
-        ⚠️ **Maintenance Metrics Disabled**
+        **Maintenance Metrics Disabled**
         
         Maintenance workflow metrics are disabled in the function configuration.
         To enable, set `enable_maintenance_metrics: true` in the function input.
@@ -40,7 +41,7 @@ def render_maintenance_dashboard(metrics: dict):
     
     if not maintenance or not maintenance.get("maint_has_notifications", False) and not maintenance.get("maint_has_orders", False):
         st.warning("""
-        ⚠️ **No Maintenance Data Found**
+        **No Maintenance Data Found**
         
         No notifications or maintenance orders found in the RMDM v1 data model.
         """)
@@ -58,7 +59,7 @@ def render_maintenance_dashboard(metrics: dict):
         
         If your RMDM model uses a different space name or view names, you can configure them in:
         
-        📁 `metrics/common.py` → Lines **40-48** (DEFAULT_CONFIG section)
+        [Folder] `metrics/common.py` -> Lines **40-48** (DEFAULT_CONFIG section)
         
         ```python
         "notification_view_space": "your_space",
@@ -75,7 +76,7 @@ def render_maintenance_dashboard(metrics: dict):
     
     # Show data info
     computed_at = metadata.get("computed_at", "Unknown")
-    st.info(f"📅 Metrics computed at: {computed_at}")
+    st.info(f"[Date] Metrics computed at: {computed_at}")
     
     # Extract metrics
     total_notifications = maintenance.get("maint_total_notifications", 0)
@@ -98,40 +99,40 @@ def render_maintenance_dashboard(metrics: dict):
     # =========================================
     # SECTION 1: Notification Linkage Metrics
     # =========================================
-    st.header("📋 Notification Linkage")
+    st.header("Notification Linkage")
     st.markdown("*How well are notifications linked to work orders, assets, and equipment?*")
-    st.caption("ℹ️ Note: Not all notifications require a work order - low values are acceptable.")
+    st.caption("Note: Not all notifications require a work order - low values are acceptable.")
     
     g1, g2, g3 = st.columns(3)
     
-    # 1. Notification → Work Order Linkage (INFORMATIONAL)
+    # 1. Notification -> Work Order Linkage (INFORMATIONAL)
     notif_order_rate = maintenance.get("maint_notif_to_order_rate")
     if notif_order_rate is not None and total_notifications > 0:
-        gauge(g1, "Notification → Work Order", notif_order_rate, "notif_order", 
+        gauge(g1, "Notification -> Work Order", notif_order_rate, "notif_order", 
               get_status_color_maintenance, [0, 100], "%", key="maint_notif_order",
               help_text="INFORMATIONAL: % with WO. Low values OK - not all notifications need a work order.")
     else:
-        gauge_na(g1, "Notification → Work Order", "No notifications", key="maint_notif_order_na",
+        gauge_na(g1, "Notification -> Work Order", "No notifications", key="maint_notif_order_na",
                  help_text="% of notifications linked to a maintenance order")
     
-    # 2. Notification → Asset Linkage
+    # 2. Notification -> Asset Linkage
     notif_asset_rate = maintenance.get("maint_notif_to_asset_rate")
     if notif_asset_rate is not None and total_notifications > 0:
-        gauge(g2, "Notification → Asset", notif_asset_rate, "notif_asset", 
+        gauge(g2, "Notification -> Asset", notif_asset_rate, "notif_asset", 
               get_status_color_maintenance, [0, 100], "%", key="maint_notif_asset",
               help_text="% of notifications linked to an asset")
     else:
-        gauge_na(g2, "Notification → Asset", "No notifications", key="maint_notif_asset_na",
+        gauge_na(g2, "Notification -> Asset", "No notifications", key="maint_notif_asset_na",
                  help_text="% of notifications linked to an asset")
     
-    # 3. Notification → Equipment Linkage
+    # 3. Notification -> Equipment Linkage
     notif_eq_rate = maintenance.get("maint_notif_to_equipment_rate")
     if notif_eq_rate is not None and total_notifications > 0:
-        gauge(g3, "Notification → Equipment", notif_eq_rate, "notif_equipment", 
+        gauge(g3, "Notification -> Equipment", notif_eq_rate, "notif_equipment", 
               get_status_color_maintenance, [0, 100], "%", key="maint_notif_eq",
               help_text="% of notifications linked to equipment")
     else:
-        gauge_na(g3, "Notification → Equipment", "No notifications", key="maint_notif_eq_na",
+        gauge_na(g3, "Notification -> Equipment", "No notifications", key="maint_notif_eq_na",
                  help_text="% of notifications linked to equipment")
     
     st.markdown("---")
@@ -139,31 +140,31 @@ def render_maintenance_dashboard(metrics: dict):
     # =========================================
     # SECTION 2: Work Order Quality (CRITICAL METRICS)
     # =========================================
-    st.header("📝 Work Order Quality")
+    st.header("[Note] Work Order Quality")
     st.markdown("*Critical metrics - work orders should be linked to notifications and assets.*")
-    st.caption("⚠️ All work orders should originate from a notification and be linked to an asset.")
+    st.caption("All work orders should originate from a notification and be linked to an asset.")
     
     # Row 1: Critical work order metrics
     g4, g5 = st.columns(2)
     
-    # Work Order → Notification Linkage (CRITICAL - should be ~100%)
+    # Work Order -> Notification Linkage (CRITICAL - should be ~100%)
     order_notif_rate = maintenance.get("maint_order_to_notif_rate")
     if order_notif_rate is not None and total_orders > 0:
-        gauge(g4, "Work Order → Notification", order_notif_rate, "order_notif", 
+        gauge(g4, "Work Order -> Notification", order_notif_rate, "order_notif", 
               get_status_color_maintenance, [0, 100], "%", key="maint_order_notif",
               help_text="CRITICAL: Should be ~100%. All WOs should originate from a notification.")
     else:
-        gauge_na(g4, "Work Order → Notification", "No orders", key="maint_order_notif_na",
+        gauge_na(g4, "Work Order -> Notification", "No orders", key="maint_order_notif_na",
                  help_text="% of work orders that have a linked notification")
     
-    # Work Order → Asset Coverage (CRITICAL - should be ~100%)
+    # Work Order -> Asset Coverage (CRITICAL - should be ~100%)
     order_asset_rate = maintenance.get("maint_order_to_asset_rate")
     if order_asset_rate is not None and total_orders > 0:
-        gauge(g5, "Work Order → Asset", order_asset_rate, "order_asset", 
+        gauge(g5, "Work Order -> Asset", order_asset_rate, "order_asset", 
               get_status_color_maintenance, [0, 100], "%", key="maint_order_asset",
               help_text="CRITICAL: Should be ~100%. All WOs should be linked to an asset.")
     else:
-        gauge_na(g5, "Work Order → Asset", "No orders", key="maint_order_asset_na",
+        gauge_na(g5, "Work Order -> Asset", "No orders", key="maint_order_asset_na",
                  help_text="% of work orders linked to an asset")
     
     st.write("")
@@ -171,14 +172,14 @@ def render_maintenance_dashboard(metrics: dict):
     # Row 2: Other work order metrics
     g6, g7 = st.columns(2)
     
-    # Work Order → Equipment Coverage
+    # Work Order -> Equipment Coverage
     order_eq_rate = maintenance.get("maint_order_to_equipment_rate")
     if order_eq_rate is not None and total_orders > 0:
-        gauge(g6, "Work Order → Equipment", order_eq_rate, "order_equipment", 
+        gauge(g6, "Work Order -> Equipment", order_eq_rate, "order_equipment", 
               get_status_color_maintenance, [0, 100], "%", key="maint_order_eq",
               help_text="% of work orders linked to equipment")
     else:
-        gauge_na(g6, "Work Order → Equipment", "No orders", key="maint_order_eq_na",
+        gauge_na(g6, "Work Order -> Equipment", "No orders", key="maint_order_eq_na",
                  help_text="% of work orders linked to equipment")
     
     # Work Order Completion Rate
@@ -196,7 +197,7 @@ def render_maintenance_dashboard(metrics: dict):
     # =========================================
     # SECTION 3: Failure Analysis Documentation
     # =========================================
-    st.header("⚠️ Failure Analysis Documentation")
+    st.header("Failure Analysis Documentation")
     st.markdown("*How well is failure data documented in failure notifications?*")
     
     f1, f2, f3 = st.columns(3)
@@ -236,9 +237,9 @@ def render_maintenance_dashboard(metrics: dict):
     # =========================================
     # SECTION 4: Maintenance Coverage (INFORMATIONAL)
     # =========================================
-    st.header("📊 Maintenance Coverage")
+    st.header("Maintenance Coverage")
     st.markdown("*What percentage of assets/equipment have maintenance records?*")
-    st.caption("ℹ️ Note: Not all assets/equipment require maintenance records - low values are normal.")
+    st.caption("Note: Not all assets/equipment require maintenance records - low values are normal.")
     
     m1, m2, _ = st.columns(3)
     
@@ -267,7 +268,7 @@ def render_maintenance_dashboard(metrics: dict):
     # =========================================
     # SECTION 5: Data Breakdown Table
     # =========================================
-    st.subheader("📊 Detailed Breakdown")
+    st.subheader("Detailed Breakdown")
     
     col1, col2 = st.columns(2)
     
@@ -289,7 +290,7 @@ def render_maintenance_dashboard(metrics: dict):
         | Metric | Value |
         |--------|-------|
         | Total Work Orders | {total_orders:,} |
-        | With Notification ⚠️ | {maintenance.get('maint_orders_with_notification', 0):,} |
+        | With Notification | {maintenance.get('maint_orders_with_notification', 0):,} |
         | Without Notification | {maintenance.get('maint_orders_without_notification', 0):,} |
         | With Asset | {maintenance.get('maint_order_with_asset', 0):,} |
         | With Equipment | {maintenance.get('maint_order_with_equipment', 0):,} |
@@ -333,4 +334,4 @@ def render_maintenance_dashboard(metrics: dict):
     )
     
     st.markdown("---")
-    st.success("✅ Maintenance Workflow dashboard loaded from pre-computed metrics.")
+    st.success("Maintenance Workflow dashboard loaded from pre-computed metrics.")

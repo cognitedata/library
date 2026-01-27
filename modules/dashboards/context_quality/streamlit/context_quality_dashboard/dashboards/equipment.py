@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Equipment-Asset Quality Dashboard.
 """
@@ -19,7 +20,7 @@ from .ai_summary import (
 
 def render_equipment_dashboard(metrics: dict):
     """Render the Equipment-Asset Quality dashboard tab."""
-    st.title("🔧 Equipment–Asset Relationship Quality Dashboard")
+    st.title("Equipment-Asset Relationship Quality Dashboard")
     
     equipment = metrics.get("equipment_metrics", {})
     metadata = metrics.get("metadata", {})
@@ -30,7 +31,7 @@ def render_equipment_dashboard(metrics: dict):
     
     # Show data info
     computed_at = metadata.get("computed_at", "Unknown")
-    st.info(f"📅 Metrics computed at: {computed_at}")
+    st.info(f"[Date] Metrics computed at: {computed_at}")
     
     # Extract metrics
     total_equipment = equipment.get("eq_total", 0)
@@ -62,7 +63,7 @@ def render_equipment_dashboard(metrics: dict):
     
     st.markdown("---")
     
-    # GAUGES – ALL % METRICS
+    # GAUGES - ALL % METRICS
     g1, g2, g3 = st.columns(3)
     gauge(g1, "Equipment Association", association_rate, "association", 
           get_status_color_equipment, [0, 100], "%", key="eq_assoc",
@@ -96,7 +97,7 @@ def render_equipment_dashboard(metrics: dict):
     st.markdown("---")
     
     # Additional Stats
-    st.subheader("📊 Equipment Distribution")
+    st.subheader("Equipment Distribution")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Avg Equipment per Asset", f"{avg_eq_per_asset:.2f}",
               help="Average number of equipment items per asset")
@@ -111,9 +112,9 @@ def render_equipment_dashboard(metrics: dict):
     
     # Summary
     if unlinked_eq == 0:
-        st.success("🎉 All equipment is properly linked to assets!")
+        st.success("[!] All equipment is properly linked to assets!")
     else:
-        st.warning(f"⚠️ {unlinked_eq:,} equipment items are missing asset links.")
+        st.warning(f"{unlinked_eq:,} equipment items are missing asset links.")
     
     # AI SUMMARY SECTION
     hierarchy = metrics.get("hierarchy_metrics", {})
@@ -125,4 +126,4 @@ def render_equipment_dashboard(metrics: dict):
     )
     
     st.markdown("---")
-    st.success("✅ Equipment–Asset dashboard loaded from pre-computed metrics.")
+    st.success("Equipment-Asset dashboard loaded from pre-computed metrics.")
