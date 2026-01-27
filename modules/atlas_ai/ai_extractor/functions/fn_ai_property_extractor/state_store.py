@@ -151,12 +151,12 @@ class StateStoreHandler:
             # Log but don't fail - next run will re-process (safe)
             self._log("warning", f"Cursor update failed, may re-process batch: {e}")
     
-    def update_cursor(self, cursor: str, increment_processed: int = 0) -> None:
+    def update_cursor(self, cursor, increment_processed: int = 0) -> None:
         """
         Update cursor after successful batch processing.
         
         Args:
-            cursor: ISO timestamp string (lastUpdatedTime of latest instance)
+            cursor: lastUpdatedTime value - can be int (milliseconds) or ISO string
             increment_processed: Number of instances processed in this batch
         """
         current = self.get_metadata()

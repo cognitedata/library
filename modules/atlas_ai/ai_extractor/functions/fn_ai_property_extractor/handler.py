@@ -253,12 +253,14 @@ def execute(data: dict, client: CogniteClient) -> dict:
         # Update cursor to the latest lastUpdatedTime in this batch
         if state_store and instances:
             # Get the max lastUpdatedTime from this batch
+            # Note: last_updated_time is in milliseconds (int), not datetime
             batch_max_time = max(
                 inst.last_updated_time for inst in instances 
                 if hasattr(inst, 'last_updated_time') and inst.last_updated_time
             )
             if batch_max_time:
-                cursor = batch_max_time.isoformat().replace('+00:00', 'Z')
+                # Store as int (milliseconds) - Range filter accepts this directly
+                cursor = batch_max_time
                 state_store.update_cursor(cursor, increment_processed=len(instances))
                 logger.debug(f"Updated cursor to: {cursor}")
         
