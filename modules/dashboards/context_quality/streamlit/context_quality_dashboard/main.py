@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Contextualization Quality Dashboard
 
@@ -37,7 +38,7 @@ from dashboards import (
 st.set_page_config(
     page_title="Contextualization Quality Dashboard",
     layout="wide",
-    page_icon="⭐"
+    page_icon="*"
 )
 
 # ----------------------------------------------------
@@ -68,7 +69,7 @@ def load_metrics_from_file(external_id: str) -> dict:
 # ----------------------------------------------------
 # MAIN APP EXECUTION
 # ----------------------------------------------------
-st.title("⭐ Contextualization Quality Dashboard")
+st.title("Contextualization Quality Dashboard")
 st.write("Measure and monitor the contextualization quality of your data in CDF.")
 st.markdown("---")
 
@@ -80,13 +81,13 @@ has_metrics = metrics is not None
 
 # Tab navigation - Configuration FIRST for better onboarding
 tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d = st.tabs([
-    "⚙️ Configure & Run",
-    "🌳 Asset Hierarchy",
-    "🔧 Equipment-Asset",
-    "⏱️ Time Series",
-    "🛠️ Maintenance",
-    "📄 File Annotation",
-    "🎮 3D Model"
+    "Configure & Run",
+    "Asset Hierarchy",
+    "Equipment-Asset",
+    "Time Series",
+    "Maintenance",
+    "File Annotation",
+    "3D Model"
 ])
 
 # Configuration tab - always available
@@ -96,9 +97,9 @@ with tab_config:
 # Metrics tabs - show content or "run function" message
 if not has_metrics:
     no_metrics_message = """
-    📊 **No metrics data available yet**
+    **No metrics data available yet**
     
-    Go to the **⚙️ Configure & Run** tab to:
+    Go to the **Configure & Run** tab to:
     1. Configure your data model views for each dashboard
     2. Run the metrics function
     

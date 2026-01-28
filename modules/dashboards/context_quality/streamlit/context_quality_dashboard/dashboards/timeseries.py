@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Time Series Contextualization Dashboard.
 """
@@ -19,7 +20,7 @@ from .ai_summary import (
 
 def render_time_series_dashboard(metrics: dict):
     """Render the Time Series Contextualization dashboard tab."""
-    st.title("⏱️ Time Series Contextualization Quality Dashboard")
+    st.title("Time Series Contextualization Quality Dashboard")
     
     ts_metrics = metrics.get("timeseries_metrics", {})
     hierarchy = metrics.get("hierarchy_metrics", {})
@@ -31,25 +32,25 @@ def render_time_series_dashboard(metrics: dict):
     
     # Show data info
     computed_at = metadata.get("computed_at", "Unknown")
-    st.info(f"📅 Metrics computed at: {computed_at}")
+    st.info(f"[Date] Metrics computed at: {computed_at}")
     
     # Important note about data sources
-    with st.expander("ℹ️ **Understanding Metric Sources** — Click to learn more", expanded=False):
+    with st.expander("**Understanding Metric Sources** - Click to learn more", expanded=False):
         st.markdown("""
         **Metrics calculated from Time Series METADATA** (fast, no datapoint access):
-        - TS → Asset Contextualization — from `assets` property
-        - Asset Monitoring Coverage — from `assets` property  
-        - Critical Asset Coverage — from `assets` property + asset criticality
-        - Source/Target Unit Completeness — from `sourceUnit` and `unit` properties
-        - Data Freshness — from `lastUpdatedTime` ⚠️ *This is when the TS definition was last modified, NOT when data was last ingested*
-        - Processing Lag — from `lastUpdatedTime` ⚠️ *Same limitation as above*
+        - TS to Asset Contextualization - from `assets` property
+        - Asset Monitoring Coverage - from `assets` property  
+        - Critical Asset Coverage - from `assets` property + asset criticality
+        - Source/Target Unit Completeness - from `sourceUnit` and `unit` properties
+        - Data Freshness - from `lastUpdatedTime` *[Note: This is when the TS definition was last modified, NOT when data was last ingested]*
+        - Processing Lag - from `lastUpdatedTime` *[Same limitation as above]*
         
         **Metrics calculated from ACTUAL DATA POINTS** (requires datapoint retrieval):
-        - Historical Data Completeness — analyzes actual datapoint timestamps
-        - Gap Count/Duration — detects gaps between consecutive datapoints
-        - Total Time Span — first to last datapoint timestamp
+        - Historical Data Completeness - analyzes actual datapoint timestamps
+        - Gap Count/Duration - detects gaps between consecutive datapoints
+        - Total Time Span - first to last datapoint timestamp
         
-        💡 *Metadata-based metrics are fast but may not reflect actual data ingestion status. For true data freshness, check the Historical Data Completeness section.*
+        *Tip: Metadata-based metrics are fast but may not reflect actual data ingestion status. For true data freshness, check the Historical Data Completeness section.*
         """)
     
     st.markdown("---")
@@ -105,7 +106,7 @@ def render_time_series_dashboard(metrics: dict):
     
     st.markdown("---")
     
-    st.header("📊 Data Quality Metrics")
+    st.header("Data Quality Metrics")
     
     # METRIC CARDS (GAUGES) - Row 1: Contextualization
     g1, g2, g3 = st.columns(3)
@@ -156,7 +157,7 @@ def render_time_series_dashboard(metrics: dict):
     # Source Unit Completeness
     gauge(g6, "Source Unit Completeness", source_unit_completeness, "unit_consistency", 
           get_status_color_ts, [0, 100], "%", key="ts_src_unit",
-          help_text="% of time series with sourceUnit populated (e.g., °C, mm, %)")
+          help_text="% of time series with sourceUnit populated (e.g., C, mm, %)")
     
     st.write("")
     
@@ -174,7 +175,7 @@ def render_time_series_dashboard(metrics: dict):
     st.markdown("---")
     
     # DIAGNOSTICS & LAG
-    st.subheader("⏱️ Diagnostics")
+    st.subheader("Diagnostics")
     c1, c2 = st.columns(2)
     
     if processing_lag_hours is not None:
@@ -207,7 +208,7 @@ def render_time_series_dashboard(metrics: dict):
     # Historical Data Completeness Details
     if ts_analyzed_for_gaps > 0:
         st.markdown("---")
-        st.subheader("📊 Historical Data Completeness Analysis")
+        st.subheader("Historical Data Completeness Analysis")
         st.markdown(f"""
         Analyzed **{ts_analyzed_for_gaps:,}** time series for significant data gaps (>{7} days without data).
         """)
@@ -224,11 +225,11 @@ def render_time_series_dashboard(metrics: dict):
         
         if gap_count > 0:
             st.warning(f"""
-            ⚠️ **Gap Summary:** Found {gap_count:,} significant gaps totaling {total_gap_duration_days:,.0f} days. 
+            **Gap Summary:** Found {gap_count:,} significant gaps totaling {total_gap_duration_days:,.0f} days. 
             Average gap duration: {avg_gap_days:.1f} days. Longest gap: {longest_gap_days:.0f} days.
             """)
         else:
-            st.success("✅ No significant data gaps (>7 days) detected in the analyzed time series.")
+            st.success("No significant data gaps (>7 days) detected in the analyzed time series.")
     
     # AI SUMMARY SECTION
     render_ai_summary_section(
@@ -239,4 +240,4 @@ def render_time_series_dashboard(metrics: dict):
     )
     
     st.markdown("---")
-    st.success("✅ Time Series Contextualization dashboard loaded from pre-computed metrics.")
+    st.success("Time Series Contextualization dashboard loaded from pre-computed metrics.")

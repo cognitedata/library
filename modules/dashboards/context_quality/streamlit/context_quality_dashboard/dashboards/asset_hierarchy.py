@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Asset Hierarchy Quality Dashboard.
 """
@@ -20,7 +21,7 @@ from .ai_summary import (
 
 def render_asset_hierarchy_dashboard(metrics: dict):
     """Render the Asset Hierarchy Quality dashboard tab."""
-    st.title("🌳 Asset Hierarchy Quality Dashboard")
+    st.title("Asset Hierarchy Quality Dashboard")
     
     hierarchy = metrics.get("hierarchy_metrics", {})
     metadata = metrics.get("metadata", {})
@@ -31,7 +32,7 @@ def render_asset_hierarchy_dashboard(metrics: dict):
     
     # Show data info
     computed_at = metadata.get("computed_at", "Unknown")
-    st.info(f"📅 Metrics computed at: {computed_at}")
+    st.info(f"[Date] Metrics computed at: {computed_at}")
     
     # Extract metrics
     total_assets = hierarchy.get("hierarchy_total_assets", 0)
@@ -93,7 +94,7 @@ def render_asset_hierarchy_dashboard(metrics: dict):
     
     # DISTRIBUTIONS
     st.subheader("Depth Distribution")
-    st.markdown("<span style='color:#666;font-size:13px;'>ⓘ Shows how many assets exist at each level of the hierarchy. Level 0 = root assets, Level 1 = direct children of roots, etc.</span>", unsafe_allow_html=True)
+    st.markdown("<span style='color:#666;font-size:13px;'>(i) Shows how many assets exist at each level of the hierarchy. Level 0 = root assets, Level 1 = direct children of roots, etc.</span>", unsafe_allow_html=True)
     if depth_distribution:
         # Convert string keys to int for proper sorting
         depth_dist_clean = {int(k): v for k, v in depth_distribution.items()}
@@ -106,7 +107,7 @@ def render_asset_hierarchy_dashboard(metrics: dict):
         st.info("No depth distribution data available.")
     
     st.subheader("Breadth Distribution (Children per Parent)")
-    st.markdown("<span style='color:#666;font-size:13px;'>ⓘ Shows how many parent assets have X number of children. Helps identify imbalanced hierarchies (e.g., one parent with 1000+ children).</span>", unsafe_allow_html=True)
+    st.markdown("<span style='color:#666;font-size:13px;'>(i) Shows how many parent assets have X number of children. Helps identify imbalanced hierarchies (e.g., one parent with 1000+ children).</span>", unsafe_allow_html=True)
     if breadth_distribution:
         # Convert and limit to top 20 for readability
         breadth_dist_clean = {int(k): v for k, v in breadth_distribution.items()}
@@ -127,4 +128,4 @@ def render_asset_hierarchy_dashboard(metrics: dict):
     )
     
     st.markdown("---")
-    st.success("✅ Asset Hierarchy dashboard loaded from pre-computed metrics.")
+    st.success("Asset Hierarchy dashboard loaded from pre-computed metrics.")

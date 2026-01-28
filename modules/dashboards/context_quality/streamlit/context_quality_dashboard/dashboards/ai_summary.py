@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 AI Summary Generator for Context Quality Dashboards.
 
@@ -83,7 +84,7 @@ def render_ai_summary_section(
         key_prefix: Unique prefix for session state keys
     """
     st.markdown("---")
-    st.subheader("🤖 AI Insights")
+    st.subheader("AI Insights")
     
     summary_key = f"{key_prefix}_ai_summary"
     loading_key = f"{key_prefix}_loading"
@@ -91,7 +92,7 @@ def render_ai_summary_section(
     col1, col2 = st.columns([3, 1])
     
     with col2:
-        if st.button("✨ Generate Insights", key=f"{key_prefix}_generate_btn"):
+        if st.button("Generate Insights", key=f"{key_prefix}_generate_btn"):
             st.session_state[loading_key] = True
             st.session_state[summary_key] = None
     
@@ -178,7 +179,7 @@ DO NOT:
 - Assume all assets should have equipment
 - Suggest increasing equipment-asset coverage as a priority
 
-FOCUS ON: Equipment Association Rate (equipment→asset) and Critical Equipment only."""
+FOCUS ON: Equipment Association Rate (equipment->asset) and Critical Equipment only."""
 
 
 def get_timeseries_prompt() -> str:
@@ -214,7 +215,7 @@ DO NOT:
 - Assume all assets should have time series
 - Confuse "TS to Asset" (critical) with "Asset Monitoring Coverage" (informational)
 
-FOCUS ON: TS to Asset Contextualization (TS→asset) and Critical Asset Coverage only."""
+FOCUS ON: TS to Asset Contextualization (TS->asset) and Critical Asset Coverage only."""
 
 
 def get_maintenance_prompt() -> str:
@@ -223,24 +224,24 @@ def get_maintenance_prompt() -> str:
 
 CRITICAL RULES - Follow these exactly (based on maintenance domain expert guidance):
 
-1. Work Order → Notification Rate (CRITICAL - MUST BE ~100%)
+1. Work Order -> Notification Rate (CRITICAL - MUST BE ~100%)
    - ALL work orders SHOULD originate from a notification.
    - This is the primary workflow: Notification triggers Work Order.
    - If <80%: Major issue - work orders created without proper notification.
    - If 80-95%: Moderate issue. If >95%: Good.
 
-2. Notification → Work Order Rate (INFORMATIONAL - LOW VALUES ARE OK)
+2. Notification -> Work Order Rate (INFORMATIONAL - LOW VALUES ARE OK)
    - Many notifications do NOT need a work order - that's normal.
    - Example: Informational notifications, minor observations, already resolved issues.
    - DO NOT flag low values as problems.
 
-3. Work Order → Asset Coverage (CRITICAL - HIGH IS GOOD)
+3. Work Order -> Asset Coverage (CRITICAL - HIGH IS GOOD)
    - Target: >90%. Work orders need asset context for proper assignment.
 
-4. Work Order → Equipment Coverage (CRITICAL - HIGH IS GOOD)
+4. Work Order -> Equipment Coverage (CRITICAL - HIGH IS GOOD)
    - Target: >90%. Work orders need equipment context for technicians.
 
-5. Notification → Asset/Equipment (CRITICAL - HIGH IS GOOD)
+5. Notification -> Asset/Equipment (CRITICAL - HIGH IS GOOD)
    - Notifications need context for proper routing and assignment.
 
 6. Asset Maintenance Coverage (INFORMATIONAL - LOW VALUES ARE OK)
@@ -257,12 +258,12 @@ CRITICAL RULES - Follow these exactly (based on maintenance domain expert guidan
    - Important for reliability engineering but not all failures require full documentation.
 
 DO NOT:
-- Flag Notification → Work Order as critical (it's informational)
+- Flag Notification -> Work Order as critical (it's informational)
 - Flag Asset/Equipment Maintenance Coverage as problems
 - Assume all assets/equipment need maintenance records
-- Confuse Work Order → Notification (critical) with Notification → Work Order (informational)
+- Confuse Work Order -> Notification (critical) with Notification -> Work Order (informational)
 
-FOCUS ON: Work Order → Notification linkage and Work Order → Asset/Equipment coverage."""
+FOCUS ON: Work Order -> Notification linkage and Work Order -> Asset/Equipment coverage."""
 
 
 def format_hierarchy_metrics(hierarchy: dict) -> str:
@@ -319,14 +320,14 @@ def format_maintenance_metrics(maintenance: dict) -> str:
 - Total Failure Notifications: {maintenance.get('maint_total_failure_notifications', 0):,}
 
 Notification Linkage:
-- Notification → Work Order Rate: {maintenance.get('maint_notif_to_order_rate', 'N/A')}% (INFORMATIONAL - low values OK)
-- Notification → Asset Rate: {maintenance.get('maint_notif_to_asset_rate', 'N/A')}%
-- Notification → Equipment Rate: {maintenance.get('maint_notif_to_equipment_rate', 'N/A')}%
+- Notification -> Work Order Rate: {maintenance.get('maint_notif_to_order_rate', 'N/A')}% (INFORMATIONAL - low values OK)
+- Notification -> Asset Rate: {maintenance.get('maint_notif_to_asset_rate', 'N/A')}%
+- Notification -> Equipment Rate: {maintenance.get('maint_notif_to_equipment_rate', 'N/A')}%
 
 Work Order Quality:
-- Work Order → Notification Rate: {maintenance.get('maint_order_to_notif_rate', 'N/A')}% (CRITICAL - should be ~100%)
-- Work Order → Asset Rate: {maintenance.get('maint_order_to_asset_rate', 'N/A')}%
-- Work Order → Equipment Rate: {maintenance.get('maint_order_to_equipment_rate', 'N/A')}%
+- Work Order -> Notification Rate: {maintenance.get('maint_order_to_notif_rate', 'N/A')}% (CRITICAL - should be ~100%)
+- Work Order -> Asset Rate: {maintenance.get('maint_order_to_asset_rate', 'N/A')}%
+- Work Order -> Equipment Rate: {maintenance.get('maint_order_to_equipment_rate', 'N/A')}%
 - Work Order Completion Rate: {maintenance.get('maint_order_completion_rate', 'N/A')}%
 
 Failure Documentation:
@@ -357,7 +358,7 @@ CRITICAL RULES - Follow these exactly:
 
 3. Confidence Score (HIGH IS GOOD)
    - Average confidence should be >70% for production quality
-   - High confidence (≥90%) annotations are reliable
+   - High confidence (>=90%) annotations are reliable
    - Low confidence (<50%) may need manual review
 
 4. Status Distribution (INFORMATIONAL)
@@ -409,7 +410,7 @@ Calculated Rates (based on user input):
 
 Confidence Distribution:
 - Average Confidence: {annot.get('annot_avg_confidence', 'N/A')}%
-- High Confidence (≥90%): {annot.get('annot_confidence_high', 0):,} ({annot.get('annot_confidence_high_pct', 0):.1f}%)
+- High Confidence (>=90%): {annot.get('annot_confidence_high', 0):,} ({annot.get('annot_confidence_high_pct', 0):.1f}%)
 - Medium Confidence (50-90%): {annot.get('annot_confidence_medium', 0):,} ({annot.get('annot_confidence_medium_pct', 0):.1f}%)
 - Low Confidence (<50%): {annot.get('annot_confidence_low', 0):,} ({annot.get('annot_confidence_low_pct', 0):.1f}%)
 
@@ -434,11 +435,11 @@ def get_3d_model_prompt() -> str:
 You analyze metrics about the relationship between 3D objects and physical assets.
 
 CRITICAL UNDERSTANDING:
-1. **3D → Asset Contextualization Rate** (MOST IMPORTANT): This shows what percentage of 3D objects 
+1. **3D -> Asset Contextualization Rate** (MOST IMPORTANT): This shows what percentage of 3D objects 
    are linked to assets. This is the key indicator - orphaned 3D objects (not linked to assets) 
    represent wasted 3D modeling effort and limit the usefulness of digital twins.
 
-2. **Asset → 3D Coverage**: Shows what percentage of assets have 3D representations. 
+2. **Asset -> 3D Coverage**: Shows what percentage of assets have 3D representations. 
    Important for digital twin completeness.
 
 3. **Critical Asset 3D Rate**: Critical assets (marked with technicalObjectAbcIndicator='A' or similar)
@@ -464,13 +465,13 @@ def format_3d_model_metrics(model3d: dict) -> str:
     
     return f"""3D Model Contextualization Metrics:
 
-KEY METRIC (3D → Asset):
+KEY METRIC (3D -> Asset):
 - Total 3D Objects: {total_objects:,}
 - 3D Objects Linked to Assets: {objects_with_asset:,}
 - Unlinked (Orphaned) 3D Objects: {unlinked:,}
 - 3D Contextualization Rate: {model3d.get('model3d_contextualization_rate', 0)}%
 
-Asset Coverage (Asset → 3D):
+Asset Coverage (Asset -> 3D):
 - Total Assets Checked: {model3d.get('model3d_total_assets', 0):,}
 - Assets with 3D Representation: {model3d.get('model3d_assets_with_3d', 0):,}
 - Asset 3D Coverage Rate: {model3d.get('model3d_asset_coverage', 0)}%
@@ -487,6 +488,6 @@ Bounding Box Quality:
 
 Model Type Distribution:
 - CAD Models: {model3d.get('model3d_cad_count', 0):,}
-- 360° Images: {model3d.get('model3d_360_count', 0):,}
+- 360 Images: {model3d.get('model3d_360_count', 0):,}
 - Point Clouds: {model3d.get('model3d_pointcloud_count', 0):,}
 - Multi-Model Objects: {model3d.get('model3d_multi_model_count', 0):,}"""

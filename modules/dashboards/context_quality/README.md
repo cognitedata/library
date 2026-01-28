@@ -178,7 +178,7 @@ cdf deploy
 >
 > After running `cdf deploy`, the Cognite Function (`context_quality_handler`) may take **2-5 minutes** to fully deploy. The Streamlit dashboard will be available immediately, but the function needs time to initialize before you can run it.
 >
-> If you see "Function not available" when clicking **Run Function** in the dashboard, wait a few minutes and try again. You can verify deployment status in CDF:
+> If you see "Function not available" when running a batch in the dashboard, wait a few minutes and try again. You can verify deployment status in CDF:
 > - Navigate to **Data management** → **Build solutions** → **Functions**
 > - Look for `context_quality_handler` and check its status
 
@@ -244,41 +244,47 @@ When the dashboard opens, you will see:
    - Default is 150,000 for most item types
    - Increase if you have more data, or decrease if you want faster runs
 
-### Step 5: Run the Metrics Function
+### Step 5: Run the Metrics Function (Batch Processing)
 
-1. **Scroll to the top of the Configure & Run tab**
+**Batch Processing** is the primary method for running the metrics function. It processes your data in multiple runs to handle large datasets and avoid timeouts.
 
-2. **Click the blue "▶️ Run Function" button**
-   - If you see an error "Function not found", the function is still deploying
-   - Wait 2-5 minutes and refresh the page (press F5 or click the refresh button)
-   - Try clicking the button again
+1. **At the top of the Configure & Run tab**, you'll see the **"🚀 Run Metrics Function"** section
 
-3. **Watch the status indicator**:
-   - After clicking Run, you'll see a **Call ID** appear
-   - The status will show as **"⏳ Running"**
-   - Click the **"🔄 Check Status"** button to refresh the status
+2. **Configure batch settings** (or use defaults):
+   - **Batch Size**: Number of instances per batch (default: 200,000)
+   - **Number of Batches**: How many batches to run (default: 3)
+   - **Total Capacity**: Shows max instances that can be processed (e.g., 600,000)
+   
+   > 💡 **Tip**: For small datasets (under 150k items), you can set Number of Batches to 1, or use the "⚡ Quick Run Mode" expander at the bottom of the page.
 
-4. **Wait for completion**:
-   - The function typically takes 1-5 minutes depending on data volume
-   - Keep clicking "Check Status" every 30 seconds or so
-   - When complete, the status will change to **"✅ Completed"**
+3. **Run your batches one at a time**:
+   - Click **"▶️ Run Batch 0"** to start the first batch
+   - Wait for it to complete — click **"🔄 Check Status"** to refresh
+   - When Batch 0 shows ✅, click **"▶️ Run Batch 1"**
+   - Continue until all batches are complete
 
-5. **If the function fails**:
-   - The status will show **"❌ Failed"**
-   - Check the function logs in CDF (see Troubleshooting section)
-   - Common issues: wrong view names, no data in views, function timeout
+4. **If a batch fails**:
+   - You'll see a ❌ icon next to the failed batch
+   - Click the **"🔄 Retry"** button to re-run just that batch
+   - No need to restart from the beginning!
+
+5. **Run Aggregation**:
+   - After all batches show ✅, the **"🔗 Run Aggregation"** button becomes active
+   - Click it to combine all batch results into final metrics
+   - Wait for aggregation to complete (status will show ✅)
+
+6. **If you see "Function not found" error**:
+   - The function is still deploying after `cdf deploy`
+   - Wait 2-5 minutes and try again
 
 ### Step 6: View Your Metrics
 
-1. **Once the function shows "✅ Completed"**, click the **"📊 View Dashboard"** button
-   - This will take you to the Asset Hierarchy tab
-
-2. **Or manually navigate to any tab**:
+1. **Once aggregation shows "✅ Completed"**, click any dashboard tab above:
    - Click on the **"🌳 Asset Hierarchy"** tab to see hierarchy metrics
    - Click on the **"🔧 Equipment-Asset"** tab to see equipment metrics
    - And so on for other tabs
 
-3. **On each dashboard tab you will see**:
+2. **On each dashboard tab you will see**:
    - **Gauge charts** showing key metrics as percentages
    - **Summary statistics** with counts
    - **💡 Insights** section with rule-based recommendations
@@ -300,41 +306,43 @@ When the dashboard opens, you will see:
 
 ---
 
-## Batch Processing (For Large Datasets 150k+ Items)
+## Batch Processing (Primary Method)
 
-If you have more than 150,000 assets, time series, or other items, use batch processing mode:
+Batch processing is the **recommended and primary method** for computing metrics. It's designed to handle datasets of any size reliably by processing data in multiple runs.
 
-### Enabling Batch Processing
+### How Batch Processing Works
 
-1. **Go to the "⚙️ Configure & Run" tab**
+1. **Collection Phase**: Each batch processes a subset of your data (e.g., 200k instances) and saves intermediate results to CDF
+2. **Aggregation Phase**: A final run merges all batch results into the final metrics file
+3. **Progressive Execution**: You run batches one at a time, with full visibility into each batch's status
 
-2. **Scroll down to find "🔄 Batch Processing Mode"** and click to expand
+### Configuring Batches
 
-3. **Check the "Enable Batch Processing" checkbox**
+| Setting | Description | Default | Recommendation |
+|---------|-------------|---------|----------------|
+| **Batch Size** | Instances processed per batch | 200,000 | Keep default unless you have very large datasets |
+| **Number of Batches** | Total batches before aggregation | 3 | Set based on your data size (Total Capacity = Batch Size × Number of Batches) |
 
-4. **Configure batch settings**:
-   - **Batch Size**: How many items per batch (default: 200,000)
-   - **Number of Batches**: How many batches to run (e.g., 3 batches for 600k items)
+**Examples:**
+- **1k-200k items**: Set Number of Batches = 1 (single batch + aggregation)
+- **200k-600k items**: Set Number of Batches = 3 (default)
+- **600k-1M items**: Set Number of Batches = 5
+- **1M+ items**: Increase batch size to 300k or add more batches
 
 ### Running Batches
 
-1. **Click "▶️ Run Batch 0"** to start the first batch
-   - Wait for it to complete (status will show ✅)
+1. **Click "▶️ Run Batch 0"** — wait for ✅ completion
+2. **Click "▶️ Run Batch 1"** — continue until all batches complete
+3. **Click "🔗 Run Aggregation"** — combines all results
+4. **Navigate to dashboard tabs** to view your metrics
 
-2. **Click "▶️ Run Batch 1"** for the second batch
-   - Continue until all batches are complete
+### Retry Failed Batches
 
-3. **If a batch fails**:
-   - You'll see a **"🔄 Retry"** button next to the failed batch
-   - Click Retry to re-run just that batch
+If a batch fails (shows ❌), click the **"🔄 Retry"** button next to it. You don't need to restart from the beginning — only the failed batch will be re-run.
 
-4. **Run Aggregation**:
-   - After all batches are complete, click **"🔗 Run Aggregation"**
-   - This combines all batch results into final metrics
-   - Wait for aggregation to complete
+### Quick Run Mode (Alternative)
 
-5. **View results**:
-   - Once aggregation is complete, click "📊 View Dashboard"
+For very small datasets (under 150k instances), you can use the **"⚡ Quick Run Mode"** option found in an expander at the bottom of the Configure & Run tab. This runs a single function call without batch processing, but has a 150k instance limit.
 
 ---
 
@@ -614,7 +622,7 @@ client.functions.schedules.create(
 
 ## Troubleshooting
 
-### "Function not available" when clicking Run Function
+### "Function not available" when clicking Run Batch
 
 **Cause:** The Cognite Function has not finished deploying yet.
 
@@ -628,13 +636,15 @@ client.functions.schedules.create(
 
 ### Dashboard shows "No metrics data available"
 
-**Cause:** The Cognite Function has not been run yet, or it failed.
+**Cause:** The metrics function has not been run yet, or aggregation was not completed.
 
 **Solution:**
 1. Go to the **⚙️ Configure & Run** tab
-2. Click **▶️ Run Function**
-3. Wait for the function to complete (check status)
-4. If it fails, check function logs in CDF
+2. Run all batches (Batch 0, Batch 1, etc.) — wait for each to complete
+3. After all batches show ✅, click **🔗 Run Aggregation**
+4. Wait for aggregation to complete
+5. Navigate to any dashboard tab to view metrics
+6. If a batch fails, use the **🔄 Retry** button to re-run it
 
 ### Metrics show all zeros
 
@@ -645,17 +655,19 @@ client.functions.schedules.create(
 2. Check that the view space, external_id, and version match your data model
 3. Use the **⚙️ Configure & Run** tab to update view configuration
 
-### Function times out
+### Function/Batch times out
 
-**Cause:** Too much data to process within the 10-minute function limit.
+**Cause:** Too much data to process within the 10-minute function limit per batch.
 
 **Solution:**
-1. Reduce processing limits in the **⚙️ Configure & Run** tab under "Processing Limits (Advanced)"
-2. Use **Batch Processing Mode** for large datasets (200k+ items)
-3. Disable features you don't need:
+1. **Reduce batch size** — Lower the "Batch Size" setting (e.g., from 200k to 100k)
+2. **Increase number of batches** — Process smaller chunks over more batches
+3. **Reduce processing limits** in "📊 Processing Limits (Advanced)"
+4. **Disable features you don't need**:
    - Uncheck "Enable Maintenance Metrics" if RMDM is not needed
    - Uncheck "Enable File Annotation Metrics" if P&ID annotations are not needed
    - Uncheck "Enable 3D Metrics" if 3D objects are not needed
+5. **Retry the failed batch** — Click the 🔄 Retry button next to the timed-out batch
 
 ### Maintenance tab shows warning
 

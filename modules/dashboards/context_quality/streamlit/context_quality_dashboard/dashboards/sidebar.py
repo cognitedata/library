@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Sidebar metadata display component.
 """
@@ -10,7 +11,7 @@ def render_metadata_sidebar(metrics: dict):
     """Display metadata in the sidebar."""
     metadata = metrics.get("metadata", {})
     
-    st.sidebar.title("📋 Metrics Info")
+    st.sidebar.title("Metrics Info")
     
     computed_at = metadata.get("computed_at", "Unknown")
     if computed_at != "Unknown":
@@ -28,7 +29,7 @@ def render_metadata_sidebar(metrics: dict):
     st.sidebar.markdown("---")
     
     # Instance Counts Section
-    st.sidebar.markdown("### 📊 Instance Counts")
+    st.sidebar.markdown("### Instance Counts")
     instance_counts = metadata.get("instance_counts", {})
     
     # Assets
@@ -41,7 +42,7 @@ def render_metadata_sidebar(metrics: dict):
     st.sidebar.markdown(f"- Total Instances: {asset_total:,}")
     st.sidebar.markdown(f"- Unique: {asset_unique:,}")
     if asset_dups > 0:
-        st.sidebar.markdown(f"- ⚠️ Duplicates: {asset_dups:,}")
+        st.sidebar.markdown(f"- Duplicates: {asset_dups:,}")
     else:
         st.sidebar.markdown(f"- Duplicates: {asset_dups:,}")
     
@@ -55,7 +56,7 @@ def render_metadata_sidebar(metrics: dict):
     st.sidebar.markdown(f"- Total Instances: {eq_total:,}")
     st.sidebar.markdown(f"- Unique: {eq_unique:,}")
     if eq_dups > 0:
-        st.sidebar.markdown(f"- ⚠️ Duplicates: {eq_dups:,}")
+        st.sidebar.markdown(f"- Duplicates: {eq_dups:,}")
     else:
         st.sidebar.markdown(f"- Duplicates: {eq_dups:,}")
     
@@ -69,12 +70,12 @@ def render_metadata_sidebar(metrics: dict):
     st.sidebar.markdown(f"- Total Instances: {ts_total:,}")
     st.sidebar.markdown(f"- Unique: {ts_unique:,}")
     if ts_dups > 0:
-        st.sidebar.markdown(f"- ⚠️ Duplicates: {ts_dups:,}")
+        st.sidebar.markdown(f"- Duplicates: {ts_dups:,}")
     else:
         st.sidebar.markdown(f"- Duplicates: {ts_dups:,}")
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔄 API Fetch Iterations")
+    st.sidebar.markdown("### API Fetch Iterations")
     st.sidebar.caption("Number of API calls made to retrieve data")
     batches = metadata.get("batches_processed", {})
     st.sidebar.markdown(f"- Assets: {batches.get('assets', 0):,}")
@@ -82,7 +83,7 @@ def render_metadata_sidebar(metrics: dict):
     st.sidebar.markdown(f"- Time Series: {batches.get('ts', 0):,}")
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📊 Processing Coverage")
+    st.sidebar.markdown("### Processing Coverage")
     config = metadata.get("config", {})
     limits = metadata.get("limits_reached", {})
     
@@ -103,27 +104,27 @@ def render_metadata_sidebar(metrics: dict):
     
     # Assets
     if asset_limit_reached:
-        st.sidebar.markdown(f"**Assets:** {asset_processed:,} of {asset_limit:,} limit ⚠️ LIMIT REACHED")
+        st.sidebar.markdown(f"**Assets:** {asset_processed:,} of {asset_limit:,} limit [LIMIT REACHED]")
     else:
-        st.sidebar.markdown(f"**Assets:** {asset_processed:,} ✅ All processed")
+        st.sidebar.markdown(f"**Assets:** {asset_processed:,} (All processed)")
     
     # Equipment
     if eq_limit_reached:
-        st.sidebar.markdown(f"**Equipment:** {eq_processed:,} of {eq_limit:,} limit ⚠️ LIMIT REACHED")
+        st.sidebar.markdown(f"**Equipment:** {eq_processed:,} of {eq_limit:,} limit [LIMIT REACHED]")
     else:
-        st.sidebar.markdown(f"**Equipment:** {eq_processed:,} ✅ All processed")
+        st.sidebar.markdown(f"**Equipment:** {eq_processed:,} (All processed)")
     
     # Time Series
     if ts_limit_reached:
-        st.sidebar.markdown(f"**Time Series:** {ts_processed:,} of {ts_limit:,} limit ⚠️ LIMIT REACHED")
+        st.sidebar.markdown(f"**Time Series:** {ts_processed:,} of {ts_limit:,} limit [LIMIT REACHED]")
     else:
-        st.sidebar.markdown(f"**Time Series:** {ts_processed:,} ✅ All processed")
+        st.sidebar.markdown(f"**Time Series:** {ts_processed:,} (All processed)")
     
     # Warning if any limit was reached
     if any_limit_reached:
         st.sidebar.markdown("---")
         st.sidebar.warning("""
-        ⚠️ **Partial Data Warning**
+        **Partial Data Warning**
         
         One or more processing limits were reached. The metrics shown represent **trends only** and do not reflect the complete dataset.
         
@@ -133,6 +134,6 @@ def render_metadata_sidebar(metrics: dict):
         """)
     
     st.sidebar.markdown("---")
-    if st.sidebar.button("🔄 Refresh Data"):
+    if st.sidebar.button("Refresh Data"):
         st.cache_data.clear()
         st.rerun()

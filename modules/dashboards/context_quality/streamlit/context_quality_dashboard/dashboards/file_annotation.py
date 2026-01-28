@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 File Annotation Quality Dashboard (CDM CogniteDiagramAnnotation).
 
@@ -52,7 +53,7 @@ def get_status_color_annotation(metric_key, value):
 
 def render_file_annotation_dashboard(metrics: dict):
     """Render the File Annotation Quality dashboard tab."""
-    st.title("📄 File Annotation Quality Dashboard")
+    st.title("File Annotation Quality Dashboard")
     st.markdown("*Based on CDM CogniteDiagramAnnotation*")
     
     annot = metrics.get("file_annotation_metrics", {})
@@ -64,7 +65,7 @@ def render_file_annotation_dashboard(metrics: dict):
     
     if not annotations_enabled:
         st.warning("""
-        ⚠️ **File Annotation Metrics Disabled**
+        **File Annotation Metrics Disabled**
         
         File annotation metrics are disabled in the function configuration.
         To enable, set `enable_file_annotation_metrics: true` in the function input.
@@ -73,7 +74,7 @@ def render_file_annotation_dashboard(metrics: dict):
     
     if not annot or not annot.get("annot_has_data", False):
         st.warning("""
-        ⚠️ **No File Annotation Data Found**
+        **No File Annotation Data Found**
         
         No CogniteDiagramAnnotation edges found in the CDM.
         """)
@@ -91,7 +92,7 @@ def render_file_annotation_dashboard(metrics: dict):
         
         **Configuration:**
         
-        You can configure the annotation view in `metrics/common.py` → Lines **40-42**:
+        You can configure the annotation view in `metrics/common.py` -> Lines **40-42**:
         
         ```python
         "annotation_view_space": "cdf_cdm",
@@ -103,7 +104,7 @@ def render_file_annotation_dashboard(metrics: dict):
     
     # Show data info
     computed_at = metadata.get("computed_at", "Unknown")
-    st.info(f"📅 Metrics computed at: {computed_at}")
+    st.info(f"[Date] Metrics computed at: {computed_at}")
     
     # Extract base metrics
     total_annotations = annot.get("annot_total", 0)
@@ -114,7 +115,7 @@ def render_file_annotation_dashboard(metrics: dict):
     # USER INPUT SECTION: Reference Numbers
     # =========================================
     st.markdown("---")
-    st.header("📊 Reference Numbers (User Input)")
+    st.header("Reference Numbers (User Input)")
     st.markdown("""
     *Enter reference numbers to calculate completion rates. These values are not stored in the data model,
     so you need to provide them manually for accurate rate calculations.*
@@ -123,7 +124,7 @@ def render_file_annotation_dashboard(metrics: dict):
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📁 Files in Scope")
+        st.subheader("[Folder] Files in Scope")
         files_in_scope = st.number_input(
             "Total files that should be annotated",
             min_value=0,
@@ -135,7 +136,7 @@ def render_file_annotation_dashboard(metrics: dict):
         st.session_state["annot_files_in_scope"] = files_in_scope
     
     with col2:
-        st.subheader("🏷️ Expected Asset Tags")
+        st.subheader("[Tag] Expected Asset Tags")
         expected_tags = st.number_input(
             "Expected asset tags to detect",
             min_value=0,
@@ -159,7 +160,7 @@ def render_file_annotation_dashboard(metrics: dict):
     # SECTION 1: Summary Cards
     # =========================================
     st.markdown("---")
-    st.header("📈 Summary")
+    st.header("[Chart] Summary")
     
     col1, col2, col3, col4 = st.columns(4)
     metric_card(col1, "Total Annotations", f"{total_annotations:,}",
@@ -176,7 +177,7 @@ def render_file_annotation_dashboard(metrics: dict):
     # =========================================
     # SECTION 2: Calculated Rates (from user input)
     # =========================================
-    st.header("📊 Calculated Rates")
+    st.header("Calculated Rates")
     st.caption("*Rates calculated using reference numbers you provided above*")
     
     g1, g2 = st.columns(2)
@@ -204,7 +205,7 @@ def render_file_annotation_dashboard(metrics: dict):
     # =========================================
     # SECTION 3: Confidence Metrics
     # =========================================
-    st.header("🎯 Confidence Distribution")
+    st.header("Confidence Distribution")
     st.markdown("*How confident is the annotation model in its predictions?*")
     
     avg_confidence = annot.get("annot_avg_confidence")
@@ -225,12 +226,12 @@ def render_file_annotation_dashboard(metrics: dict):
     # High confidence gauge
     gauge(c2, "High Confidence", high_conf_pct, "high_confidence",
           get_status_color_annotation, [0, 100], "%", key="annot_high_conf",
-          help_text="% of annotations with confidence ≥ 90%")
+          help_text="% of annotations with confidence >= 90%")
     
     # Confidence distribution chart
     with c3:
         fig = go.Figure(data=[go.Pie(
-            labels=["High (≥90%)", "Medium (50-90%)", "Low (<50%)"],
+            labels=["High (>=90%)", "Medium (50-90%)", "Low (<50%)"],
             values=[
                 annot.get("annot_confidence_high", 0),
                 annot.get("annot_confidence_medium", 0),
@@ -256,10 +257,10 @@ def render_file_annotation_dashboard(metrics: dict):
         st.markdown(f"""
         | Level | Count |
         |-------|-------|
-        | 🟢 High (≥90%) | {annot.get('annot_confidence_high', 0):,} |
-        | 🟡 Medium (50-90%) | {annot.get('annot_confidence_medium', 0):,} |
-        | 🔴 Low (<50%) | {annot.get('annot_confidence_low', 0):,} |
-        | ⚪ Missing | {annot.get('annot_confidence_missing', 0):,} |
+        | High (>=90%) | {annot.get('annot_confidence_high', 0):,} |
+        | Medium (50-90%) | {annot.get('annot_confidence_medium', 0):,} |
+        | Low (<50%) | {annot.get('annot_confidence_low', 0):,} |
+        | Missing | {annot.get('annot_confidence_missing', 0):,} |
         """)
     
     st.markdown("---")
@@ -267,7 +268,7 @@ def render_file_annotation_dashboard(metrics: dict):
     # =========================================
     # SECTION 4: Status Distribution
     # =========================================
-    st.header("✅ Annotation Status")
+    st.header("Annotation Status")
     st.markdown("*Review status of annotations (approved, suggested, rejected)*")
     
     approved_pct = annot.get("annot_approved_pct", 0)
@@ -307,22 +308,22 @@ def render_file_annotation_dashboard(metrics: dict):
         st.markdown(f"""
         | Status | Count |
         |--------|-------|
-        | ✅ Approved | {annot.get('annot_approved', 0):,} |
-        | 🔵 Suggested | {annot.get('annot_suggested', 0):,} |
-        | ❌ Rejected | {annot.get('annot_rejected', 0):,} |
+        | Approved | {annot.get('annot_approved', 0):,} |
+        | Suggested | {annot.get('annot_suggested', 0):,} |
+        | Rejected | {annot.get('annot_rejected', 0):,} |
         """)
         
         # Manual review indicator
         suggested = annot.get('annot_suggested', 0)
         if suggested > 0:
-            st.warning(f"⚠️ {suggested:,} annotations pending review")
+            st.warning(f"{suggested:,} annotations pending review")
     
     st.markdown("---")
     
     # =========================================
     # SECTION 5: Annotation Types
     # =========================================
-    st.header("🔗 Annotation Types")
+    st.header("Annotation Types")
     st.markdown("*What types of entities are being linked?*")
     
     t1, t2 = st.columns(2)
@@ -352,9 +353,9 @@ def render_file_annotation_dashboard(metrics: dict):
         st.markdown(f"""
         | Type | Count | % |
         |------|-------|---|
-        | 🏷️ Asset Tags | {annot.get('annot_asset_tags', 0):,} | {annot.get('annot_asset_tag_pct', 0):.1f}% |
-        | 📄 File Links | {annot.get('annot_file_links', 0):,} | {annot.get('annot_file_link_pct', 0):.1f}% |
-        | ❓ Other | {annot.get('annot_other', 0):,} | - |
+        | [Tag] Asset Tags | {annot.get('annot_asset_tags', 0):,} | {annot.get('annot_asset_tag_pct', 0):.1f}% |
+        | File Links | {annot.get('annot_file_links', 0):,} | {annot.get('annot_file_link_pct', 0):.1f}% |
+        | Other | {annot.get('annot_other', 0):,} | - |
         """)
         
         st.markdown("---")
@@ -371,7 +372,7 @@ def render_file_annotation_dashboard(metrics: dict):
     # SECTION 6: Detailed Metrics Table
     # =========================================
     st.markdown("---")
-    st.subheader("📊 Detailed Metrics")
+    st.subheader("Detailed Metrics")
     
     col1, col2 = st.columns(2)
     
@@ -412,4 +413,4 @@ def render_file_annotation_dashboard(metrics: dict):
     )
     
     st.markdown("---")
-    st.success("✅ File Annotation dashboard loaded from pre-computed metrics.")
+    st.success("File Annotation dashboard loaded from pre-computed metrics.")
