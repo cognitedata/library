@@ -107,30 +107,48 @@ def _check_function_status(client: CogniteClient, call_id: int) -> dict:
 
 def _render_view_inputs(label: str, space_key: str, external_id_key: str, version_key: str):
     """Render a row of inputs for a single view configuration."""
-    # Ensure session state is initialized for these keys
-    for key, default_key in [(space_key, space_key), (external_id_key, external_id_key), (version_key, version_key)]:
+    # Ensure session state is initialized for these keys BEFORE widget rendering
+    keys_to_init = [space_key, external_id_key, version_key]
+    for key in keys_to_init:
         if key not in st.session_state:
             st.session_state[key] = DEFAULT_CONFIG.get(key, "")
     
+    # Get current values from session state
+    space_value = st.session_state.get(space_key, DEFAULT_CONFIG.get(space_key, ""))
+    external_id_value = st.session_state.get(external_id_key, DEFAULT_CONFIG.get(external_id_key, ""))
+    version_value = st.session_state.get(version_key, DEFAULT_CONFIG.get(version_key, ""))
+    
     col1, col2, col3 = st.columns([1, 2, 0.5])
     with col1:
-        st.text_input(
+        new_space = st.text_input(
             "Space",
-            key=space_key,
+            value=space_value,
+            key=f"{space_key}_widget",
             help=f"Data model space for {label}"
         )
+        # Update session state if value changed
+        if new_space != st.session_state.get(space_key):
+            st.session_state[space_key] = new_space
     with col2:
-        st.text_input(
+        new_external_id = st.text_input(
             "View External ID",
-            key=external_id_key,
+            value=external_id_value,
+            key=f"{external_id_key}_widget",
             help=f"View external ID for {label}"
         )
+        # Update session state if value changed
+        if new_external_id != st.session_state.get(external_id_key):
+            st.session_state[external_id_key] = new_external_id
     with col3:
-        st.text_input(
+        new_version = st.text_input(
             "Version",
-            key=version_key,
+            value=version_value,
+            key=f"{version_key}_widget",
             help=f"View version for {label}"
         )
+        # Update session state if value changed
+        if new_version != st.session_state.get(version_key):
+            st.session_state[version_key] = new_version
 
 
 def _render_quick_run_section(client: CogniteClient):
