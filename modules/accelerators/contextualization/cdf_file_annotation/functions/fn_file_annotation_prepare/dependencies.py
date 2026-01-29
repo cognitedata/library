@@ -2,7 +2,7 @@ import os
 
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import Any, Tuple, Literal
+from typing import Any, Tuple
 from cognite.client import CogniteClient, ClientConfig
 from cognite.client.credentials import OAuthClientCredentials
 

@@ -1,0 +1,8 @@
+externalId: file_annotation_dashboard_pipeline_health
+name: File Annotation Dashboard - Pipeline Health
+creator: lucas.guimaraes@cognite.com, jack.zhao@cognite.com
+description: Dashboard to inspect the health of the File Annotation Pipeline
+published: true
+theme: Light
+dataSetExternalId: {{dataset}}
+entrypoint: Pipeline_Health.py
