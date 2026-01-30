@@ -1,0 +1,3 @@
+externalId: '{{workflow}}'
+description: 'Workflow for AI-based property extraction from text fields in data modeling instances'
+dataSetExternalId: ds_ai_extractor
