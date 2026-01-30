@@ -43,11 +43,15 @@ Configuration is managed through `default.config.yaml` (or your project's `confi
 | `functionSpace` | string | Yes | - | Space for function deployment (required in DATA_MODELING_ONLY mode) |
 | `extractionPipelineExternalId` | string | Yes | `ep_ai_property_extractor` | External ID of the extraction pipeline |
 | `agentExternalId` | string | Yes | `ai_property_extractor_agent` | External ID of the LLM agent to use |
-| `viewSpace` | string | Yes | - | Data model space containing the view |
-| `viewExternalId` | string | Yes | - | External ID of the view to process |
-| `viewVersion` | string | Yes | `v1` | Version of the view |
+| `viewSpace` | string | Yes | - | Data model space containing the source view |
+| `viewExternalId` | string | Yes | - | External ID of the source view to read from |
+| `viewVersion` | string | Yes | `v1` | Version of the source view |
+| `targetViewSpace` | string | No | - | Space for the target view (optional, defaults to source view) |
+| `targetViewExternalId` | string | No | - | External ID of the target view to write to |
+| `targetViewVersion` | string | No | `v1` | Version of the target view |
 | `textProperty` | string | Yes | - | Property containing text to extract from |
-| `batchSize` | integer | No | `10` | Number of instances to process per batch (1-100) |
+| `batchSize` | integer | No | `10` | Number of instances to query per batch (1-100) |
+| `llmBatchSize` | integer | No | `1` | Number of instances to send to LLM in a single prompt (1-50) |
 | `propertiesToExtract` | JSON array | No | `[]` | List of property IDs to extract. Empty = all non-filled properties |
 | `aiPropertyMapping` | JSON object | No | `{}` | Map source properties to different target properties |
 | `processingFilters` | JSON array | No | `[]` | Additional DM filters for instance selection |
@@ -66,9 +70,14 @@ agent:
   externalId: string           # Required: Agent external ID
 
 view:
-  space: string                # Required: View space
-  externalId: string           # Required: View external ID  
-  version: string              # Optional: View version (default: "v1")
+  space: string                # Required: Source view space
+  externalId: string           # Required: Source view external ID  
+  version: string              # Optional: Source view version (default: "v1")
+
+targetView:                    # Optional: Target view for writing extracted properties
+  space: string                # Required if targetView is used
+  externalId: string           # Required if targetView is used
+  version: string              # Optional: Target view version (default: "v1")
 
 extraction:
   textProperty: string         # Required: Property with source text
@@ -76,7 +85,8 @@ extraction:
   aiPropertyMapping: dict      # Optional: Source-to-target property mapping
 
 processing:
-  batchSize: integer           # Optional: Instances per batch (1-100, default: 10)
+  batchSize: integer           # Optional: Instances per query batch (1-100, default: 10)
+  llmBatchSize: integer        # Optional: Instances per LLM prompt (1-50, default: 1)
   filters: list                # Optional: DM filters for instance selection
 
 prompt:
@@ -87,6 +97,36 @@ prompt:
 ---
 
 ## Configuration Details
+
+### `targetView` (Optional)
+
+Specifies a separate view for writing extracted properties. If not configured, properties are written to the source view.
+
+```yaml
+# Source view (to read text from)
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+
+# Target view (to write extracted properties to)
+targetView:
+  space: "my_space"
+  externalId: "AssetAIProperties"
+  version: "v1"
+```
+
+**Use Cases:**
+- Keep AI-generated values in a separate view from source data
+- Write to an extension view that adds AI properties to a base type
+- Write to a view with different permissions or access controls
+
+**Behavior:**
+- Text is read from the source view's `textProperty`
+- Property metadata (name, description) for LLM prompts comes from the source view
+- Extracted values are written to the target view
+- Target property names must exist in the target view
+- When using `aiPropertyMapping`, the target property is looked up in the target view
 
 ### `propertiesToExtract`
 
@@ -153,17 +193,53 @@ processingFilters: '[{"type": "prefix", "property": "externalId", "value": "NOTI
 
 ### `batchSize`
 
-Number of instances processed per iteration.
+Number of instances queried per iteration from CDF.
 
 ```yaml
 batchSize: 25
 ```
 
 **Behavior:**
-- The function runs in a loop, processing `batchSize` instances at a time
+- The function runs in a loop, querying `batchSize` instances at a time
 - Continues until no more instances need processing OR 9 minutes elapsed
 - Higher values = fewer API calls but more memory usage
 - Range: 1-100
+
+### `llmBatchSize`
+
+Number of instances to send to the LLM in a single prompt. This allows efficient batch processing by reducing the number of LLM API calls.
+
+```yaml
+# Individual processing (default - one LLM call per instance)
+llmBatchSize: 1
+
+# Batch processing (5 instances per LLM call)
+llmBatchSize: 5
+```
+
+**Behavior:**
+- `llmBatchSize: 1` (default): Same as before - each instance is processed individually
+- `llmBatchSize > 1`: Multiple instances are sent to the LLM in a single prompt, and the LLM returns a list of extracted properties for each
+- The batch prompt includes instructions for **individual analysis**: "Each item should be analyzed individually and independently - do not mix information between items"
+- If a batch LLM call fails, the extractor automatically falls back to individual processing for that batch
+- Range: 1-50
+
+**When to use batch processing:**
+- Large numbers of instances to process efficiently
+- Short text properties that fit multiple items in the LLM context window
+- When LLM API call overhead is a bottleneck
+
+**When to use individual processing (default):**
+- Very long text properties that may exceed context limits
+- When maximum extraction accuracy is needed
+- When debugging or troubleshooting extraction issues
+
+**Example configuration for batch processing:**
+```yaml
+processing:
+  batchSize: 50        # Query 50 instances at a time
+  llmBatchSize: 10     # Send 10 instances per LLM call (5 LLM calls per batch)
+```
 
 ### `customPromptInstructions`
 

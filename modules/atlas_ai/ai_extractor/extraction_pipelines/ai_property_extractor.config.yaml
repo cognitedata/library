@@ -28,6 +28,7 @@ config:
     #     writeMode: overwrite
   processing:
     batchSize: {{ batchSize }}
+    llmBatchSize: {{ llmBatchSize }}
     filters: '{{processingFilters}}'
   prompt:
     # Custom instructions are appended to the prompt (configured via customPromptInstructions variable)
