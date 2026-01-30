@@ -147,7 +147,26 @@ class AgentConfig(BaseModel, alias_generator=to_camel):
 
 
 class ViewConfig(BaseModel, alias_generator=to_camel):
-    """Configuration for the data modeling view."""
+    """Configuration for a data modeling view (source or target)."""
+    space: str
+    external_id: str
+    version: str = "v1"
+
+    def as_view_id(self) -> dm.ViewId:
+        return dm.ViewId(
+            space=self.space, 
+            external_id=self.external_id, 
+            version=self.version
+        )
+
+
+class TargetViewConfig(BaseModel, alias_generator=to_camel):
+    """
+    Optional configuration for the target view where extracted properties are written.
+    
+    If not specified, properties are written to the source view.
+    All fields are required when the target view is specified.
+    """
     space: str
     external_id: str
     version: str = "v1"
@@ -257,7 +276,15 @@ class ProcessingConfig(BaseModel, alias_generator=to_camel):
         default=10, 
         ge=1, 
         le=100,
-        description="Number of instances to process per batch"
+        description="Number of instances to process per batch (query batch size)"
+    )
+    llm_batch_size: int = Field(
+        default=1,
+        ge=1,
+        le=50,
+        description="Number of instances to send to LLM in a single prompt. "
+                    "Set to 1 for individual processing (default). "
+                    "Higher values reduce API calls but require more context window."
     )
     filters: Optional[List[Dict[str, Any]]] = Field(
         default=None,
@@ -299,10 +326,25 @@ class Config(BaseModel, alias_generator=to_camel):
     """Root configuration model for the AI Property Extractor."""
     agent: AgentConfig
     view: ViewConfig
+    target_view: Optional[TargetViewConfig] = Field(
+        default=None,
+        description="Optional target view for writing extracted properties. If not specified, writes to the source view."
+    )
     extraction: ExtractionConfig
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     prompt: PromptConfig = Field(default_factory=PromptConfig)
     state_store: StateStoreConfig = Field(default_factory=StateStoreConfig)
+    
+    def get_target_view_config(self) -> ViewConfig:
+        """Get the target view config, falling back to source view if not specified."""
+        if self.target_view:
+            # Convert TargetViewConfig to ViewConfig for consistency
+            return ViewConfig(
+                space=self.target_view.space,
+                external_id=self.target_view.external_id,
+                version=self.target_view.version
+            )
+        return self.view
 
 
 def load_config(client: CogniteClient, function_data: Dict[str, Any], logger=None) -> Config:

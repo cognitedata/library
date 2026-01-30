@@ -6,6 +6,12 @@ config:
     space: '{{viewSpace}}'
     externalId: '{{viewExternalId}}'
     version: '{{viewVersion}}'
+  # Optional: Target view for writing extracted properties
+  # If not specified, properties are written to the source view
+  # targetView:
+  #   space: '{{targetViewSpace}}'
+  #   externalId: '{{targetViewExternalId}}'
+  #   version: '{{targetViewVersion}}'
   extraction:
     textProperty: '{{textProperty}}'
     # Legacy format (still supported):

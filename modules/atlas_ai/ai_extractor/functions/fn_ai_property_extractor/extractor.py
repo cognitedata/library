@@ -41,7 +41,7 @@ class LLMPropertyExtractor:
     # Property types that cannot be set directly
     REVERSE_RELATION_TYPES = (MultiReverseDirectRelation, SingleReverseDirectRelation)
     
-    # Default prompt template used when none is configured
+    # Default prompt template used when none is configured (single instance)
     DEFAULT_PROMPT_TEMPLATE = """You are an expert data analyst. You will receive a free text. Your task is to extract the relevant values for the following structured properties, as best as possible, from that text.
 
 For each property, you will be given:
@@ -69,6 +69,47 @@ Example output:
   "Property_ABC": null,
   "Property_List": ["value1", "value2"]
 }}"""
+
+    # Default prompt template for batch processing (multiple instances)
+    DEFAULT_BATCH_PROMPT_TEMPLATE = """You are an expert data analyst. You will receive multiple items, each containing an ID and a free text. Your task is to extract the relevant values for the following structured properties from each item's text.
+
+**Individual approach**: Each item should be analyzed individually and independently - do not mix information between items.
+
+For each property, you will be given:
+- externalId: A unique identifier for the property.
+- name: The display name.
+- description: A detailed explanation of what should be filled into this property.
+
+For each item, return a JSON object with the item's ID and the extracted property values.
+{custom_instructions}
+
+Here are the items to analyze:
+{items}
+
+Here are the properties to fill for EACH item:
+{properties}
+
+Remember:
+- Return a JSON array with one object per item.
+- Each object must have "id" (matching the item ID) and the property externalIds as keys.
+- Use null for missing fields.
+- If a property is a list, return a JSON array.
+
+Example output for 2 items:
+[
+  {{
+    "id": "item_1",
+    "Property_XYZ": "value 1",
+    "Property_ABC": null,
+    "Property_List": ["value1", "value2"]
+  }},
+  {{
+    "id": "item_2",
+    "Property_XYZ": "value 2",
+    "Property_ABC": "some value",
+    "Property_List": []
+  }}
+]"""
     
     def __init__(
         self, 
@@ -135,6 +176,48 @@ Example output:
         
         return prompt.strip()
     
+    def _build_batch_prompt(
+        self, 
+        items: List[Dict[str, str]], 
+        properties_to_fill: Dict[str, Dict[str, str]],
+        batch_prompt_template: Optional[str] = None
+    ) -> str:
+        """
+        Build the LLM prompt for batch property extraction.
+        
+        Args:
+            items: List of dicts with 'id' and 'text' keys for each instance
+            properties_to_fill: Dictionary mapping property external_id to {name, description}
+            batch_prompt_template: Optional custom batch prompt template
+        
+        Returns:
+            Formatted prompt string for batch processing
+        """
+        # Format custom instructions (add newlines if present)
+        custom_instructions = ""
+        if self.custom_prompt_instructions and self.custom_prompt_instructions.strip():
+            custom_instructions = f"\n\n{self.custom_prompt_instructions}"
+        
+        # Use provided template or default batch template
+        template = batch_prompt_template if batch_prompt_template else self.DEFAULT_BATCH_PROMPT_TEMPLATE
+        
+        # Format items for the prompt
+        formatted_items = []
+        for item in items:
+            formatted_items.append({
+                "id": item["id"],
+                "text": item["text"]
+            })
+        
+        # Build the prompt using the batch template
+        prompt = template.format(
+            items=json.dumps(formatted_items, indent=2),
+            properties=json.dumps(properties_to_fill, indent=2),
+            custom_instructions=custom_instructions
+        )
+        
+        return prompt.strip()
+    
     def _parse_text_with_llm(self, text: str, properties_to_fill: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
         """
         Parse text using LLM and return extracted properties.
@@ -162,6 +245,61 @@ Example output:
             return json.loads(json_str)
         except json.JSONDecodeError:
             raise ValueError(f"Failed to parse JSON from agent response: {returned_json}")
+    
+    def _parse_batch_with_llm(
+        self, 
+        items: List[Dict[str, str]], 
+        properties_to_fill: Dict[str, Dict[str, str]],
+        batch_prompt_template: Optional[str] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Parse multiple texts using LLM in a single call and return extracted properties for each.
+        
+        Args:
+            items: List of dicts with 'id' and 'text' keys for each instance
+            properties_to_fill: Dictionary mapping property external_id to {name, description}
+            batch_prompt_template: Optional custom batch prompt template
+        
+        Returns:
+            Dictionary mapping item ID to extracted properties dict
+        
+        Raises:
+            ValueError: If the LLM response cannot be parsed as JSON
+        """
+        prompt = self._build_batch_prompt(items, properties_to_fill, batch_prompt_template)
+        self._log("debug", f"Sending batch prompt to agent (length: {len(prompt)}, items: {len(items)})")
+        
+        response = self.client.agents.chat(self.agent.external_id, Message(content=prompt))
+        returned_json = response.messages[0].content.text
+        
+        # Try to extract JSON from the response (handle markdown code blocks)
+        json_str = self._extract_json_from_response(returned_json)
+        
+        try:
+            parsed_list = json.loads(json_str)
+        except json.JSONDecodeError:
+            raise ValueError(f"Failed to parse JSON from agent batch response: {returned_json}")
+        
+        # Convert list response to dict keyed by item ID
+        if not isinstance(parsed_list, list):
+            raise ValueError(f"Expected list response for batch processing, got: {type(parsed_list)}")
+        
+        results = {}
+        for item_result in parsed_list:
+            if not isinstance(item_result, dict):
+                self._log("warning", f"Skipping non-dict item in batch response: {item_result}")
+                continue
+            
+            item_id = item_result.get("id")
+            if not item_id:
+                self._log("warning", f"Skipping item without 'id' in batch response: {item_result}")
+                continue
+            
+            # Extract properties (exclude 'id' from the properties dict)
+            properties = {k: v for k, v in item_result.items() if k != "id"}
+            results[item_id] = properties
+        
+        return results
     
     @staticmethod
     def _extract_json_from_response(response: str) -> str:
@@ -366,9 +504,10 @@ Example output:
         self, 
         instance, 
         parsed_dict: Dict[str, Any], 
-        view: View,
+        source_view: View,
         property_mapping: Optional[Dict[str, str]] = None,
-        property_configs: Optional[Dict[str, PropertyConfig]] = None
+        property_configs: Optional[Dict[str, PropertyConfig]] = None,
+        target_view: Optional[View] = None
     ) -> Optional[NodeApply]:
         """
         Create a NodeApply object from parsed properties.
@@ -376,11 +515,13 @@ Example output:
         Args:
             instance: The original instance
             parsed_dict: Dictionary of parsed property values (keyed by source property)
-            view: The view defining the properties
+            source_view: The view defining the source properties (used for property metadata)
             property_mapping: Optional mapping from source property to target property
                              e.g., {"description": "ai_description"}
             property_configs: Optional dict of PropertyConfig objects keyed by source property
                              Used to apply write modes (append, overwrite, add_new_only)
+            target_view: Optional separate view for writing properties. If not specified, 
+                        writes to the source view.
         
         Returns:
             NodeApply object ready for CDF ingestion, or None if no properties to update
@@ -388,7 +529,13 @@ Example output:
         new_properties = {}
         property_mapping = property_mapping or {}
         property_configs = property_configs or {}
-        instance_properties = instance.properties.get(view.as_id(), {})
+        
+        # Use target view for writing, fall back to source view
+        write_view = target_view if target_view else source_view
+        
+        # Get instance properties from both views for checking current values
+        source_instance_properties = instance.properties.get(source_view.as_id(), {})
+        target_instance_properties = instance.properties.get(write_view.as_id(), {}) if target_view else source_instance_properties
         
         for source_prop_id, value in parsed_dict.items():
             if value is None:
@@ -397,12 +544,12 @@ Example output:
             # Determine target property (mapped or same as source)
             target_prop_id = property_mapping.get(source_prop_id, source_prop_id)
             
-            # Get the target property definition for type coercion
-            if target_prop_id not in view.properties:
-                self._log("warning", f"Target property '{target_prop_id}' not found in view, skipping")
+            # Get the target property definition for type coercion from the write view
+            if target_prop_id not in write_view.properties:
+                self._log("warning", f"Target property '{target_prop_id}' not found in target view, skipping")
                 continue
             
-            prop_definition = view.properties[target_prop_id]
+            prop_definition = write_view.properties[target_prop_id]
             
             # Skip reverse relations as they can't be set directly
             if self._is_reverse_relation(prop_definition):
@@ -414,8 +561,8 @@ Example output:
             # Coerce value to proper type
             coerced_value = self._coerce_value_to_type(value, prop_type, prop_is_list)
             
-            # Get current value from instance
-            current_value = instance_properties.get(target_prop_id)
+            # Get current value from target view's instance properties
+            current_value = target_instance_properties.get(target_prop_id)
             
             # Get write mode from property config (default to ADD_NEW_ONLY for safety)
             prop_config = property_configs.get(source_prop_id)
@@ -438,7 +585,7 @@ Example output:
         return NodeApply(
             space=instance.space,
             external_id=instance.external_id,
-            sources=[NodeOrEdgeData(view.as_id(), properties=new_properties)]
+            sources=[NodeOrEdgeData(write_view.as_id(), properties=new_properties)]
         )
     
     def extract_properties_from_instance(
@@ -448,7 +595,8 @@ Example output:
         text_property: str,
         properties_to_extract: Optional[List[str]] = None,
         ai_property_mapping: Optional[Dict[str, str]] = None,
-        property_configs: Optional[List[PropertyConfig]] = None
+        property_configs: Optional[List[PropertyConfig]] = None,
+        target_view: Optional[View] = None
     ) -> Optional[NodeApply]:
         """
         Extract and fill properties from an instance's text field.
@@ -457,7 +605,7 @@ Example output:
         
         Args:
             instance: The CDF instance to process
-            view: The view defining the properties
+            view: The source view defining the properties to read from
             text_property: The property name containing the text to parse
             properties_to_extract: Optional list of property IDs to extract. 
                                    If None, all non-filled properties will be extracted.
@@ -468,6 +616,8 @@ Example output:
                                 Ignored if property_configs is provided.
             property_configs: Optional list of PropertyConfig objects with per-property write modes.
                              If provided, takes precedence over properties_to_extract and ai_property_mapping.
+            target_view: Optional separate view for writing extracted properties.
+                        If not specified, writes to the source view.
         
         Returns:
             NodeApply object with extracted properties, or None if no extraction needed/possible
@@ -490,11 +640,17 @@ Example output:
         instance_properties = instance.properties.get(view.as_id(), {})
         text = instance_properties.get(text_property)
         
+        # Use target view for writing, fall back to source view
+        write_view = target_view if target_view else view
+        
+        # Get target view instance properties for checking current values
+        target_instance_properties = instance.properties.get(write_view.as_id(), {}) if target_view else instance_properties
+        
         # Determine which properties to extract
         if properties_to_extract is not None:
             candidate_properties = properties_to_extract
         else:
-            # If not specified, use all non-reverse-relation properties
+            # If not specified, use all non-reverse-relation properties from source view
             candidate_properties = [
                 prop_id for prop_id, prop in view.properties.items()
                 if not self._is_reverse_relation(prop)
@@ -509,9 +665,9 @@ Example output:
         property_mapping = {}       # source -> target mapping
         
         for source_prop in candidate_properties:
-            # Check that source property exists in view (for metadata)
+            # Check that source property exists in source view (for metadata)
             if source_prop not in view.properties:
-                self._log("warning", f"Source property '{source_prop}' not found in view, skipping")
+                self._log("warning", f"Source property '{source_prop}' not found in source view, skipping")
                 continue
             
             # Skip if source is a reverse relation
@@ -521,13 +677,13 @@ Example output:
             # Determine target property (mapped or same as source)
             target_prop = ai_property_mapping.get(source_prop, source_prop)
             
-            # Check that target property exists in view
-            if target_prop not in view.properties:
-                self._log("warning", f"Target property '{target_prop}' not found in view, skipping")
+            # Check that target property exists in the write view
+            if target_prop not in write_view.properties:
+                self._log("warning", f"Target property '{target_prop}' not found in target view, skipping")
                 continue
             
             # Check if target property is reverse relation
-            if self._is_reverse_relation(view.properties[target_prop]):
+            if self._is_reverse_relation(write_view.properties[target_prop]):
                 self._log("warning", f"Target property '{target_prop}' is a reverse relation, skipping")
                 continue
             
@@ -536,7 +692,8 @@ Example output:
             write_mode = prop_config.write_mode if prop_config else WriteMode.ADD_NEW_ONLY
             
             # Determine if we should process this property based on write mode
-            current_value = instance_properties.get(target_prop)
+            # Check current value from target view's instance properties
+            current_value = target_instance_properties.get(target_prop)
             has_value = current_value is not None and current_value != "" and current_value != []
             
             if write_mode == WriteMode.ADD_NEW_ONLY and has_value:
@@ -554,7 +711,7 @@ Example output:
             self._log("debug", f"No properties to process for instance {instance.external_id}")
             return None
         
-        # Extract property metadata using source property names
+        # Extract property metadata using source property names from source view
         property_metadata = self._get_property_dict_from_view(view, properties_to_process)
         
         if not property_metadata:
@@ -575,9 +732,10 @@ Example output:
         return self._create_node_apply(
             instance, 
             filtered_parsed_values, 
-            view, 
+            view,  # source view for property metadata
             property_mapping,
-            property_configs_dict
+            property_configs_dict,
+            target_view  # optional target view for writing
         )
     
     def extract_properties_from_instances(
@@ -588,14 +746,16 @@ Example output:
         properties_to_extract: Optional[List[str]] = None,
         ai_property_mapping: Optional[Dict[str, str]] = None,
         property_configs: Optional[List[PropertyConfig]] = None,
-        dry_run: bool = True
+        target_view: Optional[View] = None,
+        dry_run: bool = True,
+        llm_batch_size: int = 1
     ) -> List[NodeApply]:
         """
         Extract and fill properties from multiple instances.
         
         Args:
             instances: List of CDF instances to process
-            view: The view defining the properties
+            view: The source view defining the properties to read from
             text_property: The property name containing the text to parse
             properties_to_extract: Optional list of property IDs to extract.
                                    If None, all non-filled properties will be extracted.
@@ -605,7 +765,11 @@ Example output:
                                 Ignored if property_configs is provided.
             property_configs: Optional list of PropertyConfig objects with per-property write modes.
                              If provided, takes precedence over properties_to_extract and ai_property_mapping.
+            target_view: Optional separate view for writing extracted properties.
+                        If not specified, writes to the source view.
             dry_run: If True, return NodeApply objects without applying to CDF (default: True)
+            llm_batch_size: Number of instances to send to LLM in a single prompt (default: 1).
+                           Set to 1 for individual processing. Higher values reduce API calls.
         
         Returns:
             List of NodeApply objects with extracted properties
@@ -613,30 +777,204 @@ Example output:
         results = []
         total = len(instances)
         
-        for i, instance in enumerate(instances):
-            try:
-                self._log("debug", f"Processing instance {i+1}/{total}: {instance.external_id}")
-                
-                node_apply = self.extract_properties_from_instance(
-                    instance=instance,
-                    view=view,
-                    text_property=text_property,
-                    properties_to_extract=properties_to_extract,
-                    ai_property_mapping=ai_property_mapping,
-                    property_configs=property_configs
-                )
-                
-                if node_apply:
-                    results.append(node_apply)
+        if llm_batch_size <= 1:
+            # Original single-instance processing
+            for i, instance in enumerate(instances):
+                try:
+                    self._log("debug", f"Processing instance {i+1}/{total}: {instance.external_id}")
                     
-            except Exception as e:
-                self._log("error", f"Error processing instance {instance.external_id}: {e}")
-                print(f"Error processing instance {instance.external_id}: {e}")
-                continue
+                    node_apply = self.extract_properties_from_instance(
+                        instance=instance,
+                        view=view,
+                        text_property=text_property,
+                        properties_to_extract=properties_to_extract,
+                        ai_property_mapping=ai_property_mapping,
+                        property_configs=property_configs,
+                        target_view=target_view
+                    )
+                    
+                    if node_apply:
+                        results.append(node_apply)
+                        
+                except Exception as e:
+                    self._log("error", f"Error processing instance {instance.external_id}: {e}")
+                    print(f"Error processing instance {instance.external_id}: {e}")
+                    continue
+        else:
+            # Batch LLM processing - send multiple instances in a single prompt
+            results = self._extract_properties_batched(
+                instances=instances,
+                view=view,
+                text_property=text_property,
+                properties_to_extract=properties_to_extract,
+                ai_property_mapping=ai_property_mapping,
+                property_configs=property_configs,
+                target_view=target_view,
+                llm_batch_size=llm_batch_size
+            )
         
         if not dry_run and results:
             self._log("info", f"Applying {len(results)} node updates to CDF")
             self.client.data_modeling.instances.apply(results)
+        
+        return results
+    
+    def _extract_properties_batched(
+        self,
+        instances: List,
+        view: View,
+        text_property: str,
+        properties_to_extract: Optional[List[str]],
+        ai_property_mapping: Optional[Dict[str, str]],
+        property_configs: Optional[List[PropertyConfig]],
+        target_view: Optional[View],
+        llm_batch_size: int
+    ) -> List[NodeApply]:
+        """
+        Extract properties from multiple instances using batched LLM calls.
+        
+        Sends multiple instances to the LLM in a single prompt and parses the 
+        list response to create NodeApply objects for each instance.
+        
+        Args:
+            instances: List of CDF instances to process
+            view: The source view defining the properties to read from
+            text_property: The property name containing the text to parse
+            properties_to_extract: Optional list of property IDs to extract
+            ai_property_mapping: Optional mapping from source to target properties
+            property_configs: Optional list of PropertyConfig objects
+            target_view: Optional separate view for writing extracted properties
+            llm_batch_size: Number of instances to send to LLM in a single prompt
+        
+        Returns:
+            List of NodeApply objects with extracted properties
+        """
+        results = []
+        total = len(instances)
+        
+        # Build property mapping and config dict from PropertyConfig objects
+        if property_configs:
+            ai_property_mapping = {}
+            property_configs_dict = {}
+            properties_to_extract = []
+            for pc in property_configs:
+                properties_to_extract.append(pc.property)
+                if pc.target_property and pc.target_property != pc.property:
+                    ai_property_mapping[pc.property] = pc.target_property
+                property_configs_dict[pc.property] = pc
+        else:
+            ai_property_mapping = ai_property_mapping or {}
+            property_configs_dict = {}
+        
+        # Use target view for writing, fall back to source view
+        write_view = target_view if target_view else view
+        
+        # Determine which properties to extract (same logic as single-instance)
+        if properties_to_extract is not None:
+            candidate_properties = properties_to_extract
+        else:
+            candidate_properties = [
+                prop_id for prop_id, prop in view.properties.items()
+                if not self._is_reverse_relation(prop)
+            ]
+        
+        # Build property metadata once (shared across all instances)
+        property_metadata = self._get_property_dict_from_view(view, candidate_properties)
+        if not property_metadata:
+            self._log("debug", "No extractable properties found")
+            return []
+        
+        # Build property mapping
+        property_mapping = {}
+        for source_prop in candidate_properties:
+            if source_prop in view.properties and not self._is_reverse_relation(view.properties[source_prop]):
+                target_prop = ai_property_mapping.get(source_prop, source_prop)
+                if target_prop in write_view.properties:
+                    property_mapping[source_prop] = target_prop
+        
+        # Process instances in batches
+        for batch_start in range(0, total, llm_batch_size):
+            batch_end = min(batch_start + llm_batch_size, total)
+            batch_instances = instances[batch_start:batch_end]
+            
+            self._log("debug", f"Processing batch {batch_start+1}-{batch_end}/{total}")
+            
+            # Prepare items for batch prompt
+            items = []
+            instance_map = {}  # Map ID to instance for later lookup
+            
+            for instance in batch_instances:
+                instance_properties = instance.properties.get(view.as_id(), {})
+                text = instance_properties.get(text_property)
+                
+                if not text:
+                    self._log("debug", f"Skipping instance {instance.external_id} - no text property")
+                    continue
+                
+                items.append({
+                    "id": instance.external_id,
+                    "text": text
+                })
+                instance_map[instance.external_id] = instance
+            
+            if not items:
+                continue
+            
+            try:
+                # Call LLM with batch prompt
+                batch_results = self._parse_batch_with_llm(items, property_metadata)
+                
+                # Create NodeApply for each result
+                for instance_id, parsed_values in batch_results.items():
+                    instance = instance_map.get(instance_id)
+                    if not instance:
+                        self._log("warning", f"Instance ID '{instance_id}' from LLM not found in batch")
+                        continue
+                    
+                    # Filter parsed values to only include properties we intended to extract
+                    filtered_parsed_values = {
+                        k: v for k, v in parsed_values.items() 
+                        if k in candidate_properties
+                    }
+                    
+                    if not filtered_parsed_values:
+                        continue
+                    
+                    # Create NodeApply with property configs for write mode handling
+                    node_apply = self._create_node_apply(
+                        instance, 
+                        filtered_parsed_values, 
+                        view,
+                        property_mapping,
+                        property_configs_dict,
+                        target_view
+                    )
+                    
+                    if node_apply:
+                        results.append(node_apply)
+                        
+            except Exception as e:
+                self._log("error", f"Error processing batch {batch_start+1}-{batch_end}: {e}")
+                print(f"Error processing batch {batch_start+1}-{batch_end}: {e}")
+                
+                # Fallback to individual processing for this batch
+                self._log("info", f"Falling back to individual processing for batch {batch_start+1}-{batch_end}")
+                for instance in batch_instances:
+                    try:
+                        node_apply = self.extract_properties_from_instance(
+                            instance=instance,
+                            view=view,
+                            text_property=text_property,
+                            properties_to_extract=properties_to_extract,
+                            ai_property_mapping=ai_property_mapping,
+                            property_configs=property_configs,
+                            target_view=target_view
+                        )
+                        if node_apply:
+                            results.append(node_apply)
+                    except Exception as inner_e:
+                        self._log("error", f"Error processing instance {instance.external_id}: {inner_e}")
+                        continue
         
         return results
     

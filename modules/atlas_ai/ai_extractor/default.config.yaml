@@ -15,9 +15,22 @@ viewSpace: cdf_cdm
 viewExternalId: CogniteAsset
 viewVersion: v1
 
+# Optional: Target view for writing extracted properties
+# If not specified, properties are written to the source view
+# This is useful when you want to read from one view and write to another
+# targetViewSpace: my_space
+# targetViewExternalId: MyTargetView
+# targetViewVersion: v1
+
 # Extraction settings
 textProperty: description
 batchSize: 10
+
+# LLM batch size - number of instances to send to LLM in a single prompt
+# Set to 1 for individual processing (default, same behavior as before)
+# Higher values (e.g., 5-10) reduce API calls but require more LLM context window
+# Use llmBatchSize > 1 when you want to process multiple items efficiently
+llmBatchSize: 1
 
 # Properties to extract - list of property IDs from the view
 # Leave empty to extract all non-filled properties

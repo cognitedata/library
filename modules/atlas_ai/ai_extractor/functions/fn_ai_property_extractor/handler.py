@@ -180,13 +180,26 @@ def execute(data: dict, client: CogniteClient) -> dict:
     else:
         logger.debug("State store disabled - processing without cursor")
     
-    # Retrieve the view
-    logger.info(f"Retrieving view: {config.view.space}/{config.view.external_id}/{config.view.version}")
+    # Retrieve the source view
+    logger.info(f"Retrieving source view: {config.view.space}/{config.view.external_id}/{config.view.version}")
     view_id = config.view.as_view_id()
     views = client.data_modeling.views.retrieve(view_id)
     if not views:
-        raise ValueError(f"View not found: {view_id}")
+        raise ValueError(f"Source view not found: {view_id}")
     view = views[0]
+    
+    # Retrieve the target view if configured (optional, falls back to source view)
+    target_view = None
+    if config.target_view:
+        target_view_config = config.get_target_view_config()
+        target_view_id = target_view_config.as_view_id()
+        logger.info(f"Retrieving target view: {target_view_config.space}/{target_view_config.external_id}/{target_view_config.version}")
+        target_views = client.data_modeling.views.retrieve(target_view_id)
+        if not target_views:
+            raise ValueError(f"Target view not found: {target_view_id}")
+        target_view = target_views[0]
+    else:
+        logger.debug("No target view configured, writing to source view")
     
     # Initialize the extractor with prompt configuration
     extractor = LLMPropertyExtractor(
@@ -224,14 +237,15 @@ def execute(data: dict, client: CogniteClient) -> dict:
             client, view_id, config, logger, 
             limit=batch_size, 
             cursor=cursor,
-            property_configs=property_configs
+            property_configs=property_configs,
+            target_view_id=target_view.as_id() if target_view else None
         )
         
         if not instances:
             logger.info("No more instances need processing")
             break
         
-        logger.info(f"Batch {batch_number}: Processing {len(instances)} instances")
+        logger.info(f"Batch {batch_number}: Processing {len(instances)} instances (llm_batch_size={config.processing.llm_batch_size})")
         node_applies = extractor.extract_properties_from_instances(
             instances=instances,
             view=view,
@@ -239,7 +253,9 @@ def execute(data: dict, client: CogniteClient) -> dict:
             properties_to_extract=config.extraction.get_properties_to_extract() or None,
             ai_property_mapping=config.extraction.get_ai_property_mapping() or None,
             property_configs=property_configs or None,
-            dry_run=True  # Always dry run first, we apply separately
+            target_view=target_view,
+            dry_run=True,  # Always dry run first, we apply separately
+            llm_batch_size=config.processing.llm_batch_size
         )
         
         # Apply batch updates
@@ -287,7 +303,8 @@ def query_instances(
     logger: CogniteFunctionLogger,
     limit: int = 10,
     cursor: str = None,
-    property_configs: list = None
+    property_configs: list = None,
+    target_view_id = None
 ) -> list:
     """
     Query instances from the view that are ready for extraction.
@@ -300,12 +317,14 @@ def query_instances(
     
     Args:
         client: Authenticated CogniteClient
-        view_id: The view ID to query
+        view_id: The source view ID to query
         config: Configuration object
         logger: Logger instance
         limit: Maximum number of instances to return (default: 10)
         cursor: Optional cursor (ISO timestamp) to filter by lastUpdatedTime
         property_configs: Optional list of PropertyConfig objects
+        target_view_id: Optional target view ID for checking target property values.
+                       If not specified, checks properties in the source view.
     
     Returns:
         List of instances ready for extraction
@@ -335,6 +354,9 @@ def query_instances(
     # For add_new_only: target must be empty
     # For append/overwrite: no filter needed (they process regardless)
     
+    # Determine which view to use for checking target property values
+    target_check_view_id = target_view_id if target_view_id else view_id
+    
     if property_configs:
         # New-style: use PropertyConfig objects
         add_new_only_props = [
@@ -351,10 +373,10 @@ def query_instances(
             empty_property_filters = []
             for pc in add_new_only_props:
                 target_prop = pc.get_target_property()
-                target_property_ref = [view_id.space, f"{view_id.external_id}/{view_id.version}", target_prop]
+                target_property_ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", target_prop]
                 prop_not_exists = dm.filters.Not(dm.filters.Exists(target_property_ref))
                 empty_property_filters.append(prop_not_exists)
-                logger.debug(f"Filter: target property '{target_prop}' should not exist (add_new_only)")
+                logger.debug(f"Filter: target property '{target_prop}' should not exist in target view (add_new_only)")
             
             if empty_property_filters:
                 if len(empty_property_filters) == 1:
@@ -381,10 +403,10 @@ def query_instances(
             empty_property_filters = []
             for source_prop in properties_to_check:
                 target_prop = ai_mapping.get(source_prop, source_prop)
-                target_property_ref = [view_id.space, f"{view_id.external_id}/{view_id.version}", target_prop]
+                target_property_ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", target_prop]
                 prop_not_exists = dm.filters.Not(dm.filters.Exists(target_property_ref))
                 empty_property_filters.append(prop_not_exists)
-                logger.debug(f"Filter: target property '{target_prop}' should not exist (empty)")
+                logger.debug(f"Filter: target property '{target_prop}' should not exist in target view (empty)")
             
             if empty_property_filters:
                 if len(empty_property_filters) == 1:
@@ -405,9 +427,16 @@ def query_instances(
     # Note: We don't sort explicitly - the DM API default ordering is sufficient
     # Sorting by lastUpdatedTime requires specific index configuration and has format issues
     logger.debug(f"Querying instances with limit={limit}")
+    
+    # Include both source and target views as sources to get properties from both
+    sources = [view_id]
+    if target_view_id and target_view_id != view_id:
+        sources.append(target_view_id)
+        logger.debug(f"Including target view in query sources: {target_view_id}")
+    
     instances = client.data_modeling.instances.list(
         instance_type="node",
-        sources=[view_id],
+        sources=sources,
         filter=combined_filter,
         limit=limit
     )
