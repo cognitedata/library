@@ -20,7 +20,7 @@ This folder contains a local script for running the context quality metrics coll
 
 ```bash
 # Navigate to the scripts folder
-cd templates/modules/solutions/context_quality/scripts
+cd modules/dashboards/context_quality/scripts
 
 # Create a virtual environment (recommended)
 python -m venv venv
@@ -58,6 +58,7 @@ export CDF_TOKEN="your-bearer-token"
 ```
 
 You can get a token from:
+
 - Fusion UI: Account Settings > Manage tokens
 - Azure CLI: `az account get-access-token --resource https://westeurope-1.cognitedata.com`
 
@@ -96,6 +97,7 @@ python run_metrics.py [OPTIONS...]
 ```
 
 **General pattern:**
+
 ```bash
 python run_metrics.py \
   --<view-option> "space/view_id/version" \
@@ -105,6 +107,7 @@ python run_metrics.py \
 ```
 
 **Quick example - combining views with performance flags:**
+
 ```bash
 # Use custom views AND skip gap analysis
 python run_metrics.py --ts-view "rmdm/MyTimeSeries/v1" --asset-view "rmdm/MyAsset/v1" --no-gaps
@@ -114,39 +117,39 @@ python run_metrics.py --ts-view "rmdm/MyTimeSeries/v1" --asset-view "rmdm/MyAsse
 
 ### All Options Reference
 
-| Option | Type | Description |
-|--------|------|-------------|
-| **View Configuration** |||
-| `--ts-view` | `SPACE/VIEW/VERSION` | Custom Time Series view |
-| `--asset-view` | `SPACE/VIEW/VERSION` | Custom Asset view |
-| `--equipment-view` | `SPACE/VIEW/VERSION` | Custom Equipment view |
-| `--file-view` | `SPACE/VIEW/VERSION` | Custom File view |
-| `--notification-view` | `SPACE/VIEW/VERSION` | Custom Notification view |
-| `--order-view` | `SPACE/VIEW/VERSION` | Custom Maintenance Order view |
-| `--annotation-view` | `SPACE/VIEW/VERSION` | Custom Annotation view |
-| `--3d-view` | `SPACE/VIEW/VERSION` | Custom 3D Object view |
-| **Performance / Feature Toggles** |||
-| `--no-gaps` | flag | Skip slow gap analysis |
-| `--no-maintenance` | flag | Skip maintenance metrics |
-| `--no-annotations` | flag | Skip annotation metrics |
-| `--no-3d` | flag | Skip 3D metrics |
-| `--no-files` | flag | Skip file metrics |
-| **Instance Limits** |||
-| `--max-ts` | number | Max time series to process |
-| `--max-assets` | number | Max assets to process |
-| `--max-equipment` | number | Max equipment to process |
-| `--max-notifications` | number | Max notifications to process |
-| `--max-orders` | number | Max maintenance orders to process |
-| `--max-annotations` | number | Max annotations to process |
-| `--max-3d` | number | Max 3D objects to process |
-| `--max-files` | number | Max files to process |
-| **Caching** |||
-| `--use-cache` | flag | Reuse previous metrics from CDF |
-| `--only <section>` | string | Only recompute specific section(s) |
-| **Output** |||
-| `--dry-run` | flag | Save locally, don't upload to CDF |
-| `--output-file` | path | Custom output file path |
-| `-v`, `--verbose` | flag | Enable verbose logging |
+| Option                                  | Type                   | Description                        |
+| --------------------------------------- | ---------------------- | ---------------------------------- |
+| **View Configuration**            |                        |                                    |
+| `--ts-view`                           | `SPACE/VIEW/VERSION` | Custom Time Series view            |
+| `--asset-view`                        | `SPACE/VIEW/VERSION` | Custom Asset view                  |
+| `--equipment-view`                    | `SPACE/VIEW/VERSION` | Custom Equipment view              |
+| `--file-view`                         | `SPACE/VIEW/VERSION` | Custom File view                   |
+| `--notification-view`                 | `SPACE/VIEW/VERSION` | Custom Notification view           |
+| `--order-view`                        | `SPACE/VIEW/VERSION` | Custom Maintenance Order view      |
+| `--annotation-view`                   | `SPACE/VIEW/VERSION` | Custom Annotation view             |
+| `--3d-view`                           | `SPACE/VIEW/VERSION` | Custom 3D Object view              |
+| **Performance / Feature Toggles** |                        |                                    |
+| `--no-gaps`                           | flag                   | Skip slow gap analysis             |
+| `--no-maintenance`                    | flag                   | Skip maintenance metrics           |
+| `--no-annotations`                    | flag                   | Skip annotation metrics            |
+| `--no-3d`                             | flag                   | Skip 3D metrics                    |
+| `--no-files`                          | flag                   | Skip file metrics                  |
+| **Instance Limits**               |                        |                                    |
+| `--max-ts`                            | number                 | Max time series to process         |
+| `--max-assets`                        | number                 | Max assets to process              |
+| `--max-equipment`                     | number                 | Max equipment to process           |
+| `--max-notifications`                 | number                 | Max notifications to process       |
+| `--max-orders`                        | number                 | Max maintenance orders to process  |
+| `--max-annotations`                   | number                 | Max annotations to process         |
+| `--max-3d`                            | number                 | Max 3D objects to process          |
+| `--max-files`                         | number                 | Max files to process               |
+| **Caching**                       |                        |                                    |
+| `--use-cache`                         | flag                   | Reuse previous metrics from CDF    |
+| `--only <section>`                    | string                 | Only recompute specific section(s) |
+| **Output**                        |                        |                                    |
+| `--dry-run`                           | flag                   | Save locally, don't upload to CDF  |
+| `--output-file`                       | path                   | Custom output file path            |
+| `-v`, `--verbose`                   | flag                   | Enable verbose logging             |
 
 ---
 
@@ -225,12 +228,14 @@ python run_metrics.py --use-cache --only ts --no-gaps
 ```
 
 **How it works:**
+
 1. Downloads previous metrics file from CDF
 2. Runs only the specified phases
 3. Merges new results with cached data
 4. Uploads the combined result
 
 This is useful when:
+
 - Testing changes to a specific data type
 - Debugging issues with one metric category
 - Refreshing stale data for one section
@@ -363,24 +368,26 @@ python run_metrics.py \
 
 #### Quick Reference: Option Categories
 
-| Category | Options | Can Combine With |
-|----------|---------|------------------|
-| **Views** | `--ts-view`, `--asset-view`, `--equipment-view`, `--file-view`, `--notification-view`, `--order-view`, `--annotation-view`, `--3d-view` | All options |
-| **Performance** | `--no-gaps`, `--no-maintenance`, `--no-3d`, `--no-annotations`, `--no-files` | All options |
-| **Limits** | `--max-ts`, `--max-assets`, `--max-equipment`, `--max-notifications`, `--max-orders`, `--max-annotations`, `--max-3d`, `--max-files` | All options |
-| **Caching** | `--use-cache`, `--only <section>` | All options |
-| **Output** | `--dry-run`, `--output-file`, `-v` | All options |
+| Category              | Options                                                                                                                                                 | Can Combine With |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Views**       | `--ts-view`, `--asset-view`, `--equipment-view`, `--file-view`, `--notification-view`, `--order-view`, `--annotation-view`, `--3d-view` | All options      |
+| **Performance** | `--no-gaps`, `--no-maintenance`, `--no-3d`, `--no-annotations`, `--no-files`                                                                  | All options      |
+| **Limits**      | `--max-ts`, `--max-assets`, `--max-equipment`, `--max-notifications`, `--max-orders`, `--max-annotations`, `--max-3d`, `--max-files`    | All options      |
+| **Caching**     | `--use-cache`, `--only <section>`                                                                                                                   | All options      |
+| **Output**      | `--dry-run`, `--output-file`, `-v`                                                                                                                | All options      |
 
 ---
 
 ### Common Questions (FAQ)
 
 **Q: How do I use `--no-gaps` AND define custom views?**
+
 ```bash
 python run_metrics.py --no-gaps --ts-view "my_space/MyTS/v1" --asset-view "my_space/MyAsset/v1"
 ```
 
 **Q: How do I combine multiple `--no-*` flags with custom views?**
+
 ```bash
 python run_metrics.py \
   --ts-view "rmdm/OrgTS/v1" \
@@ -392,6 +399,7 @@ python run_metrics.py \
 ```
 
 **Q: How do I set limits AND use custom views AND skip features?**
+
 ```bash
 python run_metrics.py \
   --ts-view "my_space/MyTS/v1" \
@@ -403,6 +411,7 @@ python run_metrics.py \
 ```
 
 **Q: How do I use caching with custom views?**
+
 ```bash
 # Recompute only time series using custom view, reuse cached results for everything else
 python run_metrics.py \
@@ -412,6 +421,7 @@ python run_metrics.py \
 ```
 
 **Q: How do I run a quick test with all optimizations?**
+
 ```bash
 python run_metrics.py \
   --ts-view "my_space/MyTS/v1" \
@@ -428,12 +438,14 @@ python run_metrics.py \
 ```
 
 **Q: How do I use multiple `--only` flags together?**
+
 ```bash
 # Recompute both ts and assets, keep everything else from cache
 python run_metrics.py --use-cache --only ts --only assets --only equipment
 ```
 
 **Q: Can I specify a custom output file with other options?**
+
 ```bash
 python run_metrics.py \
   --ts-view "my_space/MyTS/v1" \
@@ -443,6 +455,7 @@ python run_metrics.py \
 ```
 
 **Q: What's the fastest possible run for testing?**
+
 ```bash
 python run_metrics.py \
   --max-ts 100 \
@@ -475,6 +488,7 @@ python run_metrics.py -v
 ## Output
 
 The script produces:
+
 1. **Console logs** - Progress updates during execution
 2. **CDF File** - JSON metrics file uploaded to CDF (same format as Cognite Function)
 3. **Local file** - (dry-run only) JSON file saved locally
@@ -488,11 +502,13 @@ The Streamlit dashboard can read the output file regardless of whether it was ge
 ```
 ValueError: COGNITE_PROJECT environment variable is required
 ```
+
 - Set the `COGNITE_PROJECT` environment variable
 
 ```
 Failed to authenticate: 401 Unauthorized
 ```
+
 - Check your token is valid and not expired
 - Verify you have access to the project
 
@@ -501,12 +517,14 @@ Failed to authenticate: 401 Unauthorized
 ```
 ModuleNotFoundError: No module named 'metrics'
 ```
+
 - Make sure you're running from the `scripts/` directory
 - The script automatically adds the metrics module to the path
 
 ### Timeout/Memory Errors
 
 If you run into memory issues with very large datasets:
+
 - Use `--max-*` flags to limit the number of instances
 - Process in smaller batches by running multiple times with different limits
 
