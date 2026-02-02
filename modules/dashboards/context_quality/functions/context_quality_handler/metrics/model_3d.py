@@ -35,6 +35,7 @@ class Model3DAccumulator:
     # 3D Object tracking
     total_3d_objects: int = 0
     objects_3d_ids_seen: Set[str] = field(default_factory=set)
+    objects_3d_duplicate_ids: list = field(default_factory=list)  # Duplicate external IDs
     
     # 3D → Asset contextualization (MOST IMPORTANT)
     objects_with_asset_link: int = 0
@@ -60,6 +61,7 @@ class Model3DAccumulator:
             "critical_assets_with_3d": self.critical_assets_with_3d,
             "total_3d_objects": self.total_3d_objects,
             "objects_3d_ids_seen": list(self.objects_3d_ids_seen),
+            "objects_3d_duplicate_ids": self.objects_3d_duplicate_ids,
             "objects_with_asset_link": self.objects_with_asset_link,
             "objects_with_complete_bbox": self.objects_with_complete_bbox,
             "objects_with_partial_bbox": self.objects_with_partial_bbox,
@@ -81,6 +83,7 @@ class Model3DAccumulator:
         acc.critical_assets_with_3d = data.get("critical_assets_with_3d", 0)
         acc.total_3d_objects = data.get("total_3d_objects", 0)
         acc.objects_3d_ids_seen = set(data.get("objects_3d_ids_seen", []))
+        acc.objects_3d_duplicate_ids = data.get("objects_3d_duplicate_ids", [])
         acc.objects_with_asset_link = data.get("objects_with_asset_link", 0)
         acc.objects_with_complete_bbox = data.get("objects_with_complete_bbox", 0)
         acc.objects_with_partial_bbox = data.get("objects_with_partial_bbox", 0)
@@ -100,6 +103,7 @@ class Model3DAccumulator:
         self.critical_assets_with_3d += other.critical_assets_with_3d
         self.total_3d_objects += other.total_3d_objects
         self.objects_3d_ids_seen.update(other.objects_3d_ids_seen)
+        self.objects_3d_duplicate_ids.extend(other.objects_3d_duplicate_ids)
         self.objects_with_asset_link += other.objects_with_asset_link
         self.objects_with_complete_bbox += other.objects_with_complete_bbox
         self.objects_with_partial_bbox += other.objects_with_partial_bbox
@@ -194,6 +198,7 @@ def process_3d_object_batch(
         
         # Skip duplicates
         if node_id in acc.objects_3d_ids_seen:
+            acc.objects_3d_duplicate_ids.append(node_id)
             continue
         acc.objects_3d_ids_seen.add(node_id)
         acc.total_3d_objects += 1
@@ -350,4 +355,8 @@ def compute_3d_metrics(acc: Model3DAccumulator) -> dict:
         "model3d_360_pct": img360_pct,
         "model3d_pointcloud_pct": pointcloud_pct,
         "model3d_multi_model_pct": multi_model_pct,
+        
+        # Duplicate tracking
+        "model3d_duplicates": len(acc.objects_3d_duplicate_ids),
+        "model3d_duplicate_ids": acc.objects_3d_duplicate_ids,
     }

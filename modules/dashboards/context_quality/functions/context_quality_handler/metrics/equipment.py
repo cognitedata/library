@@ -29,6 +29,7 @@ def process_equipment_batch(
         
         # Skip if already processed (duplicate)
         if eq_id in acc.equipment_ids_seen:
+            acc.equipment_duplicate_ids.append(eq_id)
             continue
         acc.equipment_ids_seen.add(eq_id)
         

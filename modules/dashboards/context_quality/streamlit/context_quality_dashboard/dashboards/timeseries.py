@@ -56,11 +56,9 @@ def render_time_series_dashboard(metrics: dict):
     st.markdown("---")
     
     # Extract metrics
-    # PRIMARY: TS to Asset Contextualization (orphaned TS are a problem)
     ts_to_asset_rate = ts_metrics.get("ts_to_asset_rate", 0)
     ts_with_asset_link = ts_metrics.get("ts_with_asset_link", 0)
     ts_without_asset_link = ts_metrics.get("ts_without_asset_link", 0)
-    # SECONDARY: Asset Monitoring Coverage (OK for some assets to lack TS)
     asset_monitoring_coverage = ts_metrics.get("ts_asset_monitoring_coverage", 0)
     associated_assets = ts_metrics.get("ts_associated_assets", 0)
     critical_coverage = ts_metrics.get("ts_critical_coverage")  # Can be None
@@ -93,6 +91,37 @@ def render_time_series_dashboard(metrics: dict):
     total_ts = ts_metrics.get("ts_total", 0)
     total_assets = hierarchy.get("hierarchy_total_assets", 0)
     
+    # =====================================================
+    # MAIN METRIC - BIG ON TOP
+    # =====================================================
+    st.header("Time Series-to-Asset Contextualization")
+    
+    col_main, col_info = st.columns([2, 1])
+    
+    with col_main:
+        gauge(col_main, "TS Linked to Assets", ts_to_asset_rate, "ts_to_asset", 
+              get_status_color_ts, [0, 100], "%", key="ts_to_asset_main",
+              help_text="% of time series linked to at least one asset.")
+    
+    with col_info:
+        st.markdown("### Why This Matters")
+        st.markdown("""
+        Time series without asset links are **orphaned** - they exist
+        but lack business context. This prevents:
+        - Viewing sensor data on the asset tree
+        - Asset-level monitoring dashboards
+        - Condition-based maintenance triggers
+        """)
+        
+        if ts_to_asset_rate >= 95:
+            st.success(f"Excellent! Only {ts_without_asset_link:,} TS orphaned.")
+        elif ts_to_asset_rate >= 80:
+            st.warning(f"{ts_without_asset_link:,} time series need asset links.")
+        else:
+            st.error(f"{ts_without_asset_link:,} time series are orphaned!")
+    
+    st.markdown("---")
+    
     # Summary cards
     col1, col2, col3, col4 = st.columns(4)
     metric_card(col1, "Total Time Series", f"{total_ts:,}",
@@ -106,70 +135,61 @@ def render_time_series_dashboard(metrics: dict):
     
     st.markdown("---")
     
-    st.header("Data Quality Metrics")
+    st.header("Additional Quality Metrics")
     
-    # METRIC CARDS (GAUGES) - Row 1: Contextualization
+    # METRIC CARDS (GAUGES) - Row 1: Coverage and Freshness
     g1, g2, g3 = st.columns(3)
     
-    # CRITICAL: TS to Asset Contextualization (orphaned TS are a problem)
-    gauge(g1, "TS to Asset Contextualization", ts_to_asset_rate, "ts_to_asset", 
-          get_status_color_ts, [0, 100], "%", key="ts_to_asset",
-          help_text="CRITICAL: % of TS with asset link. Orphaned TS are a problem.")
-    
-    # INFORMATIONAL: Asset Monitoring Coverage (not all assets need TS)
-    gauge(g2, "Asset Monitoring Coverage", asset_monitoring_coverage, "asset_monitoring", 
+    # Asset Monitoring Coverage (not all assets need TS)
+    gauge(g1, "Asset Monitoring Coverage", asset_monitoring_coverage, "asset_monitoring", 
           get_status_color_ts, [0, 100], "%", key="ts_asset_coverage",
           help_text="INFORMATIONAL: % of assets with TS. Low values OK - not all assets need monitoring.")
     
     # Critical Asset Coverage - show N/A if no critical assets defined
     if has_critical_assets and critical_coverage is not None:
-        gauge(g3, "Critical Asset Coverage", critical_coverage, "critical_coverage", 
+        gauge(g2, "Critical Asset Coverage", critical_coverage, "critical_coverage", 
               get_status_color_ts, [0, 100], "%", key="ts_critical",
               help_text="% of critical assets with time series (should be 100%)")
     else:
-        gauge_na(g3, "Critical Asset Coverage", "No critical assets defined", key="ts_critical_na",
+        gauge_na(g2, "Critical Asset Coverage", "No critical assets defined", key="ts_critical_na",
                  help_text="% of critical assets with time series linked")
     
-    st.markdown("---")
-    
-    # Row 2: Data Quality - Freshness, Historical Completeness, Source Unit
-    g4, g5, g6 = st.columns(3)
-    gauge(g4, "Data Freshness (Last 30 Days)", data_freshness, "freshness", 
+    gauge(g3, "Data Freshness (Last 30 Days)", data_freshness, "freshness", 
           get_status_color_ts, [0, 100], "%", key="ts_fresh",
           help_text="% of time series updated within the last 30 days")
+    
+    st.markdown("")
+    
+    # Row 2: Data Quality - Historical Completeness, Units
+    g4, g5, g6 = st.columns(3)
     
     # Historical Data Completeness - check config and show appropriate message
     config = metadata.get("config", {})
     gaps_enabled = config.get("enable_historical_gaps", True)  # Default True for newer versions
     
     if historical_data_completeness is not None and ts_analyzed_for_gaps > 0:
-        gauge(g5, "Historical Data Completeness", historical_data_completeness, "gap", 
+        gauge(g4, "Historical Data Completeness", historical_data_completeness, "gap", 
               get_status_color_ts, [0, 100], "%", key="ts_gap",
               help_text="% of time span with actual data (100% - gap duration)")
     elif gaps_enabled and ts_analyzed_for_gaps == 0:
-        # Feature enabled but no TS were analyzed (possibly no TS data available)
-        gauge_na(g5, "Historical Data Completeness", "No time series data to analyze", key="ts_gap_na",
+        gauge_na(g4, "Historical Data Completeness", "No time series data to analyze", key="ts_gap_na",
                  help_text="Detects gaps >7 days in historical data")
     else:
-        gauge_na(g5, "Historical Data Completeness", "Disabled in config", key="ts_gap_na",
+        gauge_na(g4, "Historical Data Completeness", "Disabled in config", key="ts_gap_na",
                  help_text="Enable 'enable_historical_gaps' in function config")
     
     # Source Unit Completeness
-    gauge(g6, "Source Unit Completeness", source_unit_completeness, "unit_consistency", 
+    gauge(g5, "Source Unit Completeness", source_unit_completeness, "unit_consistency", 
           get_status_color_ts, [0, 100], "%", key="ts_src_unit",
           help_text="% of time series with sourceUnit populated (e.g., C, mm, %)")
     
-    st.write("")
-    
-    # Row 3: Target Unit (if available)
-    g7, g8, g9 = st.columns(3)
-    # Target Unit Completeness (standardized unit)
+    # Target Unit Completeness (standardized unit) - in same row
     if target_unit_completeness > 0:
-        gauge(g7, "Target Unit (Standardized)", target_unit_completeness, "unit_consistency", 
+        gauge(g6, "Target Unit (Standardized)", target_unit_completeness, "unit_consistency", 
               get_status_color_ts, [0, 100], "%", key="ts_tgt_unit",
               help_text="% of time series with standardized unit populated")
     else:
-        gauge_na(g7, "Target Unit (Standardized)", "No standardized units defined", key="ts_tgt_unit_na",
+        gauge_na(g6, "Target Unit (Standardized)", "No standardized units defined", key="ts_tgt_unit_na",
                  help_text="% of time series with standardized unit populated")
     
     st.markdown("---")

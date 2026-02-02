@@ -258,6 +258,29 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
         """)
         return
     
+    # Understanding the metrics
+    with st.expander("**Understanding the Metrics** - Click to learn more", expanded=False):
+        st.markdown("""
+        **Contextualization Metrics:**
+        - **3D → Asset Contextualization** - % of 3D objects linked to assets (should be high)
+        - **Asset → 3D Coverage** - % of assets with 3D representations (informational - not all assets need 3D)
+        - **Critical Asset 3D Rate** - % of critical assets with 3D links (should be 100%)
+        
+        **Bounding Box Metrics:**
+        - **BBox Completeness** - % of 3D objects with complete spatial definitions
+        - **Complete** - Objects with full bounding box data
+        - **Partial** - Objects with incomplete spatial data
+        - **Missing** - Objects without any bounding box
+        
+        **Model Type Distribution:**
+        - **CAD Models** - Objects from CAD model sources
+        - **360 Images** - Objects from 360° image captures
+        - **Point Clouds** - Objects from laser scanning/LiDAR
+        - **Multi-Model** - Objects appearing in multiple 3D sources
+        
+        *Tip: Focus on 3D → Asset Contextualization first - unlinked 3D objects cannot be navigated from the asset tree.*
+        """)
+    
     # Extract metrics
     # PRIMARY METRIC: 3D -> Asset Contextualization
     contextualization_rate = metrics.get("model3d_contextualization_rate", 0)

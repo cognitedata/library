@@ -40,6 +40,7 @@ class FileAnnotationAccumulator:
     # Annotation counts
     total_annotations: int = 0
     annotation_ids_seen: Set[str] = field(default_factory=set)
+    annotation_duplicate_ids: list = field(default_factory=list)  # Duplicate external IDs
     
     # By target type
     asset_annotations: int = 0           # Annotations pointing to assets (asset tags)
@@ -133,6 +134,7 @@ def process_annotation_batch(
         
         # Skip duplicates
         if edge_id in acc.annotation_ids_seen:
+            acc.annotation_duplicate_ids.append(edge_id)
             continue
         acc.annotation_ids_seen.add(edge_id)
         
@@ -273,4 +275,9 @@ def compute_file_annotation_metrics(acc: FileAnnotationAccumulator) -> dict:
         "annot_confidence_high_pct": high_pct,
         "annot_confidence_medium_pct": medium_pct,
         "annot_confidence_low_pct": low_pct,
+        
+        # Duplicates tracking
+        "annot_total_instances": acc.total_annotations,
+        "annot_duplicates": len(acc.annotation_duplicate_ids),
+        "annot_duplicate_ids": acc.annotation_duplicate_ids,
     }

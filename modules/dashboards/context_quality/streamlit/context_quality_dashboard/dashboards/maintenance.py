@@ -78,10 +78,79 @@ def render_maintenance_dashboard(metrics: dict):
     computed_at = metadata.get("computed_at", "Unknown")
     st.info(f"[Date] Metrics computed at: {computed_at}")
     
+    # Understanding the metrics
+    with st.expander("**Understanding the Metrics** - Click to learn more", expanded=False):
+        st.markdown("""
+        **Work Order Quality (Critical - should be ~100%):**
+        - **Work Order → Asset** - % of work orders linked to an asset (required for asset-level reporting)
+        - **Work Order → Notification** - % of work orders originating from a notification
+        - **Order Completion Rate** - % of work orders with actualEndTime (completed)
+        
+        **Notification Linkage (Informational - low values may be OK):**
+        - **Notification → Work Order** - % of notifications with a linked work order (not all need WOs)
+        - **Notification → Asset** - % of notifications linked to an asset
+        - **Notification → Equipment** - % of notifications linked to equipment
+        
+        **Failure Analysis Documentation:**
+        - **Failure Mode Rate** - % of failure notifications with failure mode documented
+        - **Failure Mechanism Rate** - % with failure mechanism documented
+        - **Failure Cause Rate** - % with failure cause documented
+        
+        **Maintenance Coverage (Informational):**
+        - **Asset/Equipment Coverage** - % of assets/equipment with maintenance records (low values are normal)
+        
+        *Tip: Work Order → Asset is the most critical metric - all work orders should be traceable to an asset.*
+        """)
+    
     # Extract metrics
     total_notifications = maintenance.get("maint_total_notifications", 0)
     total_orders = maintenance.get("maint_total_orders", 0)
     total_failure_notif = maintenance.get("maint_total_failure_notifications", 0)
+    
+    st.markdown("---")
+    
+    # =====================================================
+    # MAIN METRIC - BIG ON TOP
+    # Work Order Quality (critical metrics)
+    # =====================================================
+    st.header("Work Order Contextualization")
+    
+    order_asset_rate = maintenance.get("maint_order_to_asset_rate", 0) or 0
+    order_notif_rate = maintenance.get("maint_order_to_notif_rate", 0) or 0
+    
+    col_main, col_info = st.columns([2, 1])
+    
+    with col_main:
+        if total_orders > 0:
+            gauge(col_main, "Work Orders Linked to Assets", order_asset_rate, "order_asset", 
+                  get_status_color_maintenance, [0, 100], "%", key="maint_order_asset_main",
+                  help_text="% of work orders linked to an asset. Should be ~100%.")
+        else:
+            gauge_na(col_main, "Work Orders Linked to Assets", "No work orders", key="maint_order_asset_main_na",
+                     help_text="% of work orders linked to an asset")
+    
+    with col_info:
+        st.markdown("### Why This Matters")
+        st.markdown("""
+        Work orders without asset links cannot be:
+        - Tracked to physical locations
+        - Rolled up for asset-level reporting
+        - Used for reliability analysis
+        
+        All work orders should be linked to the asset being maintained.
+        """)
+        
+        orders_without_asset = maintenance.get("maint_order_without_asset", 0)
+        if total_orders == 0:
+            st.info("No work orders found in RMDM.")
+        elif order_asset_rate >= 95:
+            st.success(f"Excellent work order coverage!")
+        elif order_asset_rate >= 80:
+            st.warning(f"Some work orders need asset links.")
+        else:
+            st.error(f"Many work orders are missing asset links!")
+    
+    st.markdown("---")
     
     # Summary cards
     col1, col2, col3, col4 = st.columns(4)

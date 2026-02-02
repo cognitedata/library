@@ -7,6 +7,7 @@ Exports all processing functions and metric computations organized by domain:
 - asset_hierarchy: Asset processing and hierarchy metrics
 - equipment: Equipment processing and metrics
 - maintenance: Maintenance workflow processing and metrics (RMDM v1)
+- files: File contextualization processing and metrics (CogniteFile)
 - storage: File storage utilities
 """
 
@@ -24,6 +25,7 @@ from .common import (
     NotificationData,
     MaintenanceOrderData,
     FailureNotificationData,
+    FileData,
     # Accumulator
     CombinedAccumulator,
     # Config
@@ -75,6 +77,11 @@ from .model_3d import (
     process_asset_3d_batch,
     process_3d_object_batch,
     compute_3d_metrics,
+)
+
+from .files import (
+    process_file_batch,
+    compute_file_metrics,
 )
 
 from .storage import (

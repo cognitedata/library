@@ -29,6 +29,7 @@ def process_timeseries_batch(
         
         # Skip if already processed (duplicate)
         if ts_id in acc.ts_ids_seen:
+            acc.ts_duplicate_ids.append(ts_id)
             continue
         acc.ts_ids_seen.add(ts_id)
         

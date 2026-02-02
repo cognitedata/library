@@ -34,6 +34,28 @@ def render_asset_hierarchy_dashboard(metrics: dict):
     computed_at = metadata.get("computed_at", "Unknown")
     st.info(f"[Date] Metrics computed at: {computed_at}")
     
+    # Understanding the metrics
+    with st.expander("**Understanding the Metrics** - Click to learn more", expanded=False):
+        st.markdown("""
+        **Hierarchy Structure Metrics:**
+        - **Hierarchy Completion** - % of non-root assets with a valid parent link (should be ~100%)
+        - **Root Assets** - Assets at the top level with no parent (entry points to your hierarchy)
+        - **Orphan Assets** - Assets with no parent AND no children (disconnected from hierarchy)
+        - **Orphan Rate** - % of total assets that are orphans
+        
+        **Depth Metrics:**
+        - **Average Depth** - Mean number of levels from root to each asset
+        - **Max Depth** - Deepest level in the hierarchy (very deep may indicate data issues)
+        - **Depth Distribution** - How many assets exist at each level
+        
+        **Breadth Metrics:**
+        - **Average Children** - Mean number of direct children per parent asset
+        - **Max Children** - Largest number of children under a single parent (very high may need review)
+        - **Breadth Distribution** - How many parents have X number of children
+        
+        *Tip: A healthy hierarchy has high completion rate, reasonable depth (usually <10 levels), and balanced breadth.*
+        """)
+    
     # Extract metrics
     total_assets = hierarchy.get("hierarchy_total_assets", 0)
     root_assets = hierarchy.get("hierarchy_root_assets", 0)
@@ -47,6 +69,42 @@ def render_asset_hierarchy_dashboard(metrics: dict):
     max_children = hierarchy.get("hierarchy_max_children", 0)
     depth_distribution = hierarchy.get("hierarchy_depth_distribution", {})
     breadth_distribution = hierarchy.get("hierarchy_breadth_distribution", {})
+    
+    st.markdown("---")
+    
+    # =====================================================
+    # MAIN METRIC - BIG ON TOP
+    # =====================================================
+    st.header("Hierarchy Completion")
+    
+    col_main, col_info = st.columns([2, 1])
+    
+    with col_main:
+        gauge(col_main, "Parent Link Completion", hierarchy_completion_rate, "completion", 
+              get_status_color_hierarchy, [0, 100], "%", key="h_completion_main",
+              help_text="% of non-root assets that have a valid parent link")
+    
+    with col_info:
+        st.markdown("### Why This Matters")
+        st.markdown("""
+        Assets without parent links break the hierarchy structure.
+        A complete hierarchy enables:
+        - Navigation from root to leaf assets
+        - Rollup calculations and aggregations
+        - Proper asset context and location
+        """)
+        
+        non_root = total_assets - root_assets
+        incomplete = non_root - int(non_root * hierarchy_completion_rate / 100) if non_root > 0 else 0
+        
+        if hierarchy_completion_rate >= 95:
+            st.success(f"Excellent hierarchy structure!")
+        elif hierarchy_completion_rate >= 80:
+            st.warning(f"~{incomplete:,} assets may have missing parent links.")
+        else:
+            st.error(f"~{incomplete:,} assets need parent links.")
+    
+    st.markdown("---")
     
     # METRIC CARDS
     col1, col2, col3, col4 = st.columns(4)
@@ -64,19 +122,19 @@ def render_asset_hierarchy_dashboard(metrics: dict):
     st.markdown("---")
     
     # GAUGE SECTION
-    st.subheader("Key Structural Quality Indicators")
-    g1, g2, g3 = st.columns(3)
+    st.subheader("Additional Structure Indicators")
     max_depth_range = max(max_depth, 10)
+    g1, g2, g3 = st.columns(3)
     
-    gauge(g1, "Hierarchy Completion", hierarchy_completion_rate, "completion", 
-          get_status_color_hierarchy, [0, 100], "%", key="h_completion",
-          help_text="% of non-root assets that have a valid parent link")
-    gauge(g2, "Average Depth", avg_depth, "depth", 
+    gauge(g1, "Average Depth", avg_depth, "depth", 
           get_status_color_hierarchy, [0, max_depth_range], "", key="h_avg_depth",
           help_text="Mean number of levels from root to each asset")
-    gauge(g3, "Max Depth", max_depth, "depth", 
+    gauge(g2, "Max Depth", max_depth, "depth", 
           get_status_color_hierarchy, [0, max_depth_range], "", key="h_max_depth",
           help_text="Deepest level in the hierarchy (too deep may indicate issues)")
+    gauge(g3, "Orphan Rate", orphan_rate, "orphans", 
+          get_status_color_hierarchy, [0, 100], "%", key="h_orphan_rate",
+          help_text="% of assets that are disconnected (no parent, no children)")
     
     st.markdown("---")
     

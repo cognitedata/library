@@ -50,10 +50,16 @@ DEFAULT_CONFIG = {
     "object3d_view_external_id": "Cognite3DObject",
     "object3d_view_version": "v1",
     
+    # Dashboard 7: Files Contextualization
+    "file_view_space": "cdf_cdm",
+    "file_view_external_id": "CogniteFile",
+    "file_view_version": "v1",
+    
     # Feature Flags
     "enable_maintenance_metrics": True,
     "enable_file_annotation_metrics": True,
     "enable_3d_metrics": True,
+    "enable_file_metrics": True,
     
     # Limits
     "max_assets": 150000,
@@ -63,6 +69,7 @@ DEFAULT_CONFIG = {
     "max_maintenance_orders": 150000,
     "max_annotations": 200000,
     "max_3d_objects": 150000,
+    "max_files": 150000,
 }
 
 FUNCTION_EXTERNAL_ID = "context_quality_handler"
@@ -667,6 +674,31 @@ def render_configuration_panel(client: CogniteClient, show_getting_started: bool
         else:
             st.warning("3D model metrics disabled. Enable to configure views.")
     
+    # Dashboard 7: Files Contextualization
+    with st.expander("Files Dashboard", expanded=False):
+        st.caption("Measures file-to-asset linking quality based on CogniteFile view.")
+        
+        enable_files = st.checkbox(
+            "Enable File Contextualization Metrics",
+            value=st.session_state.get("enable_file_metrics", True),
+            key="enable_file_metrics",
+            help="Enable/disable file contextualization metrics (CogniteFile)"
+        )
+        
+        if enable_files:
+            st.markdown("**File View**")
+            _render_view_inputs(
+                "File",
+                "file_view_space",
+                "file_view_external_id",
+                "file_view_version"
+            )
+            
+            st.markdown("---")
+            st.caption("*Note: This dashboard measures File→Asset relationships and file metadata quality.*")
+        else:
+            st.warning("File metrics disabled. Enable to configure views.")
+    
     # ----- ADVANCED SETTINGS -----
     st.markdown("---")
     
@@ -739,6 +771,15 @@ def render_configuration_panel(client: CogniteClient, show_getting_started: bool
                 step=10000,
                 key="max_3d_objects",
                 help="Maximum number of 3D objects to process"
+            )
+            st.number_input(
+                "Max Files",
+                min_value=1000,
+                max_value=500000,
+                value=st.session_state.get("max_files", 150000),
+                step=10000,
+                key="max_files",
+                help="Maximum number of files to process"
             )
     
     # ----- QUICK RUN MODE (for small datasets) -----

@@ -57,6 +57,10 @@ DEFAULT_CONFIG = {
     "object3d_view_space": "cdf_cdm",
     "object3d_view_external_id": "Cognite3DObject",
     "object3d_view_version": "v1",
+    # View configurations - CDM Files
+    "file_view_space": "cdf_cdm",
+    "file_view_external_id": "CogniteFile",
+    "file_view_version": "v1",
     # Limits
     "max_timeseries": 150000,
     "max_assets": 150000,
@@ -65,10 +69,12 @@ DEFAULT_CONFIG = {
     "max_maintenance_orders": 150000,
     "max_annotations": 200000,
     "max_3d_objects": 150000,
+    "max_files": 150000,
     # Feature flags
     "enable_maintenance_metrics": True,  # Enable RMDM maintenance workflow metrics
     "enable_file_annotation_metrics": True,  # Enable CDM file annotation metrics
     "enable_3d_metrics": True,  # Enable 3D model contextualization metrics
+    "enable_file_metrics": True,  # Enable file contextualization metrics
     # TS specific
     "freshness_days": 30,
     "enable_historical_gaps": True,  # Enabled: analyzes time series for data gaps
@@ -212,6 +218,20 @@ class FailureNotificationData:
     failure_cause: Optional[str]  # String field in RMDM
 
 
+@dataclass
+class FileData:
+    """Data collected for a single file node (CogniteFile)."""
+    file_id: str
+    asset_ids: List[str]  # Files can be linked to multiple assets
+    category_id: Optional[str]  # CogniteFileCategory
+    mime_type: Optional[str]
+    directory: Optional[str]
+    is_uploaded: bool
+    name: Optional[str]
+    description: Optional[str]
+    source_id: Optional[str]
+
+
 # ----------------------------------------------------
 # COMBINED ACCUMULATOR
 # ----------------------------------------------------
@@ -231,6 +251,7 @@ class CombinedAccumulator:
     ts_with_asset_link: int = 0  # TS that have at least one asset link
     total_ts_instances: int = 0  # Total instances (including duplicates)
     ts_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique TS
+    ts_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
     # Unit metrics
     unit_checks: int = 0  # Total TS checked for units
     has_source_unit: int = 0  # TS with sourceUnit defined
@@ -253,6 +274,7 @@ class CombinedAccumulator:
     # ----- ASSET DATA (shared) -----
     total_asset_instances: int = 0  # Total instances (including duplicates)
     asset_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique assets
+    asset_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
     # For TS metrics
     critical_assets_total: int = 0
     critical_assets_with_ts: int = 0
@@ -268,12 +290,14 @@ class CombinedAccumulator:
     assets_with_equipment: Dict[str, List[str]] = field(default_factory=dict)
     total_equipment_instances: int = 0  # Total instances (including duplicates)
     equipment_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique equipment
+    equipment_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
     
     # ----- MAINTENANCE WORKFLOW DATA (RMDM v1) -----
     # Notifications
     notification_list: List[NotificationData] = field(default_factory=list)
     notification_ids_seen: Set[str] = field(default_factory=set)
     total_notification_instances: int = 0
+    notification_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
     notifications_with_order: int = 0
     notifications_with_asset: int = 0
     notifications_with_equipment: int = 0
@@ -284,6 +308,7 @@ class CombinedAccumulator:
     order_list: List[MaintenanceOrderData] = field(default_factory=list)
     order_ids_seen: Set[str] = field(default_factory=set)
     total_order_instances: int = 0
+    order_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
     orders_with_asset: int = 0
     orders_with_equipment: int = 0
     orders_completed: int = 0
@@ -298,6 +323,21 @@ class CombinedAccumulator:
     failure_notif_with_mode: int = 0
     failure_notif_with_mechanism: int = 0
     failure_notif_with_cause: int = 0
+    
+    # ----- FILE DATA -----
+    file_list: List[FileData] = field(default_factory=list)
+    file_ids_seen: Set[str] = field(default_factory=set)
+    total_file_instances: int = 0
+    file_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
+    files_with_assets: int = 0
+    files_with_category: int = 0
+    files_uploaded: int = 0
+    files_with_name: int = 0
+    files_with_description: int = 0
+    files_with_source_id: int = 0
+    assets_with_files: Set[str] = field(default_factory=set)
+    file_category_counts: Dict[str, int] = field(default_factory=dict)
+    file_mime_type_counts: Dict[str, int] = field(default_factory=dict)
     
     def __post_init__(self):
         self.fresh_limit = self.now - timedelta(days=self.freshness_days)
@@ -357,6 +397,16 @@ class CombinedAccumulator:
         """Number of duplicate order instances."""
         return self.total_order_instances - self.total_orders
     
+    @property
+    def total_files(self) -> int:
+        """Unique file count."""
+        return len(self.file_ids_seen)
+    
+    @property
+    def file_duplicates(self) -> int:
+        """Number of duplicate file instances."""
+        return self.total_file_instances - self.total_files
+    
     def to_dict(self) -> dict:
         """
         Serialize accumulator to dict for JSON storage (batch mode).
@@ -372,6 +422,7 @@ class CombinedAccumulator:
             "ts_with_asset_link": self.ts_with_asset_link,
             "total_ts_instances": self.total_ts_instances,
             "ts_ids_seen": list(self.ts_ids_seen),
+            "ts_duplicate_ids": self.ts_duplicate_ids,
             "unit_checks": self.unit_checks,
             "has_source_unit": self.has_source_unit,
             "has_target_unit": self.has_target_unit,
@@ -391,6 +442,7 @@ class CombinedAccumulator:
             # Asset Data
             "total_asset_instances": self.total_asset_instances,
             "asset_ids_seen": list(self.asset_ids_seen),
+            "asset_duplicate_ids": self.asset_duplicate_ids,
             "critical_assets_total": self.critical_assets_total,
             "critical_assets_with_ts": self.critical_assets_with_ts,
             "parent_of": self.parent_of,
@@ -413,10 +465,12 @@ class CombinedAccumulator:
             "assets_with_equipment": self.assets_with_equipment,
             "total_equipment_instances": self.total_equipment_instances,
             "equipment_ids_seen": list(self.equipment_ids_seen),
+            "equipment_duplicate_ids": self.equipment_duplicate_ids,
             
             # Maintenance Data
             "notification_ids_seen": list(self.notification_ids_seen),
             "total_notification_instances": self.total_notification_instances,
+            "notification_duplicate_ids": self.notification_duplicate_ids,
             "notifications_with_order": self.notifications_with_order,
             "notifications_with_asset": self.notifications_with_asset,
             "notifications_with_equipment": self.notifications_with_equipment,
@@ -425,6 +479,7 @@ class CombinedAccumulator:
             
             "order_ids_seen": list(self.order_ids_seen),
             "total_order_instances": self.total_order_instances,
+            "order_duplicate_ids": self.order_duplicate_ids,
             "orders_with_asset": self.orders_with_asset,
             "orders_with_equipment": self.orders_with_equipment,
             "orders_completed": self.orders_completed,
@@ -437,6 +492,20 @@ class CombinedAccumulator:
             "failure_notif_with_mode": self.failure_notif_with_mode,
             "failure_notif_with_mechanism": self.failure_notif_with_mechanism,
             "failure_notif_with_cause": self.failure_notif_with_cause,
+            
+            # File Data
+            "file_ids_seen": list(self.file_ids_seen),
+            "total_file_instances": self.total_file_instances,
+            "file_duplicate_ids": self.file_duplicate_ids,
+            "files_with_assets": self.files_with_assets,
+            "files_with_category": self.files_with_category,
+            "files_uploaded": self.files_uploaded,
+            "files_with_name": self.files_with_name,
+            "files_with_description": self.files_with_description,
+            "files_with_source_id": self.files_with_source_id,
+            "assets_with_files": list(self.assets_with_files),
+            "file_category_counts": self.file_category_counts,
+            "file_mime_type_counts": self.file_mime_type_counts,
         }
     
     @classmethod
@@ -460,6 +529,7 @@ class CombinedAccumulator:
         acc.ts_with_asset_link = data.get("ts_with_asset_link", 0)
         acc.total_ts_instances = data.get("total_ts_instances", 0)
         acc.ts_ids_seen = set(data.get("ts_ids_seen", []))
+        acc.ts_duplicate_ids = data.get("ts_duplicate_ids", [])
         acc.unit_checks = data.get("unit_checks", 0)
         acc.has_source_unit = data.get("has_source_unit", 0)
         acc.has_target_unit = data.get("has_target_unit", 0)
@@ -479,6 +549,7 @@ class CombinedAccumulator:
         # Asset Data
         acc.total_asset_instances = data.get("total_asset_instances", 0)
         acc.asset_ids_seen = set(data.get("asset_ids_seen", []))
+        acc.asset_duplicate_ids = data.get("asset_duplicate_ids", [])
         acc.critical_assets_total = data.get("critical_assets_total", 0)
         acc.critical_assets_with_ts = data.get("critical_assets_with_ts", 0)
         acc.parent_of = data.get("parent_of", {})
@@ -501,10 +572,12 @@ class CombinedAccumulator:
         acc.assets_with_equipment = data.get("assets_with_equipment", {})
         acc.total_equipment_instances = data.get("total_equipment_instances", 0)
         acc.equipment_ids_seen = set(data.get("equipment_ids_seen", []))
+        acc.equipment_duplicate_ids = data.get("equipment_duplicate_ids", [])
         
         # Maintenance Data
         acc.notification_ids_seen = set(data.get("notification_ids_seen", []))
         acc.total_notification_instances = data.get("total_notification_instances", 0)
+        acc.notification_duplicate_ids = data.get("notification_duplicate_ids", [])
         acc.notifications_with_order = data.get("notifications_with_order", 0)
         acc.notifications_with_asset = data.get("notifications_with_asset", 0)
         acc.notifications_with_equipment = data.get("notifications_with_equipment", 0)
@@ -513,6 +586,7 @@ class CombinedAccumulator:
         
         acc.order_ids_seen = set(data.get("order_ids_seen", []))
         acc.total_order_instances = data.get("total_order_instances", 0)
+        acc.order_duplicate_ids = data.get("order_duplicate_ids", [])
         acc.orders_with_asset = data.get("orders_with_asset", 0)
         acc.orders_with_equipment = data.get("orders_with_equipment", 0)
         acc.orders_completed = data.get("orders_completed", 0)
@@ -525,6 +599,20 @@ class CombinedAccumulator:
         acc.failure_notif_with_mode = data.get("failure_notif_with_mode", 0)
         acc.failure_notif_with_mechanism = data.get("failure_notif_with_mechanism", 0)
         acc.failure_notif_with_cause = data.get("failure_notif_with_cause", 0)
+        
+        # File Data
+        acc.file_ids_seen = set(data.get("file_ids_seen", []))
+        acc.file_duplicate_ids = data.get("file_duplicate_ids", [])
+        acc.total_file_instances = data.get("total_file_instances", 0)
+        acc.files_with_assets = data.get("files_with_assets", 0)
+        acc.files_with_category = data.get("files_with_category", 0)
+        acc.files_uploaded = data.get("files_uploaded", 0)
+        acc.files_with_name = data.get("files_with_name", 0)
+        acc.files_with_description = data.get("files_with_description", 0)
+        acc.files_with_source_id = data.get("files_with_source_id", 0)
+        acc.assets_with_files = set(data.get("assets_with_files", []))
+        acc.file_category_counts = data.get("file_category_counts", {})
+        acc.file_mime_type_counts = data.get("file_mime_type_counts", {})
         
         return acc
     
@@ -553,10 +641,12 @@ class CombinedAccumulator:
         self.total_gap_duration_days += other.total_gap_duration_days
         self.gap_count += other.gap_count
         self.longest_gap_days = max(self.longest_gap_days, other.longest_gap_days)
+        self.ts_duplicate_ids.extend(other.ts_duplicate_ids)
         
         # Asset Data
         self.total_asset_instances += other.total_asset_instances
         self.asset_ids_seen.update(other.asset_ids_seen)
+        self.asset_duplicate_ids.extend(other.asset_duplicate_ids)
         self.critical_assets_total += other.critical_assets_total
         self.critical_assets_with_ts += other.critical_assets_with_ts
         self.parent_of.update(other.parent_of)
@@ -576,10 +666,12 @@ class CombinedAccumulator:
                 self.assets_with_equipment[asset_id] = eq_list
         self.total_equipment_instances += other.total_equipment_instances
         self.equipment_ids_seen.update(other.equipment_ids_seen)
+        self.equipment_duplicate_ids.extend(other.equipment_duplicate_ids)
         
         # Maintenance Data
         self.notification_ids_seen.update(other.notification_ids_seen)
         self.total_notification_instances += other.total_notification_instances
+        self.notification_duplicate_ids.extend(other.notification_duplicate_ids)
         self.notifications_with_order += other.notifications_with_order
         self.notifications_with_asset += other.notifications_with_asset
         self.notifications_with_equipment += other.notifications_with_equipment
@@ -588,6 +680,7 @@ class CombinedAccumulator:
         
         self.order_ids_seen.update(other.order_ids_seen)
         self.total_order_instances += other.total_order_instances
+        self.order_duplicate_ids.extend(other.order_duplicate_ids)
         self.orders_with_asset += other.orders_with_asset
         self.orders_with_equipment += other.orders_with_equipment
         self.orders_completed += other.orders_completed
@@ -600,3 +693,22 @@ class CombinedAccumulator:
         self.failure_notif_with_mode += other.failure_notif_with_mode
         self.failure_notif_with_mechanism += other.failure_notif_with_mechanism
         self.failure_notif_with_cause += other.failure_notif_with_cause
+        
+        # File Data
+        self.file_list.extend(other.file_list)
+        self.file_ids_seen.update(other.file_ids_seen)
+        self.file_duplicate_ids.extend(other.file_duplicate_ids)
+        self.total_file_instances += other.total_file_instances
+        self.files_with_assets += other.files_with_assets
+        self.files_with_category += other.files_with_category
+        self.files_uploaded += other.files_uploaded
+        self.files_with_name += other.files_with_name
+        self.files_with_description += other.files_with_description
+        self.files_with_source_id += other.files_with_source_id
+        self.assets_with_files.update(other.assets_with_files)
+        # Merge category counts
+        for cat_id, count in other.file_category_counts.items():
+            self.file_category_counts[cat_id] = self.file_category_counts.get(cat_id, 0) + count
+        # Merge MIME type counts
+        for mime, count in other.file_mime_type_counts.items():
+            self.file_mime_type_counts[mime] = self.file_mime_type_counts.get(mime, 0) + count
