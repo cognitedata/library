@@ -50,10 +50,16 @@ DEFAULT_CONFIG = {
     "object3d_view_external_id": "Cognite3DObject",
     "object3d_view_version": "v1",
     
+    # Dashboard 7: Files Contextualization
+    "file_view_space": "cdf_cdm",
+    "file_view_external_id": "CogniteFile",
+    "file_view_version": "v1",
+    
     # Feature Flags
     "enable_maintenance_metrics": True,
     "enable_file_annotation_metrics": True,
     "enable_3d_metrics": True,
+    "enable_file_metrics": True,
     
     # Limits
     "max_assets": 150000,
@@ -63,6 +69,7 @@ DEFAULT_CONFIG = {
     "max_maintenance_orders": 150000,
     "max_annotations": 200000,
     "max_3d_objects": 150000,
+    "max_files": 150000,
 }
 
 FUNCTION_EXTERNAL_ID = "context_quality_handler"
@@ -107,30 +114,48 @@ def _check_function_status(client: CogniteClient, call_id: int) -> dict:
 
 def _render_view_inputs(label: str, space_key: str, external_id_key: str, version_key: str):
     """Render a row of inputs for a single view configuration."""
-    # Ensure session state is initialized for these keys
-    for key, default_key in [(space_key, space_key), (external_id_key, external_id_key), (version_key, version_key)]:
+    # Ensure session state is initialized for these keys BEFORE widget rendering
+    keys_to_init = [space_key, external_id_key, version_key]
+    for key in keys_to_init:
         if key not in st.session_state:
             st.session_state[key] = DEFAULT_CONFIG.get(key, "")
     
+    # Get current values from session state
+    space_value = st.session_state.get(space_key, DEFAULT_CONFIG.get(space_key, ""))
+    external_id_value = st.session_state.get(external_id_key, DEFAULT_CONFIG.get(external_id_key, ""))
+    version_value = st.session_state.get(version_key, DEFAULT_CONFIG.get(version_key, ""))
+    
     col1, col2, col3 = st.columns([1, 2, 0.5])
     with col1:
-        st.text_input(
+        new_space = st.text_input(
             "Space",
-            key=space_key,
+            value=space_value,
+            key=f"{space_key}_widget",
             help=f"Data model space for {label}"
         )
+        # Update session state if value changed
+        if new_space != st.session_state.get(space_key):
+            st.session_state[space_key] = new_space
     with col2:
-        st.text_input(
+        new_external_id = st.text_input(
             "View External ID",
-            key=external_id_key,
+            value=external_id_value,
+            key=f"{external_id_key}_widget",
             help=f"View external ID for {label}"
         )
+        # Update session state if value changed
+        if new_external_id != st.session_state.get(external_id_key):
+            st.session_state[external_id_key] = new_external_id
     with col3:
-        st.text_input(
+        new_version = st.text_input(
             "Version",
-            key=version_key,
+            value=version_value,
+            key=f"{version_key}_widget",
             help=f"View version for {label}"
         )
+        # Update session state if value changed
+        if new_version != st.session_state.get(version_key):
+            st.session_state[version_key] = new_version
 
 
 def _render_quick_run_section(client: CogniteClient):
@@ -649,6 +674,31 @@ def render_configuration_panel(client: CogniteClient, show_getting_started: bool
         else:
             st.warning("3D model metrics disabled. Enable to configure views.")
     
+    # Dashboard 7: Files Contextualization
+    with st.expander("Files Dashboard", expanded=False):
+        st.caption("Measures file-to-asset linking quality based on CogniteFile view.")
+        
+        enable_files = st.checkbox(
+            "Enable File Contextualization Metrics",
+            value=st.session_state.get("enable_file_metrics", True),
+            key="enable_file_metrics",
+            help="Enable/disable file contextualization metrics (CogniteFile)"
+        )
+        
+        if enable_files:
+            st.markdown("**File View**")
+            _render_view_inputs(
+                "File",
+                "file_view_space",
+                "file_view_external_id",
+                "file_view_version"
+            )
+            
+            st.markdown("---")
+            st.caption("*Note: This dashboard measures File→Asset relationships and file metadata quality.*")
+        else:
+            st.warning("File metrics disabled. Enable to configure views.")
+    
     # ----- ADVANCED SETTINGS -----
     st.markdown("---")
     
@@ -721,6 +771,15 @@ def render_configuration_panel(client: CogniteClient, show_getting_started: bool
                 step=10000,
                 key="max_3d_objects",
                 help="Maximum number of 3D objects to process"
+            )
+            st.number_input(
+                "Max Files",
+                min_value=1000,
+                max_value=500000,
+                value=st.session_state.get("max_files", 150000),
+                step=10000,
+                key="max_files",
+                help="Maximum number of files to process"
             )
     
     # ----- QUICK RUN MODE (for small datasets) -----

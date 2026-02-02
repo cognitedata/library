@@ -151,6 +151,59 @@ def get_status_color_maintenance(metric_key, value):
     return "#0068C9"
 
 
+def get_status_color_files(metric_key, value):
+    """Color function for file contextualization metrics.
+    
+    Direction considerations:
+    - file_to_asset: CRITICAL - orphaned files are a problem
+    - asset_coverage: INFORMATIONAL - not all assets need files
+    - category/upload/name: Metadata quality - higher is better
+    - description/source_id: Nice to have - moderate thresholds
+    """
+    
+    # CRITICAL: Files should be linked to assets (orphaned files are a problem)
+    if metric_key == "file_to_asset":
+        if value >= 90: return "#4CAF50"
+        if value >= 70: return "#FFC107"
+        return "#F44336"
+    
+    # INFORMATIONAL: Asset file coverage - not all assets need files
+    if metric_key == "asset_coverage":
+        return "#0068C9"  # Blue - informational
+    
+    # HIGH PRIORITY: Category assignment (document type)
+    if metric_key == "category":
+        if value >= 80: return "#4CAF50"
+        if value >= 50: return "#FFC107"
+        return "#F44336"
+    
+    # HIGH PRIORITY: Content should be uploaded
+    if metric_key == "upload":
+        if value >= 90: return "#4CAF50"
+        if value >= 70: return "#FFC107"
+        return "#F44336"
+    
+    # HIGH PRIORITY: Files should have names
+    if metric_key == "name":
+        if value >= 95: return "#4CAF50"
+        if value >= 80: return "#FFC107"
+        return "#F44336"
+    
+    # MODERATE: Description is nice to have
+    if metric_key == "description":
+        if value >= 70: return "#4CAF50"
+        if value >= 40: return "#FFC107"
+        return "#F44336"
+    
+    # MODERATE: Source ID for traceability
+    if metric_key == "source_id":
+        if value >= 80: return "#4CAF50"
+        if value >= 50: return "#FFC107"
+        return "#F44336"
+    
+    return "#0068C9"
+
+
 # ----------------------------------------------------
 # UI COMPONENTS
 # ----------------------------------------------------

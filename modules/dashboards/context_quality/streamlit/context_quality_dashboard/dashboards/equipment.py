@@ -33,6 +33,26 @@ def render_equipment_dashboard(metrics: dict):
     computed_at = metadata.get("computed_at", "Unknown")
     st.info(f"[Date] Metrics computed at: {computed_at}")
     
+    # Understanding the metrics
+    with st.expander("**Understanding the Metrics** - Click to learn more", expanded=False):
+        st.markdown("""
+        **Contextualization Metrics:**
+        - **Equipment Association** - % of equipment linked to an asset (should be ~100%)
+        - **Asset Equipment Coverage** - % of assets with equipment (low values OK - not all assets have equipment)
+        - **Critical Equipment** - % of critical equipment linked to assets (should be 100%)
+        
+        **Metadata Quality Metrics:**
+        - **Serial Number Completeness** - % of equipment with serial number populated
+        - **Manufacturer Completeness** - % of equipment with manufacturer info
+        - **Type Consistency** - % of equipment where equipment type matches linked asset type
+        
+        **Distribution Metrics:**
+        - **Avg Equipment per Asset** - Mean number of equipment items per asset
+        - **Max Equipment per Asset** - Highest equipment count on a single asset
+        
+        *Tip: Focus on Equipment Association first - unlinked equipment cannot be found in the asset tree.*
+        """)
+    
     # Extract metrics
     total_equipment = equipment.get("eq_total", 0)
     association_rate = equipment.get("eq_association_rate", 0)
@@ -50,6 +70,39 @@ def render_equipment_dashboard(metrics: dict):
     avg_eq_per_asset = equipment.get("eq_avg_per_asset", 0)
     max_eq_per_asset = equipment.get("eq_max_per_asset", 0)
     
+    st.markdown("---")
+    
+    # =====================================================
+    # MAIN METRIC - BIG ON TOP
+    # =====================================================
+    st.header("Equipment-to-Asset Contextualization")
+    
+    col_main, col_info = st.columns([2, 1])
+    
+    with col_main:
+        gauge(col_main, "Equipment Linked to Assets", association_rate, "association", 
+              get_status_color_equipment, [0, 100], "%", key="eq_assoc_main",
+              help_text="% of equipment items linked to an asset. Should be high.")
+    
+    with col_info:
+        st.markdown("### Why This Matters")
+        st.markdown("""
+        Equipment without asset links are **orphaned** - they exist 
+        but lack physical location context. This prevents:
+        - Finding equipment on an asset
+        - Maintenance planning by location
+        - Impact analysis during failures
+        """)
+        
+        if association_rate >= 95:
+            st.success(f"Excellent! Only {unlinked_eq:,} equipment unlinked.")
+        elif association_rate >= 80:
+            st.warning(f"{unlinked_eq:,} equipment items need asset links.")
+        else:
+            st.error(f"{unlinked_eq:,} equipment items are orphaned!")
+    
+    st.markdown("---")
+    
     # Summary cards
     col1, col2, col3, col4 = st.columns(4)
     metric_card(col1, "Total Equipment", f"{total_equipment:,}",
@@ -63,35 +116,33 @@ def render_equipment_dashboard(metrics: dict):
     
     st.markdown("---")
     
-    # GAUGES - ALL % METRICS
+    # GAUGES - Additional metrics
+    st.subheader("Additional Quality Metrics")
     g1, g2, g3 = st.columns(3)
-    gauge(g1, "Equipment Association", association_rate, "association", 
-          get_status_color_equipment, [0, 100], "%", key="eq_assoc",
-          help_text="CRITICAL: % of equipment linked to an asset. Should be high.")
-    gauge(g2, "Asset Equipment Coverage", asset_coverage, "coverage", 
+    gauge(g1, "Asset Equipment Coverage", asset_coverage, "coverage", 
           get_status_color_equipment, [0, 100], "%", key="eq_coverage",
           help_text="INFORMATIONAL: % of assets with equipment. Low values OK - not all assets have equipment.")
-    gauge(g3, "Serial Number Completeness", serial_rate, "serial", 
+    gauge(g2, "Serial Number Completeness", serial_rate, "serial", 
           get_status_color_equipment, [0, 100], "%", key="eq_serial",
           help_text="% of equipment with serial number populated")
+    gauge(g3, "Manufacturer Data Quality", manufacturer_rate, "manufacturer", 
+          get_status_color_equipment, [0, 100], "%", key="eq_manu",
+          help_text="% of equipment with manufacturer info populated")
     
     st.write("")
     
     g4, g5, g6 = st.columns(3)
-    gauge(g4, "Manufacturer Data Quality", manufacturer_rate, "manufacturer", 
-          get_status_color_equipment, [0, 100], "%", key="eq_manu",
-          help_text="% of equipment with manufacturer info populated")
-    gauge(g5, "Type Consistency", type_consistency_rate, "type_consistency", 
+    gauge(g4, "Type Consistency", type_consistency_rate, "type_consistency", 
           get_status_color_equipment, [0, 100], "%", key="eq_type",
           help_text="% of equipment where type matches linked asset type")
     
     # Critical Equipment - show N/A if no critical equipment is defined
     if has_critical_equipment and critical_rate is not None:
-        gauge(g6, "Critical Equipment", critical_rate, "critical", 
+        gauge(g5, "Critical Equipment", critical_rate, "critical", 
               get_status_color_equipment, [0, 100], "%", key="eq_critical",
               help_text="% of critical equipment linked to an asset (should be 100%)")
     else:
-        gauge_na(g6, "Critical Equipment", "No critical equipment defined", key="eq_critical_na",
+        gauge_na(g5, "Critical Equipment", "No critical equipment defined", key="eq_critical_na",
                  help_text="% of critical equipment linked to an asset")
     
     st.markdown("---")

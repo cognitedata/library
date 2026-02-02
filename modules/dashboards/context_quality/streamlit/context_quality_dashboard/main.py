@@ -13,6 +13,7 @@ Tabs:
 - Maintenance Workflow Quality (RMDM v1)
 - File Annotation Quality (CDM CogniteDiagramAnnotation)
 - 3D Model Contextualization (CDM Cognite3DObject)
+- Files Contextualization (CDM CogniteFile)
 """
 
 import json
@@ -27,6 +28,7 @@ from dashboards import (
     render_maintenance_dashboard,
     render_file_annotation_dashboard,
     render_3d_model_dashboard,
+    render_files_dashboard,
     render_metadata_sidebar,
     render_configuration_panel,
 )
@@ -80,14 +82,15 @@ metrics = load_metrics_from_file(METRICS_FILE_EXTERNAL_ID)
 has_metrics = metrics is not None
 
 # Tab navigation - Configuration FIRST for better onboarding
-tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d = st.tabs([
+tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d, tab_files = st.tabs([
     "Configure & Run",
     "Asset Hierarchy",
     "Equipment-Asset",
     "Time Series",
     "Maintenance",
     "File Annotation",
-    "3D Model"
+    "3D Model",
+    "Files"
 ])
 
 # Configuration tab - always available
@@ -118,6 +121,8 @@ if not has_metrics:
         st.info(no_metrics_message)
     with tab_3d:
         st.info(no_metrics_message)
+    with tab_files:
+        st.info(no_metrics_message)
 else:
     # Render sidebar with metadata
     render_metadata_sidebar(metrics)
@@ -140,3 +145,6 @@ else:
     with tab_3d:
         model3d_metrics = metrics.get("model3d_metrics", {})
         render_3d_model_dashboard(model3d_metrics, metrics.get("metadata"))
+    
+    with tab_files:
+        render_files_dashboard(metrics)

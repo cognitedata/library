@@ -80,6 +80,8 @@ from metrics import (
     Model3DAccumulator,
     process_asset_3d_batch,
     process_3d_object_batch,
+    # File contextualization processors
+    process_file_batch,
     # Metric computers
     compute_ts_metrics,
     compute_asset_hierarchy_metrics,
@@ -87,6 +89,7 @@ from metrics import (
     compute_maintenance_metrics,
     compute_file_annotation_metrics,
     compute_3d_metrics,
+    compute_file_metrics,
     # Storage
     save_metrics_to_file,
     # Batch processing
@@ -174,26 +177,31 @@ def _handle_aggregation(client: CogniteClient, config: dict, start_time: float) 
                     "total_instances": merged_acc.total_ts_instances,
                     "unique": merged_acc.total_ts,
                     "duplicates": merged_acc.ts_duplicates,
+                    "duplicate_ids": merged_acc.ts_duplicate_ids,
                 },
                 "assets": {
                     "total_instances": merged_acc.total_asset_instances,
                     "unique": merged_acc.total_assets,
                     "duplicates": merged_acc.asset_duplicates,
+                    "duplicate_ids": merged_acc.asset_duplicate_ids,
                 },
                 "equipment": {
                     "total_instances": merged_acc.total_equipment_instances,
                     "unique": merged_acc.total_equipment,
                     "duplicates": merged_acc.equipment_duplicates,
+                    "duplicate_ids": merged_acc.equipment_duplicate_ids,
                 },
                 "notifications": {
                     "total_instances": merged_acc.total_notification_instances,
                     "unique": merged_acc.total_notifications,
                     "duplicates": merged_acc.notification_duplicates,
+                    "duplicate_ids": merged_acc.notification_duplicate_ids,
                 },
                 "maintenance_orders": {
                     "total_instances": merged_acc.total_order_instances,
                     "unique": merged_acc.total_orders,
                     "duplicates": merged_acc.order_duplicates,
+                    "duplicate_ids": merged_acc.order_duplicate_ids,
                 },
             },
             "config": config,
@@ -902,25 +910,73 @@ def handle(data: dict, client: CogniteClient) -> dict:
         logger.info("[3D] Skipped - disabled in config")
     
     # ============================================================
-    # PHASE 7: Compute All Metrics
+    # PHASE 7: Process File Contextualization
+    # ============================================================
+    file_metrics = {}
+    enable_files = config.get("enable_file_metrics", True)
+    max_files = config.get("max_files", 150000)
+    
+    if enable_files:
+        logger.info("-" * 50)
+        logger.info("PHASE 7: Processing File Contextualization")
+        logger.info("-" * 50)
+        
+        phase7_start = time.time()
+        
+        # Build file view
+        file_view = ViewId(
+            config.get("file_view_space", "cdf_cdm"),
+            config.get("file_view_external_id", "CogniteFile"),
+            config.get("file_view_version", "v1")
+        )
+        
+        # Process files
+        try:
+            for file_batch in client.data_modeling.instances(
+                chunk_size=chunk_size,
+                instance_type="node",
+                sources=file_view,
+            ):
+                batch_counts["files"] = batch_counts.get("files", 0) + 1
+                process_file_batch(file_batch, file_view, acc)
+                
+                if batch_counts["files"] % LOG_EVERY_N_BATCHES == 0:
+                    logger.info(f"[Files] Batch {batch_counts['files']:,} | Total: {acc.total_files:,}")
+                
+                if acc.total_files >= max_files:
+                    logger.info(f"🛑 Reached File limit ({max_files:,})")
+                    break
+        except Exception as e:
+            logger.warning(f"[Files] Could not process files: {e}")
+        
+        logger.info(f"[Files] Total files: {acc.total_files:,}")
+        logger.info(f"✅ PHASE 7: File processing in {format_elapsed(time.time() - phase7_start)}")
+        
+        # Compute file metrics
+        file_metrics = compute_file_metrics(acc)
+    else:
+        logger.info("[Files] Skipped - disabled in config")
+    
+    # ============================================================
+    # PHASE 9: Compute All Metrics
     # ============================================================
     logger.info("-" * 50)
-    logger.info("PHASE 7: Computing All Metrics")
+    logger.info("PHASE 9: Computing All Metrics")
     logger.info("-" * 50)
     
-    phase7_start = time.time()
+    phase9_start = time.time()
     
     ts_metrics = compute_ts_metrics(acc)
     hierarchy_metrics = compute_asset_hierarchy_metrics(acc)
     equipment_metrics = compute_equipment_metrics(acc)
     
-    logger.info(f"✅ PHASE 7: Metrics computed in {format_elapsed(time.time() - phase7_start)}")
+    logger.info(f"✅ PHASE 9: Metrics computed in {format_elapsed(time.time() - phase9_start)}")
     
     # ============================================================
-    # PHASE 8: Compile and Save Results
+    # PHASE 10: Compile and Save Results
     # ============================================================
     logger.info("-" * 50)
-    logger.info("PHASE 8: Saving Results to Cognite Files")
+    logger.info("PHASE 10: Saving Results to Cognite Files")
     logger.info("-" * 50)
     
     total_elapsed = time.time() - start_time
@@ -935,26 +991,31 @@ def handle(data: dict, client: CogniteClient) -> dict:
                     "total_instances": acc.total_ts_instances,
                     "unique": acc.total_ts,
                     "duplicates": acc.ts_duplicates,
+                    "duplicate_ids": acc.ts_duplicate_ids,
                 },
                 "assets": {
                     "total_instances": acc.total_asset_instances,
                     "unique": acc.total_assets,
                     "duplicates": acc.asset_duplicates,
+                    "duplicate_ids": acc.asset_duplicate_ids,
                 },
                 "equipment": {
                     "total_instances": acc.total_equipment_instances,
                     "unique": acc.total_equipment,
                     "duplicates": acc.equipment_duplicates,
+                    "duplicate_ids": acc.equipment_duplicate_ids,
                 },
                 "notifications": {
                     "total_instances": acc.total_notification_instances,
                     "unique": acc.total_notifications,
                     "duplicates": acc.notification_duplicates,
+                    "duplicate_ids": acc.notification_duplicate_ids,
                 },
                 "maintenance_orders": {
                     "total_instances": acc.total_order_instances,
                     "unique": acc.total_orders,
                     "duplicates": acc.order_duplicates,
+                    "duplicate_ids": acc.order_duplicate_ids,
                 },
                 "failure_notifications": {
                     "unique": acc.total_failure_notifications,
@@ -966,6 +1027,12 @@ def handle(data: dict, client: CogniteClient) -> dict:
                     "unique": model3d_acc.total_3d_objects if enable_3d else 0,
                     "assets_with_3d": model3d_acc.assets_with_3d if enable_3d else 0,
                 },
+                "files": {
+                    "total_instances": acc.total_file_instances if enable_files else 0,
+                    "unique": acc.total_files if enable_files else 0,
+                    "duplicates": acc.file_duplicates if enable_files else 0,
+                    "duplicate_ids": acc.file_duplicate_ids if enable_files else [],
+                },
             },
             "limits_reached": {
                 "timeseries": acc.total_ts >= max_ts,
@@ -975,6 +1042,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
                 "maintenance_orders": acc.total_orders >= max_orders if enable_maintenance else False,
                 "annotations": annotation_acc.unique_annotations >= max_annotations if enable_file_annotations else False,
                 "3d_objects": model3d_acc.total_3d_objects >= max_3d_objects if enable_3d else False,
+                "files": acc.total_files >= max_files if enable_files else False,
             },
             "config": {
                 "chunk_size": chunk_size,
@@ -985,11 +1053,13 @@ def handle(data: dict, client: CogniteClient) -> dict:
                 "max_maintenance_orders": max_orders,
                 "max_annotations": max_annotations,
                 "max_3d_objects": max_3d_objects,
+                "max_files": max_files,
                 "freshness_days": freshness_days,
                 "enable_historical_gaps": enable_gaps,
                 "enable_maintenance_metrics": enable_maintenance,
                 "enable_file_annotation_metrics": enable_file_annotations,
                 "enable_3d_metrics": enable_3d,
+                "enable_file_metrics": enable_files,
             },
         },
         "timeseries_metrics": ts_metrics,
@@ -998,6 +1068,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
         "maintenance_metrics": maintenance_metrics if enable_maintenance else {},
         "file_annotation_metrics": file_annotation_metrics if enable_file_annotations else {},
         "model3d_metrics": model3d_metrics if enable_3d else {},
+        "file_metrics": file_metrics if enable_files else {},
     }
     
     # Save to Cognite Files
@@ -1017,6 +1088,8 @@ def handle(data: dict, client: CogniteClient) -> dict:
         logger.info(f"  FailureNotif: {acc.total_failure_notifications:,}")
     if enable_file_annotations:
         logger.info(f"  Annotations:  {annotation_acc.total_annotations:,} / {annotation_acc.unique_annotations:,}")
+    if enable_files:
+        logger.info(f"  Files:        {acc.total_file_instances:,} / {acc.total_files:,} / {acc.file_duplicates:,}")
     logger.info("-" * 50)
     logger.info(f"TS to Asset Rate:        {ts_metrics['ts_to_asset_rate']}%")
     logger.info(f"Asset Monitoring:        {ts_metrics['ts_asset_monitoring_coverage']}%")
@@ -1046,6 +1119,13 @@ def handle(data: dict, client: CogniteClient) -> dict:
         logger.info(f"  Critical Asset 3D:     {model3d_metrics.get('model3d_critical_asset_rate', 0)}%")
         logger.info(f"  BBox Completeness:     {model3d_metrics.get('model3d_bbox_completeness', 0)}%")
         logger.info(f"  Total 3D Objects:      {model3d_metrics.get('model3d_total_objects', 0):,}")
+    if enable_files and file_metrics:
+        logger.info("-" * 50)
+        logger.info("File Contextualization Metrics:")
+        logger.info(f"  File→Asset Rate:       {file_metrics.get('file_to_asset_rate', 0)}%")
+        logger.info(f"  Asset File Coverage:   {file_metrics.get('file_asset_coverage', 0)}%")
+        logger.info(f"  Category Rate:         {file_metrics.get('file_category_rate', 0)}%")
+        logger.info(f"  Total Files:           {file_metrics.get('file_total', 0):,}")
     logger.info("-" * 50)
     logger.info(f"Total Execution Time:    {format_elapsed(total_elapsed)}")
     logger.info(f"File saved:              {file_external_id}")

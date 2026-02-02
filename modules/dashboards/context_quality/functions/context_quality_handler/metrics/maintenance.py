@@ -63,6 +63,7 @@ def process_notification_batch(
         acc.total_notification_instances += 1
         
         if node_id in acc.notification_ids_seen:
+            acc.notification_duplicate_ids.append(node_id)
             continue
         acc.notification_ids_seen.add(node_id)
         
@@ -109,6 +110,7 @@ def process_maintenance_order_batch(
         acc.total_order_instances += 1
         
         if node_id in acc.order_ids_seen:
+            acc.order_duplicate_ids.append(node_id)
             continue
         acc.order_ids_seen.add(node_id)
         

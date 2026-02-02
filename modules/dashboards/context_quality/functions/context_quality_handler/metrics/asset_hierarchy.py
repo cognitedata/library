@@ -33,6 +33,7 @@ def process_asset_batch(
         
         # Skip if already processed (duplicate)
         if node_id in acc.asset_ids_seen:
+            acc.asset_duplicate_ids.append(node_id)
             continue
         acc.asset_ids_seen.add(node_id)
         

@@ -106,15 +106,80 @@ def render_file_annotation_dashboard(metrics: dict):
     computed_at = metadata.get("computed_at", "Unknown")
     st.info(f"[Date] Metrics computed at: {computed_at}")
     
+    # Understanding the metrics
+    with st.expander("**Understanding the Metrics** - Click to learn more", expanded=False):
+        st.markdown("""
+        **Confidence Metrics:**
+        - **Average Confidence** - Mean confidence score across all annotations (higher = more reliable)
+        - **High Confidence (≥90%)** - Annotations reliable enough for auto-approval
+        - **Medium Confidence (50-90%)** - May need spot-checking
+        - **Low Confidence (<50%)** - Likely needs manual review
+        
+        **Status Metrics:**
+        - **Approved Rate** - % of annotations that have been manually approved
+        - **Suggested** - Annotations pending human review
+        - **Rejected** - Annotations marked as incorrect
+        
+        **Coverage Metrics (Requires User Input):**
+        - **File Processing Rate** - Files with annotations / Total files in scope
+        - **Asset Tag Detection Rate** - Detected tags / Expected tags
+        
+        **Annotation Types:**
+        - **Asset Tags** - Annotations linking to asset nodes
+        - **File Links** - Annotations linking to other files (cross-references)
+        
+        *Tip: High confidence + high approved rate indicates good annotation quality. Enter reference numbers above to calculate coverage rates.*
+        """)
+    
     # Extract base metrics
     total_annotations = annot.get("annot_total", 0)
     files_with_annotations = annot.get("annot_unique_files_with_annotations", 0)
     assets_linked = annot.get("annot_unique_assets_linked", 0)
+    avg_confidence = annot.get("annot_avg_confidence")
+    approved_pct = annot.get("annot_approved_pct", 0)
+    
+    st.markdown("---")
+    
+    # =====================================================
+    # MAIN METRIC - BIG ON TOP
+    # =====================================================
+    st.header("Annotation Quality")
+    
+    col_main, col_info = st.columns([2, 1])
+    
+    with col_main:
+        if avg_confidence is not None:
+            gauge(col_main, "Average Annotation Confidence", avg_confidence, "avg_confidence",
+                  get_status_color_annotation, [0, 100], "%", key="annot_avg_conf_main",
+                  help_text="Average confidence score across all annotations")
+        else:
+            gauge_na(col_main, "Average Annotation Confidence", "No confidence data", key="annot_avg_conf_main_na")
+    
+    with col_info:
+        st.markdown("### Why This Matters")
+        st.markdown("""
+        Annotation confidence indicates how reliable the 
+        detected tags and links are:
+        - **High confidence (>90%)**: Auto-approve safe
+        - **Medium (50-90%)**: May need review
+        - **Low (<50%)**: Likely needs manual review
+        """)
+        
+        high_conf_pct = annot.get("annot_confidence_high_pct", 0)
+        if avg_confidence is None:
+            st.info("No confidence data available.")
+        elif avg_confidence >= 90:
+            st.success(f"Excellent! {high_conf_pct:.0f}% are high confidence.")
+        elif avg_confidence >= 70:
+            st.warning(f"Good quality. Review medium/low confidence annotations.")
+        else:
+            st.error(f"Many annotations may need manual review.")
+    
+    st.markdown("---")
     
     # =========================================
     # USER INPUT SECTION: Reference Numbers
     # =========================================
-    st.markdown("---")
     st.header("Reference Numbers (User Input)")
     st.markdown("""
     *Enter reference numbers to calculate completion rates. These values are not stored in the data model,
@@ -208,20 +273,16 @@ def render_file_annotation_dashboard(metrics: dict):
     st.header("Confidence Distribution")
     st.markdown("*How confident is the annotation model in its predictions?*")
     
-    avg_confidence = annot.get("annot_avg_confidence")
     high_conf_pct = annot.get("annot_confidence_high_pct", 0)
     medium_conf_pct = annot.get("annot_confidence_medium_pct", 0)
     low_conf_pct = annot.get("annot_confidence_low_pct", 0)
     
     c1, c2, c3, c4 = st.columns(4)
     
-    # Average confidence gauge
-    if avg_confidence is not None:
-        gauge(c1, "Average Confidence", avg_confidence, "avg_confidence",
-              get_status_color_annotation, [0, 100], "%", key="annot_avg_conf",
-              help_text="Average confidence score across all annotations")
-    else:
-        gauge_na(c1, "Average Confidence", "No confidence data", key="annot_avg_conf_na")
+    # Approved rate gauge (since avg_confidence is now on top)
+    gauge(c1, "Approved Rate", approved_pct, "approved_rate",
+          get_status_color_annotation, [0, 100], "%", key="annot_approved_conf",
+          help_text="% of annotations that have been approved")
     
     # High confidence gauge
     gauge(c2, "High Confidence", high_conf_pct, "high_confidence",
@@ -271,16 +332,14 @@ def render_file_annotation_dashboard(metrics: dict):
     st.header("Annotation Status")
     st.markdown("*Review status of annotations (approved, suggested, rejected)*")
     
-    approved_pct = annot.get("annot_approved_pct", 0)
     suggested_pct = annot.get("annot_suggested_pct", 0)
     rejected_pct = annot.get("annot_rejected_pct", 0)
     
     s1, s2, s3 = st.columns(3)
     
-    # Approved rate gauge
-    gauge(s1, "Approved Rate", approved_pct, "approved_rate",
-          get_status_color_annotation, [0, 100], "%", key="annot_approved",
-          help_text="% of annotations that have been approved")
+    # Summary metrics
+    s1.metric("Approved", f"{annot.get('annot_approved', 0):,}", 
+              help=f"{approved_pct:.1f}% of total annotations")
     
     # Status distribution chart
     with s2:
