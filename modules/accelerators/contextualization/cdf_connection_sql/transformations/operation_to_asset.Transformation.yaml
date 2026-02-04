@@ -1,0 +1,14 @@
+externalId: {{ operationToAssetTransformationExternalId}}
+dataSetExternalId: {{ dataset }}
+name: Operation to Asset Connection Transformation
+destination:
+  type: instances
+  dataModel:
+    space: {{ schemaSpace }}
+    externalId: {{ organization }}ProcessIndustries
+    destinationType: {{ organization }}Operation
+    version: {{ datamodelVersion }}
+  instanceSpace: {{ instanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

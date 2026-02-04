@@ -1,57 +1,45 @@
-import sys
-import traceback
 import json
 import re
+import sys
+import traceback
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Optional
-from collections import defaultdict
-
-
-from cognite.client.data_classes.data_modeling import (
-    DirectRelationReference,
-    NodeOrEdgeData,
-    NodeList,
-    Node,
-    NodeApply,
-)
 
 from cognite.client import CogniteClient
-from cognite.client.data_classes import (
-    ExtractionPipelineRun,
-    ContextualizationJob, 
-    Row
-)
 from cognite.client import data_modeling as dm
+from cognite.client.data_classes import ExtractionPipelineRun, Row
+from cognite.client.data_classes.data_modeling import (
+    DirectRelationReference,
+    NodeApply,
+    NodeOrEdgeData,
+)
+from cognite.client.exceptions import CogniteAPIError
 from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
-from cognite.client.exceptions import CogniteAPIError
-
-from cognite.client.data_classes.data_modeling.query import Query, NodeResultSetExpression, Select, SourceSelector
-
 from config import Config, ViewPropertyConfig
-from logger import CogniteFunctionLogger
-
 from constants import (
+    COL_KEY_MAN_CONTEXTUALIZED,
+    COL_KEY_MAN_MAPPING_ASSET,
+    COL_KEY_MAN_MAPPING_ENTITY,
+    COL_KEY_RULE_REGEXP_ASSET,
+    COL_KEY_RULE_REGEXP_ENTITY,
+    COL_MATCH_KEY,
+    FUNCTION_ID,
+    ML_MODEL_FEATURE_TYPE,
     STAT_STORE_MATCH_MODEL_ID,
     STAT_STORE_VALUE,
-    FUNCTION_ID,
-    COL_KEY_MAN_MAPPING_ENTITY,
-    COL_KEY_MAN_MAPPING_ASSET,
-    COL_KEY_MAN_CONTEXTUALIZED,
-    ML_MODEL_FEATURE_TYPE,
-    COL_MATCH_KEY,
-    COL_KEY_RULE_REGEXP_ENTITY,
-    COL_KEY_RULE_REGEXP_ASSET,
 )
+from logger import CogniteFunctionLogger
 
 sys.path.append(str(Path(__file__).parent))
 
 # 🚀 OPTIMIZATION IMPORTS
 try:
     from pipeline_optimizations import (
-        time_operation,
+        cleanup_memory,
         monitor_memory_usage,
-        cleanup_memory
+        time_operation,
     )
     OPTIMIZATIONS_AVAILABLE = True
 except ImportError:
@@ -100,19 +88,19 @@ def asset_entity_matching(
         matching_model_id = None
         if config.parameters.debug:
             logger = CogniteFunctionLogger("DEBUG")
-            logger.debug(f"**** Write debug messages and only process one entity *****")
+            logger.debug("**** Write debug messages and only process one entity *****")
 
-        logger.debug(f"Initiate RAW upload queue used to store output from entity matching")
+        logger.debug("Initiate RAW upload queue used to store output from entity matching")
         raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level="INFO")
 
         # Check if we should run all entities (then delete state content in RAW) or just new entities
         if config.parameters.run_all:
-            logger.debug(f"Run all entities, delete state content in RAW since we are rerunning based on all input")
+            logger.debug("Run all entities, delete state content in RAW since we are rerunning based on all input")
             delete_table(client, config.parameters.raw_db, config.parameters.raw_tale_ctx_bad)
             delete_table(client, config.parameters.raw_db, config.parameters.raw_tale_ctx_good)
             delete_table(client, config.parameters.raw_db, config.parameters.raw_table_state)
         else:
-            logger.debug(f"Get entity entity matching model ID from state store")
+            logger.debug("Get entity entity matching model ID from state store")
             matching_model_id = read_state_store(client, config, logger, STAT_STORE_MATCH_MODEL_ID)
 
         logger.debug("Read manual mappings to be used in entity matching")
@@ -137,7 +125,7 @@ def asset_entity_matching(
         logger.debug("Get all assets that are input for matching assets ( based on TAG filtering given in config)")
         asset_dest = get_all_assets(client, logger, config, rule_mappings)
         if len(asset_dest) == 0:
-            logger.warning(f"No assets found based on configuration, please check the configuration")
+            logger.warning("No assets found based on configuration, please check the configuration")
             update_pipeline_run(client, logger, pipeline_ext_id, "success", match_count, not_matches_count, None)
             return
 
@@ -305,6 +293,39 @@ def read_manual_mappings(
     return manual_mappings
 
 
+def resolve_asset_external_id(
+    client: CogniteClient,
+    config: Config,
+    logger: CogniteFunctionLogger,
+    asset_ref: str
+) -> Optional[str]:
+    if not asset_ref:
+        return None
+
+    # Temporary compatibility for old WMT:<TAG_NAME> references
+    if asset_ref.startswith("WMT:"):
+        asset_name = asset_ref.split("WMT:", 1)[1]
+        asset_view = config.data.asset_view
+        is_view = dm.filters.HasData(views=[asset_view.as_view_id()])
+        by_name = dm.filters.Equals(asset_view.as_property_ref("name"), asset_name)
+        by_alias = dm.filters.In(asset_view.as_property_ref("aliases"), [asset_name])
+        is_selected = dm.filters.And(is_view, dm.filters.Or(by_name, by_alias))
+
+        assets = client.data_modeling.instances.list(
+            space=asset_view.instance_space,
+            sources=[asset_view.as_view_id()],
+            filter=is_selected,
+            limit=1,
+        )
+        if assets:
+            logger.debug(f"Resolved manual asset ref {asset_ref} -> {assets[0].external_id}")
+            return assets[0].external_id
+
+        logger.warning(f"Manual asset ref {asset_ref} not found by name/aliases; using as-is")
+
+    return asset_ref
+
+
 def apply_manual_mappings(
     client: CogniteClient, 
     logger: CogniteFunctionLogger,
@@ -339,6 +360,10 @@ def apply_manual_mappings(
         for entity in all_entities:
             if entity.external_id in lookup_mapping:
                 asset_ext_id = lookup_mapping[entity.external_id]
+                asset_ext_id = resolve_asset_external_id(client, config, logger, asset_ext_id)
+                if not asset_ext_id:
+                    logger.warning(f"Manual mapping asset ref is empty for entity: {entity.external_id}, skipping")
+                    continue
             else:
                 continue
 
@@ -531,9 +556,10 @@ def get_new_entities(
             item_update = clean_asset_links(config, entity.external_id, item_update)
 
         # add entities for files used to match between file references in P&ID to other files
-        if "aliases" in entity.properties[entity_view_id]:
-            aliases = entity.properties[entity_view_id]["aliases"]
-            entity_names = aliases if isinstance(aliases, list) else [str(aliases)]
+        search_prop = entity_view_config.search_property
+        if search_prop in entity.properties[entity_view_id]:
+            prop_value = entity.properties[entity_view_id][search_prop]
+            entity_names = prop_value if isinstance(prop_value, list) else [str(prop_value)]
         else:
             entity_names = [org_name]
         for entity_name in entity_names: 

@@ -1,6 +1,6 @@
 import abc
-
 from typing import Literal
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes import ExtractionPipelineRunWrite
 

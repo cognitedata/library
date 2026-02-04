@@ -1,0 +1,104 @@
+name: Open Industrial Data Sync
+externalId: {{ extractionPipelineExternalId }}
+dataSetExternalId: {{ oidDatasetExternalId }}
+description: "Extraction pipeline for synchronizing time series data from Open Industrial Data (publicdata CDF project) to simulate real-time data streaming."
+source: "Open Industrial Data (publicdata)"
+documentation: >
+  # Open Industrial Data Sync Configuration Guide
+
+  Synchronizes time series data from the [Cognite Open Industrial Data project](https://hub.cognite.com/open-industrial-data-211) 
+  (publicdata) to your target CDF project. Data is time-shifted to simulate real-time streams for development and testing.
+
+  ## How It Works
+
+  1. Connects to publicdata CDF project using separate credentials
+  2. Retrieves PI time series data (all time series with "pi:" prefix, ~363 series)
+  3. Fetches data points from specified time ranges
+  4. Applies time offset to make historical data appear current
+  5. Inserts offset data into your target CDF project
+
+  ## Getting Your Client Secret
+
+  **IMPORTANT:** You must generate a client secret to access Open Industrial Data.
+
+  1. **Login required**: Visit https://hub.cognite.com/open-industrial-data-211 (requires Cognite Hub account)
+  2. Scroll down to "Generate client secret for OID" section
+  3. Select application type: **"Other Javascript SPA"** or **"Postman and Python SDK"**
+  4. Click **"Create Client Secret"** button
+  5. Copy the generated secret (valid for 180 days)
+  6. Add to your `.env` file as: `OPEN_ID_CLIENT_SECRET=<your-secret-here>`
+  7. Redeploy to update the CDF function secret
+
+  **Note:** Client secrets expire every 180 days. You'll need to regenerate and update your deployment.
+
+  ## Configuration Structure
+
+  ### 1. `oid_connection` - Access to Open Industrial Data
+
+  - **`tenant_id`**: Azure AD tenant (default: `48d5043c-cf70-4c49-881c-c638f5796997`)
+  - **`client_id`**: Application ID (default: `1b90ede3-271e-401b-81a0-a4d52bea3273`)
+  - **`cluster`**: CDF cluster (default: `api`)
+  - **`project`**: Project name (default: `publicdata`)
+  - **`client_secret`**: Provided via CDF secrets from `OPEN_ID_CLIENT_SECRET` env var
+
+  ### 2. `sync_configuration` - Data Sync Parameters
+
+  - **`sync_realtime_start`**: Recent data window per run (default: `15m-ago`)
+    - Match to schedule frequency + buffer (e.g., `15m-ago` for 10-min schedule)
+    - Prevents re-syncing same data repeatedly
+  
+  - **`sync_all_end`**: End boundary for all syncs (default: `168h-ago`)
+    - OID has ~1 week publication delay
+  
+  - **`sync_random_start`**: Historical backfill range (default: `12w-ago`)
+    - One random time series per run gets backfilled from this point
+    - Gradually populates 12 weeks of history
+
+  - **`instance_space`**: Target space for time series data
+
+  ### 3. `time_offset` - Simulate Real-Time Data
+
+  - **`offset_weeks`**: Shift data forward (default: `1` week)
+  - **`offset_minutes`**: Fine-tune offset (default: `10` minutes)
+  - Makes week-old OID data appear current
+
+  ### 4. `logging` - Log Level
+
+  - **`log_level`**: `DEBUG`, `INFO`, `WARNING`, or `ERROR` (default: `INFO`)
+
+  ## Smart Backfill Strategy
+
+  **Every 10 minutes:**
+  1. All 363 time series get latest 15 minutes of data ("real-time" updates)
+  2. One random unbackfilled time series gets historical data (12 weeks in 1-week batches)
+  3. When complete, time series is tagged with `oid_backfilled: true` metadata
+  4. After ~60 hours, all series have full history and only real-time updates continue
+
+  **Benefits:** Zero duplicate data, memory-safe batching, progressive backfill without external state
+
+  ## Example: Adjusting for Different Schedules
+
+  ```yaml
+  sync_configuration:
+    sync_realtime_start: "15m-ago"   # For 10-minute schedule
+    # sync_realtime_start: "35m-ago"  # For 30-minute schedule  
+    # sync_realtime_start: "1h-ago"   # For hourly schedule
+  ```
+
+  ## Troubleshooting
+
+  - **No data**: Check `sync_all_end` isn't too recent (OID has ~7 day delay)
+  - **Auth errors**: Regenerate client secret at https://hub.cognite.com/open-industrial-data-211
+  - **Memory errors**: Function uses weekly batching to prevent OOM
+  - **Missing time series**: Ensure time series exist in target project before syncing data
+
+  ## Data Flow
+
+  ```
+  Open Industrial Data (publicdata)
+  └── PI Time Series (~363 series)
+      └── Last 15 minutes + random backfill
+          └── Time Offset (+1 week +10 min)
+              └── Target CDF Project (simulated real-time)
+  ```
+

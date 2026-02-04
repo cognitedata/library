@@ -1,18 +1,22 @@
 import sys
-from cognite.client import CogniteClient
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
+from cognite.client import CogniteClient
 from dependencies import (
     create_config_service,
-    create_logger_service,
-    create_write_logger_service,
     create_general_data_model_service,
     create_general_pipeline_service,
+    create_logger_service,
+    create_write_logger_service,
 )
 from services.ConfigService import format_prepare_config
-from services.PrepareService import GeneralPrepareService, LocalPrepareService, AbstractPrepareService
 from services.DataModelService import IDataModelService
 from services.PipelineService import IPipelineService
+from services.PrepareService import (
+    AbstractPrepareService,
+    GeneralPrepareService,
+    LocalPrepareService,
+)
 from utils.DataStructures import PerformanceTracker
 
 

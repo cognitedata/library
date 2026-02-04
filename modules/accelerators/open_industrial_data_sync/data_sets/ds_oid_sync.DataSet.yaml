@@ -1,0 +1,7 @@
+externalId: {{ oidDatasetExternalId }}
+name: Open Industrial Data Sync
+description: Dataset for time series data synchronized from Open Industrial Data (publicdata) to simulate real-time streaming data.
+metadata:
+  source: Open Industrial Data (publicdata)
+  sync_type: time_series
+

@@ -233,7 +233,7 @@ class TestRunLocally:
         call_args = mock_handle.call_args
         assert call_args[0][0] == {
             "logLevel": "INFO",
-            "ExtractionPipelineExtId": "ep_ctx_timeseries_LOC_SOURCE_entity_matching"
+            "ExtractionPipelineExtId": "ep_ctx_timeseries_Springfield_springfield_entity_matching"
         }
         assert call_args[0][1] == mock_client_instance
     

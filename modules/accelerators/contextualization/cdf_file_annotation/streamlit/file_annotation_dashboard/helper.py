@@ -1,23 +1,22 @@
 import os
 import re
-import yaml
-import streamlit as st
+from datetime import timedelta
+
 import pandas as pd
-from datetime import datetime, timedelta
+import streamlit as st
+import yaml
+from canvas import dm_generate
 from cognite.client import CogniteClient
-from cognite.client.data_classes import RowWrite, Asset, AssetFilter
+from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import (
-    ViewId,
-    NodeId,
-    Node,
-    filters,
-    EdgeApply,
-    NodeOrEdgeData,
     DirectRelationReference,
+    EdgeApply,
+    Node,
+    NodeId,
+    filters,
 )
 from cognite.client.data_classes.functions import FunctionCallLog
 from data_structures import ViewPropertyConfig
-from canvas import dm_generate
 
 client = CogniteClient()
 
@@ -78,7 +77,7 @@ def find_pipelines(name_filter: str = "file_annotation") -> list[str]:
     try:
         all_pipelines = client.extraction_pipelines.list(limit=-1)
         if not all_pipelines:
-            st.warning(f"No extraction pipelines found in the project.")
+            st.warning("No extraction pipelines found in the project.")
             return []
 
         filtered_ids = [p.external_id for p in all_pipelines if name_filter in p.external_id]

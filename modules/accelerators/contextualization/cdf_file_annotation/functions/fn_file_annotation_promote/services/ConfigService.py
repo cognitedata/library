@@ -1,17 +1,17 @@
 from enum import Enum
-from typing import Any, Literal, cast, Optional
+from typing import Any, Literal, Optional
 
 import yaml
+from cognite.client import CogniteClient
+from cognite.client import data_modeling as dm
 from cognite.client.data_classes.contextualization import (
-    DiagramDetectConfig,
     ConnectionFlags,
     CustomizeFuzziness,
+    DiagramDetectConfig,
     DirectionWeights,
 )
 from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.filters import Filter
-from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel

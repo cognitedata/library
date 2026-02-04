@@ -1,15 +1,14 @@
 import abc
 import copy
 from typing import Any
-from cognite.client import CogniteClient
-from services.ConfigService import Config
 
+from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import (
-    DiagramDetectResults,
     DiagramDetectConfig,
+    DiagramDetectResults,
     FileReference,
 )
-
+from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 
 
@@ -76,7 +75,7 @@ class GeneralAnnotationService(IAnnotationService):
         if detect_job.job_id and detect_job.job_token:
             return detect_job.job_id, detect_job.job_token
         else:
-            raise Exception(f"API call to diagram/detect did not return a job ID or job Token")
+            raise Exception("API call to diagram/detect did not return a job ID or job Token")
 
     def run_pattern_mode_detect(
         self, files: list[FileReference], pattern_samples: list[dict[str, Any]]

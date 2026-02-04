@@ -1,0 +1,11 @@
+externalId: tr_report_pi_timeseries_linkrate
+name:  report_pi_timeseries_linkrate
+dataSetExternalId: {{ dataset }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+destination:
+  database: db_quality_reports
+  table: tbl_contextualization_rate_report
+  type: raw

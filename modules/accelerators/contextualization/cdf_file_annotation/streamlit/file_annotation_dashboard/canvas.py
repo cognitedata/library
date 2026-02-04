@@ -8,9 +8,8 @@ from cognite.client.data_classes.data_modeling import (
     NodeId,
     EdgeId,
     Node,
-    Edge,
 )
-from cognite.client.data_classes.filters import Equals, And, Not
+from cognite.client.data_classes.filters import Equals, And
 import datetime
 import uuid
 import streamlit as st
