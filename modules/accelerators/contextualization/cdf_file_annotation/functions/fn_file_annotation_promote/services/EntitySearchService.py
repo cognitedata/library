@@ -2,7 +2,7 @@ import abc
 import re
 from typing import Any
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import Node, ViewId
+from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
 from cognite.client.data_classes.filters import Filter, In
 from services.LoggerService import CogniteFunctionLogger
 from services.ConfigService import Config
@@ -31,26 +31,27 @@ class IEntitySearchService(abc.ABC):
 
 class EntitySearchService(IEntitySearchService):
     """
-    Finds entities by text using server-side filtering on entity aliases.
+    Finds entities by text using Elasticsearch-based search on entity aliases.
 
-    This service queries entities directly using an IN filter on the aliases property,
-    which is more efficient than querying annotation edges:
+    This service uses the CDF Data Modeling search endpoint (Elasticsearch backend)
+    which provides faster full-text search with built-in fuzzy matching.
+
+    **Why Elasticsearch instead of PostgreSQL filters?**
+    - Elasticsearch uses inverted indexes for O(1) text lookups
+    - Built-in fuzzy matching eliminates need for text variation generation
+    - Better performance for text-based searches at scale
 
     **Why query entities directly instead of annotation edges?**
     - Entity dataset is smaller and stable (~1,000-10,000 entities)
     - Annotation edges grow quadratically (Files × Entities = potentially millions)
-    - Neither startNodeText nor aliases properties are indexed
-    - Without indexes, smaller dataset = better performance
     - Entity count doesn't increase as more files are annotated
 
     **Search Strategy:**
-    - Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-    - Query entities with server-side IN filter on aliases property
-    - Uses text variations to handle different naming conventions
+    - Use Elasticsearch search endpoint with single query text
+    - Search on aliases property with built-in fuzzy matching
     - Returns matches from specified entity space
 
     **Utilities:**
-    - `generate_text_variations()`: Creates common variations (case, leading zeros, special chars)
     - `normalize()`: Normalizes text for cache keys (removes special chars, lowercase, strips zeros)
     """
 
@@ -90,19 +91,18 @@ class EntitySearchService(IEntitySearchService):
 
     def find_entity(self, text: str, annotation_type: str, entity_space: str) -> list[Node]:
         """
-        Finds entities matching the given text by querying entity aliases.
+        Finds entities matching the given text using Elasticsearch search on aliases.
 
         This is the main entry point for entity search.
 
         Strategy:
-        1. Generate text variations (e.g., "V-0912" → ["V-0912", "v-0912", "V-912", "v912", ...])
-        2. Query entities with server-side IN filter on aliases property
+        - Use Elasticsearch search endpoint with built-in fuzzy matching
+        - Search on aliases property
+        - No text variation generation needed - ES handles this natively
 
         Note: We query entities directly rather than annotation edges because:
         - Entity dataset is smaller and more stable (~1,000-10,000 entities)
         - Annotation edges grow quadratically (Files x Entities = potentially millions)
-        - Neither startNodeText nor aliases properties are indexed
-        - Without indexes, smaller dataset = better performance
 
         Args:
             text: Text to search for (e.g., "V-123", "G18A-921")
@@ -115,9 +115,7 @@ class EntitySearchService(IEntitySearchService):
             - [node] if single unambiguous match
             - [node1, node2] if ambiguous (multiple matches)
         """
-        # Generate text variations once
-        text_variations: list[str] = self.generate_text_variations(text)
-        self.logger.info(f"Generated {len(text_variations)} text variation(s) for '{text}': {text_variations}")
+        self.logger.debug(f"Searching for entity with text '{text}' using Elasticsearch")
 
         # Determine which view to query based on annotation type
         if annotation_type == "diagrams.FileLink":
@@ -125,8 +123,8 @@ class EntitySearchService(IEntitySearchService):
         else:
             source = self.target_entities_view_id
 
-        # Query entities directly by aliases
-        found_nodes: list[Node] = self.find_global_entity(text_variations, source, entity_space)
+        # Query entities using Elasticsearch search (handles fuzzy matching natively)
+        found_nodes: list[Node] = self.search_entity(text, source, entity_space)
 
         return found_nodes
 
@@ -241,120 +239,108 @@ class EntitySearchService(IEntitySearchService):
             self.logger.error(f"Error searching existing annotations for '{original_text}': {e}")
             return []
 
-    def find_global_entity(self, text_variations: list[str], source: ViewId, entity_space: str) -> list[Node]:
+    def search_entity(self, text: str, source: ViewId, entity_space: str) -> list[Node]:
         """
-        Performs a global, un-scoped search for an entity matching the given text variations.
-        Uses server-side IN filter with text variations to handle different naming conventions.
+        Searches for entities matching the given text using Elasticsearch.
 
-        This approach uses server-side filtering on the aliases property, making it efficient
-        and scalable even with large numbers of entities in a space.
+        Uses the CDF Data Modeling search endpoint which provides:
+        - Elasticsearch-backed full-text search
+        - Built-in fuzzy matching (handles case, special chars, etc.)
+        - Faster performance via inverted index lookups
 
         Args:
-            text_variations: List of text variations to search for (e.g., ["V-0912", "v-0912", "V-912", ...])
+            text: Text to search for (e.g., "V-0912")
             source: View to query (file_view or target_entities_view)
             entity_space: Space to search in
 
         Returns:
             List of matched nodes (0, 1, or 2 for ambiguity detection)
         """
-        # Use first text variation (original text) for logging
-        original_text: str = text_variations[0] if text_variations else "unknown"
-
         try:
-            # Query entities with IN filter on aliases property
-            aliases_filter: Filter = In(source.as_property_ref("aliases"), text_variations)
-
-            entities: Any = self.client.data_modeling.instances.list(
+            # Use Elasticsearch search endpoint instead of PostgreSQL list with IN filter
+            search_result: NodeList = self.client.data_modeling.instances.search(
+                view=source,
+                query=text,
                 instance_type="node",
-                sources=source,
-                filter=aliases_filter,
                 space=entity_space,
-                limit=1000,  # Reasonable limit to prevent timeouts
+                properties=["aliases"],
+                operator="AND",
+                limit=50,  # Increase to inspect more ambiguous matches
             )
 
-            if not entities:
+            if not search_result:
+                self.logger.debug(f"No matches found for '{text}' via Elasticsearch search")
                 return []
 
             # Convert to list and check for ambiguity
-            matched_entities: list[Node] = list(entities)
+            matched_entities: list[Node] = list(search_result)
 
             if len(matched_entities) > 1:
+
+                def _aliases_for_node(node: Node) -> list[str]:
+                    props = node.properties.get(source, {}) if node.properties else {}
+                    aliases = props.get("aliases")
+                    if isinstance(aliases, list):
+                        return [str(a) for a in aliases]
+                    if aliases:
+                        return [str(aliases)]
+                    return []
+
+                self.logger.debug(
+                    f"Ambiguous matches for '{text}' in space '{entity_space}': "
+                    f"{[{'external_id': node.external_id, 'aliases': _aliases_for_node(node)} for node in matched_entities]}"
+                )
                 self.logger.warning(
-                    f"Found {len(matched_entities)} entities with aliases matching '{original_text}' in space '{entity_space}'. "
+                    f"Found {len(matched_entities)} entities with aliases matching '{text}' in space '{entity_space}'. "
                     f"This is ambiguous. Returning first 2 for ambiguity detection."
                 )
                 return matched_entities[:2]
 
             if matched_entities:
-                self.logger.debug(
-                    f"Found {len(matched_entities)} match(es) for '{original_text}' via global entity search"
-                )
+                self.logger.debug(f"Found {len(matched_entities)} match(es) for '{text}' via Elasticsearch search")
 
             return matched_entities
 
         except Exception as e:
-            self.logger.error(f"Error searching for entity '{original_text}' in space '{entity_space}': {e}")
+            self.logger.error(f"Error searching for entity '{text}' in space '{entity_space}': {e}")
             return []
+
+    def find_global_entity(self, text_variations: list[str], source: ViewId, entity_space: str) -> list[Node]:
+        """
+        [DEPRECATED] Use search_entity() instead.
+
+        This method used PostgreSQL IN filter with text variations.
+        Kept for backwards compatibility but search_entity() is preferred.
+
+        Args:
+            text_variations: List of text variations to search for
+            source: View to query (file_view or target_entities_view)
+            entity_space: Space to search in
+
+        Returns:
+            List of matched nodes (0, 1, or 2 for ambiguity detection)
+        """
+        # Use first text variation (original text) and delegate to new search method
+        original_text: str = text_variations[0] if text_variations else ""
+        return self.search_entity(original_text, source, entity_space)
 
     def generate_text_variations(self, text: str) -> list[str]:
         """
-        Generates common variations of a text string to improve matching.
+        [DEPRECATED] No longer needed - Elasticsearch handles fuzzy matching natively.
 
-        Respects text_normalization_config settings:
-        - removeSpecialCharacters: Generate variations without special characters
-        - convertToLowercase: Generate lowercase variations
-        - stripLeadingZeros: Generate variations with leading zeros removed
+        This method was used to generate text variations for PostgreSQL IN filter queries.
+        With the switch to Elasticsearch search, fuzzy matching is handled server-side.
 
-        Examples (all flags enabled):
-            "V-0912" → ["V-0912", "v-0912", "V-912", "v-912", "V0912", "v0912", "V912", "v912"]
-            "P&ID-001" → ["P&ID-001", "p&id-001", "P&ID-1", "p&id-1", "PID001", "pid001", "PID1", "pid1"]
-
-        Examples (all flags disabled):
-            "V-0912" → ["V-0912"]  # Only original
+        Kept for backwards compatibility only.
 
         Args:
             text: Original text from pattern detection
 
         Returns:
-            List of text variations based on config settings
+            List containing only the original text (no variations generated)
         """
-        variations: set[str] = set()
-        variations.add(text)  # Always include original
-
-        # Helper function to strip leading zeros
-        def strip_leading_zeros_in_text(s: str) -> str:
-            return re.sub(r"\b0+(\d+)", r"\1", s)
-
-        # Helper function to remove special characters
-        def remove_special_chars(s: str) -> str:
-            return re.sub(r"[^a-zA-Z0-9]", "", s)
-
-        # Generate all combinations of transformations systematically
-        # We'll build up variations by applying each transformation flag
-        base_variations: set[str] = {text}
-
-        # Apply removeSpecialCharacters transformations
-        if self.text_normalization_config.remove_special_characters:
-            new_variations: set[str] = set()
-            for v in base_variations:
-                new_variations.add(remove_special_chars(v))
-            base_variations.update(new_variations)
-
-        # Apply convertToLowercase transformations
-        if self.text_normalization_config.convert_to_lowercase:
-            new_variations = set()
-            for v in base_variations:
-                new_variations.add(v.lower())
-            base_variations.update(new_variations)
-
-        # Apply stripLeadingZeros transformations
-        if self.text_normalization_config.strip_leading_zeros:
-            new_variations = set()
-            for v in base_variations:
-                new_variations.add(strip_leading_zeros_in_text(v))
-            base_variations.update(new_variations)
-
-        return list(base_variations)
+        # No longer generate variations - ES handles fuzzy matching
+        return [text]
 
     def normalize(self, s: str) -> str:
         """
