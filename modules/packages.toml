@@ -60,4 +60,5 @@ description = "Tools and accelerators for CDF projects"
 canCherryPick = true
 modules = [
     "tools/notebooks/cdf_performance_testing",
+    "tools/notebooks/cdf_transformation_jobs_metric_explorer"
 ]
