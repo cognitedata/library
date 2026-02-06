@@ -204,7 +204,7 @@ The notebook includes pytest-compatible tests that validate core functionality.
 ### Using local pyproject.toml (recommended)
 
 ```bash
-cd marimo-transformation-jobs-metric-explorer
+cd cdf_transformation_jobs_metric_explorer
 
 # Run static analysis first (fast)
 uvx --python 3.13 marimo check marimo-tsjm-analysis.py
