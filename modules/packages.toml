@@ -53,3 +53,11 @@ modules = [
     "dashboards/context_quality"
 ]
 
+[packages.tools]
+id = "tool:notebooks"
+title = "Tools and Accelerators"
+description = "Tools and accelerators for CDF projects"
+canCherryPick = true
+modules = [
+    "tools/notebooks/cdf_performance_testing",
+]

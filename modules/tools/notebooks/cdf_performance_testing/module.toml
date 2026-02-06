@@ -1,0 +1,5 @@
+[module]
+title = "CDF Performance Testing"
+id = "Performance Testing Notebook"
+package_id = "tool:notebooks"
+
