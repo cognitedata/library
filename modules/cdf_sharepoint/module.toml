@@ -1,5 +1,0 @@
-[module]
-title = "Sharepoint Files"
-is_selected_by_default = false
-id = "dp:sourcesystem:cdf_sharepoint"
-package_id = "dp:accelerators"

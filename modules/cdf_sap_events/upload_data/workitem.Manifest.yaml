@@ -1,6 +1,0 @@
-kind: RawRows
-type: rawTable
-table:
-  dbName: ingestion
-  tableName: workitem
-
