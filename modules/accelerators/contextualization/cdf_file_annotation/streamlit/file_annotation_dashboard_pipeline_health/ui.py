@@ -60,15 +60,21 @@ class PipelineHealthUI:
         with st.spinner(f"Fetching pipeline run history for '{selected_pipeline}'..."):
             pipeline_runs = DataFetcher.fetch_pipeline_run_history(self.client, selected_pipeline)
 
-        overview_tab, file_explorer_tab, run_history_tab = st.tabs(["Overview", "File Explorer", "Run History"])
+        tab_options = ["Overview", "File Explorer", "Run History"]
 
-        with overview_tab:
+        if "pipeline_health_tab_selector" not in st.session_state:
+            st.session_state["pipeline_health_tab_selector"] = tab_options[0]
+
+        try:
+            index = tab_options.index(st.session_state.get("pipeline_health_tab_selector", tab_options[0]))
+        except ValueError:
+            index = 0
+
+        selected_tab = st.radio("Tabs", tab_options, index=index, horizontal=True, key="pipeline_health_tab_selector")
+
+        if selected_tab == "Overview":
             OverviewTab(self.client, df_annotation_states).render()
-        with file_explorer_tab:
+        elif selected_tab == "File Explorer":
             FileExplorerTab(self.client, df_annotation_states, extraction_pipeline_cfg).render()
-        with run_history_tab:
+        elif selected_tab == "Run History":
             RunHistoryTab(self.client, pipeline_runs, df_annotation_states, extraction_pipeline_cfg).render()
-
-        if "initial_rerun_done" not in st.session_state:
-            st.session_state.initial_rerun_done = True
-            st.rerun()
