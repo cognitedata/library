@@ -1,0 +1,10 @@
+externalId: {{ enterpriseDataModelId }}_location
+name: {{ organizationName }} Location
+description: Location filter for the {{ organizationName }} enterprise data model. Provides access to all resources in the site instance space.
+dataModels:
+  - externalId: {{ enterpriseDataModelId }}
+    space: {{ enterpriseSchemaSpace }}
+    version: {{ enterpriseDataModelVersion }}
+instanceSpaces:
+  - {{ siteInstanceSpace }}
+  - {{ enterpriseInstanceSpace }}

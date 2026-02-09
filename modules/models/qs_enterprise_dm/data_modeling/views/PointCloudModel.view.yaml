@@ -1,0 +1,55 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: PointCloudModel
+description: Navigational aid for traversing CognitePointCloudModel instances
+filter:
+  and:
+  - hasData:
+    - type: container
+      space: cdf_cdm_3d
+      externalId: Cognite3DModel
+  - equals:
+      property:
+      - cdf_cdm_3d
+      - Cognite3DModel
+      - type
+      value: PointCloud
+implements:
+- space: cdf_cdm
+  externalId: CognitePointCloudModel
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  revisions:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: PointCloudRevision
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: {{ reservedWordPrefix }}3DRevision
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: model3D
+    description: List of revisions for this PointCloud model
+    connectionType: multi_reverse_direct_relation
+  thumbnail:
+    container:
+      space: cdf_cdm_3d
+      externalId: Cognite3DModel
+      type: container
+    containerPropertyIdentifier: thumbnail
+    description: Thumbnail of the 3D model
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: PointCloudModel
+      type: container
+    containerPropertyIdentifier: UUID

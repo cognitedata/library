@@ -1,0 +1,191 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: FunctionalLocation
+name: Functional Location
+description: Functional locations represent hierarchical structures that support industrial functions or processes.
+  A functional location provides a unique identifier representing a specific position or role within a facility where assets are installed or a function is performed.
+implements:
+- space: cdf_cdm
+  externalId: CogniteAsset
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  parent:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_parent
+    name: Parent
+    description: The parent of the asset.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FunctionalLocation
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  root:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_root
+    name: Root
+    description: An automatically updated reference to the top-level asset of the
+      hierarchy.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FunctionalLocation
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  path:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_path
+    name: Path
+    description: An automatically updated ordered list of this asset's ancestors,
+      starting with the root asset. Enables subtree filtering to find all assets under
+      a parent.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FunctionalLocation
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  assetClass:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetClass
+    name: Asset class
+    description: Specifies the class of the asset. It's a direct relation to CogniteAssetClass.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: AssetClass
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  type:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: type
+    name: Asset type
+    description: Specifies the type of the asset. It's a direct relation to CogniteAssetType.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: AssetType
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  files:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: FileRevision
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: assets
+    name: Files
+    description: An automatically updated list of files related to the asset.
+    connectionType: multi_reverse_direct_relation
+  children:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FunctionalLocation
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: FunctionalLocation
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: parent
+    name: Children
+    description: An automatically updated list of assets with this asset as their
+      parent.
+    connectionType: multi_reverse_direct_relation
+  equipment:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Equipment
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: Equipment
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: asset
+    name: Equipment
+    description: An automatically updated list of equipment related to the asset.
+    connectionType: multi_reverse_direct_relation
+  activities:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Activity
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: Activity
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: assets
+    name: Activities
+    description: An automatically updated list of activities related to the asset.
+    connectionType: multi_reverse_direct_relation
+  timeSeries:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: {{ reservedWordPrefix }}TimeSeries
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: {{ reservedWordPrefix }}TimeSeries
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: assets
+    name: Time series
+    description: An automatically updated list of time series related to the asset.
+    connectionType: multi_reverse_direct_relation
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  object3D:
+    container:
+      space: cdf_cdm
+      externalId: CogniteVisualizable
+      type: container
+    containerPropertyIdentifier: object3D
+    description: Direct relation to an {{ reservedWordPrefix }}3DObject instance representing the 3D resource
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: {{ reservedWordPrefix }}3DObject
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: UUID

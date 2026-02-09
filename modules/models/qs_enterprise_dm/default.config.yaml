@@ -1,0 +1,30 @@
+# Enterprise spaces
+enterpriseSchemaSpace: sp_enterprise_process_industry
+enterpriseInstanceSpace: sp_enterprise_instance
+siteInstanceSpace: sp_site_instance
+
+# Data model configuration
+organizationName: Enterprise
+enterpriseDataModelId: DataModel
+enterpriseDataModelVersion: v1
+enterpriseSearchDataModelVersion: v1
+
+# CDM version
+cdmDataModelVersion: v1
+
+# Reserved word prefix (used for views whose names start with numbers or reserved words)
+reservedWordPrefix: Enterprise_
+
+# Source system configuration (PI)
+sourceName: Springfield AVEVA PI
+rawSourceDatabase: ingestion
+dataset: ingestion
+
+# Transformation external IDs
+timeseriesTransformationExternalId: enterprise_pi_timeseries
+assetTransformationExternalId: enterprise_sap_assets
+workOrderTransformationExternalId: enterprise_sap_workorders
+workOrderOperationTransformationExternalId: enterprise_sap_workorder_operations
+
+
+

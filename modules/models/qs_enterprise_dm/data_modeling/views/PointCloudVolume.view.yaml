@@ -1,0 +1,52 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: PointCloudVolume
+description: PointCloud volume definition
+implements:
+- space: cdf_cdm
+  externalId: CognitePointCloudVolume
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  object3D:
+    container:
+      space: cdf_cdm_3d
+      externalId: CognitePointCloudVolume
+      type: container
+    containerPropertyIdentifier: object3D
+    description: Direct relation to object3D grouping for this node
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: {{ reservedWordPrefix }}3DObject
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  model3D:
+    container:
+      space: cdf_cdm_3d
+      externalId: CognitePointCloudVolume
+      type: container
+    containerPropertyIdentifier: model3D
+    description: Direct relation to Cognite3DModel instance
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: CADModel
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  revisions:
+    container:
+      space: cdf_cdm_3d
+      externalId: CognitePointCloudVolume
+      type: container
+    containerPropertyIdentifier: revisions
+    description: List of direct relations to revision information
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: CADRevision
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: PointCloudVolume
+      type: container
+    containerPropertyIdentifier: UUID

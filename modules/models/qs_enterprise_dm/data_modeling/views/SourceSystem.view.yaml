@@ -1,0 +1,17 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: SourceSystem
+description: The CogniteSourceSystem core concept is used to standardize the way source
+  system is stored.
+implements:
+- space: cdf_cdm
+  externalId: CogniteSourceSystem
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      type: container
+    containerPropertyIdentifier: UUID
