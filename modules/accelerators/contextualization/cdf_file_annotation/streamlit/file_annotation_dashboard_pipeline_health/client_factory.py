@@ -7,7 +7,7 @@ from cognite.client.credentials import OAuthClientCredentials
 
 class CogniteClientFactory:
     @staticmethod
-    def create_from_env(debug: bool = False) -> Optional[CogniteClient]:
+    def create_from_env(cluster_prefix: str = "", debug: bool = False) -> Optional[CogniteClient]:
         project = os.getenv("CDF_PROJECT")
         cluster = os.getenv("CDF_CLUSTER")
         tenant_id = os.getenv("IDP_TENANT_ID")
@@ -28,7 +28,7 @@ class CogniteClientFactory:
         cnf = ClientConfig(
             client_name="DEV_Working",
             project=project,
-            base_url=f"https://p001.plink.{cluster}.cognitedata.com",
+            base_url=f"https://{cluster_prefix}{cluster}.cognitedata.com",
             credentials=creds,
             debug=debug,
         )
