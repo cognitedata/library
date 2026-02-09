@@ -68,7 +68,7 @@ An optional `pyproject.toml` (read the top comment lines!) is provided for refer
 
 ```bash
 # switch into this directory
-cd marimo-transformation-jobs-metric-explorer
+cd ./modules/tools/notebooks/cdf_transformation_jobs_metric_explorer
 
 # Run with uvx (recommended) add --headless if needed
 
