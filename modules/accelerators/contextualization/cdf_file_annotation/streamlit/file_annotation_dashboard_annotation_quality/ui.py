@@ -60,15 +60,21 @@ class AnnotationQualityUI:
             files_metadata = DataFetcher.fetch_entities_metadata(self.client, extraction_pipeline_cfg=extraction_pipeline_cfg, entity_type=FieldNames.FILE_TITLE_CASE)
             annotation_frames = DataProcessor.enrich_annotation_frames_with_files_metadata(annotation_frames, files_metadata)
 
-        overall_tab, per_file_tab, pattern_management_tab = st.tabs(["Overall Quality Metrics", "Per-File Analysis", "Pattern Management"])
+        tab_options = ["Overall Quality Metrics", "Per-File Analysis", "Pattern Management"]
 
-        with overall_tab:
+        if "annotation_quality_tab_selector" not in st.session_state:
+            st.session_state["annotation_quality_tab_selector"] = tab_options[0]
+
+        try:
+            index = tab_options.index(st.session_state.get("annotation_quality_tab_selector", tab_options[0]))
+        except ValueError:
+            index = 0
+
+        selected_tab = st.radio("Tabs", tab_options, index=index, horizontal=True, key="annotation_quality_tab_selector")
+
+        if selected_tab == "Overall Quality Metrics":
             OverallTab().render(self.client, extraction_pipeline_cfg, actual_df=annotation_frames.actual_df, potential_df=annotation_frames.potential_df)
-        with per_file_tab:
+        elif selected_tab == "Per-File Analysis":
             PerFileTab().render(self.client, extraction_pipeline_cfg, actual_df=annotation_frames.actual_df, potential_df=annotation_frames.potential_df)
-        with pattern_management_tab:
+        elif selected_tab == "Pattern Management":
             PatternManagementTab().render(self.client, extraction_pipeline_cfg)
-
-        if "initial_rerun_done" not in st.session_state:
-            st.session_state.initial_rerun_done = True
-            st.rerun()
