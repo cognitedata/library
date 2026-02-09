@@ -33,7 +33,7 @@ canCherryPick = true
 modules = [
     "models/rmdm_v1",
     "models/isa_manufacturing_extension",
-    "models/cdf_process_industry_extension",
+    "models/qs_enterprise_dm",
 ]
 
 [packages.atlas_ai]
