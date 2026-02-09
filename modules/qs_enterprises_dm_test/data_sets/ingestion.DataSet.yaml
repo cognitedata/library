@@ -1,0 +1,6 @@
+- externalId: {{ dataset }}
+  name: Ingestion
+  description: Dataset for ingested source system data and transformations
+  writeProtected: false
+  metadata:
+    origin: cognite-toolkit

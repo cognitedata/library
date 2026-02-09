@@ -1,0 +1,288 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: {{ enterpriseDataModelId }}
+name: {{ organizationName }} enterprise model
+description: {{ organizationName }} enterprise model
+version: {{ enterpriseDataModelVersion }}
+views:
+
+# Cognite CDM views (interfaces and base types)
+
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceSystem
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSchedulable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAsset
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetClass
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetType
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipment
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipmentType
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteActivity
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteTimeSeries
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAnnotation
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteDiagramAnnotation
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteUnit
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DTransformation
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCubeMap
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DObject
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DModel
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADModel
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite3DRevision
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CognitePointCloudModel
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageModel
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADRevision
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CognitePointCloudRevision
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageCollection
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteCADNode
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CognitePointCloudVolume
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360Image
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageStation
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: Cognite360ImageAnnotation
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+
+# Custom enterprise views
+
+- space: {{ enterpriseSchemaSpace }}
+  externalId: SourceSystem
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}3DTransformation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: CubeMap
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}3DObject
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}3DModel
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: CADModel
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}3DRevision
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: PointCloudModel
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}360ImageModel
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: CADRevision
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: PointCloudRevision
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}360ImageCollection
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: CADNode
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: PointCloudVolume
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}360Image
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}360ImageStation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}360ImageAnnotation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Asset
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: FunctionalLocation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Notification
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: AssetClass
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: AssetType
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Equipment
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: EquipmentType
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: FileRevision
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: FileCategory
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Activity
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}TimeSeries
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Annotation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: DiagramAnnotation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Unit
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: WorkOrder
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: WorkOrderOperation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: WorkOrderOperationConfirmation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: MaintenanceOrder
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Operation
+  version: {{ enterpriseDataModelVersion }}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Reportable
+  version: {{ enterpriseDataModelVersion }}
+  type: view
