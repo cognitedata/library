@@ -15,9 +15,12 @@ from typing import Literal
 from cognite.client import CogniteClient, ClientConfig
 from cognite.client.credentials import OAuthClientCredentials
 from cognite.client.data_classes import ExtractionPipelineRunWrite
+from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData
 
 # Add current directory to path for local imports
 sys.path.append(str(Path(__file__).parent))
+
+from datetime import datetime, timezone
 
 from config import load_config, Config, WriteMode
 from extractor import LLMPropertyExtractor
@@ -124,13 +127,14 @@ def execute(data: dict, client: CogniteClient) -> dict:
     - No more instances need processing
     
     Supports:
-    - State store for incremental processing via cursor
+    - State store for incremental processing
     - Per-property write modes (add_new_only, append, overwrite)
+    - Epoch-based AI timestamp for append/overwrite modes
     - Force reset via function parameter
     
     Args:
         data: Function input data with optional keys:
-            - resetState: bool - Reset cursor and re-process all instances
+            - resetState: bool - Reset state and re-process all instances
             - logLevel: str - Log level (DEBUG, INFO, WARNING, ERROR)
         client: Authenticated CogniteClient
     
@@ -154,9 +158,26 @@ def execute(data: dict, client: CogniteClient) -> dict:
     if config.prompt.template:
         logger.debug("Using custom prompt template")
     
+    # Get property configs with write modes
+    property_configs = config.extraction.get_property_configs()
+    if property_configs:
+        write_modes = {pc.property: pc.write_mode.value for pc in property_configs}
+        logger.debug(f"Property write modes: {write_modes}")
+    
+    # Determine if AI timestamp is needed (only for append/overwrite modes)
+    use_ai_timestamp = config.has_reprocess_modes() and bool(config.extraction.ai_timestamp_property)
+    ai_ts_property = config.extraction.ai_timestamp_property
+    
+    if use_ai_timestamp:
+        logger.info(f"AI timestamp enabled: '{ai_ts_property}' (append/overwrite modes active)")
+    else:
+        logger.debug("Pure add_new_only mode — AI timestamp not used")
+    
     # Initialize state store if enabled
     state_store = None
-    cursor = None
+    epoch_start = None
+    force_reset = data.get("resetState", False)
+    
     if config.state_store.enabled:
         logger.info(f"State store enabled: {config.state_store.raw_database}/{config.state_store.raw_table}")
         state_store = StateStoreHandler(
@@ -166,19 +187,29 @@ def execute(data: dict, client: CogniteClient) -> dict:
             logger=logger
         )
         
-        # Initialize run and get cursor
-        force_reset = data.get("resetState", False)
-        cursor = state_store.initialize_run(
-            config_version=config.state_store.config_version,
-            force_reset=force_reset
-        )
-        
-        if cursor:
-            logger.info(f"Resuming from cursor: {cursor}")
+        if use_ai_timestamp:
+            # Epoch-based state: the epoch_start is a fixed timestamp that marks the
+            # beginning of the current processing generation. All nodes processed since
+            # epoch_start have ai_ts >= epoch_start. On reset, a new epoch starts.
+            epoch_start = state_store.initialize_epoch(
+                config_version=config.state_store.config_version,
+                force_reset=force_reset
+            )
+            logger.info(f"Processing epoch start: {epoch_start}")
         else:
-            logger.info("Starting fresh - will process all matching instances")
-    else:
-        logger.debug("State store disabled - processing without cursor")
+            # For add_new_only: cursor is informational only (not used in query filter)
+            state_store.initialize_run(
+                config_version=config.state_store.config_version,
+                force_reset=force_reset
+            )
+            logger.info("State store initialized (add_new_only mode, cursor is informational)")
+    elif use_ai_timestamp:
+        # No state store but AI timestamp needed — generate ephemeral epoch
+        # This prevents within-run reprocessing but can't persist across runs
+        epoch_start = datetime.now(timezone.utc).isoformat()
+        logger.warning("State store disabled but append/overwrite modes active. "
+                       "AI timestamp will prevent within-run reprocessing, but every "
+                       "run will re-process all nodes. Enable state store for incremental processing.")
     
     # Retrieve the source view
     logger.info(f"Retrieving source view: {config.view.space}/{config.view.external_id}/{config.view.version}")
@@ -210,11 +241,9 @@ def execute(data: dict, client: CogniteClient) -> dict:
         prompt_template=config.prompt.get_template()
     )
     
-    # Get property configs with write modes
-    property_configs = config.extraction.get_property_configs()
-    if property_configs:
-        write_modes = {pc.property: pc.write_mode.value for pc in property_configs}
-        logger.debug(f"Property write modes: {write_modes}")
+    # Determine the write view for stamping the AI timestamp
+    write_view_config = config.get_target_view_config()
+    write_view_id = write_view_config.as_view_id()
     
     batch_size = config.processing.batch_size
     total_processed = 0
@@ -236,7 +265,7 @@ def execute(data: dict, client: CogniteClient) -> dict:
         instances = query_instances(
             client, view_id, config, logger, 
             limit=batch_size, 
-            cursor=cursor,
+            epoch_start=epoch_start,
             property_configs=property_configs,
             target_view_id=target_view.as_id() if target_view else None
         )
@@ -258,27 +287,52 @@ def execute(data: dict, client: CogniteClient) -> dict:
             llm_batch_size=config.processing.llm_batch_size
         )
         
-        # Apply batch updates
-        if node_applies:
-            logger.info(f"Batch {batch_number}: Applying {len(node_applies)} node updates to CDF")
-            client.data_modeling.instances.apply(node_applies)
-            total_updated += len(node_applies)
+        # --- AI Timestamp stamping (only for append/overwrite modes) ---
+        timestamp_only_applies = []
+        if use_ai_timestamp:
+            batch_timestamp = datetime.now(timezone.utc).isoformat()
+            
+            # Build a set of external_ids that already have a NodeApply from extraction
+            updated_ext_ids = set()
+            if node_applies:
+                for na in node_applies:
+                    updated_ext_ids.add(na.external_id)
+                    # Add the AI timestamp to the existing NodeApply's sources
+                    _add_ai_timestamp_to_node_apply(na, write_view_id, ai_ts_property, batch_timestamp)
+            
+            # For instances that were processed but had no extracted values,
+            # still stamp them with the AI timestamp so they aren't re-queried
+            for inst in instances:
+                if inst.external_id not in updated_ext_ids:
+                    ts_node = NodeApply(
+                        space=inst.space,
+                        external_id=inst.external_id,
+                        sources=[NodeOrEdgeData(
+                            write_view_id,
+                            properties={ai_ts_property: batch_timestamp}
+                        )]
+                    )
+                    timestamp_only_applies.append(ts_node)
+        
+        # Apply all updates (extracted values + optional timestamps)
+        all_applies = (node_applies or []) + timestamp_only_applies
+        if all_applies:
+            if use_ai_timestamp:
+                logger.info(f"Batch {batch_number}: Applying {len(node_applies or [])} extraction updates + "
+                           f"{len(timestamp_only_applies)} timestamp-only updates to CDF")
+            else:
+                logger.info(f"Batch {batch_number}: Applying {len(node_applies or [])} extraction updates to CDF")
+            client.data_modeling.instances.apply(all_applies)
+            total_updated += len(node_applies or [])
         
         total_processed += len(instances)
         
-        # Update cursor to the latest lastUpdatedTime in this batch
-        if state_store and instances:
-            # Get the max lastUpdatedTime from this batch
-            # Note: last_updated_time is in milliseconds (int), not datetime
-            batch_max_time = max(
-                inst.last_updated_time for inst in instances 
-                if hasattr(inst, 'last_updated_time') and inst.last_updated_time
+        # Update state store (for monitoring and epoch persistence)
+        if state_store:
+            state_store.update_cursor(
+                cursor=datetime.now(timezone.utc).isoformat(),
+                increment_processed=len(instances)
             )
-            if batch_max_time:
-                # Store as int (milliseconds) - Range filter accepts this directly
-                cursor = batch_max_time
-                state_store.update_cursor(cursor, increment_processed=len(instances))
-                logger.debug(f"Updated cursor to: {cursor}")
         
         elapsed_time = time.time() - start_time
         logger.info(f"Batch {batch_number} complete: {len(instances)} processed, {len(node_applies) if node_applies else 0} updated. "
@@ -302,7 +356,7 @@ def query_instances(
     config: Config, 
     logger: CogniteFunctionLogger,
     limit: int = 10,
-    cursor: str = None,
+    epoch_start: str = None,
     property_configs: list = None,
     target_view_id = None
 ) -> list:
@@ -311,9 +365,19 @@ def query_instances(
     
     Only returns instances where:
     - The text property exists (has content to extract from)
-    - lastUpdatedTime >= cursor (if cursor provided, for incremental processing)
-    - For add_new_only properties: target property is empty
-    - For append/overwrite: always included (handled in extractor)
+    - For add_new_only properties: target property is empty (natural idempotency)
+    - For append/overwrite: AI timestamp property is missing or older than epoch_start
+    
+    **Epoch-based filtering** (append/overwrite modes):
+    An epoch is a fixed timestamp stored in the state store that marks the
+    beginning of the current processing generation. All nodes processed within
+    the current epoch are stamped with a timestamp >= epoch_start. This filter
+    therefore excludes nodes already processed in the current epoch.
+    
+    This avoids the infinite reprocessing bug of cursor-based approaches:
+    since epoch_start is fixed across batches within a run and across runs,
+    nodes stamped in batch 1 will still satisfy (ai_ts >= epoch_start) and
+    will NOT be re-queried.
     
     Args:
         client: Authenticated CogniteClient
@@ -321,7 +385,8 @@ def query_instances(
         config: Configuration object
         logger: Logger instance
         limit: Maximum number of instances to return (default: 10)
-        cursor: Optional cursor (ISO timestamp) to filter by lastUpdatedTime
+        epoch_start: Fixed epoch timestamp (ISO string). Nodes with
+                     ai_timestamp >= epoch_start are excluded from results.
         property_configs: Optional list of PropertyConfig objects
         target_view_id: Optional target view ID for checking target property values.
                        If not specified, checks properties in the source view.
@@ -340,81 +405,101 @@ def query_instances(
     filters.append(text_exists_filter)
     logger.debug(f"Filter: text property '{config.extraction.text_property}' must exist")
     
-    # Filter 2: High-water mark cursor filter (for incremental processing)
-    # Note: For FILTERS on node base properties, use ["node", "propertyName"]
-    # The gte/lte values should be passed directly (int ms or ISO string), NOT as {"value": ...}
-    if cursor:
-        logger.debug(f"Filter: lastUpdatedTime >= {cursor}")
-        filters.append(dm.filters.Range(
-            ["node", "lastUpdatedTime"],
-            gte=cursor  # Direct value - works with both int (ms) and ISO string
-        ))
-    
-    # Filter 3: Property filters based on write modes
-    # For add_new_only: target must be empty
-    # For append/overwrite: no filter needed (they process regardless)
-    
     # Determine which view to use for checking target property values
     target_check_view_id = target_view_id if target_view_id else view_id
     
+    # AI timestamp property reference (on the target view)
+    ai_ts_prop = config.extraction.ai_timestamp_property
+    use_ai_timestamp = bool(ai_ts_prop) and config.has_reprocess_modes()
+    ai_ts_ref = None
+    if use_ai_timestamp:
+        ai_ts_ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", ai_ts_prop]
+    
+    # ── Classify properties by write mode ──
+    all_add_new_only = True
+    has_reprocess_modes = False
+    add_new_only_props: list = []
+    reprocess_props: list = []
+    
     if property_configs:
-        # New-style: use PropertyConfig objects
-        add_new_only_props = [
-            pc for pc in property_configs 
-            if pc.write_mode == WriteMode.ADD_NEW_ONLY
-        ]
-        other_props = [
-            pc for pc in property_configs 
-            if pc.write_mode != WriteMode.ADD_NEW_ONLY
-        ]
-        
-        if add_new_only_props and not other_props:
-            # ALL properties are add_new_only: require at least one target to be empty
-            empty_property_filters = []
+        add_new_only_props = [pc for pc in property_configs if pc.write_mode == WriteMode.ADD_NEW_ONLY]
+        reprocess_props = [pc for pc in property_configs if pc.write_mode != WriteMode.ADD_NEW_ONLY]
+        has_reprocess_modes = len(reprocess_props) > 0
+        all_add_new_only = not has_reprocess_modes
+    
+    # ── Build write-mode-aware filters ──
+    #
+    # Three cases:
+    #   1. Pure add_new_only  → AND(all targets empty)
+    #   2. Pure append/overwrite → epoch filter only
+    #   3. Mixed              → OR(any add_new_only target empty, epoch filter)
+    #
+    # In all cases the extractor's _apply_write_mode handles per-property
+    # logic, so the query filter just needs to avoid *over-filtering* nodes
+    # that still have work to do.
+    
+    def _build_epoch_filter():
+        """Build the epoch-based timestamp filter for append/overwrite modes."""
+        if use_ai_timestamp and epoch_start:
+            not_yet_processed = dm.filters.Not(dm.filters.Exists(ai_ts_ref))
+            processed_before_epoch = dm.filters.Range(ai_ts_ref, lt=epoch_start)
+            logger.debug(f"Epoch filter: AI timestamp '{ai_ts_prop}' not exist OR < {epoch_start}")
+            return dm.filters.Or(not_yet_processed, processed_before_epoch)
+        if has_reprocess_modes and not use_ai_timestamp:
+            logger.warning("append/overwrite modes without AI timestamp — all matching nodes will be processed every run")
+        return None
+    
+    if property_configs:
+        if all_add_new_only:
+            # Case 1: ALL properties are add_new_only — require ALL targets empty (AND).
             for pc in add_new_only_props:
                 target_prop = pc.get_target_property()
-                target_property_ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", target_prop]
-                prop_not_exists = dm.filters.Not(dm.filters.Exists(target_property_ref))
-                empty_property_filters.append(prop_not_exists)
-                logger.debug(f"Filter: target property '{target_prop}' should not exist in target view (add_new_only)")
+                ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", target_prop]
+                filters.append(dm.filters.Not(dm.filters.Exists(ref)))
+                logger.debug(f"Filter: target '{target_prop}' must not exist (add_new_only)")
+            logger.debug("Pure add_new_only mode — property existence filters prevent reprocessing")
+        
+        elif not add_new_only_props:
+            # Case 2: ALL properties are append/overwrite — epoch filter only.
+            epoch_f = _build_epoch_filter()
+            if epoch_f:
+                filters.append(epoch_f)
+        
+        else:
+            # Case 3: Mixed modes — include node if ANY of these is true:
+            #   (a) Any add_new_only target is still empty, OR
+            #   (b) Epoch says the node needs reprocessing (for append/overwrite)
+            logger.debug("Mixed write modes — building combined OR filter")
             
-            if empty_property_filters:
-                if len(empty_property_filters) == 1:
-                    filters.append(empty_property_filters[0])
-                else:
-                    filters.append(dm.filters.Or(*empty_property_filters))
-        
-        elif add_new_only_props and other_props:
-            # Mixed modes: build OR filter
-            # (any add_new_only target empty) OR (we have append/overwrite props)
-            # Since we have append/overwrite props, we can't filter them out at query level
-            # Just add a filter for add_new_only properties OR always include
-            # In practice, for mixed modes we include all and let extractor handle it
-            logger.debug("Mixed write modes detected - filtering relaxed, extractor handles modes")
-        
-        # else: all props are append/overwrite, no target filter needed
+            or_clauses: list[dm.filters.Filter] = []
+            
+            # (a) add_new_only: any empty target means work to do
+            for pc in add_new_only_props:
+                target_prop = pc.get_target_property()
+                ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", target_prop]
+                or_clauses.append(dm.filters.Not(dm.filters.Exists(ref)))
+                logger.debug(f"Filter (mixed/add_new_only): target '{target_prop}' empty")
+            
+            # (b) epoch filter for append/overwrite properties
+            epoch_f = _build_epoch_filter()
+            if epoch_f:
+                or_clauses.append(epoch_f)
+            
+            if or_clauses:
+                filters.append(dm.filters.Or(*or_clauses) if len(or_clauses) > 1 else or_clauses[0])
     else:
-        # Legacy mode: use properties_to_extract and ai_property_mapping
+        # Legacy mode: use properties_to_extract and ai_property_mapping (always add_new_only)
         properties_to_check = config.extraction.properties_to_extract or []
         ai_mapping = config.extraction.ai_property_mapping or {}
         
         if properties_to_check:
-            # Build a filter that checks if ANY target property is empty
-            empty_property_filters = []
             for source_prop in properties_to_check:
                 target_prop = ai_mapping.get(source_prop, source_prop)
-                target_property_ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", target_prop]
-                prop_not_exists = dm.filters.Not(dm.filters.Exists(target_property_ref))
-                empty_property_filters.append(prop_not_exists)
-                logger.debug(f"Filter: target property '{target_prop}' should not exist in target view (empty)")
-            
-            if empty_property_filters:
-                if len(empty_property_filters) == 1:
-                    filters.append(empty_property_filters[0])
-                else:
-                    filters.append(dm.filters.Or(*empty_property_filters))
+                ref = [target_check_view_id.space, f"{target_check_view_id.external_id}/{target_check_view_id.version}", target_prop]
+                filters.append(dm.filters.Not(dm.filters.Exists(ref)))
+                logger.debug(f"Filter: target '{target_prop}' must not exist (legacy mode)")
     
-    # Filter 4: Add user-defined filters from config
+    # Filter: Add user-defined filters from config
     if config.processing.filters:
         logger.debug(f"Adding user-defined filters: {config.processing.filters}")
         for f in config.processing.filters:
@@ -424,8 +509,6 @@ def query_instances(
     combined_filter = dm.filters.And(*filters) if len(filters) > 1 else filters[0] if filters else None
     
     # Query instances with limit
-    # Note: We don't sort explicitly - the DM API default ordering is sufficient
-    # Sorting by lastUpdatedTime requires specific index configuration and has format issues
     logger.debug(f"Querying instances with limit={limit}")
     
     # Include both source and target views as sources to get properties from both
@@ -442,6 +525,31 @@ def query_instances(
     )
     
     return list(instances)
+
+
+def _add_ai_timestamp_to_node_apply(node_apply, write_view_id, ai_ts_property: str, timestamp: str):
+    """
+    Add the AI timestamp property to an existing NodeApply.
+    
+    If the NodeApply already has a source matching the write_view_id, the timestamp
+    property is added to that source's properties. Otherwise, a new source is added.
+    
+    Args:
+        node_apply: The NodeApply object to modify in-place
+        write_view_id: The view ID to write the timestamp to
+        ai_ts_property: The property name for the AI timestamp
+        timestamp: The ISO timestamp string to write
+    """
+    # Check if there's already a source for this view
+    for source in node_apply.sources:
+        if source.source == write_view_id:
+            source.properties[ai_ts_property] = timestamp
+            return
+    
+    # No existing source for this view - add a new one
+    node_apply.sources.append(
+        NodeOrEdgeData(write_view_id, properties={ai_ts_property: timestamp})
+    )
 
 
 def build_filter(filter_config: dict, view_id=None):

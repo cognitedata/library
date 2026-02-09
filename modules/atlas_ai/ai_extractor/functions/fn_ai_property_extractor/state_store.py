@@ -2,15 +2,23 @@
 State Store Handler for the AI Property Extractor.
 
 Manages extraction state using a single CDF RAW row ("_metadata") to track:
-- last_processed_cursor: ISO timestamp of last processed instance
+- epoch_start: Fixed ISO timestamp marking the start of the current processing generation
+- last_processed_cursor: Informational cursor for monitoring
 - config_version: For detecting when full re-run is needed
 - Run statistics
 
-This enables efficient incremental processing by using a high-water mark cursor
-to skip already-processed instances in Data Modeling queries.
+Supports two processing patterns:
+
+1. **Epoch-based** (append/overwrite modes): The epoch_start timestamp is written once
+   when a new processing generation begins (first run, config change, or force reset).
+   All nodes processed are stamped with an AI timestamp >= epoch_start. The query filter
+   excludes nodes with ai_timestamp >= epoch_start, preventing reprocessing.
+
+2. **Add-new-only**: No epoch needed — property emptiness filters provide natural
+   idempotency. The state store is used only for monitoring (cursor, stats).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from cognite.client import CogniteClient
@@ -18,18 +26,28 @@ from cognite.client.data_classes import Row
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 
 
+def _now_iso() -> str:
+    """Return current UTC time as ISO 8601 string."""
+    return datetime.now(timezone.utc).isoformat()
+
+
 class StateStoreHandler:
     """
     Manages extraction state using a single RAW row.
     
-    The state store uses a "high-water mark" pattern:
-    - Only ONE row ("_metadata") is stored in RAW
-    - Contains the cursor (lastUpdatedTime of last processed instance)
-    - Data Modeling queries filter by lastUpdatedTime >= cursor to skip processed instances
+    For append/overwrite modes, uses an **epoch-based** pattern:
+    - The epoch_start is a fixed timestamp stored in the "_metadata" row
+    - Nodes processed within the current epoch are stamped with ai_timestamp >= epoch_start
+    - DM queries filter out nodes with ai_timestamp >= epoch_start
+    - A new epoch starts on: first run, config change, or force reset
+    
+    For add_new_only mode, the state store is informational only:
+    - Property emptiness filters prevent reprocessing naturally
+    - The cursor and stats help with monitoring
     
     This approach is memory-efficient and scales to millions of instances because:
-    - RAW operations are O(1) - just one row to read/write
-    - DM does the heavy lifting with indexed lastUpdatedTime filters
+    - RAW operations are O(1) — just one row to read/write
+    - DM does the heavy lifting with indexed property filters
     - No per-instance state storage needed
     """
     
@@ -137,7 +155,7 @@ class StateStoreHandler:
             self.ensure_exists()
             current = self.get_metadata().copy()
             current.update(kwargs)
-            current["last_updated"] = datetime.utcnow().isoformat() + "Z"
+            current["last_updated"] = _now_iso()
             
             self.client.raw.rows.insert(
                 db_name=self.database,
@@ -155,8 +173,11 @@ class StateStoreHandler:
         """
         Update cursor after successful batch processing.
         
+        For monitoring/informational purposes. The cursor tracks the latest
+        processing timestamp for dashboards and debugging.
+        
         Args:
-            cursor: lastUpdatedTime value - can be int (milliseconds) or ISO string
+            cursor: ISO timestamp string of the last processing time
             increment_processed: Number of instances processed in this batch
         """
         current = self.get_metadata()
@@ -165,7 +186,7 @@ class StateStoreHandler:
         self.update_metadata(
             last_processed_cursor=cursor,
             total_processed=total,
-            last_run_time=datetime.utcnow().isoformat() + "Z"
+            last_run_time=_now_iso()
         )
     
     def reset(self, reason: str = "manual_reset") -> None:
@@ -181,7 +202,8 @@ class StateStoreHandler:
         self._log("info", f"Resetting state ({reason}) - next run will process all instances")
         self.update_metadata(
             last_processed_cursor=None,
-            reset_time=datetime.utcnow().isoformat() + "Z",
+            epoch_start=None,
+            reset_time=_now_iso(),
             reset_reason=reason
         )
     
@@ -206,19 +228,24 @@ class StateStoreHandler:
             
         return stored_version != current_config_version
     
+    def get_epoch_start(self) -> Optional[str]:
+        """
+        Get the current epoch start timestamp.
+        
+        Returns None if no epoch exists (first run or after reset).
+        """
+        return self.get_metadata().get("epoch_start")
+    
     def initialize_run(
         self,
         config_version: Optional[str] = None,
         force_reset: bool = False
     ) -> Optional[str]:
         """
-        Initialize state at start of function run.
+        Initialize state at start of function run (add_new_only mode).
         
-        This method should be called at the beginning of each function execution.
-        It handles:
-        - Forced resets (resetState parameter)
-        - Config version change detection
-        - Normal cursor retrieval for incremental processing
+        For add_new_only mode, the state store is used only for monitoring.
+        Property emptiness filters provide natural idempotency.
         
         Args:
             config_version: Current config version (None disables version tracking)
@@ -245,7 +272,7 @@ class StateStoreHandler:
             self.update_metadata(config_version=config_version)
             return None
         
-        # Normal run - return existing cursor
+        # Normal run - return existing cursor (informational for add_new_only)
         cursor = self.get_cursor()
         if cursor:
             self._log("debug", f"Resuming from cursor: {cursor}")
@@ -258,6 +285,71 @@ class StateStoreHandler:
         
         return cursor
     
+    def initialize_epoch(
+        self,
+        config_version: Optional[str] = None,
+        force_reset: bool = False
+    ) -> str:
+        """
+        Initialize epoch-based state at start of function run (append/overwrite modes).
+        
+        The epoch_start is a fixed timestamp that marks the beginning of the current
+        processing generation. It is stored in the state store and persists across
+        function runs. A new epoch begins when:
+        - This is the first run (no epoch_start stored)
+        - force_reset is True (resetState parameter)
+        - Config version changed
+        
+        Within an epoch, all processed nodes are stamped with ai_timestamp >= epoch_start.
+        The query filter excludes nodes with ai_timestamp >= epoch_start, preventing
+        reprocessing. Once all nodes are processed, calling resetState starts a new
+        epoch and all nodes will be reprocessed.
+        
+        Args:
+            config_version: Current config version (None disables version tracking)
+            force_reset: If True, start a new epoch (re-process all nodes)
+        
+        Returns:
+            The epoch_start ISO timestamp to use for DM query filtering
+        """
+        self.ensure_exists()
+        
+        start_new_epoch = False
+        
+        # Check for forced reset
+        if force_reset:
+            self._log("info", "Force reset requested - starting new epoch")
+            self.reset(reason="force_reset")
+            start_new_epoch = True
+        
+        # Check for config version change
+        elif self.should_reset_for_config_change(config_version):
+            old_version = self.get_config_version()
+            self._log("info", f"Config version changed from {old_version} to {config_version} - starting new epoch")
+            self.reset(reason=f"config_version_change:{old_version}->{config_version}")
+            start_new_epoch = True
+        
+        # Check if epoch already exists
+        epoch_start = self.get_epoch_start()
+        
+        if epoch_start and not start_new_epoch:
+            # Existing epoch — resume processing
+            self._log("debug", f"Resuming epoch: {epoch_start}")
+        else:
+            # New epoch
+            epoch_start = _now_iso()
+            self._log("info", f"Starting new epoch: {epoch_start}")
+            self.update_metadata(
+                epoch_start=epoch_start,
+                config_version=config_version
+            )
+        
+        # Ensure config version is up to date
+        if config_version and self.get_config_version() != config_version:
+            self.update_metadata(config_version=config_version)
+        
+        return epoch_start
+    
     def get_stats(self) -> Dict[str, Any]:
         """
         Get current state store statistics.
@@ -266,6 +358,7 @@ class StateStoreHandler:
         - total_processed: Total instances processed across all runs
         - last_run_time: Timestamp of last processing
         - cursor: Current cursor position
+        - epoch_start: Current epoch start (append/overwrite modes)
         - config_version: Current config version
         """
         metadata = self.get_metadata()
@@ -273,6 +366,7 @@ class StateStoreHandler:
             "total_processed": metadata.get("total_processed", 0),
             "last_run_time": metadata.get("last_run_time"),
             "cursor": metadata.get("last_processed_cursor"),
+            "epoch_start": metadata.get("epoch_start"),
             "config_version": metadata.get("config_version"),
             "last_reset": metadata.get("reset_time"),
             "reset_reason": metadata.get("reset_reason")

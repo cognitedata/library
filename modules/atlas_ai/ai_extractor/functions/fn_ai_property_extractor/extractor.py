@@ -420,15 +420,19 @@ Example output for 2 items:
         
         if prop_is_list:
             if value is None:
-                return []
+                return None  # Preserve None so it's filtered out (don't write empty arrays)
             elif isinstance(value, str) and value.startswith("[") and value.endswith("]"):
                 import ast
                 try:
                     value_list = ast.literal_eval(value)
+                    if not value_list:  # Empty list from LLM means no value extracted
+                        return None
                     return [coerce_single_value(v) for v in value_list]
                 except (ValueError, SyntaxError):
                     return [coerce_single_value(value)]
             elif isinstance(value, list):
+                if not value:  # Empty list from LLM means no value extracted
+                    return None
                 return [coerce_single_value(v) for v in value]
             else:  # single value, wrap in list
                 return [coerce_single_value(value)]

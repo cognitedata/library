@@ -13,47 +13,72 @@ documentation: |
   text fields in data modeling instances. It reads a text property from instances and populates 
   other properties based on the extracted values.
 
+  ## Write Modes
+
+  Each property supports a write mode:
+
+  - **add_new_only** (default): Only write if target is empty/null. No extra setup needed.
+  - **append**: Merge new values into existing lists (deduplicates). Requires `aiTimestampProperty`.
+  - **overwrite**: Always replace with the latest extraction. Requires `aiTimestampProperty`.
+
+  `append` and `overwrite` modes use epoch-based processing with an AI timestamp property 
+  (a user-defined `Timestamp` field in the target view) to prevent infinite reprocessing.
+
   ## Configuration
 
   The configuration is stored in the extraction pipeline config and includes:
 
   ```yaml
   agent:
-    externalId: <agent_external_id>  # The agent to use for text parsing
-  
+    externalId: <agent_external_id>    # The agent to use for text parsing
+
   view:
-    space: <space>                   # Data model space
-    externalId: <view_external_id>   # View external ID
-    version: <version>               # View version
-  
+    space: <space>                     # Data model space
+    externalId: <view_external_id>     # View external ID
+    version: <version>                 # View version
+
+  targetView:                          # Optional: separate view for writing
+    space: <space>
+    externalId: <view_external_id>
+    version: <version>
+
   extraction:
-    textProperty: <property_name>    # Property containing text to parse
-    propertiesToExtract: [...]       # List of property IDs to extract
-    aiPropertyMapping: {...}         # Optional mapping from source to target properties
-  
+    textProperty: <property_name>      # Property containing text to parse
+    aiTimestampProperty: <prop_name>   # Required for append/overwrite (Timestamp type)
+    properties:                        # Per-property config (recommended)
+      - property: <source_prop>
+        targetProperty: <target_prop>  # Optional: write to a different property
+        writeMode: add_new_only        # add_new_only | append | overwrite
+    # Legacy fields (still supported):
+    propertiesToExtract: [...]
+    aiPropertyMapping: {...}
+
   processing:
-    batchSize: <number>              # Number of instances to process per batch
-    filters: {...}                   # Optional DM filters for instance selection
-  ```
+    batchSize: <number>                # Instances per query batch (1–100)
+    llmBatchSize: <number>             # Instances per LLM call (1–50)
+    filters: [...]                     # Optional DM filters
 
-  ## AI Property Mapping
+  prompt:
+    customInstructions: <string>       # Optional: extra instructions
+    template: <string>                 # Optional: full custom prompt template
 
-  The `aiPropertyMapping` allows you to write extracted values to different properties than 
-  the source. For example, extracting from "description" metadata but writing to "ai_description":
-
-  ```yaml
-  aiPropertyMapping:
-    description: ai_description
-    title: ai_title
+  stateStore:
+    enabled: true
+    rawDatabase: ai_extractor_state
+    rawTable: extraction_state
+    configVersion: v1                  # Bump to trigger full re-run
   ```
 
   ## Running the Function
 
-  The function expects the following data:
+  The function accepts the following input data:
 
   ```json
   {
     "logLevel": "INFO",
-    "ExtractionPipelineExtId": "ep_ai_property_extractor"
+    "ExtractionPipelineExtId": "ep_ai_property_extractor",
+    "resetState": false
   }
   ```
+
+  Set `resetState: true` to start a new processing epoch and re-process all instances.

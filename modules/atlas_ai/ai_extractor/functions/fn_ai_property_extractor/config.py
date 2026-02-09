@@ -12,7 +12,7 @@ import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -23,10 +23,18 @@ class WriteMode(str, Enum):
     - add_new_only: Only write if target property is empty (default, safest)
     - append: Append new values to existing lists (deduplicates)
     - overwrite: Always overwrite with new value
+    
+    All modes are supported. The function uses a dedicated timestamp property
+    (lastProcessedByAiExtractor) on each node to track processing state,
+    avoiding the infinite-reprocessing issue with the system lastUpdatedTime.
     """
     ADD_NEW_ONLY = "add_new_only"
     APPEND = "append"
     OVERWRITE = "overwrite"
+
+
+# Write modes that are currently supported
+SUPPORTED_WRITE_MODES = {WriteMode.ADD_NEW_ONLY, WriteMode.APPEND, WriteMode.OVERWRITE}
 
 
 def parse_json_string(v: Any, expected_type: type) -> Any:
@@ -80,6 +88,16 @@ class PropertyConfig(BaseModel, alias_generator=to_camel):
         default=WriteMode.ADD_NEW_ONLY,
         description="How to handle existing values: add_new_only, append, or overwrite"
     )
+    
+    @model_validator(mode='after')
+    def validate_write_mode_supported(self) -> 'PropertyConfig':
+        """Validate that the write mode is currently supported."""
+        if self.write_mode not in SUPPORTED_WRITE_MODES:
+            raise ValueError(
+                f"Write mode '{self.write_mode.value}' is not supported for property '{self.property}'. "
+                f"Supported modes: {', '.join(m.value for m in SUPPORTED_WRITE_MODES)}"
+            )
+        return self
     
     def get_target_property(self) -> str:
         """Get the target property, defaulting to source property if not specified."""
@@ -148,6 +166,8 @@ class AgentConfig(BaseModel, alias_generator=to_camel):
 
 class ViewConfig(BaseModel, alias_generator=to_camel):
     """Configuration for a data modeling view (source or target)."""
+    model_config = ConfigDict(populate_by_name=True)
+    
     space: str
     external_id: str
     version: str = "v1"
@@ -193,6 +213,21 @@ class ExtractionConfig(BaseModel, alias_generator=to_camel):
         ..., 
         description="The property containing text to extract from"
     )
+    ai_timestamp_property: Optional[str] = Field(
+        default=None,
+        description="Property name used to stamp each processed node with a timestamp. "
+                    "Required when any property uses 'append' or 'overwrite' write mode. "
+                    "Must exist in the target view as a Timestamp type. "
+                    "Not needed for pure 'add_new_only' mode."
+    )
+    
+    @field_validator('ai_timestamp_property', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v):
+        """Convert empty strings to None (common in YAML configs)."""
+        if isinstance(v, str) and v.strip() == '':
+            return None
+        return v
     
     # New-style per-property configuration with write modes
     properties: Optional[List[PropertyConfig]] = Field(
@@ -335,6 +370,32 @@ class Config(BaseModel, alias_generator=to_camel):
     prompt: PromptConfig = Field(default_factory=PromptConfig)
     state_store: StateStoreConfig = Field(default_factory=StateStoreConfig)
     
+    @model_validator(mode='after')
+    def validate_ai_timestamp_for_reprocess_modes(self) -> 'Config':
+        """
+        Validate that ai_timestamp_property is set when any property uses
+        append or overwrite write mode. These modes require the AI timestamp
+        to prevent infinite reprocessing.
+        """
+        property_configs = self.extraction.get_property_configs()
+        has_reprocess_modes = any(
+            pc.write_mode in (WriteMode.APPEND, WriteMode.OVERWRITE)
+            for pc in property_configs
+        )
+        if has_reprocess_modes and not self.extraction.ai_timestamp_property:
+            reprocess_props = [
+                f"'{pc.property}' ({pc.write_mode.value})"
+                for pc in property_configs
+                if pc.write_mode in (WriteMode.APPEND, WriteMode.OVERWRITE)
+            ]
+            raise ValueError(
+                f"'aiTimestampProperty' is required when using append/overwrite write modes. "
+                f"Properties using these modes: {', '.join(reprocess_props)}. "
+                f"Set 'aiTimestampProperty' to a Timestamp-type property in your target view "
+                f"(e.g., 'lastProcessedByAiExtractor')."
+            )
+        return self
+    
     def get_target_view_config(self) -> ViewConfig:
         """Get the target view config, falling back to source view if not specified."""
         if self.target_view:
@@ -345,6 +406,13 @@ class Config(BaseModel, alias_generator=to_camel):
                 version=self.target_view.version
             )
         return self.view
+    
+    def has_reprocess_modes(self) -> bool:
+        """Check if any property uses append or overwrite write mode."""
+        return any(
+            pc.write_mode in (WriteMode.APPEND, WriteMode.OVERWRITE)
+            for pc in self.extraction.get_property_configs()
+        )
 
 
 def load_config(client: CogniteClient, function_data: Dict[str, Any], logger=None) -> Config:

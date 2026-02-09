@@ -32,6 +32,13 @@ batchSize: 10
 # Use llmBatchSize > 1 when you want to process multiple items efficiently
 llmBatchSize: 1
 
+# AI Timestamp Property - property name used to stamp each processed node.
+# ONLY needed when using append/overwrite write modes.
+# Must exist in the target view as a Timestamp type.
+# Leave empty for add_new_only mode (default) — no timestamp needed.
+# Example: lastProcessedByAiExtractor
+aiTimestampProperty: ""
+
 # Properties to extract - list of property IDs from the view
 # Leave empty to extract all non-filled properties
 # Use JSON array format: '["discipline", "priority", "category"]'

@@ -14,6 +14,10 @@ config:
   #   version: '{{targetViewVersion}}'
   extraction:
     textProperty: '{{textProperty}}'
+    # AI timestamp property - written to processed nodes to track state.
+    # ONLY needed for append/overwrite write modes. Leave empty for add_new_only (default).
+    # Must exist in the target view as a Timestamp type.
+    aiTimestampProperty: '{{aiTimestampProperty}}'
     # Legacy format (still supported):
     propertiesToExtract: '{{propertiesToExtract}}'
     aiPropertyMapping: '{{aiPropertyMapping}}'
