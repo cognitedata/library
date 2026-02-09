@@ -4,3 +4,4 @@ cognite-pygen
 packaging
 plotly
 matplotlib
+fpdf2>=2.7.0

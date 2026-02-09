@@ -1,0 +1,126 @@
+space: {{ isaSchemaSpace }}
+externalId: Batch
+name: Batch
+description: 1) The material that is being produced or that has been produced by a single execution
+  of a batch process. 2) An entity that represents the production of a material at any point in the
+  process. Batch means both the material made by and during the process and also an entity that
+  represents the production of that material. Batch is used as an abstract contraction of the words
+  "the production of a batch."
+properties:
+  batch_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: batch_id
+  batch_number:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: batch_number
+  batch_size:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch_size
+  batch_size_unit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch_size_unit
+  start_time:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: start_time
+  end_time:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: end_time
+  batch_state:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: batch_state
+  recipe:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: recipe
+  material:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: material
+  work_orders:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: work_orders
+  site:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: site
+indexes:
+  batch_id_index:
+    properties:
+    - batch_id
+    cursorable: true
+    indexType: btree
+  batch_number_index:
+    properties:
+    - batch_number
+    cursorable: true
+    indexType: btree
+constraints:
+  requiresCogniteSourceable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+  requiresCogniteSchedulable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+
