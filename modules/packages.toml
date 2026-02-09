@@ -73,7 +73,7 @@ modules = [
     "sourcesystem/cdf_sap_events",
     "sourcesystem/cdf_sharepoint",
     "dashboards/rpt_quality",
-    "models/cdf_process_industry_extension",
+    "models/qs_enterprise_dm",
 ]
 
 
