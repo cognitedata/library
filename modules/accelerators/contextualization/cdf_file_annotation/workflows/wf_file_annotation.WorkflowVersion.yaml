@@ -1,7 +1,7 @@
 - workflowExternalId: {{ workflowExternalId }}
   version: v1
   workflowDefinition:
-    description: "Complete file annotation pipeline: prepare → launch → finalize → promote"
+    description: "Complete file annotation pipeline: prepare → launch → finalize → promote → link assets"
     tasks:
       # Step 1: Prepare - Create annotation state instances for files marked to annotate
       - externalId: fn_prepare
@@ -79,4 +79,19 @@
         description: Auto-promote suggested pattern mode annotations
         retries: 0
         timeout: 600
+        onFailure: "abortWorkflow"
+
+      # Step 5: Link Assets - Populate assets property on File instances
+      - externalId: tr_file_to_asset
+        type: "transformation"
+        dependsOn:
+          - externalId: fn_promote
+        parameters:
+          transformation:
+            externalId: {{ fileToAssetTransformationExternalId }}
+            concurrencyPolicy: fail
+        name: Link Files to Assets
+        description: Populate assets property on File instances from approved annotations
+        retries: 1
+        timeout: 1800
         onFailure: "abortWorkflow"

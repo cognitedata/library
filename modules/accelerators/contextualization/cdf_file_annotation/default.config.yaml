@@ -47,6 +47,9 @@ promoteFunctionVersion: v1.0.0
 workflowExternalId: wf_file_annotation
 workflowSchedule: "0 0 29 2 *"
 
+# used in /transformations
+fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
+
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID
 groupSourceId: <GROUP_SOURCE_ID>
