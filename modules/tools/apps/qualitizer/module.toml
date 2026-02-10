@@ -1,0 +1,5 @@
+[module]
+title = "CDF Qualitizer Application"
+id = "Qualitizer Application"
+package_id = "tool:apps"
+

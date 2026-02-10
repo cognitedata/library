@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+
+# Should only be available on local for now
+sample-data 
+
+# Build output
+dist
+
+
+test-results/
+
+# Environment variables
+.env
+.env.local
+
+# Editor directories
+.vscode
+.idea
+.cursor
+
+# OS files
+.DS_Store
+Thumbs.db
+

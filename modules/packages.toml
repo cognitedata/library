@@ -62,3 +62,13 @@ modules = [
     "tools/notebooks/cdf_performance_testing",
     "tools/notebooks/cdf_transformation_jobs_metric_explorer"
 ]
+
+
+[packages.tools_apps]
+id = "tool:apps"
+title = "Tools and Accelerator Apps"
+description = "Tools and accelerators apps for CDF projects"
+canCherryPick = true
+modules = [
+    "tools/apps/qualitizer"
+]

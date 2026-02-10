@@ -1,0 +1,17 @@
+{
+  "name": "The Qualitizer",
+  "description": "Data Quality Improver",
+  "externalId": "qualitizer",
+  "versionTag": "0.0.1",
+  "deployments": [
+    {
+      "org": "cog-itworks",
+      "project": "itworks",
+      "baseUrl": "https://az-eastus-1.cognitedata.com",
+      "published": true,
+      "deployClientId": "",
+      "deploySecretName": "cog-itworks_itworks_az-eastus-1"
+    }
+  ]
+}
+
