@@ -5,7 +5,7 @@ destination:
   type: nodes
   view:
     space: {{ schemaSpace}}
-    externalId: {{ organization }}Equipment
+    externalId: Equipment
     version: {{ datamodelVersion }}
   instanceSpace: {{ instanceSpace }}
 ignoreNullFields: true

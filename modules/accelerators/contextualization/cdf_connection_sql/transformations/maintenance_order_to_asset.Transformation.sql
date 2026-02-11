@@ -31,17 +31,17 @@ SELECT
 FROM
   cdf_data_models(
     "sp_enterprise_process_industry",
-    "{{ organization }}ProcessIndustries",
+    "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "{{ organization }}MaintenanceOrder"
+    "MaintenanceOrder"
   ) dm_maintenanceorders
 
 LEFT JOIN
   cdf_data_models(
     "sp_enterprise_process_industry",
-    "{{ organization }}ProcessIndustries",
+    "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "{{ organization }}Asset"
+    "Asset"
   ) asset
 ON
   array_contains(dm_maintenanceorders.sysTagsFound, asset.name)

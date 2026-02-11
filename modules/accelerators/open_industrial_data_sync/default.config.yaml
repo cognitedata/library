@@ -11,5 +11,5 @@ scheduleExternalId: schedule_oid_sync
 scheduleCronExpression: "0 0 29 2 *"
 openIdClientSecret: ${OPEN_ID_CLIENT_SECRET}
 schemaSpace: sp_enterprise_process_industry
-organization: ORG
-datamodelVersion: v1.0
+datamodelVersion: v1
+reservedWordPrefix: Enterprise_

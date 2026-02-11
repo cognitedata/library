@@ -5,8 +5,8 @@ destination:
   type: instances
   dataModel:
     space: {{ schemaSpace }}
-    externalId: {{ organization }}ProcessIndustries
-    destinationType: {{ organization }}TimeSeries
+    externalId: {{ datamodelExternalId }}
+    destinationType: {{ reservedWordPrefix }}TimeSeries
     version: {{ datamodelVersion }}
   instanceSpace: {{ instanceSpace }}
 conflictMode: upsert

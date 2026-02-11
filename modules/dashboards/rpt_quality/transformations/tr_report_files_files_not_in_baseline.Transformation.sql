@@ -1,5 +1,5 @@
 SELECT DISTINCT
-  CONCAT('dwg_', COALESCE('ORG', ''), '_', COALESCE('1', ''), '_', COALESCE(tags.startNode, ''), '_', COALESCE(tags.startNodeText, '')) AS key,
+  CONCAT('dwg_', COALESCE('{{ organization }}', ''), '_', COALESCE('1', ''), '_', COALESCE(tags.startNode, ''), '_', COALESCE(tags.startNodeText, '')) AS key,
   tags.startNode AS Name,
   '1' AS sysUnit,
   '{{ organization }}' AS sysSite,
@@ -15,7 +15,7 @@ FROM {{ annotation_db }}.{{ annotation_docs_tbl }} AS tags
 -- Join baseline to get sysSite and sysUnit for this sourceId
 JOIN {{ annotation_db }}.{{ annotation_patterns_tbl }} AS base
   ON base.startNode = tags.startNode
-  AND base.endNodeResourceType = 'ORGFile'
+  AND base.endNodeResourceType = 'FileRevision'
 
 -- Ensure tag is not in baseline
 LEFT JOIN {{ annotation_db }}.{{ annotation_patterns_tbl }} AS check_tag
@@ -25,9 +25,9 @@ LEFT JOIN {{ annotation_db }}.{{ annotation_patterns_tbl }} AS check_tag
 -- Join dm_fileFile to get fileCategory
 LEFT JOIN cdf_data_models(
     "{{ schemaSpace }}",
-    "{{ organization }}ProcessIndustries",
+    "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "{{ organization }}File"
+    "FileRevision"
 ) AS dm_file
   ON dm_file.sourceId = tags.startNode
 

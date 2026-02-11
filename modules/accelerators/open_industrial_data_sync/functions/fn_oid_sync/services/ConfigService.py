@@ -16,8 +16,8 @@ _DEFAULTS = {
     "log_level": "INFO",
     "reset_backfill": False,
     "timeseries_view_space": "sp_enterprise_process_industry",
-    "timeseries_view_external_id": "ORGTimeSeries",
-    "timeseries_view_version": "v1.0",
+    "timeseries_view_external_id": "Enterprise_TimeSeries",
+    "timeseries_view_version": "v1",
 }
 
 

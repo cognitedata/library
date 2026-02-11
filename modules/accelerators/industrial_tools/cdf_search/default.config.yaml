@@ -1,6 +1,7 @@
 location: springfield
 locationName: Springfield
 organization: ORG
+datamodelExternalId: ORGProcessIndustries
 schemaSpace: sp_enterprise_process_industry
-datamodelVersion: v1.0
+datamodelVersion: v1
 instanceSpace: springfield_instances

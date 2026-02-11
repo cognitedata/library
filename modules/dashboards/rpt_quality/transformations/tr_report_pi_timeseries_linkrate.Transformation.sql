@@ -16,9 +16,9 @@ SELECT
 FROM
   cdf_data_models(
     "{{ schemaSpace }}",
-    "{{ organization }}ProcessIndustries",
+    "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "{{ organization }}TimeSeries"
+    "{{ reservedWordPrefix }}TimeSeries"
   ) dm_timeSeries
 
 LATERAL VIEW explode(

@@ -2,14 +2,14 @@
 -- baseline and files and doc tags found during annotation
 
 SELECT
-  CONCAT('dwg_', COALESCE('ORG', ''), '_', COALESCE('1', ''), '_', COALESCE(base.startNode, ''), '_', COALESCE(base.startNodeText, '')) AS key,
+  CONCAT('dwg_', COALESCE('{{ organization }}', ''), '_', COALESCE('1', ''), '_', COALESCE(base.startNode, ''), '_', COALESCE(base.startNodeText, '')) AS key,
   base.startNode AS Name,
   '1' AS sysUnit,
   '{{ organization }}' AS sysSite,
   'Files' AS SourceName,
   base.startNode AS SourceId,
   CASE 
-    WHEN base.endNodeResourceType = 'ORGAsset' THEN 'Asset Annotation'
+    WHEN base.endNodeResourceType = 'Asset' THEN 'Asset Annotation'
     ELSE base.endNodeResourceType
   END AS TagCategory,
   base.startSourceId AS SourceRecordCategory,

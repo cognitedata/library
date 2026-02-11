@@ -26,7 +26,7 @@ config:
     
     # TimeSeries view configuration - derived from root variables
     timeseries_view_space: {{ schemaSpace }}
-    timeseries_view_external_id: {{ organization }}TimeSeries
+    timeseries_view_external_id: {{ reservedWordPrefix }}TimeSeries
     timeseries_view_version: {{ datamodelVersion }}
 
   # Time offset configuration to simulate real-time data

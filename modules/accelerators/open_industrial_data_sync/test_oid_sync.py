@@ -29,8 +29,8 @@ def test_oid_connection():
         oid_client_id="",
         oid_client_secret="",
         timeseries_view_space="sp_enterprise_process_industry",
-        timeseries_view_external_id="ORGTimeSeries",
-        timeseries_view_version="v1.0",
+        timeseries_view_external_id="Enterprise_TimeSeries",
+        timeseries_view_version="v1",
     )
     
     # Create logger

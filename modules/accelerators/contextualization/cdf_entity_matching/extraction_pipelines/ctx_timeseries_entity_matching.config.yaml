@@ -15,7 +15,7 @@ config:
     assetView:
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ assetInstanceSpace }}
-      externalId: {{organization}}Asset
+      externalId: Asset
       version: {{ viewVersion }}
       searchProperty: {{ AssetSearchProperty }}
       filterProperty: tags
@@ -23,7 +23,7 @@ config:
     entityView:
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ timeseriesInstanceSpace }}
-      externalId: {{organization}}TimeSeries
+      externalId: {{ reservedWordPrefix }}TimeSeries
       version: {{ viewVersion }}
       searchProperty: {{ EntitySearchProperty }}
       filterProperty: tags

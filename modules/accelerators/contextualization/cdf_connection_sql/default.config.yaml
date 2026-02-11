@@ -1,6 +1,7 @@
 schemaSpace: sp_enterprise_process_industry
 organization: ORG
-datamodelVersion: v1.0
+datamodelExternalId: ORGProcessIndustries
+datamodelVersion: v1
 dataset: ingestion
 instanceSpace: springfield_instances
 activityToTimeSeriesTransformationExternalId: activity_to_timeseries

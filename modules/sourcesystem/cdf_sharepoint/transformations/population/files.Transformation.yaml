@@ -5,7 +5,7 @@ destination:
   type: nodes
   view:
     space: {{ schemaSpace }}
-    externalId: {{ organization }}File
+    externalId: FileRevision
     version: {{ datamodelVersion }}
   instanceSpace: {{ instanceSpace }}
 ignoreNullFields: true

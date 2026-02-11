@@ -5,8 +5,8 @@ destination:
   type: instances
   dataModel:
     space: {{ schemaSpace }}
-    externalId: {{ organization }}ProcessIndustries
-    destinationType: {{ organization }}MaintenanceOrder
+    externalId: {{ datamodelExternalId }}
+    destinationType: MaintenanceOrder
     version: {{ datamodelVersion }}
   instanceSpace: {{ instanceSpace }}
 ignoreNullFields: true

@@ -18,9 +18,9 @@ SELECT
 FROM
   cdf_data_models(
     "{{ schemaSpace }}",
-    "{{ organization }}ProcessIndustries",
+    "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "{{ organization }}MaintenanceOrder"
+    "MaintenanceOrder"
   ) dm_maintenanceorder
 LATERAL VIEW explode(
   CASE 

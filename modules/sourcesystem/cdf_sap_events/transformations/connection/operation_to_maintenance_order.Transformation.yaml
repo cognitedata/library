@@ -5,7 +5,7 @@ destination:
   type: nodes
   view:
     space: {{ schemaSpace }}
-    externalId: {{ organization }}Operation
+    externalId: Operation
     version: {{ datamodelVersion }}
   instanceSpace: {{ instanceSpace }}
 ignoreNullFields: true

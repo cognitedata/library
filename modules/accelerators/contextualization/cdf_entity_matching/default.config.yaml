@@ -10,7 +10,7 @@ dbName: db_asset_entity_matching
 contextualizationId: entity_matcher
 contextualizationName: Entity Matcher
 schemaSpace: sp_enterprise_process_industry
-viewVersion: v1.0
+viewVersion: v1
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
 functionSpace: springfield_functions
@@ -25,3 +25,4 @@ workflowClientId: ${IDP_CLIENT_ID}
 workflowClientSecret: ${IDP_CLIENT_SECRET}
 # Update GROUP_SOURCE_ID to your group source ID
 entity_matching_processing_group_source_id: <GROUP_SOURCE_ID>
+reservedWordPrefix: Enterprise_

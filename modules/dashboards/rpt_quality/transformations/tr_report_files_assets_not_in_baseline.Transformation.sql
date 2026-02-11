@@ -15,7 +15,7 @@ FROM {{ annotation_db }}.{{ annotation_docs_tbl}} AS tags
 -- Join baseline to get sysSite and sysUnit for this sourceId
 JOIN {{ annotation_db }}.{{ annotation_patterns_tbl }} AS base
   ON base.startNode = tags.startNode
-  AND base.endNodeResourceType = 'ORGAsset'
+  AND base.endNodeResourceType = 'Asset'
 
 -- Ensure tag is not in baseline
 LEFT JOIN {{ annotation_db }}.{{ annotation_patterns_tbl }} AS check_tag
@@ -25,9 +25,9 @@ LEFT JOIN {{ annotation_db }}.{{ annotation_patterns_tbl }} AS check_tag
 -- Join dm_fileFile to get fileCategory
 LEFT JOIN cdf_data_models(
     "{{ schemaSpace }}",
-    "{{ organization }}ProcessIndustries",
+    "{{ datamodelExternalId }}",
     "{{ datamodelVersion }}",
-    "{{ organization }}File"  
+    "FileRevision"  
 ) AS dm_file
   ON dm_file.sourceId = tags.startNode
 
