@@ -1,6 +1,6 @@
 import time
 import abc
-from typing import cast, Literal
+from typing import Literal
 from datetime import datetime, timezone
 from collections import defaultdict
 from cognite.client import CogniteClient
@@ -20,7 +20,6 @@ from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import (
     BatchOfPairedNodes,
     AnnotationStatus,
-    AnnotationState,
     PerformanceTracker,
     FileProcessingBatch,
 )
@@ -173,6 +172,10 @@ class GeneralLaunchService(AbstractLaunchService):
                     "END",
                 )
                 return "Done"
+            elif e.code == 408:
+                self.logger.error(message="Query timeout. Retrying in 30 seconds.", error=e)
+                time.sleep(30)
+                return
             else:
                 raise e
         finally:
@@ -258,16 +261,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 self._cached_primary_scope = primary_scope_value
                 self._cached_secondary_scope = secondary_scope_value
             except CogniteAPIError as e:
-                # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-                if (
-                    e.code == 408
-                    and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-                ):
-                    # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                    self.logger.error(message="Ran into the following error", error=e)
-                    return
-                else:
-                    raise e
+                raise e
 
     def _process_batch(self, batch: BatchOfPairedNodes):
         """

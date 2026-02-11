@@ -2,6 +2,30 @@
     "version": "0.1.0",
     "configurations": [
       {
+        "name": "Streamlit | Annotation Quality Dashboard",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "streamlit",
+        "cwd": "<insert>/modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality",
+        "console": "integratedTerminal",
+        "args": [
+          "run",
+          "Annotation_Quality.py"
+        ]
+      },
+      {
+        "name": "Streamlit | Pipeline Health Dashboard",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "streamlit",
+        "cwd": "<insert>/modules/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_pipeline_health",
+        "console": "integratedTerminal",
+        "args": [
+          "run",
+          "Pipeline_Health.py"
+        ]
+      },
+      {
         "name": "Prepare Handler",
         "type": "debugpy",
         "request": "launch",

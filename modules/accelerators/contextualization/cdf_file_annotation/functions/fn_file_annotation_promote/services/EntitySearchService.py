@@ -1,11 +1,11 @@
 import abc
 import re
-from typing import Callable, Any
+from typing import Any
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
-from cognite.client.data_classes.filters import Filter, Equals, In
+from cognite.client.data_classes.data_modeling import Node, ViewId
+from cognite.client.data_classes.filters import Filter, In
 from services.LoggerService import CogniteFunctionLogger
-from services.ConfigService import Config, ViewPropertyConfig
+from services.ConfigService import Config
 
 
 class IEntitySearchService(abc.ABC):

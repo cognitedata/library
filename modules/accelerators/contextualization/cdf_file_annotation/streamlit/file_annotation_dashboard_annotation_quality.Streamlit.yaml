@@ -1,0 +1,8 @@
+externalId: file_annotation_dashboard_annotation_quality
+name: File Annotation Dashboard - Annotation Quality
+creator: lucas.guimaraes@cognite.com, jack.zhao@cognite.com
+description: Dashboard to inspect the quality of annotations in the File Annotation Pipeline
+published: true
+theme: Light
+dataSetExternalId: {{dataset}}
+entrypoint: Annotation_Quality.py
