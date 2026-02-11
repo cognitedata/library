@@ -26,10 +26,8 @@ The Quick Start Enterprise Data Model (`qs_enterprise_dm`) delivers a production
 ```
 qs_enterprise_dm/
 ├── data_modeling/
-│   ├── qs-dm-spaces/
-│   │   ├── schema.space.yaml                          # Schema space (enterpriseSchemaSpace)
-│   │   ├── enterprise.instance.space.yaml             # Enterprise instance space
-│   │   └── site.instance.space.yaml                   # Site instance space
+│   |
+│   │                    
 │   ├── containers/                                    # 46 container definitions
 │   │   ├── Asset.Container.yaml
 │   │   ├── Equipment.Container.yaml
@@ -58,6 +56,9 @@ qs_enterprise_dm/
 │   │   └── FunctionalLocation.view.yaml
 │   ├── qs-enterprise.datamodel.yaml                   # Full enterprise data model
 │   └── qs-enterprise-search.datamodel.yaml            # Search-optimized data model
+|   ├── schema.space.yaml                              # Schema space (enterpriseSchemaSpace)
+│   ├── enterprise.instance.space.yaml                 # Enterprise instance space
+│   |__ site.instance.space.yaml                       # Site instance space
 ├── default.config.yaml                                # Default configuration variables
 └── module.toml                                        # Module metadata
 ```
