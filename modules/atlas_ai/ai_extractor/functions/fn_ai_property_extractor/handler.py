@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 
 from config import load_config, Config, WriteMode
 from extractor import LLMPropertyExtractor
-from state_store import StateStoreHandler
+from state_store import StateStoreHandler, _now_iso
 
 
 FUNCTION_ID = "ai_property_extractor"
@@ -206,7 +206,7 @@ def execute(data: dict, client: CogniteClient) -> dict:
     elif use_ai_timestamp:
         # No state store but AI timestamp needed — generate ephemeral epoch
         # This prevents within-run reprocessing but can't persist across runs
-        epoch_start = datetime.now(timezone.utc).isoformat()
+        epoch_start = _now_iso()
         logger.warning("State store disabled but append/overwrite modes active. "
                        "AI timestamp will prevent within-run reprocessing, but every "
                        "run will re-process all nodes. Enable state store for incremental processing.")
@@ -290,7 +290,7 @@ def execute(data: dict, client: CogniteClient) -> dict:
         # --- AI Timestamp stamping (only for append/overwrite modes) ---
         timestamp_only_applies = []
         if use_ai_timestamp:
-            batch_timestamp = datetime.now(timezone.utc).isoformat()
+            batch_timestamp = _now_iso()
             
             # Build a set of external_ids that already have a NodeApply from extraction
             updated_ext_ids = set()
@@ -330,7 +330,7 @@ def execute(data: dict, client: CogniteClient) -> dict:
         # Update state store (for monitoring and epoch persistence)
         if state_store:
             state_store.update_cursor(
-                cursor=datetime.now(timezone.utc).isoformat(),
+                cursor=_now_iso(),
                 increment_processed=len(instances)
             )
         

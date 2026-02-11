@@ -27,8 +27,13 @@ from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 
 
 def _now_iso() -> str:
-    """Return current UTC time as ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    """Return current UTC time as ISO 8601 string with millisecond precision.
+    
+    CDF Data Modeling Range filters only support up to 3 decimal digits
+    for timestamps. Python's default isoformat() outputs 6 digits (microseconds),
+    so we use timespec="milliseconds" to get exactly 3 digits.
+    """
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 class StateStoreHandler:
