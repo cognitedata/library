@@ -1,0 +1,33 @@
+# Test Config: No state store (always processes all)
+# Disables the state store entirely - processes ALL instances every run
+# Use this for testing or one-off runs
+
+agent:
+  externalId: "ai_property_extractor_agent"
+
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+
+extraction:
+  textProperty: "description"
+  properties:
+    - property: tags
+      writeMode: add_new_only
+    - property: aliases
+      writeMode: add_new_only
+
+processing:
+  batchSize: 10
+  llmBatchSize: 1
+
+stateStore:
+  enabled: false  # State store disabled - processes everything each run
+
+prompt:
+  customInstructions: |
+    Extract relevant tags and aliases from the asset description.
+    - tags: Keywords or categories that describe the asset
+    - aliases: Alternative names or identifiers for the asset
+    Return as JSON arrays of strings.

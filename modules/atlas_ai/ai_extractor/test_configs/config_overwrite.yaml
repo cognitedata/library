@@ -1,0 +1,43 @@
+# Test Config: OVERWRITE mode
+# Always replaces existing values with the latest LLM extraction.
+# Requires aiTimestampProperty to prevent infinite reprocessing.
+
+agent:
+  externalId: "ai_property_extractor_agent"
+
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+
+# Target view with lastProcessedByAiExtractor Timestamp property
+targetView:
+  space: "rmdm"
+  externalId: "Asset"
+  version: "6fe0dbb2ca7378"
+
+extraction:
+  textProperty: "description"
+  aiTimestampProperty: "lastProcessedByAiExtractor"
+  properties:
+    - property: tags
+      writeMode: overwrite
+    - property: aliases
+      writeMode: overwrite
+
+processing:
+  batchSize: 10
+  llmBatchSize: 1
+
+stateStore:
+  enabled: true
+  rawDatabase: "ai_extractor_state"
+  rawTable: "extraction_state"
+  configVersion: "v1-overwrite"
+
+prompt:
+  customInstructions: |
+    Extract relevant tags and aliases from the asset description.
+    - tags: Keywords or categories that describe the asset
+    - aliases: Alternative names or identifiers for the asset
+    Return as JSON arrays of strings.
