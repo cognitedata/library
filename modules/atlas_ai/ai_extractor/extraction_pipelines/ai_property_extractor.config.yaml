@@ -73,7 +73,7 @@ config:
     #   "Property_ABC": null,
     #   "Property_List": ["value1", "value2"]
     # }
-    # -----------------------------------------------
+    # ----------------------------------------------- 
     template: ""
   # State store configuration for incremental processing
   stateStore:
