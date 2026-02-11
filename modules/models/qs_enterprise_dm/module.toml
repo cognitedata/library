@@ -1,5 +1,5 @@
 [module]
-title = "Example of Minimum Extension of the Cognite Process Industry Model"
+title = "Quick Start Enterprise Data Model"
 is_selected_by_default = false
-id = "dp:models:cdf_process_industry_extension"
+id = "dp:models:qs_enterprise_dm"
 package_id = "dp:quickstart"

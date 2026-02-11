@@ -1,203 +1,301 @@
-# CDF Process Industry Extension Module
+# Quick Start Enterprise Data Model
 
-This module provides a minimal extension of the Cognite Process Industry data model, adding organization-specific views and containers that extend the standard CDM (Cognite Data Model) for process industry use cases.
+This module provides a comprehensive enterprise data model for Cognite Data Fusion (CDF), extending the Cognite Data Model (CDM) with enterprise-specific views and containers for process industry use cases. It serves as the foundational data layer for the Quick Start deployment pack.
 
-## Why Use This Module?
+## Overview
 
-**Extend the Standard Data Model for Your Organization**
+The Quick Start Enterprise Data Model (`qs_enterprise_dm`) delivers a production-ready data modeling layer that:
 
-The Cognite CDM provides foundational types, but industrial deployments often need organization-specific extensions. This module delivers **production-ready data model extensions** that follow best practices while allowing customization.
+- Extends standard **CDM** (`cdf_cdm`) types with enterprise-scoped views
+- Defines **39 enterprise views** backed by **46 containers** covering assets, equipment, maintenance, 3D, and more
+- Ships two data models: a **full enterprise model** and a **search-optimized model**
+- Organizes data across three CDF spaces: schema, enterprise instance, and site instance
+- Supports templatized configuration via CDF Toolkit variables for reuse across environments
 
-**Key Benefits:**
+## Module Identity
 
-- 🏗️ **CDM Compatible**: Extends standard Cognite Process Industry types
-- 🎯 **Organization Prefixed**: Custom views with your organization prefix
-- 📊 **Complete Entity Coverage**: Assets, Equipment, TimeSeries, Files, Activities, and more
-- 🔧 **Easy Customization**: Add custom properties to containers
-- 📈 **Enterprise Ready**: Includes Maintenance Orders, Operations, and Notifications
+| Field | Value |
+|-------|-------|
+| **Title** | Quick Start Enterprise Data Model |
+| **Module ID** | `dp:models:qs_enterprise_dm` |
+| **Package** | `dp:quickstart` |
+| **Selected by default** | No |
 
-**Time & Cost Savings:**
-
-- **Development Time**: Pre-built containers and views save weeks of data modeling
-- **Best Practices**: Follows Cognite's recommended patterns for extensions
-- **Consistency**: Standardized naming conventions across all entity types
-
-## 🎯 Overview
-
-The CDF Process Industry Extension module provides:
-- **Organization-prefixed views** for all major entity types
-- **Custom containers** with extension properties
-- **Enterprise data model** combining all views
-- **Schema space** for model organization
-
-## 🏗️ Module Architecture
+## Module Architecture
 
 ```
-cdf_process_industry_extension/
-├── 📁 data_modeling/                       # Data model definitions
-│   ├── 📁 containers/                             # Container definitions
-│   │   ├── 📄 Activity.Container.yaml
-│   │   ├── 📄 Asset.Container.yaml
-│   │   ├── 📄 Equipment.Container.yaml
-│   │   ├── 📄 File.Container.yaml
-│   │   ├── 📄 MaintenanceOrder.Container.yaml
-│   │   ├── 📄 Notification.Container.yaml
-│   │   ├── 📄 Operation.Container.yaml
-│   │   ├── 📄 Reportable.Container.yaml
-│   │   └── 📄 TimeSeries.Container.yaml
-│   ├── 📁 views/                                  # View definitions
-│   │   ├── 📄 Activity.view.yaml
-│   │   ├── 📄 Asset.view.yaml
-│   │   ├── 📄 Equipment.view.yaml
-│   │   ├── 📄 File.view.yaml
-│   │   ├── 📄 MaintenanceOrder.view.yaml
-│   │   ├── 📄 Notification.view.yaml
-│   │   ├── 📄 Operation.view.yaml
-│   │   ├── 📄 Reportable.view.yaml
-│   │   └── 📄 TimeSeries.view.yaml
-│   ├── 📄 enterprise.datamodel.yaml               # Combined data model
-│   └── 📄 schema.space.yaml                       # Schema space definition
-├── 📄 default.config.yaml                  # Module configuration
-└── 📄 module.toml                          # Module metadata
+qs_enterprise_dm/
+├── data_modeling/
+│   ├── qs-dm-spaces/
+│   │   ├── schema.space.yaml                          # Schema space (enterpriseSchemaSpace)
+│   │   ├── enterprise.instance.space.yaml             # Enterprise instance space
+│   │   └── site.instance.space.yaml                   # Site instance space
+│   ├── containers/                                    # 46 container definitions
+│   │   ├── Asset.Container.yaml
+│   │   ├── Equipment.Container.yaml
+│   │   ├── WorkOrder.Container.yaml
+│   │   ├── WorkOrderOperation.Container.yaml
+│   │   ├── WorkOrderOperationConfirmation.Container.yaml
+│   │   ├── MaintenanceOrder.Container.yaml
+│   │   ├── Notification.Container.yaml
+│   │   ├── Operation.Container.yaml
+│   │   ├── FileRevision.Container.yaml
+│   │   ├── Reportable.Container.yaml
+│   │   ├── ... (36 more)
+│   │   └── FunctionalLocation.Container.yaml
+│   ├── views/                                         # 39 view definitions
+│   │   ├── Asset.view.yaml
+│   │   ├── Equipment.view.yaml
+│   │   ├── WorkOrder.view.yaml
+│   │   ├── WorkOrderOperation.view.yaml
+│   │   ├── WorkOrderOperationConfirmation.view.yaml
+│   │   ├── MaintenanceOrder.view.yaml
+│   │   ├── Notification.view.yaml
+│   │   ├── Operation.view.yaml
+│   │   ├── FileRevision.view.yaml
+│   │   ├── Reportable.view.yaml
+│   │   ├── ... (29 more)
+│   │   └── FunctionalLocation.view.yaml
+│   ├── qs-enterprise.datamodel.yaml                   # Full enterprise data model
+│   └── qs-enterprise-search.datamodel.yaml            # Search-optimized data model
+├── default.config.yaml                                # Default configuration variables
+└── module.toml                                        # Module metadata
 ```
 
-## 🚀 Core Components
+## CDF Spaces
 
-### Entity Views
+The module provisions three spaces to separate schema definitions from instance data:
 
-| View | Base CDM Type | Description |
-|------|---------------|-------------|
-| `{ORG}Asset` | CogniteAsset | Physical assets with custom properties |
-| `{ORG}Equipment` | CogniteEquipment | Equipment items with extensions |
-| `{ORG}TimeSeries` | CogniteTimeSeries | Time series data with custom metadata |
-| `{ORG}File` | CogniteFile | Documents and files with extensions |
-| `{ORG}Activity` | CogniteActivity | Activities and work items |
-| `{ORG}MaintenanceOrder` | Custom | Maintenance work orders |
-| `{ORG}Operation` | Custom | Work order operations |
-| `{ORG}Notification` | Custom | Maintenance notifications |
-| `{ORG}Reportable` | Custom | Reportable entities |
+| Space Variable | Default Value | Purpose |
+|----------------|---------------|---------|
+| `enterpriseSchemaSpace` | `sp_enterprise_process_industry` | Holds all view and container definitions (the data model schema) |
+| `enterpriseInstanceSpace` | `sp_enterprise_instance` | Stores enterprise-wide data instances shared across sites |
+| `siteInstanceSpace` | `sp_site_instance` | Stores site-specific data instances |
 
-### Enterprise Data Model
+## Data Models
 
-The `{ORG}ProcessIndustries` data model combines all views into a single queryable model, including:
-- All organization-specific views
-- CDM reference types (CogniteSourceSystem, CogniteUnit, etc.)
-- Asset/Equipment type classifications
+### 1. Enterprise Data Model (`DataModel`)
 
-## 🔧 Configuration
+The primary data model that combines **all 39 enterprise views** together with **31 CDM base views** into a single queryable model. It includes:
 
-### Module Configuration (`default.config.yaml`)
+- All CDM interface and base types from `cdf_cdm` (CogniteAsset, CogniteEquipment, CogniteTimeSeries, etc.)
+- All custom enterprise views from the schema space (Asset, Equipment, WorkOrder, etc.)
+
+### 2. Enterprise Search Data Model (`DataModelSearch`)
+
+A lightweight subset of the enterprise model designed for search use cases. It includes the most commonly queried CDM types and their corresponding enterprise views:
+
+- CDM types: CogniteAsset, CogniteEquipment, CogniteTimeSeries, CogniteFile, CogniteAssetClass, CogniteAssetType, CogniteEquipmentType, CogniteFileCategory
+- Enterprise views: Asset, Equipment, TimeSeries, FileRevision, Notification, WorkOrder, AssetClass, AssetType, EquipmentType, FileCategory
+
+## Enterprise Views
+
+### Core Asset & Equipment Views
+
+| View | Implements | Description |
+|------|-----------|-------------|
+| **Asset** | `CogniteAsset` | Physical assets with hierarchical parent/root/path structure, linked to equipment, files, activities, and time series |
+| **FunctionalLocation** | `CogniteAsset` | Hierarchical structures representing specific positions where assets are installed or functions are performed |
+| **Equipment** | `CogniteEquipment` | Physical devices or supplies linked to an asset, with equipment type, files, activities, and time series |
+| **AssetClass** | `CogniteAssetClass` | Classification categories for assets |
+| **AssetType** | `CogniteAssetType` | Type definitions for assets |
+| **EquipmentType** | `CogniteEquipmentType` | Type definitions for equipment |
+
+### Maintenance & Work Management Views
+
+| View | Implements | Description |
+|------|-----------|-------------|
+| **MaintenanceOrder** | `CogniteMaintenanceOrder` | Formal requests to perform maintenance tasks such as repair, inspection, or servicing. Links to operations, assets, equipment, and time series |
+| **Operation** | `CogniteOperation` | A specific part of the work included in a maintenance order (a work order item). Linked to a maintenance order and assets |
+| **Notification** | `CogniteNotification` | Formal records to report maintenance issues, defects, or requests. Links to a maintenance order and asset |
+| **WorkOrder** | `CogniteMaintenanceOrder`, `CogniteActivity`, `CogniteSchedulable`, `CogniteSourceable`, `CogniteDescribable` | Work orders with operations, linked to assets and equipment. Includes `objectNumber` and `mainEquipment` custom properties |
+| **WorkOrderOperation** | `CogniteOperation`, `CogniteActivity`, `CogniteSchedulable`, `CogniteSourceable`, `CogniteDescribable` | Individual operations on a work order with confirmations. Includes `objectNumber` custom property |
+| **WorkOrderOperationConfirmation** | `CogniteDescribable`, `CogniteSchedulable` | Tracks actual vs. planned work on operations with fields for actual work, forecast work, costs, and timing |
+| **Activity** | `CogniteActivity` | Activities happening over a time period, linked to assets, equipment, and time series |
+
+### Data & File Views
+
+| View | Implements | Description |
+|------|-----------|-------------|
+| **TimeSeries** | `CogniteTimeSeries` | Series of data points in time order, linked to assets, equipment, and a unit |
+| **FileRevision** | `CogniteFile` | Documents and files with custom properties for facility, unit, line, and file revision |
+| **FileCategory** | `CogniteFileCategory` | Category classification for files |
+| **Unit** | `CogniteUnit` | Units of measurement for time series |
+
+### 3D & Visualization Views
+
+| View | Implements | Description |
+|------|-----------|-------------|
+| **3DModel** | `Cognite3DModel` | Top-level 3D model resources |
+| **3DObject** | `Cognite3DObject` | Individual 3D objects |
+| **3DRevision** | `Cognite3DRevision` | Revisions of 3D models |
+| **3DTransformation** | `Cognite3DTransformation` | 3D transformation matrices |
+| **CADModel** | `CogniteCADModel` | CAD-specific 3D models |
+| **CADRevision** | `CogniteCADRevision` | CAD model revisions |
+| **CADNode** | `CogniteCADNode` | Individual nodes in a CAD model |
+| **PointCloudModel** | `CognitePointCloudModel` | Point cloud 3D models |
+| **PointCloudRevision** | `CognitePointCloudRevision` | Point cloud model revisions |
+| **PointCloudVolume** | `CognitePointCloudVolume` | Volumes within point clouds |
+| **CubeMap** | `CogniteCubeMap` | Cube map textures for 3D environments |
+
+### 360-Degree Image Views
+
+| View | Implements | Description |
+|------|-----------|-------------|
+| **360Image** | `Cognite360Image` | Individual 360-degree images |
+| **360ImageAnnotation** | `Cognite360ImageAnnotation` | Annotations on 360 images |
+| **360ImageCollection** | `Cognite360ImageCollection` | Collections of 360 images |
+| **360ImageModel** | `Cognite360ImageModel` | 360 image model resources |
+| **360ImageStation** | `Cognite360ImageStation` | Stations from which 360 images are captured |
+
+### Cross-Cutting Views
+
+| View | Implements | Description |
+|------|-----------|-------------|
+| **SourceSystem** | `CogniteSourceSystem` | Standardized representation of source systems (e.g., SAP, PI) |
+| **Annotation** | `CogniteAnnotation` | General annotations on resources |
+| **DiagramAnnotation** | `CogniteDiagramAnnotation` | Annotations specific to diagrams |
+| **Reportable** | _(standalone)_ | Cross-cutting view providing `sysSite`, `sysUnit`, `sysTagsFound`, and `sysTagsLinked` properties used for data quality reporting |
+
+## Key Relationships
+
+```
+                                +-----------+
+                                |   Asset   |
+                                +-----+-----+
+                               /  |   |   \   \
+                    parent/   files| equipment| activities\  timeSeries
+                    children      |     |     |            \
+                              +---+  +--+--+ +--+------+ +--------+
+                              |File| |Equip| |Activity | |TimeSeries|
+                              |Rev.| |ment | |         | |          |
+                              +----+ +-----+ +---------+ +----------+
+
+  +---------------+       +-------------+       +-------------------+
+  | Notification  |------>| Maintenance |<------| Operation         |
+  |               |       | Order       |       |                   |
+  +---------------+       +------+------+       +-------------------+
+                                 |
+                          assets, equipment,
+                          timeSeries
+
+  +-------------+       +-------------------+       +-----------------------------+
+  | WorkOrder   |<------| WorkOrderOperation|<------| WorkOrderOperationConfirmation|
+  |             |       |                   |       | (actual/forecast work, costs) |
+  +-------------+       +-------------------+       +-----------------------------+
+```
+
+- **Asset** is the central entity, connected to children (hierarchy), equipment, files, activities, time series, and 3D objects
+- **FunctionalLocation** mirrors Asset hierarchy but represents functional positions in a facility
+- **Notification** triggers **MaintenanceOrder**, which contains **Operations**
+- **WorkOrder** contains **WorkOrderOperations**, each tracked by **WorkOrderOperationConfirmations**
+- **Reportable** provides cross-cutting `sys*` properties (site, unit, tags found/linked) shared by Activity, TimeSeries, MaintenanceOrder, and Operation
+- All major entities carry a `source` relation to **SourceSystem** and a `UUID` custom property
+
+## Configuration
+
+### Default Variables (`default.config.yaml`)
 
 ```yaml
-schemaSpace: sp_enterprise_process_industry  # Space for schema definitions
-organization: ORG                            # Organization prefix for views
-datamodelVersion: v1.0                       # Data model version
+# Enterprise spaces
+enterpriseSchemaSpace: sp_enterprise_process_industry
+enterpriseInstanceSpace: sp_enterprise_instance
+siteInstanceSpace: sp_site_instance
+
+# Data model configuration
+organizationName: Enterprise
+enterpriseDataModelId: DataModel
+enterpriseDataModelVersion: v1
+enterpriseSearchDataModelVersion: v1
+
+# CDM version
+cdmDataModelVersion: v1
+
+# Reserved word prefix (for views starting with numbers or reserved words)
+reservedWordPrefix: Enterprise_
+
 ```
 
-## 🏃‍♂️ Getting Started
+### Key Configuration Points
 
-### 1. Prerequisites
+| Variable | Purpose | Example Override |
+|----------|---------|-----------------|
+| `enterpriseSchemaSpace` | Space for all schema definitions | `sp_myorg_process_industry` |
+| `enterpriseInstanceSpace` | Space for enterprise instance data | `sp_myorg_instance` |
+| `siteInstanceSpace` | Space for site-specific instance data | `sp_mysite_instance` |
+| `organizationName` | Prefix used in data model names | `MyOrg` |
+| `enterpriseDataModelVersion` | Version tag for enterprise views | `v2` |
+| `reservedWordPrefix` | Prefix for views whose names start with numbers (e.g., `3DModel` becomes `Enterprise_3DModel`) | `MyOrg_` |
+| `sourceName` | Name of the primary source system | `Houston AVEVA PI` |
 
-- CDF project with data modeling capabilities
-- Admin permissions to create spaces and data models
+### Environment Override
 
-### 2. Configure the Module
-
-Update your `config.<env>.yaml` under the module variables section:
+Override defaults in your environment config file (`config.<env>.yaml`):
 
 ```yaml
 variables:
   modules:
-    cdf_process_industry_extension:
-      schemaSpace: sp_enterprise_process_industry
-      organization: YOUR_ORG               # Organization prefix for views (e.g., "ACME")
-      datamodelVersion: v1.0               # Data model version
+    qs_enterprise_dm:
+      enterpriseSchemaSpace: sp_myorg_process_industry
+      enterpriseInstanceSpace: sp_myorg_instance
+      siteInstanceSpace: sp_mysite_instance
+      organizationName: MyOrg
+      reservedWordPrefix: MyOrg_
+      sourceName: Houston AVEVA PI
 ```
 
-### 3. Deploy the Module
+## Getting Started
+
+### Prerequisites
+
+- CDF project with data modeling enabled
+- CDF Toolkit (`cdf`) CLI installed and configured
+- Admin permissions to create spaces, containers, views, and data models
+
+### Deployment Steps
+
+1. **Review and customize** the configuration variables in `default.config.yaml` or your environment override file.
+
+2. **Deploy the module** using CDF Toolkit:
 
 ```bash
-# Deploy using CDF Toolkit
-cdf deploy --env your-environment
-
-# Verify deployment
-cdf data-models list
+cdf deploy --env <your-environment>
 ```
 
-### 4. Customize Containers
+3. **Verify** the deployment:
 
-Add custom properties to containers as needed:
+```bash
+# List data models in the schema space
+cdf data-models list --space sp_enterprise_process_industry
+```
+
+4. **Populate data** using transformations or ingestion pipelines that write to the enterprise and site instance spaces.
+
+### Customizing Containers
+
+Add custom properties to any container to extend the model for your organization:
 
 ```yaml
-# Example: Adding custom property to Asset container
+# Example: Adding a custom property to the Asset container
 properties:
-  customField:
+  myCustomField:
     type:
       type: primitive
       primitive: string
-    description: Organization-specific field
+    description: Organization-specific custom field
 ```
 
-## 📊 Data Model Structure
+## Dependencies
 
-```mermaid
-graph TD
-    subgraph "Organization Views"
-        A[ORGAsset]
-        B[ORGEquipment]
-        C[ORGTimeSeries]
-        D[ORGFile]
-        E[ORGActivity]
-        F[ORGMaintenanceOrder]
-        G[ORGOperation]
-        H[ORGNotification]
-    end
-    
-    subgraph "CDM Base Types"
-        I[CogniteAsset]
-        J[CogniteEquipment]
-        K[CogniteTimeSeries]
-        L[CogniteFile]
-        M[CogniteActivity]
-    end
-    
-    A --> I
-    B --> J
-    C --> K
-    D --> L
-    E --> M
-    
-    subgraph "ORGProcessIndustries Data Model"
-        N[Combined Model]
-    end
-    
-    A --> N
-    B --> N
-    C --> N
-    D --> N
-    E --> N
-    F --> N
-    G --> N
-    H --> N
-```
+This module should be deployed **before** any modules that:
 
-## 🎯 Use Cases
+- Ingest data into the enterprise views (e.g., transformation modules for SAP, PI)
+- Build applications or dashboards that query the enterprise data model
+- Define site-level extensions that reference these enterprise views
 
-### Enterprise Data Modeling
-- **Standardization**: Consistent data model across all sites
-- **Extensions**: Add organization-specific properties
-- **Governance**: Centralized schema management
+## Notes
 
-### Integration
-- **Source Systems**: Map SAP, PI, and other sources to views
-- **Applications**: Build apps against the enterprise model
-- **Analytics**: Query unified data across entity types
-
-## 📚 Dependencies
-
-This module should be deployed **before** source system modules that populate data into these views.
-
-## 📄 License
-
-This module is part of the Cognite Templates repository and follows the same licensing terms.
-
+- Views whose external IDs start with a number or reserved word use the `reservedWordPrefix` variable (e.g., `3DModel` is deployed as `Enterprise_3DModel`)
+- The **Reportable** container provides shared system-level properties (`sysSite`, `sysUnit`, `sysTagsFound`, `sysTagsLinked`) that are reused across Activity, TimeSeries, MaintenanceOrder, and Operation views
+- Each major entity includes a `UUID` property from its own container for cross-system identification
+- The search data model is a curated subset, version it independently via `enterpriseSearchDataModelVersion` when changing which views are included
