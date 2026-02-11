@@ -1,0 +1,165 @@
+space: {{ isaSchemaSpace }}
+externalId: Operation
+name: Operation
+description: A procedural element defining an independent processing activity consisting of the
+  algorithm necessary for the initiation, organization, and control of phases.
+implements:
+- space: cdf_cdm
+  externalId: CogniteActivity
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: >
+      Collection of ISA Asset entities associated with this work order, enabling asset-centric 
+      work order queries and asset activity tracking. Assets linked through this relationship 
+      represent the assets that are the subject of the work order activities. This relationship 
+      follows ISA-95 asset-to-activity mapping principles and enables integration between asset 
+      management systems and work management systems. [ISA-95 Level 3]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAAsset
+      version: {{ viewVersion }}
+      type: view
+  equipment:
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: equipment
+    name: Equipment
+    description: >
+      Reference to the Equipment entity that is the subject of this work order, establishing the 
+      relationship between work orders and equipment. The equipment relationship enables navigation 
+      from work order to equipment level, supporting equipment-centric work order queries and 
+      equipment maintenance tracking. This relationship is essential for equipment maintenance, 
+      repair, and operational activities. [ISA-88, ISA-95 Level 3]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Equipment
+      version: {{ viewVersion }}
+      type: view
+  timeSeries:
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: timeSeries
+    name: TimeSeries
+    description: >
+      Collection of time series data associated with this work order, enabling real-time and 
+      historical process data acquisition related to work order execution. Time series may include 
+      sensor readings, process measurements, equipment status, and performance metrics during work 
+      execution. This relationship follows ISA-95 data acquisition standards for process data and 
+      enables work order performance analysis and condition monitoring. [ISA-95 Level 3]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISATimeSeries
+      version: {{ viewVersion }}
+      type: view
+  operation_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Operation
+      type: container
+    containerPropertyIdentifier: operation_id
+    name: Operation ID
+    description: >
+      Unique identifier for the operation entity, conforming to ISA-88 procedural element 
+      standards. An operation represents a procedural element that groups phases for a specific 
+      processing task. The operation_id serves as the primary key and enables traceability of 
+      operations throughout the batch execution lifecycle. This identifier is critical for 
+      operational-level batch tracking, recipe execution, and process analysis. [ISA-88]
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    name: Operation Name
+    description: >
+      Human-readable name for the operation, typically describing the processing task or function 
+      (e.g., "Heating Operation", "Reaction Operation", "Separation Operation"). The operation_name 
+      follows ISA-88 naming conventions for operations and should be descriptive enough for process 
+      engineers and operators to understand the operation's purpose. This name is often used in 
+      control system displays, batch records, and operational documentation. [ISA-88]
+  unit_procedure:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Operation
+      type: container
+    containerPropertyIdentifier: unit_procedure
+    name: Unit Procedure
+    description: >
+      Reference to the UnitProcedure entity that contains this operation, establishing the ISA-88 
+      hierarchical relationship where unit procedures contain operations. The unit_procedure 
+      relationship enables navigation from operation to unit procedure level, supporting unit-level 
+      operational analysis and resource allocation. This relationship is essential for understanding 
+      how operations contribute to unit procedure execution and batch execution within specific units. 
+      [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: UnitProcedure
+      version: {{ viewVersion }}
+      type: view
+  batch:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Operation
+      type: container
+    containerPropertyIdentifier: batch
+    name: Batch
+    description: >
+      Reference to the Batch entity that this operation is part of, establishing the relationship 
+      between operations and batch execution. The batch relationship enables navigation from 
+      operation to batch level, supporting batch-level operational analysis and execution tracking. 
+      This relationship is essential for understanding how operations contribute to batch execution 
+      and enables operational-level batch data analysis. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Batch
+      version: {{ viewVersion }}
+      type: view
+  sequence_number:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Operation
+      type: container
+    containerPropertyIdentifier: sequence_number
+    name: Sequence Number
+    description: >
+      Numeric value indicating the order or sequence in which this operation should be executed 
+      within the unit procedure, following ISA-88 operation sequencing standards. The sequence_number 
+      enables proper operation ordering and supports sequential execution logic in batch recipes. 
+      This value is critical for recipe execution, operation scheduling, and process flow control. 
+      Lower sequence numbers indicate earlier execution order. [ISA-88]
+  # Reverse relationships
+  phases:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Phase
+        version: {{ viewVersion }}
+        type: view
+      identifier: operation
+    name: Phases
+    description: >
+      Reverse relationship collection of all Phase entities that belong to this operation. Phases 
+      represent the lowest level procedural elements in ISA-88 that perform specific processing 
+      activities. This relationship enables operation-to-phase navigation, supporting detailed 
+      operational analysis at the phase level, including phase sequencing, duration, and state 
+      transitions. Phase-level data is essential for process understanding, troubleshooting, and 
+      recipe optimization. [ISA-88]
+    connectionType: multi_reverse_direct_relation

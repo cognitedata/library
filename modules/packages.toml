@@ -99,3 +99,13 @@ modules = [
     "accelerators/cdf_common",
     "accelerators/cdf_ingestion",
 ]
+
+[packages.tools]
+id = "tool:notebooks"
+title = "Tools and Accelerators"
+description = "Tools and accelerators for CDF projects"
+canCherryPick = true
+modules = [
+    "tools/notebooks/cdf_performance_testing",
+    "tools/notebooks/cdf_transformation_jobs_metric_explorer"
+]
