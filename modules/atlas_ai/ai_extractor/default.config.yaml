@@ -19,8 +19,8 @@ viewVersion: v1
 # If not specified, properties are written to the source view
 # This is useful when you want to read from one view and write to another
 targetViewSpace: my_space
-  targetViewExternalId: MyTargetView
-  targetViewVersion: v1
+targetViewExternalId: MyTargetView
+targetViewVersion: v1
 
 # Extraction settings
 textProperty: description
