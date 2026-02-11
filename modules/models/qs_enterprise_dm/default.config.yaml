@@ -5,7 +5,7 @@ siteInstanceSpace: sp_site_instance
 
 # Data model configuration
 organizationName: ORG
-enterpriseDataModelId: ORGProcessIndustry
+enterpriseDataModelId: ORGProcessIndustries
 enterpriseDataModelVersion: v1
 enterpriseSearchDataModelVersion: v1
 
