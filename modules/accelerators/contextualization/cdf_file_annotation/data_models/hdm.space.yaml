@@ -1,4 +1,0 @@
-- description: Helper data model space
-  name: {{ annotationStateSchemaSpace }}
-  space: {{ annotationStateSchemaSpace }}
-  

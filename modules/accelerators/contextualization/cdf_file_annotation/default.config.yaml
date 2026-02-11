@@ -7,10 +7,10 @@ annotationStateSchemaSpace: sp_hdm #NOTE: stands for space helper data model
 annotationStateVersion: v1.0.0
 patternModeInstanceSpace: sp_dat_pattern_mode_results
 patternDetectSink: pattern_detection_sink_node
-fileSchemaSpace: <insert>
-fileInstanceSpace: <insert>
-fileExternalId: <insert>
-fileVersion: <insert>
+fileSchemaSpace: sp_enterprise_process_industry
+fileInstanceSpace: springfield_instances
+fileExternalId: FileRevision
+fileVersion: v1
 
 # used in /raw and /extraction_pipelines
 rawDb: db_file_annotation
@@ -23,42 +23,33 @@ rawTablePromoteCache: annotation_tags_cache
 
 # used in /extraction_pipelines
 extractionPipelineExternalId: ep_file_annotation
-targetEntitySchemaSpace: <insert>
-targetEntityInstanceSpace: <insert>
-targetEntityExternalId: <insert>
-targetEntityVersion: <insert>
+targetEntitySchemaSpace: sp_enterprise_process_industry
+targetEntityInstanceSpace: springfield_instances
+targetEntityExternalId: Asset
+targetEntityVersion: v1
 
 # used in /functions
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
+functionSpace: springfield_functions # space where function code files are stored
 
-# used in prepare function
-prepareFunctionExternalId: fn_file_annotation_prepare #NOTE: if this is changed, then the folder holding the prepare function must be named the same as the new external ID
+# function external IDs (folder names must match these)
+prepareFunctionExternalId: fn_file_annotation_prepare
 prepareFunctionVersion: v1.0.0
-prepareWorkflowVersion: v1_prepare
-prepareWorkflowTrigger: wf_prepare_trigger
-
-# used in launch function
-launchFunctionExternalId: fn_file_annotation_launch #NOTE: if this is changed, then the folder holding the launch function must be named the same as the new external ID
+launchFunctionExternalId: fn_file_annotation_launch
 launchFunctionVersion: v1.0.0
-launchWorkflowVersion: v1_launch
-launchWorkflowTrigger: wf_launch_trigger
-
-# used in finalize function
-finalizeFunctionExternalId: fn_file_annotation_finalize #NOTE: if this is changed, then the folder holding the finalize function must be named the same as the new external ID
+finalizeFunctionExternalId: fn_file_annotation_finalize
 finalizeFunctionVersion: v1.0.0
-finalizeWorkflowVersion: v1_finalize
-finalizeWorkflowTrigger: wf_finalize_trigger
-
-# used in promote function
-promoteFunctionExternalId: fn_file_annotation_promote #NOTE: if this is changed, then the folder holding the promote function must be named the same as the new external ID
+promoteFunctionExternalId: fn_file_annotation_promote
 promoteFunctionVersion: v1.0.0
-promoteWorkflowVersion: v1_promote
-promoteWorkflowTrigger: wf_promote_trigger
 
-# used in /workflows
-workflowSchedule: "3-59/15 * * * *" # NOTE: runs every 15 minutes with a 3 minute offset
+# used in /workflows (single v1 version runs: prepare → launch → finalize → promote)
 workflowExternalId: wf_file_annotation
+workflowSchedule: "0 0 29 2 *"
+
+# used in /transformations
+fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
 
 # used in /auth
-groupSourceId: <insert> # source ID from Azure AD for the corresponding groups
+# Update GROUP_SOURCE_ID to your group source ID
+groupSourceId: <GROUP_SOURCE_ID>

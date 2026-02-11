@@ -1,22 +1,22 @@
 import abc
 import time
 from typing import Any, Literal
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import (
+    DirectRelationReference,
     Edge,
+    EdgeApply,
     EdgeId,
     EdgeList,
-    EdgeApply,
     Node,
     NodeOrEdgeData,
-    DirectRelationReference,
-    NodeList,
 )
-from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
-from services.LoggerService import CogniteFunctionLogger
 from services.CacheService import CacheService
+from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
 from services.EntitySearchService import EntitySearchService
+from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker
 
 
@@ -130,7 +130,7 @@ class GeneralPromoteService(IPromoteService):
                 self.logger.info("No Promote candidates found.", section="END")
                 return "Done"
         except Exception as e:
-            self.logger.error(f"Ran into the following error: {str(e)}")
+            self.logger.error("Ran into the following error", error=e)
             self.logger.info("Retrying in 15 seconds")
             time.sleep(15)
             return
@@ -178,8 +178,11 @@ class GeneralPromoteService(IPromoteService):
                     else self.target_entities_view.instance_space
                 )
 
+                # NOTE: This occurs when no instance space is set in the data model views section extraction pipelines config file
                 if not entity_space:
-                    self.logger.warning(f"Could not determine entity space for type '{annotation_type}'. Skipping.")
+                    self.logger.warning(
+                        f"Could not determine entity space for type '{annotation_type}'.\nPlease ensure an instance space is set in the Files and Target Entities data model views section of the extraction pipeline configuration.\nSkipping."
+                    )
                     continue
 
                 # Strategy: Check cache → query edges → fallback to global search
@@ -231,7 +234,7 @@ class GeneralPromoteService(IPromoteService):
                         section="BOTH",
                     )
             except Exception as e:
-                self.logger.error(str(e), "BOTH")
+                self.logger.error("Error updating edges", error=e, section="BOTH")
 
             try:
                 if edges_to_delete:
@@ -240,7 +243,7 @@ class GeneralPromoteService(IPromoteService):
                         f"Successfully deleted {len(edges_to_delete)} edges from data model.", section="END"
                     )
             except Exception as e:
-                self.logger.error(str(e), "BOTH")
+                self.logger.error("Error deleting edges", error=e, section="BOTH")
 
             try:
                 if raw_rows_to_update:
@@ -254,7 +257,7 @@ class GeneralPromoteService(IPromoteService):
                         f"Successfully updated {len(raw_rows_to_update)} rows in RAW table.", section="END"
                     )
             except Exception as e:
-                self.logger.error(str(e), "BOTH")
+                self.logger.error("Error updating RAW table", error=e, section="BOTH")
 
             if not edges_to_update and not edges_to_delete and not raw_rows_to_update:
                 self.logger.info("No edges were updated in this run.", section="END")
@@ -265,13 +268,7 @@ class GeneralPromoteService(IPromoteService):
         """
         Retrieves pattern-mode annotation edges that are candidates for promotion.
 
-        Uses query configuration from promote_function config if available, otherwise falls back
-        to hardcoded filter for backward compatibility.
-
-        Default query criteria (when no config):
-        - End node is the sink node (placeholder for unresolved entities)
-        - Status is "Suggested" (not yet approved/rejected)
-        - Tags do not contain "PromoteAttempted" (haven't been processed yet)
+        Uses query configuration from promote_function config.
 
         Args:
             None
@@ -284,7 +281,7 @@ class GeneralPromoteService(IPromoteService):
         limit = get_limit_from_query(self.config.promote_function.get_candidates_query)
         # If limit is -1 (unlimited), use sensible default
         if limit == -1:
-            limit = 500
+            limit = 500  # NOTE: This may or may not be needed. The main benefit of this is having the ability to ensure edges are processed in the 10minute time constraint of Serverless Functions
 
         return self.client.data_modeling.instances.list(
             instance_type="edge",

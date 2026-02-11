@@ -1,0 +1,7 @@
+pyodide-http>=0.2.1
+cognite-sdk>=7.64.11
+cognite-pygen
+packaging
+plotly
+matplotlib
+fpdf2>=2.7.0

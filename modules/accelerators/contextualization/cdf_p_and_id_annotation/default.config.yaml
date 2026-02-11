@@ -4,6 +4,8 @@ organization: YourOrg
 
 # Update LOC to your location
 location_name: LOC
+files_dataset: ds_files_LOC
+
 
 # specify the name of the source making it possible to identify where the data originates 
 # from, ex: 'workmate', 'sap', 'oracle',..
@@ -12,8 +14,8 @@ source_name: SOURCE
 
 schemaSpace: sp_enterprise_process_industry
 annotationSchemaSpace: cdf_cdm
-viewVersion: v1
-timeseriesInstanceSpace: springfield_instances
+viewVersion: v1.0
+fileInstanceSpace: springfield_instances
 assetInstanceSpace: springfield_instances
 
 functionClientId: ${IDP_CLIENT_ID}
@@ -21,5 +23,5 @@ functionClientSecret: ${IDP_CLIENT_SECRET}
 
 workflow: entity_matching
 
-# source ID from Azure AD for the corresponding groups, ex 'c74797ce-9191-4a4a-9186-8fe21c54c3de'
-entity_matching_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
+# source ID from Entra ID for the corresponding groups, ex 'c74797ce-9191-4a4a-9186-8fe21c54c3de'
+files_location_processing_group_source_id: <not set>

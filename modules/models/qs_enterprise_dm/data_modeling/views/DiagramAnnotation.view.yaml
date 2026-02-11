@@ -1,0 +1,28 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: DiagramAnnotation
+description: Annotation for diagrams
+implements:
+- space: cdf_cdm
+  externalId: CogniteDiagramAnnotation
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: DiagramAnnotation
+      type: container
+    containerPropertyIdentifier: UUID

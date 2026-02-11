@@ -1,11 +1,12 @@
 import abc
 import re
-from typing import Callable, Any
+from typing import Any
+
 from cognite.client import CogniteClient
-from cognite.client.data_classes.data_modeling import Node, NodeList, ViewId
-from cognite.client.data_classes.filters import Filter, Equals, In
+from cognite.client.data_classes.data_modeling import Node, ViewId
+from cognite.client.data_classes.filters import Filter, In
+from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
-from services.ConfigService import Config, ViewPropertyConfig
 
 
 class IEntitySearchService(abc.ABC):
@@ -100,7 +101,7 @@ class EntitySearchService(IEntitySearchService):
 
         Note: We query entities directly rather than annotation edges because:
         - Entity dataset is smaller and more stable (~1,000-10,000 entities)
-        - Annotation edges grow quadratically (Files × Entities = potentially millions)
+        - Annotation edges grow quadratically (Files x Entities = potentially millions)
         - Neither startNodeText nor aliases properties are indexed
         - Without indexes, smaller dataset = better performance
 

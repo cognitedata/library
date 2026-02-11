@@ -1,25 +1,24 @@
-import time
 import abc
-from typing import cast, Literal
+import time
 from datetime import datetime, timezone
+from typing import Literal, cast
+
 from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeId,
-    NodeList,
     NodeApply,
+    NodeId,
     NodeOrEdgeData,
 )
-
+from cognite.client.exceptions import CogniteAPIError
+from services.ApplyService import IApplyService
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
 from services.RetrieveService import IRetrieveService
-from services.ApplyService import IApplyService
 from utils.DataStructures import (
+    AnnotationStatus,
     BatchOfNodes,
     PerformanceTracker,
-    AnnotationStatus,
 )
 
 
@@ -103,15 +102,15 @@ class GeneralFinalizeService(AbstractFinalizeService):
         """
         self.logger.info("Starting Finalize Function", section="START")
         try:
-            job_id, pattern_mode_job_id, file_to_state_map = self.retrieve_service.get_job_id()
-            if not job_id or not file_to_state_map:
+            regular_job, pattern_mode_job, file_to_state_map = self.retrieve_service.get_job_id()
+            if not regular_job or not file_to_state_map:
                 self.logger.info("No diagram detect jobs found", section="END")
                 return "Done"
-            self.logger.info(f"Retrieved job id ({job_id}) and claimed {len(file_to_state_map.values())} files")
+            self.logger.info(f"Retrieved job {regular_job} and claimed {len(file_to_state_map.values())} files")
         except CogniteAPIError as e:
             if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
                 self.logger.info(
-                    message=f"Retrieved job id that has already been claimed. Grabbing another job.",
+                    message="Retrieved job that has already been claimed. Grabbing another job.",
                     section="END",
                 )
                 return
@@ -119,7 +118,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 e.code == 408
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
+                self.logger.error(message="Ran into the following error", error=e, section="END")
                 return
             else:
                 raise e
@@ -127,13 +126,20 @@ class GeneralFinalizeService(AbstractFinalizeService):
         job_results: dict | None = None
         pattern_mode_job_results: dict | None = None
         try:
-            job_results = self.retrieve_service.get_diagram_detect_job_result(job_id)
-            if pattern_mode_job_id:
-                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(pattern_mode_job_id)
+            self.logger.info("(Regular) Retrieving diagram detect job results", "START")
+            job_results = self.retrieve_service.get_diagram_detect_job_result(
+                job_id=regular_job[0], job_token=regular_job[1]
+            )
+            if pattern_mode_job:
+                self.logger.info("(Pattern) Retrieving diagram detect job results")
+                pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(
+                    job_id=pattern_mode_job[0], job_token=pattern_mode_job[1]
+                )
         except Exception as e:
-            self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) is a bad gateway",
-                section="END",
+            self.logger.error(
+                message=f"Unfinalizing {len(file_to_state_map.keys())} files. Encountered an error.",
+                error=e,
+                section="BOTH",
             )
             self._update_batch_state(
                 batch=BatchOfNodes(nodes=list(file_to_state_map.values())),
@@ -145,14 +151,12 @@ class GeneralFinalizeService(AbstractFinalizeService):
         # 1. The main job is finished, AND
         # 2. EITHER pattern mode was not enabled (no pattern job ID)
         #    OR pattern mode was enabled AND its job is also finished.
-        jobs_complete: bool = job_results is not None and (
-            not pattern_mode_job_id or pattern_mode_job_results is not None
-        )
+        jobs_complete: bool = job_results is not None and (not pattern_mode_job or pattern_mode_job_results is not None)
 
         if not jobs_complete:
             self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job id ({job_id}) and/or pattern id ({pattern_mode_job_id}) not complete",
-                section="END",
+                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job {regular_job} and/or pattern id {pattern_mode_job} not complete",
+                section="BOTH",
             )
             self._update_batch_state(
                 batch=BatchOfNodes(nodes=list(file_to_state_map.values())),
@@ -163,7 +167,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
             return
 
         self.logger.info(
-            f"Both jobs ({job_id}, {pattern_mode_job_id}) complete. Applying all annotations.",
+            f"Both jobs {regular_job} and {pattern_mode_job} complete. Applying all annotations.",
             section="END",
         )
 
@@ -243,7 +247,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     count_success += 1  # Still a success for this batch
 
             except Exception as e:
-                self.logger.error(f"Failed to process annotations for file {file_id}: {e}")
+                self.logger.error(f"Failed to process annotations for file {file_id}", error=e)
                 if next_attempt >= self.max_retries:
                     job_node_to_update = self._process_annotation_state(
                         annotation_state_node,
@@ -278,7 +282,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 )
             except Exception as e:
                 self.logger.error(
-                    f"Error during batch update of annotation states: {e}",
+                    "Error during batch update of annotation states",
+                    error=e,
                     section="END",
                 )
 
@@ -383,28 +388,19 @@ class GeneralFinalizeService(AbstractFinalizeService):
             else:
                 - annotated_page_count = self.page_range + annotated_page_count b/c there are more pages to annotate
         """
-        annotated_page_count: int | None = cast(
+        current_annotated: int | None = cast(
             int,
             node.properties[self.annotation_state_view.as_view_id()].get("annotatedPageCount"),
         )
 
-        if not annotated_page_count:
-            if self.page_range >= page_count:
-                annotated_page_count = page_count
-            else:
-                annotated_page_count = self.page_range
-            self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages", "BOTH")
-        else:
-            start_page = annotated_page_count + 1
-            if (annotated_page_count + self.page_range) >= page_count:
-                annotated_page_count = page_count
-            else:
-                annotated_page_count += self.page_range
-            self.logger.info(
-                f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages", "BOTH"
-            )
+        start_page = (current_annotated or 0) + 1
+        new_annotated = min((current_annotated or 0) + self.page_range, page_count)
+        
+        self.logger.info(
+            f"Annotated pages {start_page}-to-{new_annotated} out of {page_count} total pages", "END"
+        )
 
-        return annotated_page_count
+        return new_annotated
 
     def _update_batch_state(
         self,
@@ -458,13 +454,14 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 view_id=self.annotation_state_view.as_view_id(),
             )
         try:
-            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
+            self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
-                f"Ran into the following error:\n\t{str(e)}\nTrying again in 30 seconds",
+                "Ran into the following error. Trying again in 30 seconds",
+                error=e,
                 section="END",
             )
             time.sleep(30)
-            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
+            self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")

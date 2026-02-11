@@ -1,15 +1,14 @@
 import abc
 import copy
 from typing import Any
-from cognite.client import CogniteClient
-from services.ConfigService import Config
 
+from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import (
-    DiagramDetectResults,
     DiagramDetectConfig,
+    DiagramDetectResults,
     FileReference,
 )
-
+from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
 
 
@@ -19,11 +18,13 @@ class IAnnotationService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
+    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> tuple[int, str]:
         pass
 
     @abc.abstractmethod
-    def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
+    def run_pattern_mode_detect(
+        self, files: list[FileReference], pattern_samples: list[dict[str, Any]]
+    ) -> tuple[int, str]:
         pass
 
 
@@ -49,7 +50,7 @@ class GeneralAnnotationService(IAnnotationService):
                 self.pattern_detect_config = copy.copy(self.diagram_detect_config)
                 self.pattern_detect_config.remove_leading_zeros = False
 
-    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> int:
+    def run_diagram_detect(self, files: list[FileReference], entities: list[dict[str, Any]]) -> tuple[int, str]:
         """
         Initiates a diagram detection job using CDF's diagram detect API.
 
@@ -71,12 +72,14 @@ class GeneralAnnotationService(IAnnotationService):
             search_field="search_property",
             configuration=self.diagram_detect_config,
         )
-        if detect_job.job_id:
-            return detect_job.job_id
+        if detect_job.job_id and detect_job.job_token:
+            return detect_job.job_id, detect_job.job_token
         else:
-            raise Exception(f"API call to diagram/detect did not return a job ID")
+            raise Exception("API call to diagram/detect did not return a job ID or job Token")
 
-    def run_pattern_mode_detect(self, files: list[FileReference], pattern_samples: list[dict[str, Any]]) -> int:
+    def run_pattern_mode_detect(
+        self, files: list[FileReference], pattern_samples: list[dict[str, Any]]
+    ) -> tuple[int, str]:
         """
         Initiates a diagram detection job in pattern mode using generated pattern samples.
 
@@ -102,7 +105,7 @@ class GeneralAnnotationService(IAnnotationService):
             configuration=self.pattern_detect_config,
             pattern_mode=True,
         )
-        if detect_job.job_id:
-            return detect_job.job_id
+        if detect_job.job_id and detect_job.job_token:
+            return detect_job.job_id, detect_job.job_token
         else:
-            raise Exception("API call to diagram/detect in pattern mode did not return a job ID")
+            raise Exception("API call to diagram/detect in pattern mode did not return a job ID and/or job Token")

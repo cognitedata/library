@@ -1,17 +1,17 @@
 from enum import Enum
-from typing import Any, Literal, cast, Optional
+from typing import Any, Literal, Optional
 
 import yaml
+from cognite.client import CogniteClient
+from cognite.client import data_modeling as dm
 from cognite.client.data_classes.contextualization import (
-    DiagramDetectConfig,
     ConnectionFlags,
     CustomizeFuzziness,
+    DiagramDetectConfig,
     DirectionWeights,
 )
 from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.filters import Filter
-from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
@@ -341,6 +341,110 @@ def build_filter_from_query(query: QueryConfig | list[QueryConfig]) -> Filter:
         return dm.filters.Or(*list_filters) if len(list_filters) > 1 else list_filters[0]
     else:
         return query.build_filter()
+
+
+# Helper functions for config logging
+def _format_query_summary(query: QueryConfig | list[QueryConfig], query_name: str) -> str:
+    """Format a query configuration into a readable summary string."""
+    lines = [f"  {query_name}:"]
+    
+    queries = query if isinstance(query, list) else [query]
+    
+    for i, q in enumerate(queries):
+        if len(queries) > 1:
+            lines.append(f"    Query {i + 1}:")
+            indent = "      "
+        else:
+            indent = "    "
+        
+        # View information
+        view = q.target_view
+        view_str = f"{view.schema_space}/{view.external_id}/{view.version}"
+        lines.append(f"{indent}- Target view: {view_str}")
+        
+        # Filter information
+        filter_parts = []
+        for f in q.filters:
+            if f.operator == FilterOperator.EXISTS:
+                filter_str = f"{f.target_property} EXISTS"
+            elif f.operator == FilterOperator.IN:
+                values_str = str(f.values) if isinstance(f.values, list) else f"[{f.values}]"
+                filter_str = f"{f.target_property} IN {values_str}"
+            elif f.operator == FilterOperator.EQUALS:
+                filter_str = f"{f.target_property} = {f.values}"
+            else:
+                filter_str = f"{f.target_property} {f.operator.value} {f.values}"
+            
+            if f.negate:
+                filter_str = f"NOT ({filter_str})"
+            filter_parts.append(filter_str)
+        
+        filter_combined = " AND ".join(filter_parts)
+        lines.append(f"{indent}- Filter: {filter_combined}")
+        
+        # Limit information
+        if q.limit is not None and q.limit != -1:
+            lines.append(f"{indent}- Limit: {q.limit}")
+    
+    return "\n".join(lines)
+
+
+def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
+    """
+    Format the promote function configuration for logging.
+    
+    Args:
+        config: The configuration object
+        pipeline_ext_id: The extraction pipeline external ID
+    
+    Returns:
+        Formatted configuration string ready for logging
+    """
+    promote = config.promote_function
+    
+    lines = [
+        "=" * 80,
+        f"FUNCTION: Promote ({pipeline_ext_id})",
+        "=" * 80,
+        "",
+        "PROMOTE SERVICE CONFIG",
+        f"  • Delete rejected edges: {promote.delete_rejected_edges}",
+        f"  • Delete suggested edges: {promote.delete_suggested_edges}",
+        f"  • RAW DB: {promote.raw_db}",
+        f"  • Doc-Tag table: {promote.raw_table_doc_tag}",
+        f"  • Doc-Doc table: {promote.raw_table_doc_doc}",
+        f"  • Doc-Pattern table: {promote.raw_table_doc_pattern}",
+        ""
+    ]
+    
+    lines.append(_format_query_summary(
+        promote.get_candidates_query,
+        "Candidates Query"
+    ))
+    
+    # Entity search service
+    entity_search = promote.entity_search_service
+    text_norm = entity_search.text_normalization
+    lines.extend([
+        "",
+        "ENTITY SEARCH SERVICE",
+        f"  • Enable global entity search: {entity_search.enable_global_entity_search}",
+        f"  • Max entity search limit: {entity_search.max_entity_search_limit}",
+        "  • Text normalization:",
+        f"    - Remove special characters: {text_norm.remove_special_characters}",
+        f"    - Convert to lowercase: {text_norm.convert_to_lowercase}",
+        f"    - Strip leading zeros: {text_norm.strip_leading_zeros}",
+    ])
+    
+    # Cache service
+    lines.extend([
+        "",
+        "CACHE SERVICE",
+        f"  • Cache table name: {promote.cache_service.cache_table_name}",
+    ])
+    
+    lines.extend(["", "=" * 80])
+    return "\n".join(lines)
 
 
 def load_config_parameters(

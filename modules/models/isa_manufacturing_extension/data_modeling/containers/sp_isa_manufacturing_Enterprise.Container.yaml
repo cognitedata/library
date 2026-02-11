@@ -1,0 +1,38 @@
+space: {{ isaSchemaSpace }}
+externalId: Enterprise
+name: Enterprise
+description: An organization that coordinates the operation of one or more sites.
+properties:
+  enterprise_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: enterprise_id
+  enterprise_name:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: enterprise_name
+  enterprise_type:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: enterprise_type
+indexes:
+  enterprise_id_index:
+    properties:
+    - enterprise_id
+    cursorable: true
+    indexType: btree

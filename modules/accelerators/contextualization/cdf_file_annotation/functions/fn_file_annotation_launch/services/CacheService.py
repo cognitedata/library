@@ -1,15 +1,15 @@
 import abc
 import re
-from typing import Iterator, Any, Dict, List, Set, cast
 from collections import defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Iterator, List, Set, cast
+
 from cognite.client import CogniteClient
-from cognite.client.data_classes import RowWrite, Row
-from cognite.client.exceptions import CogniteNotFoundError
+from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
-    Node,
     NodeList,
 )
+from cognite.client.exceptions import CogniteNotFoundError
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger
@@ -96,18 +96,18 @@ class GeneralCacheService(ICacheService):
 
         try:
             row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
-        except:
+        except:  # noqa: E722
             row = None
 
         # Attempt to retrieve from the cache
         if row and row.columns and self._validate_cache(row.columns["LastUpdateTimeUtcIso"]):
-            self.logger.debug(f"Cache valid for key: {key}. Retrieving entities and patterns.")
+            self.logger.info(f"Cache is up-to-date for key: {key}\nEntities and patterns loaded from: CACHE.")
             asset_entities: list[dict] = row.columns.get("AssetEntities", [])
             file_entities: list[dict] = row.columns.get("FileEntities", [])
             combined_pattern_samples: list[dict] = row.columns.get("CombinedPatternSamples", [])
             return (asset_entities + file_entities), combined_pattern_samples
 
-        self.logger.info(f"Refreshing RAW entities cache and patterns cache for key: {key}")
+        self.logger.info(f"Cache is out-of-date for key: {key}\nEntities and patterns loaded from: CDF (Fresh Fetch)")
 
         # Fetch data
         asset_instances, file_instances = data_model_service.get_instances_entities(
@@ -164,7 +164,7 @@ class GeneralCacheService(ICacheService):
             row=row_to_write,
             ensure_parent=True,
         )
-        self.logger.info(f"Successfully updated RAW cache")
+        self.logger.info("Successfully updated RAW cache")
         return
 
     def _validate_cache(self, last_update_datetime_str: str) -> bool:
@@ -344,7 +344,7 @@ class GeneralCacheService(ICacheService):
 
             return "".join(full_template_key_parts), all_variable_parts
 
-        for entity in entities:
+        for entity in entities:  # noqa: F402
             key = entity["resource_type"]
             if pattern_builders[key]["annotation_type"] is None:
                 pattern_builders[key]["annotation_type"] = entity.get("annotation_type")

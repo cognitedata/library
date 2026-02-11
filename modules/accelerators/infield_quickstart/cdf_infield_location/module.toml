@@ -1,0 +1,5 @@
+[module]
+title = "InField Quickstart Location"
+is_selected_by_default = true
+id = "Infield Quickstart"
+package_id = "dp:infield_quickstart"

@@ -1,19 +1,17 @@
 import abc
-from typing import cast, Literal
-from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
-from cognite.client.data_classes.data_modeling import (
-    NodeList,
-    NodeApply,
-)
+from typing import Literal, cast
 
+from cognite.client import CogniteClient
+from cognite.client.data_classes.data_modeling import NodeApply, NodeList
+from cognite.client.exceptions import CogniteAPIError
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import (
-    AnnotationStatus,
     AnnotationState,
+    AnnotationStatus,
     PerformanceTracker,
+    remove_protected_properties,
 )
 
 
@@ -93,7 +91,7 @@ class GeneralPrepareService(AbstractPrepareService):
             ValueError: If annotation state view instance space is not configured.
         """
         self.logger.info(
-            message=f"Starting Prepare Function",
+            message="Starting Prepare Function",
             section="START",
         )
         try:
@@ -106,16 +104,13 @@ class GeneralPrepareService(AbstractPrepareService):
                 else:
                     self.logger.info(f"Resetting {len(file_nodes_to_reset)} files")
                     reset_node_apply: list[NodeApply] = []
+                    tags_to_remove = {"AnnotationInProcess", "Annotated", "AnnotationFailed"}
                     for file_node in file_nodes_to_reset:
-                        file_node_apply: NodeApply = file_node.as_write()
+                        file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
                         tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
-                        if "AnnotationInProcess" in tags_property:
-                            tags_property.remove("AnnotationInProcess")
-                        if "Annotated" in tags_property:
-                            tags_property.remove("Annotated")
-                        if "AnnotationFailed" in tags_property:
-                            tags_property.remove("AnnotationFailed")
-
+                        file_node_apply.sources[0].properties["tags"] = [
+                            t for t in tags_property if t not in tags_to_remove
+                        ]
                         reset_node_apply.append(file_node_apply)
                     update_results = self.data_model_service.update_annotation_state(reset_node_apply)
                     self.logger.info(
@@ -129,7 +124,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 return
             else:
                 raise e
@@ -138,7 +133,7 @@ class GeneralPrepareService(AbstractPrepareService):
             file_nodes: NodeList | None = self.data_model_service.get_files_to_annotate()
             if not file_nodes:
                 self.logger.info(
-                    message=f"No files found to prepare",
+                    message="No files found to prepare",
                     section="END",
                 )
                 return "Done"
@@ -150,7 +145,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
             ):
                 # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                self.logger.error(message=f"Ran into the following error:\n{str(e)}")
+                self.logger.error(message="Ran into the following error", error=e)
                 return
             else:
                 raise e
@@ -177,7 +172,7 @@ class GeneralPrepareService(AbstractPrepareService):
             )
             annotation_state_instances.append(annotation_node_apply)
 
-            file_node_apply: NodeApply = file_node.as_write()
+            file_node_apply: NodeApply = remove_protected_properties(file_node.as_write())
             tags_property: list[str] = cast(list[str], file_node_apply.sources[0].properties["tags"])
             if "AnnotationInProcess" not in tags_property:
                 tags_property.append("AnnotationInProcess")
@@ -192,7 +187,7 @@ class GeneralPrepareService(AbstractPrepareService):
                 section="END",
             )
         except Exception as e:
-            self.logger.error(message=f"Ran into the following error:\n{str(e)}", section="END")
+            self.logger.error(message="Ran into the following error", error=e, section="END")
             raise
 
         self.tracker.add_files(success=len(file_nodes))

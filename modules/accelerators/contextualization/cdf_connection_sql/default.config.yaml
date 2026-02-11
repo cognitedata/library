@@ -1,0 +1,11 @@
+schemaSpace: sp_enterprise_process_industry
+organization: ORG
+datamodelExternalId: ORGProcessIndustries
+datamodelVersion: v1
+dataset: ingestion
+instanceSpace: springfield_instances
+activityToTimeSeriesTransformationExternalId: activity_to_timeseries
+maintenanceOrderToAssetTransformationExternalId: maintenance_order_to_asset
+operationToAssetTransformationExternalId: operation_to_asset
+timeSeriesToEquipmentTransformationExternalId: timeseries_to_equipment
+

@@ -47,14 +47,14 @@ capabilities:
         - WRITE
       scope:
         all: {}
-  - annotationsAcl:
-      actions:
-        - READ
-        - WRITE
-        - SUGGEST
-        - REVIEW
-      scope:
-        all: {}
+  # - annotationsAcl:
+  #     actions:
+  #       - READ
+  #       - WRITE
+  #       - SUGGEST
+  #       - REVIEW
+  #     scope:
+  #       all: {}
   - entitymatchingAcl:
       actions:
         - READ
@@ -93,8 +93,8 @@ capabilities:
             ids:
               - {{ annotationDatasetExternalId }}
 # Bug in /context/diagram/detect/ endpoint that requires this
-  - assetsAcl:
-      actions:
-        - READ
-      scope:
-        all: {}
+  # - assetsAcl:
+  #     actions:
+  #       - READ
+  #     scope:
+  #       all: {}

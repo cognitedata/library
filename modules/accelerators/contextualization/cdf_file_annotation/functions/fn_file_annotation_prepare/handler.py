@@ -1,17 +1,22 @@
 import sys
-from cognite.client import CogniteClient
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
+from cognite.client import CogniteClient
 from dependencies import (
     create_config_service,
-    create_logger_service,
-    create_write_logger_service,
     create_general_data_model_service,
     create_general_pipeline_service,
+    create_logger_service,
+    create_write_logger_service,
 )
-from services.PrepareService import GeneralPrepareService, LocalPrepareService, AbstractPrepareService
+from services.ConfigService import format_prepare_config
 from services.DataModelService import IDataModelService
 from services.PipelineService import IPipelineService
+from services.PrepareService import (
+    AbstractPrepareService,
+    GeneralPrepareService,
+    LocalPrepareService,
+)
 from utils.DataStructures import PerformanceTracker
 
 
@@ -37,7 +42,6 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
     pipeline_instance: IPipelineService = create_general_pipeline_service(
         client, pipeline_ext_id=data["ExtractionPipelineExtId"]
     )
-
     prepare_instance: AbstractPrepareService = _create_prepare_service(
         config=config_instance,
         client=client,
@@ -46,6 +50,7 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict:
         function_call_info=function_call_info,
     )
 
+    logger_instance.info(format_prepare_config(config_instance, data["ExtractionPipelineExtId"]), section="START")
     run_status: str = "success"
     try:
         while datetime.now(timezone.utc) - start_time < timedelta(minutes=7):
@@ -86,13 +91,16 @@ def run_locally(config_file: dict[str, str], log_path: str | None = None):
     else:
         logger_instance = create_logger_service(log_level=log_level)
     tracker_instance = PerformanceTracker()
-
     prepare_instance: AbstractPrepareService = _create_local_prepare_service(
         config=config_instance,
         client=client,
         logger=logger_instance,
         tracker=tracker_instance,
         function_call_info={"function_id": None, "call_id": None},
+    )
+
+    logger_instance.info(
+        format_prepare_config(config_instance, config_file["ExtractionPipelineExtId"]), section="START"
     )
     try:
         while True:

@@ -1,0 +1,13 @@
+space: {{ assetInstanceSpace }}
+externalId: {{ contextualizationId }}
+sources:
+  - source:
+      type: view
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+    properties:
+      name: '{{ contextualizationName }}'
+      description: 'Creates Entity Matching links which are used to connect timeseries to assets.'
+      version: "v1"
+      manufacturer: "Cognite"

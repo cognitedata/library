@@ -1,0 +1,102 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: WorkOrder
+name: Work Orders
+implements:
+- space: cdf_cdm
+  externalId: CogniteSchedulable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteActivity
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_idm
+  externalId: CogniteMaintenanceOrder
+  version: v1
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  operations:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperation
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: WorkOrderOperation
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: maintenanceOrder
+    name: Operations
+    description: Lists the individual work items on the maintenance order. An automatically
+      populated list of operations related to the maintenance order.
+    connectionType: multi_reverse_direct_relation
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: A list of assets the activity is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Asset
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  equipment:
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: equipment
+    name: Equipment
+    description: A list of equipment the activity is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Equipment
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  mainAsset:
+    container:
+      space: cdf_idm
+      externalId: CogniteMaintenanceOrder
+      type: container
+    containerPropertyIdentifier: mainAsset
+    name: Main Asset
+    description: The Asset Tag this Work Order is associated with.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Asset
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  objectNumber:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: objectNumber
+    name: Object Number
+  mainEquipment:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrder
+      type: container
+    containerPropertyIdentifier: mainEquipment
+    name: Main Equipment
+    description: The main equipment this work order is associated with.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Equipment
+      version: {{ enterpriseDataModelVersion }}
+      type: view

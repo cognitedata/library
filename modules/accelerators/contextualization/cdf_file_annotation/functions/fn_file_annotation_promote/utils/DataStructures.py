@@ -1,17 +1,17 @@
-from dataclasses import dataclass, asdict, field
-from typing import Literal, cast
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from datetime import datetime, timezone, timedelta
+from typing import Literal, cast
 
-from cognite.client.data_classes.data_modeling import (
-    Node,
-    NodeId,
-    NodeApply,
-    NodeOrEdgeData,
-    ViewId,
-)
 from cognite.client.data_classes.contextualization import (
     FileReference,
+)
+from cognite.client.data_classes.data_modeling import (
+    Node,
+    NodeApply,
+    NodeId,
+    NodeOrEdgeData,
+    ViewId,
 )
 
 
@@ -309,7 +309,7 @@ class PerformanceTracker:
 
     def generate_ep_run(
         self,
-        caller: Literal["Launch", "Finalize"],
+        caller: Literal["Prepare", "Launch", "Finalize"],
         function_id: str | None,
         call_id: str | None,
     ) -> str:
@@ -440,3 +440,22 @@ class PromoteTracker:
         self.total_time_delta = timedelta(0)
         self.latest_run_time = datetime.now(timezone.utc)
         print("PromoteTracker state has been reset")
+
+
+def remove_protected_properties(node_apply: NodeApply) -> NodeApply:
+    """
+    In mid November the product team pushed a change that adds write-protection for 'isUploaded' and 'uploadedTime' to staging clusters.
+    The rationale is that CogniteFile and CogniteAsset forced the team to implement a system managed field concept.
+    This function effectively deletes the protected properties from the json object and adheres to the new standard set in place.
+    We don't use typed nodes like CogniteFile in this deployment pack since we need the properties associated with the view that we extended.
+    """
+    protected_properties = [
+        "isUploaded",
+        "uploadedTime",
+    ]  # NOTE: These are just the protected properties of CogniteFile. There are also protected properties for CogniteAsset, though we don't use it in this deployment pack.
+    for source in node_apply.sources:
+        # Safely remove the keys if they exist using .pop(key, None)
+        for property in protected_properties:
+            source.properties.pop(property, None)
+
+    return node_apply

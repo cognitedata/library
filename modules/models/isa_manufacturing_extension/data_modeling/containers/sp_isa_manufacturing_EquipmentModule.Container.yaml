@@ -1,0 +1,76 @@
+space: {{ isaSchemaSpace }}
+externalId: EquipmentModule
+name: EquipmentModule
+description: A functional group of equipment that can carry out a finite number of specific minor
+  processing activities. An equipment module is typically centered around a piece of process
+  equipment (a weigh tank, a process heater, a scrubber, etc.). This term applies to both the
+  physical equipment and the equipment entity. Examples of minor process activities are dosing
+  and weighing.
+properties:
+  equipment_module_id:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: equipment_module_id
+  equipment_module_name:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: equipment_module_name
+  module_class:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: module_class
+  capacity:
+    type:
+      list: false
+      type: float64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: capacity
+  capacity_unit:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: capacity_unit
+  unit:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: unit
+  equipment:
+    type:
+      list: true
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipment
+
+indexes:
+  equipment_module_id_index:
+    properties:
+    - equipment_module_id
+    cursorable: true
+    indexType: btree

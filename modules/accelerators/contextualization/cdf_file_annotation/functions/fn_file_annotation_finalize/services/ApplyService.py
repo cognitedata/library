@@ -6,24 +6,21 @@ from typing import Any, cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
+from cognite.client.data_classes.annotation_types.primitives import BoundingBox
 from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
-    ViewId,
     EdgeApply,
-    NodeOrEdgeData,
-    Node,
-    NodeId,
-    NodeApply,
-    EdgeId,
     InstancesApplyResult,
+    Node,
+    NodeApply,
+    NodeId,
+    NodeOrEdgeData,
+    ViewId,
 )
-from cognite.client.data_classes.filters import And, Equals, Not
-from cognite.client import data_modeling as dm
-from cognite.client.data_classes.annotation_types.primitives import BoundingBox
-
-from services.ConfigService import Config, ViewPropertyConfig
-from utils.DataStructures import DiagramAnnotationStatus
+from cognite.client.data_classes.filters import Equals
+from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
+from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
 
 
 class IApplyService(abc.ABC):
@@ -134,7 +131,7 @@ class GeneralApplyService(IApplyService):
             )
 
         # Step 3: Update the file node tag
-        node_apply = file_node.as_write()
+        node_apply = remove_protected_properties(file_node.as_write())
         node_apply.existing_version = None
         tags = cast(list[str], node_apply.sources[0].properties["tags"])
         if "AnnotationInProcess" in tags:
@@ -383,6 +380,8 @@ class GeneralApplyService(IApplyService):
             List of EdgeApply objects for each entity in the detection that meets confidence thresholds.
         """
         edges = []
+        # NOTE: File annotation endpoint returns multiple of the same entities when matched on different aliases
+        edge_external_id: list[str] = []
         bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
         page = detect_annotation["region"].get("page")
         for entity in detect_annotation.get("entities", []):
@@ -396,6 +395,12 @@ class GeneralApplyService(IApplyService):
             processed_bounding_boxes.add((page, bounding_box.dump_yaml()))
 
             external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation, bounding_box)
+
+            # skip when duplicate is present
+            if external_id in edge_external_id:
+                continue
+            edge_external_id.append(external_id)
+
             annotation_properties = self._create_annotation_properties_from_detection(
                 file_id=file_instance_id,
                 detect_annotation=detect_annotation,

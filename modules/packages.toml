@@ -10,17 +10,31 @@ id = "dp:contextualization"
 title = "Contextualization"
 description = "Module templates for data contextualization"
 modules = [
-    "accelerators/contextualization/cdf_p_and_id_parser",
+    "accelerators/contextualization/cdf_p_and_id_annotation",
     "accelerators/contextualization/cdf_file_annotation",
     "accelerators/contextualization/cdf_entity_matching",
+]
+
+[packages.infield_quickstart]
+id = "dp:infield_quickstart"
+title = "Infield Quickstart"
+description = "Accelerate Infield App Configuration"
+modules = [
+    "accelerators/infield_quickstart/cdf_apm_base",
+    "accelerators/infield_quickstart/cdf_infield_common",
+    "accelerators/infield_quickstart/cdf_infield_location"
 ]
 
 [packages.models]
 id = "dp:models"
 title = "Data models"
 description = "Data models that extend the core data model"
+canCherryPick = true
 modules = [
-    "data_models/rmdm_v1"
+    "models/rmdm_v1",
+    "models/isa_manufacturing_extension",
+    "models/cdf_process_industry_extension",
+    "models/qs_enterprise_dm"
 ]
 
 [packages.atlas_ai]
@@ -34,3 +48,66 @@ modules = [
     "atlas_ai/ai_extractor"
 ]
 
+[packages.dashboards]
+id = "dp:dashboards"
+title = "Dashboards"
+description = "Streamlit dashboards and visualization modules"
+canCherryPick = true
+modules = [
+    "dashboards/context_quality"
+]
+
+[packages.quickstartdp]
+id = "dp:quickstart"
+title = "Quickstart Deployment Pack"
+description = "DP to showcase CDF capabilities in a quick and easy way."
+canCherryPick = false # This package is not meant to be cherry picked, it is a complete deployment pack.
+modules = [
+    "accelerators/cdf_common",
+    "accelerators/cdf_ingestion",
+    "accelerators/contextualization/cdf_file_annotation",
+    "accelerators/contextualization/cdf_entity_matching",
+    "accelerators/contextualization/cdf_connection_sql",
+    "accelerators/industrial_tools/cdf_search",
+    "accelerators/open_industrial_data_sync",
+    "sourcesystem/cdf_pi",
+    "sourcesystem/cdf_sap_assets",
+    "sourcesystem/cdf_sap_events",
+    "sourcesystem/cdf_sharepoint",
+    "dashboards/rpt_quality",
+    "models/qs_enterprise_dm",
+]
+
+
+[packages.sourcesystem]
+id = "dp:sourcesystem"
+title = "Source Systems"
+description = "Source systems modules"
+canCherryPick = true
+modules = [
+    "sourcesystem/cdf_pi",
+    "sourcesystem/cdf_sap_assets",
+    "sourcesystem/cdf_sap_events",
+    "sourcesystem/cdf_sharepoint",
+]
+
+
+[packages.common]
+id = "dp:common"
+title = "Common"
+description = "Common modules"
+canCherryPick = true
+modules = [
+    "accelerators/cdf_common",
+    "accelerators/cdf_ingestion",
+]
+
+[packages.tools]
+id = "tool:notebooks"
+title = "Tools and Accelerators"
+description = "Tools and accelerators for CDF projects"
+canCherryPick = true
+modules = [
+    "tools/notebooks/cdf_performance_testing",
+    "tools/notebooks/cdf_transformation_jobs_metric_explorer"
+]

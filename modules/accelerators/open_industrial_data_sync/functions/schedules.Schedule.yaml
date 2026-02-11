@@ -1,0 +1,8 @@
+- name: "Open Industrial Data Sync"
+  functionExternalId: {{ functionExternalId }}
+  description: "Syncs time series data from Open Industrial Data (publicdata) to simulate real-time streaming. Runs every 10 minutes."
+  cronExpression: "{{ scheduleCronExpression }}"
+  authentication:
+    clientId: {{ functionClientId }}
+    clientSecret: {{ functionClientSecret }}
+

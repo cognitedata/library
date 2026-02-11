@@ -1,0 +1,52 @@
+key,name,asset_specific,parent_externalId,erp_id,description
+ENT_EU,Enterprise EU,Enterprise,,,Enterprise node representing the European manufacturing organization (ISA-95 Enterprise).
+SITE_BAS,Basel Site,Site,ENT_EU,SAP:1000,Basel production site belonging to ENT_EU (ISA-95 Site).
+AREA_BIO,Area Bio MFG,Area,SITE_BAS,S4:200,Biopharmaceutical manufacturing area within SITE_BAS (ISA-95 Area).
+PC_CELLA,Process Cell A,ProcessCell,AREA_BIO,PC:A,Process cell A coordinating upstream operations inside AREA_BIO (ISA-95 Process Cell).
+UNIT_R12,Reactor R12,Unit,PC_CELLA,U:R12,Primary reactor unit R12 executing batches in PC_CELLA (ISA-95 Unit).
+EM_R12_CHARGE,Charge Module,EquipmentModule,UNIT_R12,EM:CHG,Charge equipment module feeding UNIT_R12 (ISA-88 Equipment Module).
+SITE_OSL,Oslo Site,Site,ENT_EU,SAP:2000,Oslo manufacturing site aligned with ENT_EU (ISA-95 Site).
+AREA_FILL,Fill-Finish,Area,SITE_OSL,S4:300,Fill-finish production area within SITE_OSL (ISA-95 Area).
+PC_FILL1,Fill Line 1,ProcessCell,AREA_FILL,PC:Fill1,Primary fill process cell managing fill line operations (ISA-95 Process Cell).
+UNIT_FILL_TANK,Fill Tank,Unit,PC_FILL1,U:TANK1,Buffer tank unit supplying Fill Line 1 (ISA-95 Unit).
+EM_FILL_PUMP,Fill Pump,EquipmentModule,UNIT_FILL_TANK,EM:PUMP1,Transfer pump module moving product from UNIT_FILL_TANK (ISA-88 Equipment Module).
+PC_CELLA_B,Process Cell B,ProcessCell,AREA_BIO,PC:B,Secondary upstream process cell in AREA_BIO (ISA-95 Process Cell).
+UNIT_R13,Reactor R13,Unit,PC_CELLA_B,U:R13,Reactor unit R13 supporting Process Cell B batches (ISA-95 Unit).
+EM_R13_MIX,Mixer Module,EquipmentModule,UNIT_R13,EM:MIX,Mixer equipment module coupled to UNIT_R13 (ISA-88 Equipment Module).
+SITE_LDN,London Site,Site,ENT_EU,SAP:3000,London production site under the European enterprise (ISA-95 Site).
+AREA_LAB,Laboratory,Area,SITE_LDN,S4:400,Analytical laboratory area supporting SITE_LDN (ISA-95 Area).
+PC_QC,QC Cell,ProcessCell,AREA_LAB,PC:QC,Quality control process cell executing lab workflows (ISA-95 Process Cell).
+UNIT_QC1,QC Unit 1,Unit,PC_QC,U:QC1,QC equipment unit handling analytical tasks in PC_QC (ISA-95 Unit).
+EM_QC_CHROM,Chromatography,EquipmentModule,UNIT_QC1,EM:CHROM,Chromatography module attached to UNIT_QC1 (ISA-88 Equipment Module).
+ENT_US,Enterprise US,Enterprise,,,Enterprise node representing the North American organization (ISA-95 Enterprise).
+SITE_AUS,Austin Site,Site,ENT_US,SAP:4000,Austin manufacturing site under ENT_US (ISA-95 Site).
+AREA_PACK,Packaging,Area,SITE_AUS,S4:500,Final packaging area within SITE_AUS (ISA-95 Area).
+PC_PACK1,Packaging Line 1,ProcessCell,AREA_PACK,PC:PK1,Process cell managing packaging line 1 operations (ISA-95 Process Cell).
+UNIT_BLDR,Blender U1,Unit,PC_PACK1,U:BLDR1,Blending unit handling pre-pack operations in PC_PACK1 (ISA-95 Unit).
+EM_BLDR_MOTOR,Blender Motor,EquipmentModule,UNIT_BLDR,EM:MOTOR1,Drive motor module powering UNIT_BLDR (ISA-88 Equipment Module).
+EM_BLDR_CTRL,Blender Controller,EquipmentModule,UNIT_BLDR,EM:CTRL1,Control module supervising UNIT_BLDR automation (ISA-88 Equipment Module).
+AREA_WARE,Warehouse,Area,SITE_AUS,S4:510,Warehouse area supporting logistics in SITE_AUS (ISA-95 Area).
+PC_WARE1,Warehouse Cell 1,ProcessCell,AREA_WARE,PC:WH1,Warehouse process cell coordinating material movements (ISA-95 Process Cell).
+UNIT_CONV1,Conveyor 1,Unit,PC_WARE1,U:CONV1,Conveyor unit handling package transport in PC_WARE1 (ISA-95 Unit).
+EM_CONV_DRV1,Conveyor Drive,EquipmentModule,UNIT_CONV1,EM:DRV1,Drive module powering UNIT_CONV1 transport (ISA-88 Equipment Module).
+SITE_BER,Berlin Site,Site,ENT_EU,SAP:3500,Berlin production site belonging to ENT_EU (ISA-95 Site).
+AREA_MAINT,Maintenance,Area,SITE_BER,S4:450,Maintenance services area for SITE_BER operations (ISA-95 Area).
+PC_MAINT,Maintenance Cell,ProcessCell,AREA_MAINT,PC:MAIN,Maintenance process cell executing service work (ISA-95 Process Cell).
+UNIT_COMP,Compressor,Unit,PC_MAINT,U:COMP1,Utility compressor unit supporting maintenance cell (ISA-95 Unit).
+EM_COMP_CTRL,Compressor Control,EquipmentModule,UNIT_COMP,EM:CTRL2,Control module governing UNIT_COMP automation (ISA-88 Equipment Module).
+UNIT_R14,Reactor R14,Unit,PC_CELLA,U:R14,Reactor unit R14 supporting Process Cell A production (ISA-95 Unit).
+EM_R14_HEAT,Heater Module,EquipmentModule,UNIT_R14,EM:HEAT,Heating module providing thermal control for UNIT_R14 (ISA-88 Equipment Module).
+PC_CELLA_C,Process Cell C,ProcessCell,AREA_BIO,PC:C,Tertiary upstream process cell in AREA_BIO (ISA-95 Process Cell).
+UNIT_R15,Reactor R15,Unit,PC_CELLA_C,U:R15,Reactor unit R15 assigned to Process Cell C batches (ISA-95 Unit).
+EM_R15_VALVE,Valve Manifold,EquipmentModule,UNIT_R15,EM:VALVE,Valve manifold module distributing flow in UNIT_R15 (ISA-88 Equipment Module).
+AREA_QUALITY,Quality,Area,SITE_OSL,S4:320,Quality assurance area for SITE_OSL operations (ISA-95 Area).
+PC_QA,QA Cell,ProcessCell,AREA_QUALITY,PC:QA,QA process cell coordinating inspection activities (ISA-95 Process Cell).
+UNIT_QA1,QA Unit 1,Unit,PC_QA,U:QA1,QA equipment unit executing analytical procedures (ISA-95 Unit).
+EM_QA_SENS,Sensors Module,EquipmentModule,UNIT_QA1,EM:SENS,Sensing module providing instrumentation for UNIT_QA1 (ISA-88 Equipment Module).
+EM_QC_UV,UV Detector,EquipmentModule,UNIT_QC1,EM:UV,UV detector module used in QC analytics (ISA-88 Equipment Module).
+EM_QC_FRACTION,Fraction Collector,EquipmentModule,UNIT_QC1,EM:FRAC,Fraction collection module for QC chromatography (ISA-88 Equipment Module).
+SITE_SF,SanFrancisco Site,Site,ENT_US,SAP:4100,San Francisco pilot site within ENT_US (ISA-95 Site).
+AREA_PILOT,Pilot Plant,Area,SITE_SF,S4:520,Pilot-scale manufacturing area at SITE_SF (ISA-95 Area).
+PC_PILOT1,Pilot Cell 1,ProcessCell,AREA_PILOT,PC:P1,Pilot process cell executing development batches (ISA-95 Process Cell).
+UNIT_PILOT_REACT,Pilot Reactor,Unit,PC_PILOT1,U:PILOT1,Pilot reactor unit conducting experimental runs (ISA-95 Unit).
+EM_PILOT_CTRL,Pilot Controller,EquipmentModule,UNIT_PILOT_REACT,EM:PCTRL,Controller module orchestrating pilot reactor operations (ISA-88 Equipment Module).
