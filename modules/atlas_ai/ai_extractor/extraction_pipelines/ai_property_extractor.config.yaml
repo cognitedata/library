@@ -1,26 +1,26 @@
-externalId: '{{extractionPipelineExternalId}}'
+externalId: {{extractionPipelineExternalId}}
 config:
   agent:
-    externalId: '{{agentExternalId}}'
+    externalId: {{agentExternalId}}
   view:
-    space: '{{viewSpace}}'
-    externalId: '{{viewExternalId}}'
-    version: '{{viewVersion}}'
+    space: {{viewSpace}}
+    externalId: {{viewExternalId}}
+    version: {{viewVersion}}
   # Optional: Target view for writing extracted properties
   # If not specified, properties are written to the source view
   # targetView:
-  #   space: '{{targetViewSpace}}'
-  #   externalId: '{{targetViewExternalId}}'
-  #   version: '{{targetViewVersion}}'
+  #   space: {{targetViewSpace}}
+  #   externalId: {{targetViewExternalId}}
+  #   version: {{targetViewVersion}}
   extraction:
-    textProperty: '{{textProperty}}'
+    textProperty: {{textProperty}}
     # AI timestamp property - written to processed nodes to track state.
     # ONLY needed for append/overwrite write modes. Leave empty for add_new_only (default).
     # Must exist in the target view as a Timestamp type.
-    aiTimestampProperty: '{{aiTimestampProperty}}'
+    aiTimestampProperty: {{aiTimestampProperty}}
     # Legacy format (still supported):
-    propertiesToExtract: '{{propertiesToExtract}}'
-    aiPropertyMapping: '{{aiPropertyMapping}}'
+    propertiesToExtract: {{propertiesToExtract}}
+    aiPropertyMapping: {{aiPropertyMapping}}
     # New format with per-property write modes (takes precedence if provided):
     # properties:
     #   - property: tags
@@ -33,10 +33,10 @@ config:
   processing:
     batchSize: {{ batchSize }}
     llmBatchSize: {{ llmBatchSize }}
-    filters: '{{processingFilters}}'
+    filters: {{processingFilters}}
   prompt:
     # Custom instructions are appended to the prompt (configured via customPromptInstructions variable)
-    customInstructions: '{{customPromptInstructions}}'
+    customInstructions: {{customPromptInstructions}}
     # Custom prompt template. Leave empty to use the default template shown below.
     # Required placeholders: {text}, {properties}, {custom_instructions}
     # 
@@ -78,6 +78,6 @@ config:
   # State store configuration for incremental processing
   stateStore:
     enabled: {{ stateStoreEnabled }}
-    rawDatabase: '{{stateStoreDatabase}}'
-    rawTable: '{{stateStoreTable}}'
-    configVersion: '{{stateStoreConfigVersion}}'
+    rawDatabase: {{stateStoreDatabase}}
+    rawTable: {{stateStoreTable}}
+    configVersion: {{stateStoreConfigVersion}}
