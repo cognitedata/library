@@ -37,7 +37,7 @@ llmBatchSize: 1
 # Must exist in the target view as a Timestamp type.
 # Leave empty for add_new_only mode (default) — no timestamp needed.
 # Example: lastProcessedByAiExtractor
-aiTimestampProperty: ""
+aiTimestampProperty: "lastProcessedByAiExtractor"
 
 # Properties to extract - list of property IDs from the view
 # Leave empty to extract all non-filled properties
