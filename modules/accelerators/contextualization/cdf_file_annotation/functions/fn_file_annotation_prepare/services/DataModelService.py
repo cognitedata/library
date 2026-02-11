@@ -1,23 +1,22 @@
 import abc
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import (
+    InstancesApplyResult,
     Node,
-    NodeId,
-    NodeList,
     NodeApply,
     NodeApplyResultList,
-    instances,
-    InstancesApplyResult,
+    NodeId,
+    NodeList,
 )
 from cognite.client.data_classes.filters import (
-    Filter,
     Equals,
+    Exists,
+    Filter,
     In,
     Range,
-    Exists,
 )
-
 from services.ConfigService import (
     Config,
     ViewPropertyConfig,

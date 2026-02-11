@@ -1,0 +1,14 @@
+sourceName: Springfield Sharepoint
+sourceId: springfield_sharepoint
+schemaSpace: sp_enterprise_process_industry
+fileTransformationExternalId: files_metadata_springfield
+dataset: ingestion
+datamodelVersion: v1
+instanceSpace: springfield_instances
+rawSourceDatabase: ingestion
+
+groupSourceId: <GROUP_SOURCE_ID>
+workflow: files_metadata_population
+# TODO: Update to use the actual client ID and secret 'workflowClientId: ${SHAREPOINT_SERVICE_PRINCIPAL_CLIENT_ID} & workflowClientSecret: ${SHAREPOINT_SERVICE_PRINCIPAL_CLIENT_SECRET}'
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}

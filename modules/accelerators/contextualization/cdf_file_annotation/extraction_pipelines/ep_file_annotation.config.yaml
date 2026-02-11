@@ -23,16 +23,16 @@ config:
       version: {{ targetEntityVersion }}
       annotationType: diagrams.AssetLink
   prepareFunction:
-    # getFilesForAnnotationResetQuery:
-    #   targetView:
-    #     schemaSpace: {{fileSchemaSpace}}
-    #     externalId: {{fileExternalId}}
-    #     version: {{fileVersion}}
-    #   filters:
-    #     - values: ["AnnotationFailed", "Annotated"]
-    #       negate: False
-    #       operator: In
-    #       targetProperty: tags
+    getFilesForAnnotationResetQuery:
+      targetView:
+        schemaSpace: {{fileSchemaSpace}}
+        externalId: {{fileExternalId}}
+        version: {{fileVersion}}
+      filters:
+        - values: ["AnnotationFailed", "Annotated", "AnnotationInProcess"]
+          negate: False
+          operator: In
+          targetProperty: tags
     getFilesToAnnotateQuery:
       targetView:
         schemaSpace: {{ fileSchemaSpace }}
@@ -93,7 +93,7 @@ config:
             operator: In
             targetProperty: tags
     cacheService:
-      cacheTimeLimit: 24 # hours
+      cacheTimeLimit: 0 # hours
       rawDb: {{ rawDb }}
       rawTableCache: {{ rawTableCache }}
       rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}

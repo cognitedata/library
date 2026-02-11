@@ -1,0 +1,5 @@
+[module]
+title = "SAP Source System Events"
+is_selected_by_default = false
+id = "dp:sourcesystem:cdf_sap_events"
+package_id = "dp:accelerators"

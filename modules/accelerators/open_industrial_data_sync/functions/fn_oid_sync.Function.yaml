@@ -1,0 +1,12 @@
+- externalId: {{ functionExternalId }}
+  name: "Open Industrial Data Sync"
+  description: "Synchronizes time series data from Open Industrial Data (publicdata) to simulate real-time data"
+  owner: "Data Engineering"
+  functionPath: handler.py
+  secrets:
+    oid-secret: "{{openIdClientSecret}}"
+  cpu: 0.25
+  memory: 1.0
+  metadata:
+    version: "v1.0.0"
+  space: {{ functionSpace }}
