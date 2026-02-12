@@ -68,7 +68,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.help.subtitle": "What the concurrency and bubbles represent.",
     "processing.help.challenge.title": "Which challenges does this help solve?",
     "processing.help.challenge.one":
-      "Surface noisy or intermittent failures in Functions, Transformations, Workflows, and Extraction Pipelines that are easy to miss in the CDF UI.",
+      "Identify failures in Functions, Transformations, Workflows, and Extraction Pipelines that are easy to miss in the CDF GUI.",
     "processing.help.challenge.two":
       "Reduce contention and throttling (HTTP 429, concurrent limits) by spotting bursty scheduling and smoothing run overlap.",
     "processing.help.band":
