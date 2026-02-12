@@ -1,0 +1,11 @@
+externalId: tr_report_files_assets_not_in_baseline
+name:  report_files_assets_not_in_baseline
+dataSetExternalId: ds_quality_reports
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+destination:
+  database: db_quality_reports
+  table: tbl_contextualization_rate_report
+  type: raw

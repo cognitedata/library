@@ -1,0 +1,95 @@
+# AI Property Extractor Configuration
+# This module extracts structured properties from unstructured text using LLM agents
+
+# Space for function (required in DATA_MODELING_ONLY mode)
+functionSpace: springfield_instances # Default fro quick start module
+
+# Extraction Pipeline
+extractionPipelineExternalId: ep_ai_property_extractor
+
+# Agent configuration
+agentExternalId: ai_property_extractor_agent
+
+# View configuration (to be overridden per deployment)
+viewSpace: cdf_cdm
+viewExternalId: CogniteAsset
+viewVersion: v1
+
+# Optional: Target view for writing extracted properties
+# If not specified, properties are written to the source view
+# This is useful when you want to read from one view and write to another
+targetViewSpace: my_space
+targetViewExternalId: MyTargetView
+targetViewVersion: v1
+
+# Extraction settings
+textProperty: description
+batchSize: 10
+
+# LLM batch size - number of instances to send to LLM in a single prompt
+# Set to 1 for individual processing (default, same behavior as before)
+# Higher values (e.g., 5-10) reduce API calls but require more LLM context window
+# Use llmBatchSize > 1 when you want to process multiple items efficiently
+llmBatchSize: 1
+
+# AI Timestamp Property - property name used to stamp each processed node.
+# ONLY needed when using append/overwrite write modes.
+# Must exist in the target view as a Timestamp type.
+# Leave empty for add_new_only mode (default) — no timestamp needed.
+# Example: lastProcessedByAiExtractor
+aiTimestampProperty: "lastProcessedByAiExtractor"
+
+# Properties to extract - list of property IDs from the view
+# Leave empty to extract all non-filled properties
+# Use JSON array format: '["discipline", "priority", "category"]'
+propertiesToExtract: ["tags"]
+
+# AI Property Mapping - map source properties to different target properties
+# This allows AI-generated values to be written to separate fields
+# Use JSON object format: '{"description": "ai_description", "title": "ai_title"}'
+# Leave empty string '' or '{}' for no mapping
+aiPropertyMapping: '{}'
+
+# Optional DM filters for instance selection
+# Use JSON array format: '[{"type": "equals", "property": ["status"], "value": "active"}]'
+processingFilters: []
+
+# Custom prompt instructions - additional instructions appended to the base prompt
+# Use this to customize LLM behavior for your specific use case
+# Example: "Focus on extracting technical specifications. Use ISO date format for dates."
+customPromptInstructions: ""
+
+# NOTE: For custom prompt templates, edit the extraction pipeline config directly
+# after deployment (in extraction_pipelines/ai_property_extractor.config.yaml or in CDF).
+# Multi-line templates with special characters cannot be safely templated via variables.
+
+# ============================================================================
+# STATE STORE CONFIGURATION
+# ============================================================================
+# The state store enables incremental processing by tracking a cursor.
+# This allows efficient resumption of processing after timeouts or restarts.
+
+# Enable/disable state tracking (set to 'false' to disable)
+stateStoreEnabled: true
+
+# RAW database name for state storage
+stateStoreDatabase: ai_extractor_state
+
+# RAW table name for state storage  
+stateStoreTable: extraction_state
+
+# Config version - bump this to trigger a full re-run (e.g., after LLM upgrade)
+# Leave empty to disable version-based reset detection
+stateStoreConfigVersion: "v1"
+
+# ============================================================================
+# Workflow configuration
+# ============================================================================
+workflow: wf_ai_property_extractor
+
+# Schedule (cron expression) - runs daily at 4 AM
+scheduleExpression: "0 4 * * *"
+
+### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}

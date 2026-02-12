@@ -1,0 +1,13 @@
+- name: 'AI Property Extractor'
+  externalId: 'fn_ai_property_extractor'
+  dataSetExternalId: ds_ai_extractor
+  space: '{{functionSpace}}'
+  owner: 'Anonymous'
+  description: 'Extracts structured property values from unstructured text using LLM agents'
+  metadata:
+    version: '1.0.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'

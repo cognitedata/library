@@ -1,17 +1,17 @@
-from dataclasses import dataclass, asdict, field
-from typing import Literal, cast
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
-from datetime import datetime, timezone, timedelta
+from typing import Literal, cast
 
-from cognite.client.data_classes.data_modeling import (
-    Node,
-    NodeId,
-    NodeApply,
-    NodeOrEdgeData,
-    ViewId,
-)
 from cognite.client.data_classes.contextualization import (
     FileReference,
+)
+from cognite.client.data_classes.data_modeling import (
+    Node,
+    NodeApply,
+    NodeId,
+    NodeOrEdgeData,
+    ViewId,
 )
 
 

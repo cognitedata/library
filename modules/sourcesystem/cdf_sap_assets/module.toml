@@ -1,0 +1,5 @@
+[module]
+title = "SAP Source System Asset/Equipment Metadata"
+is_selected_by_default = false
+id = "dp:sourcesystem:cdf_sap_assets"
+package_id = "dp:accelerators"

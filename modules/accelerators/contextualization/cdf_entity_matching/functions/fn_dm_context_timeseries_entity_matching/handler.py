@@ -127,7 +127,7 @@ def run_locally():
     # Test data
     data = {
         "logLevel": "INFO", 
-        "ExtractionPipelineExtId": "ep_ctx_timeseries_LOC_SOURCE_entity_matching"
+        "ExtractionPipelineExtId": "ep_ctx_timeseries_Springfield_springfield_entity_matching"
     }
     
     # Run optimized handler

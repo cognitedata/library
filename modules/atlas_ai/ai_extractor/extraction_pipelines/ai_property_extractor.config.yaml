@@ -1,0 +1,83 @@
+externalId: {{extractionPipelineExternalId}}
+config:
+  agent:
+    externalId: {{agentExternalId}}
+  view:
+    space: {{viewSpace}}
+    externalId: {{viewExternalId}}
+    version: {{viewVersion}}
+  # Optional: Target view for writing extracted properties
+  # If not specified, properties are written to the source view
+  # targetView:
+  #   space: {{targetViewSpace}}
+  #   externalId: {{targetViewExternalId}}
+  #   version: {{targetViewVersion}}
+  extraction:
+    textProperty: {{textProperty}}
+    # AI timestamp property - written to processed nodes to track state.
+    # ONLY needed for append/overwrite write modes. Leave empty for add_new_only (default).
+    # Must exist in the target view as a Timestamp type.
+    aiTimestampProperty: {{aiTimestampProperty}}
+    # Legacy format (still supported):
+    propertiesToExtract: {{propertiesToExtract}}
+    aiPropertyMapping: {{aiPropertyMapping}}
+    # New format with per-property write modes (takes precedence if provided):
+    # properties:
+    #   - property: tags
+    #     targetProperty: ai_tags  # Optional, defaults to source property
+    #     writeMode: append        # append | overwrite | add_new_only (default)
+    #   - property: category
+    #     writeMode: add_new_only
+    #   - property: priority
+    #     writeMode: overwrite
+  processing:
+    batchSize: {{ batchSize }}
+    llmBatchSize: {{ llmBatchSize }}
+    filters: {{processingFilters}}
+  prompt:
+    # Custom instructions are appended to the prompt (configured via customPromptInstructions variable)
+    customInstructions: {{customPromptInstructions}}
+    # Custom prompt template. Leave empty to use the default template shown below.
+    # Required placeholders: {text}, {properties}, {custom_instructions}
+    # 
+    # DEFAULT TEMPLATE (used when template is empty):
+    # -----------------------------------------------
+    # You are an expert data analyst. You will receive a free text. Your task is to
+    # extract the relevant values for the following structured properties, as best as
+    # possible, from that text.
+    #
+    # For each property, you will be given:
+    # - externalId: A unique identifier for the property.
+    # - name: The display name.
+    # - description: A detailed explanation of what should be filled into this property.
+    #
+    # For each property, return the best-matching value you can extract from the text,
+    # or null if no relevant information is found. Output a dictionary in JSON with
+    # property externalId as key and the extracted value (or null) as value.
+    # {custom_instructions}
+    #
+    # Here is the text to analyze:
+    # {text}
+    #
+    # Here are the properties to fill:
+    # {properties}
+    #
+    # Remember:
+    # - Return only parsable JSON with property externalId keys.
+    # - Use null for missing fields.
+    # - If a property is a list, return a JSON array.
+    #
+    # Example output:
+    # {
+    #   "Property_XYZ": "value 1",
+    #   "Property_ABC": null,
+    #   "Property_List": ["value1", "value2"]
+    # }
+    # ----------------------------------------------- 
+    template: ""
+  # State store configuration for incremental processing
+  stateStore:
+    enabled: {{ stateStoreEnabled }}
+    rawDatabase: {{stateStoreDatabase}}
+    rawTable: {{stateStoreTable}}
+    configVersion: {{stateStoreConfigVersion}}

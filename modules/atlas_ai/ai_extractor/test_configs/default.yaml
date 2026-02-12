@@ -1,0 +1,73 @@
+agent:
+  externalId: "ai_property_extractor_agent"
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+# Optional: Target view for writing extracted properties
+# If not specified, properties are written to the source view
+# targetView:
+#   space: "rmdm"
+#   externalId: "Asset"
+#   version: "v1"
+extraction:
+  textProperty: "description"
+  # New format with per-property write modes
+  properties:
+    - property: tags
+      writeMode: add_new_only
+    - property: aliases
+      writeMode: add_new_only
+processing:
+  batchSize: 10
+  # LLM batch size - number of instances to send to LLM in a single prompt
+  # Set to 1 for individual processing (default), higher values reduce API calls
+  llmBatchSize: 1
+  filters: "[]"
+prompt:
+  # Custom instructions are appended to the prompt (configured via customPromptInstructions variable)
+  customInstructions: ""
+  # Custom prompt template. Leave empty to use the default template shown below.
+  # Required placeholders: {text}, {properties}, {custom_instructions}
+  #
+  # DEFAULT TEMPLATE (used when template is empty):
+  # -----------------------------------------------
+  # You are an expert data analyst. You will receive a free text. Your task is to
+  # extract the relevant values for the following structured properties, as best as
+  # possible, from that text.
+  #
+  # For each property, you will be given:
+  # - externalId: A unique identifier for the property.
+  # - name: The display name.
+  # - description: A detailed explanation of what should be filled into this property.
+  #
+  # For each property, return the best-matching value you can extract from the text,
+  # or null if no relevant information is found. Output a dictionary in JSON with
+  # property externalId as key and the extracted value (or null) as value.
+  # {custom_instructions}
+  #
+  # Here is the text to analyze:
+  # {text}
+  #
+  # Here are the properties to fill:
+  # {properties}
+  #
+  # Remember:
+  # - Return only parsable JSON with property externalId keys.
+  # - Use null for missing fields.
+  # - If a property is a list, return a JSON array.
+  #
+  # Example output:
+  # {
+  #   "Property_XYZ": "value 1",
+  #   "Property_ABC": null,
+  #   "Property_List": ["value1", "value2"]
+  # }
+  # -----------------------------------------------
+  template: ""
+# State store configuration for incremental processing
+stateStore:
+  enabled: True
+  rawDatabase: "ai_extractor_state"
+  rawTable: "extraction_state"
+  configVersion: "v1"

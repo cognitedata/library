@@ -1,0 +1,5 @@
+[module]
+title = "Search configuration with location filter"
+is_selected_by_default = false
+id = "dp:acc:industrial_tools:cdf_search"
+package_id = "dp:accelerators"

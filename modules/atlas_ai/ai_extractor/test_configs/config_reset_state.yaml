@@ -1,0 +1,42 @@
+# Test Config: Force state reset
+# This triggers a full re-run by resetting the state store cursor
+# Use this when you want to re-process ALL instances from the beginning
+#
+# Note: With add_new_only mode, resetting state is not strictly necessary
+# since the property existence filter prevents reprocessing. But it's
+# useful for clearing statistics and testing the reset functionality.
+
+agent:
+  externalId: "ai_property_extractor_agent"
+
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+
+extraction:
+  textProperty: "description"
+  properties:
+    - property: tags
+      writeMode: add_new_only
+    - property: aliases
+      writeMode: add_new_only
+
+processing:
+  batchSize: 10
+  llmBatchSize: 1
+  # Note: resetState is passed as function input, not in config
+  # To reset state, call: client.functions.call(..., data={"resetState": true})
+
+stateStore:
+  enabled: true
+  rawDatabase: "ai_extractor_state"
+  rawTable: "extraction_state"
+  configVersion: "v1-reset-test"  # Bump this to trigger full re-run
+
+prompt:
+  customInstructions: |
+    Extract relevant tags and aliases from the asset description.
+    - tags: Keywords or categories that describe the asset
+    - aliases: Alternative names or identifiers for the asset
+    Return as JSON arrays of strings.
