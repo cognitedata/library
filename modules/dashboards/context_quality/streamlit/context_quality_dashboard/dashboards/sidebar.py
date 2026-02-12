@@ -18,6 +18,47 @@ from .reports import (
 )
 
 
+def _instance_counts_from_metrics(metrics: dict) -> dict:
+    """Build instance counts from metric sections (totals). Used when metadata.instance_counts is partial/zeros (e.g. after single-metric rerun)."""
+    hierarchy = metrics.get("hierarchy_metrics", {})
+    equipment = metrics.get("equipment_metrics", {})
+    ts = metrics.get("timeseries_metrics", {})
+    maint = metrics.get("maintenance_metrics", {})
+    annot = metrics.get("file_annotation_metrics", {})
+    model3d = metrics.get("model3d_metrics", {})
+    file_metrics = metrics.get("file_metrics", {})
+    return {
+        "assets": {"unique": hierarchy.get("hierarchy_total_assets", 0), "total_instances": hierarchy.get("hierarchy_total_assets", 0)},
+        "equipment": {"unique": equipment.get("eq_total", 0), "total_instances": equipment.get("eq_total", 0)},
+        "timeseries": {"unique": ts.get("ts_total", 0), "total_instances": ts.get("ts_total", 0)},
+        "notifications": {"unique": maint.get("maint_total_notifications", 0), "total_instances": maint.get("maint_total_notifications", 0)},
+        "maintenance_orders": {"unique": maint.get("maint_total_orders", 0), "total_instances": maint.get("maint_total_orders", 0)},
+        "failure_notifications": {"unique": maint.get("maint_total_failure_notifications", 0)},
+        "annotations": {"unique": annot.get("annot_total_instances", annot.get("annot_total", 0)), "total_instances": annot.get("annot_total_instances", annot.get("annot_total", 0))},
+        "3d_objects": {
+            "unique": model3d.get("model3d_total_objects", 0),
+            "assets_with_3d": model3d.get("model3d_assets_with_3d", 0),
+        },
+        "files": {"unique": file_metrics.get("file_total", 0), "total_instances": file_metrics.get("file_total", 0)},
+    }
+
+
+def _merge_instance_counts(metadata_counts: dict, metrics_counts: dict) -> dict:
+    """Use metadata instance_counts when non-zero; otherwise use totals from metrics."""
+    merged = {}
+    for key, fallback in metrics_counts.items():
+        meta = metadata_counts.get(key, {}) or {}
+        unique_meta = meta.get("unique", 0) or meta.get("total_instances", 0)
+        unique_fallback = fallback.get("unique", 0) or fallback.get("total_instances", 0)
+        if unique_meta > 0:
+            merged[key] = dict(meta)
+        elif unique_fallback > 0:
+            merged[key] = dict(fallback)
+        else:
+            merged[key] = dict(meta) if meta else dict(fallback)
+    return merged
+
+
 def render_metadata_sidebar(metrics: dict):
     """Display metadata in the sidebar."""
     metadata = metrics.get("metadata", {})
@@ -167,9 +208,11 @@ def render_metadata_sidebar(metrics: dict):
     
     st.sidebar.markdown("---")
     
-    # Instance Counts Section
+    # Instance Counts Section (use totals from metrics when metadata counts are zero, e.g. after single-metric rerun)
     st.sidebar.markdown("### Instance Counts")
-    instance_counts = metadata.get("instance_counts", {})
+    instance_counts_raw = metadata.get("instance_counts", {})
+    instance_counts_from_metrics = _instance_counts_from_metrics(metrics)
+    instance_counts = _merge_instance_counts(instance_counts_raw, instance_counts_from_metrics)
     config = metadata.get("config", {})
     limits = metadata.get("limits_reached", {})
     
