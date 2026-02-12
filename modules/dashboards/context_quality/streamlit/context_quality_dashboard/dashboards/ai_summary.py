@@ -21,7 +21,7 @@ def generate_ai_summary(
     dashboard_type: str,
     metrics_data: dict,
     system_prompt: str,
-    model: str = "gpt-4o-mini"
+    model: str = "azure/gpt-4.1"
 ) -> str:
     """
     Generate an AI summary for a dashboard.
@@ -30,7 +30,7 @@ def generate_ai_summary(
         dashboard_type: Type of dashboard (hierarchy, equipment, timeseries, maintenance)
         metrics_data: Dictionary containing the metrics to summarize
         system_prompt: System prompt with context about the metrics
-        model: AI model to use (default: gpt-4o-mini)
+        model: AI model to use (default: azure/gpt-4.1)
     
     Returns:
         Generated summary text
@@ -341,8 +341,8 @@ Maintenance Coverage:
 
 
 def get_file_annotation_prompt() -> str:
-    """System prompt for File Annotation dashboard."""
-    return """You are an industrial data quality expert analyzing file annotation metrics for P&ID diagrams.
+    """System prompt for P&ID Annotation dashboard."""
+    return """You are an industrial data quality expert analyzing P&ID annotation metrics for P&ID diagrams.
 
 CRITICAL RULES - Follow these exactly:
 
@@ -380,7 +380,7 @@ FOCUS ON: Confidence distribution and review backlog (suggested annotations)."""
 
 
 def format_file_annotation_metrics(annot: dict, files_in_scope: int = 0, expected_tags: int = 0) -> str:
-    """Format file annotation metrics for AI prompt."""
+    """Format P&ID annotation metrics for AI prompt."""
     # Calculate rates if reference numbers provided
     file_rate = "N/A (user did not provide reference)"
     if files_in_scope > 0:
@@ -392,7 +392,7 @@ def format_file_annotation_metrics(annot: dict, files_in_scope: int = 0, expecte
         rate = round(annot.get('annot_asset_tags', 0) / expected_tags * 100, 1)
         tag_rate = f"{rate}%"
     
-    return f"""File Annotation Metrics (CDM CogniteDiagramAnnotation):
+    return f"""P&ID Annotation Metrics (CDM CogniteDiagramAnnotation):
 
 Core Counts:
 - Total Annotations: {annot.get('annot_total', 0):,}

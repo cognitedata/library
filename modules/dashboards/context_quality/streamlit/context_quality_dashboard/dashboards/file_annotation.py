@@ -20,6 +20,7 @@ from .ai_summary import (
     get_file_annotation_prompt,
     format_file_annotation_metrics,
 )
+from .reports import generate_file_annotation_report
 
 
 def get_status_color_annotation(metric_key, value):
@@ -53,7 +54,7 @@ def get_status_color_annotation(metric_key, value):
 
 def render_file_annotation_dashboard(metrics: dict):
     """Render the File Annotation Quality dashboard tab."""
-    st.title("File Annotation Quality Dashboard")
+    st.title("P&ID Annotation Quality Dashboard")
     st.markdown("*Based on CDM CogniteDiagramAnnotation*")
     
     annot = metrics.get("file_annotation_metrics", {})
@@ -65,16 +66,16 @@ def render_file_annotation_dashboard(metrics: dict):
     
     if not annotations_enabled:
         st.warning("""
-        **File Annotation Metrics Disabled**
-        
-        File annotation metrics are disabled in the function configuration.
+        **P&ID Annotation Metrics Disabled**
+
+        P&ID annotation metrics are disabled in the function configuration.
         To enable, set `enable_file_annotation_metrics: true` in the function input.
         """)
         return
     
     if not annot or not annot.get("annot_has_data", False):
         st.warning("""
-        **No File Annotation Data Found**
+        **No P&ID Annotation Data Found**
         
         No CogniteDiagramAnnotation edges found in the CDM.
         """)
@@ -130,6 +131,17 @@ def render_file_annotation_dashboard(metrics: dict):
         
         *Tip: High confidence + high approved rate indicates good annotation quality. Enter reference numbers above to calculate coverage rates.*
         """)
+    
+    # Download Report Button
+    st.download_button(
+        label="Download P&ID Annotation Report (PDF)",
+        data=generate_file_annotation_report(metrics),
+        file_name="pnid_annotation_report.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+        type="primary",
+        key="download_file_annotation_report"
+    )
     
     # Extract base metrics
     total_annotations = annot.get("annot_total", 0)
@@ -465,11 +477,11 @@ def render_file_annotation_dashboard(metrics: dict):
     # AI SUMMARY SECTION
     # Pass user-provided reference numbers to the AI
     render_ai_summary_section(
-        dashboard_type="File Annotation Quality",
+        dashboard_type="P&ID Annotation Quality",
         metrics_data=format_file_annotation_metrics(annot, files_in_scope, expected_tags),
         system_prompt=get_file_annotation_prompt(),
         key_prefix="file_annotation"
     )
     
     st.markdown("---")
-    st.success("File Annotation dashboard loaded from pre-computed metrics.")
+    st.success("P&ID Annotation dashboard loaded from pre-computed metrics.")

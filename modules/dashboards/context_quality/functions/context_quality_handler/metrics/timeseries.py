@@ -48,6 +48,27 @@ def process_timeseries_batch(
         
         if has_asset_link:
             acc.ts_with_asset_link += 1
+        else:
+            # Track orphaned TS (no asset link) for CSV export
+            acc.ts_orphaned_ids.append(ts_id)
+        
+        # Track equipment with TS and TS with equipment links
+        equipment_ref = props.get("equipment") or []
+        if isinstance(equipment_ref, dict):
+            equipment_ref = [equipment_ref]
+        
+        has_equipment_link = False
+        for eq in equipment_ref:
+            eq_id = eq.get("externalId")
+            if eq_id:
+                acc.equipment_with_ts.add(eq_id)
+                has_equipment_link = True
+        
+        if has_equipment_link:
+            acc.ts_with_equipment_link += 1
+        else:
+            # Track TS without equipment link for CSV export
+            acc.ts_without_equipment_ids.append(ts_id)
         
         # Unit Metrics - get from view properties first, fallback to dump
         unit = props.get("unit")
@@ -193,11 +214,18 @@ def compute_historical_gaps_batch(
 def compute_ts_metrics(acc: CombinedAccumulator) -> dict:
     """Compute all time series contextualization metrics."""
     associated_assets = len(acc.assets_with_ts)
+    associated_equipment = len(acc.equipment_with_ts)
     
     # TS to Asset Rate: % of time series that are linked to at least one asset
     # This is the PRIMARY metric - orphaned TS (not linked to asset) are a problem
     ts_to_asset_rate = (
         (acc.ts_with_asset_link / acc.total_ts * 100)
+        if acc.total_ts else 0.0
+    )
+    
+    # TS to Equipment Rate: % of time series that are linked to at least one equipment
+    ts_to_equipment_rate = (
+        (acc.ts_with_equipment_link / acc.total_ts * 100)
         if acc.total_ts else 0.0
     )
     
@@ -264,6 +292,11 @@ def compute_ts_metrics(acc: CombinedAccumulator) -> dict:
         "ts_to_asset_rate": round(ts_to_asset_rate, 2),
         "ts_with_asset_link": acc.ts_with_asset_link,
         "ts_without_asset_link": acc.total_ts - acc.ts_with_asset_link,
+        # TS to Equipment Contextualization
+        "ts_to_equipment_rate": round(ts_to_equipment_rate, 2),
+        "ts_with_equipment_link": acc.ts_with_equipment_link,
+        "ts_without_equipment_link": acc.total_ts - acc.ts_with_equipment_link,
+        "ts_associated_equipment": associated_equipment,
         # SECONDARY: Asset Monitoring Coverage (OK for some assets to lack TS)
         "ts_asset_monitoring_coverage": round(asset_monitoring_coverage, 2),
         "ts_associated_assets": associated_assets,
@@ -294,4 +327,7 @@ def compute_ts_metrics(acc: CombinedAccumulator) -> dict:
         "ts_fresh_count": acc.fresh_count,
         "ts_processing_lag_hours": round(processing_lag_hours, 2) if processing_lag_hours else None,
         "ts_total": acc.total_ts,
+        # Orphaned entity IDs for CSV export
+        "ts_orphaned_ids": acc.ts_orphaned_ids,
+        "ts_without_equipment_ids": acc.ts_without_equipment_ids,
     }

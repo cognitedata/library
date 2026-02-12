@@ -216,6 +216,7 @@ def generate_timeseries_report(metrics: dict) -> bytes:
     ts_to_asset = ts.get("ts_to_asset_rate", 0)
     
     pdf.add_key_metric("TS to Asset Contextualization", ts_to_asset)
+    pdf.add_key_metric("TS to Equipment Contextualization", ts.get("ts_to_equipment_rate", 0), threshold_good=70, threshold_warn=40)
     pdf.add_key_metric("Asset Monitoring Coverage", ts.get("ts_asset_monitoring_coverage", 0), threshold_good=70, threshold_warn=40)
     pdf.add_key_metric("Data Freshness (30 days)", ts.get("ts_data_freshness", 0))
     pdf.add_key_metric("Source Unit Completeness", ts.get("ts_source_unit_completeness", 0))
@@ -226,6 +227,8 @@ def generate_timeseries_report(metrics: dict) -> bytes:
     pdf.add_metric_row("Total Time Series", f"{ts.get('ts_total', 0):,}")
     pdf.add_metric_row("TS with Asset Link", f"{ts.get('ts_with_asset_link', 0):,}")
     pdf.add_metric_row("Orphaned TS", f"{ts.get('ts_without_asset_link', 0):,}")
+    pdf.add_metric_row("TS with Equipment Link", f"{ts.get('ts_with_equipment_link', 0):,}")
+    pdf.add_metric_row("Equipment with TS", f"{ts.get('ts_associated_equipment', 0):,}")
     pdf.add_metric_row("Assets with TS", f"{ts.get('ts_associated_assets', 0):,}")
     pdf.add_metric_row("Total Assets", f"{hierarchy.get('hierarchy_total_assets', 0):,}")
     pdf.add_metric_row("Fresh TS Count", f"{ts.get('ts_fresh_count', 0):,}")
@@ -304,11 +307,11 @@ def generate_maintenance_report(metrics: dict) -> bytes:
 
 
 def generate_file_annotation_report(metrics: dict) -> bytes:
-    """Generate PDF report for File Annotation dashboard."""
+    """Generate PDF report for P&ID Annotation dashboard."""
     annot = metrics.get("file_annotation_metrics", {})
     metadata = metrics.get("metadata", {})
     
-    pdf = ContextQualityReport("File Annotation Quality Report")
+    pdf = ContextQualityReport("P&ID Annotation Quality Report")
     pdf.alias_nb_pages()
     pdf.add_page()
     
@@ -457,9 +460,307 @@ def generate_files_report(metrics: dict) -> bytes:
     return bytes(pdf.output())
 
 
+def generate_others_report(metrics: dict) -> bytes:
+    """Generate PDF report for Others IDI Views dashboard."""
+    others = metrics.get("others_metrics", {})
+    metadata = metrics.get("metadata", {})
+    
+    pdf = ContextQualityReport("Others IDI Views Quality Report")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # Executive Summary
+    pdf.add_section_header("Executive Summary")
+    overall_rate = others.get("others_overall_asset_rate")
+    
+    if overall_rate is not None:
+        pdf.add_key_metric("Overall Asset Link Rate", overall_rate)
+    else:
+        pdf.add_metric_row("Overall Asset Link Rate", "N/A")
+    
+    pdf.add_metric_row("Total Views", f"{others.get('others_total_views', 0)}")
+    pdf.add_metric_row("Views with Data", f"{others.get('others_views_with_data', 0)}")
+    pdf.add_metric_row("Total Records", f"{others.get('others_total_instances', 0):,}")
+    pdf.ln(5)
+    
+    # Per-View Metrics Table
+    pdf.add_section_header("Per-View Metrics")
+    
+    views = others.get("others_views", [])
+    if views:
+        # Filter to views with data
+        ok_views = [v for v in views if v.get("status") == "ok"]
+        
+        if ok_views:
+            headers = ["View", "Total", "With Asset", "Rate %"]
+            rows = []
+            for view in ok_views:
+                rate = view.get("asset_link_rate")
+                rate_str = f"{rate:.1f}" if rate is not None else "N/A"
+                rows.append([
+                    view.get("display_name", view.get("view_id", "?"))[:20],
+                    str(view.get("unique_instances", 0)),
+                    str(view.get("instances_with_asset", 0)),
+                    rate_str
+                ])
+            pdf.add_table(headers, rows)
+        else:
+            pdf.add_paragraph("No views with data found.")
+    else:
+        pdf.add_paragraph("No view data available.")
+    
+    pdf.ln(5)
+    
+    # View Status Summary
+    pdf.add_section_header("View Status Summary")
+    
+    if views:
+        ok_count = len([v for v in views if v.get("status") == "ok"])
+        empty_count = len([v for v in views if v.get("status") == "empty"])
+        error_count = len([v for v in views if v.get("status") in ["not_found", "error"]])
+        
+        pdf.add_metric_row("Views with Data", f"{ok_count}", "good" if ok_count > 0 else None)
+        pdf.add_metric_row("Empty Views", f"{empty_count}", "warning" if empty_count > 0 else None)
+        pdf.add_metric_row("Views with Errors", f"{error_count}", "error" if error_count > 0 else None)
+        pdf.ln(5)
+        
+        # List empty views if any
+        empty_views = [v for v in views if v.get("status") == "empty"]
+        if empty_views:
+            pdf.add_section_header("Empty Views")
+            for view in empty_views:
+                pdf.add_paragraph(f"- {view.get('display_name', view.get('view_id'))}")
+        
+        # List error views if any
+        error_views = [v for v in views if v.get("status") in ["not_found", "error"]]
+        if error_views:
+            pdf.add_section_header("Views with Errors")
+            for view in error_views:
+                error_msg = view.get("error", "Unknown error")
+                pdf.add_paragraph(f"- {view.get('display_name', view.get('view_id'))}: {error_msg}")
+    
+    # Insights
+    pdf.add_section_header("Insights")
+    insights = []
+    
+    if overall_rate is not None:
+        if overall_rate >= 90:
+            insights.append("Excellent asset linkage across IDI views - data is well contextualized.")
+        elif overall_rate >= 70:
+            insights.append("Good asset linkage, but some views may need attention.")
+        else:
+            insights.append("Asset linkage needs improvement - review views with low rates.")
+    
+    views_with_data = others.get("others_views_with_data", 0)
+    total_views = others.get("others_total_views", 0)
+    if total_views > 0 and views_with_data < total_views:
+        insights.append(f"{total_views - views_with_data} views are empty or have errors.")
+    
+    if not insights:
+        insights.append("No specific insights available.")
+    
+    for insight in insights:
+        pdf.add_paragraph(f"- {insight}")
+    
+    # Metadata
+    pdf.add_section_header("Report Metadata")
+    pdf.add_metric_row("Computed At", metadata.get("computed_at", "Unknown"))
+    
+    return bytes(pdf.output())
+
+
+def generate_maintenance_idi_report(metrics: dict) -> bytes:
+    """Generate PDF report for Maintenance IDI Views dashboard."""
+    maint = metrics.get("maintenance_idi_metrics", {})
+    metadata = metrics.get("metadata", {})
+    
+    pdf = ContextQualityReport("Maintenance IDI Views Quality Report")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # Executive Summary
+    pdf.add_section_header("Executive Summary")
+    asset_coverage = maint.get("maint_idi_asset_coverage_rate")
+    
+    if asset_coverage is not None:
+        pdf.add_key_metric("Asset Maintenance Coverage", asset_coverage, threshold_good=50, threshold_warn=20)
+    else:
+        pdf.add_metric_row("Asset Maintenance Coverage", "N/A")
+    
+    pdf.add_metric_row("Total Views", f"{maint.get('maint_idi_total_views', 0)}")
+    pdf.add_metric_row("Views with Data", f"{maint.get('maint_idi_views_with_data', 0)}")
+    pdf.add_metric_row("Total Instances", f"{maint.get('maint_idi_total_instances', 0):,}")
+    pdf.add_metric_row("Assets with Maintenance", f"{maint.get('maint_idi_assets_with_maintenance', 0):,}")
+    pdf.ln(5)
+    
+    # Per-View Metrics
+    pdf.add_section_header("Per-View Metrics")
+    
+    views = maint.get("maint_idi_views", [])
+    if views:
+        ok_views = [v for v in views if v.get("status") == "ok"]
+        
+        if ok_views:
+            for view in ok_views:
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.cell(0, 8, view.get("display_name", view.get("view_id", "?")), ln=True)
+                pdf.set_font("Helvetica", "", 10)
+                
+                pdf.add_metric_row("  Total Records", f"{view.get('unique_instances', 0):,}")
+                pdf.add_metric_row("  Duplicates", f"{view.get('duplicates', 0):,}")
+                
+                # Relations
+                relations = view.get("relations", {})
+                for rel_name, rel_data in relations.items():
+                    rate = rel_data.get("rate")
+                    rate_str = f"{rate:.1f}%" if rate is not None else "N/A"
+                    pdf.add_metric_row(f"  - {rel_name.title()}", f"{rate_str} ({rel_data.get('count', 0):,} linked)")
+                pdf.ln(2)
+        else:
+            pdf.add_paragraph("No views with data found.")
+    else:
+        pdf.add_paragraph("No view data available.")
+    
+    pdf.ln(5)
+    
+    # View Status Summary
+    pdf.add_section_header("View Status Summary")
+    
+    if views:
+        ok_count = len([v for v in views if v.get("status") == "ok"])
+        empty_count = len([v for v in views if v.get("status") == "empty"])
+        error_count = len([v for v in views if v.get("status") in ["not_found", "error"]])
+        
+        pdf.add_metric_row("Views with Data", f"{ok_count}", "good" if ok_count > 0 else None)
+        pdf.add_metric_row("Empty Views", f"{empty_count}", "warning" if empty_count > 0 else None)
+        pdf.add_metric_row("Views with Errors", f"{error_count}", "error" if error_count > 0 else None)
+    
+    # Insights
+    pdf.add_section_header("Insights")
+    insights = []
+    
+    if asset_coverage is not None:
+        if asset_coverage >= 50:
+            insights.append("Good asset maintenance coverage - half or more of assets have maintenance data.")
+        elif asset_coverage >= 20:
+            insights.append("Moderate asset coverage - consider reviewing assets without maintenance data.")
+        else:
+            insights.append("Low asset coverage - many assets lack maintenance records.")
+    
+    views_with_data = maint.get("maint_idi_views_with_data", 0)
+    total_views = maint.get("maint_idi_total_views", 0)
+    if total_views > 0 and views_with_data < total_views:
+        insights.append(f"{total_views - views_with_data} maintenance views are empty or have errors.")
+    
+    if not insights:
+        insights.append("No specific insights available.")
+    
+    for insight in insights:
+        pdf.add_paragraph(f"- {insight}")
+    
+    # Metadata
+    pdf.add_section_header("Report Metadata")
+    pdf.add_metric_row("Computed At", metadata.get("computed_at", "Unknown"))
+    
+    return bytes(pdf.output())
+
+
+def generate_staging_report(metrics: dict) -> bytes:
+    """Generate PDF report for Staging vs DM Comparison dashboard."""
+    staging = metrics.get("staging_metrics", {})
+    metadata = metrics.get("metadata", {})
+    
+    pdf = ContextQualityReport("Staging vs Data Model Comparison Report")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # Executive Summary
+    pdf.add_section_header("Executive Summary")
+    overall_rate = staging.get("staging_overall_match_rate", 0)
+    
+    pdf.add_key_metric("Overall Match Rate", overall_rate)
+    pdf.add_metric_row("Total Mappings", f"{staging.get('staging_total_mappings', 0)}")
+    pdf.add_metric_row("Views Matched (>=99%)", f"{staging.get('staging_views_matched', 0)}")
+    pdf.add_metric_row("Views with Gaps", f"{staging.get('staging_views_with_gaps', 0)}")
+    pdf.add_metric_row("Views Not Found", f"{staging.get('staging_views_not_found', 0)}")
+    pdf.add_metric_row("Views with Errors", f"{staging.get('staging_views_with_errors', 0)}")
+    pdf.ln(5)
+    
+    # Data Volume
+    pdf.add_section_header("Data Volume")
+    pdf.add_metric_row("Total Raw Rows", f"{staging.get('staging_total_raw_rows', 0):,}")
+    pdf.add_metric_row("Total DM Instances", f"{staging.get('staging_total_dm_instances', 0):,}")
+    pdf.add_metric_row("Total Difference", f"{staging.get('staging_total_difference', 0):,}")
+    pdf.ln(5)
+    
+    # Per-View Comparison
+    pdf.add_section_header("Per-View Comparison")
+    
+    comparisons = staging.get("staging_comparisons", [])
+    if comparisons:
+        headers = ["View", "Raw", "DM", "Match %", "Status"]
+        rows = []
+        for comp in comparisons[:15]:  # Limit to 15 rows
+            status = comp.get("status", "unknown")
+            rate = comp.get("match_rate", 0)
+            rows.append([
+                comp.get("dm_view", "?")[:18],
+                str(comp.get("raw_total", 0)),
+                str(comp.get("dm_count", 0)),
+                f"{rate:.1f}",
+                status[:12]
+            ])
+        pdf.add_table(headers, rows)
+        
+        if len(comparisons) > 15:
+            pdf.add_paragraph(f"... and {len(comparisons) - 15} more views")
+    else:
+        pdf.add_paragraph("No comparison data available.")
+    
+    pdf.ln(5)
+    
+    # Configuration
+    pdf.add_section_header("Configuration Used")
+    config = staging.get("staging_config", {})
+    pdf.add_metric_row("Raw Database", config.get("raw_database", "Unknown"))
+    pdf.add_metric_row("DM Space", config.get("dm_space", "Unknown"))
+    pdf.add_metric_row("DM Version", config.get("dm_version", "Unknown"))
+    pdf.ln(5)
+    
+    # Insights
+    pdf.add_section_header("Insights")
+    insights = []
+    
+    if overall_rate >= 99:
+        insights.append("Excellent data pipeline health - staging and DM are well synchronized.")
+    elif overall_rate >= 90:
+        insights.append("Good data pipeline - minor discrepancies exist between staging and DM.")
+    elif overall_rate >= 70:
+        insights.append("Data pipeline needs attention - significant gaps between staging and DM.")
+    else:
+        insights.append("Critical: Large data loss between staging and DM - investigate immediately.")
+    
+    views_with_gaps = staging.get("staging_views_with_gaps", 0)
+    if views_with_gaps > 0:
+        insights.append(f"{views_with_gaps} views have data gaps that may need investigation.")
+    
+    views_not_found = staging.get("staging_views_not_found", 0)
+    if views_not_found > 0:
+        insights.append(f"{views_not_found} views were not found in the Data Model.")
+    
+    for insight in insights:
+        pdf.add_paragraph(f"- {insight}")
+    
+    # Metadata
+    pdf.add_section_header("Report Metadata")
+    pdf.add_metric_row("Computed At", metadata.get("computed_at", "Unknown"))
+    
+    return bytes(pdf.output())
+
+
 def generate_full_report(metrics: dict) -> bytes:
     """Generate a comprehensive PDF report covering all dashboards."""
-    metadata = metrics.get("metadata", {})
+    metadata = metrics.get("metadata") or {}
     
     pdf = ContextQualityReport("Contextualization Quality - Full Report")
     pdf.alias_nb_pages()
@@ -484,6 +785,7 @@ def generate_full_report(metrics: dict) -> bytes:
     ts = metrics.get("timeseries_metrics", {})
     maint = metrics.get("maintenance_metrics", {})
     files = metrics.get("file_metrics", {})
+    others = metrics.get("others_metrics", {})
     
     pdf.add_key_metric("Asset Hierarchy Completion", hierarchy.get("hierarchy_completion_rate", 0))
     pdf.add_key_metric("Equipment Association", equipment.get("eq_association_rate", 0))
@@ -495,22 +797,28 @@ def generate_full_report(metrics: dict) -> bytes:
     if files:
         pdf.add_key_metric("File to Asset", files.get("file_to_asset_rate", 0))
     
+    if others and others.get("others_overall_asset_rate") is not None:
+        pdf.add_key_metric("Others Asset Linkage", others.get("others_overall_asset_rate", 0))
+    
     pdf.ln(10)
     
     # Instance Counts
     pdf.add_section_header("Data Volume Summary")
-    instance_counts = metadata.get("instance_counts", {})
+    instance_counts = metadata.get("instance_counts") or {}
     
-    pdf.add_metric_row("Assets", f"{instance_counts.get('assets', {}).get('unique', 0):,}")
-    pdf.add_metric_row("Time Series", f"{instance_counts.get('timeseries', {}).get('unique', 0):,}")
-    pdf.add_metric_row("Equipment", f"{instance_counts.get('equipment', {}).get('unique', 0):,}")
+    pdf.add_metric_row("Assets", f"{(instance_counts.get('assets') or {}).get('unique', 0):,}")
+    pdf.add_metric_row("Time Series", f"{(instance_counts.get('timeseries') or {}).get('unique', 0):,}")
+    pdf.add_metric_row("Equipment", f"{(instance_counts.get('equipment') or {}).get('unique', 0):,}")
     
     if "notifications" in instance_counts:
-        pdf.add_metric_row("Notifications", f"{instance_counts.get('notifications', {}).get('unique', 0):,}")
-        pdf.add_metric_row("Work Orders", f"{instance_counts.get('maintenance_orders', {}).get('unique', 0):,}")
+        pdf.add_metric_row("Notifications", f"{(instance_counts.get('notifications') or {}).get('unique', 0):,}")
+        pdf.add_metric_row("Work Orders", f"{(instance_counts.get('maintenance_orders') or {}).get('unique', 0):,}")
     
     if "files" in instance_counts:
-        pdf.add_metric_row("Files", f"{instance_counts.get('files', {}).get('unique', 0):,}")
+        pdf.add_metric_row("Files", f"{(instance_counts.get('files') or {}).get('unique', 0):,}")
+    
+    if others and others.get("others_total_instances", 0) > 0:
+        pdf.add_metric_row("Others (IDI Views)", f"{others.get('others_total_instances', 0):,}")
     
     # Recommendations
     pdf.add_page()
@@ -532,6 +840,9 @@ def generate_full_report(metrics: dict) -> bytes:
     
     if files and files.get("file_to_asset_rate", 100) < 80:
         recommendations.append("Link orphaned files to relevant assets for better document management.")
+    
+    if others and (others.get("others_overall_asset_rate") or 0) < 80:
+        recommendations.append("Improve asset linkage for IDI views (Others category) to ensure proper data contextualization.")
     
     if not recommendations:
         recommendations.append("Excellent data quality! Continue monitoring to maintain standards.")

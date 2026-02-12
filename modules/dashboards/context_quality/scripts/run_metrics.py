@@ -7,6 +7,8 @@ This script runs locally on your machine to compute contextualization quality
 metrics and upload them to CDF. It provides the same functionality as the
 Cognite Function but without timeout limitations.
 
+All dashboard tabs are treated equally - use --only to selectively recompute.
+
 Advantages over Cognite Functions:
 - No 15-minute timeout limit
 - Uses local compute resources (more memory/CPU)
@@ -25,14 +27,24 @@ Usage:
     # Or use a .env file from cognite-toolkit
     # The script will read the same variables
     
-    # Run with defaults
+    # Full recompute - all tabs/sections
     python run_metrics.py
     
-    # Run with custom config
+    # Selective recompute - only specific tabs (others preserved from cache)
+    python run_metrics.py --only staging
+    python run_metrics.py --only ts --only assets
+    
+    # Custom limits
     python run_metrics.py --max-ts 100000 --max-assets 50000
+    
+    # Reduce chunk size if maintenance (or other views) hit graph query timeout
+    python run_metrics.py --only maintenance_idi --chunk-size 200
     
     # Dry run (don't upload results)
     python run_metrics.py --dry-run
+
+Available sections for --only:
+    ts, assets, equipment, maintenance_idi, annotations, 3d, files, others, staging
 
 Requirements:
     pip install -r requirements.txt
@@ -56,9 +68,10 @@ sys.path.insert(0, str(METRICS_DIR))
 try:
     from dotenv import load_dotenv
     # Try loading from multiple locations
+    # SCRIPT_DIR = templates/modules/solutions/context_quality/scripts/
     env_paths = [
-        SCRIPT_DIR / ".env",                    # scripts/.env
-        SCRIPT_DIR.parent.parent.parent.parent / ".env",  # templates/.env
+        SCRIPT_DIR / ".env",                              # scripts/.env
+        SCRIPT_DIR.parent.parent.parent.parent.parent / ".env",  # templates/.env (root)
     ]
     for env_path in env_paths:
         if env_path.exists():
@@ -82,10 +95,6 @@ from metrics import (
     process_timeseries_batch,
     process_asset_batch,
     process_equipment_batch,
-    process_notification_batch,
-    process_maintenance_order_batch,
-    process_failure_notification_batch,
-    compute_historical_gaps_batch,
     # File annotation processors
     FileAnnotationAccumulator,
     process_annotation_batch,
@@ -99,10 +108,18 @@ from metrics import (
     compute_ts_metrics,
     compute_asset_hierarchy_metrics,
     compute_equipment_metrics,
-    compute_maintenance_metrics,
     compute_file_annotation_metrics,
     compute_3d_metrics,
     compute_file_metrics,
+    # Maintenance IDI metrics
+    collect_maintenance_idi_metrics,
+    compute_maintenance_idi_metrics,
+    # Others metrics
+    collect_others_metrics,
+    compute_others_metrics,
+    # Staging metrics
+    compute_staging_metrics,
+    DEFAULT_STAGING_CONFIG,
     # Storage
     save_metrics_to_file,
 )
@@ -208,7 +225,7 @@ def merge_metrics(cached: dict, new_metrics: dict, recomputed_sections: set) -> 
         cached: Previously computed metrics
         new_metrics: Newly computed metrics
         recomputed_sections: Set of section names that were recomputed
-            Options: 'ts', 'assets', 'equipment', 'maintenance', 'annotations', '3d', 'files'
+            Options: 'ts', 'assets', 'equipment', 'maintenance', 'annotations', '3d', 'files', 'staging'
     
     Returns:
         Merged metrics dictionary
@@ -218,15 +235,19 @@ def merge_metrics(cached: dict, new_metrics: dict, recomputed_sections: set) -> 
     
     result = dict(cached)
     
-    # Map section names to metric keys
+    # Map section names to metric keys - all sections treated equally
     section_mapping = {
         'ts': ['timeseries_metrics'],
         'assets': ['hierarchy_metrics'],
         'equipment': ['equipment_metrics'],
         'maintenance': ['maintenance_metrics'],
+        'maintenance_idi': ['maintenance_idi_metrics'],
         'annotations': ['file_annotation_metrics'],
-        '3d': ['model_3d_metrics'],
+        '3d': ['model3d_metrics'],
         'files': ['file_metrics'],
+        'others': ['others_metrics'],
+        'activities': [],  # Activity metrics are included in equipment_metrics
+        'staging': ['staging_metrics'],
     }
     
     # Instance count mappings
@@ -235,19 +256,31 @@ def merge_metrics(cached: dict, new_metrics: dict, recomputed_sections: set) -> 
         'assets': 'assets',
         'equipment': 'equipment',
         'maintenance': ['notifications', 'maintenance_orders', 'failure_notifications'],
+        'maintenance_idi': 'maintenance_idi',
         'annotations': 'annotations',
         '3d': '3d_objects',
         'files': 'files',
+        'others': 'others',
+        'activities': 'activities',
+        'staging': 'staging',
     }
     
-    # Update metadata
-    result['metadata'] = new_metrics.get('metadata', result.get('metadata', {}))
-    result['metadata']['partial_recompute'] = True
-    result['metadata']['recomputed_sections'] = list(recomputed_sections)
+    # Preserve cached instance counts before updating metadata
+    cached_instance_counts = result.get('metadata', {}).get('instance_counts', {}).copy()
     
-    # Merge instance counts
-    if 'instance_counts' not in result['metadata']:
-        result['metadata']['instance_counts'] = {}
+    # Update metadata (but preserve instance counts)
+    new_metadata = new_metrics.get('metadata', {})
+    result['metadata'] = {
+        **result.get('metadata', {}),  # Keep cached metadata as base
+        'computed_at': new_metadata.get('computed_at', result.get('metadata', {}).get('computed_at')),
+        'execution_time_seconds': new_metadata.get('execution_time_seconds', 0),
+        'partial_recompute': True,
+        'recomputed_sections': list(recomputed_sections),
+        'config': new_metadata.get('config', result.get('metadata', {}).get('config', {})),
+    }
+    
+    # Restore cached instance counts, then selectively update
+    result['metadata']['instance_counts'] = cached_instance_counts
     
     for section in recomputed_sections:
         # Update metric sections
@@ -269,7 +302,9 @@ def merge_metrics(cached: dict, new_metrics: dict, recomputed_sections: set) -> 
 
 
 # Valid section names for --only flag
-VALID_SECTIONS = {'ts', 'assets', 'equipment', 'maintenance', 'annotations', '3d', 'files'}
+# All sections are treated equally - no special enable/disable logic
+# Note: 'maintenance' uses IDI views only (maintenance_idi)
+VALID_SECTIONS = {'ts', 'assets', 'equipment', 'maintenance_idi', 'annotations', '3d', 'files', 'others', 'activities', 'staging'}
 
 
 # ----------------------------------------------------
@@ -284,13 +319,18 @@ def run_metrics_collection(
     """
     Run the complete metrics collection process.
     
+    All sections are treated equally. By default, all sections are computed.
+    When using selective recompute (--only), only specified sections are 
+    computed and others are preserved from cached metrics.
+    
     Args:
         config: Configuration dictionary (merged with DEFAULT_CONFIG)
         dry_run: If True, don't upload results to CDF
-        use_cache: If True, load previous results and only recompute specified sections
-        recompute_sections: Set of sections to recompute (only used with use_cache)
-            Valid values: 'ts', 'assets', 'equipment', 'maintenance', 'annotations', '3d', 'files'
-            If None with use_cache=True, recomputes nothing (just validates cache)
+        use_cache: If True, load previous results and merge with new computations
+        recompute_sections: Set of sections to recompute
+            Valid values: 'ts', 'assets', 'equipment', 'maintenance', 
+                         'annotations', '3d', 'files', 'staging'
+            If None, all sections are computed (full recompute)
         
     Returns:
         Dictionary containing all computed metrics
@@ -325,38 +365,32 @@ def run_metrics_collection(
     
     # Extract configuration
     chunk_size = config["chunk_size"]
-    max_ts = config["max_timeseries"]
-    max_assets = config["max_assets"]
-    max_eq = config["max_equipment"]
-    max_notif = config["max_notifications"]
-    max_orders = config["max_maintenance_orders"]
-    max_annotations = config["max_annotations"]
-    max_3d_objects = config["max_3d_objects"]
-    max_files = config["max_files"]
     freshness_days = config["freshness_days"]
-    enable_gaps = config["enable_historical_gaps"]
-    enable_maintenance = config["enable_maintenance_metrics"]
-    enable_file_annotations = config["enable_file_annotation_metrics"]
-    enable_3d = config["enable_3d_metrics"]
-    enable_files = config["enable_file_metrics"]
-    gap_sample_rate = config["gap_sample_rate"]
-    gap_threshold_days = config["gap_threshold_days"]
-    gap_lookback = config["gap_lookback"]
     file_external_id = config["file_external_id"]
     file_name = config["file_name"]
+    
+    # Local runs have no limits by default (that's the whole point of running locally)
+    # Use config values only if explicitly set via CLI, otherwise unlimited
+    max_ts = config.get("max_timeseries") or float('inf')
+    max_assets = config.get("max_assets") or float('inf')
+    max_eq = config.get("max_equipment") or float('inf')
+    max_annotations = config.get("max_annotations") or float('inf')
+    max_3d_objects = config.get("max_3d_objects") or float('inf')
+    max_files = config.get("max_files") or float('inf')
     
     logger.info("=" * 70)
     logger.info("CONTEXT QUALITY METRICS - LOCAL EXECUTION")
     logger.info("=" * 70)
-    logger.info(f"Limits: TS={max_ts:,}, Assets={max_assets:,}, Equipment={max_eq:,}")
-    if enable_maintenance:
-        logger.info(f"Maintenance: Notifications={max_notif:,}, Orders={max_orders:,}")
-    if enable_file_annotations:
-        logger.info(f"Annotations: max={max_annotations:,}")
-    if enable_3d:
-        logger.info(f"3D Objects: max={max_3d_objects:,}")
-    if enable_files:
-        logger.info(f"Files: max={max_files:,}")
+    
+    # Log what sections will be computed
+    if recompute_sections == VALID_SECTIONS:
+        logger.info("Mode: Full recompute (all sections)")
+    else:
+        logger.info(f"Mode: Selective recompute ({', '.join(sorted(recompute_sections))})")
+    
+    logger.info("Limits: None (local run processes all data)")
+    if 'staging' in recompute_sections:
+        logger.info(f"Staging: db={config.get('staging_raw_database', 'oracle:db')}, space={config.get('staging_dm_space', 'rmdm')}")
     
     # Build view IDs
     ts_view = ViewId(
@@ -373,21 +407,6 @@ def run_metrics_collection(
         config["equipment_view_space"],
         config["equipment_view_external_id"],
         config["equipment_view_version"]
-    )
-    notification_view = ViewId(
-        config["notification_view_space"],
-        config["notification_view_external_id"],
-        config["notification_view_version"]
-    )
-    order_view = ViewId(
-        config["maintenance_order_view_space"],
-        config["maintenance_order_view_external_id"],
-        config["maintenance_order_view_version"]
-    )
-    failure_notification_view = ViewId(
-        config["failure_notification_view_space"],
-        config["failure_notification_view_external_id"],
-        config["failure_notification_view_version"]
     )
     annotation_view = ViewId(
         config["annotation_view_space"],
@@ -412,7 +431,6 @@ def run_metrics_collection(
     
     batch_counts = {
         "ts": 0, "assets": 0, "equipment": 0, 
-        "notifications": 0, "orders": 0, "failure_notifications": 0,
         "annotations": 0, "3d_objects": 0, "files": 0
     }
     
@@ -442,19 +460,11 @@ def run_metrics_collection(
             
             process_timeseries_batch(ts_batch, ts_view, acc)
             
-            # Historical gap analysis
-            if enable_gaps and (batch_counts["ts"] == 1 or batch_counts["ts"] % gap_sample_rate == 0):
-                compute_historical_gaps_batch(
-                    ts_batch, client, acc,
-                    gap_threshold_days=gap_threshold_days,
-                    lookback=gap_lookback
-                )
-            
             if batch_counts["ts"] % LOG_EVERY_N_BATCHES == 0:
                 elapsed = time.time() - phase1_start
                 logger.info(f"[TS] Batch {batch_counts['ts']:,} | Total: {acc.total_ts:,} | Elapsed: {format_elapsed(elapsed)}")
             
-            if acc.total_ts >= max_ts:
+            if max_ts and acc.total_ts >= max_ts:
                 logger.info(f"[TS] Reached limit ({max_ts:,})")
                 break
         
@@ -490,15 +500,15 @@ def run_metrics_collection(
             
             process_asset_batch(asset_batch, asset_view, acc)
             
-            # Also process for 3D association if enabled
-            if enable_3d and '3d' in recompute_sections:
+            # Also process for 3D association if included
+            if '3d' in recompute_sections:
                 process_asset_3d_batch(asset_batch, asset_view, model3d_acc)
             
             if batch_counts["assets"] % LOG_EVERY_N_BATCHES == 0:
                 elapsed = time.time() - phase2_start
                 logger.info(f"[Assets] Batch {batch_counts['assets']:,} | Total: {acc.total_assets:,} | Elapsed: {format_elapsed(elapsed)}")
         
-            if acc.total_assets >= max_assets:
+            if max_assets and acc.total_assets >= max_assets:
                 logger.info(f"[Assets] Reached limit ({max_assets:,})")
                 break
         
@@ -538,7 +548,7 @@ def run_metrics_collection(
                 elapsed = time.time() - phase3_start
                 logger.info(f"[Equipment] Batch {batch_counts['equipment']:,} | Total: {acc.total_equipment:,} | Elapsed: {format_elapsed(elapsed)}")
             
-            if acc.total_equipment >= max_eq:
+            if max_eq and acc.total_equipment >= max_eq:
                 logger.info(f"[Equipment] Reached limit ({max_eq:,})")
                 break
         
@@ -550,101 +560,13 @@ def run_metrics_collection(
         logger.info("[Equipment] Skipped - using cached data")
     
     # ============================================================
-    # PHASE 4: Process Maintenance Data
-    # ============================================================
-    maintenance_metrics = {}
-    
-    if enable_maintenance and 'maintenance' in recompute_sections:
-        logger.info("-" * 50)
-        logger.info("PHASE 4: Processing Maintenance Data")
-        logger.info(f"  Notifications: {notification_view.space}/{notification_view.external_id}/{notification_view.version}")
-        logger.info(f"  Orders: {order_view.space}/{order_view.external_id}/{order_view.version}")
-        logger.info("-" * 50)
-        phase4_start = time.time()
-        
-        # Notifications
-        logger.info("[Notifications] Querying data model instances...")
-        notif_start = time.time()
-        try:
-            for notif_batch in client.data_modeling.instances(
-                chunk_size=chunk_size,
-                instance_type="node",
-                sources=notification_view,
-            ):
-                batch_counts["notifications"] += 1
-                if batch_counts["notifications"] == 1:
-                    logger.info(f"[Notifications] First batch received after {time.time() - notif_start:.1f}s")
-                
-                process_notification_batch(notif_batch, notification_view, acc)
-                
-                if batch_counts["notifications"] % LOG_EVERY_N_BATCHES == 0:
-                    logger.info(f"[Notifications] Batch {batch_counts['notifications']:,} | Total: {acc.total_notifications:,}")
-                
-                if acc.total_notifications >= max_notif:
-                    logger.info(f"[Notifications] Reached limit ({max_notif:,})")
-                    break
-        except Exception as e:
-            logger.warning(f"[Notifications] Could not process: {e}")
-        
-        # Maintenance Orders
-        logger.info("[Orders] Querying data model instances...")
-        order_start = time.time()
-        try:
-            for order_batch in client.data_modeling.instances(
-                chunk_size=chunk_size,
-                instance_type="node",
-                sources=order_view,
-            ):
-                batch_counts["orders"] += 1
-                if batch_counts["orders"] == 1:
-                    logger.info(f"[Orders] First batch received after {time.time() - order_start:.1f}s")
-                
-                process_maintenance_order_batch(order_batch, order_view, acc)
-                
-                if batch_counts["orders"] % LOG_EVERY_N_BATCHES == 0:
-                    logger.info(f"[Orders] Batch {batch_counts['orders']:,} | Total: {acc.total_orders:,}")
-                
-                if acc.total_orders >= max_orders:
-                    logger.info(f"[Orders] Reached limit ({max_orders:,})")
-                    break
-        except Exception as e:
-            logger.warning(f"[Orders] Could not process: {e}")
-        
-        # Failure Notifications
-        logger.info("[FailureNotif] Querying data model instances...")
-        failure_start = time.time()
-        try:
-            for failure_batch in client.data_modeling.instances(
-                chunk_size=chunk_size,
-                instance_type="node",
-                sources=failure_notification_view,
-            ):
-                batch_counts["failure_notifications"] += 1
-                if batch_counts["failure_notifications"] == 1:
-                    logger.info(f"[FailureNotif] First batch received after {time.time() - failure_start:.1f}s")
-                
-                process_failure_notification_batch(failure_batch, failure_notification_view, acc)
-        except Exception as e:
-            logger.warning(f"[FailureNotif] Could not process: {e}")
-        
-        logger.info(f"PHASE 4 Complete: Notifications={acc.total_notifications:,}, Orders={acc.total_orders:,}, Failures={acc.total_failure_notifications:,} in {format_elapsed(time.time() - phase4_start)}")
-        
-        # Compute maintenance metrics
-        if acc.total_notifications > 0 or acc.total_orders > 0:
-            maintenance_metrics = compute_maintenance_metrics(acc)
-    elif not enable_maintenance:
-        logger.info("[Maintenance] Skipped - disabled in config")
-    else:
-        logger.info("[Maintenance] Skipped - using cached data")
-    
-    # ============================================================
-    # PHASE 5: Process File Annotations
+    # PHASE 4: Process File Annotations (Maintenance uses IDI views)
     # ============================================================
     file_annotation_metrics = {}
     
-    if enable_file_annotations and 'annotations' in recompute_sections:
+    if 'annotations' in recompute_sections:
         logger.info("-" * 50)
-        logger.info("PHASE 5: Processing File Annotations")
+        logger.info("PHASE 4: Processing File Annotations")
         logger.info(f"  View: {annotation_view.space}/{annotation_view.external_id}/{annotation_view.version}")
         logger.info("-" * 50)
         phase5_start = time.time()
@@ -665,7 +587,7 @@ def run_metrics_collection(
                 if batch_counts["annotations"] % LOG_EVERY_N_BATCHES == 0:
                     logger.info(f"[Annotations] Batch {batch_counts['annotations']:,} | Total: {annotation_acc.unique_annotations:,}")
                 
-                if annotation_acc.unique_annotations >= max_annotations:
+                if max_annotations and annotation_acc.unique_annotations >= max_annotations:
                     logger.info(f"[Annotations] Reached limit ({max_annotations:,})")
                     break
         except Exception as e:
@@ -674,19 +596,17 @@ def run_metrics_collection(
         logger.info(f"PHASE 5 Complete: {annotation_acc.unique_annotations:,} Annotations in {format_elapsed(time.time() - phase5_start)}")
         
         file_annotation_metrics = compute_file_annotation_metrics(annotation_acc)
-    elif not enable_file_annotations:
-        logger.info("[Annotations] Skipped - disabled in config")
     else:
         logger.info("[Annotations] Skipped - using cached data")
     
     # ============================================================
-    # PHASE 6: Process 3D Objects
+    # PHASE 5: Process 3D Objects
     # ============================================================
     model_3d_metrics = {}
     
-    if enable_3d and '3d' in recompute_sections:
+    if '3d' in recompute_sections:
         logger.info("-" * 50)
-        logger.info("PHASE 6: Processing 3D Objects")
+        logger.info("PHASE 5: Processing 3D Objects")
         logger.info(f"  View: {object_3d_view.space}/{object_3d_view.external_id}/{object_3d_view.version}")
         logger.info("-" * 50)
         phase6_start = time.time()
@@ -707,7 +627,7 @@ def run_metrics_collection(
                 if batch_counts["3d_objects"] % LOG_EVERY_N_BATCHES == 0:
                     logger.info(f"[3D Objects] Batch {batch_counts['3d_objects']:,} | Total: {model3d_acc.total_3d_objects:,}")
                 
-                if model3d_acc.total_3d_objects >= max_3d_objects:
+                if max_3d_objects and model3d_acc.total_3d_objects >= max_3d_objects:
                     logger.info(f"[3D Objects] Reached limit ({max_3d_objects:,})")
                     break
         except Exception as e:
@@ -716,19 +636,17 @@ def run_metrics_collection(
         logger.info(f"PHASE 6 Complete: {model3d_acc.total_3d_objects:,} 3D Objects in {format_elapsed(time.time() - phase6_start)}")
         
         model_3d_metrics = compute_3d_metrics(model3d_acc)
-    elif not enable_3d:
-        logger.info("[3D] Skipped - disabled in config")
     else:
         logger.info("[3D] Skipped - using cached data")
     
     # ============================================================
-    # PHASE 7: Process Files
+    # PHASE 6: Process Files
     # ============================================================
     file_metrics = {}
     
-    if enable_files and 'files' in recompute_sections:
+    if 'files' in recompute_sections:
         logger.info("-" * 50)
-        logger.info("PHASE 7: Processing Files")
+        logger.info("PHASE 6: Processing Files")
         logger.info(f"  View: {file_view.space}/{file_view.external_id}/{file_view.version}")
         logger.info("-" * 50)
         phase7_start = time.time()
@@ -749,7 +667,7 @@ def run_metrics_collection(
                 if batch_counts["files"] % LOG_EVERY_N_BATCHES == 0:
                     logger.info(f"[Files] Batch {batch_counts['files']:,} | Total: {acc.total_files:,}")
                 
-                if acc.total_files >= max_files:
+                if max_files and acc.total_files >= max_files:
                     logger.info(f"[Files] Reached limit ({max_files:,})")
                     break
         except Exception as e:
@@ -758,16 +676,106 @@ def run_metrics_collection(
         logger.info(f"PHASE 7 Complete: {acc.total_files:,} Files in {format_elapsed(time.time() - phase7_start)}")
         
         file_metrics = compute_file_metrics(acc)
-    elif not enable_files:
-        logger.info("[Files] Skipped - disabled in config")
     else:
         logger.info("[Files] Skipped - using cached data")
     
     # ============================================================
-    # PHASE 8: Compute All Metrics
+    # PHASE 7: Staging vs DM Comparison
+    # ============================================================
+    staging_metrics = {}
+    
+    if 'staging' in recompute_sections:
+        logger.info("-" * 50)
+        logger.info("PHASE 7: Computing Staging vs DM Comparison")
+        logger.info("-" * 50)
+        
+        phase8_start = time.time()
+        
+        try:
+            staging_config = {
+                "staging_raw_database": config.get("staging_raw_database", "oracle:db"),
+                "staging_dm_space": config.get("staging_dm_space", "rmdm"),
+                "staging_dm_version": config.get("staging_dm_version", "v1"),
+            }
+            staging_metrics = compute_staging_metrics(client, staging_config)
+            logger.info(f"[Staging] Matched: {staging_metrics.get('staging_views_matched', 0)}, "
+                       f"Gaps: {staging_metrics.get('staging_views_with_gaps', 0)}, "
+                       f"Overall: {staging_metrics.get('staging_overall_match_rate', 0)}%")
+        except Exception as e:
+            logger.warning(f"[Staging] Could not compute staging metrics: {e}")
+            staging_metrics = {"staging_has_data": False, "error": str(e)}
+        
+        logger.info(f"PHASE 8 Complete: Staging comparison in {format_elapsed(time.time() - phase8_start)}")
+    else:
+        logger.info("[Staging] Skipped - using cached data")
+    
+    # ============================================================
+    # PHASE 8: Maintenance IDI Metrics
+    # ============================================================
+    maintenance_idi_metrics = {}
+    
+    if 'maintenance_idi' in recompute_sections:
+        logger.info("-" * 50)
+        logger.info("PHASE 9: Computing Maintenance IDI Metrics")
+        logger.info("-" * 50)
+        
+        phase_maint_start = time.time()
+        
+        try:
+            maint_idi_config = {
+                "maintenance_idi_dm_space": config.get("maintenance_idi_dm_space", "rmdm"),
+                "maintenance_idi_dm_version": config.get("maintenance_idi_dm_version", "v1"),
+                "max_maintenance_idi_instances": config.get("max_maintenance_idi_instances"),
+                "chunk_size": chunk_size,
+            }
+            maint_idi_acc = collect_maintenance_idi_metrics(client, maint_idi_config)
+            maintenance_idi_metrics = compute_maintenance_idi_metrics(maint_idi_acc, acc.total_assets)
+            logger.info(f"[MaintenanceIDI] Views with data: {maintenance_idi_metrics.get('maint_idi_views_with_data', 0)}, "
+                       f"Total instances: {maintenance_idi_metrics.get('maint_idi_total_instances', 0):,}")
+        except Exception as e:
+            logger.warning(f"[MaintenanceIDI] Could not compute metrics: {e}")
+            maintenance_idi_metrics = {"maint_idi_has_data": False, "error": str(e)}
+        
+        logger.info(f"PHASE 9 Complete: Maintenance IDI in {format_elapsed(time.time() - phase_maint_start)}")
+    else:
+        logger.info("[MaintenanceIDI] Skipped - using cached data")
+    
+    # ============================================================
+    # PHASE 9: Others IDI Metrics
+    # ============================================================
+    others_metrics = {}
+    
+    if 'others' in recompute_sections:
+        logger.info("-" * 50)
+        logger.info("PHASE 10: Computing Others IDI Metrics")
+        logger.info("-" * 50)
+        
+        phase_others_start = time.time()
+        
+        try:
+            others_config = {
+                "others_dm_space": config.get("others_dm_space", "rmdm"),
+                "others_dm_version": config.get("others_dm_version", "v1"),
+                "max_others_instances": config.get("max_others_instances"),
+                "chunk_size": chunk_size,
+            }
+            others_acc = collect_others_metrics(client, others_config)
+            others_metrics = compute_others_metrics(others_acc)
+            logger.info(f"[Others] Views with data: {others_metrics.get('others_views_with_data', 0)}, "
+                       f"Total instances: {others_metrics.get('others_total_instances', 0):,}")
+        except Exception as e:
+            logger.warning(f"[Others] Could not compute metrics: {e}")
+            others_metrics = {"others_has_data": False, "error": str(e)}
+        
+        logger.info(f"PHASE 10 Complete: Others IDI in {format_elapsed(time.time() - phase_others_start)}")
+    else:
+        logger.info("[Others] Skipped - using cached data")
+    
+    # ============================================================
+    # PHASE 10: Compute All Metrics
     # ============================================================
     logger.info("-" * 50)
-    logger.info("PHASE 8: Computing Final Metrics")
+    logger.info("PHASE 10: Computing Final Metrics")
     logger.info("-" * 50)
     
     # Only compute metrics for sections that were recomputed
@@ -778,10 +786,10 @@ def run_metrics_collection(
     total_elapsed = time.time() - start_time
     
     # ============================================================
-    # PHASE 9: Compile and Save Results
+    # PHASE 11: Compile and Save Results
     # ============================================================
     logger.info("-" * 50)
-    logger.info("PHASE 9: Saving Results")
+    logger.info("PHASE 11: Saving Results")
     logger.info("-" * 50)
     
     all_metrics = {
@@ -808,54 +816,42 @@ def run_metrics_collection(
                     "duplicates": acc.equipment_duplicates,
                     "duplicate_ids": acc.equipment_duplicate_ids,
                 },
-                "notifications": {
-                    "total_instances": acc.total_notification_instances,
-                    "unique": acc.total_notifications,
-                    "duplicates": acc.notification_duplicates,
-                    "duplicate_ids": acc.notification_duplicate_ids,
-                },
-                "maintenance_orders": {
-                    "total_instances": acc.total_order_instances,
-                    "unique": acc.total_orders,
-                    "duplicates": acc.order_duplicates,
-                    "duplicate_ids": acc.order_duplicate_ids,
-                },
-                "failure_notifications": {
-                    "unique": acc.total_failure_notifications,
-                },
                 "annotations": {
-                    "unique": annotation_acc.unique_annotations if enable_file_annotations else 0,
+                    "unique": annotation_acc.unique_annotations if 'annotations' in recompute_sections else 0,
                 },
                 "3d_objects": {
-                    "unique": model3d_acc.total_3d_objects if enable_3d else 0,
-                    "assets_with_3d": model3d_acc.assets_with_3d if enable_3d else 0,
+                    "unique": model3d_acc.total_3d_objects if '3d' in recompute_sections else 0,
+                    "assets_with_3d": model3d_acc.assets_with_3d if '3d' in recompute_sections else 0,
                 },
                 "files": {
-                    "total_instances": acc.total_file_instances if enable_files else 0,
-                    "unique": acc.total_files if enable_files else 0,
-                    "duplicates": acc.file_duplicates if enable_files else 0,
-                    "duplicate_ids": acc.file_duplicate_ids if enable_files else [],
+                    "total_instances": acc.total_file_instances if 'files' in recompute_sections else 0,
+                    "unique": acc.total_files if 'files' in recompute_sections else 0,
+                    "duplicates": acc.file_duplicates if 'files' in recompute_sections else 0,
+                    "duplicate_ids": acc.file_duplicate_ids if 'files' in recompute_sections else [],
+                },
+                "staging": {
+                    "computed": 'staging' in recompute_sections,
                 },
             },
             "limits_reached": {
-                "timeseries": acc.total_ts >= max_ts,
-                "assets": acc.total_assets >= max_assets,
-                "equipment": acc.total_equipment >= max_eq,
-                "notifications": acc.total_notifications >= max_notif if enable_maintenance else False,
-                "maintenance_orders": acc.total_orders >= max_orders if enable_maintenance else False,
-                "annotations": annotation_acc.unique_annotations >= max_annotations if enable_file_annotations else False,
-                "3d_objects": model3d_acc.total_3d_objects >= max_3d_objects if enable_3d else False,
-                "files": acc.total_files >= max_files if enable_files else False,
+                "timeseries": (max_ts and acc.total_ts >= max_ts) or False,
+                "assets": (max_assets and acc.total_assets >= max_assets) or False,
+                "equipment": (max_eq and acc.total_equipment >= max_eq) or False,
+                "annotations": (max_annotations and annotation_acc.unique_annotations >= max_annotations) if 'annotations' in recompute_sections else False,
+                "3d_objects": (max_3d_objects and model3d_acc.total_3d_objects >= max_3d_objects) if '3d' in recompute_sections else False,
+                "files": (max_files and acc.total_files >= max_files) if 'files' in recompute_sections else False,
             },
             "config": config,
         },
         "timeseries_metrics": ts_metrics,
         "hierarchy_metrics": hierarchy_metrics,
         "equipment_metrics": equipment_metrics,
-        "maintenance_metrics": maintenance_metrics,
         "file_annotation_metrics": file_annotation_metrics,
-        "model_3d_metrics": model_3d_metrics,
+        "model3d_metrics": model_3d_metrics,
         "file_metrics": file_metrics,
+        "staging_metrics": staging_metrics,
+        "maintenance_idi_metrics": maintenance_idi_metrics,
+        "others_metrics": others_metrics,
     }
     
     # Merge with cached metrics if using partial recompute
@@ -881,19 +877,24 @@ def run_metrics_collection(
     logger.info("EXECUTION SUMMARY")
     logger.info("=" * 70)
     logger.info("Instance Counts (Total / Unique / Duplicates):")
-    logger.info(f"  Time Series:  {acc.total_ts_instances:,} / {acc.total_ts:,} / {acc.ts_duplicates:,}")
-    logger.info(f"  Assets:       {acc.total_asset_instances:,} / {acc.total_assets:,} / {acc.asset_duplicates:,}")
-    logger.info(f"  Equipment:    {acc.total_equipment_instances:,} / {acc.total_equipment:,} / {acc.equipment_duplicates:,}")
-    if enable_maintenance:
-        logger.info(f"  Notifications:{acc.total_notification_instances:,} / {acc.total_notifications:,} / {acc.notification_duplicates:,}")
-        logger.info(f"  Orders:       {acc.total_order_instances:,} / {acc.total_orders:,} / {acc.order_duplicates:,}")
-        logger.info(f"  FailureNotif: {acc.total_failure_notifications:,}")
-    if enable_file_annotations:
+    if 'ts' in recompute_sections:
+        logger.info(f"  Time Series:  {acc.total_ts_instances:,} / {acc.total_ts:,} / {acc.ts_duplicates:,}")
+    if 'assets' in recompute_sections:
+        logger.info(f"  Assets:       {acc.total_asset_instances:,} / {acc.total_assets:,} / {acc.asset_duplicates:,}")
+    if 'equipment' in recompute_sections:
+        logger.info(f"  Equipment:    {acc.total_equipment_instances:,} / {acc.total_equipment:,} / {acc.equipment_duplicates:,}")
+    if 'annotations' in recompute_sections:
         logger.info(f"  Annotations:  {annotation_acc.total_annotations:,} / {annotation_acc.unique_annotations:,}")
-    if enable_3d:
+    if '3d' in recompute_sections:
         logger.info(f"  3D Objects:   {model3d_acc.total_3d_objects:,}")
-    if enable_files:
+    if 'files' in recompute_sections:
         logger.info(f"  Files:        {acc.total_file_instances:,} / {acc.total_files:,} / {acc.file_duplicates:,}")
+    if 'staging' in recompute_sections:
+        logger.info(f"  Staging:      {staging_metrics.get('staging_total_mappings', 0)} mappings processed")
+    if 'maintenance_idi' in recompute_sections:
+        logger.info(f"  Maint IDI:    {maintenance_idi_metrics.get('maint_idi_total_instances', 0):,} instances across {maintenance_idi_metrics.get('maint_idi_views_with_data', 0)} views")
+    if 'others' in recompute_sections:
+        logger.info(f"  Others:       {others_metrics.get('others_total_instances', 0):,} instances across {others_metrics.get('others_views_with_data', 0)} views")
     logger.info("-" * 50)
     # Get metrics from either newly computed or merged result
     final_ts = all_metrics.get('timeseries_metrics', ts_metrics)
@@ -945,7 +946,7 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Run with defaults
+    # Full recompute - compute all metrics for all tabs
     python run_metrics.py
     
     # Custom limits
@@ -954,21 +955,34 @@ Examples:
     # Dry run (save locally, don't upload)
     python run_metrics.py --dry-run
     
-    # Disable optional metrics
-    python run_metrics.py --no-maintenance --no-3d
-    
-    # Partial recompute - only refresh assets metrics
-    python run_metrics.py --use-cache --only assets
-    
-    # Recompute multiple sections, reuse rest from cache
-    python run_metrics.py --use-cache --only assets --only equipment
-    
-    # Fast run (skip slow gap analysis)
-    python run_metrics.py --no-gaps
+    # Selective recompute - only refresh specific tabs (others preserved from cache)
+    python run_metrics.py --only staging
+    python run_metrics.py --only assets --only equipment
+    python run_metrics.py --only ts --only maintenance_idi --only staging
     
     # Use custom views (for non-CDM data models)
     python run_metrics.py --ts-view "rmdm/YourOrgTimeSeries/v1" --asset-view "rmdm/YourOrgAsset/v1"
     
+    # Custom staging configuration
+    python run_metrics.py --only staging --staging-db "my_db" --staging-space "my_space"
+
+Available sections for --only:
+    ts              Time Series metrics
+    assets          Asset hierarchy metrics
+    equipment       Equipment metrics
+    maintenance_idi Maintenance IDI views metrics
+    annotations     File annotation metrics
+    3d              3D model metrics
+    files           File contextualization metrics
+    others          Other IDI views metrics
+    staging         Staging vs Data Model comparison
+    equipment   Equipment metrics
+    maintenance Maintenance (notifications, orders) metrics
+    annotations File annotation metrics
+    3d          3D model metrics
+    files       File contextualization metrics
+    staging     Staging vs Data Model comparison
+
 Environment Variables (cognite-toolkit compatible):
     CDF_PROJECT         CDF project name (required)
     CDF_CLUSTER         CDF cluster (e.g., aws-dub-dev)
@@ -989,28 +1003,31 @@ Environment Variables (cognite-toolkit compatible):
                         help="Maximum assets to process")
     parser.add_argument("--max-equipment", type=int, default=None,
                         help="Maximum equipment to process")
-    parser.add_argument("--max-notifications", type=int, default=None,
-                        help="Maximum notifications to process")
-    parser.add_argument("--max-orders", type=int, default=None,
-                        help="Maximum maintenance orders to process")
     parser.add_argument("--max-annotations", type=int, default=None,
                         help="Maximum annotations to process")
     parser.add_argument("--max-3d", type=int, default=None,
                         help="Maximum 3D objects to process")
     parser.add_argument("--max-files", type=int, default=None,
                         help="Maximum files to process")
+    parser.add_argument("--max-maintenance-idi", type=int, default=None,
+                        help="Maximum instances per maintenance IDI view")
+    parser.add_argument("--max-others", type=int, default=None,
+                        help="Maximum instances per Others IDI view")
+    parser.add_argument("--max-activities", type=int, default=None,
+                        help="Maximum activities to process")
     
-    # Feature toggles
-    parser.add_argument("--no-maintenance", action="store_true",
-                        help="Disable maintenance metrics")
-    parser.add_argument("--no-annotations", action="store_true",
-                        help="Disable file annotation metrics")
-    parser.add_argument("--no-3d", action="store_true",
-                        help="Disable 3D model metrics")
-    parser.add_argument("--no-files", action="store_true",
-                        help="Disable file contextualization metrics")
-    parser.add_argument("--no-gaps", action="store_true",
-                        help="Disable historical gap analysis")
+    # Request page size (helps avoid graph query timeouts on heavy views)
+    parser.add_argument("--chunk-size", type=int, default=None, metavar="N",
+                        help="Page size for Data Model instances requests (default: 500). "
+                             "Use 200 or 100 if maintenance or other views hit graph query timeout.")
+    
+    # Staging configuration (staging is always computed unless excluded via --only)
+    parser.add_argument("--staging-db", type=str, default="oracle:db",
+                        help="Raw database for staging comparison (default: oracle:db)")
+    parser.add_argument("--staging-space", type=str, default="rmdm",
+                        help="DM space for staging comparison (default: rmdm)")
+    parser.add_argument("--staging-version", type=str, default="v1",
+                        help="DM version for staging comparison (default: v1)")
     
     # View configuration overrides (format: space/view_id/version)
     parser.add_argument("--ts-view", type=str, metavar="SPACE/VIEW/VERSION",
@@ -1030,15 +1047,13 @@ Environment Variables (cognite-toolkit compatible):
     parser.add_argument("--3d-view", type=str, dest="view_3d", metavar="SPACE/VIEW/VERSION",
                         help="3D Object view (e.g., 'cdf_cdm/Cognite3DObject/v1')")
     
-    # Caching and partial recompute options
-    parser.add_argument("--use-cache", action="store_true",
-                        help="Load previous metrics and only recompute specified sections")
+    # Selective recompute (automatically preserves other sections from cache)
     parser.add_argument("--only", action="append", dest="only_sections",
-                        choices=['ts', 'assets', 'equipment', 'maintenance', 'annotations', '3d', 'files'],
+                        choices=['ts', 'assets', 'equipment', 'maintenance_idi', 'annotations', '3d', 'files', 'others', 'activities', 'staging'],
                         metavar="SECTION",
                         help="Only recompute specified section(s). Can be repeated. "
-                             "Requires --use-cache. Options: ts, assets, equipment, "
-                             "maintenance, annotations, 3d, files")
+                             "Other sections are preserved from cached metrics. "
+                             "Options: ts, assets, equipment, maintenance, annotations, 3d, files, staging")
     
     # Output options
     parser.add_argument("--dry-run", action="store_true",
@@ -1063,35 +1078,45 @@ def main():
     # Build config from defaults and CLI args
     config = dict(DEFAULT_CONFIG)
     
-    # Apply CLI overrides
+    # Local runs have no limits by default - remove them from config
+    # Only apply limits if explicitly set via CLI
+    config["max_timeseries"] = None
+    config["max_assets"] = None
+    config["max_equipment"] = None
+    config["max_annotations"] = None
+    config["max_3d_objects"] = None
+    config["max_files"] = None
+    config["max_maintenance_idi_instances"] = None
+    config["max_others_instances"] = None
+    config["max_activities"] = None
+    
+    # Apply CLI limit overrides (only if user wants limits)
     if args.max_ts is not None:
         config["max_timeseries"] = args.max_ts
     if args.max_assets is not None:
         config["max_assets"] = args.max_assets
     if args.max_equipment is not None:
         config["max_equipment"] = args.max_equipment
-    if args.max_notifications is not None:
-        config["max_notifications"] = args.max_notifications
-    if args.max_orders is not None:
-        config["max_maintenance_orders"] = args.max_orders
     if args.max_annotations is not None:
         config["max_annotations"] = args.max_annotations
     if args.max_3d is not None:
         config["max_3d_objects"] = args.max_3d
     if args.max_files is not None:
         config["max_files"] = args.max_files
+    if args.max_maintenance_idi is not None:
+        config["max_maintenance_idi_instances"] = args.max_maintenance_idi
+    if args.max_others is not None:
+        config["max_others_instances"] = args.max_others
+    if args.max_activities is not None:
+        config["max_activities"] = args.max_activities
+    if args.chunk_size is not None:
+        config["chunk_size"] = args.chunk_size
+        logger.info(f"Using chunk_size={args.chunk_size} (smaller pages to reduce graph query timeout risk)")
     
-    # Feature toggles
-    if args.no_maintenance:
-        config["enable_maintenance_metrics"] = False
-    if args.no_annotations:
-        config["enable_file_annotation_metrics"] = False
-    if args.no_3d:
-        config["enable_3d_metrics"] = False
-    if args.no_files:
-        config["enable_file_metrics"] = False
-    if args.no_gaps:
-        config["enable_historical_gaps"] = False
+    # Staging configuration (always applied - staging computed unless excluded via --only)
+    config["staging_raw_database"] = args.staging_db
+    config["staging_dm_space"] = args.staging_space
+    config["staging_dm_version"] = args.staging_version
     
     # View configuration overrides
     try:
@@ -1160,16 +1185,16 @@ def main():
         config["file_external_id"] = args.output_file
         config["file_name"] = f"{args.output_file}.json"
     
-    # Handle partial recompute
-    use_cache = args.use_cache
+    # Handle selective recompute
+    # If --only is used, we automatically load cached metrics and merge
+    use_cache = False
     recompute_sections = None
     
     if args.only_sections:
-        if not use_cache:
-            logger.warning("--only requires --use-cache. Enabling cache mode.")
-            use_cache = True
+        use_cache = True  # Auto-enable caching when using --only
         recompute_sections = set(args.only_sections)
-        logger.info(f"Partial recompute mode: will only recompute {recompute_sections}")
+        logger.info(f"Selective recompute: {', '.join(sorted(recompute_sections))}")
+        logger.info("Other sections will be preserved from cached metrics.")
     
     # Run metrics collection
     try:

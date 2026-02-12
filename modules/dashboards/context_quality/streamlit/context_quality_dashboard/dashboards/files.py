@@ -17,6 +17,7 @@ from .common import (
 from .ai_summary import (
     render_ai_summary_section,
 )
+from .reports import generate_files_report
 
 
 def get_file_prompt() -> str:
@@ -86,6 +87,17 @@ def render_files_dashboard(metrics: dict):
         
         *Tip: File → Asset Rate is the key metric - orphaned files cannot be found via the asset tree.*
         """)
+    
+    # Download Report Button
+    st.download_button(
+        label="Download Files Report (PDF)",
+        data=generate_files_report(metrics),
+        file_name="files_report.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+        type="primary",
+        key="download_files_report"
+    )
     
     st.markdown("---")
     
@@ -168,9 +180,10 @@ def render_files_dashboard(metrics: dict):
     
     # Category completeness
     category_rate = file_metrics.get("file_category_rate", 0)
+    files_uncategorized = file_metrics.get("files_uncategorized", 0)
     gauge(g2, "Category Assigned", category_rate, "category",
           get_status_color_files, [0, 100], "%", key="file_category",
-          help_text="% of files with a category (document type) assigned")
+          help_text=f"% of files with a category (document type) assigned. {files_uncategorized:,} uncategorized.")
     
     # Upload status
     upload_rate = file_metrics.get("file_upload_rate", 0)
@@ -218,6 +231,8 @@ def render_files_dashboard(metrics: dict):
         files_with_desc = file_metrics.get("files_with_description", 0)
         files_with_cat = file_metrics.get("files_with_category", 0)
         
+        files_without_cat = file_metrics.get("files_uncategorized", 0)
+        
         st.markdown(f"""
         | Metric | Value |
         |--------|-------|
@@ -232,6 +247,7 @@ def render_files_dashboard(metrics: dict):
         | Files with Name | {files_with_name:,} |
         | Files with Description | {files_with_desc:,} |
         | Files with Category | {files_with_cat:,} |
+        | Files without Category | {files_without_cat:,} |
         | Unique MIME Types | {unique_mime:,} |
         | Unique Categories | {unique_cats:,} |
         """)
@@ -255,6 +271,21 @@ def render_files_dashboard(metrics: dict):
                 st.markdown(f"- **{cat}**: {count:,} ({pct:.1f}%)")
         else:
             st.info("No category data available")
+        
+        # Uncategorized files download
+        uncategorized_ids = file_metrics.get("files_uncategorized_ids", [])
+        files_uncategorized_count = file_metrics.get("files_uncategorized", 0)
+        if files_uncategorized_count > 0:
+            st.markdown(f"**Uncategorized Files:** {files_uncategorized_count:,}")
+            if uncategorized_ids:
+                csv_data = "external_id\n" + "\n".join(uncategorized_ids)
+                st.download_button(
+                    label=f"Download Uncategorized File IDs ({len(uncategorized_ids):,} items)",
+                    data=csv_data,
+                    file_name="uncategorized_files.csv",
+                    mime="text/csv",
+                    key="download_uncategorized_files"
+                )
     
     # =====================================================
     # AI SUMMARY

@@ -27,6 +27,8 @@ class Model3DAccumulator:
     total_assets_checked: int = 0
     assets_with_3d: int = 0
     asset_ids_with_3d: Set[str] = field(default_factory=set)
+    # 3D object external_ids that appear as object3D on some asset (link from asset side)
+    object3d_ids_linked_from_assets: Set[str] = field(default_factory=set)
     
     # Critical asset tracking
     critical_assets_total: int = 0
@@ -57,6 +59,7 @@ class Model3DAccumulator:
             "total_assets_checked": self.total_assets_checked,
             "assets_with_3d": self.assets_with_3d,
             "asset_ids_with_3d": list(self.asset_ids_with_3d),
+            "object3d_ids_linked_from_assets": list(self.object3d_ids_linked_from_assets),
             "critical_assets_total": self.critical_assets_total,
             "critical_assets_with_3d": self.critical_assets_with_3d,
             "total_3d_objects": self.total_3d_objects,
@@ -79,6 +82,7 @@ class Model3DAccumulator:
         acc.total_assets_checked = data.get("total_assets_checked", 0)
         acc.assets_with_3d = data.get("assets_with_3d", 0)
         acc.asset_ids_with_3d = set(data.get("asset_ids_with_3d", []))
+        acc.object3d_ids_linked_from_assets = set(data.get("object3d_ids_linked_from_assets", []))
         acc.critical_assets_total = data.get("critical_assets_total", 0)
         acc.critical_assets_with_3d = data.get("critical_assets_with_3d", 0)
         acc.total_3d_objects = data.get("total_3d_objects", 0)
@@ -99,6 +103,7 @@ class Model3DAccumulator:
         self.total_assets_checked += other.total_assets_checked
         self.assets_with_3d += other.assets_with_3d
         self.asset_ids_with_3d.update(other.asset_ids_with_3d)
+        self.object3d_ids_linked_from_assets.update(other.object3d_ids_linked_from_assets)
         self.critical_assets_total += other.critical_assets_total
         self.critical_assets_with_3d += other.critical_assets_with_3d
         self.total_3d_objects += other.total_3d_objects
@@ -119,11 +124,13 @@ class Model3DAccumulator:
 # ----------------------------------------------------
 
 def get_direct_relation_id(prop) -> Optional[str]:
-    """Extract external ID from a direct relation property."""
+    """Extract external ID from a direct relation property (string, dict, or object)."""
     if not prop:
         return None
+    if isinstance(prop, str):
+        return prop.strip() or None
     if isinstance(prop, dict):
-        return prop.get("externalId")
+        return prop.get("externalId") or prop.get("external_id")
     return getattr(prop, "external_id", None)
 
 
@@ -156,6 +163,7 @@ def process_asset_3d_batch(
         if has_3d:
             acc.assets_with_3d += 1
             acc.asset_ids_with_3d.add(node_id)
+            acc.object3d_ids_linked_from_assets.add(object_3d_id)
         
         # Check criticality - support multiple property names
         criticality = (
@@ -206,17 +214,24 @@ def process_3d_object_batch(
         props = get_props(node, object_view)
         
         # Check 3D → Asset contextualization (MOST IMPORTANT METRIC)
-        # The 'asset' property is a reverse relation from CogniteAsset.object3D
-        asset_link = props.get("asset")
+        # Link can come from: (1) 3D view's asset/parentAsset property if the API returns it,
+        # or (2) asset side: this 3D object's ID appears as object3D on some asset (we track that set).
+        asset_link = props.get("asset") or props.get("parentAsset")
         if asset_link is not None:
-            # Asset link can be a dict, object, or list
             has_asset = True
             if isinstance(asset_link, list):
                 has_asset = len(asset_link) > 0
             elif isinstance(asset_link, dict):
-                has_asset = asset_link.get("externalId") is not None
+                has_asset = (
+                    asset_link.get("externalId") is not None
+                    or asset_link.get("external_id") is not None
+                )
+            elif isinstance(asset_link, str):
+                has_asset = bool(asset_link.strip())
         else:
             has_asset = False
+        if not has_asset and node_id in acc.object3d_ids_linked_from_assets:
+            has_asset = True
         
         if has_asset:
             acc.objects_with_asset_link += 1

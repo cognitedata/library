@@ -69,10 +69,10 @@ from metrics import (
     process_timeseries_batch,
     process_asset_batch,
     process_equipment_batch,
+    process_activity_batch,
     process_notification_batch,
     process_maintenance_order_batch,
     process_failure_notification_batch,
-    compute_historical_gaps_batch,
     # File annotation processors
     FileAnnotationAccumulator,
     process_annotation_batch,
@@ -90,6 +90,9 @@ from metrics import (
     compute_file_annotation_metrics,
     compute_3d_metrics,
     compute_file_metrics,
+    # Staging metrics
+    compute_staging_metrics,
+    DEFAULT_STAGING_CONFIG,
     # Storage
     save_metrics_to_file,
     # Batch processing
@@ -97,6 +100,13 @@ from metrics import (
     load_and_merge_all_batches,
     delete_batch_files,
     list_batch_files,
+    # New: IDI Maintenance and Others metrics
+    MaintenanceIDIAccumulator,
+    collect_maintenance_idi_metrics,
+    compute_maintenance_idi_metrics,
+    OthersAccumulator,
+    collect_others_metrics,
+    compute_others_metrics,
 )
 
 
@@ -247,11 +257,7 @@ def _handle_batch_collection(client: CogniteClient, config: dict, start_time: fl
     
     chunk_size = config["chunk_size"]
     freshness_days = config["freshness_days"]
-    enable_gaps = config["enable_historical_gaps"]
     enable_maintenance = config["enable_maintenance_metrics"]
-    gap_sample_rate = config["gap_sample_rate"]
-    gap_threshold_days = config["gap_threshold_days"]
-    gap_lookback = config["gap_lookback"]
     
     # Build view IDs
     ts_view = ViewId(
@@ -312,14 +318,6 @@ def _handle_batch_collection(client: CogniteClient, config: dict, start_time: fl
         batch_counts["ts"] += 1
         process_timeseries_batch(ts_batch, ts_view, acc)
         instances_processed += batch_instance_count
-        
-        # Historical gap analysis
-        if enable_gaps and batch_counts["ts"] % gap_sample_rate == 0:
-            compute_historical_gaps_batch(
-                ts_batch, client, acc,
-                gap_threshold_days=gap_threshold_days,
-                lookback=gap_lookback
-            )
         
         if batch_counts["ts"] % LOG_EVERY_N_BATCHES == 0:
             logger.info(f"[TS] Batch {batch_counts['ts']:,} | Total: {acc.total_ts:,}")
@@ -552,6 +550,15 @@ def handle(data: dict, client: CogniteClient) -> dict:
     logger.info("STARTING Contextualization Quality Metrics Function")
     logger.info("=" * 70)
     
+    # Feature flags for new metrics
+    enable_maintenance_idi = config.get("enable_maintenance_idi_metrics", True)
+    enable_others = config.get("enable_others_metrics", True)
+    enable_activities = config.get("enable_activity_metrics", True)
+    
+    # Initialize metrics dictionaries for new features
+    maintenance_idi_metrics = {}
+    others_metrics = {}
+    
     chunk_size = config["chunk_size"]
     max_ts = config["max_timeseries"]
     max_assets = config["max_assets"]
@@ -560,12 +567,8 @@ def handle(data: dict, client: CogniteClient) -> dict:
     max_orders = config["max_maintenance_orders"]
     max_annotations = config["max_annotations"]
     freshness_days = config["freshness_days"]
-    enable_gaps = config["enable_historical_gaps"]
     enable_maintenance = config["enable_maintenance_metrics"]
     enable_file_annotations = config["enable_file_annotation_metrics"]
-    gap_sample_rate = config["gap_sample_rate"]
-    gap_threshold_days = config["gap_threshold_days"]
-    gap_lookback = config["gap_lookback"]
     file_external_id = config["file_external_id"]
     file_name = config["file_name"]
     
@@ -639,16 +642,6 @@ def handle(data: dict, client: CogniteClient) -> dict:
         # Debug: Log unit info after first batch
         if batch_counts["ts"] == 1:
             logger.info(f"[DEBUG] After 1st batch: sourceUnit={acc.has_source_unit}, targetUnit={acc.has_target_unit}, checked={acc.unit_checks}")
-        
-        # Historical gap analysis: always analyze first batch + every Nth batch
-        if enable_gaps and (batch_counts["ts"] == 1 or batch_counts["ts"] % gap_sample_rate == 0):
-            logger.info(f"[Gaps] Analyzing batch {batch_counts['ts']} for historical data completeness...")
-            compute_historical_gaps_batch(
-                ts_batch, client, acc,
-                gap_threshold_days=gap_threshold_days,
-                lookback=gap_lookback
-            )
-            logger.info(f"[Gaps] Analyzed: {acc.ts_analyzed_for_gaps} TS, gaps found: {acc.gap_count}")
         
         if batch_counts["ts"] % LOG_EVERY_N_BATCHES == 0:
             elapsed = time.time() - start_time
@@ -958,10 +951,142 @@ def handle(data: dict, client: CogniteClient) -> dict:
         logger.info("[Files] Skipped - disabled in config")
     
     # ============================================================
-    # PHASE 9: Compute All Metrics
+    # PHASE 8: Staging vs DM Comparison
+    # ============================================================
+    staging_metrics = {}
+    enable_staging = config.get("enable_staging_metrics", False)
+    
+    if enable_staging:
+        logger.info("-" * 50)
+        logger.info("PHASE 8: Computing Staging vs DM Comparison")
+        logger.info("-" * 50)
+        
+        phase8_start = time.time()
+        
+        try:
+            staging_config = {
+                "staging_raw_database": config.get("staging_raw_database", "oracle:db"),
+                "staging_dm_space": config.get("staging_dm_space", "rmdm"),
+                "staging_dm_version": config.get("staging_dm_version", "v1"),
+            }
+            staging_metrics = compute_staging_metrics(client, staging_config)
+            logger.info(f"[Staging] Matched: {staging_metrics.get('staging_views_matched', 0)}, "
+                       f"Gaps: {staging_metrics.get('staging_views_with_gaps', 0)}")
+        except Exception as e:
+            logger.warning(f"[Staging] Could not compute staging metrics: {e}")
+            staging_metrics = {"staging_has_data": False, "error": str(e)}
+        
+        logger.info(f"PHASE 8 Complete: Staging comparison in {format_elapsed(time.time() - phase8_start)}")
+    else:
+        logger.info("[Staging] Skipped - disabled in config")
+    
+    # ============================================================
+    # PHASE 9a: Process CogniteActivity
+    # ============================================================
+    enable_activities = config.get("enable_activity_metrics", True)
+    
+    if enable_activities:
+        logger.info("-" * 50)
+        logger.info("PHASE 9a: Processing CogniteActivity")
+        logger.info("-" * 50)
+        
+        phase9a_start = time.time()
+        
+        activity_view = ViewId(
+            config.get("activity_view_space", "cdf_cdm"),
+            config.get("activity_view_external_id", "CogniteActivity"),
+            config.get("activity_view_version", "v1")
+        )
+        
+        max_activities = config.get("max_activities", 150000)
+        
+        try:
+            for activity_batch in client.data_modeling.instances(
+                chunk_size=chunk_size,
+                instance_type="node",
+                sources=activity_view,
+            ):
+                batch_counts["activities"] = batch_counts.get("activities", 0) + 1
+                process_activity_batch(activity_batch, activity_view, acc)
+                
+                if len(acc.activity_ids_seen) >= max_activities:
+                    logger.info(f"[Activities] Reached limit ({max_activities:,})")
+                    break
+        except Exception as e:
+            logger.warning(f"[Activities] Could not process activities: {e}")
+        
+        logger.info(f"[Activities] Total: {len(acc.activity_ids_seen):,}")
+        logger.info(f"✅ PHASE 9a: Activities processed in {format_elapsed(time.time() - phase9a_start)}")
+    else:
+        logger.info("[Activities] Skipped - disabled in config")
+    
+    # ============================================================
+    # PHASE 9b: Collect IDI Maintenance Metrics
+    # ============================================================
+    enable_maintenance_idi = config.get("enable_maintenance_idi_metrics", True)
+    maintenance_idi_metrics = {}
+    
+    if enable_maintenance_idi:
+        logger.info("-" * 50)
+        logger.info("PHASE 9b: Collecting IDI Maintenance Metrics")
+        logger.info("-" * 50)
+        
+        phase9b_start = time.time()
+        
+        try:
+            maint_idi_config = {
+                "maintenance_idi_dm_space": config.get("maintenance_idi_dm_space", "rmdm"),
+                "maintenance_idi_dm_version": config.get("maintenance_idi_dm_version", "v1"),
+                "chunk_size": chunk_size,
+            }
+            maint_idi_acc = collect_maintenance_idi_metrics(client, maint_idi_config)
+            maintenance_idi_metrics = compute_maintenance_idi_metrics(maint_idi_acc, acc.total_assets)
+            
+            logger.info(f"[MaintenanceIDI] Views with data: {maintenance_idi_metrics.get('maint_idi_views_with_data', 0)}")
+        except Exception as e:
+            logger.warning(f"[MaintenanceIDI] Could not process: {e}")
+            maintenance_idi_metrics = {"maint_idi_has_data": False, "error": str(e)}
+        
+        logger.info(f"✅ PHASE 9b: IDI Maintenance in {format_elapsed(time.time() - phase9b_start)}")
+    else:
+        logger.info("[MaintenanceIDI] Skipped - disabled in config")
+    
+    # ============================================================
+    # PHASE 9c: Collect Others IDI Metrics
+    # ============================================================
+    enable_others = config.get("enable_others_metrics", True)
+    others_metrics = {}
+    
+    if enable_others:
+        logger.info("-" * 50)
+        logger.info("PHASE 9c: Collecting Others IDI Metrics")
+        logger.info("-" * 50)
+        
+        phase9c_start = time.time()
+        
+        try:
+            others_config = {
+                "others_dm_space": config.get("others_dm_space", "rmdm"),
+                "others_dm_version": config.get("others_dm_version", "v1"),
+                "chunk_size": chunk_size,
+            }
+            others_acc = collect_others_metrics(client, others_config)
+            others_metrics = compute_others_metrics(others_acc)
+            
+            logger.info(f"[Others] Views with data: {others_metrics.get('others_views_with_data', 0)}")
+        except Exception as e:
+            logger.warning(f"[Others] Could not process: {e}")
+            others_metrics = {"others_has_data": False, "error": str(e)}
+        
+        logger.info(f"✅ PHASE 9c: Others IDI in {format_elapsed(time.time() - phase9c_start)}")
+    else:
+        logger.info("[Others] Skipped - disabled in config")
+    
+    # ============================================================
+    # PHASE 10: Compute All Metrics
     # ============================================================
     logger.info("-" * 50)
-    logger.info("PHASE 9: Computing All Metrics")
+    logger.info("PHASE 10: Computing All Metrics")
     logger.info("-" * 50)
     
     phase9_start = time.time()
@@ -973,7 +1098,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
     logger.info(f"✅ PHASE 9: Metrics computed in {format_elapsed(time.time() - phase9_start)}")
     
     # ============================================================
-    # PHASE 10: Compile and Save Results
+    # PHASE 11: Compile and Save Results
     # ============================================================
     logger.info("-" * 50)
     logger.info("PHASE 10: Saving Results to Cognite Files")
@@ -1055,20 +1180,23 @@ def handle(data: dict, client: CogniteClient) -> dict:
                 "max_3d_objects": max_3d_objects,
                 "max_files": max_files,
                 "freshness_days": freshness_days,
-                "enable_historical_gaps": enable_gaps,
                 "enable_maintenance_metrics": enable_maintenance,
                 "enable_file_annotation_metrics": enable_file_annotations,
                 "enable_3d_metrics": enable_3d,
                 "enable_file_metrics": enable_files,
+                "enable_staging_metrics": enable_staging,
             },
         },
         "timeseries_metrics": ts_metrics,
         "hierarchy_metrics": hierarchy_metrics,
         "equipment_metrics": equipment_metrics,
         "maintenance_metrics": maintenance_metrics if enable_maintenance else {},
+        "maintenance_idi_metrics": maintenance_idi_metrics if enable_maintenance_idi else {},
+        "others_metrics": others_metrics if enable_others else {},
         "file_annotation_metrics": file_annotation_metrics if enable_file_annotations else {},
         "model3d_metrics": model3d_metrics if enable_3d else {},
         "file_metrics": file_metrics if enable_files else {},
+        "staging_metrics": staging_metrics if enable_staging else {},
     }
     
     # Save to Cognite Files

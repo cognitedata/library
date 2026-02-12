@@ -135,6 +135,7 @@ def compute_asset_hierarchy_metrics(acc: CombinedAccumulator) -> dict:
         "hierarchy_root_assets": root_assets,
         "hierarchy_assets_with_parents": assets_with_parents,
         "hierarchy_orphan_count": orphan_count,
+        "hierarchy_orphan_ids": orphan_ids,
         "hierarchy_orphan_rate": round(orphan_rate, 2),
         "hierarchy_completion_rate": round(completion_rate, 2),
         "hierarchy_avg_depth": round(avg_depth, 2),

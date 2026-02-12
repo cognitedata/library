@@ -246,7 +246,6 @@ python run_metrics.py --use-cache --only assets
 | `--use-cache` | Load previous metrics, only recompute specified sections |
 | `--only SECTION` | Recompute specific section(s): ts, assets, equipment, maintenance, annotations, 3d, files |
 | `--ts-view`, `--asset-view`, etc. | Override data model views |
-| `--no-gaps` | Skip slow historical gap analysis |
 | `--dry-run` | Save locally instead of uploading to CDF |
 
 See `scripts/README.md` for complete documentation including authentication setup and all options.
@@ -728,6 +727,17 @@ client.functions.schedules.create(
    - Uncheck "Enable 3D Metrics" if 3D objects are not needed
 5. **Retry the failed batch** — Click the Retry button next to the timed-out batch
 
+### Graph query timeout on specific views
+
+**Cause:** The Data Model instances API can time out on very large or complex views before returning the first page of results.
+
+**Batch processing is already in use:** Every view is read via paginated requests (`chunk_size` items per request). If a view still times out, the server-side query for that view is too heavy.
+
+**Solution:**
+1. **Reduce chunk size** — In **Configure & Run** → **Processing Limits (Advanced)**, set **Chunk size** to **200** or **100** (default is 500). Smaller pages reduce load per request and can avoid timeouts.
+2. **Use Batch Processing** — For large datasets, use Batch Processing (multiple batches + aggregation) so each run processes fewer instances per view and stays within limits.
+3. **Run locally** — Use `python run_metrics.py` (with optional `--only <section>`) to avoid the function’s 10-minute limit; the script has no timeout.
+
 ### Maintenance tab shows warning
 
 **Cause:** RMDM v1 is not deployed or has no data.
@@ -1078,28 +1088,6 @@ Data Freshness (%) = (TS updated within N days / Total TS) × 100
 ```
 Avg Time Since Last TS Update (hours) = Σ(Now - lastUpdatedTime) / Count of valid TS
 ```
-
----
-
-#### 3.9 Historical Data Completeness
-
-**What it measures:** The percentage of the time span that contains actual data (vs gaps). A gap is defined as a period longer than the threshold (default: 7 days) without any datapoints.
-
-**Formula:**
-
-```
-Historical Data Completeness (%) = ((Total Time Span - Total Gap Duration) / Total Time Span) × 100
-```
-
-**Example:** If a time series spans 365 days but has a 30-day gap:
-```
-Completeness = (365 - 30) / 365 × 100 = 91.8%
-```
-
-**Interpretation:**
-- 🟢 **≥ 95%**: Excellent - Minimal data gaps
-- 🟡 **85-95%**: Warning - Some significant gaps
-- 🔴 **< 85%**: Critical - Major data gaps exist
 
 ---
 

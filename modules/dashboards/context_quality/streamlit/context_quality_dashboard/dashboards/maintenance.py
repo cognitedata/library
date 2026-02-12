@@ -1,9 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Maintenance Workflow Quality Dashboard (RMDM v1).
+Maintenance IDI Views Dashboard.
+
+Displays metrics for maintenance-related IDI views:
+- IDI_MaintenancePlan (asset, work order)
+- IDI_MaintenancePlanItem (asset, maintenance plan, work order)
+- IDI_Maintenance_Order (asset, maintenance plan, maintenance plan item, operations)
+- IDI_Operations (work order)
+- IDI_MaximoWorkorder (asset)
+- IDI_Notifications (asset, work order)
 """
 
 import streamlit as st
+import pandas as pd
 
 from .common import (
     get_status_color_maintenance,
@@ -14,393 +23,317 @@ from .common import (
 from .ai_summary import (
     render_ai_summary_section,
     get_maintenance_prompt,
-    format_maintenance_metrics,
 )
+from .reports import generate_maintenance_idi_report
+
+
+def get_status_icon(status: str) -> str:
+    """Get icon for view status."""
+    icons = {
+        "ok": "✅",
+        "empty": "⚪",
+        "not_found": "❌",
+        "error": "⚠️",
+    }
+    return icons.get(status, "❓")
+
+
+def format_maintenance_idi_metrics(maint: dict) -> str:
+    """Format maintenance IDI metrics for AI summary."""
+    if not maint:
+        return "No maintenance IDI metrics available."
+    
+    lines = []
+    lines.append("## Maintenance IDI Views Summary")
+    lines.append(f"- Total Views: {maint.get('maint_idi_total_views', 0)}")
+    lines.append(f"- Views with Data: {maint.get('maint_idi_views_with_data', 0)}")
+    lines.append(f"- Total Instances: {maint.get('maint_idi_total_instances', 0):,}")
+    lines.append(f"- Assets with Maintenance: {maint.get('maint_idi_assets_with_maintenance', 0):,}")
+    lines.append(f"- Asset Coverage Rate: {maint.get('maint_idi_asset_coverage_rate', 'N/A')}%")
+    
+    views = maint.get("maint_idi_views", [])
+    if views:
+        lines.append("\n### Per-View Breakdown:")
+        for view in views:
+            if view.get("status") == "ok":
+                lines.append(f"\n**{view.get('display_name')}** ({view.get('unique_instances', 0):,} records)")
+                for rel_name, rel_data in view.get("relations", {}).items():
+                    rate = rel_data.get("rate", "N/A")
+                    lines.append(f"  - {rel_name}: {rate}% ({rel_data.get('count', 0):,} linked)")
+    
+    return "\n".join(lines)
 
 
 def render_maintenance_dashboard(metrics: dict):
-    """Render the Maintenance Workflow Quality dashboard tab."""
-    st.title("Maintenance Workflow Quality Dashboard")
-    st.markdown("*Based on RMDM v1 Data Model*")
+    """Render the Maintenance IDI Views dashboard tab."""
+    st.title("Maintenance Data Quality Dashboard")
+    st.markdown("*Metrics for IDI Maintenance Views*")
     
-    maintenance = metrics.get("maintenance_metrics", {})
+    # Try new IDI metrics first, fall back to legacy metrics
+    maint_idi = metrics.get("maintenance_idi_metrics", {})
+    maint_legacy = metrics.get("maintenance_metrics", {})
     metadata = metrics.get("metadata", {})
     
-    # Check if maintenance metrics are enabled
-    config = metadata.get("config", {})
-    maintenance_enabled = config.get("enable_maintenance_metrics", True)
+    # Determine which metrics to use
+    use_idi = maint_idi and maint_idi.get("maint_idi_has_data", False)
+    use_legacy = not use_idi and maint_legacy and (
+        maint_legacy.get("maint_has_notifications", False) or 
+        maint_legacy.get("maint_has_orders", False)
+    )
     
-    if not maintenance_enabled:
-        st.warning("""
-        **Maintenance Metrics Disabled**
-        
-        Maintenance workflow metrics are disabled in the function configuration.
-        To enable, set `enable_maintenance_metrics: true` in the function input.
-        """)
-        return
-    
-    if not maintenance or not maintenance.get("maint_has_notifications", False) and not maintenance.get("maint_has_orders", False):
+    if not use_idi and not use_legacy:
         st.warning("""
         **No Maintenance Data Found**
         
-        No notifications or maintenance orders found in the RMDM v1 data model.
-        """)
+        No maintenance metrics found. This could mean:
+        1. Maintenance IDI views are not deployed in your space
+        2. The views contain no data
+        3. Metrics haven't been computed yet
         
-        st.info("""
-        **Prerequisites:**
-        
-        1. **RMDM v1 must be deployed** - Ensure the RMDM v1 data model is available in your CDF project
-        2. **Views must be populated** - The following views need data in the `rmdm` space:
-           - `Notification`
-           - `MaintenanceOrder`
-           - `FailureNotification`
-        
-        **Using a different RMDM model?**
-        
-        If your RMDM model uses a different space name or view names, you can configure them in:
-        
-        [Folder] `metrics/common.py` -> Lines **40-48** (DEFAULT_CONFIG section)
-        
-        ```python
-        "notification_view_space": "your_space",
-        "notification_view_external_id": "YourNotificationView",
-        "maintenance_order_view_space": "your_space",
-        "maintenance_order_view_external_id": "YourMaintenanceOrderView",
-        "failure_notification_view_space": "your_space",
-        "failure_notification_view_external_id": "YourFailureNotificationView",
-        ```
-        
-        Or pass these as function input when calling the function.
+        **Expected Views:**
+        - IDI_MaintenancePlan
+        - IDI_MaintenancePlanItem
+        - IDI_Maintenance_Order
+        - IDI_Operations
+        - IDI_MaximoWorkorder
+        - IDI_Notifications
         """)
         return
     
     # Show data info
     computed_at = metadata.get("computed_at", "Unknown")
-    st.info(f"[Date] Metrics computed at: {computed_at}")
+    st.info(f"Metrics computed at: {computed_at}")
+    
+    if use_idi:
+        _render_maintenance_idi_dashboard(maint_idi, metadata, metrics)
+    else:
+        _render_legacy_maintenance_info()
+
+
+def _render_legacy_maintenance_info():
+    """Show info about legacy maintenance metrics."""
+    st.info("""
+    **Legacy Maintenance Metrics Detected**
+    
+    The current metrics use the old RMDM v1 format. Please re-run the metrics 
+    function to generate the new IDI maintenance metrics.
+    """)
+
+
+def _render_maintenance_idi_dashboard(maint: dict, metadata: dict, full_metrics: dict = None):
+    """Render the new IDI maintenance dashboard."""
     
     # Understanding the metrics
     with st.expander("**Understanding the Metrics** - Click to learn more", expanded=False):
         st.markdown("""
-        **Work Order Quality (Critical - should be ~100%):**
-        - **Work Order → Asset** - % of work orders linked to an asset (required for asset-level reporting)
-        - **Work Order → Notification** - % of work orders originating from a notification
-        - **Order Completion Rate** - % of work orders with actualEndTime (completed)
+        **Maintenance Views:**
+        - **IDI_MaintenancePlan** - Maintenance plans linked to assets and work orders
+        - **IDI_MaintenancePlanItem** - Individual items in maintenance plans
+        - **IDI_Maintenance_Order** - Maintenance work orders with multi-relation tracking
+        - **IDI_Operations** - Operational activities linked to work orders
+        - **IDI_MaximoWorkorder** - Work orders from Maximo system
+        - **IDI_Notifications** - Maintenance notifications linked to assets/work orders
         
-        **Notification Linkage (Informational - low values may be OK):**
-        - **Notification → Work Order** - % of notifications with a linked work order (not all need WOs)
-        - **Notification → Asset** - % of notifications linked to an asset
-        - **Notification → Equipment** - % of notifications linked to equipment
+        **Key Metrics per View:**
+        - **Asset Link Rate** - % of records linked to an asset (should be high)
+        - **Work Order Link Rate** - % of records linked to work orders
+        - **Plan Link Rate** - % of items linked to maintenance plans
         
-        **Failure Analysis Documentation:**
-        - **Failure Mode Rate** - % of failure notifications with failure mode documented
-        - **Failure Mechanism Rate** - % with failure mechanism documented
-        - **Failure Cause Rate** - % with failure cause documented
-        
-        **Maintenance Coverage (Informational):**
-        - **Asset/Equipment Coverage** - % of assets/equipment with maintenance records (low values are normal)
-        
-        *Tip: Work Order → Asset is the most critical metric - all work orders should be traceable to an asset.*
+        *Tip: High asset linkage is critical for maintenance traceability!*
         """)
     
-    # Extract metrics
-    total_notifications = maintenance.get("maint_total_notifications", 0)
-    total_orders = maintenance.get("maint_total_orders", 0)
-    total_failure_notif = maintenance.get("maint_total_failure_notifications", 0)
+    # Download Report Button
+    if full_metrics:
+        st.download_button(
+            label="Download Maintenance IDI Report (PDF)",
+            data=generate_maintenance_idi_report(full_metrics),
+            file_name="maintenance_idi_report.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary",
+            key="download_maintenance_idi_report"
+        )
     
     st.markdown("---")
     
     # =====================================================
-    # MAIN METRIC - BIG ON TOP
-    # Work Order Quality (critical metrics)
+    # SUMMARY SECTION
     # =====================================================
-    st.header("Work Order Contextualization")
+    st.header("Maintenance Summary")
     
-    order_asset_rate = maintenance.get("maint_order_to_asset_rate", 0) or 0
-    order_notif_rate = maintenance.get("maint_order_to_notif_rate", 0) or 0
+    col1, col2, col3, col4 = st.columns(4)
+    
+    total_views = maint.get("maint_idi_total_views", 0)
+    views_with_data = maint.get("maint_idi_views_with_data", 0)
+    total_instances = maint.get("maint_idi_total_instances", 0)
+    assets_with_maint = maint.get("maint_idi_assets_with_maintenance", 0)
+    asset_coverage = maint.get("maint_idi_asset_coverage_rate")
+    
+    metric_card(col1, "Total Views", f"{total_views}",
+                help_text="Number of maintenance views monitored")
+    metric_card(col2, "Views with Data", f"{views_with_data}",
+                help_text="Views that have records")
+    metric_card(col3, "Total Records", f"{total_instances:,}",
+                help_text="Sum of all maintenance records")
+    metric_card(col4, "Assets with Maintenance", f"{assets_with_maint:,}",
+                help_text="Unique assets linked to maintenance data")
+    
+    st.markdown("---")
+    
+    # =====================================================
+    # MAIN METRIC - ASSET COVERAGE
+    # =====================================================
+    st.header("Asset Maintenance Coverage")
     
     col_main, col_info = st.columns([2, 1])
     
     with col_main:
-        if total_orders > 0:
-            gauge(col_main, "Work Orders Linked to Assets", order_asset_rate, "order_asset", 
-                  get_status_color_maintenance, [0, 100], "%", key="maint_order_asset_main",
-                  help_text="% of work orders linked to an asset. Should be ~100%.")
+        if asset_coverage is not None:
+            gauge(col_main, "Assets with Maintenance Data", asset_coverage, "maint_coverage",
+                  get_status_color_maintenance, [0, 100], "%", key="maint_idi_coverage",
+                  help_text="% of assets that have at least one maintenance record")
         else:
-            gauge_na(col_main, "Work Orders Linked to Assets", "No work orders", key="maint_order_asset_main_na",
-                     help_text="% of work orders linked to an asset")
+            gauge_na(col_main, "Assets with Maintenance Data", "No asset data",
+                     key="maint_idi_coverage_na")
     
     with col_info:
         st.markdown("### Why This Matters")
         st.markdown("""
-        Work orders without asset links cannot be:
-        - Tracked to physical locations
-        - Rolled up for asset-level reporting
-        - Used for reliability analysis
+        Assets without maintenance data may indicate:
+        - Missing data integration
+        - New assets not yet in maintenance planning
+        - Data quality issues in source systems
         
-        All work orders should be linked to the asset being maintained.
+        Not all assets need maintenance - focus on critical equipment.
         """)
+    
+    st.markdown("---")
+    
+    # =====================================================
+    # PER-VIEW METRICS
+    # =====================================================
+    st.header("Per-View Metrics")
+    
+    views = maint.get("maint_idi_views", [])
+    
+    if not views:
+        st.info("No view data available.")
+        return
+    
+    # Create tabs for each view with data
+    ok_views = [v for v in views if v.get("status") == "ok" and v.get("unique_instances", 0) > 0]
+    
+    if ok_views:
+        # Create a tab for each view
+        tab_names = [v.get("display_name", v.get("view_id", "?")) for v in ok_views]
+        tabs = st.tabs(tab_names)
         
-        orders_without_asset = maintenance.get("maint_order_without_asset", 0)
-        if total_orders == 0:
-            st.info("No work orders found in RMDM.")
-        elif order_asset_rate >= 95:
-            st.success(f"Excellent work order coverage!")
-        elif order_asset_rate >= 80:
-            st.warning(f"Some work orders need asset links.")
-        else:
-            st.error(f"Many work orders are missing asset links!")
+        for tab, view in zip(tabs, ok_views):
+            with tab:
+                _render_view_details(view)
+    
+    # Show views without data
+    empty_views = [v for v in views if v.get("status") in ["empty", "not_found", "error"]]
+    if empty_views:
+        with st.expander(f"Views without Data ({len(empty_views)})", expanded=False):
+            for view in empty_views:
+                status = view.get("status", "unknown")
+                icon = get_status_icon(status)
+                error = view.get("error", "")
+                st.markdown(
+                    f"{icon} **{view.get('display_name')}** "
+                    f"(`{view.get('view_id')}`) - {status}"
+                    f"{': ' + error if error else ''}"
+                )
     
     st.markdown("---")
     
-    # Summary cards
-    col1, col2, col3, col4 = st.columns(4)
-    metric_card(col1, "Total Notifications", f"{total_notifications:,}",
-                help_text="Total maintenance notifications in RMDM")
-    metric_card(col2, "Total Work Orders", f"{total_orders:,}",
-                help_text="Total maintenance orders (work orders) in RMDM")
-    metric_card(col3, "Failure Notifications", f"{total_failure_notif:,}",
-                help_text="Notifications with failure analysis data")
-    metric_card(col4, "Orders Completed", f"{maintenance.get('maint_orders_completed', 0):,}",
-                help_text="Work orders with actualEndTime (completed)")
-    
-    st.markdown("---")
-    
-    # =========================================
-    # SECTION 1: Notification Linkage Metrics
-    # =========================================
-    st.header("Notification Linkage")
-    st.markdown("*How well are notifications linked to work orders, assets, and equipment?*")
-    st.caption("Note: Not all notifications require a work order - low values are acceptable.")
-    
-    g1, g2, g3 = st.columns(3)
-    
-    # 1. Notification -> Work Order Linkage (INFORMATIONAL)
-    notif_order_rate = maintenance.get("maint_notif_to_order_rate")
-    if notif_order_rate is not None and total_notifications > 0:
-        gauge(g1, "Notification -> Work Order", notif_order_rate, "notif_order", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_notif_order",
-              help_text="INFORMATIONAL: % with WO. Low values OK - not all notifications need a work order.")
-    else:
-        gauge_na(g1, "Notification -> Work Order", "No notifications", key="maint_notif_order_na",
-                 help_text="% of notifications linked to a maintenance order")
-    
-    # 2. Notification -> Asset Linkage
-    notif_asset_rate = maintenance.get("maint_notif_to_asset_rate")
-    if notif_asset_rate is not None and total_notifications > 0:
-        gauge(g2, "Notification -> Asset", notif_asset_rate, "notif_asset", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_notif_asset",
-              help_text="% of notifications linked to an asset")
-    else:
-        gauge_na(g2, "Notification -> Asset", "No notifications", key="maint_notif_asset_na",
-                 help_text="% of notifications linked to an asset")
-    
-    # 3. Notification -> Equipment Linkage
-    notif_eq_rate = maintenance.get("maint_notif_to_equipment_rate")
-    if notif_eq_rate is not None and total_notifications > 0:
-        gauge(g3, "Notification -> Equipment", notif_eq_rate, "notif_equipment", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_notif_eq",
-              help_text="% of notifications linked to equipment")
-    else:
-        gauge_na(g3, "Notification -> Equipment", "No notifications", key="maint_notif_eq_na",
-                 help_text="% of notifications linked to equipment")
-    
-    st.markdown("---")
-    
-    # =========================================
-    # SECTION 2: Work Order Quality (CRITICAL METRICS)
-    # =========================================
-    st.header("[Note] Work Order Quality")
-    st.markdown("*Critical metrics - work orders should be linked to notifications and assets.*")
-    st.caption("All work orders should originate from a notification and be linked to an asset.")
-    
-    # Row 1: Critical work order metrics
-    g4, g5 = st.columns(2)
-    
-    # Work Order -> Notification Linkage (CRITICAL - should be ~100%)
-    order_notif_rate = maintenance.get("maint_order_to_notif_rate")
-    if order_notif_rate is not None and total_orders > 0:
-        gauge(g4, "Work Order -> Notification", order_notif_rate, "order_notif", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_order_notif",
-              help_text="CRITICAL: Should be ~100%. All WOs should originate from a notification.")
-    else:
-        gauge_na(g4, "Work Order -> Notification", "No orders", key="maint_order_notif_na",
-                 help_text="% of work orders that have a linked notification")
-    
-    # Work Order -> Asset Coverage (CRITICAL - should be ~100%)
-    order_asset_rate = maintenance.get("maint_order_to_asset_rate")
-    if order_asset_rate is not None and total_orders > 0:
-        gauge(g5, "Work Order -> Asset", order_asset_rate, "order_asset", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_order_asset",
-              help_text="CRITICAL: Should be ~100%. All WOs should be linked to an asset.")
-    else:
-        gauge_na(g5, "Work Order -> Asset", "No orders", key="maint_order_asset_na",
-                 help_text="% of work orders linked to an asset")
-    
-    st.write("")
-    
-    # Row 2: Other work order metrics
-    g6, g7 = st.columns(2)
-    
-    # Work Order -> Equipment Coverage
-    order_eq_rate = maintenance.get("maint_order_to_equipment_rate")
-    if order_eq_rate is not None and total_orders > 0:
-        gauge(g6, "Work Order -> Equipment", order_eq_rate, "order_equipment", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_order_eq",
-              help_text="% of work orders linked to equipment")
-    else:
-        gauge_na(g6, "Work Order -> Equipment", "No orders", key="maint_order_eq_na",
-                 help_text="% of work orders linked to equipment")
-    
-    # Work Order Completion Rate
-    order_completion_rate = maintenance.get("maint_order_completion_rate")
-    if order_completion_rate is not None and total_orders > 0:
-        gauge(g7, "Order Completion Rate", order_completion_rate, "order_completion", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_order_complete",
-              help_text="% of work orders with actualEndTime (completed)")
-    else:
-        gauge_na(g7, "Order Completion Rate", "No orders", key="maint_order_complete_na",
-                 help_text="% of work orders with actualEndTime")
-    
-    st.markdown("---")
-    
-    # =========================================
-    # SECTION 3: Failure Analysis Documentation
-    # =========================================
-    st.header("Failure Analysis Documentation")
-    st.markdown("*How well is failure data documented in failure notifications?*")
-    
-    f1, f2, f3 = st.columns(3)
-    
-    # Failure Mode Documentation Rate
-    failure_mode_rate = maintenance.get("maint_failure_mode_rate")
-    if failure_mode_rate is not None and total_failure_notif > 0:
-        gauge(f1, "Failure Mode Documentation", failure_mode_rate, "failure_mode", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_fail_mode",
-              help_text="% of failure notifications with failure mode")
-    else:
-        gauge_na(f1, "Failure Mode Documentation", "No failure notifications", key="maint_fail_mode_na",
-                 help_text="% of failure notifications with failure mode")
-    
-    # Failure Mechanism Documentation Rate
-    failure_mech_rate = maintenance.get("maint_failure_mechanism_rate")
-    if failure_mech_rate is not None and total_failure_notif > 0:
-        gauge(f2, "Failure Mechanism Doc", failure_mech_rate, "failure_mechanism", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_fail_mech",
-              help_text="% of failure notifications with failure mechanism")
-    else:
-        gauge_na(f2, "Failure Mechanism Doc", "No failure notifications", key="maint_fail_mech_na",
-                 help_text="% of failure notifications with failure mechanism")
-    
-    # Failure Cause Documentation Rate
-    failure_cause_rate = maintenance.get("maint_failure_cause_rate")
-    if failure_cause_rate is not None and total_failure_notif > 0:
-        gauge(f3, "Failure Cause Documentation", failure_cause_rate, "failure_cause", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_fail_cause",
-              help_text="% of failure notifications with failure cause")
-    else:
-        gauge_na(f3, "Failure Cause Documentation", "No failure notifications", key="maint_fail_cause_na",
-                 help_text="% of failure notifications with failure cause")
-    
-    st.markdown("---")
-    
-    # =========================================
-    # SECTION 4: Maintenance Coverage (INFORMATIONAL)
-    # =========================================
-    st.header("Maintenance Coverage")
-    st.markdown("*What percentage of assets/equipment have maintenance records?*")
-    st.caption("Note: Not all assets/equipment require maintenance records - low values are normal.")
-    
-    m1, m2, _ = st.columns(3)
-    
-    # Asset Maintenance Coverage (INFORMATIONAL)
-    asset_maint_rate = maintenance.get("maint_asset_coverage_rate")
-    if asset_maint_rate is not None:
-        gauge(m1, "Asset Maintenance Coverage", asset_maint_rate, "asset_maint_coverage", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_asset_cov",
-              help_text="INFORMATIONAL: % of assets with maintenance records. Low values are normal.")
-    else:
-        gauge_na(m1, "Asset Maintenance Coverage", "No asset data", key="maint_asset_cov_na",
-                 help_text="% of assets with maintenance records")
-    
-    # Equipment Maintenance Coverage (INFORMATIONAL)
-    eq_maint_rate = maintenance.get("maint_equipment_coverage_rate")
-    if eq_maint_rate is not None:
-        gauge(m2, "Equipment Maintenance Coverage", eq_maint_rate, "equipment_maint_coverage", 
-              get_status_color_maintenance, [0, 100], "%", key="maint_eq_cov",
-              help_text="INFORMATIONAL: % of equipment with maintenance records. Low values are normal.")
-    else:
-        gauge_na(m2, "Equipment Maintenance Coverage", "No equipment data", key="maint_eq_cov_na",
-                 help_text="% of equipment with maintenance records")
-    
-    st.markdown("---")
-    
-    # =========================================
-    # SECTION 5: Data Breakdown Table
-    # =========================================
-    st.subheader("Detailed Breakdown")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### Notification Data")
-        st.markdown(f"""
-        | Metric | Value |
-        |--------|-------|
-        | Total Notifications | {total_notifications:,} |
-        | With Work Order | {maintenance.get('maint_notif_with_order', 0):,} |
-        | Without Work Order | {maintenance.get('maint_notif_without_order', 0):,} |
-        | With Asset | {maintenance.get('maint_notif_with_asset', 0):,} |
-        | With Equipment | {maintenance.get('maint_notif_with_equipment', 0):,} |
-        """)
-    
-    with col2:
-        st.markdown("### Work Order Data")
-        st.markdown(f"""
-        | Metric | Value |
-        |--------|-------|
-        | Total Work Orders | {total_orders:,} |
-        | With Notification | {maintenance.get('maint_orders_with_notification', 0):,} |
-        | Without Notification | {maintenance.get('maint_orders_without_notification', 0):,} |
-        | With Asset | {maintenance.get('maint_order_with_asset', 0):,} |
-        | With Equipment | {maintenance.get('maint_order_with_equipment', 0):,} |
-        | Completed | {maintenance.get('maint_orders_completed', 0):,} |
-        """)
-    
-    st.markdown("---")
-    
-    col3, col4 = st.columns(2)
-    
-    with col3:
-        st.markdown("### Failure Analysis")
-        st.markdown(f"""
-        | Metric | Value |
-        |--------|-------|
-        | Total Failure Notifications | {total_failure_notif:,} |
-        | With Failure Mode | {maintenance.get('maint_failure_notif_with_mode', 0):,} |
-        | With Failure Mechanism | {maintenance.get('maint_failure_notif_with_mechanism', 0):,} |
-        | With Failure Cause | {maintenance.get('maint_failure_notif_with_cause', 0):,} |
-        """)
-    
-    with col4:
-        st.markdown("### Maintenance Coverage")
-        st.markdown(f"""
-        | Metric | Value |
-        |--------|-------|
-        | Assets with Notifications | {maintenance.get('maint_unique_assets_in_notifications', 0):,} |
-        | Assets with Work Orders | {maintenance.get('maint_unique_assets_in_orders', 0):,} |
-        | Equipment with Notifications | {maintenance.get('maint_unique_equipment_in_notifications', 0):,} |
-        | Equipment with Work Orders | {maintenance.get('maint_unique_equipment_in_orders', 0):,} |
-        | Assets with Any Maintenance | {maintenance.get('maint_assets_with_maintenance', 0):,} |
-        | Equipment with Any Maintenance | {maintenance.get('maint_equipment_with_maintenance', 0):,} |
-        """)
-    
-    # AI SUMMARY SECTION
+    # AI Summary
     render_ai_summary_section(
-        dashboard_type="Maintenance Workflow Quality",
-        metrics_data=format_maintenance_metrics(maintenance),
+        dashboard_type="Maintenance Data Quality",
+        metrics_data=format_maintenance_idi_metrics(maint),
         system_prompt=get_maintenance_prompt(),
-        key_prefix="maintenance"
+        key_prefix="maintenance_idi"
     )
     
     st.markdown("---")
-    st.success("Maintenance Workflow dashboard loaded from pre-computed metrics.")
+    st.success("Maintenance dashboard loaded from pre-computed metrics.")
+
+
+def _render_view_details(view: dict):
+    """Render detailed metrics for a single view."""
+    st.subheader(f"{view.get('display_name')} Details")
+    
+    # Summary row
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Records", f"{view.get('unique_instances', 0):,}")
+    col2.metric("Duplicates", f"{view.get('duplicates', 0):,}")
+    col3.metric("Unique Assets Linked", f"{view.get('relations', {}).get('asset', {}).get('unique_links', 0):,}")
+    
+    st.markdown("### Relation Metrics")
+    
+    # Get relations
+    relations = view.get("relations", {})
+    
+    if not relations:
+        st.info("No relation metrics available for this view.")
+        return
+    
+    # Create gauges for each relation
+    relation_cols = st.columns(min(len(relations), 3))
+    
+    for i, (rel_name, rel_data) in enumerate(relations.items()):
+        col_idx = i % 3
+        with relation_cols[col_idx]:
+            rate = rel_data.get("rate")
+            count = rel_data.get("count", 0)
+            without = rel_data.get("without", 0)
+            unique_links = rel_data.get("unique_links", 0)
+            
+            # Friendly name for relation
+            friendly_name = rel_name.replace("_", " ").title()
+            
+            if rate is not None:
+                gauge(
+                    relation_cols[col_idx],
+                    f"→ {friendly_name}",
+                    rate,
+                    f"{view.get('view_id')}_{rel_name}",
+                    get_status_color_maintenance,
+                    [0, 100],
+                    "%",
+                    key=f"maint_gauge_{view.get('view_id')}_{rel_name}",
+                    help_text=f"Linked: {count:,}, Without: {without:,}, Unique: {unique_links:,}"
+                )
+            else:
+                st.metric(f"→ {friendly_name}", "N/A")
+    
+    # Table breakdown
+    st.markdown("### Breakdown Table")
+    
+    table_data = []
+    for rel_name, rel_data in relations.items():
+        table_data.append({
+            "Relation": rel_name,
+            "Linked": rel_data.get("count", 0),
+            "Not Linked": rel_data.get("without", 0),
+            "Rate %": rel_data.get("rate", "N/A"),
+            "Unique Targets": rel_data.get("unique_links", 0),
+        })
+    
+    df = pd.DataFrame(table_data)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    
+    # CSV Download for records without asset link
+    unlinked_ids = view.get("unlinked_asset_ids", [])
+    asset_rel = relations.get("asset", {})
+    without_asset = asset_rel.get("without", 0)
+    if without_asset > 0 and unlinked_ids:
+        csv_data = "external_id\n" + "\n".join(unlinked_ids)
+        st.download_button(
+            label=f"Download Unlinked to Asset ({len(unlinked_ids):,} items)",
+            data=csv_data,
+            file_name=f"{view.get('view_id', 'view')}_unlinked_asset.csv",
+            mime="text/csv",
+            key=f"download_maint_unlinked_{view.get('view_id')}"
+        )

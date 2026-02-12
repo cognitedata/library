@@ -10,10 +10,12 @@ Tabs:
 - Asset Hierarchy Quality
 - Equipment-Asset Quality  
 - Time Series Contextualization
-- Maintenance Workflow Quality (RMDM v1)
+- Maintenance (IDI Maintenance Views)
 - File Annotation Quality (CDM CogniteDiagramAnnotation)
 - 3D Model Contextualization (CDM Cognite3DObject)
 - Files Contextualization (CDM CogniteFile)
+- Others (Miscellaneous IDI Views)
+- Staging vs DM (compare Raw table counts with DM instance counts)
 """
 
 import json
@@ -31,7 +33,9 @@ from dashboards import (
     render_files_dashboard,
     render_metadata_sidebar,
     render_configuration_panel,
+    render_staging_vs_dm_dashboard,
 )
+from dashboards.others import render_others_dashboard
 
 
 # ----------------------------------------------------
@@ -82,15 +86,17 @@ metrics = load_metrics_from_file(METRICS_FILE_EXTERNAL_ID)
 has_metrics = metrics is not None
 
 # Tab navigation - Configuration FIRST for better onboarding
-tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d, tab_files = st.tabs([
+tab_config, tab_asset, tab_equipment, tab_ts, tab_maintenance, tab_annotation, tab_3d, tab_files, tab_others, tab_staging = st.tabs([
     "Configure & Run",
     "Asset Hierarchy",
     "Equipment-Asset",
     "Time Series",
     "Maintenance",
-    "File Annotation",
+    "P&ID Annotation",
     "3D Model",
-    "Files"
+    "Files",
+    "Others",
+    "Staging vs DM"
 ])
 
 # Configuration tab - always available
@@ -99,6 +105,13 @@ with tab_config:
 
 # Metrics tabs - show content or "run function" message
 if not has_metrics:
+    # Minimal sidebar so it's never missing
+    st.sidebar.title("Metrics Info")
+    st.sidebar.info("No metrics loaded. Go to **Configure & Run** to run the metrics function.")
+    if st.sidebar.button("Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+    
     no_metrics_message = """
     **No metrics data available yet**
     
@@ -123,9 +136,15 @@ if not has_metrics:
         st.info(no_metrics_message)
     with tab_files:
         st.info(no_metrics_message)
+    with tab_others:
+        st.info(no_metrics_message)
 else:
-    # Render sidebar with metadata
-    render_metadata_sidebar(metrics)
+    # Render sidebar with metadata (defensive: show minimal sidebar on error)
+    try:
+        render_metadata_sidebar(metrics)
+    except Exception as e:
+        st.sidebar.error("Could not load sidebar. Check metrics file shape.")
+        st.sidebar.exception(e)
     
     with tab_asset:
         render_asset_hierarchy_dashboard(metrics)
@@ -148,3 +167,21 @@ else:
     
     with tab_files:
         render_files_dashboard(metrics)
+    
+    with tab_others:
+        render_others_dashboard(metrics)
+
+# Staging vs DM tab - uses pre-computed metrics
+with tab_staging:
+    if has_metrics:
+        render_staging_vs_dm_dashboard(metrics)
+    else:
+        st.info("""
+        **No metrics data available yet**
+        
+        Go to the **Configure & Run** tab to:
+        1. Enable "Staging Metrics" in the configuration
+        2. Run the metrics function
+        
+        Once the function completes, the staging comparison will appear here.
+        """)

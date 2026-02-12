@@ -1,7 +1,12 @@
 """
 Equipment processing and metrics computation.
+
+Includes:
+- Equipment -> Asset relationship tracking
+- Equipment -> CogniteActivity relationship tracking
 """
 
+from typing import List, Optional, Set
 from cognite.client.data_classes.data_modeling import ViewId
 
 from .common import (
@@ -12,6 +17,28 @@ from .common import (
     EquipmentData,
     CombinedAccumulator,
 )
+
+
+def get_direct_relation_ids(prop) -> List[str]:
+    """Extract list of external_ids from a relation property."""
+    if not prop:
+        return []
+    if isinstance(prop, list):
+        result = []
+        for item in prop:
+            if isinstance(item, dict):
+                eid = item.get("externalId") or item.get("external_id")
+            else:
+                eid = getattr(item, "external_id", None)
+            if eid:
+                result.append(eid)
+        return result
+    # Single item
+    if isinstance(prop, dict):
+        eid = prop.get("externalId") or prop.get("external_id")
+        return [eid] if eid else []
+    eid = getattr(prop, "external_id", None)
+    return [eid] if eid else []
 
 
 def process_equipment_batch(
@@ -49,6 +76,54 @@ def process_equipment_batch(
         
         if eq_data.asset_id:
             acc.assets_with_equipment.setdefault(eq_data.asset_id, []).append(eq_id)
+        else:
+            # Track orphaned equipment (no asset link) for CSV export
+            acc.equipment_orphaned_ids.append(eq_id)
+
+
+def process_activity_batch(
+    activity_batch,
+    activity_view: ViewId,
+    acc: CombinedAccumulator
+):
+    """
+    Process CogniteActivity batch - track equipment-activity relationships.
+    
+    CogniteActivity may have an 'equipment' relation that links to CogniteEquipment.
+    We track which equipment have activities linked to them.
+    """
+    for activity in activity_batch:
+        activity_id = get_external_id(activity)
+        if not activity_id:
+            continue
+        
+        acc.total_activity_instances += 1
+        
+        # Skip duplicates
+        if activity_id in acc.activity_ids_seen:
+            continue
+        acc.activity_ids_seen.add(activity_id)
+        
+        props = get_props(activity, activity_view)
+        
+        # Get equipment links - could be single or multi relation
+        # Check various possible property names
+        equipment_ids = []
+        for prop_name in ["equipment", "equipments", "assets"]:
+            prop_value = props.get(prop_name)
+            if prop_value:
+                equipment_ids.extend(get_direct_relation_ids(prop_value))
+        
+        # Also check for 'asset' relation as activities might be linked via assets
+        asset_ids = get_direct_relation_ids(props.get("asset"))
+        
+        if equipment_ids:
+            acc.equipment_with_activities.update(equipment_ids)
+            acc.activities_with_equipment += 1
+        
+        if asset_ids:
+            acc.assets_with_activities.update(asset_ids)
+            acc.activities_with_assets += 1
 
 
 def compute_equipment_metrics(acc: CombinedAccumulator) -> dict:
@@ -97,6 +172,28 @@ def compute_equipment_metrics(acc: CombinedAccumulator) -> dict:
         avg_eq_per_asset = 0.0
         max_eq_per_asset = 0
     
+    # ==========================================
+    # CogniteActivity metrics
+    # ==========================================
+    total_activities = len(acc.activity_ids_seen)
+    eq_with_activities = len(acc.equipment_with_activities)
+    
+    # Equipment -> Activity rate (% of equipment that have activities)
+    eq_activity_rate = (eq_with_activities / total_eq * 100) if total_eq > 0 else None
+    
+    # Activity -> Equipment rate (% of activities linked to equipment)
+    activity_eq_rate = (
+        (acc.activities_with_equipment / total_activities * 100)
+        if total_activities > 0 else None
+    )
+    
+    # Asset -> Activity rate (% of assets that have activities)
+    assets_with_activities = len(acc.assets_with_activities)
+    asset_activity_rate = (
+        (assets_with_activities / acc.total_assets * 100)
+        if acc.total_assets > 0 else None
+    )
+    
     return {
         "eq_total": total_eq,
         "eq_association_rate": round(association_rate, 2),
@@ -113,7 +210,19 @@ def compute_equipment_metrics(acc: CombinedAccumulator) -> dict:
         "eq_critical_contextualization": round(critical_rate, 2) if critical_rate is not None else None,
         "eq_critical_total": total_critical,
         "eq_critical_linked": linked_critical,
-        "eq_has_critical_equipment": total_critical > 0,  # Flag to indicate if critical equipment exists
+        "eq_has_critical_equipment": total_critical > 0,
         "eq_avg_per_asset": round(avg_eq_per_asset, 2),
         "eq_max_per_asset": max_eq_per_asset,
+        
+        # CogniteActivity metrics
+        "eq_total_activities": total_activities,
+        "eq_with_activities": eq_with_activities,
+        "eq_activity_rate": round(eq_activity_rate, 2) if eq_activity_rate is not None else None,
+        "eq_has_activities": total_activities > 0,
+        "eq_activities_with_equipment": acc.activities_with_equipment,
+        "eq_activity_equipment_rate": round(activity_eq_rate, 2) if activity_eq_rate is not None else None,
+        "eq_assets_with_activities": assets_with_activities,
+        "eq_asset_activity_rate": round(asset_activity_rate, 2) if asset_activity_rate is not None else None,
+        # Orphaned entity IDs for CSV export
+        "eq_orphaned_ids": acc.equipment_orphaned_ids,
     }

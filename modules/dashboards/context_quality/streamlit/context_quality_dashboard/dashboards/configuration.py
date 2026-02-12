@@ -61,6 +61,8 @@ DEFAULT_CONFIG = {
     "enable_3d_metrics": True,
     "enable_file_metrics": True,
     
+    # Request page size (reduce if views hit graph query timeouts)
+    "chunk_size": 500,
     # Limits
     "max_assets": 150000,
     "max_equipment": 150000,
@@ -625,16 +627,16 @@ def render_configuration_panel(client: CogniteClient, show_getting_started: bool
         else:
             st.warning("Maintenance metrics disabled. Enable to configure views.")
     
-    # Dashboard 5: File Annotation
-    with st.expander("File Annotation Dashboard", expanded=False):
+    # Dashboard 5: P&ID Annotation
+    with st.expander("P&ID Annotation Dashboard", expanded=False):
         st.caption("Measures P&ID diagram annotation quality: confidence scores, status distribution, annotation types.")
         
         # Enable/Disable toggle
         enable_annot = st.checkbox(
-            "Enable File Annotation Metrics",
+            "Enable P&ID Annotation Metrics",
             value=st.session_state.get("enable_file_annotation_metrics", True),
             key="enable_file_annotation_metrics",
-            help="Uncheck to skip file annotation metrics"
+            help="Uncheck to skip P&ID annotation metrics"
         )
         
         if enable_annot:
@@ -646,7 +648,7 @@ def render_configuration_panel(client: CogniteClient, show_getting_started: bool
                 "annotation_view_version"
             )
         else:
-            st.warning("File annotation metrics disabled. Enable to configure views.")
+            st.warning("P&ID annotation metrics disabled. Enable to configure views.")
     
     # Dashboard 6: 3D Model
     with st.expander("3D Model Dashboard", expanded=False):
@@ -704,7 +706,16 @@ def render_configuration_panel(client: CogniteClient, show_getting_started: bool
     
     with st.expander("Processing Limits (Advanced)", expanded=False):
         st.caption("Adjust these if you have large datasets or experience timeouts (function max runtime: 10 min).")
-        
+        st.number_input(
+            "Chunk size (request page size)",
+            min_value=50,
+            max_value=1000,
+            value=st.session_state.get("chunk_size", 500),
+            step=50,
+            key="chunk_size",
+            help="Page size for each Data Model instances request (default 500). All views use batch processing; reduce to 200 or 100 if specific views hit graph query timeouts."
+        )
+        st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
             st.number_input(
