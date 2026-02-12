@@ -78,9 +78,14 @@ export function getScopeDisplay(
   const scope = cap.scope ?? {};
   const datasetScope = scope["datasetScope"] as { ids?: number[] } | undefined;
   if (datasetScope?.ids) {
+    
+    
     const names = datasetScope.ids.map((id) => {
-      return datasets.find((ds) => ds.id === id)?.name ?? String(id);
+      // Some input data comes as stirngs, some as numbers, so make sure to compare as strings
+      const dataset = datasets.find((ds) => `${ds.id}` === `${id}`);
+      return dataset?.name ?? String(id);
     });
+
     details.push({
       shortText: `DS[${names.length}]`,
       titleText: `${t ? t("permissions.scope.datasets") : "Datasets"}:\n${names.join("\n")}`,
@@ -89,9 +94,13 @@ export function getScopeDisplay(
   }
   const idScope = scope["idScope"] as { ids?: number[] } | undefined;
   if (idScope?.ids) {
+    const names = idScope.ids.map((id) => {
+      const dataset = datasets.find((ds) => ds.id === id);
+      return dataset?.name ?? String(id);
+    });
     details.push({
-      shortText: `ID[${idScope.ids.length}]`,
-      titleText: `${t ? t("permissions.scope.ids") : "IDs"}:\n${idScope.ids.join("\n")}`,
+      shortText: `ID[${names.length}]`,
+      titleText: `${t ? t("permissions.scope.ids") : "IDs"}:\n${names.join("\n")}`,
       color: "",
     });
   }
@@ -100,6 +109,14 @@ export function getScopeDisplay(
     details.push({
       shortText: `SP[${spaceIdScope.spaceIds.length}]`,
       titleText: `${t ? t("permissions.scope.spaces") : "Spaces"}:\n${spaceIdScope.spaceIds.join("\n")}`,
+      color: "",
+    });
+  }
+  const appScope = scope["appScope"] as { apps?: string[] } | undefined;
+  if (appScope?.apps) {
+    details.push({
+      shortText: `APP[${appScope.apps.length}]`,
+      titleText: `${t ? t("permissions.scope.apps") : "Apps"}:\n${appScope.apps.join("\n")}`,
       color: "",
     });
   }

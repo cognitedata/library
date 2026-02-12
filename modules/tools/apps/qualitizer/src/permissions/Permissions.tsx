@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import { useAppSdk } from "@/shared/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ApiError } from "@/shared/ApiError";
+import { useAppSdk } from "@/shared/auth";
+import { useI18n } from "@/shared/i18n";
 import {
   getActionDisplay,
   getCapability,
   getScopeDisplay,
   normalizeCapability,
 } from "@/shared/permissions-utils";
+import { useEffect, useMemo, useState } from "react";
 import { PermissionsHelpModal } from "./PermissionsHelpModal";
-import { usePermissionsData } from "./usePermissionsData";
 import type { UploadedUser } from "./types";
-import { useI18n } from "@/shared/i18n";
-import { ApiError } from "@/shared/ApiError";
+import { usePermissionsData } from "./usePermissionsData";
 
 const permissionUsersStorageKey = "qualitizer.permissionUsers.v1";
 

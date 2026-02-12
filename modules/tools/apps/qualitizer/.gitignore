@@ -12,6 +12,7 @@ test-results/
 
 # Environment variables
 .env
+.*.env
 .env.local
 
 # Editor directories
