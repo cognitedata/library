@@ -13,9 +13,6 @@ schemaSpace3: cdf_idm
 instanceSpaces:
   - springfield_instances
   - cdf_cdm_units
-runWorkflowUserIds:
-  # Update RUN_WORKFLOW_USER_ID to your run workflow user ID
-  - <RUN_WORKFLOW_USER_ID>
 
 runWorkflowSchedule: "0 0 29 2 *"
 timeseriesTransformationExternalId: pi_timeseries_springfield_aveva_pi

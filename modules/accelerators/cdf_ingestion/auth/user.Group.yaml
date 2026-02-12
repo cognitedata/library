@@ -1,6 +1,5 @@
 name: gp_user_{{ workflow }}
-members:
-  {{ runWorkflowUserIds }}
+sourceId: {{ groupSourceId }}
 metadata:
   origin: cognite-toolkit
 capabilities:
