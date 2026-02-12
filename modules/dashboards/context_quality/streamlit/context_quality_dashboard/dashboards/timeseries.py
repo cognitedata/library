@@ -16,7 +16,6 @@ from .ai_summary import (
     get_timeseries_prompt,
     format_timeseries_metrics,
 )
-from .reports import generate_timeseries_report
 
 
 def render_time_series_dashboard(metrics: dict):
@@ -38,7 +37,7 @@ def render_time_series_dashboard(metrics: dict):
     # Important note about data sources
     with st.expander("**Understanding Metric Sources** - Click to learn more", expanded=False):
         st.markdown("""
-        **All metrics are calculated from Time Series METADATA** (fast, no datapoint access):
+        **Metrics calculated from Time Series METADATA** (fast, no datapoint access):
         - TS to Asset Contextualization - from `assets` property
         - Asset Monitoring Coverage - from `assets` property  
         - Critical Asset Coverage - from `assets` property + asset criticality
@@ -46,19 +45,13 @@ def render_time_series_dashboard(metrics: dict):
         - Data Freshness - from `lastUpdatedTime` *[Note: This is when the TS definition was last modified, NOT when data was last ingested]*
         - Processing Lag - from `lastUpdatedTime` *[Same limitation as above]*
         
-        *Tip: Metadata-based metrics are fast but may not reflect actual data ingestion status.*
+        **Metrics calculated from ACTUAL DATA POINTS** (requires datapoint retrieval):
+        - Historical Data Completeness - analyzes actual datapoint timestamps
+        - Gap Count/Duration - detects gaps between consecutive datapoints
+        - Total Time Span - first to last datapoint timestamp
+        
+        *Tip: Metadata-based metrics are fast but may not reflect actual data ingestion status. For true data freshness, check the Historical Data Completeness section.*
         """)
-    
-    # Download Report Button
-    st.download_button(
-        label="Download Time Series Report (PDF)",
-        data=generate_timeseries_report(metrics),
-        file_name="timeseries_report.pdf",
-        mime="application/pdf",
-        use_container_width=True,
-        type="primary",
-        key="download_timeseries_report"
-    )
     
     st.markdown("---")
     
@@ -83,6 +76,14 @@ def render_time_series_dashboard(metrics: dict):
     units_match = ts_metrics.get("ts_units_match", 0)
     unit_checks = ts_metrics.get("ts_unit_checks", 0)
     unique_source_units = ts_metrics.get("ts_unique_source_units", 0)
+    # Historical Data Completeness metrics
+    historical_data_completeness = ts_metrics.get("ts_historical_data_completeness")  # Can be None
+    ts_analyzed_for_gaps = ts_metrics.get("ts_analyzed_for_gaps", 0)
+    total_time_span_days = ts_metrics.get("ts_total_time_span_days", 0)
+    total_gap_duration_days = ts_metrics.get("ts_total_gap_duration_days", 0)
+    gap_count = ts_metrics.get("ts_gap_count", 0)
+    longest_gap_days = ts_metrics.get("ts_longest_gap_days", 0)
+    avg_gap_days = ts_metrics.get("ts_avg_gap_days", 0)
     # Other metrics
     data_freshness = ts_metrics.get("ts_data_freshness", 0)
     fresh_count = ts_metrics.get("ts_fresh_count", 0)
@@ -132,74 +133,6 @@ def render_time_series_dashboard(metrics: dict):
     metric_card(col4, "Assets with TS", f"{associated_assets:,}",
                 help_text="Number of assets that have at least one time series linked")
     
-    # CSV Download for Orphaned TS
-    orphaned_ids = ts_metrics.get("ts_orphaned_ids", [])
-    if orphaned_ids:
-        csv_data = "external_id\n" + "\n".join(orphaned_ids)
-        st.download_button(
-            label=f"Download Orphaned TS IDs ({len(orphaned_ids):,} items)",
-            data=csv_data,
-            file_name="orphaned_timeseries.csv",
-            mime="text/csv",
-            key="download_orphaned_ts"
-        )
-    
-    st.markdown("---")
-    
-    # =====================================================
-    # TS TO EQUIPMENT METRIC
-    # =====================================================
-    st.header("Time Series-to-Equipment Contextualization")
-    
-    ts_to_equipment_rate = ts_metrics.get("ts_to_equipment_rate", 0)
-    ts_with_equipment_link = ts_metrics.get("ts_with_equipment_link", 0)
-    ts_without_equipment_link = ts_metrics.get("ts_without_equipment_link", 0)
-    associated_equipment = ts_metrics.get("ts_associated_equipment", 0)
-    
-    col_eq_main, col_eq_info = st.columns([2, 1])
-    
-    with col_eq_main:
-        gauge(col_eq_main, "TS Linked to Equipment", ts_to_equipment_rate, "ts_to_equipment", 
-              get_status_color_ts, [0, 100], "%", key="ts_to_equipment_main",
-              help_text="% of time series linked to at least one equipment.")
-    
-    with col_eq_info:
-        st.markdown("### Why This Matters")
-        st.markdown("""
-        Time series linked to equipment enable:
-        - Equipment-level monitoring dashboards
-        - Equipment health analytics
-        - Predictive maintenance insights
-        """)
-        
-        if ts_to_equipment_rate >= 80:
-            st.success(f"Good! {ts_with_equipment_link:,} TS linked to equipment.")
-        elif ts_to_equipment_rate >= 50:
-            st.warning(f"{ts_without_equipment_link:,} time series lack equipment links.")
-        else:
-            st.info(f"{ts_without_equipment_link:,} time series without equipment links.")
-    
-    # Equipment summary cards
-    col_eq1, col_eq2, col_eq3 = st.columns(3)
-    metric_card(col_eq1, "TS with Equipment Link", f"{ts_with_equipment_link:,}",
-                help_text="Time series linked to at least one equipment")
-    metric_card(col_eq2, "TS without Equipment", f"{ts_without_equipment_link:,}",
-                help_text="Time series NOT linked to any equipment")
-    metric_card(col_eq3, "Equipment with TS", f"{associated_equipment:,}",
-                help_text="Number of equipment that have at least one time series linked")
-    
-    # CSV Download for TS without Equipment
-    ts_no_equip_ids = ts_metrics.get("ts_without_equipment_ids", [])
-    if ts_no_equip_ids:
-        csv_data_eq = "external_id\n" + "\n".join(ts_no_equip_ids)
-        st.download_button(
-            label=f"Download TS without Equipment ({len(ts_no_equip_ids):,} items)",
-            data=csv_data_eq,
-            file_name="ts_without_equipment.csv",
-            mime="text/csv",
-            key="download_ts_no_equipment"
-        )
-    
     st.markdown("---")
     
     st.header("Additional Quality Metrics")
@@ -227,21 +160,36 @@ def render_time_series_dashboard(metrics: dict):
     
     st.markdown("")
     
-    # Row 2: Data Quality - Units
-    g4, g5 = st.columns(2)
+    # Row 2: Data Quality - Historical Completeness, Units
+    g4, g5, g6 = st.columns(3)
+    
+    # Historical Data Completeness - check config and show appropriate message
+    config = metadata.get("config", {})
+    gaps_enabled = config.get("enable_historical_gaps", True)  # Default True for newer versions
+    
+    if historical_data_completeness is not None and ts_analyzed_for_gaps > 0:
+        gauge(g4, "Historical Data Completeness", historical_data_completeness, "gap", 
+              get_status_color_ts, [0, 100], "%", key="ts_gap",
+              help_text="% of time span with actual data (100% - gap duration)")
+    elif gaps_enabled and ts_analyzed_for_gaps == 0:
+        gauge_na(g4, "Historical Data Completeness", "No time series data to analyze", key="ts_gap_na",
+                 help_text="Detects gaps >7 days in historical data")
+    else:
+        gauge_na(g4, "Historical Data Completeness", "Disabled in config", key="ts_gap_na",
+                 help_text="Enable 'enable_historical_gaps' in function config")
     
     # Source Unit Completeness
-    gauge(g4, "Source Unit Completeness", source_unit_completeness, "unit_consistency", 
+    gauge(g5, "Source Unit Completeness", source_unit_completeness, "unit_consistency", 
           get_status_color_ts, [0, 100], "%", key="ts_src_unit",
           help_text="% of time series with sourceUnit populated (e.g., C, mm, %)")
     
     # Target Unit Completeness (standardized unit) - in same row
     if target_unit_completeness > 0:
-        gauge(g5, "Target Unit (Standardized)", target_unit_completeness, "unit_consistency", 
+        gauge(g6, "Target Unit (Standardized)", target_unit_completeness, "unit_consistency", 
               get_status_color_ts, [0, 100], "%", key="ts_tgt_unit",
               help_text="% of time series with standardized unit populated")
     else:
-        gauge_na(g5, "Target Unit (Standardized)", "No standardized units defined", key="ts_tgt_unit_na",
+        gauge_na(g6, "Target Unit (Standardized)", "No standardized units defined", key="ts_tgt_unit_na",
                  help_text="% of time series with standardized unit populated")
     
     st.markdown("---")
@@ -267,8 +215,6 @@ def render_time_series_dashboard(metrics: dict):
     | Total Time Series | {total_ts:,} |
     | TS with Asset Link | {ts_with_asset_link:,} |
     | Orphaned TS (no asset) | {ts_without_asset_link:,} |
-    | TS with Equipment Link | {ts_with_equipment_link:,} |
-    | Equipment with TS | {associated_equipment:,} |
     | Total Assets | {total_assets:,} |
     | Assets with TS | {associated_assets:,} |
     | Total Critical Assets | {critical_total:,} |
@@ -278,6 +224,32 @@ def render_time_series_dashboard(metrics: dict):
     | Unique Source Units | {unique_source_units:,} |
     | Fresh TS Count | {fresh_count:,} |
     """)
+    
+    # Historical Data Completeness Details
+    if ts_analyzed_for_gaps > 0:
+        st.markdown("---")
+        st.subheader("Historical Data Completeness Analysis")
+        st.markdown(f"""
+        Analyzed **{ts_analyzed_for_gaps:,}** time series for significant data gaps (>{7} days without data).
+        """)
+        
+        d1, d2, d3, d4 = st.columns(4)
+        d1.metric("Total Time Span", f"{total_time_span_days:,.0f} days", 
+                  help="Sum of time spans (first to last datapoint) across all analyzed TS")
+        d2.metric("Gaps Found", f"{gap_count:,}",
+                  help="Number of periods > 7 days without data")
+        d3.metric("Total Gap Duration", f"{total_gap_duration_days:,.0f} days",
+                  help="Sum of all gap durations")
+        d4.metric("Longest Gap", f"{longest_gap_days:,.0f} days",
+                  help="Duration of the longest gap found")
+        
+        if gap_count > 0:
+            st.warning(f"""
+            **Gap Summary:** Found {gap_count:,} significant gaps totaling {total_gap_duration_days:,.0f} days. 
+            Average gap duration: {avg_gap_days:.1f} days. Longest gap: {longest_gap_days:.0f} days.
+            """)
+        else:
+            st.success("No significant data gaps (>7 days) detected in the analyzed time series.")
     
     # AI SUMMARY SECTION
     render_ai_summary_section(

@@ -20,7 +20,6 @@ from .ai_summary import (
     get_3d_model_prompt,
     format_3d_model_metrics,
 )
-from .reports import generate_3d_model_report
 
 
 def _create_3d_cube_indicator(
@@ -281,17 +280,6 @@ def render_3d_model_dashboard(metrics: dict, metadata: Optional[dict] = None):
         
         *Tip: Focus on 3D → Asset Contextualization first - unlinked 3D objects cannot be navigated from the asset tree.*
         """)
-    
-    # Download Report Button
-    st.download_button(
-        label="Download 3D Model Report (PDF)",
-        data=generate_3d_model_report(metrics),
-        file_name="3d_model_report.pdf",
-        mime="application/pdf",
-        use_container_width=True,
-        type="primary",
-        key="download_3d_model_report"
-    )
     
     # Extract metrics
     # PRIMARY METRIC: 3D -> Asset Contextualization

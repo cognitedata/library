@@ -5,14 +5,12 @@ Dashboard Modules for Contextualization Quality Dashboard.
 Exports all rendering functions and UI components organized by domain:
 - common: Shared UI components (gauge, metric_card, color functions)
 - asset_hierarchy: Asset Hierarchy Quality dashboard
-- equipment: Equipment-Asset Quality dashboard (including CogniteActivity)
+- equipment: Equipment-Asset Quality dashboard
 - timeseries: Time Series Contextualization dashboard
-- maintenance: Maintenance IDI Views dashboard
+- maintenance: Maintenance Workflow Quality dashboard (RMDM v1)
 - file_annotation: File Annotation Quality dashboard (CDM CogniteDiagramAnnotation)
 - files: File Contextualization dashboard (CDM CogniteFile)
-- others: Other IDI Views dashboard
 - configuration: Data model configuration panel
-- staging_vs_dm: Raw tables vs Data Model instance comparison
 """
 
 from .common import (
@@ -34,7 +32,5 @@ from .maintenance import render_maintenance_dashboard
 from .file_annotation import render_file_annotation_dashboard
 from .model_3d import render_3d_model_dashboard
 from .files import render_files_dashboard
-from .others import render_others_dashboard
 from .sidebar import render_metadata_sidebar
 from .configuration import render_configuration_panel
-from .staging_vs_dm import render_staging_vs_dm_dashboard

@@ -28,19 +28,27 @@ BATCH_FILE_PREFIX = "cq_batch_"  # Batch files: cq_batch_0.json, cq_batch_1.json
 # ----------------------------------------------------
 
 DEFAULT_CONFIG = {
-    # Page size for data_modeling.instances() requests. Reduce to 200 or 100 if views hit graph query timeouts.
     "chunk_size": 500,
-    # View configurations - RMDM (ADNOC)
-    "asset_view_space": "rmdm",
-    "asset_view_external_id": "Asset",
+    # View configurations - CDM
+    "asset_view_space": "cdf_cdm",
+    "asset_view_external_id": "CogniteAsset",
     "asset_view_version": "v1",
-    "ts_view_space": "rmdm",
-    "ts_view_external_id": "adnocTimeSeries",
+    "ts_view_space": "cdf_cdm",
+    "ts_view_external_id": "CogniteTimeSeries",
     "ts_view_version": "v1",
-    "equipment_view_space": "rmdm",
-    "equipment_view_external_id": "Equipment",
+    "equipment_view_space": "cdf_cdm",
+    "equipment_view_external_id": "CogniteEquipment",
     "equipment_view_version": "v1",
-    # Maintenance IDI views are configured via maintenance_idi_dm_space/version
+    # View configurations - RMDM v1 (Maintenance Workflow)
+    "notification_view_space": "rmdm",
+    "notification_view_external_id": "Notification",
+    "notification_view_version": "v1",
+    "maintenance_order_view_space": "rmdm",
+    "maintenance_order_view_external_id": "MaintenanceOrder",
+    "maintenance_order_view_version": "v1",
+    "failure_notification_view_space": "rmdm",
+    "failure_notification_view_external_id": "FailureNotification",
+    "failure_notification_view_version": "v1",
     # View configurations - CDM File Annotations
     "annotation_view_space": "cdf_cdm",
     "annotation_view_external_id": "CogniteDiagramAnnotation",
@@ -49,28 +57,21 @@ DEFAULT_CONFIG = {
     "object3d_view_space": "cdf_cdm",
     "object3d_view_external_id": "Cognite3DObject",
     "object3d_view_version": "v1",
-    # View configurations - RMDM Files
-    "file_view_space": "rmdm",
-    "file_view_external_id": "SPFFile",
+    # View configurations - CDM Files
+    "file_view_space": "cdf_cdm",
+    "file_view_external_id": "CogniteFile",
     "file_view_version": "v1",
-    # View configurations - CDM Activity
-    "activity_view_space": "cdf_cdm",
-    "activity_view_external_id": "CogniteActivity",
-    "activity_view_version": "v1",
-    # View configurations - Others and Maintenance IDI
-    "others_dm_space": "rmdm",
-    "others_dm_version": "v1",
-    "maintenance_idi_dm_space": "rmdm",
-    "maintenance_idi_dm_version": "v1",
     # Limits
     "max_timeseries": 150000,
     "max_assets": 150000,
     "max_equipment": 150000,
+    "max_notifications": 150000,
+    "max_maintenance_orders": 150000,
     "max_annotations": 200000,
     "max_3d_objects": 150000,
     "max_files": 150000,
     # Feature flags
-    "enable_maintenance_metrics": False,  # Disabled - use maintenance_idi instead
+    "enable_maintenance_metrics": True,  # Enable RMDM maintenance workflow metrics
     "enable_file_annotation_metrics": True,  # Enable CDM file annotation metrics
     "enable_3d_metrics": True,  # Enable 3D model contextualization metrics
     "enable_file_metrics": True,  # Enable file contextualization metrics
@@ -248,14 +249,9 @@ class CombinedAccumulator:
     # ----- TIME SERIES DATA -----
     assets_with_ts: Set[str] = field(default_factory=set)
     ts_with_asset_link: int = 0  # TS that have at least one asset link
-    equipment_with_ts: Set[str] = field(default_factory=set)  # Equipment IDs that have TS linked
-    ts_with_equipment_link: int = 0  # TS that have at least one equipment link
     total_ts_instances: int = 0  # Total instances (including duplicates)
     ts_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique TS
     ts_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
-    # Orphaned entity IDs for CSV export
-    ts_orphaned_ids: List[str] = field(default_factory=list)  # TS without asset link
-    ts_without_equipment_ids: List[str] = field(default_factory=list)  # TS without equipment link
     # Unit metrics
     unit_checks: int = 0  # Total TS checked for units
     has_source_unit: int = 0  # TS with sourceUnit defined
@@ -295,15 +291,6 @@ class CombinedAccumulator:
     total_equipment_instances: int = 0  # Total instances (including duplicates)
     equipment_ids_seen: Set[str] = field(default_factory=set)  # For tracking unique equipment
     equipment_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
-    equipment_orphaned_ids: List[str] = field(default_factory=list)  # Equipment without asset link
-    
-    # ----- ACTIVITY DATA (CogniteActivity) -----
-    total_activity_instances: int = 0
-    activity_ids_seen: Set[str] = field(default_factory=set)
-    equipment_with_activities: Set[str] = field(default_factory=set)  # Equipment linked to activities
-    assets_with_activities: Set[str] = field(default_factory=set)  # Assets linked to activities
-    activities_with_equipment: int = 0  # Count of activities with equipment links
-    activities_with_assets: int = 0  # Count of activities with asset links
     
     # ----- MAINTENANCE WORKFLOW DATA (RMDM v1) -----
     # Notifications
@@ -344,7 +331,6 @@ class CombinedAccumulator:
     file_duplicate_ids: List[str] = field(default_factory=list)  # Duplicate external IDs
     files_with_assets: int = 0
     files_with_category: int = 0
-    files_uncategorized_ids: List[str] = field(default_factory=list)  # Files without category
     files_uploaded: int = 0
     files_with_name: int = 0
     files_with_description: int = 0
@@ -434,8 +420,6 @@ class CombinedAccumulator:
             # Time Series Data
             "assets_with_ts": list(self.assets_with_ts),
             "ts_with_asset_link": self.ts_with_asset_link,
-            "equipment_with_ts": list(self.equipment_with_ts),
-            "ts_with_equipment_link": self.ts_with_equipment_link,
             "total_ts_instances": self.total_ts_instances,
             "ts_ids_seen": list(self.ts_ids_seen),
             "ts_duplicate_ids": self.ts_duplicate_ids,
@@ -482,11 +466,6 @@ class CombinedAccumulator:
             "total_equipment_instances": self.total_equipment_instances,
             "equipment_ids_seen": list(self.equipment_ids_seen),
             "equipment_duplicate_ids": self.equipment_duplicate_ids,
-            "equipment_orphaned_ids": self.equipment_orphaned_ids,
-            
-            # Orphaned entity IDs for CSV export
-            "ts_orphaned_ids": self.ts_orphaned_ids,
-            "ts_without_equipment_ids": self.ts_without_equipment_ids,
             
             # Maintenance Data
             "notification_ids_seen": list(self.notification_ids_seen),
@@ -520,7 +499,6 @@ class CombinedAccumulator:
             "file_duplicate_ids": self.file_duplicate_ids,
             "files_with_assets": self.files_with_assets,
             "files_with_category": self.files_with_category,
-            "files_uncategorized_ids": self.files_uncategorized_ids,
             "files_uploaded": self.files_uploaded,
             "files_with_name": self.files_with_name,
             "files_with_description": self.files_with_description,
@@ -549,8 +527,6 @@ class CombinedAccumulator:
         # Time Series Data
         acc.assets_with_ts = set(data.get("assets_with_ts", []))
         acc.ts_with_asset_link = data.get("ts_with_asset_link", 0)
-        acc.equipment_with_ts = set(data.get("equipment_with_ts", []))
-        acc.ts_with_equipment_link = data.get("ts_with_equipment_link", 0)
         acc.total_ts_instances = data.get("total_ts_instances", 0)
         acc.ts_ids_seen = set(data.get("ts_ids_seen", []))
         acc.ts_duplicate_ids = data.get("ts_duplicate_ids", [])
@@ -597,11 +573,6 @@ class CombinedAccumulator:
         acc.total_equipment_instances = data.get("total_equipment_instances", 0)
         acc.equipment_ids_seen = set(data.get("equipment_ids_seen", []))
         acc.equipment_duplicate_ids = data.get("equipment_duplicate_ids", [])
-        acc.equipment_orphaned_ids = data.get("equipment_orphaned_ids", [])
-        
-        # Orphaned entity IDs
-        acc.ts_orphaned_ids = data.get("ts_orphaned_ids", [])
-        acc.ts_without_equipment_ids = data.get("ts_without_equipment_ids", [])
         
         # Maintenance Data
         acc.notification_ids_seen = set(data.get("notification_ids_seen", []))
@@ -635,7 +606,6 @@ class CombinedAccumulator:
         acc.total_file_instances = data.get("total_file_instances", 0)
         acc.files_with_assets = data.get("files_with_assets", 0)
         acc.files_with_category = data.get("files_with_category", 0)
-        acc.files_uncategorized_ids = data.get("files_uncategorized_ids", [])
         acc.files_uploaded = data.get("files_uploaded", 0)
         acc.files_with_name = data.get("files_with_name", 0)
         acc.files_with_description = data.get("files_with_description", 0)
@@ -654,8 +624,6 @@ class CombinedAccumulator:
         # Time Series Data
         self.assets_with_ts.update(other.assets_with_ts)
         self.ts_with_asset_link += other.ts_with_asset_link
-        self.equipment_with_ts.update(other.equipment_with_ts)
-        self.ts_with_equipment_link += other.ts_with_equipment_link
         self.total_ts_instances += other.total_ts_instances
         self.ts_ids_seen.update(other.ts_ids_seen)
         self.unit_checks += other.unit_checks
@@ -699,11 +667,6 @@ class CombinedAccumulator:
         self.total_equipment_instances += other.total_equipment_instances
         self.equipment_ids_seen.update(other.equipment_ids_seen)
         self.equipment_duplicate_ids.extend(other.equipment_duplicate_ids)
-        self.equipment_orphaned_ids.extend(other.equipment_orphaned_ids)
-        
-        # Orphaned entity IDs
-        self.ts_orphaned_ids.extend(other.ts_orphaned_ids)
-        self.ts_without_equipment_ids.extend(other.ts_without_equipment_ids)
         
         # Maintenance Data
         self.notification_ids_seen.update(other.notification_ids_seen)
@@ -738,7 +701,6 @@ class CombinedAccumulator:
         self.total_file_instances += other.total_file_instances
         self.files_with_assets += other.files_with_assets
         self.files_with_category += other.files_with_category
-        self.files_uncategorized_ids.extend(other.files_uncategorized_ids)
         self.files_uploaded += other.files_uploaded
         self.files_with_name += other.files_with_name
         self.files_with_description += other.files_with_description

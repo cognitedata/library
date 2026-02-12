@@ -17,7 +17,6 @@ from .ai_summary import (
     get_hierarchy_prompt,
     format_hierarchy_metrics,
 )
-from .reports import generate_asset_hierarchy_report
 
 
 def render_asset_hierarchy_dashboard(metrics: dict):
@@ -56,17 +55,6 @@ def render_asset_hierarchy_dashboard(metrics: dict):
         
         *Tip: A healthy hierarchy has high completion rate, reasonable depth (usually <10 levels), and balanced breadth.*
         """)
-    
-    # Download Report Button
-    st.download_button(
-        label="Download Asset Hierarchy Report (PDF)",
-        data=generate_asset_hierarchy_report(metrics),
-        file_name="asset_hierarchy_report.pdf",
-        mime="application/pdf",
-        use_container_width=True,
-        type="primary",
-        key="download_asset_hierarchy_report"
-    )
     
     # Extract metrics
     total_assets = hierarchy.get("hierarchy_total_assets", 0)
@@ -130,18 +118,6 @@ def render_asset_hierarchy_dashboard(metrics: dict):
     metric_card(col4, "Orphan Rate", f"{orphan_rate:.2f}", suffix="%", 
                 metric_key="orphans", color_func=get_status_color_hierarchy, raw_value=orphan_rate,
                 help_text="Percentage of assets that are orphans")
-    
-    # CSV Download for Orphaned Assets
-    orphan_ids = hierarchy.get("hierarchy_orphan_ids", [])
-    if orphan_count > 0 and orphan_ids:
-        csv_data = "external_id\n" + "\n".join(orphan_ids)
-        st.download_button(
-            label=f"Download Orphaned Asset IDs ({len(orphan_ids):,} items)",
-            data=csv_data,
-            file_name="orphaned_assets.csv",
-            mime="text/csv",
-            key="download_orphaned_assets"
-        )
     
     st.markdown("---")
     

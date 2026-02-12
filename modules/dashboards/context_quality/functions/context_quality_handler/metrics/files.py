@@ -105,9 +105,6 @@ def process_file_batch(
         if category_id:
             acc.files_with_category += 1
             acc.file_category_counts[category_id] = acc.file_category_counts.get(category_id, 0) + 1
-        else:
-            # Track uncategorized files for CSV export
-            acc.files_uncategorized_ids.append(file_id)
         
         # Track upload status
         if is_uploaded:
@@ -214,8 +211,6 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
         # Category metrics
         "file_category_rate": round(category_rate, 2),
         "files_with_category": acc.files_with_category,
-        "files_uncategorized": total_files - acc.files_with_category,
-        "files_uncategorized_ids": acc.files_uncategorized_ids,
         "unique_categories": len(acc.file_category_counts),
         "top_categories": top_categories,
         

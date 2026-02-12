@@ -16,7 +16,6 @@ from .ai_summary import (
     get_equipment_prompt,
     format_equipment_metrics,
 )
-from .reports import generate_equipment_report
 
 
 def render_equipment_dashboard(metrics: dict):
@@ -53,17 +52,6 @@ def render_equipment_dashboard(metrics: dict):
         
         *Tip: Focus on Equipment Association first - unlinked equipment cannot be found in the asset tree.*
         """)
-    
-    # Download Report Button
-    st.download_button(
-        label="Download Equipment Report (PDF)",
-        data=generate_equipment_report(metrics),
-        file_name="equipment_report.pdf",
-        mime="application/pdf",
-        use_container_width=True,
-        type="primary",
-        key="download_equipment_report"
-    )
     
     # Extract metrics
     total_equipment = equipment.get("eq_total", 0)
@@ -126,18 +114,6 @@ def render_equipment_dashboard(metrics: dict):
     metric_card(col4, "Assets with Equipment", f"{assets_with_eq:,}",
                 help_text="Number of assets that have at least one equipment linked")
     
-    # CSV Download for Orphaned Equipment
-    orphaned_eq_ids = equipment.get("eq_orphaned_ids", [])
-    if orphaned_eq_ids:
-        csv_data = "external_id\n" + "\n".join(orphaned_eq_ids)
-        st.download_button(
-            label=f"Download Unlinked Equipment IDs ({len(orphaned_eq_ids):,} items)",
-            data=csv_data,
-            file_name="unlinked_equipment.csv",
-            mime="text/csv",
-            key="download_orphaned_equipment"
-        )
-    
     st.markdown("---")
     
     # GAUGES - Additional metrics
@@ -183,72 +159,6 @@ def render_equipment_dashboard(metrics: dict):
     c4.metric("Critical Equipment Linked", f"{critical_linked:,}",
               help="Critical equipment with valid asset links")
     
-
-    st.markdown("---")
-    
-    # =====================================================
-    # COGNITE ACTIVITY METRICS
-    # =====================================================
-    st.header("Equipment → CogniteActivity")
-    st.markdown("*How many equipment items are linked to activities?*")
-    
-    # Extract activity metrics
-    has_activities = equipment.get("eq_has_activities", False)
-    total_activities = equipment.get("eq_total_activities", 0)
-    eq_with_activities = equipment.get("eq_with_activities", 0)
-    eq_activity_rate = equipment.get("eq_activity_rate")
-    activities_with_eq = equipment.get("eq_activities_with_equipment", 0)
-    activity_eq_rate = equipment.get("eq_activity_equipment_rate")
-    assets_with_activities = equipment.get("eq_assets_with_activities", 0)
-    asset_activity_rate = equipment.get("eq_asset_activity_rate")
-    
-    if has_activities:
-        # Summary row
-        a1, a2, a3, a4 = st.columns(4)
-        metric_card(a1, "Total Activities", f"{total_activities:,}",
-                    help_text="Total CogniteActivity instances processed")
-        metric_card(a2, "Equipment with Activities", f"{eq_with_activities:,}",
-                    help_text="Equipment items linked to at least one activity")
-        metric_card(a3, "Assets with Activities", f"{assets_with_activities:,}",
-                    help_text="Assets linked to at least one activity")
-        metric_card(a4, "Activities with Equipment", f"{activities_with_eq:,}",
-                    help_text="Activities that have equipment links")
-        
-        st.write("")
-        
-        # Gauges
-        ag1, ag2, ag3 = st.columns(3)
-        
-        if eq_activity_rate is not None:
-            gauge(ag1, "Equipment → Activity Rate", eq_activity_rate, "eq_activity",
-                  get_status_color_equipment, [0, 100], "%", key="eq_activity_rate",
-                  help_text="% of equipment with at least one activity")
-        else:
-            gauge_na(ag1, "Equipment → Activity Rate", "No data", key="eq_activity_rate_na")
-        
-        if activity_eq_rate is not None:
-            gauge(ag2, "Activity → Equipment Rate", activity_eq_rate, "activity_eq",
-                  get_status_color_equipment, [0, 100], "%", key="activity_eq_rate",
-                  help_text="% of activities linked to equipment")
-        else:
-            gauge_na(ag2, "Activity → Equipment Rate", "No data", key="activity_eq_rate_na")
-        
-        if asset_activity_rate is not None:
-            gauge(ag3, "Asset → Activity Rate", asset_activity_rate, "asset_activity",
-                  get_status_color_equipment, [0, 100], "%", key="asset_activity_rate",
-                  help_text="% of assets with at least one activity")
-        else:
-            gauge_na(ag3, "Asset → Activity Rate", "No data", key="asset_activity_rate_na")
-    else:
-        st.info("""
-        **No CogniteActivity Data**
-        
-        No activity data was found. This could mean:
-        - CogniteActivity view is not deployed
-        - No activities exist in the system
-        - Activity metrics collection is not enabled
-        """)
-
     st.markdown("---")
     
     # Summary
