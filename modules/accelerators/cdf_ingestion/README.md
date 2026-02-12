@@ -135,10 +135,6 @@ instanceSpaces:
   - springfield_instances
   - cdf_cdm_units
 
-# User Access (UPDATE REQUIRED)
-runWorkflowUserIds:
-  - <RUN_WORKFLOW_USER_ID>
-
 # Schedule (default: never runs - Feb 29 at midnight)
 runWorkflowSchedule: "0 0 29 2 *"
 
@@ -195,8 +191,6 @@ variables:
       instanceSpaces:
         - your_instances
         - cdf_cdm_units
-      runWorkflowUserIds:
-        - your-user-id  # UPDATE REQUIRED
       runWorkflowSchedule: "0 0 * * *"  # Daily at midnight
       # Update transformation external IDs to match your deployed transformations
       timeseriesTransformationExternalId: pi_timeseries_your_site
