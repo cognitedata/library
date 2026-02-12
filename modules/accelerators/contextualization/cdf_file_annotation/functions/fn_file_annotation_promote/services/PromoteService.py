@@ -1,5 +1,6 @@
 import abc
 import time
+from dataclasses import dataclass
 from typing import Any, Literal
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
@@ -14,9 +15,46 @@ from cognite.client.data_classes.data_modeling import (
 )
 from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
 from services.LoggerService import CogniteFunctionLogger
-from services.CacheService import CacheService
+from services.CacheService import CacheService, CachedEntityInfo
 from services.EntitySearchService import EntitySearchService
 from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker
+
+
+@dataclass
+class MatchedEntity:
+    """
+    Unified representation of a matched entity from either cache or search.
+
+    This dataclass provides a consistent interface for working with matched entities
+    regardless of whether they came from the cache (CachedEntityInfo) or from
+    a query on edges.
+    """
+
+    space: str
+    external_id: str
+    resource_type: str | None = None
+
+    @classmethod
+    def from_node(cls, node: Node, target_view_id: Any) -> "MatchedEntity":
+        """Creates MatchedEntity from a Node object."""
+        entity_props = node.properties.get(target_view_id, {}) if node.properties else {}
+        resource_type_value = entity_props.get("resourceType") or entity_props.get("type")
+        # Ensure resource_type is a string or None
+        resource_type: str | None = str(resource_type_value) if resource_type_value is not None else None
+        return cls(
+            space=node.space,
+            external_id=node.external_id,
+            resource_type=resource_type,
+        )
+
+    @classmethod
+    def from_cached_info(cls, cached: CachedEntityInfo) -> "MatchedEntity":
+        """Creates MatchedEntity from CachedEntityInfo."""
+        return cls(
+            space=cached.space,
+            external_id=cached.external_id,
+            resource_type=cached.resource_type,
+        )
 
 
 class IPromoteService(abc.ABC):
@@ -149,7 +187,7 @@ class GeneralPromoteService(IPromoteService):
                     grouped_candidates[key] = []
                 grouped_candidates[key].append(edge)
 
-        self.logger.info(
+        self.logger.debug(
             message=f"Grouped {len(candidates)} candidates into {len(grouped_candidates)} unique text/type combinations.",
         )
         self.logger.debug(
@@ -185,7 +223,7 @@ class GeneralPromoteService(IPromoteService):
                     continue
 
                 # Strategy: Check cache → query edges → fallback to global search
-                found_nodes: list[Node] | list = self._find_entity_with_cache(
+                found_entities: list[MatchedEntity] = self._find_entity_with_cache(
                     text_to_find, annotation_type, entity_space
                 )
 
@@ -193,10 +231,10 @@ class GeneralPromoteService(IPromoteService):
                 num_edges: int = len(edges_with_same_text)
                 should_delete: bool = False
 
-                if len(found_nodes) == 1:
+                if len(found_entities) == 1:
                     batch_promoted += num_edges
                     should_delete = False  # Never delete promoted edges
-                elif len(found_nodes) == 0:
+                elif len(found_entities) == 0:
                     batch_rejected += num_edges
                     should_delete = self.delete_rejected_edges
                 else:  # Multiple matches
@@ -205,7 +243,7 @@ class GeneralPromoteService(IPromoteService):
 
                 # Apply the same result to ALL edges with this text
                 for edge in edges_with_same_text:
-                    edge_apply, raw_row = self._prepare_edge_update(edge, found_nodes)
+                    edge_apply, raw_row = self._prepare_edge_update(edge, found_entities)
 
                     if should_delete:
                         # Delete the edge but still update RAW row to track what happened
@@ -290,19 +328,18 @@ class GeneralPromoteService(IPromoteService):
             space=self.sink_node_ref.space,
         )
 
-    def _find_entity_with_cache(self, text: str, annotation_type: str, entity_space: str) -> list[Node] | list:
+    def _find_entity_with_cache(self, text: str, annotation_type: str, entity_space: str) -> list[MatchedEntity]:
         """
         Finds entity for text using multi-tier caching strategy.
 
         Caching strategy (fastest to slowest):
-        - TIER 1: In-memory cache (this run only, in-memory dictionary)
-        - TIER 2: Persistent RAW cache (all runs, single database query)
+        - TIER 1: In-memory cache (this run only, no API calls)
+        - TIER 2: Persistent RAW cache (all runs, single RAW query, no retrieve_nodes)
         - TIER 3: EntitySearchService (global entity search, server-side IN filter on aliases)
 
         Caching behavior:
-        - Only caches unambiguous single matches (len(found_nodes) == 1)
-        - Caches negative results (no match found) to avoid repeated lookups
-        - Does NOT cache ambiguous results (multiple matches)
+        - Only caches unambiguous single matches (len(found_entities) == 1)
+        - Caches CacheMarkers for ambiguous and no match cases to avoid repeated lookups
 
         Args:
             text: Text to search for (e.g., "V-123", "G18A-921")
@@ -310,39 +347,55 @@ class GeneralPromoteService(IPromoteService):
             entity_space: Space to search in for global fallback
 
         Returns:
-            List of matched Node objects:
+            List of MatchedEntity objects:
             - Empty list [] if no match found
-            - Single-element list [node] if unambiguous match
-            - Two-element list [node1, node2] if ambiguous (data quality issue)
+            - Single-element list [entity] if unambiguous match
+            - Two-element list [entity1, entity2] if ambiguous (data quality issue)
         """
-        # TIER 1 & 2: Check cache (in-memory + persistent)
-        cached_node: Node | None = self.cache_service.get(text, annotation_type)
-        if cached_node is not None:
-            return [cached_node]
+        # TIER 1 & 2: Check cache (in-memory + persistent) - no API calls on hit
+        cached_info: CachedEntityInfo | None = self.cache_service.get(text, annotation_type)
+    
+        if cached_info is not None:
+            return [MatchedEntity.from_cached_info(cached_info)]
 
-        # Check if we've already determined there's no match
-        # (negative caching is handled internally by cache service)
-        if self.cache_service.get_from_memory(text, annotation_type) is None:
-            # We've checked this before in this run and found nothing
-            if (text, annotation_type) in self.cache_service._memory_cache:
-                return []
+        if self.cache_service.is_ambiguous_in_memory(text, annotation_type):
+            self.logger.debug(f"✓ [CACHE] Using in-memory ambiguous marker for '{text}' (skipping search)")
+            return [MatchedEntity(space="", external_id=""), MatchedEntity(space="", external_id="")]
 
-        # TIER 3 & 4: Use EntitySearchService
+        if self.cache_service.is_no_match_in_memory(text, annotation_type):
+            self.logger.debug(f"✓ [CACHE] Using in-memory NO_MATCH marker for '{text}' (skipping search)")
+            return []
+
+        # TIER 3: Use EntitySearchService
         found_nodes: list[Node] = self.entity_search_service.find_entity(text, annotation_type, entity_space)
 
-        # Update cache based on result
-        if found_nodes and len(found_nodes) == 1:
-            # Unambiguous match - cache it
-            self.cache_service.set(text, annotation_type, found_nodes[0])
-        elif not found_nodes:
-            # No match - cache negative result
-            self.cache_service.set(text, annotation_type, None)
-        # Don't cache ambiguous results (len > 1)
+        # Determine view for extracting resource type
+        target_view_id = self.target_entities_view.as_view_id()
 
-        return found_nodes
+        # Convert nodes to MatchedEntity and update cache
+        if found_nodes and len(found_nodes) == 1:
+            # Unambiguous match - extract resource type and cache it
+            node = found_nodes[0]
+            matched = MatchedEntity.from_node(node, target_view_id)
+            # Cache with resource type to avoid future retrieve_nodes calls
+            self.cache_service.set(text, annotation_type, node, matched.resource_type)
+            return [matched]
+        elif not found_nodes:
+            # No match - cache negative result (in-memory NO_MATCH)
+            self.cache_service.set_no_match(text, annotation_type)
+            return []
+        else:
+            # Ambiguous - cache negative result (in-memory AMBIGUOUS)
+            try:
+                self.cache_service.set_ambiguous(text, annotation_type)
+                self.logger.debug(f"✓ [CACHE] Marked '{text}' as ambiguous in memory")
+            except Exception:
+                self.logger.debug(f"[CACHE] Failed to set ambiguous marker for '{text}' (continuing)")
+
+            return [MatchedEntity.from_node(node, target_view_id) for node in found_nodes]
 
     def _prepare_edge_update(
-        self, edge: Edge, found_nodes: list[Node] | list
+        self, edge: Edge, found_entities: list[MatchedEntity]
     ) -> tuple[EdgeApply | None, RowWrite | None]:
         """
         Prepares updates for both data model edge and RAW table based on entity search results.
@@ -360,10 +413,10 @@ class GeneralPromoteService(IPromoteService):
 
         Args:
             edge: The annotation edge to update (pattern-mode annotation)
-            found_nodes: List of matched entity nodes from entity search
+            found_entities: List of matched entities from cache or search
                 - [] = no match
-                - [node] = single unambiguous match
-                - [node1, node2] = ambiguous (multiple matches)
+                - [entity] = single unambiguous match
+                - [entity1, entity2] = ambiguous (multiple matches)
 
         Returns:
             Tuple of (EdgeApply, RowWrite):
@@ -393,30 +446,28 @@ class GeneralPromoteService(IPromoteService):
         # Prepare update properties for the edge
         update_properties: dict[str, Any] = {}
 
-        if len(found_nodes) == 1:  # Success - single match found
-            matched_node: Node = found_nodes[0]
-            self.logger.info(
-                f"✓ Found single match for '{edge_props.get('startNodeText')}' → {matched_node.external_id}. \n\t- Promoting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+        if len(found_entities) == 1:  # Success - single match found
+            matched_entity: MatchedEntity = found_entities[0]
+            self.logger.debug(
+                f"✓ Found single match for '{edge_props.get('startNodeText')}' → {matched_entity.external_id}. \n\t- Promoting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
 
             # Update edge to point to the found entity
-            edge_apply.end_node = DirectRelationReference(matched_node.space, matched_node.external_id)
+            edge_apply.end_node = DirectRelationReference(matched_entity.space, matched_entity.external_id)
             update_properties["status"] = DiagramAnnotationStatus.APPROVED.value
             updated_tags.append("PromotedAuto")
 
             # Update RAW row with new end node information
-            raw_data["endNode"] = matched_node.external_id
-            raw_data["endNodeSpace"] = matched_node.space
+            raw_data["endNode"] = matched_entity.external_id
+            raw_data["endNodeSpace"] = matched_entity.space
             raw_data["status"] = DiagramAnnotationStatus.APPROVED.value
 
-            # Get resource type from the matched entity
-            entity_props: Any = matched_node.properties.get(self.target_entities_view.as_view_id(), {})
-            resource_type: Any = entity_props.get("resourceType") or entity_props.get("type")
-            if resource_type:
-                raw_data["endNodeResourceType"] = resource_type
+            # Use resource type from matched entity (cached or freshly extracted)
+            if matched_entity.resource_type:
+                raw_data["endNodeResourceType"] = matched_entity.resource_type
 
-        elif len(found_nodes) == 0:  # Failure - no match found
-            self.logger.info(
+        elif len(found_entities) == 0:  # Failure - no match found
+            self.logger.debug(
                 f"✗ No match found for '{edge_props.get('startNodeText')}'.\n\t- Rejecting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
             update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
@@ -426,7 +477,7 @@ class GeneralPromoteService(IPromoteService):
             raw_data["status"] = DiagramAnnotationStatus.REJECTED.value
 
         else:  # Ambiguous - multiple matches found
-            self.logger.info(
+            self.logger.debug(
                 f"⚠ Multiple matches found for '{edge_props.get('startNodeText')}'.\n\t- Ambiguous edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
             )
             updated_tags.extend(["PromoteAttempted", "AmbiguousMatch"])
