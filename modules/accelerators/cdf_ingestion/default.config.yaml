@@ -2,9 +2,9 @@ workflow: ingestion
 dataset: ingestion
 # Update GROUP_SOURCE_ID to your group source ID
 groupSourceId: <GROUP_SOURCE_ID>
-
-ingestionClientId: ${INGESTION_CLIENT_ID}
-ingestionClientSecret: ${INGESTION_CLIENT_SECRET}
+# Update INGESTION_CLIENT_ID and INGESTION_CLIENT_SECRET to your ingestion client ID and secret
+ingestionClientId: ${IDP_CLIENT_ID}
+ingestionClientSecret: ${IDP_CLIENT_SECRET}
 rawSourceDatabase: ingestion
 rawStateDatabase: contextualizationState
 schemaSpace: sp_enterprise_process_industry
