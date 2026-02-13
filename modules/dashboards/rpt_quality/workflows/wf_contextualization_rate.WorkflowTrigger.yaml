@@ -1,0 +1,10 @@
+externalId: wf_contextualization_rate
+triggerRule:
+  triggerType: schedule
+  cronExpression: "{{ contextualization_rate_workflow }}"
+workflowExternalId: wf_contextualization_rate
+workflowVersion: v1
+authentication:
+  clientId: {{functionClientId}}
+  clientSecret: {{functionClientSecret}}
+

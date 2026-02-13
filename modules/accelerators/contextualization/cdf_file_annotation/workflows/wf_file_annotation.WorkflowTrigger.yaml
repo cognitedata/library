@@ -1,44 +1,10 @@
-# All triggers run on schedule (every 10 minutes with 3 minute offset)
-# Note: Scheduled triggers are used because the current function implementations
-# are not designed for event-driven execution. See TRIGGER_ARCHITECTURE.md for
-# details on future refactoring to enable data modeling event triggers.
-
-- externalId: {{prepareWorkflowTrigger}}
+# Single trigger for the complete file annotation workflow
+- externalId: {{ workflowExternalId }}_trigger
   triggerRule:
     triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
-  workflowExternalId: {{workflowExternalId}}
-  workflowVersion: {{prepareWorkflowVersion}}
+    cronExpression: "{{ workflowSchedule }}"
+  workflowExternalId: {{ workflowExternalId }}
+  workflowVersion: v1
   authentication:
-    clientId: {{functionClientId}}
-    clientSecret: {{functionClientSecret}}
-
-- externalId: {{launchWorkflowTrigger}}
-  triggerRule:
-    triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
-  workflowExternalId: {{workflowExternalId}}
-  workflowVersion: {{launchWorkflowVersion}}
-  authentication:
-    clientId: {{functionClientId}}
-    clientSecret: {{functionClientSecret}}
-
-- externalId: {{finalizeWorkflowTrigger}}
-  triggerRule:
-    triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
-  workflowExternalId: {{workflowExternalId}}
-  workflowVersion: {{finalizeWorkflowVersion}}
-  authentication:
-    clientId: {{functionClientId}}
-    clientSecret: {{functionClientSecret}}
-
-- externalId: {{promoteWorkflowTrigger}}
-  triggerRule:
-    triggerType: schedule
-    cronExpression: "{{workflowSchedule}}"
-  workflowExternalId: {{workflowExternalId}}
-  workflowVersion: {{promoteWorkflowVersion}}
-  authentication:
-    clientId: {{functionClientId}}
-    clientSecret: {{functionClientSecret}}
+    clientId: {{ functionClientId }}
+    clientSecret: {{ functionClientSecret }}

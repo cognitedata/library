@@ -1,0 +1,17 @@
+sourceName: SAP Springfield S/4HANA Activities
+sourceId: sap_springfield_s4hana_activities
+schemaSpace: sp_enterprise_process_industry
+maintenanceOrderTransformationExternalId: sap_maintenance_orders_springfield_s4hana
+operationTransformationExternalId: sap_operations_springfield_s4hana
+operationToMaintenanceOrderTransformationExternalId: sap_operation_to_maintenance_order_springfield_s4hana
+dataset: ingestion
+datamodelExternalId: ORGProcessIndustries
+datamodelVersion: v1
+instanceSpace: springfield_instances
+rawSourceDatabase: ingestion
+
+workflow: sap_s4hana_population_events
+groupSourceId: <GROUP_SOURCE_ID>
+# TODO: Update to use the actual client ID and secret 'workflowClientId: ${SAP_SPRINGFIELD_S4HANA_CLIENT_ID} & workflowClientSecret: ${SAP_SPRINGFIELD_S4HANA_CLIENT_SECRET}'
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}

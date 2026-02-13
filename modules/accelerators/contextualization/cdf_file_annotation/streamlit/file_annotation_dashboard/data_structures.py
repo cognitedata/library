@@ -1,6 +1,6 @@
-import streamlit as st
-from cognite.client.data_classes.data_modeling import ViewId
 from dataclasses import dataclass
+
+from cognite.client.data_classes.data_modeling import ViewId
 
 
 # Configuration Classes

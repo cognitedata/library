@@ -1,0 +1,6 @@
+# RAW tables for AI Property Extractor state store
+# The state store tracks extraction progress using a cursor-based high-water mark
+# Only one table is needed - it stores a single _metadata row with the cursor
+
+- dbName: '{{ stateStoreDatabase }}'
+  tableName: '{{ stateStoreTable }}'

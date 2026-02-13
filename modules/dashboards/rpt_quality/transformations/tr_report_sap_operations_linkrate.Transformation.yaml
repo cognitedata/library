@@ -1,0 +1,11 @@
+externalId: tr_report_sap_operations_linkrate
+name:  report_sap_operations_linkrate
+dataSetExternalId: ds_quality_reports
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+
+destination:
+  database: db_quality_reports
+  table: tbl_contextualization_rate_report
+  type: raw

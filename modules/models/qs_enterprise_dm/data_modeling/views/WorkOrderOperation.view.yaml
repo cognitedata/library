@@ -1,0 +1,87 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: WorkOrderOperation
+name: Work Order Operation
+implements:
+- space: cdf_idm
+  externalId: CogniteOperation
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSchedulable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteActivity
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  objectNumber:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: objectNumber
+    name: Object Number
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: A list of assets the activity is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Asset
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  equipment:
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: equipment
+    name: Equipment
+    description: A list of equipment the activity is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Equipment
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  maintenanceOrder:
+    container:
+      space: cdf_idm
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    name: Maintenance Order
+    description: The maintenance order that was created from the notification.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrder
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  confirmations:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: WorkOrderOperationConfirmation
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: workOrderOperation
+    name: Work Order Operation Confirmations
+    connectionType: multi_reverse_direct_relation

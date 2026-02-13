@@ -5,6 +5,7 @@
   dataSetExternalId: 'ds_timeseries_{{location_name}}' 
   owner: 'Anonymous'
   description: 'Contextualization of P&ID files creating annotations in Data model'
+  space: {{ functionSpace }}
   metadata:
     version: '{{function_version}}'
   envVars:
@@ -20,6 +21,7 @@
   dataSetExternalId: 'ds_timeseries_{{location_name}}' 
   owner: 'Anonymous'
   description: 'Update aliases for files and attests as prep for Contextualization of P&ID files'
+  space: {{ functionSpace }}
   metadata:
     version: '{{function_version}}'
   envVars:

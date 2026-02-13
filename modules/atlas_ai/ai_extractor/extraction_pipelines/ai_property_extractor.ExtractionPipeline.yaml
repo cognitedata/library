@@ -1,0 +1,84 @@
+externalId: '{{extractionPipelineExternalId}}'
+name: 'AI Property Extractor'
+dataSetExternalId: ds_ai_extractor
+description: 'Extraction pipeline for AI-based property extraction from text fields'
+documentation: |
+  # AI Property Extractor
+
+  This extraction pipeline manages the configuration and status for the AI Property Extractor function.
+
+  ## Overview
+
+  The AI Property Extractor uses LLM agents to extract structured property values from unstructured 
+  text fields in data modeling instances. It reads a text property from instances and populates 
+  other properties based on the extracted values.
+
+  ## Write Modes
+
+  Each property supports a write mode:
+
+  - **add_new_only** (default): Only write if target is empty/null. No extra setup needed.
+  - **append**: Merge new values into existing lists (deduplicates). Requires `aiTimestampProperty`.
+  - **overwrite**: Always replace with the latest extraction. Requires `aiTimestampProperty`.
+
+  `append` and `overwrite` modes use epoch-based processing with an AI timestamp property 
+  (a user-defined `Timestamp` field in the target view) to prevent infinite reprocessing.
+
+  ## Configuration
+
+  The configuration is stored in the extraction pipeline config and includes:
+
+  ```yaml
+  agent:
+    externalId: <agent_external_id>    # The agent to use for text parsing
+
+  view:
+    space: <space>                     # Data model space
+    externalId: <view_external_id>     # View external ID
+    version: <version>                 # View version
+
+  targetView:                          # Optional: separate view for writing
+    space: <space>
+    externalId: <view_external_id>
+    version: <version>
+
+  extraction:
+    textProperty: <property_name>      # Property containing text to parse
+    aiTimestampProperty: <prop_name>   # Required for append/overwrite (Timestamp type)
+    properties:                        # Per-property config (recommended)
+      - property: <source_prop>
+        targetProperty: <target_prop>  # Optional: write to a different property
+        writeMode: add_new_only        # add_new_only | append | overwrite
+    # Legacy fields (still supported):
+    propertiesToExtract: [...]
+    aiPropertyMapping: {...}
+
+  processing:
+    batchSize: <number>                # Instances per query batch (1–100)
+    llmBatchSize: <number>             # Instances per LLM call (1–50)
+    filters: [...]                     # Optional DM filters
+
+  prompt:
+    customInstructions: <string>       # Optional: extra instructions
+    template: <string>                 # Optional: full custom prompt template
+
+  stateStore:
+    enabled: true
+    rawDatabase: ai_extractor_state
+    rawTable: extraction_state
+    configVersion: v1                  # Bump to trigger full re-run
+  ```
+
+  ## Running the Function
+
+  The function accepts the following input data:
+
+  ```json
+  {
+    "logLevel": "INFO",
+    "ExtractionPipelineExtId": "ep_ai_property_extractor",
+    "resetState": false
+  }
+  ```
+
+  Set `resetState: true` to start a new processing epoch and re-process all instances.

@@ -1,0 +1,21 @@
+# Enterprise spaces
+enterpriseSchemaSpace: sp_enterprise_process_industry
+enterpriseInstanceSpace: sp_enterprise_instance
+siteInstanceSpace: sp_site_instance
+
+# Data model configuration
+organizationName: ORG
+enterpriseDataModelId: ORGProcessIndustries
+enterpriseDataModelVersion: v1
+enterpriseSearchDataModelVersion: v1
+
+# CDM version
+cdmDataModelVersion: v1
+
+# Reserved word prefix (used for views whose names start with numbers or reserved words)
+reservedWordPrefix: Enterprise_
+
+
+
+
+

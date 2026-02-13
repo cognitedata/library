@@ -1,0 +1,117 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: {{ reservedWordPrefix }}TimeSeries
+name: Time series
+description: Represents a series of data points in time order.
+implements:
+- space: cdf_cdm
+  externalId: CogniteTimeSeries
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  unit:
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: unit
+    name: Unit
+    description: The unit of the time series.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Unit
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: A list of assets the time series is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Asset
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  equipment:
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: equipment
+    name: Equipment
+    description: A list of equipment the time series is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Equipment
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  activities:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Activity
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: Activity
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: timeSeries
+    name: Activities
+    description: An automatically updated list of activities the time series is related
+      to.
+    connectionType: multi_reverse_direct_relation
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: {{ reservedWordPrefix }}TimeSeries
+      type: container
+    containerPropertyIdentifier: UUID
+  sysSite:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Reportable
+      type: container
+    containerPropertyIdentifier: sysSite
+    description: Site (sys)
+    name: Site (sys)
+  sysUnit:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Reportable
+      type: container
+    containerPropertyIdentifier: sysUnit
+    description: Unit (sys)
+    name: Unit (sys)
+  sysTagsFound:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Reportable
+      type: container
+    containerPropertyIdentifier: sysTagsFound
+    description: Tags found (sys)
+    name: Tags found (sys)
+  sysTagsLinked:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Reportable
+      type: container
+    containerPropertyIdentifier: sysTagsLinked
+    description: Tags linked (sys)
+    name: Tags linked (sys)

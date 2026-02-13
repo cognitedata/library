@@ -1,4 +1,8 @@
 - description: Helper data model space
   name: {{ annotationStateSchemaSpace }}
   space: {{ annotationStateSchemaSpace }}
+
+- description: Solution tags instance space for Canvas labels
+  name: SolutionTagsInstanceSpace
+  space: SolutionTagsInstanceSpace
   

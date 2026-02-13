@@ -1,18 +1,18 @@
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from cognite.client import CogniteClient
 from dependencies import (
-    create_config_service,
-    create_logger_service,
-    create_entity_search_service,
     create_cache_service,
+    create_config_service,
+    create_entity_search_service,
+    create_logger_service,
 )
-from services.ConfigService import format_promote_config
-from services.PromoteService import GeneralPromoteService
-from services.ConfigService import Config
-from services.LoggerService import CogniteFunctionLogger
-from services.EntitySearchService import EntitySearchService
 from services.CacheService import CacheService
+from services.ConfigService import Config, format_promote_config
+from services.EntitySearchService import EntitySearchService
+from services.LoggerService import CogniteFunctionLogger
+from services.PromoteService import GeneralPromoteService
 from utils.DataStructures import PromoteTracker
 
 
@@ -77,10 +77,9 @@ def handle(data: dict, function_call_info: dict, client: CogniteClient) -> dict[
             logger_instance.info(tracker_instance.generate_local_report(), section="START")
         return {"status": run_status, "data": data}
     except Exception as e:
-        run_status = "failure"
-        msg: str = f"{str(e)}"
+        msg = str(e)
         logger_instance.error(f"An unexpected error occurred: {msg}", section="BOTH")
-        return {"status": run_status, "message": msg}
+        return {"status": "failure", "message": msg}
     finally:
         # Generate overall summary report
         logger_instance.info(tracker_instance.generate_overall_report(), section="BOTH")
@@ -143,8 +142,7 @@ def run_locally(config_file: dict) -> None:
             # Log batch report and pause between batches
             logger_instance.info(tracker_instance.generate_local_report(), section="START")
     except Exception as e:
-        run_status = "failure"
-        msg: str = f"{str(e)}"
+        msg = str(e)
         logger_instance.error(f"An unexpected error occurred: {msg}", section="BOTH")
     finally:
         # Generate overall summary report

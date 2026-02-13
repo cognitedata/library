@@ -1,16 +1,15 @@
 import os
-
 from pathlib import Path
-from dotenv import load_dotenv
-from typing import Any, Tuple, Literal, cast
-from cognite.client import CogniteClient, ClientConfig, global_config
-from cognite.client.credentials import OAuthClientCredentials
-from utils.DataStructures import EnvConfig
+from typing import Any, Literal, Tuple, cast
 
-from services.ConfigService import Config, load_config_parameters
-from services.LoggerService import CogniteFunctionLogger
-from services.EntitySearchService import EntitySearchService
+from cognite.client import ClientConfig, CogniteClient, global_config
+from cognite.client.credentials import OAuthClientCredentials
+from dotenv import load_dotenv
 from services.CacheService import CacheService
+from services.ConfigService import Config, load_config_parameters
+from services.EntitySearchService import EntitySearchService
+from services.LoggerService import CogniteFunctionLogger
+from utils.DataStructures import EnvConfig
 
 
 def get_env_variables() -> EnvConfig:
@@ -103,19 +102,10 @@ def create_logger_service(log_level: str, filepath: str | None) -> CogniteFuncti
     Returns:
         CogniteFunctionLogger instance configured with specified settings
     """
-    write: bool
-    if filepath:
-        write = True
-    else:
-        write = False
-    if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
-        return CogniteFunctionLogger()
-    else:
-        # Cast to Literal type to satisfy type checker
-        validated_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = cast(
-            Literal["DEBUG", "INFO", "WARNING", "ERROR"], log_level
-        )
-        return CogniteFunctionLogger(log_level=validated_log_level, write=write, filepath=filepath)
+    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR"}
+    level = cast(Literal["DEBUG", "INFO", "WARNING", "ERROR"], log_level) if log_level in valid_levels else "INFO"
+    write = filepath is not None
+    return CogniteFunctionLogger(log_level=level, write=write, filepath=filepath)
 
 
 def create_config_service(

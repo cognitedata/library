@@ -1,23 +1,22 @@
-import streamlit as st
-import pandas as pd
 import altair as alt
-from datetime import datetime, timezone
+import pandas as pd
+import streamlit as st
+from cognite.client.data_classes.data_modeling import NodeId
 from helper import (
+    build_potential_status_map,
+    build_unmatched_tags_with_regions,
+    derive_annotation_status,
+    fetch_annotation_states,
     fetch_extraction_pipeline_config,
+    fetch_manual_patterns,
+    fetch_pattern_catalog,
     fetch_raw_table_data,
     find_pipelines,
     generate_file_canvas,
-    fetch_pattern_catalog,
-    fetch_manual_patterns,
-    fetch_annotation_states,
-    save_manual_patterns,
     normalize,
-    derive_annotation_status,
+    save_manual_patterns,
     show_connect_unmatched_ui,
-    build_unmatched_tags_with_regions,
-    build_potential_status_map,
 )
-from cognite.client.data_classes.data_modeling import NodeId
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -639,7 +638,7 @@ with per_file_tab:
             selected_file_data = df_display.iloc[st.session_state.selected_row_index]
             selected_file_ext_id = selected_file_data["startNode"]
             selected_file_name = selected_file_data["fileName"]
-            st.markdown(f"**Displaying Tag Comparison for file:**")
+            st.markdown("**Displaying Tag Comparison for file:**")
             st.markdown(f"`{selected_file_name} ({selected_file_ext_id})`")
             file_space_series = df_patterns_file[df_patterns_file["startNode"] == selected_file_ext_id]["startNodeSpace"]
             if not file_space_series.empty:
