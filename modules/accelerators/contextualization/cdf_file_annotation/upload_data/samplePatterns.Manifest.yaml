@@ -1,0 +1,6 @@
+kind: RawRows
+type: rawTable
+table:
+  dbName: db_file_annotation
+  tableName: manual_patterns_catalog
+key: key

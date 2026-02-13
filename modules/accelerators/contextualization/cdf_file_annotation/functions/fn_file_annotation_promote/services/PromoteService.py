@@ -1,22 +1,22 @@
 import abc
 import time
 from typing import Any, Literal
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import (
+    DirectRelationReference,
     Edge,
+    EdgeApply,
     EdgeId,
     EdgeList,
-    EdgeApply,
     Node,
     NodeOrEdgeData,
-    DirectRelationReference,
-    NodeList,
 )
-from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
-from services.LoggerService import CogniteFunctionLogger
 from services.CacheService import CacheService
+from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
 from services.EntitySearchService import EntitySearchService
+from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker
 
 

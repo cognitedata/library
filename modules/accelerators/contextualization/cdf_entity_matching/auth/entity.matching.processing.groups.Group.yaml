@@ -41,14 +41,14 @@ capabilities:
         - WRITE
       scope:
         all: {}
-  - annotationsAcl:
-      actions:
-        - READ
-        - WRITE
-        - SUGGEST
-        - REVIEW
-      scope:
-        all: {}
+  # - annotationsAcl:
+  #     actions:
+  #       - READ
+  #       - WRITE
+  #       - SUGGEST
+  #       - REVIEW
+  #     scope:
+  #       all: {}
   - entitymatchingAcl:
       actions:
         - READ
