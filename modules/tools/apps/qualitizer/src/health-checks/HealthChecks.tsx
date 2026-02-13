@@ -14,6 +14,7 @@ import type {
   GroupSummary,
   LoadState,
   NormalizedCapability,
+  PermissionScopeDriftEntry,
   RawDatabaseSummary,
   RawTableSummary,
   ScheduleEntry,
@@ -672,7 +673,8 @@ export function HealthChecks() {
   }, [functions]);
 
   const permissionScopeDrift = useMemo(() => {
-    const findings: string[] = [];
+    const findings: PermissionScopeDriftEntry[] = [];
+    const seen = new Set<string>();
     const byCapability = new Map<
       string,
       Array<{ groupName: string; scopeType: string; items: string[] }>
@@ -692,13 +694,14 @@ export function HealthChecks() {
       }
     }
 
-    const hasSmallDiff = (a: string[], b: string[]) => {
+    const meetsOverlapThreshold = (a: string[], b: string[]) => {
       const aSet = new Set(a);
       const bSet = new Set(b);
-      let diff = 0;
-      for (const value of aSet) if (!bSet.has(value)) diff += 1;
-      for (const value of bSet) if (!aSet.has(value)) diff += 1;
-      return diff > 0 && diff <= 2;
+      let common = 0;
+      for (const value of aSet) if (bSet.has(value)) common += 1;
+      if (common < 3) return false;
+      const overlap = common / Math.max(aSet.size, bSet.size);
+      return overlap >= 0.8;
     };
 
     for (const [capabilityKey, entries] of byCapability.entries()) {
@@ -715,24 +718,47 @@ export function HealthChecks() {
             const right = scopeEntries[j];
             if (left.groupName === right.groupName) continue;
             if (left.items.join("|") === right.items.join("|")) continue;
-            if (!hasSmallDiff(left.items, right.items)) continue;
+            if (!meetsOverlapThreshold(left.items, right.items)) continue;
             const readableName = capabilityKey.split("::")[0];
             const actionSuffix = capabilityKey.split("::")[1];
-            findings.push(
-              t("healthChecks.permissions.drift.itemDiff", {
-                capability: readableName,
-                actions: actionSuffix || t("healthChecks.permissions.drift.noActions"),
-                scopeType,
-                left: left.groupName,
-                right: right.groupName,
-              })
-            );
+            const leftSet = new Set(left.items);
+            const rightSet = new Set(right.items);
+            const common = left.items.filter((value) => rightSet.has(value));
+            const leftOnly = left.items.filter((value) => !rightSet.has(value));
+            const rightOnly = right.items.filter((value) => !leftSet.has(value));
+            const summary = t("healthChecks.permissions.drift.itemDiff", {
+              capability: readableName,
+              actions: actionSuffix || t("healthChecks.permissions.drift.noActions"),
+              scopeType,
+              left: left.groupName,
+              right: right.groupName,
+            });
+            const id = [
+              capabilityKey,
+              scopeType,
+              left.groupName,
+              right.groupName,
+              left.items.join("|"),
+              right.items.join("|"),
+            ].join("::");
+            if (seen.has(id)) continue;
+            seen.add(id);
+            findings.push({
+              id,
+              summary,
+              scopeType,
+              leftGroup: left.groupName,
+              rightGroup: right.groupName,
+              common,
+              leftOnly,
+              rightOnly,
+            });
           }
         }
       }
     }
 
-    return Array.from(new Set(findings)).slice(0, 25);
+    return findings.slice(0, 25);
   }, [groups, t]);
 
   const scheduleOverlaps = useMemo(() => {
@@ -832,13 +858,11 @@ export function HealthChecks() {
         isOlderThanSixMonths={isOlderThanSixMonths}
         renderProgressBar={renderProgressBar}
       />
-      {showInternal ? (
-        <PermissionsHealthPanel
-          permissionsStatus={permissionsStatus}
-          permissionsError={permissionsError}
-          permissionScopeDrift={permissionScopeDrift}
-        />
-      ) : null}
+      <PermissionsHealthPanel
+        permissionsStatus={permissionsStatus}
+        permissionsError={permissionsError}
+        permissionScopeDrift={permissionScopeDrift}
+      />
       <Loader
         open={showLoader}
         onClose={() => setShowLoader(false)}

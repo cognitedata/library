@@ -165,6 +165,16 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.legend.space": "Group has explicit space scope",
     "permissions.legend.dataset": "Group has explicit data set scope",
     "permissions.compare.membership": "Compare group membership by uploaded users.",
+    "permissions.compare.help.title": "How user comparison works",
+    "permissions.compare.help.subtitle": "Compare group membership with uploaded access files.",
+    "permissions.compare.help.stepOne":
+      "Upload multiple access info JSON files to compare group membership across users.",
+    "permissions.compare.help.stepTwo":
+      "Users download these JSON files from the CDF GUI and share them with you.",
+    "permissions.compare.help.stepThree":
+      "Group memberships are stored outside CDF, so this tool cannot fetch them directly.",
+    "permissions.compare.help.stepFour":
+      "In the CDF GUI: click your name in the bottom-left corner, select “Access info”, then copy the JSON into a file named your_name.json.",
     "permissions.scopes.space.title": "Space access",
     "permissions.scopes.space.description": "Space scope entries per security group.",
     "permissions.scopes.dataset.title": "Data set access",
@@ -342,6 +352,11 @@ const translations: Record<Language, Record<string, string>> = {
       "{count} capability scopes look almost the same.",
     "healthChecks.permissions.drift.none": "No near-duplicate capability scopes detected.",
     "healthChecks.permissions.drift.noActions": "no actions",
+    "healthChecks.permissions.drift.explain.show": "Explain",
+    "healthChecks.permissions.drift.explain.hide": "Hide",
+    "healthChecks.permissions.drift.common": "Common entries",
+    "healthChecks.permissions.drift.uniqueLeft": "Unique to {group}",
+    "healthChecks.permissions.drift.uniqueRight": "Unique to {group}",
     "healthChecks.permissions.drift.itemDiff":
       "{capability} ({actions}) · {scopeType} differs by a few items: {left} vs {right}",
     "healthChecks.permissions.drift.unknownCapability": "Unknown",
@@ -501,6 +516,17 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.legend.space": "グループに明示的なスペーススコープがある",
     "permissions.legend.dataset": "グループに明示的なデータセットスコープがある",
     "permissions.compare.membership": "アップロードしたユーザーのグループ所属を比較します。",
+    "permissions.compare.help.title": "ユーザー比較の仕組み",
+    "permissions.compare.help.subtitle":
+      "アクセス情報の JSON を使ってグループ所属を比較します。",
+    "permissions.compare.help.stepOne":
+      "複数のアクセス情報 JSON をアップロードしてユーザー間のグループ所属を比較します。",
+    "permissions.compare.help.stepTwo":
+      "各ユーザーは CDF GUI から JSON をダウンロードし、共有する必要があります。",
+    "permissions.compare.help.stepThree":
+      "グループ所属は CDF の外部に保管されているため、このツールから直接取得できません。",
+    "permissions.compare.help.stepFour":
+      "CDF GUI では、左下の自分の名前をクリックし、「Access info」を選択して JSON をコピーし、your_name.json として保存します。",
     "permissions.scopes.space.title": "スペースアクセス",
     "permissions.scopes.space.description": "セキュリティグループごとのスペーススコープ。",
     "permissions.scopes.dataset.title": "データセットアクセス",
@@ -681,6 +707,11 @@ const translations: Record<Language, Record<string, string>> = {
       "{count} 件のケイパビリティでスコープがほぼ同じです。",
     "healthChecks.permissions.drift.none": "近似したスコープ差分は検出されませんでした。",
     "healthChecks.permissions.drift.noActions": "アクションなし",
+    "healthChecks.permissions.drift.explain.show": "説明",
+    "healthChecks.permissions.drift.explain.hide": "非表示",
+    "healthChecks.permissions.drift.common": "共通のエントリ",
+    "healthChecks.permissions.drift.uniqueLeft": "{group} のみに存在",
+    "healthChecks.permissions.drift.uniqueRight": "{group} のみに存在",
     "healthChecks.permissions.drift.itemDiff":
       "{capability} ({actions}) · {scopeType} に小さな差分: {left} と {right}",
     "healthChecks.permissions.drift.unknownCapability": "不明",

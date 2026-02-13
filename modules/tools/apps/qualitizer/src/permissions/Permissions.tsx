@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ApiError } from "@/shared/ApiError";
 import { useAppSdk } from "@/shared/auth";
 import { useI18n } from "@/shared/i18n";
+import { Loader } from "@/shared/Loader";
 import {
   getActionDisplay,
   getCapability,
@@ -10,6 +11,7 @@ import {
 } from "@/shared/permissions-utils";
 import { useEffect, useMemo, useState } from "react";
 import { PermissionsHelpModal } from "./PermissionsHelpModal";
+import { PermissionsCompareHelpModal } from "./PermissionsCompareHelpModal";
 import type { UploadedUser } from "./types";
 import { usePermissionsData } from "./usePermissionsData";
 
@@ -33,6 +35,14 @@ export function Permissions() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showCompareHelp, setShowCompareHelp] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
+
+  const isPageLoading = isDuneLoading || status === "loading";
+
+  useEffect(() => {
+    setShowLoader(isPageLoading);
+  }, [isPageLoading]);
 
   useEffect(() => {
     if (isDuneLoading) return;
@@ -312,9 +322,18 @@ export function Permissions() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
-          <CardTitle>{t("permissions.compare.title")}</CardTitle>
-          <CardDescription>{t("permissions.compare.membership")}</CardDescription>
+        <CardHeader className="relative">
+          <div className="flex flex-col gap-1">
+            <CardTitle>{t("permissions.compare.title")}</CardTitle>
+            <CardDescription>{t("permissions.compare.membership")}</CardDescription>
+          </div>
+          <button
+            type="button"
+            className="absolute right-0 top-0 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+            onClick={() => setShowCompareHelp(true)}
+          >
+            {t("shared.help.button")}
+          </button>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-3">
@@ -494,6 +513,11 @@ export function Permissions() {
       </Card>
       </section>
       <PermissionsHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <PermissionsCompareHelpModal
+        open={showCompareHelp}
+        onClose={() => setShowCompareHelp(false)}
+      />
+      <Loader open={showLoader} onClose={() => setShowLoader(false)} />
     </>
   );
 }

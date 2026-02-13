@@ -62,3 +62,14 @@ export type ScheduleEntry = {
   name: string;
   cron: string;
 };
+
+export type PermissionScopeDriftEntry = {
+  id: string;
+  summary: string;
+  scopeType: string;
+  leftGroup: string;
+  rightGroup: string;
+  common: string[];
+  leftOnly: string[];
+  rightOnly: string[];
+};

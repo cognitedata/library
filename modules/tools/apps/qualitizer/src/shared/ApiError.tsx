@@ -45,8 +45,24 @@ const getDocUrl = (api?: string) => {
   return apiDocMappings.find((entry) => entry.match.test(path))?.url ?? null;
 };
 
+const fallbackStrings: Record<string, string> = {
+  "apiError.showDetails": "Show details",
+  "apiError.hideDetails": "Hide details",
+  "apiError.section.api": "API",
+  "apiError.section.request": "Request body",
+  "apiError.section.details": "Details",
+  "apiError.docsLink": "Open API docs",
+  "apiError.permissionsHint":
+    "Required permissions are listed at the top of each documentation page.",
+};
+
 export function ApiError({ message, api, requestBody, details, className }: ApiErrorProps) {
-  const { t } = useI18n();
+  let t: (key: string) => string;
+  try {
+    ({ t } = useI18n());
+  } catch {
+    t = (key) => fallbackStrings[key] ?? key;
+  }
   const [open, setOpen] = useState(false);
   if (!message) return null;
 

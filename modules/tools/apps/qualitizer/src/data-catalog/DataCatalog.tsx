@@ -8,6 +8,7 @@ import { DataCatalogHelpModal } from "./DataCatalogHelpModal";
 import type { FieldNode, Link, LoadState, ModelNode, SelectedNode, ViewNode } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { ApiError } from "@/shared/ApiError";
+import { Loader } from "@/shared/Loader";
 
 export function DataCatalog() {
   const { sdk, isLoading: isDuneLoading } = useAppSdk();
@@ -33,6 +34,17 @@ export function DataCatalog() {
   const [sampleError, setSampleError] = useState<string | null>(null);
   const [sampleRows, setSampleRows] = useState<Array<Record<string, unknown>>>([]);
   const [showHelp, setShowHelp] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
+
+  const isPageLoading =
+    isDuneLoading ||
+    status === "loading" ||
+    sampleStatus === "loading" ||
+    dataModelsStatus === "loading";
+
+  useEffect(() => {
+    setShowLoader(isPageLoading);
+  }, [isPageLoading]);
 
   const sortedModels = useMemo(
     () => [...models].sort((a, b) => a.label.localeCompare(b.label)),
@@ -389,6 +401,7 @@ export function DataCatalog() {
         </div>
       ) : null}
       <DataCatalogHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <Loader open={showLoader} onClose={() => setShowLoader(false)} />
     </section>
   );
 }
