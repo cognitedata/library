@@ -74,3 +74,18 @@ indexes:
     - equipment_module_id
     cursorable: true
     indexType: btree
+  equipment_module_name_index:
+    properties:
+    - equipment_module_name
+    cursorable: true
+    indexType: btree
+  module_class_index:
+    properties:
+    - module_class
+    cursorable: true
+    indexType: btree
+  unit_index:
+    properties:
+    - unit
+    cursorable: true
+    indexType: btree

@@ -36,3 +36,13 @@ indexes:
     - enterprise_id
     cursorable: true
     indexType: btree
+  enterprise_name_index:
+    properties:
+    - enterprise_name
+    cursorable: true
+    indexType: btree
+  enterprise_type_index:
+    properties:
+    - enterprise_type
+    cursorable: true
+    indexType: btree

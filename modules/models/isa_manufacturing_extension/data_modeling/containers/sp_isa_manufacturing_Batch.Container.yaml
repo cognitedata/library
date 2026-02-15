@@ -110,6 +110,42 @@ indexes:
     - batch_number
     cursorable: true
     indexType: btree
+  batch_state_index:
+    properties:
+    - batch_state
+    cursorable: true
+    indexType: btree
+  start_time_index:
+    properties:
+    - start_time
+    cursorable: true
+    indexType: btree
+  end_time_index:
+    properties:
+    - end_time
+    cursorable: true
+    indexType: btree
+  state_start_time_index:
+    properties:
+    - batch_state
+    - start_time
+    cursorable: true
+    indexType: btree
+  recipe_index:
+    properties:
+    - recipe
+    cursorable: true
+    indexType: btree
+  material_index:
+    properties:
+    - material
+    cursorable: true
+    indexType: btree
+  site_index:
+    properties:
+    - site
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteSourceable:
     constraintType: requires

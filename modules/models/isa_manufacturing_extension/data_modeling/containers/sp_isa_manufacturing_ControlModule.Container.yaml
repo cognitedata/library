@@ -54,6 +54,16 @@ indexes:
     - control_module_id
     cursorable: true
     indexType: btree
+  control_type_index:
+    properties:
+    - control_type
+    cursorable: true
+    indexType: btree
+  equipment_module_index:
+    properties:
+    - equipment_module
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

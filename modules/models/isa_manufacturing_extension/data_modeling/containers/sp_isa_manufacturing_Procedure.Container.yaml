@@ -44,6 +44,16 @@ indexes:
     - procedure_id
     cursorable: true
     indexType: btree
+  sequence_number_index:
+    properties:
+    - sequence_number
+    cursorable: true
+    indexType: btree
+  recipe_index:
+    properties:
+    - recipe
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

@@ -63,6 +63,37 @@ indexes:
     - recipe_id
     cursorable: true
     indexType: btree
+  recipe_version_index:
+    properties:
+    - recipe_version
+    cursorable: true
+    indexType: btree
+  recipe_type_index:
+    properties:
+    - recipe_type
+    cursorable: true
+    indexType: btree
+  status_index:
+    properties:
+    - status
+    cursorable: true
+    indexType: btree
+  material_index:
+    properties:
+    - material
+    cursorable: true
+    indexType: btree
+  created_date_index:
+    properties:
+    - created_date
+    cursorable: true
+    indexType: btree
+  status_recipe_type_index:
+    properties:
+    - status
+    - recipe_type
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

@@ -46,3 +46,18 @@ indexes:
     - area_id
     cursorable: true
     indexType: btree
+  area_name_index:
+    properties:
+    - area_name
+    cursorable: true
+    indexType: btree
+  area_type_index:
+    properties:
+    - area_type
+    cursorable: true
+    indexType: btree
+  site_index:
+    properties:
+    - site
+    cursorable: true
+    indexType: btree

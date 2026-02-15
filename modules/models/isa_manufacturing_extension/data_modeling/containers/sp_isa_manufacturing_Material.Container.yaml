@@ -52,6 +52,11 @@ indexes:
     - material_id
     cursorable: true
     indexType: btree
+  material_class_index:
+    properties:
+    - material_class
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

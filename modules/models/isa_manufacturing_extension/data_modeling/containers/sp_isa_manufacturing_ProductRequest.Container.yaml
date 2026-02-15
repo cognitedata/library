@@ -98,6 +98,27 @@ indexes:
     - request_number
     cursorable: true
     indexType: btree
+  request_status_index:
+    properties:
+    - request_status
+    cursorable: true
+    indexType: btree
+  priority_index:
+    properties:
+    - priority
+    cursorable: true
+    indexType: btree
+  due_date_index:
+    properties:
+    - due_date
+    cursorable: true
+    indexType: btree
+  status_due_date_index:
+    properties:
+    - request_status
+    - due_date
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

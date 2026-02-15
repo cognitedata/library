@@ -65,3 +65,18 @@ indexes:
     - unit_id
     cursorable: true
     indexType: btree
+  unit_name_index:
+    properties:
+    - unit_name
+    cursorable: true
+    indexType: btree
+  unit_class_index:
+    properties:
+    - unit_class
+    cursorable: true
+    indexType: btree
+  process_cell_index:
+    properties:
+    - process_cell
+    cursorable: true
+    indexType: btree

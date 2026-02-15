@@ -55,3 +55,18 @@ indexes:
     - site_id
     cursorable: true
     indexType: btree
+  site_name_index:
+    properties:
+    - site_name
+    cursorable: true
+    indexType: btree
+  country_index:
+    properties:
+    - country
+    cursorable: true
+    indexType: btree
+  enterprise_index:
+    properties:
+    - enterprise
+    cursorable: true
+    indexType: btree
