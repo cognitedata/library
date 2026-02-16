@@ -13,15 +13,6 @@ properties:
     nullable: false
     autoIncrement: false
     name: control_module_id
-  # control_module_name:
-  #   type:
-  #     list: false
-  #     collation: ucs_basic
-  #     type: text
-  #   immutable: false
-  #   nullable: false
-  #   autoIncrement: false
-  #   name: control_module_name
   control_type:
     type:
       list: false
