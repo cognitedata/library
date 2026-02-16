@@ -84,6 +84,32 @@ indexes:
     - product_definition_id
     cursorable: true
     indexType: btree
+  status_index:
+    properties:
+    - status
+    cursorable: true
+    indexType: btree
+  version_index:
+    properties:
+    - version
+    cursorable: true
+    indexType: btree
+  valid_from_index:
+    properties:
+    - valid_from
+    cursorable: true
+    indexType: btree
+  valid_to_index:
+    properties:
+    - valid_to
+    cursorable: true
+    indexType: btree
+  status_valid_from_index:
+    properties:
+    - status
+    - valid_from
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

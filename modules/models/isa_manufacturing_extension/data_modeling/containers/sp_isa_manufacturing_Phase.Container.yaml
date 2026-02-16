@@ -85,3 +85,28 @@ indexes:
     - phase_id
     cursorable: true
     indexType: btree
+  phase_name_index:
+    properties:
+    - phase_name
+    cursorable: true
+    indexType: btree
+  phase_class_index:
+    properties:
+    - phase_class
+    cursorable: true
+    indexType: btree
+  phase_state_index:
+    properties:
+    - phase_state
+    cursorable: true
+    indexType: btree
+  sequence_number_index:
+    properties:
+    - sequence_number
+    cursorable: true
+    indexType: btree
+  operation_index:
+    properties:
+    - operation
+    cursorable: true
+    indexType: btree

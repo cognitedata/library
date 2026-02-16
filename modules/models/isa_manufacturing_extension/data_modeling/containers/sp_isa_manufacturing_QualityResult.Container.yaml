@@ -119,6 +119,42 @@ indexes:
     - quality_result_id
     cursorable: true
     indexType: btree
+  test_name_index:
+    properties:
+    - test_name
+    cursorable: true
+    indexType: btree
+  status_index:
+    properties:
+    - status
+    cursorable: true
+    indexType: btree
+  test_date_index:
+    properties:
+    - test_date
+    cursorable: true
+    indexType: btree
+  status_test_date_index:
+    properties:
+    - status
+    - test_date
+    cursorable: true
+    indexType: btree
+  batch_index:
+    properties:
+    - batch
+    cursorable: true
+    indexType: btree
+  material_lot_index:
+    properties:
+    - material_lot
+    cursorable: true
+    indexType: btree
+  analyst_index:
+    properties:
+    - analyst
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

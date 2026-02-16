@@ -44,6 +44,21 @@ indexes:
     - personnel_id
     cursorable: true
     indexType: btree
+  name_index:
+    properties:
+    - name
+    cursorable: true
+    indexType: btree
+  role_index:
+    properties:
+    - role
+    cursorable: true
+    indexType: btree
+  site_index:
+    properties:
+    - site
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires

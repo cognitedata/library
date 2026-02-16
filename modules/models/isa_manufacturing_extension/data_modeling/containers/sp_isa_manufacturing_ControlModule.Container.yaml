@@ -13,15 +13,6 @@ properties:
     nullable: false
     autoIncrement: false
     name: control_module_id
-  # control_module_name:
-  #   type:
-  #     list: false
-  #     collation: ucs_basic
-  #     type: text
-  #   immutable: false
-  #   nullable: false
-  #   autoIncrement: false
-  #   name: control_module_name
   control_type:
     type:
       list: false
@@ -52,6 +43,16 @@ indexes:
   control_module_id_index:
     properties:
     - control_module_id
+    cursorable: true
+    indexType: btree
+  control_type_index:
+    properties:
+    - control_type
+    cursorable: true
+    indexType: btree
+  equipment_module_index:
+    properties:
+    - equipment_module
     cursorable: true
     indexType: btree
 constraints:

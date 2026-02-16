@@ -46,3 +46,18 @@ indexes:
     - process_cell_id
     cursorable: true
     indexType: btree
+  process_cell_name_index:
+    properties:
+    - process_cell_name
+    cursorable: true
+    indexType: btree
+  process_cell_type_index:
+    properties:
+    - process_cell_type
+    cursorable: true
+    indexType: btree
+  area_index:
+    properties:
+    - area
+    cursorable: true
+    indexType: btree

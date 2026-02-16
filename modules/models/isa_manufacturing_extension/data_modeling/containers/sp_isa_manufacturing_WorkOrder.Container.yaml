@@ -98,6 +98,32 @@ indexes:
     - work_order_number
     cursorable: true
     indexType: btree
+  work_status_index:
+    properties:
+    - work_status
+    cursorable: true
+    indexType: btree
+  work_type_index:
+    properties:
+    - work_type
+    cursorable: true
+    indexType: btree
+  planned_start_time_index:
+    properties:
+    - planned_start_time
+    cursorable: true
+    indexType: btree
+  actual_start_time_index:
+    properties:
+    - actual_start_time
+    cursorable: true
+    indexType: btree
+  status_planned_time_index:
+    properties:
+    - work_status
+    - planned_start_time
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteActivity:
     constraintType: requires

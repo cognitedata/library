@@ -58,6 +58,11 @@ indexes:
     - asset_specific
     cursorable: true
     indexType: btree
+  erp_id_index:
+    properties:
+    - erp_id
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteAsset:
     constraintType: requires

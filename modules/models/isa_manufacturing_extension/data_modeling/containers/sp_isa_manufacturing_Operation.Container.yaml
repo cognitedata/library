@@ -43,6 +43,11 @@ indexes:
     - operation_id
     cursorable: true
     indexType: btree
+  sequence_number_index:
+    properties:
+    - sequence_number
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteActivity:
     constraintType: requires

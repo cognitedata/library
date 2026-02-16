@@ -53,6 +53,26 @@ indexes:
     - material_lot_id
     cursorable: true
     indexType: btree
+  lot_number_index:
+    properties:
+    - lot_number
+    cursorable: true
+    indexType: btree
+  material_index:
+    properties:
+    - material
+    cursorable: true
+    indexType: btree
+  manufacture_date_index:
+    properties:
+    - manufacture_date
+    cursorable: true
+    indexType: btree
+  expiry_date_index:
+    properties:
+    - expiry_date
+    cursorable: true
+    indexType: btree
 constraints:
   requiresCogniteDescribable:
     constraintType: requires
