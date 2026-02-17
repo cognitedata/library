@@ -1,0 +1,10 @@
+externalId: project_health_dashboard
+name: CDF Project Health Dashboard
+creator: Anonymous
+description: |
+  Health monitoring dashboard for CDF resources scoped by dataset.
+  Displays pre-computed metrics from the Project Health Function (extraction pipelines, workflows, transformations, functions).
+  Run the project_health_handler Function first to generate the metrics file.
+published: true
+entrypoint: main.py
+dataSetExternalId: project_health_apps
