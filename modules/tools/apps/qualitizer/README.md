@@ -9,7 +9,7 @@ Once Dune is GA, this tool will be available within the CDF GUI itself. Currentl
 
 
 ### Prerequisites
-- Node.js 18+ (recommended)
+- Node.js 20+ (recommended)
 - npm (or pnpm/yarn if you prefer)
 
 ### Install
@@ -25,17 +25,14 @@ Standalone mode uses a local proxy that injects client-credentials tokens.
 npm run proxy
 ```
 
-Proxy environment variables (required):
+Proxy environment variables:
 - `CDF_PROJECT` – CDF project URL name
 - `IDP_TOKEN_URL` – OAuth token endpoint (client credentials)
 - `IDP_CLIENT_ID`
 - `IDP_CLIENT_SECRET`
-
-Proxy environment variables:
 - `IDP_SCOPES` – OAuth scopes (defaults to `${CDF_URL}/.default`)
 - `CDF_URL` – CDF base URL (default `https://api.cognitedata.com`)
 - `PORT` – proxy port (default `4243`)
-- `PROXY_INSECURE` – set to `true` to disable TLS verification
 
 #### 2) Start the UI in standalone mode
 ```bash
@@ -47,13 +44,10 @@ To include internal (non-production) pages in standalone mode:
 npm run standalone-internal
 ```
 
-UI environment variables (required):
+UI environment variables:
 - `CDF_PROJECT` – CDF project URL name
 - `CDF_PROXY_URL` – proxy base URL (e.g. `http://localhost:4243`)
 
-UI environment variables (optional):
-- `VITE_CDF_APP_ID` – app id (default `qualitizer-standalone`)
-- `CDF_URL` or `VITE_CDF_BASE_URL` – displayed in the UI (default `https://api.cognitedata.com`)
 
 Note: the Vite config passes the following envs to the client:
 - `CDF_PROJECT`, `CDF_URL`, `IDP_TENANT_ID`, `IDP_CLIENT_ID`, `IDP_SCOPES`, `CDF_PROXY_URL`

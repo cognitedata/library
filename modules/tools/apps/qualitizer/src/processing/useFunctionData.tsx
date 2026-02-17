@@ -23,20 +23,20 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
     const funcId = run.functionId ?? "";
     const callId = run.id ?? "";
     const entries = logMap[funcId]?.[callId] ?? [];
-    if (entries.length === 0) return "#ff0000";
+    if (entries.length === 0) return "#ef4444";
     for (const logEntry of entries) {
       const message = logEntry.message ?? "";
-      if (message.includes("out of memory")) return "#EDB95E";
+      if (message.includes("out of memory")) return "#f87171";
       if (
         message.includes("Too many concurrent requests") ||
         message.includes("maximum 100 concurrent jobs")
       ) {
-        return "#0045ff";
+        return "#dc2626";
       }
-      if (message.includes("Internal server error")) return "#f0ff00";
-      if (message.includes("upstream request timeout")) return "#e300ff";
+      if (message.includes("Internal server error")) return "#fb7185";
+      if (message.includes("upstream request timeout")) return "#e11d48";
     }
-    return "orange";
+    return "#ef4444";
   };
 
   const getRunDuration = (run: FunctionRunSummary) => {

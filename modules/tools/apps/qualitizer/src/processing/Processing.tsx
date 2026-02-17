@@ -8,6 +8,7 @@ import { WorkflowRunModal } from "./WorkflowRunModal";
 import { ExtractionPipelineRunModal } from "./ExtractionPipelineRunModal";
 import { ProcessingChart } from "./ProcessingChart";
 import { ProcessingHelpModal } from "./ProcessingHelpModal";
+import { ProcessingHeatmapHelpModal } from "./ProcessingHeatmapHelpModal";
 import { ProcessingBubbleLegend } from "./ProcessingBubbleLegend";
 import { useExtractionPipelineData } from "./useExtractionPipelineData";
 import { useFunctionData } from "./useFunctionData";
@@ -41,6 +42,7 @@ export function Processing() {
   const [windowRange, setWindowRange] = useState<{ start: number; end: number } | null>(null);
   const [showLoader, setShowLoader] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showHeatmapHelp, setShowHeatmapHelp] = useState(false);
   const [loaderDismissed, setLoaderDismissed] = useState(false);
   const loaderWasLoadingRef = useRef(false);
   const [selectedRun, setSelectedRun] = useState<FunctionRunSummary | null>(null);
@@ -60,6 +62,18 @@ export function Processing() {
     name?: string;
     externalId?: string;
   } | null>(null);
+  const [scheduleStatus, setScheduleStatus] = useState<LoadState>("idle");
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleEntries, setScheduleEntries] = useState<
+    Array<{ cron: string; name: string }>
+  >([]);
+  const [hoverCell, setHoverCell] = useState<{
+    hour: number;
+    minute: number;
+    count: number;
+    names: string[];
+  } | null>(null);
+  const lastHoverKeyRef = useRef<string | null>(null);
 
   const {
     status,
@@ -144,6 +158,172 @@ export function Processing() {
     startWindow.setHours(startWindow.getHours() - hoursWindow);
     setWindowRange({ start: startWindow.getTime(), end: endWindow.getTime() });
   }, [isSdkLoading, windowOffsetHours]);
+
+  useEffect(() => {
+    if (isSdkLoading) return;
+    let cancelled = false;
+
+    const readCron = (item: Record<string, unknown>) => {
+      const direct = item.cron ?? item.cronExpression;
+      if (typeof direct === "string" && direct.trim()) return direct.trim();
+      const triggerRule = item.triggerRule as Record<string, unknown> | undefined;
+      const triggerDirect = triggerRule?.cron ?? triggerRule?.cronExpression;
+      if (typeof triggerDirect === "string" && triggerDirect.trim()) return triggerDirect.trim();
+      const schedule = item.schedule as Record<string, unknown> | undefined;
+      const nested = schedule?.cron ?? schedule?.cronExpression;
+      if (typeof nested === "string" && nested.trim()) return nested.trim();
+      return "";
+    };
+
+    const loadSchedules = async () => {
+      setScheduleStatus("loading");
+      setScheduleError(null);
+      setScheduleEntries([]);
+      try {
+        const entries: Array<{ cron: string; name: string }> = [];
+
+        const functionSchedules = (await sdk.post(
+          `/api/v1/projects/${sdk.project}/functions/schedules/list`,
+          {
+            data: { limit: 1000 },
+          }
+        )) as { data?: { items?: Array<Record<string, unknown>> } };
+        for (const item of functionSchedules.data?.items ?? []) {
+          const cron = readCron(item);
+          if (!cron) continue;
+          const name =
+            (item.name as string | undefined) ??
+            (item.functionExternalId as string | undefined) ??
+            (item.functionId as string | undefined) ??
+            t("processing.heatmap.unknownFunction");
+          entries.push({ cron, name });
+        }
+
+        const transformationSchedules = (await sdk.get(
+          `/api/v1/projects/${sdk.project}/transformations/schedules`,
+          {
+            params: { limit: "1000" },
+          }
+        )) as { data?: { items?: Array<Record<string, unknown>> } };
+        for (const item of transformationSchedules.data?.items ?? []) {
+          const cron = readCron(item);
+          if (!cron) continue;
+          const name =
+            (item.name as string | undefined) ??
+            (item.transformationExternalId as string | undefined) ??
+            (item.transformationId as string | undefined) ??
+            t("processing.heatmap.unknownTransformation");
+          entries.push({ cron, name });
+        }
+
+        let triggerCursor: string | undefined;
+        do {
+          const workflowTriggers = (await sdk.get(
+            `/api/v1/projects/${sdk.project}/workflows/triggers`,
+            {
+              params: { limit: "1000", cursor: triggerCursor },
+            }
+          )) as { data?: { items?: Array<Record<string, unknown>>; nextCursor?: string } };
+          for (const item of workflowTriggers.data?.items ?? []) {
+            const cron = readCron(item);
+            if (!cron) continue;
+            const workflowId = item.workflowExternalId as string | undefined;
+            const triggerId =
+              (item.externalId as string | undefined) ??
+              (item.id as string | undefined) ??
+              "trigger";
+            const name = workflowId ? `${workflowId} · ${triggerId}` : triggerId;
+            entries.push({ cron, name });
+          }
+          triggerCursor = workflowTriggers.data?.nextCursor;
+        } while (triggerCursor);
+
+        if (!cancelled) {
+          setScheduleEntries(entries);
+          setScheduleStatus("success");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setScheduleError(
+            error instanceof Error ? error.message : t("processing.heatmap.error")
+          );
+          setScheduleStatus("error");
+        }
+      }
+    };
+
+    loadSchedules();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSdkLoading, sdk, t]);
+
+  const heatmapCounts = useMemo(() => {
+    if (scheduleStatus !== "success") return [];
+    const parseField = (field: string, min: number, max: number) => {
+      if (!field) return [];
+      const values = new Set<number>();
+      const segments = field.split(",");
+      for (const segment of segments) {
+        const [rangePart, stepPart] = segment.split("/");
+        const step = stepPart ? Number(stepPart) : 1;
+        if (!Number.isFinite(step) || step <= 0) continue;
+        let start = min;
+        let end = max;
+        if (rangePart && rangePart !== "*") {
+          if (rangePart.includes("-")) {
+            const [rawStart, rawEnd] = rangePart.split("-");
+            start = Number(rawStart);
+            end = Number(rawEnd);
+          } else {
+            start = Number(rangePart);
+            end = Number(rangePart);
+          }
+        }
+        if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+        for (let value = start; value <= end; value += step) {
+          if (value >= min && value <= max) values.add(value);
+        }
+      }
+      return Array.from(values).sort((a, b) => a - b);
+    };
+
+    const counts = Array.from({ length: 60 }, () =>
+      Array.from({ length: 24 }, () => ({ count: 0, names: [] as string[] }))
+    );
+    for (const entry of scheduleEntries) {
+      const parts = entry.cron.trim().split(/\s+/);
+      if (parts.length < 2) continue;
+      const minutes = parseField(parts[0], 0, 59);
+      const hours = parseField(parts[1], 0, 23);
+      if (minutes.length === 0 || hours.length === 0) continue;
+      for (const minute of minutes) {
+        for (const hour of hours) {
+          counts[minute][hour].count += 1;
+          counts[minute][hour].names.push(entry.name);
+        }
+      }
+    }
+    return counts;
+  }, [scheduleEntries, scheduleStatus]);
+
+  const getHeatColor = (count: number) => {
+    if (count <= 0) return "#e0f2fe";
+    if (count >= 10) return "#ef4444";
+    const green = [34, 197, 94];
+    const yellow = [250, 204, 21];
+    const red = [239, 68, 68];
+    const mix = (from: number[], to: number[], ratio: number) => {
+      const clamped = Math.max(0, Math.min(1, ratio));
+      const channel = (index: number) =>
+        Math.round(from[index] + (to[index] - from[index]) * clamped);
+      return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
+    };
+    if (count <= 5) {
+      return mix(green, yellow, (count - 1) / 4);
+    }
+    return mix(yellow, red, (count - 5) / 5);
+  };
 
   const parallelSeries = useMemo(() => {
     if (!windowRange) return [];
@@ -550,6 +730,136 @@ export function Processing() {
           ) : null}
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader className="relative">
+          <div className="flex flex-col gap-1">
+            <CardTitle>{t("processing.heatmap.title")}</CardTitle>
+            <CardDescription>{t("processing.heatmap.description")}</CardDescription>
+          </div>
+          <button
+            type="button"
+            className="absolute right-0 top-0 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+            onClick={() => setShowHeatmapHelp(true)}
+          >
+            {t("shared.help.button")}
+          </button>
+        </CardHeader>
+        <CardContent>
+          {scheduleStatus === "loading" ? (
+            <div className="text-sm text-slate-600">{t("processing.heatmap.loading")}</div>
+          ) : null}
+          {scheduleStatus === "error" ? (
+            <ApiError message={scheduleError ?? t("processing.heatmap.error")} />
+          ) : null}
+          {scheduleStatus === "success" ? (
+            heatmapCounts.length === 0 ? (
+              <div className="text-sm text-slate-600">{t("processing.heatmap.empty")}</div>
+            ) : (
+              <div className="flex gap-4">
+                <div className="flex-1 overflow-auto rounded-md border border-slate-200 bg-white p-3">
+                  <div
+                    className="grid gap-0.5"
+                    style={{ gridTemplateColumns: "40px repeat(24, minmax(0, 1fr))" }}
+                    onMouseLeave={() => {
+                      lastHoverKeyRef.current = null;
+                      setHoverCell(null);
+                    }}
+                  >
+                    <div />
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <div
+                        key={`hour-${hour}`}
+                        className="text-center text-[10px] text-slate-500"
+                      >
+                        {hour}
+                      </div>
+                    ))}
+                    {Array.from({ length: 60 }, (_, minute) => (
+                      <div key={`row-${minute}`} className="contents">
+                        <div className="text-[10px] text-slate-500">
+                          {minute % 5 === 0 ? String(minute).padStart(2, "0") : ""}
+                        </div>
+                        {Array.from({ length: 24 }, (_, hour) => {
+                          const cell = heatmapCounts[minute]?.[hour];
+                          const count = cell?.count ?? 0;
+                          const names = cell?.names ?? [];
+                          const hoverKey = `${hour}:${minute}:${count}:${names.length}`;
+                          return (
+                            <div
+                              key={`cell-${minute}-${hour}`}
+                              className="h-3 w-full rounded-sm border border-slate-100"
+                              style={{ backgroundColor: getHeatColor(count) }}
+                              onMouseMove={() => {
+                                if (lastHoverKeyRef.current === hoverKey) return;
+                                lastHoverKeyRef.current = hoverKey;
+                                setHoverCell({ hour, minute, count, names });
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+                    <span className="flex items-center gap-1">
+                      <span className="h-3 w-3 rounded-sm border border-slate-200 bg-white" />
+                      {t("processing.heatmap.legend.none")}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="h-3 w-3 rounded-sm border border-slate-200"
+                        style={{ backgroundColor: getHeatColor(1) }}
+                      />
+                      {t("processing.heatmap.legend.one")}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="h-3 w-3 rounded-sm border border-slate-200"
+                        style={{ backgroundColor: getHeatColor(5) }}
+                      />
+                      {t("processing.heatmap.legend.mid")}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="h-3 w-3 rounded-sm border border-slate-200"
+                        style={{ backgroundColor: getHeatColor(10) }}
+                      />
+                      {t("processing.heatmap.legend.high")}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-64 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                  {hoverCell ? (
+                    <>
+                      <div className="font-semibold">
+                        {t("processing.heatmap.hover.title", {
+                          time: `${String(hoverCell.hour).padStart(2, "0")}:${String(
+                            hoverCell.minute
+                          ).padStart(2, "0")}`,
+                          count: hoverCell.count,
+                        })}
+                      </div>
+                      {hoverCell.names.length > 0 ? (
+                        <ul className="mt-1 max-h-96 list-disc space-y-0.5 overflow-auto pl-4">
+                          {hoverCell.names.map((name, index) => (
+                            <li key={`${name}-${index}`}>{name}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="mt-1 text-slate-500">
+                          {t("processing.heatmap.hover.none")}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-slate-500">{t("processing.heatmap.hover.none")}</div>
+                  )}
+                </div>
+              </div>
+            )
+          ) : null}
+        </CardContent>
+      </Card>
       <FunctionRunModal
         open={!!selectedRun}
         onClose={() => {
@@ -623,6 +933,10 @@ export function Processing() {
         title={t("processing.loader.title")}
       />
       <ProcessingHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <ProcessingHeatmapHelpModal
+        open={showHeatmapHelp}
+        onClose={() => setShowHeatmapHelp(false)}
+      />
     </section>
   );
 }

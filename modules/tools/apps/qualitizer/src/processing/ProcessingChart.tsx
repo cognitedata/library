@@ -401,6 +401,7 @@ export function ProcessingChart({
       .attr("fill", (d) => getColor(d.run))
       .attr("stroke", "#0f172a")
       .attr("stroke-width", 0.5)
+      .attr("cursor", "pointer")
       .on("click", (_event, d) => onRunClick(d.run))
       .append("title")
       .text(
@@ -425,6 +426,7 @@ export function ProcessingChart({
       .attr("fill", (d) => getTransformationColor(d.job))
       .attr("stroke", "#0f172a")
       .attr("stroke-width", 0.5)
+      .attr("cursor", "pointer")
       .on("click", (_event, d) => onTransformationClick(d.job))
       .append("title")
       .text((d) => {
@@ -467,6 +469,7 @@ export function ProcessingChart({
       .attr("fill", (d) => getWorkflowColor(d.execution))
       .attr("stroke", "#0f172a")
       .attr("stroke-width", 0.5)
+      .attr("cursor", "pointer")
       .on("click", (_event, d) => onWorkflowClick(d.execution))
       .append("title")
       .text((d) => {
@@ -502,6 +505,7 @@ export function ProcessingChart({
       .attr("fill", (d) => getExtractorColor(d.run))
       .attr("stroke", "#0f172a")
       .attr("stroke-width", 0.5)
+      .attr("cursor", "pointer")
       .on("click", (_event, d) => onExtractorClick(d.run))
       .append("title")
       .text((d) => {
