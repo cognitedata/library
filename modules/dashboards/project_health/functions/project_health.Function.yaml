@@ -1,0 +1,6 @@
+name: Function for Project Health Metrics
+externalId: project_health_handler
+owner: 'Anonymous'
+description: Computes CDF project health metrics (extraction pipelines, workflows, transformations, functions) for a dataset and time range; writes results to a Cognite File for the dashboard.
+functionPath: 'handler.py'
+dataSetExternalId: project_health_apps

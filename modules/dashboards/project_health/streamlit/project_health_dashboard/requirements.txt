@@ -1,0 +1,3 @@
+cognite-sdk
+pyodide-http
+plotly
