@@ -25,6 +25,7 @@ capabilities:
             - cdf_idm
             - cdf_infield
             - cdf_apps_shared
+            - APM_Config
             # add any other spaces that are used for extention of core resources
 
   # Data model instances - View and analyze the data created in InField
