@@ -265,6 +265,8 @@ class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     get_candidates_query: QueryConfig | list[QueryConfig]
     delete_rejected_edges: bool
     delete_suggested_edges: bool
+    promote_file_entities: bool = True
+    promote_target_entities: bool = True
     entity_search_service: EntitySearchServiceConfig
 
 

@@ -266,6 +266,8 @@ class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     delete_rejected_edges: bool
     delete_suggested_edges: bool
     entity_search_service: EntitySearchServiceConfig
+    promote_file_entities: bool = True
+    promote_target_entities: bool = True
 
 
 class DataModelViews(BaseModel, alias_generator=to_camel):

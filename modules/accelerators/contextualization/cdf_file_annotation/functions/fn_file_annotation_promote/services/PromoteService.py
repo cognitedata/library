@@ -92,6 +92,8 @@ class GeneralPromoteService(IPromoteService):
         # Promote flags
         self.delete_rejected_edges: bool = self.config.promote_function.delete_rejected_edges
         self.delete_suggested_edges: bool = self.config.promote_function.delete_suggested_edges
+        self.promote_file_entities: bool = self.config.promote_function.promote_file_entities
+        self.promote_target_entities: bool = self.config.promote_function.promote_target_entities
 
         # Injected service dependencies
         self.entity_search_service = entity_search_service
@@ -149,11 +151,19 @@ class GeneralPromoteService(IPromoteService):
                     grouped_candidates[key] = []
                 grouped_candidates[key].append(edge)
 
+        grouped_by_type: dict[str, dict[str, list[Edge]]] = {}
+
+        for (text_to_find, annotation_type), edges_with_same_text in grouped_candidates.items():
+            grouped_by_type.setdefault(annotation_type, {})[text_to_find] = edges_with_same_text
+
+        total_grouped = sum(len(m) for m in grouped_by_type.values())
+
         self.logger.info(
-            message=f"Grouped {len(candidates)} candidates into {len(grouped_candidates)} unique text/type combinations.",
+            message=f"Grouped {len(candidates)} candidates into {total_grouped} unique text/type combinations across {len(grouped_by_type)} types.",
         )
+
         self.logger.debug(
-            message=f"Deduplication savings: {len(candidates) - len(grouped_candidates)} queries avoided.",
+            message=f"Deduplication savings: {len(candidates) - total_grouped} queries avoided.",
             section="END",
         )
 
@@ -170,54 +180,65 @@ class GeneralPromoteService(IPromoteService):
 
         try:
             # Process each unique text/type combination once
-            for (text_to_find, annotation_type), edges_with_same_text in grouped_candidates.items():
+            # Iterate per annotation type so we can check the search flag once per type
+            for annotation_type, texts_map in grouped_by_type.items():
+                # Determine entity space once per type
                 entity_space: str | None = (
                     self.file_view.instance_space
                     if annotation_type == "diagrams.FileLink"
                     else self.target_entities_view.instance_space
                 )
 
-                # NOTE: This occurs when no instance space is set in the data model views section extraction pipelines config file
                 if not entity_space:
-                    self.logger.warning(
-                        f"Could not determine entity space for type '{annotation_type}'.\nPlease ensure an instance space is set in the Files and Target Entities data model views section of the extraction pipeline configuration.\nSkipping."
-                    )
+                    self.logger.warning(f"Could not determine entity space for type '{annotation_type}'. Skipping all texts for this type.")
                     continue
 
-                # Strategy: Check cache → query edges → fallback to global search
-                found_nodes: list[Node] | list = self._find_entity_with_cache(
-                    text_to_find, annotation_type, entity_space
-                )
+                if annotation_type == "diagrams.FileLink":
+                    is_searching_annotation_type = self.promote_file_entities
+                else:
+                    is_searching_annotation_type = self.promote_target_entities
 
-                # Determine result type for tracking AND deletion decision
-                num_edges: int = len(edges_with_same_text)
-                should_delete: bool = False
+                if not is_searching_annotation_type:
+                    self.logger.info(f"Search disabled for annotation type '{annotation_type}'. It will reject those edges without searching ({len(texts_map)} nodes).", section="START")
 
-                if len(found_nodes) == 1:
-                    batch_promoted += num_edges
-                    should_delete = False  # Never delete promoted edges
-                elif len(found_nodes) == 0:
-                    batch_rejected += num_edges
-                    should_delete = self.delete_rejected_edges
-                else:  # Multiple matches
-                    batch_ambiguous += num_edges
-                    should_delete = self.delete_suggested_edges
+                for text_to_find, edges_with_same_text in texts_map.items():
+                    # Strategy: Check cache → query edges → fallback to global search
+                    found_nodes: list[Node] | list = []
 
-                # Apply the same result to ALL edges with this text
-                for edge in edges_with_same_text:
-                    edge_apply, raw_row = self._prepare_edge_update(edge, found_nodes)
+                    if is_searching_annotation_type:
+                        found_nodes = self._find_entity_with_cache(
+                            text_to_find, annotation_type, entity_space
+                        )
 
-                    if should_delete:
-                        # Delete the edge but still update RAW row to track what happened
-                        edges_to_delete.append(EdgeId(edge.space, edge.external_id))
-                        if raw_row is not None:
-                            raw_rows_to_update.append(raw_row)
-                    else:
-                        # Update both edge and RAW row
-                        if edge_apply is not None:
-                            edges_to_update.append(edge_apply)
-                        if raw_row is not None:
-                            raw_rows_to_update.append(raw_row)
+                    # Determine result type for tracking AND deletion decision
+                    num_edges: int = len(edges_with_same_text)
+                    should_delete: bool = False
+
+                    if len(found_nodes) == 1:
+                        batch_promoted += num_edges
+                        should_delete = False  # Never delete promoted edges
+                    elif len(found_nodes) == 0:
+                        batch_rejected += num_edges
+                        should_delete = self.delete_rejected_edges
+                    else:  # Multiple matches
+                        batch_ambiguous += num_edges
+                        should_delete = self.delete_suggested_edges
+
+                    # Apply the same result to ALL edges with this text
+                    for edge in edges_with_same_text:
+                        edge_apply, raw_row = self._prepare_edge_update(edge, found_nodes)
+
+                        if should_delete:
+                            # Delete the edge but still update RAW row to track what happened
+                            edges_to_delete.append(EdgeId(edge.space, edge.external_id))
+                            if raw_row is not None:
+                                raw_rows_to_update.append(raw_row)
+                        else:
+                            # Update both edge and RAW row
+                            if edge_apply is not None:
+                                edges_to_update.append(edge_apply)
+                            if raw_row is not None:
+                                raw_rows_to_update.append(raw_row)
         finally:
             # Update tracker with batch results
             self.tracker.add_edges(promoted=batch_promoted, rejected=batch_rejected, ambiguous=batch_ambiguous)
