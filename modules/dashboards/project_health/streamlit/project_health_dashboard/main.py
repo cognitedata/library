@@ -12,7 +12,7 @@ import streamlit as st
 from datetime import datetime
 
 try:
-    import pyodide_http
+    import pyodide_http  # type: ignore[import-untyped]
     pyodide_http.patch_all()
 except ImportError:
     pass
