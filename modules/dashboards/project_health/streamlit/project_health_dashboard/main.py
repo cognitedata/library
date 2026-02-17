@@ -133,8 +133,15 @@ def main():
 
     metrics = load_metrics_from_file(METRICS_FILE_EXTERNAL_ID)
     if metrics.get("_error"):
-        st.error(f"Could not load metrics file: {metrics['_error']}")
-        st.info("Run the Project Health function from the **Configuration** tab to create the file, then click **Refresh data**.")
+        err = metrics["_error"]
+        if "Files ids not found" in err or "ids not found" in err:
+            st.info(
+                "**No metrics file yet.** Run the Project Health function at least once (from the **Configuration** tab) "
+                "to generate the metrics file, then click **Refresh data**."
+            )
+        else:
+            st.error(f"Could not load metrics file: {err}")
+            st.info("Run the Project Health function from the **Configuration** tab to create the file, then click **Refresh data**.")
     is_multi = "datasets" in metrics and isinstance(metrics.get("datasets"), dict)
     has_metrics = not metrics.get("_error") and (
         is_multi or not (metrics.get("error") and not metrics.get("dataset_id"))
