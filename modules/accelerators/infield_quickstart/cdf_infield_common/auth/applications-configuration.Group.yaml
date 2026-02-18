@@ -4,19 +4,49 @@ metadata:
   origin: 'cdf-project-templates'
 capabilities:
 
+  # Groups - For InField administrators to grant access to users
   - groupsAcl:
       actions:
         - LIST
         - READ
       scope:
-        currentuserscope: {}
-  - threedAcl:
+        all: {}
+
+  # Data sets - Get data from work order management system, such as SAP, and work orders
+  - datasetsAcl:
       actions:
         - READ
       scope:
         all: {}
-  - assetsAcl:
+
+  # Data models - Organize and structure data
+  - dataModelsAcl:
       actions:
         - READ
+      scope:
+        all: {}
+
+  # Data model instances - Access data organized in data models (read)
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+
+  # Data model instances - Access and edit data organized in data models and spaces (write)
+  - dataModelInstancesAcl:
+      actions:
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cognite_app_data
+            - APM_Config
+
+  # Location filters - Configure location filters (admin feature)
+  - locationFiltersAcl:
+      actions:
+        - READ
+        - WRITE
       scope:
         all: {}
