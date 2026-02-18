@@ -1,1 +1,3 @@
 first_location: oid
+# Source ID for the applications configuration group
+applicationsconfiguration_source_id: <change_me>
