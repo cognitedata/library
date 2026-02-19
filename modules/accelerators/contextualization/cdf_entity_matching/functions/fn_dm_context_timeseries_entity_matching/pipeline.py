@@ -79,7 +79,7 @@ def asset_entity_matching(
     """
     good_matches = []
     len_good_matches, len_bad_matches = 0, 0
-    
+
     try:
         pipeline_ext_id = data["ExtractionPipelineExtId"]
         logger.info(f"Starting entity matching function: {FUNCTION_ID} with loglevel = {data.get('logLevel', 'INFO')},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
@@ -393,7 +393,7 @@ def apply_manual_mappings(
             # Apply the updates to the data model
             client.data_modeling.instances.apply(item_update)
             if cnt == 0:
-                logger.info(f"==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
+                logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
             else:
                 logger.info(f"==> Mapping table based matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(manual_mappings)}")
 
@@ -854,7 +854,7 @@ def apply_rule_mappings(
             client.data_modeling.instances.apply(item_update)
  
             if cnt == 0:
-                logger.info(f"==> Rule based matching - No items added to data model based on new items found and rule based mappings")
+                logger.info("==> Rule based matching - No items added to data model based on new items found and rule based mappings")
             else:
                 logger.info(f"==> Rule based matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(matches)}")
                 logger.info(f"==> Rule based matching - Total number of new matches based on rules matching one or more assets per entity added: {num_added_matches}")
@@ -953,7 +953,7 @@ def select_and_apply_matches(
         if not config.parameters.debug:
             client.data_modeling.instances.apply(item_update)
             if cnt == 0:
-                logger.info(f"==> Entity matching - No items added to data model based on new items found and entity matching")
+                logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
             else:
                 logger.info(f"==> Entity matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(new_good_matches)}")
 

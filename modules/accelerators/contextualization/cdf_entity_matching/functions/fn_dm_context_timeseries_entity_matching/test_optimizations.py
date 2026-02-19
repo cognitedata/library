@@ -8,9 +8,8 @@ a full CDF environment setup.
 
 import sys
 import time
-import json
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 # Add current directory to path
 sys.path.append(str(Path(__file__).parent))
@@ -58,13 +57,13 @@ def test_match_tracker():
     tracker = MatchTracker()
     
     # Test adding matches
-    assert tracker.add_match("asset1", "entity1", {"score": 0.9}) == True
-    assert tracker.add_match("asset1", "entity1", {"score": 0.9}) == False  # Duplicate
-    assert tracker.add_match("asset2", "entity2", {"score": 0.8}) == True
-    
+    assert tracker.add_match("asset1", "entity1", {"score": 0.9}) is True
+    assert tracker.add_match("asset1", "entity1", {"score": 0.9}) is False  # Duplicate
+    assert tracker.add_match("asset2", "entity2", {"score": 0.8}) is True
+
     # Test checking matches
-    assert tracker.has_match("asset1", "entity1") == True
-    assert tracker.has_match("asset3", "entity3") == False
+    assert tracker.has_match("asset1", "entity1")
+    assert not tracker.has_match("asset3", "entity3")
     
     # Test count
     assert tracker.get_match_count() == 2
@@ -199,8 +198,8 @@ def test_matching_engine():
     rule_mapper.get_rule_keys.return_value = ["rule1_123"]
     
     # Test matching (this is a simplified test)
-    matches = engine.apply_rule_mappings_optimized(assets, entities, rule_mapper)
-    
+    engine.apply_rule_mappings_optimized(assets, entities, rule_mapper)
+
     tracker = engine.get_match_tracker()
     assert tracker.get_match_count() >= 0  # Some matches should be found
     
@@ -291,7 +290,7 @@ def test_patch_existing():
     print("🧪 Testing patch_existing_pipeline...")
     
     result = patch_existing_pipeline()
-    assert result == True
+    assert result
     
     print("✅ patch_existing_pipeline tests passed")
 
