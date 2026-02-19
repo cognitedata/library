@@ -41,6 +41,12 @@ type ProcessingChartProps = {
   onWorkflowClick: (execution: WorkflowExecutionSummary) => void;
   onExtractorClick: (run: ExtPipeRunSummary & { externalId: string }) => void;
   functionNameMap: Record<string, string>;
+  bandStatusLabels?: {
+    functions?: string;
+    transformations?: string;
+    workflows?: string;
+    extractors?: string;
+  };
 };
 
 export function ProcessingChart({
@@ -74,6 +80,7 @@ export function ProcessingChart({
   onWorkflowClick,
   onExtractorClick,
   functionNameMap,
+  bandStatusLabels,
 }: ProcessingChartProps) {
   const { t } = useI18n();
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -331,6 +338,47 @@ export function ProcessingChart({
       .attr("fill", "#475569")
       .attr("font-size", 11)
       .text(t("processing.legend.extractors"));
+
+    const statusTextColor = "#94a3b8";
+    const statusFontSize = 11;
+    const statusX = axisLeft + 140;
+    const statusY = (base: number) => base + 14;
+    if (bandStatusLabels?.functions) {
+      dividerGroup
+        .append("text")
+        .attr("x", statusX)
+        .attr("y", statusY(dotAreaTop))
+        .attr("fill", statusTextColor)
+        .attr("font-size", statusFontSize)
+        .text(bandStatusLabels.functions);
+    }
+    if (bandStatusLabels?.transformations) {
+      dividerGroup
+        .append("text")
+        .attr("x", statusX)
+        .attr("y", statusY(dotAreaTop + bandHeight))
+        .attr("fill", statusTextColor)
+        .attr("font-size", statusFontSize)
+        .text(bandStatusLabels.transformations);
+    }
+    if (bandStatusLabels?.workflows) {
+      dividerGroup
+        .append("text")
+        .attr("x", statusX)
+        .attr("y", statusY(dotAreaTop + bandHeight * 2))
+        .attr("fill", statusTextColor)
+        .attr("font-size", statusFontSize)
+        .text(bandStatusLabels.workflows);
+    }
+    if (bandStatusLabels?.extractors) {
+      dividerGroup
+        .append("text")
+        .attr("x", statusX)
+        .attr("y", statusY(dotAreaTop + bandHeight * 3))
+        .attr("fill", statusTextColor)
+        .attr("font-size", statusFontSize)
+        .text(bandStatusLabels.extractors);
+    }
 
     const dotGroup = root.append("g");
     const sortedRuns = [...runs].sort((a, b) => {

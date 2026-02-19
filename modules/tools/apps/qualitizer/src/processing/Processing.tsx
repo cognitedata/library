@@ -43,6 +43,12 @@ export function Processing() {
   const [showLoader, setShowLoader] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showHeatmapHelp, setShowHeatmapHelp] = useState(false);
+  const [visibleSeries, setVisibleSeries] = useState({
+    functions: true,
+    transformations: true,
+    workflows: true,
+    extractors: false,
+  });
   const [loaderDismissed, setLoaderDismissed] = useState(false);
   const loaderWasLoadingRef = useRef(false);
   const [selectedRun, setSelectedRun] = useState<FunctionRunSummary | null>(null);
@@ -446,6 +452,15 @@ export function Processing() {
     return extractorSeries.reduce((max, bucket) => Math.max(max, bucket.count), 0);
   }, [extractorSeries]);
 
+  const visibleParallelSeries = visibleSeries.functions ? parallelSeries : [];
+  const visibleTransformationSeries = visibleSeries.transformations ? transformationSeries : [];
+  const visibleWorkflowSeries = visibleSeries.workflows ? workflowSeries : [];
+  const visibleExtractorSeries = visibleSeries.extractors ? extractorSeries : [];
+  const visibleMaxParallel = visibleSeries.functions ? maxParallel : 0;
+  const visibleMaxTransform = visibleSeries.transformations ? maxTransformParallel : 0;
+  const visibleMaxWorkflow = visibleSeries.workflows ? maxWorkflowParallel : 0;
+  const visibleMaxExtractor = visibleSeries.extractors ? maxExtractorParallel : 0;
+
   const fetchSelectedRunLogs = async (run: FunctionRunSummary) => {
     if (!run.functionId || !run.id) return;
     setSelectedLogsStatus("loading");
@@ -601,34 +616,77 @@ export function Processing() {
                 {t("processing.stats.executions", { count: runs.length, peak: maxParallel })}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                <span className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+                    visibleSeries.functions
+                      ? "text-slate-700 hover:bg-slate-50"
+                      : "text-slate-400 line-through"
+                  }`}
+                  onClick={() =>
+                    setVisibleSeries((prev) => ({ ...prev, functions: !prev.functions }))
+                  }
+                >
                   <span className="h-2 w-4 rounded-sm bg-blue-600" />
                   {t("processing.legend.functions")}
-                </span>
-                <span className="flex items-center gap-2">
+                </button>
+                <button
+                  type="button"
+                  className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+                    visibleSeries.transformations
+                      ? "text-slate-700 hover:bg-slate-50"
+                      : "text-slate-400 line-through"
+                  }`}
+                  onClick={() =>
+                    setVisibleSeries((prev) => ({
+                      ...prev,
+                      transformations: !prev.transformations,
+                    }))
+                  }
+                >
                   <span className="h-2 w-4 rounded-sm bg-orange-500" />
                   {t("processing.legend.transformations")}
-                </span>
-                <span className="flex items-center gap-2">
+                </button>
+                <button
+                  type="button"
+                  className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+                    visibleSeries.workflows
+                      ? "text-slate-700 hover:bg-slate-50"
+                      : "text-slate-400 line-through"
+                  }`}
+                  onClick={() =>
+                    setVisibleSeries((prev) => ({ ...prev, workflows: !prev.workflows }))
+                  }
+                >
                   <span className="h-2 w-4 rounded-sm bg-purple-500" />
                   {t("processing.legend.workflows")}
-                </span>
-                <span className="flex items-center gap-2">
+                </button>
+                <button
+                  type="button"
+                  className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+                    visibleSeries.extractors
+                      ? "text-slate-700 hover:bg-slate-50"
+                      : "text-slate-400 line-through"
+                  }`}
+                  onClick={() =>
+                    setVisibleSeries((prev) => ({ ...prev, extractors: !prev.extractors }))
+                  }
+                >
                   <span className="h-2 w-4 rounded-sm bg-cyan-500" />
                   {t("processing.legend.extractors")}
-                </span>
+                </button>
               </div>
               <div className="mt-4 overflow-x-auto">
                 <ProcessingChart
                   windowRange={windowRange}
-                  parallelSeries={parallelSeries}
-                  transformationSeries={transformationSeries}
-                  workflowSeries={workflowSeries}
-                  extractorSeries={extractorSeries}
-                  maxParallel={maxParallel}
-                  maxTransformParallel={maxTransformParallel}
-                  maxWorkflowParallel={maxWorkflowParallel}
-                  maxExtractorParallel={maxExtractorParallel}
+                  parallelSeries={visibleParallelSeries}
+                  transformationSeries={visibleTransformationSeries}
+                  workflowSeries={visibleWorkflowSeries}
+                  extractorSeries={visibleExtractorSeries}
+                  maxParallel={visibleMaxParallel}
+                  maxTransformParallel={visibleMaxTransform}
+                  maxWorkflowParallel={visibleMaxWorkflow}
+                  maxExtractorParallel={visibleMaxExtractor}
                   runs={runs}
                   getRunDuration={getRunDuration}
                   getRadius={getRadius}
@@ -692,6 +750,40 @@ export function Processing() {
                     setSelectedWorkflowExecution(null);
                   }}
                   functionNameMap={functionNameMap}
+                  bandStatusLabels={{
+                    functions:
+                      status === "loading"
+                        ? t("processing.bubbles.loading")
+                        : status === "error"
+                          ? t("processing.status.error")
+                          : runs.length === 0
+                            ? t("processing.bubbles.empty")
+                            : "",
+                    transformations:
+                      transformationsStatus === "loading"
+                        ? t("processing.bubbles.loading")
+                        : transformationsStatus === "error"
+                          ? t("processing.status.error")
+                          : filteredTransformationJobs.length === 0
+                            ? t("processing.bubbles.empty")
+                            : "",
+                    workflows:
+                      workflowsStatus === "loading"
+                        ? t("processing.bubbles.loading")
+                        : workflowsStatus === "error"
+                          ? t("processing.status.error")
+                          : filteredWorkflowExecutions.length === 0
+                            ? t("processing.bubbles.empty")
+                            : "",
+                    extractors:
+                      extractorsStatus === "loading"
+                        ? t("processing.bubbles.loading")
+                        : extractorsStatus === "error"
+                          ? t("processing.status.error")
+                          : filteredExtractorRuns.length === 0
+                            ? t("processing.bubbles.empty")
+                            : "",
+                  }}
                 />
               </div>
               <details className="mt-4 rounded-md border border-slate-200 bg-white text-xs text-slate-600">

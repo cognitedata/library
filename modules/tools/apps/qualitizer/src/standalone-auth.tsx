@@ -19,7 +19,12 @@ export function StandaloneAuthProvider({ children }: StandaloneAuthProps) {
   const [state, setState] = useState<AuthState>("checking");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const storedProject =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("qualitizer.selectedProject")
+      : null;
   const project =
+    storedProject ??
     (import.meta.env.CDF_PROJECT as string | undefined) ??
     (import.meta.env.VITE_CDF_PROJECT as string | undefined);
   const baseUrl =
