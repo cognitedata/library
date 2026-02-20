@@ -54,8 +54,7 @@ title = "Dashboards"
 description = "Streamlit dashboards and visualization modules"
 canCherryPick = true
 modules = [
-    "dashboards/context_quality",
-    "dashboards/project_health"
+    "dashboards/context_quality"
 ]
 
 [packages.quickstartdp]
@@ -110,9 +109,15 @@ description = "Tools and accelerators for CDF projects"
 canCherryPick = true
 modules = [
     "tools/notebooks/cdf_performance_testing",
-    "tools/notebooks/cdf_transformation_jobs_metric_explorer",
-    "tools/apps/qualitizer"
+    "tools/notebooks/cdf_transformation_jobs_metric_explorer"
 ]
 
 
-
+[packages.tools_apps]
+id = "tool:apps"
+title = "Tools and Accelerator Apps"
+description = "Tools and accelerators apps for CDF projects"
+canCherryPick = true
+modules = [
+    "tools/apps/qualitizer"
+]
