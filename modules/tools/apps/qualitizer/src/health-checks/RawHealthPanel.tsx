@@ -18,6 +18,8 @@ type RawHealthPanelProps = {
   formatIsoDate: (value?: number) => string;
   isOlderThanSixMonths: (value?: number) => boolean;
   renderProgressBar: (value: number, total: number) => React.ReactNode;
+  rawIsSample?: boolean;
+  onLoadAll?: () => void;
 };
 
 export function RawHealthPanel({
@@ -35,6 +37,8 @@ export function RawHealthPanel({
   formatIsoDate,
   isOlderThanSixMonths,
   renderProgressBar,
+  rawIsSample,
+  onLoadAll,
 }: RawHealthPanelProps) {
   const { t } = useI18n();
 
@@ -82,6 +86,22 @@ export function RawHealthPanel({
               <div className="mt-1 text-xs text-slate-500">
                 {t("healthChecks.raw.overview.sampleNote")}
               </div>
+              {rawIsSample && rawStatus === "success" ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-slate-600">
+                    {t("healthChecks.raw.overview.sampleLimit")}
+                  </span>
+                  {onLoadAll ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      onClick={onLoadAll}
+                    >
+                      {t("healthChecks.raw.overview.loadAll")}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </CardContent>
@@ -99,34 +119,52 @@ export function RawHealthPanel({
             <ApiError message={rawError ?? t("healthChecks.errors.rawMetadata")} />
           ) : null}
           {rawStatus === "success" && !rawAvailabilityMessage ? (
-            emptyRawTables.length > 0 ? (
-              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                <div className="font-medium">
-                  {t("healthChecks.raw.emptyTables.count", { count: emptyRawTables.length })}
-                </div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
-                  {emptyRawTables.map((table) => (
-                    <li key={`${table.dbName}:${table.name}`}>
-                      <span>{table.name}</span> · <span>{table.dbName}</span> ·{" "}
-                      <span>
-                        {t("healthChecks.raw.emptyTables.created", {
-                          date: formatIsoDate(table.createdTime),
-                        })}
-                      </span>
-                      {isOlderThanSixMonths(table.createdTime) ? (
-                        <span className="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                          {t("healthChecks.raw.emptyTables.alert")}
+            <>
+              {emptyRawTables.length > 0 ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <div className="font-medium">
+                    {t("healthChecks.raw.emptyTables.count", { count: emptyRawTables.length })}
+                  </div>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                    {emptyRawTables.map((table) => (
+                      <li key={`${table.dbName}:${table.name}`}>
+                        <span>{table.name}</span> · <span>{table.dbName}</span> ·{" "}
+                        <span>
+                          {t("healthChecks.raw.emptyTables.created", {
+                            date: formatIsoDate(table.createdTime),
+                          })}
                         </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-                {t("healthChecks.raw.emptyTables.none")}
-              </div>
-            )
+                        {isOlderThanSixMonths(table.createdTime) ? (
+                          <span className="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                            {t("healthChecks.raw.emptyTables.alert")}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                  {t("healthChecks.raw.emptyTables.none")}
+                </div>
+              )}
+              {rawIsSample ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-slate-600">
+                    {t("healthChecks.raw.overview.sampleLimit")}
+                  </span>
+                  {onLoadAll ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      onClick={onLoadAll}
+                    >
+                      {t("healthChecks.raw.overview.loadAll")}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
           ) : null}
           {rawStatus === "loading" && rawSampleTotal > 0 ? (
             <div className="mt-2 text-xs text-slate-500">

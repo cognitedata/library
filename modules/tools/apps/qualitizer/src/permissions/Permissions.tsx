@@ -15,8 +15,6 @@ import { PermissionsCompareHelpModal } from "./PermissionsCompareHelpModal";
 import type { UploadedUser } from "./types";
 import { usePermissionsData } from "./usePermissionsData";
 
-const permissionUsersStorageKey = "qualitizer.permissionUsers.v1";
-
 export function Permissions() {
   const { sdk, isLoading: isDuneLoading } = useAppSdk();
   const { t } = useI18n();
@@ -102,28 +100,6 @@ export function Permissions() {
     };
   }, [isDuneLoading, sdk]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const loadCachedUsers = () => {
-      const stored = window.localStorage.getItem(permissionUsersStorageKey);
-      if (!stored) {
-        setUsers([]);
-        return;
-      }
-      try {
-        const parsed = JSON.parse(stored) as UploadedUser[];
-        setUsers(parsed);
-      } catch {
-        setUsers([]);
-      }
-    };
-
-    loadCachedUsers();
-    const handler = () => loadCachedUsers();
-    window.addEventListener("permissions-users-update", handler);
-    return () => window.removeEventListener("permissions-users-update", handler);
-  }, []);
-
   const datasetRows = useMemo(() => {
     return [...dataSets].sort((a, b) =>
       (a.name ?? a.id).toString().localeCompare((b.name ?? b.id).toString())
@@ -178,12 +154,7 @@ export function Permissions() {
       }
     }
     if (loaded.length > 0) {
-      const nextUsers = [...users, ...loaded];
-      setUsers(nextUsers);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(permissionUsersStorageKey, JSON.stringify(nextUsers));
-        window.dispatchEvent(new Event("permissions-users-update"));
-      }
+      setUsers((prev) => [...prev, ...loaded]);
     }
     setUploading(false);
   };

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
+import { useLimits } from "@/shared/LimitsContext";
 import { Sunburst } from "@/shared/Sunburst";
 import { SunburstData } from "@/shared/quality-types";
 import { ApiError } from "@/shared/ApiError";
@@ -54,11 +55,7 @@ export function AssetSunburst({ model, view, maxDepth = 5 }: AssetSunburstProps)
   const [status, setStatus] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [data, setData] = useState<SunburstData | null>(null);
-  const [assetLimit, setAssetLimit] = useState(() => {
-    const stored = window.localStorage.getItem("assetLimit");
-    const parsed = stored ? Number(stored) : 10000;
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 10000;
-  });
+  const { assetLimit } = useLimits();
   const [loadedAssets, setLoadedAssets] = useState(0);
   const requestIdRef = useRef(0);
 
@@ -204,21 +201,6 @@ export function AssetSunburst({ model, view, maxDepth = 5 }: AssetSunburstProps)
       cancelled = true;
     };
   }, [sdk, model, view, maxDepth, assetLimit]);
-
-  useEffect(() => {
-    const handleUpdate = () => {
-      const stored = window.localStorage.getItem("assetLimit");
-      const parsed = stored ? Number(stored) : 10000;
-      const next = Number.isFinite(parsed) && parsed > 0 ? parsed : 10000;
-      setAssetLimit(next);
-    };
-    window.addEventListener("asset-limit-update", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
-    return () => {
-      window.removeEventListener("asset-limit-update", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
-    };
-  }, []);
 
   const title = useMemo(() => {
     if (view) {

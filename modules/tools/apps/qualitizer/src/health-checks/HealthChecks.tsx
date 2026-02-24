@@ -68,6 +68,10 @@ export function HealthChecks() {
   const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [groups, setGroups] = useState<GroupSummary[]>([]);
   const [showLoader, setShowLoader] = useState(false);
+  const [rawLoadAll, setRawLoadAll] = useState(false);
+
+  const RAW_SAMPLE_DB_LIMIT = 10;
+  const RAW_SAMPLE_TABLES_PER_DB = 100;
 
   const toTimestamp = (value: unknown) => {
     if (value instanceof Date) return value.getTime();
@@ -455,15 +459,21 @@ export function HealthChecks() {
       setRawTableScanned(0);
       setRawSampleTotal(0);
       setRawSampleProcessed(0);
+      const loadAll = rawLoadAll;
       try {
         const databases: RawDatabaseSummary[] = [];
         let dbCursor: string | undefined;
         do {
           const response = await sdk.raw.listDatabases({
-            limit: 100,
+            limit: loadAll ? 100 : Math.min(100, RAW_SAMPLE_DB_LIMIT - databases.length),
             cursor: dbCursor,
           });
-          databases.push(...((response.items ?? []) as RawDatabaseSummary[]));
+          const batch = (response.items ?? []) as RawDatabaseSummary[];
+          databases.push(...batch);
+          if (!loadAll && databases.length >= RAW_SAMPLE_DB_LIMIT) {
+            databases.length = RAW_SAMPLE_DB_LIMIT;
+            break;
+          }
           dbCursor = response.nextCursor ?? undefined;
         } while (dbCursor);
         if (!cancelled) {
@@ -475,25 +485,27 @@ export function HealthChecks() {
         let processedDatabases = 0;
         for (const database of databases) {
           let tableCursor: string | undefined;
+          let tablesInDb = 0;
           do {
             const response = await sdk.raw.listTables(database.name, {
-              limit: 100,
+              limit: loadAll ? 100 : Math.min(100, RAW_SAMPLE_TABLES_PER_DB - tablesInDb),
               cursor: tableCursor,
             });
             const items = (response.items ?? []) as unknown as Array<Record<string, unknown>>;
-            tables.push(
-              ...items.map((item) => ({
-                dbName: database.name,
-                name: String(item.name),
-                rowCount: typeof item.rowCount === "number" ? item.rowCount : undefined,
-                lastUpdatedTime: toTimestamp(item.lastUpdatedTime),
-                createdTime: toTimestamp(item.createdTime),
-              }))
-            );
+            const mapped = items.map((item) => ({
+              dbName: database.name,
+              name: String(item.name),
+              rowCount: typeof item.rowCount === "number" ? item.rowCount : undefined,
+              lastUpdatedTime: toTimestamp(item.lastUpdatedTime),
+              createdTime: toTimestamp(item.createdTime),
+            }));
+            tables.push(...mapped);
+            tablesInDb += mapped.length;
             if (!cancelled) {
               setRawTableScanned(tables.length);
             }
             tableCursor = response.nextCursor ?? undefined;
+            if (!loadAll && tablesInDb >= RAW_SAMPLE_TABLES_PER_DB) break;
           } while (tableCursor);
           processedDatabases += 1;
           if (!cancelled) {
@@ -555,7 +567,7 @@ export function HealthChecks() {
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, t]);
+  }, [isSdkLoading, sdk, t, rawLoadAll]);
 
   const usedViewKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -857,6 +869,8 @@ export function HealthChecks() {
         formatIsoDate={formatIsoDate}
         isOlderThanSixMonths={isOlderThanSixMonths}
         renderProgressBar={renderProgressBar}
+        rawIsSample={!rawLoadAll}
+        onLoadAll={() => setRawLoadAll(true)}
       />
       <PermissionsHealthPanel
         permissionsStatus={permissionsStatus}

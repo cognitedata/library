@@ -106,10 +106,15 @@ app.all("/api/*", async (request, reply) => {
 
   const buffer = Buffer.from(await response.arrayBuffer());
   reply.status(response.status);
+  const skipHeaders = new Set(["content-encoding", "cache-control", "expires", "pragma", "etag", "last-modified"]);
   response.headers.forEach((value, key) => {
-    if (key.toLowerCase() === "content-encoding") return;
+    if (skipHeaders.has(key.toLowerCase())) return;
     reply.header(key, value);
   });
+  reply
+    .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+    .header("Pragma", "no-cache")
+    .header("Expires", "0");
   return reply.send(buffer);
 });
 

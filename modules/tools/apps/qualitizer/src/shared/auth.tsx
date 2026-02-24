@@ -7,6 +7,9 @@ export { useAppSdk };
 
 function DuneBridge({ children }: { children: React.ReactNode }) {
   const { sdk, isLoading } = useDune();
+  if (!sdk) {
+    return <div className="min-h-screen w-full flex items-center justify-center text-slate-500">Loading...</div>;
+  }
   return (
     <AppSdkContext.Provider value={{ sdk, isLoading }}>{children}</AppSdkContext.Provider>
   );

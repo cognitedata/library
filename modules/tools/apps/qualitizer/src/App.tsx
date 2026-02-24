@@ -1,3 +1,4 @@
+import mixpanel from "mixpanel-browser";
 import { useEffect, useMemo, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 import { HealthChecks } from "./health-checks";
@@ -7,6 +8,7 @@ import { DataCatalog } from "./data-catalog";
 import type { SelectedDataModel, SelectedView } from "@/shared/selection-types";
 import { DataCacheProvider } from "./shared/data-cache";
 import { I18nProvider, useI18n } from "./shared/i18n";
+import { LimitsProvider } from "./shared/LimitsContext";
 
 const productionPages = [
   { id: "health", labelKey: "nav.healthChecks" },
@@ -19,6 +21,7 @@ const internalPages = [
   { id: "models", label: "Data models" },
   { id: "views", label: "Views" },
   { id: "properties", label: "Properties" },
+  { id: "transformations", label: "Transformations" },
   { id: "streams", label: "Streams" },
   { id: "relationships", label: "Relationships" },
   { id: "spaces", label: "Spaces" },
@@ -36,67 +39,18 @@ function AppContent() {
   const { language, setLanguage, t } = useI18n();
   const showInternal =
     import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
-  const [mode, setMode] = useState<AppMode>(() => productionPages[0].id);
-  const modelStorageKey = `qualitizer.selectedDataModel.${sdk.project}`;
-  const viewStorageKey = `qualitizer.selectedView.${sdk.project}`;
+  const [mode, setMode] = useState<AppMode>(productionPages[0].id);
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>(() => sdk.project);
-  const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = window.localStorage.getItem(`qualitizer.selectedDataModel.${sdk.project}`);
-    if (!stored) return null;
-    try {
-      return JSON.parse(stored) as SelectedDataModel;
-    } catch {
-      return null;
-    }
-  });
-  const [selectedView, setSelectedView] = useState<SelectedView | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = window.localStorage.getItem(`qualitizer.selectedView.${sdk.project}`);
-    if (!stored) return null;
-    try {
-      return JSON.parse(stored) as SelectedView;
-    } catch {
-      return null;
-    }
-  });
+  const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(null);
+  const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (selectedModel) {
-      window.localStorage.setItem(modelStorageKey, JSON.stringify(selectedModel));
-    } else {
-      window.localStorage.removeItem(modelStorageKey);
+    console.log("sdk?.project", sdk?.project);
+    if (sdk?.project) {
+      mixpanel.register({ cdf_project: sdk.project });
     }
-  }, [modelStorageKey, selectedModel]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (selectedView) {
-      window.localStorage.setItem(viewStorageKey, JSON.stringify(selectedView));
-      window.dispatchEvent(new Event("selected-view-update"));
-    } else {
-      window.localStorage.removeItem(viewStorageKey);
-      window.dispatchEvent(new Event("selected-view-update"));
-    }
-  }, [viewStorageKey, selectedView]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const storedModel = window.localStorage.getItem(modelStorageKey);
-    const storedView = window.localStorage.getItem(viewStorageKey);
-    try {
-      setSelectedModel(storedModel ? (JSON.parse(storedModel) as SelectedDataModel) : null);
-    } catch {
-      setSelectedModel(null);
-    }
-    try {
-      setSelectedView(storedView ? (JSON.parse(storedView) as SelectedView) : null);
-    } catch {
-      setSelectedView(null);
-    }
-  }, [modelStorageKey, viewStorageKey]);
+  }, [sdk?.project]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -113,8 +67,7 @@ function AppContent() {
         if (!cancelled) {
           setAvailableProjects(unique);
           if (unique.length > 0) {
-            const stored = window.localStorage.getItem("qualitizer.selectedProject");
-            const next = stored && unique.includes(stored) ? stored : sdk.project;
+            const next = unique.includes(sdk.project) ? sdk.project : unique[0];
             setSelectedProject(next);
             if (sdk.project !== next) {
               (sdk as { project: string }).project = next;
@@ -134,6 +87,12 @@ function AppContent() {
       cancelled = true;
     };
   }, [isLoading, sdk]);
+
+  useEffect(() => {
+    if (selectedView) {
+      window.dispatchEvent(new Event("selected-view-update"));
+    }
+  }, [selectedView]);
 
   const selectionSummary = useMemo(() => {
     const modelLabel = selectedModel
@@ -155,6 +114,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen w-full px-6 py-10">
+      <LimitsProvider>
       <DataCacheProvider>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -168,9 +128,6 @@ function AppContent() {
                     onChange={(event) => {
                       const next = event.target.value;
                       if (!next || next === selectedProject) return;
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("qualitizer.selectedProject", next);
-                      }
                       setSelectedProject(next);
                       (sdk as { project: string }).project = next;
                       window.location.reload();
@@ -189,7 +146,10 @@ function AppContent() {
                   <button
                     key={page.id}
                     type="button"
-                    onClick={() => setMode(page.id)}
+                    onClick={() => {
+                      setMode(page.id);
+                      mixpanel.track("navigation", { page_type: page.id });
+                    }}
                     className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition ${
                       mode === page.id
                         ? "bg-slate-900 text-white"
@@ -210,7 +170,10 @@ function AppContent() {
                       <button
                         key={page.id}
                         type="button"
-                        onClick={() => setMode(page.id)}
+                        onClick={() => {
+                          setMode(page.id);
+                          mixpanel.track("navigation", { page_type: page.id });
+                        }}
                         className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition ${
                           mode === page.id
                             ? "bg-slate-900 text-white"
@@ -269,6 +232,7 @@ function AppContent() {
           <footer className="text-sm text-slate-500">Project: {sdk.project}</footer>
         </div>
       </DataCacheProvider>
+      </LimitsProvider>
     </div>
   );
 }
