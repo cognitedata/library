@@ -35,6 +35,8 @@ const translations: Record<Language, Record<string, string>> = {
     "apiError.docsLink": "Open API documentation",
     "apiError.permissionsHint":
       "Permission requirements are listed at the top of each documentation page.",
+    "apiError.networkHint":
+      "This can happen if you are offline or the backend is not responding.",
     "processing.title": "Processing",
     "processing.subtitle": "Function execution concurrency for the last {hoursWindow} hours.",
     "processing.loading.functions": "Loading functions...",
@@ -49,6 +51,34 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.transformation.defaultName": "Transformation {id}",
     "processing.error.workflows": "Failed to load workflows.",
     "processing.error.extractors": "Failed to load extraction pipelines.",
+    "processing.bubbles.loading": "Loading…",
+    "processing.bubbles.empty": "No data in this window.",
+    "processing.bubbles.ready": "Loaded",
+    "processing.heatmap.title": "Scheduled starts heatmap",
+    "processing.heatmap.description":
+      "Cron-based scheduled starts across functions, transformations, and workflows for a full day.",
+    "processing.heatmap.loading": "Loading schedules...",
+    "processing.heatmap.error": "Failed to load schedules.",
+    "processing.heatmap.empty": "No scheduled starts detected.",
+    "processing.heatmap.legend.none": "0",
+    "processing.heatmap.legend.one": "1",
+    "processing.heatmap.legend.mid": "5",
+    "processing.heatmap.legend.high": "10+",
+    "processing.heatmap.unknownFunction": "Unknown function",
+    "processing.heatmap.unknownTransformation": "Unknown transformation",
+    "processing.heatmap.hover.title": "{time} · {count}",
+    "processing.heatmap.hover.none": "No scheduled starts",
+    "processing.heatmap.pinned": "pinned",
+    "processing.heatmap.unpin": "Unpin",
+    "processing.heatmap.copyList": "Copy list",
+    "processing.heatmap.help.title": "Scheduled starts heatmap",
+    "processing.heatmap.help.subtitle": "Plan schedules evenly across the day.",
+    "processing.heatmap.help.detailOne":
+      "Spread out schedules as evenly as possible to avoid load spikes.",
+    "processing.heatmap.help.detailTwo":
+      "This heatmap shows a 24-hour overview of when work is scheduled, including empty times.",
+    "processing.heatmap.help.detailThree":
+      "Run duration is not included here, so factor it in when adjusting schedules.",
     "processing.extractor.seenEvents": "{count} seen events",
     "processing.extractor.started": "Extractor started",
     "processing.unavailable.functions": "Functions API is not available on this client.",
@@ -296,6 +326,9 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.raw.overview.tablesScanned": "Tables scanned {count}",
     "healthChecks.raw.overview.sampleNote":
       "Samples up to 10 rows when row counts are missing.",
+    "healthChecks.raw.overview.sampleLimit":
+      "This is a small sample (10 databases, up to 100 tables per database).",
+    "healthChecks.raw.overview.loadAll": "Load All",
     "healthChecks.raw.emptyTables.title": "Empty raw tables",
     "healthChecks.raw.emptyTables.description": "Raw tables with zero rows.",
     "healthChecks.raw.emptyTables.count": "{count} raw tables have zero rows.",
@@ -386,6 +419,8 @@ const translations: Record<Language, Record<string, string>> = {
     "apiError.docsLink": "API ドキュメントを開く",
     "apiError.permissionsHint":
       "必要な権限は各ドキュメントページの冒頭に記載されています。",
+    "apiError.networkHint":
+      "オフライン、またはバックエンドが応答していない可能性があります。",
     "processing.title": "処理状況",
     "processing.subtitle": "直近 {hoursWindow} 時間の実行並列数を表示します。",
     "processing.loading.functions": "関数を読み込み中...",
@@ -400,6 +435,34 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.transformation.defaultName": "変換 {id}",
     "processing.error.workflows": "ワークフローの読み込みに失敗しました。",
     "processing.error.extractors": "抽出パイプラインの読み込みに失敗しました。",
+    "processing.bubbles.loading": "読み込み中…",
+    "processing.bubbles.empty": "この時間帯のデータはありません。",
+    "processing.bubbles.ready": "読み込み完了",
+    "processing.heatmap.title": "スケジュール開始のヒートマップ",
+    "processing.heatmap.description":
+      "関数・変換・ワークフローの cron スケジュールによる 1 日分の開始時刻です。",
+    "processing.heatmap.loading": "スケジュールを読み込み中...",
+    "processing.heatmap.error": "スケジュールの読み込みに失敗しました。",
+    "processing.heatmap.empty": "スケジュール開始は見つかりませんでした。",
+    "processing.heatmap.legend.none": "0",
+    "processing.heatmap.legend.one": "1",
+    "processing.heatmap.legend.mid": "5",
+    "processing.heatmap.legend.high": "10+",
+    "processing.heatmap.unknownFunction": "不明な関数",
+    "processing.heatmap.unknownTransformation": "不明な変換",
+    "processing.heatmap.hover.title": "{time} · {count}",
+    "processing.heatmap.hover.none": "スケジュール開始なし",
+    "processing.heatmap.pinned": "固定中",
+    "processing.heatmap.unpin": "固定解除",
+    "processing.heatmap.copyList": "リストをコピー",
+    "processing.heatmap.help.title": "スケジュール開始のヒートマップ",
+    "processing.heatmap.help.subtitle": "1 日を通じて均等に配置しましょう。",
+    "processing.heatmap.help.detailOne":
+      "負荷が集中しないよう、スケジュールはできるだけ均等に散らしてください。",
+    "processing.heatmap.help.detailTwo":
+      "このヒートマップは 24 時間のスケジュール分布と空き時間を示します。",
+    "processing.heatmap.help.detailThree":
+      "実行時間は考慮していないため、調整時に別途考慮してください。",
     "processing.extractor.seenEvents": "検知イベント {count} 件",
     "processing.extractor.started": "抽出が開始されました",
     "processing.unavailable.functions": "このクライアントでは Functions API を利用できません。",
@@ -649,6 +712,9 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.raw.overview.tablesScanned": "走査テーブル数 {count}",
     "healthChecks.raw.overview.sampleNote":
       "行数が不明な場合は最大 10 行をサンプルします。",
+    "healthChecks.raw.overview.sampleLimit":
+      "小さいサンプルです（データベース 10 件、DB あたり最大 100 テーブル）。",
+    "healthChecks.raw.overview.loadAll": "すべて読み込む",
     "healthChecks.raw.emptyTables.title": "空の Raw テーブル",
     "healthChecks.raw.emptyTables.description": "行数が 0 の Raw テーブル。",
     "healthChecks.raw.emptyTables.count": "{count} 件の Raw テーブルが空です。",
@@ -722,11 +788,7 @@ const translations: Record<Language, Record<string, string>> = {
 const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>(() => {
-    if (typeof window === "undefined") return "en";
-    const stored = window.localStorage.getItem("qualitizer.language") as Language | null;
-    return stored ?? "en";
-  });
+  const [language, setLanguage] = useState<Language>("en");
 
   const value = useMemo<I18nContextValue>(() => {
     const t = (key: string, params?: TranslationParams) => {
@@ -738,13 +800,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
         template
       );
     };
-    const setLang = (next: Language) => {
-      setLanguage(next);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("qualitizer.language", next);
-      }
-    };
-    return { language, setLanguage: setLang, t };
+    return { language, setLanguage, t };
   }, [language]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

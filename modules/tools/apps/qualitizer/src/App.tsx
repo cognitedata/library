@@ -8,6 +8,7 @@ import { DataCatalog } from "./data-catalog";
 import type { SelectedDataModel, SelectedView } from "@/shared/selection-types";
 import { DataCacheProvider } from "./shared/data-cache";
 import { I18nProvider, useI18n } from "./shared/i18n";
+import { LimitsProvider } from "./shared/LimitsContext";
 
 const productionPages = [
   { id: "health", labelKey: "nav.healthChecks" },
@@ -33,75 +34,16 @@ type AppMode =
   | (typeof productionPages)[number]["id"]
   | (typeof internalPages)[number]["id"];
 
-const currentPageStorageKey = "qualitizer.currentPage";
-
-function getValidModes(showInternal: boolean): AppMode[] {
-  const production = productionPages.map((p) => p.id);
-  const internal = internalPages.map((p) => p.id);
-  return showInternal ? ([...production, ...internal] as AppMode[]) : (production as AppMode[]);
-}
-
 function AppContent() {
   const { sdk, isLoading } = useAppSdk();
   const { language, setLanguage, t } = useI18n();
   const showInternal =
     import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
-  const [mode, setMode] = useState<AppMode>(() => {
-    if (typeof window === "undefined") return productionPages[0].id;
-    const stored = window.localStorage.getItem(currentPageStorageKey);
-    if (!stored) return productionPages[0].id;
-    const valid = getValidModes(showInternal);
-    return valid.includes(stored as AppMode) ? (stored as AppMode) : productionPages[0].id;
-  });
-  const modelStorageKey = `qualitizer.selectedDataModel.${sdk.project}`;
-  const viewStorageKey = `qualitizer.selectedView.${sdk.project}`;
+  const [mode, setMode] = useState<AppMode>(productionPages[0].id);
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>(() => sdk.project);
-  const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = window.localStorage.getItem(`qualitizer.selectedDataModel.${sdk.project}`);
-    if (!stored) return null;
-    try {
-      return JSON.parse(stored) as SelectedDataModel;
-    } catch {
-      return null;
-    }
-  });
-  const [selectedView, setSelectedView] = useState<SelectedView | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = window.localStorage.getItem(`qualitizer.selectedView.${sdk.project}`);
-    if (!stored) return null;
-    try {
-      return JSON.parse(stored) as SelectedView;
-    } catch {
-      return null;
-    }
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (selectedModel) {
-      window.localStorage.setItem(modelStorageKey, JSON.stringify(selectedModel));
-    } else {
-      window.localStorage.removeItem(modelStorageKey);
-    }
-  }, [modelStorageKey, selectedModel]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (selectedView) {
-      window.localStorage.setItem(viewStorageKey, JSON.stringify(selectedView));
-      window.dispatchEvent(new Event("selected-view-update"));
-    } else {
-      window.localStorage.removeItem(viewStorageKey);
-      window.dispatchEvent(new Event("selected-view-update"));
-    }
-  }, [viewStorageKey, selectedView]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(currentPageStorageKey, mode);
-  }, [mode]);
+  const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(null);
+  const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
 
   useEffect(() => {
     console.log("sdk?.project", sdk?.project);
@@ -109,22 +51,6 @@ function AppContent() {
       mixpanel.register({ cdf_project: sdk.project });
     }
   }, [sdk?.project]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const storedModel = window.localStorage.getItem(modelStorageKey);
-    const storedView = window.localStorage.getItem(viewStorageKey);
-    try {
-      setSelectedModel(storedModel ? (JSON.parse(storedModel) as SelectedDataModel) : null);
-    } catch {
-      setSelectedModel(null);
-    }
-    try {
-      setSelectedView(storedView ? (JSON.parse(storedView) as SelectedView) : null);
-    } catch {
-      setSelectedView(null);
-    }
-  }, [modelStorageKey, viewStorageKey]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -141,8 +67,7 @@ function AppContent() {
         if (!cancelled) {
           setAvailableProjects(unique);
           if (unique.length > 0) {
-            const stored = window.localStorage.getItem("qualitizer.selectedProject");
-            const next = stored && unique.includes(stored) ? stored : sdk.project;
+            const next = unique.includes(sdk.project) ? sdk.project : unique[0];
             setSelectedProject(next);
             if (sdk.project !== next) {
               (sdk as { project: string }).project = next;
@@ -162,6 +87,12 @@ function AppContent() {
       cancelled = true;
     };
   }, [isLoading, sdk]);
+
+  useEffect(() => {
+    if (selectedView) {
+      window.dispatchEvent(new Event("selected-view-update"));
+    }
+  }, [selectedView]);
 
   const selectionSummary = useMemo(() => {
     const modelLabel = selectedModel
@@ -183,6 +114,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen w-full px-6 py-10">
+      <LimitsProvider>
       <DataCacheProvider>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -196,9 +128,6 @@ function AppContent() {
                     onChange={(event) => {
                       const next = event.target.value;
                       if (!next || next === selectedProject) return;
-                      if (typeof window !== "undefined") {
-                        window.localStorage.setItem("qualitizer.selectedProject", next);
-                      }
                       setSelectedProject(next);
                       (sdk as { project: string }).project = next;
                       window.location.reload();
@@ -303,6 +232,7 @@ function AppContent() {
           <footer className="text-sm text-slate-500">Project: {sdk.project}</footer>
         </div>
       </DataCacheProvider>
+      </LimitsProvider>
     </div>
   );
 }

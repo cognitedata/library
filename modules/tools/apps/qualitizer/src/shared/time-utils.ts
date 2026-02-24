@@ -111,6 +111,12 @@ export const formatTimeFields = (input: unknown): unknown => {
       if (key.endsWith("Time") && (typeof value === "number" || value instanceof Date)) {
         return [key, formatIso(value)];
       }
+      if (key === "lastCalled") {
+        const parsed = toTimestampLoose(value);
+        if (parsed != null) {
+          return [key, formatIso(parsed)];
+        }
+      }
       return [key, formatTimeFields(value)];
     });
     return Object.fromEntries(entries);

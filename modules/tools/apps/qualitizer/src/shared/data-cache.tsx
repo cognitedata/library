@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 
 type LoadState = "idle" | "loading" | "success" | "error";
@@ -39,7 +39,6 @@ type DataCacheContextValue = {
     params: Array<Record<string, unknown>>,
     options?: Record<string, unknown>
   ) => Promise<unknown>;
-  clearCache: () => void;
 };
 
 const DataCacheContext = createContext<DataCacheContextValue | null>(null);
@@ -53,68 +52,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   const [viewsStatus, setViewsStatus] = useState<LoadState>("idle");
   const [viewsError, setViewsError] = useState<string | null>(null);
   const [dataModelDetails, setDataModelDetails] = useState<Record<string, unknown>>({});
-  const [hasHydrated, setHasHydrated] = useState(false);
-  const storageKey = `qualitizer.dataCache.v1.${sdk.project}`;
-  const [localStorageEnabled, setLocalStorageEnabled] = useState(true);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || hasHydrated || !localStorageEnabled) return;
-    const stored = window.localStorage.getItem(storageKey);
-    if (!stored) {
-      setHasHydrated(true);
-      return;
-    }
-    try {
-      const parsed = JSON.parse(stored) as {
-        dataModels?: DataModelSummary[];
-        views?: ViewSummary[];
-        dataModelDetails?: Record<string, unknown>;
-      };
-      setDataModels(parsed.dataModels ?? []);
-      setViews(parsed.views ?? []);
-      setDataModelDetails(parsed.dataModelDetails ?? {});
-      if (parsed.dataModels && parsed.dataModels.length > 0) {
-        setDataModelsStatus("success");
-      }
-      if (parsed.views && parsed.views.length > 0) {
-        setViewsStatus("success");
-      }
-    } catch {
-      window.localStorage.removeItem(storageKey);
-    } finally {
-      setHasHydrated(true);
-    }
-  }, [hasHydrated, localStorageEnabled, storageKey]);
-
-  useEffect(() => {
-    setHasHydrated(false);
-    setDataModels([]);
-    setViews([]);
-    setDataModelDetails({});
-    setDataModelsStatus("idle");
-    setViewsStatus("idle");
-    setDataModelsError(null);
-    setViewsError(null);
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !hasHydrated || !localStorageEnabled) return;
-    try {
-      const payload = JSON.stringify({
-        dataModels,
-        views,
-        dataModelDetails,
-      });
-      window.localStorage.setItem(storageKey, payload);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "QuotaExceededError") {
-        setLocalStorageEnabled(false);
-        window.localStorage.removeItem(storageKey);
-      } else {
-        throw error;
-      }
-    }
-  }, [dataModels, views, dataModelDetails, hasHydrated, localStorageEnabled, storageKey]);
 
   const loadDataModels = async () => {
     if (dataModelsStatus === "loading" || dataModelsStatus === "success") return;
@@ -182,19 +119,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     return response;
   };
 
-  const clearCache = () => {
-    setDataModels([]);
-    setViews([]);
-    setDataModelDetails({});
-    setDataModelsStatus("idle");
-    setViewsStatus("idle");
-    setDataModelsError(null);
-    setViewsError(null);
-    if (typeof window !== "undefined" && localStorageEnabled) {
-      window.localStorage.removeItem(storageKey);
-    }
-  };
-
   const value = useMemo(
     () => ({
       dataModels,
@@ -207,7 +131,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       loadDataModels,
       loadViews,
       retrieveDataModels,
-      clearCache,
     }),
     [
       dataModels,
@@ -217,7 +140,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       viewsStatus,
       viewsError,
       dataModelDetails,
-      clearCache,
     ]
   );
 

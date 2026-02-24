@@ -54,6 +54,8 @@ const fallbackStrings: Record<string, string> = {
   "apiError.docsLink": "Open API docs",
   "apiError.permissionsHint":
     "Required permissions are listed at the top of each documentation page.",
+  "apiError.networkHint":
+    "This can happen if you are offline or the backend is not responding.",
 };
 
 export function ApiError({ message, api, requestBody, details, className }: ApiErrorProps) {
@@ -68,6 +70,10 @@ export function ApiError({ message, api, requestBody, details, className }: ApiE
 
   const docUrl = useMemo(() => getDocUrl(api), [api]);
   const isPermissionError = /401|403|unauthorized|forbidden|permission/i.test(message);
+  const isNetworkError =
+    /failed to fetch|networkerror|network request failed|ecconnrefused|econnrefused|timeout/i.test(
+      message
+    );
   const hasDetails = Boolean(api || requestBody || details);
 
   return (
@@ -77,6 +83,9 @@ export function ApiError({ message, api, requestBody, details, className }: ApiE
       }`}
     >
       <div>{message}</div>
+      {isNetworkError ? (
+        <div className="mt-1 text-xs text-red-700">{t("apiError.networkHint")}</div>
+      ) : null}
       {docUrl ? (
         <div className="mt-2 text-xs text-red-700">
           <a
