@@ -3,6 +3,7 @@ STAT_STORE_VALUE = "value"
 FUNCTION_ID="entity_matching"
 ML_MODEL_FEATURE_TYPE = "bigram-combo"
 COL_MATCH_KEY = "name"
+BATCH_SIZE_API_SUBMIT = 1000
 
 COL_KEY_MAN_MAPPING_ENTITY = "TsExternalId"  # ExternalID for TS not mapped related to manual mapping
 COL_KEY_MAN_MAPPING_ASSET = "AssetExternalId"  # ExternalID Col name for Asset related to manual mapping
