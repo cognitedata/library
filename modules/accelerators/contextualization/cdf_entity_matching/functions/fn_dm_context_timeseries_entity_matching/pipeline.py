@@ -408,10 +408,11 @@ def apply_manual_mappings(
 
             # Apply the updates to the data model
             client.data_modeling.instances.apply(item_update)
-            if cnt == 0:
-                logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
-            else:
-                logger.info(f"==> Mapping table based matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(manual_mappings)}")
+            if len(item_update) > 0:
+                if cnt == 0:
+                    logger.info("==> Mapping table based matching - No items added to data model based on new items found and manual mappings")
+                else:
+                    logger.info(f"==> Mapping table based matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(manual_mappings)}")
 
             raw_uploader.upload()
 
