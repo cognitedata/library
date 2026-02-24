@@ -968,7 +968,6 @@ def select_and_apply_matches(
             else:
                 logger.info(f"==> Entity matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(new_good_matches)}")
 
-
         return good_matches + new_good_matches, bad_matches, cnt
 
     except Exception as e:

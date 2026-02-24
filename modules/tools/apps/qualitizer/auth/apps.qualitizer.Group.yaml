@@ -1,0 +1,13 @@
+# This file is just a dummy. A copy from somewhere else simplify for toolkit to accept this module.
+name: 'tools.qualitizer.Group'
+sourceId: <notebook.cdf_performance_testing_group_source_id>
+metadata:
+  origin: 'cdf-project-templates'
+capabilities:
+  - sessionsAcl:
+      actions:
+        - LIST
+        - CREATE
+        - DELETE
+      scope:
+        all: {}
