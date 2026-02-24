@@ -70,10 +70,22 @@ export function Processing() {
   } | null>(null);
   const [scheduleStatus, setScheduleStatus] = useState<LoadState>("idle");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  type ScheduleEntryType = "function" | "transformation" | "workflow";
   const [scheduleEntries, setScheduleEntries] = useState<
-    Array<{ cron: string; name: string }>
+    Array<{ cron: string; name: string; type: ScheduleEntryType }>
   >([]);
+  const [heatmapVisibleTypes, setHeatmapVisibleTypes] = useState({
+    functions: true,
+    transformations: true,
+    workflows: true,
+  });
   const [hoverCell, setHoverCell] = useState<{
+    hour: number;
+    minute: number;
+    count: number;
+    names: string[];
+  } | null>(null);
+  const [pinnedHeatmapCell, setPinnedHeatmapCell] = useState<{
     hour: number;
     minute: number;
     count: number;
@@ -186,7 +198,7 @@ export function Processing() {
       setScheduleError(null);
       setScheduleEntries([]);
       try {
-        const entries: Array<{ cron: string; name: string }> = [];
+        const entries: Array<{ cron: string; name: string; type: ScheduleEntryType }> = [];
 
         const functionSchedules = (await sdk.post(
           `/api/v1/projects/${sdk.project}/functions/schedules/list`,
@@ -202,7 +214,7 @@ export function Processing() {
             (item.functionExternalId as string | undefined) ??
             (item.functionId as string | undefined) ??
             t("processing.heatmap.unknownFunction");
-          entries.push({ cron, name });
+          entries.push({ cron, name, type: "function" });
         }
 
         const transformationSchedules = (await sdk.get(
@@ -219,7 +231,7 @@ export function Processing() {
             (item.transformationExternalId as string | undefined) ??
             (item.transformationId as string | undefined) ??
             t("processing.heatmap.unknownTransformation");
-          entries.push({ cron, name });
+          entries.push({ cron, name, type: "transformation" });
         }
 
         let triggerCursor: string | undefined;
@@ -239,7 +251,7 @@ export function Processing() {
               (item.id as string | undefined) ??
               "trigger";
             const name = workflowId ? `${workflowId} · ${triggerId}` : triggerId;
-            entries.push({ cron, name });
+            entries.push({ cron, name, type: "workflow" });
           }
           triggerCursor = workflowTriggers.data?.nextCursor;
         } while (triggerCursor);
@@ -266,6 +278,14 @@ export function Processing() {
 
   const heatmapCounts = useMemo(() => {
     if (scheduleStatus !== "success") return [];
+    const typeToKey: Record<ScheduleEntryType, keyof typeof heatmapVisibleTypes> = {
+      function: "functions",
+      transformation: "transformations",
+      workflow: "workflows",
+    };
+    const filtered = scheduleEntries.filter(
+      (entry) => heatmapVisibleTypes[typeToKey[entry.type]]
+    );
     const parseField = (field: string, min: number, max: number) => {
       if (!field) return [];
       const values = new Set<number>();
@@ -297,7 +317,7 @@ export function Processing() {
     const counts = Array.from({ length: 60 }, () =>
       Array.from({ length: 24 }, () => ({ count: 0, names: [] as string[] }))
     );
-    for (const entry of scheduleEntries) {
+    for (const entry of filtered) {
       const parts = entry.cron.trim().split(/\s+/);
       if (parts.length < 2) continue;
       const minutes = parseField(parts[0], 0, 59);
@@ -311,7 +331,7 @@ export function Processing() {
       }
     }
     return counts;
-  }, [scheduleEntries, scheduleStatus]);
+  }, [scheduleEntries, scheduleStatus, heatmapVisibleTypes]);
 
   const getHeatColor = (count: number) => {
     if (count <= 0) return "#e0f2fe";
@@ -847,105 +867,208 @@ export function Processing() {
             heatmapCounts.length === 0 ? (
               <div className="text-sm text-slate-600">{t("processing.heatmap.empty")}</div>
             ) : (
-              <div className="flex gap-4">
-                <div className="flex-1 overflow-auto rounded-md border border-slate-200 bg-white p-3">
-                  <div
-                    className="grid gap-0.5"
-                    style={{ gridTemplateColumns: "40px repeat(24, minmax(0, 1fr))" }}
-                    onMouseLeave={() => {
-                      lastHoverKeyRef.current = null;
-                      setHoverCell(null);
-                    }}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                  <button
+                    type="button"
+                    className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+                      heatmapVisibleTypes.functions
+                        ? "text-slate-700 hover:bg-slate-50"
+                        : "text-slate-400 line-through"
+                    }`}
+                    onClick={() =>
+                      setHeatmapVisibleTypes((prev) => ({
+                        ...prev,
+                        functions: !prev.functions,
+                      }))
+                    }
                   >
-                    <div />
-                    {Array.from({ length: 24 }, (_, hour) => (
-                      <div
-                        key={`hour-${hour}`}
-                        className="text-center text-[10px] text-slate-500"
-                      >
-                        {hour}
-                      </div>
-                    ))}
-                    {Array.from({ length: 60 }, (_, minute) => (
-                      <div key={`row-${minute}`} className="contents">
-                        <div className="text-[10px] text-slate-500">
-                          {minute % 5 === 0 ? String(minute).padStart(2, "0") : ""}
-                        </div>
-                        {Array.from({ length: 24 }, (_, hour) => {
-                          const cell = heatmapCounts[minute]?.[hour];
-                          const count = cell?.count ?? 0;
-                          const names = cell?.names ?? [];
-                          const hoverKey = `${hour}:${minute}:${count}:${names.length}`;
-                          return (
-                            <div
-                              key={`cell-${minute}-${hour}`}
-                              className="h-3 w-full rounded-sm border border-slate-100"
-                              style={{ backgroundColor: getHeatColor(count) }}
-                              onMouseMove={() => {
-                                if (lastHoverKeyRef.current === hoverKey) return;
-                                lastHoverKeyRef.current = hoverKey;
-                                setHoverCell({ hour, minute, count, names });
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <span className="h-3 w-3 rounded-sm border border-slate-200 bg-white" />
-                      {t("processing.heatmap.legend.none")}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span
-                        className="h-3 w-3 rounded-sm border border-slate-200"
-                        style={{ backgroundColor: getHeatColor(1) }}
-                      />
-                      {t("processing.heatmap.legend.one")}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span
-                        className="h-3 w-3 rounded-sm border border-slate-200"
-                        style={{ backgroundColor: getHeatColor(5) }}
-                      />
-                      {t("processing.heatmap.legend.mid")}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span
-                        className="h-3 w-3 rounded-sm border border-slate-200"
-                        style={{ backgroundColor: getHeatColor(10) }}
-                      />
-                      {t("processing.heatmap.legend.high")}
-                    </span>
-                  </div>
+                    <span className="h-2 w-4 rounded-sm bg-blue-600" />
+                    {t("processing.legend.functions")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+                      heatmapVisibleTypes.transformations
+                        ? "text-slate-700 hover:bg-slate-50"
+                        : "text-slate-400 line-through"
+                    }`}
+                    onClick={() =>
+                      setHeatmapVisibleTypes((prev) => ({
+                        ...prev,
+                        transformations: !prev.transformations,
+                      }))
+                    }
+                  >
+                    <span className="h-2 w-4 rounded-sm bg-orange-500" />
+                    {t("processing.legend.transformations")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+                      heatmapVisibleTypes.workflows
+                        ? "text-slate-700 hover:bg-slate-50"
+                        : "text-slate-400 line-through"
+                    }`}
+                    onClick={() =>
+                      setHeatmapVisibleTypes((prev) => ({
+                        ...prev,
+                        workflows: !prev.workflows,
+                      }))
+                    }
+                  >
+                    <span className="h-2 w-4 rounded-sm bg-purple-500" />
+                    {t("processing.legend.workflows")}
+                  </button>
                 </div>
-                <div className="w-64 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                  {hoverCell ? (
-                    <>
-                      <div className="font-semibold">
-                        {t("processing.heatmap.hover.title", {
-                          time: `${String(hoverCell.hour).padStart(2, "0")}:${String(
-                            hoverCell.minute
-                          ).padStart(2, "0")}`,
-                          count: hoverCell.count,
-                        })}
-                      </div>
-                      {hoverCell.names.length > 0 ? (
-                        <ul className="mt-1 max-h-96 list-disc space-y-0.5 overflow-auto pl-4">
-                          {hoverCell.names.map((name, index) => (
-                            <li key={`${name}-${index}`}>{name}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="mt-1 text-slate-500">
-                          {t("processing.heatmap.hover.none")}
+                <div className="flex gap-4 items-stretch">
+                  <div className="flex-1 overflow-auto rounded-md border border-slate-200 bg-white p-3">
+                    <div
+                      className="grid gap-0.5"
+                      style={{ gridTemplateColumns: "40px repeat(24, minmax(0, 1fr))" }}
+                      onMouseLeave={() => {
+                        lastHoverKeyRef.current = null;
+                        setHoverCell(null);
+                      }}
+                    >
+                      <div />
+                      {Array.from({ length: 24 }, (_, hour) => (
+                        <div
+                          key={`hour-${hour}`}
+                          className="text-center text-[10px] text-slate-500"
+                        >
+                          {hour}
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-slate-500">{t("processing.heatmap.hover.none")}</div>
-                  )}
+                      ))}
+                      {Array.from({ length: 60 }, (_, minute) => (
+                        <div key={`row-${minute}`} className="contents">
+                          <div className="text-[10px] text-slate-500">
+                            {minute % 5 === 0 ? String(minute).padStart(2, "0") : ""}
+                          </div>
+                          {Array.from({ length: 24 }, (_, hour) => {
+                            const cell = heatmapCounts[minute]?.[hour];
+                            const count = cell?.count ?? 0;
+                            const names = cell?.names ?? [];
+                            const hoverKey = `${hour}:${minute}:${count}:${names.length}`;
+                            const isPinned =
+                              pinnedHeatmapCell?.hour === hour &&
+                              pinnedHeatmapCell?.minute === minute;
+                            return (
+                              <div
+                                key={`cell-${minute}-${hour}`}
+                                className="h-3 w-full rounded-sm border border-slate-100 cursor-pointer"
+                                style={{
+                                  backgroundColor: getHeatColor(count),
+                                  outline: isPinned ? "2px solid #3b82f6" : undefined,
+                                  outlineOffset: -1,
+                                }}
+                                onMouseMove={() => {
+                                  if (lastHoverKeyRef.current === hoverKey) return;
+                                  lastHoverKeyRef.current = hoverKey;
+                                  setHoverCell({ hour, minute, count, names });
+                                }}
+                                onClick={() => {
+                                  setPinnedHeatmapCell((prev) =>
+                                    prev?.hour === hour && prev?.minute === minute
+                                      ? null
+                                      : { hour, minute, count, names }
+                                  );
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+                      <span className="flex items-center gap-1">
+                        <span className="h-3 w-3 rounded-sm border border-slate-200 bg-white" />
+                        {t("processing.heatmap.legend.none")}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="h-3 w-3 rounded-sm border border-slate-200"
+                          style={{ backgroundColor: getHeatColor(1) }}
+                        />
+                        {t("processing.heatmap.legend.one")}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="h-3 w-3 rounded-sm border border-slate-200"
+                          style={{ backgroundColor: getHeatColor(5) }}
+                        />
+                        {t("processing.heatmap.legend.mid")}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="h-3 w-3 rounded-sm border border-slate-200"
+                          style={{ backgroundColor: getHeatColor(10) }}
+                        />
+                        {t("processing.heatmap.legend.high")}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="w-64 flex flex-col rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 min-h-0">
+                    {(pinnedHeatmapCell ?? hoverCell) ? (
+                      <>
+                        <div className="flex items-center justify-between gap-2 shrink-0">
+                          <div className="font-semibold">
+                            {t("processing.heatmap.hover.title", {
+                              time: `${String(
+                                (pinnedHeatmapCell ?? hoverCell)!.hour
+                              ).padStart(2, "0")}:${String(
+                                (pinnedHeatmapCell ?? hoverCell)!.minute
+                              ).padStart(2, "0")}`,
+                              count: (pinnedHeatmapCell ?? hoverCell)!.count,
+                            })}
+                            {pinnedHeatmapCell ? (
+                              <span className="ml-1 text-slate-500 font-normal">
+                                ({t("processing.heatmap.pinned")})
+                              </span>
+                            ) : null}
+                          </div>
+                          {pinnedHeatmapCell ? (
+                            <button
+                              type="button"
+                              className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-slate-500 hover:bg-slate-200"
+                              onClick={() => setPinnedHeatmapCell(null)}
+                            >
+                              {t("processing.heatmap.unpin")}
+                            </button>
+                          ) : null}
+                        </div>
+                        {(pinnedHeatmapCell ?? hoverCell)!.names.length > 0 ? (
+                          <>
+                            <div className="mt-1 flex shrink-0">
+                              <button
+                                type="button"
+                                className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                                onClick={() => {
+                                  const names = (pinnedHeatmapCell ?? hoverCell)!.names;
+                                  void navigator.clipboard.writeText(names.join("\n"));
+                                }}
+                              >
+                                {t("processing.heatmap.copyList")}
+                              </button>
+                            </div>
+                            <ul className="mt-1 flex-1 min-h-0 list-disc space-y-0.5 overflow-auto pl-4">
+                              {(pinnedHeatmapCell ?? hoverCell)!.names.map((name, index) => (
+                                <li key={`${name}-${index}`}>{name}</li>
+                              ))}
+                            </ul>
+                          </>
+                        ) : (
+                          <div className="mt-1 text-slate-500 flex-1">
+                            {t("processing.heatmap.hover.none")}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-slate-500 flex-1 flex items-center">
+                        {t("processing.heatmap.hover.none")}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )

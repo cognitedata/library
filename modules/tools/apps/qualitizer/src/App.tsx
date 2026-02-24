@@ -1,3 +1,4 @@
+import mixpanel from "mixpanel-browser";
 import { useEffect, useMemo, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 import { HealthChecks } from "./health-checks";
@@ -19,6 +20,7 @@ const internalPages = [
   { id: "models", label: "Data models" },
   { id: "views", label: "Views" },
   { id: "properties", label: "Properties" },
+  { id: "transformations", label: "Transformations" },
   { id: "streams", label: "Streams" },
   { id: "relationships", label: "Relationships" },
   { id: "spaces", label: "Spaces" },
@@ -31,12 +33,26 @@ type AppMode =
   | (typeof productionPages)[number]["id"]
   | (typeof internalPages)[number]["id"];
 
+const currentPageStorageKey = "qualitizer.currentPage";
+
+function getValidModes(showInternal: boolean): AppMode[] {
+  const production = productionPages.map((p) => p.id);
+  const internal = internalPages.map((p) => p.id);
+  return showInternal ? ([...production, ...internal] as AppMode[]) : (production as AppMode[]);
+}
+
 function AppContent() {
   const { sdk, isLoading } = useAppSdk();
   const { language, setLanguage, t } = useI18n();
   const showInternal =
     import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
-  const [mode, setMode] = useState<AppMode>(() => productionPages[0].id);
+  const [mode, setMode] = useState<AppMode>(() => {
+    if (typeof window === "undefined") return productionPages[0].id;
+    const stored = window.localStorage.getItem(currentPageStorageKey);
+    if (!stored) return productionPages[0].id;
+    const valid = getValidModes(showInternal);
+    return valid.includes(stored as AppMode) ? (stored as AppMode) : productionPages[0].id;
+  });
   const modelStorageKey = `qualitizer.selectedDataModel.${sdk.project}`;
   const viewStorageKey = `qualitizer.selectedView.${sdk.project}`;
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
@@ -81,6 +97,18 @@ function AppContent() {
       window.dispatchEvent(new Event("selected-view-update"));
     }
   }, [viewStorageKey, selectedView]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(currentPageStorageKey, mode);
+  }, [mode]);
+
+  useEffect(() => {
+    console.log("sdk?.project", sdk?.project);
+    if (sdk?.project) {
+      mixpanel.register({ cdf_project: sdk.project });
+    }
+  }, [sdk?.project]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -189,7 +217,10 @@ function AppContent() {
                   <button
                     key={page.id}
                     type="button"
-                    onClick={() => setMode(page.id)}
+                    onClick={() => {
+                      setMode(page.id);
+                      mixpanel.track("navigation", { page_type: page.id });
+                    }}
                     className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition ${
                       mode === page.id
                         ? "bg-slate-900 text-white"
@@ -210,7 +241,10 @@ function AppContent() {
                       <button
                         key={page.id}
                         type="button"
-                        onClick={() => setMode(page.id)}
+                        onClick={() => {
+                          setMode(page.id);
+                          mixpanel.track("navigation", { page_type: page.id });
+                        }}
                         className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition ${
                           mode === page.id
                             ? "bg-slate-900 text-white"
