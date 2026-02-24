@@ -1,5 +1,6 @@
 import { DuneAuthProvider, useDune } from "@cognite/dune";
 
+import { SdkManagerProvider } from "../shared/SdkManager";
 import { StandaloneAuthProvider } from "../standalone-auth";
 import { AppSdkContext, useAppSdk } from "../sdk-context";
 
@@ -11,7 +12,11 @@ function DuneBridge({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen w-full flex items-center justify-center text-slate-500">Loading...</div>;
   }
   return (
-    <AppSdkContext.Provider value={{ sdk, isLoading }}>{children}</AppSdkContext.Provider>
+    <AppSdkContext.Provider value={{ sdk, isLoading }}>
+      <SdkManagerProvider baseSdk={sdk} isLoading={isLoading}>
+        {children}
+      </SdkManagerProvider>
+    </AppSdkContext.Provider>
   );
 }
 

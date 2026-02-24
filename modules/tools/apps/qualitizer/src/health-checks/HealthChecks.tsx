@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader } from "@/shared/Loader";
 import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
@@ -69,6 +69,9 @@ export function HealthChecks() {
   const [groups, setGroups] = useState<GroupSummary[]>([]);
   const [showLoader, setShowLoader] = useState(false);
   const [rawLoadAll, setRawLoadAll] = useState(false);
+  const consecutiveErrorsRef = useRef(0);
+  const [circuitBreakerTripped, setCircuitBreakerTripped] = useState(false);
+  const prevStatusesRef = useRef<Record<string, LoadState>>({});
 
   const RAW_SAMPLE_DB_LIMIT = 10;
   const RAW_SAMPLE_TABLES_PER_DB = 100;
@@ -173,12 +176,54 @@ export function HealthChecks() {
   }, [isDashboardLoading]);
 
   useEffect(() => {
-    loadDataModels();
-    loadViews();
-  }, [loadDataModels, loadViews]);
+    const statuses: Record<string, LoadState> = {
+      dataModels: dataModelsStatus,
+      views: viewsStatus,
+      viewDetails: viewDetailsStatus,
+      spaces: spacesStatus,
+      containers: containersStatus,
+      functions: functionsStatus,
+      permissions: permissionsStatus,
+      schedules: schedulesStatus,
+      raw: rawStatus,
+    };
+    let hadNewError = false;
+    let hadSuccess = false;
+    for (const [key, status] of Object.entries(statuses)) {
+      const prev = prevStatusesRef.current[key];
+      if (status === "error" && prev !== "error") hadNewError = true;
+      if (status === "success") hadSuccess = true;
+      prevStatusesRef.current[key] = status;
+    }
+    if (hadSuccess) {
+      consecutiveErrorsRef.current = 0;
+    }
+    if (hadNewError) {
+      consecutiveErrorsRef.current += 1;
+      if (consecutiveErrorsRef.current >= 3) {
+        setCircuitBreakerTripped(true);
+      }
+    }
+  }, [
+    dataModelsStatus,
+    viewsStatus,
+    viewDetailsStatus,
+    spacesStatus,
+    containersStatus,
+    functionsStatus,
+    permissionsStatus,
+    schedulesStatus,
+    rawStatus,
+  ]);
 
   useEffect(() => {
-    if (isSdkLoading) return;
+    if (circuitBreakerTripped) return;
+    loadDataModels();
+    loadViews();
+  }, [loadDataModels, loadViews, circuitBreakerTripped]);
+
+  useEffect(() => {
+    if (circuitBreakerTripped || isSdkLoading) return;
     if (viewsStatus !== "success") return;
     let cancelled = false;
 
@@ -223,11 +268,19 @@ export function HealthChecks() {
       setSpacesStatus("loading");
       setSpacesError(null);
       try {
-        const items = await sdk.spaces
-          .list({ includeGlobal: true, limit: 1000 })
-          .autoPagingToArray();
+        const items: SpaceSummary[] = [];
+        let cursor: string | undefined;
+        do {
+          const response = await sdk.spaces.list({
+            includeGlobal: true,
+            limit: 100,
+            cursor,
+          }) as { items?: SpaceSummary[]; nextCursor?: string | null };
+          items.push(...(response.items ?? []));
+          cursor = response.nextCursor ?? undefined;
+        } while (cursor);
         if (!cancelled) {
-          setSpaces(items as SpaceSummary[]);
+          setSpaces(items);
           setSpacesStatus("success");
         }
       } catch (error) {
@@ -265,10 +318,10 @@ export function HealthChecks() {
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, views, viewsStatus, sdk, t]);
+  }, [circuitBreakerTripped, isSdkLoading, views, viewsStatus, sdk, t]);
 
   useEffect(() => {
-    if (isSdkLoading) return;
+    if (circuitBreakerTripped || isSdkLoading) return;
     let cancelled = false;
 
     const loadFunctions = async () => {
@@ -306,10 +359,10 @@ export function HealthChecks() {
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, t]);
+  }, [circuitBreakerTripped, isSdkLoading, sdk, t]);
 
   useEffect(() => {
-    if (isSdkLoading) return;
+    if (circuitBreakerTripped || isSdkLoading) return;
     let cancelled = false;
     const loadPermissions = async () => {
       setPermissionsStatus("loading");
@@ -334,10 +387,10 @@ export function HealthChecks() {
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, t]);
+  }, [circuitBreakerTripped, isSdkLoading, sdk, t]);
 
   useEffect(() => {
-    if (isSdkLoading) return;
+    if (circuitBreakerTripped || isSdkLoading) return;
     let cancelled = false;
 
     const readCron = (item: Record<string, unknown>) => {
@@ -439,10 +492,10 @@ export function HealthChecks() {
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, t]);
+  }, [circuitBreakerTripped, isSdkLoading, sdk, t]);
 
   useEffect(() => {
-    if (isSdkLoading) return;
+    if (circuitBreakerTripped || isSdkLoading) return;
     if (!sdk.raw?.listDatabases || !sdk.raw?.listTables || !sdk.raw?.listRows) {
       setRawAvailabilityMessage(t("healthChecks.raw.unavailable"));
       setRawStatus("success");
@@ -567,7 +620,7 @@ export function HealthChecks() {
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, t, rawLoadAll]);
+  }, [circuitBreakerTripped, isSdkLoading, sdk, t, rawLoadAll]);
 
   const usedViewKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -770,7 +823,7 @@ export function HealthChecks() {
       }
     }
 
-    return findings.slice(0, 25);
+    return findings;
   }, [groups, t]);
 
   const scheduleOverlaps = useMemo(() => {
@@ -820,6 +873,12 @@ export function HealthChecks() {
         </h2>
         <p className="text-sm text-slate-500">{t("healthChecks.subtitle")}</p>
       </header>
+      {circuitBreakerTripped ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-medium">{t("healthChecks.circuitBreaker.title")}</div>
+          <p className="mt-1 text-amber-800">{t("healthChecks.circuitBreaker.description")}</p>
+        </div>
+      ) : null}
       <FunctionsHealthPanel
         functionsStatus={functionsStatus}
         functionsError={functionsError}

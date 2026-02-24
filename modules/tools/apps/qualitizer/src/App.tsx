@@ -1,6 +1,7 @@
 import mixpanel from "mixpanel-browser";
 import { useEffect, useMemo, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
+import { useSdkManager } from "@/shared/SdkManager";
 import { HealthChecks } from "./health-checks";
 import { Processing } from "./processing";
 import { Permissions } from "./permissions";
@@ -35,58 +36,25 @@ type AppMode =
   | (typeof internalPages)[number]["id"];
 
 function AppContent() {
-  const { sdk, isLoading } = useAppSdk();
+  const { isLoading } = useAppSdk();
+  const {
+    project: selectedProject,
+    availableProjects,
+    setSelectedProject,
+    projectResolved,
+  } = useSdkManager();
   const { language, setLanguage, t } = useI18n();
   const showInternal =
     import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
   const [mode, setMode] = useState<AppMode>(productionPages[0].id);
-  const [availableProjects, setAvailableProjects] = useState<string[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>(() => sdk.project);
   const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(null);
   const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
 
   useEffect(() => {
-    console.log("sdk?.project", sdk?.project);
-    if (sdk?.project) {
-      mixpanel.register({ cdf_project: sdk.project });
+    if (selectedProject) {
+      mixpanel.register({ cdf_project: selectedProject });
     }
-  }, [sdk?.project]);
-
-  useEffect(() => {
-    if (isLoading) return;
-    let cancelled = false;
-    const loadProjects = async () => {
-      try {
-        const response = await sdk.get<{
-          projects?: Array<{ projectUrlName?: string }>;
-        }>("/api/v1/token/inspect");
-        const projectIds = (response.data?.projects ?? [])
-          .map((project) => project.projectUrlName)
-          .filter((value): value is string => Boolean(value));
-        const unique = Array.from(new Set(projectIds)).sort((a, b) => a.localeCompare(b));
-        if (!cancelled) {
-          setAvailableProjects(unique);
-          if (unique.length > 0) {
-            const next = unique.includes(sdk.project) ? sdk.project : unique[0];
-            setSelectedProject(next);
-            if (sdk.project !== next) {
-              (sdk as { project: string }).project = next;
-            }
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setAvailableProjects([]);
-          setSelectedProject(sdk.project);
-        }
-      }
-    };
-
-    loadProjects();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoading, sdk]);
+  }, [selectedProject]);
 
   useEffect(() => {
     if (selectedView) {
@@ -108,7 +76,7 @@ function AppContent() {
     return { modelLabel, viewLabel };
   }, [selectedModel, selectedView]);
 
-  if (isLoading) {
+  if (isLoading || !projectResolved) {
     return <div>Loading...</div>;
   }
 
@@ -129,7 +97,6 @@ function AppContent() {
                       const next = event.target.value;
                       if (!next || next === selectedProject) return;
                       setSelectedProject(next);
-                      (sdk as { project: string }).project = next;
                       window.location.reload();
                     }}
                   >
@@ -229,7 +196,7 @@ function AppContent() {
         {mode === "processing" ? <Processing /> : null}
         {mode === "permissions" ? <Permissions /> : null}
         {mode === "meta" ? <DataCatalog /> : null}
-          <footer className="text-sm text-slate-500">Project: {sdk.project}</footer>
+          <footer className="text-sm text-slate-500">Project: {selectedProject}</footer>
         </div>
       </DataCacheProvider>
       </LimitsProvider>

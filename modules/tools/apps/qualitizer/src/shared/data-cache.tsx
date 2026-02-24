@@ -54,7 +54,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   const [dataModelDetails, setDataModelDetails] = useState<Record<string, unknown>>({});
 
   const loadDataModels = async () => {
-    if (dataModelsStatus === "loading" || dataModelsStatus === "success") return;
+    if (dataModelsStatus === "loading" || dataModelsStatus === "success" || dataModelsStatus === "error") return;
     setDataModelsStatus("loading");
     setDataModelsError(null);
     try {
@@ -81,7 +81,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loadViews = async () => {
-    if (viewsStatus === "loading" || viewsStatus === "success") return;
+    if (viewsStatus === "loading" || viewsStatus === "success" || viewsStatus === "error") return;
     setViewsStatus("loading");
     setViewsError(null);
     try {
