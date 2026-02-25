@@ -313,7 +313,8 @@ def main() -> None:
                         f"Aggregate count: {total_count:,}",
                         f"Instance count threshold: {int(_cov_frac * 100)}%", "",
                         "Datasets:", "  - " + _datasets_line, "",
-                        f"Metadata keys analysed: {len(sel_keys)}", "",
+                        f"Metadata keys analysed: {len(sel_keys)}",
+                        *[f"  - {k}" for k in sel_keys], "",
                         "---", "",
                     ]
                     lines = list(header_lines)
