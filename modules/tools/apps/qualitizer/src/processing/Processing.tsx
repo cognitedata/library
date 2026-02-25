@@ -632,10 +632,7 @@ export function Processing() {
           ) : null}
           {!availabilityMessage ? (
             <div className="rounded-md border border-slate-200 bg-white p-3">
-              <div className="text-sm text-slate-700">
-                {t("processing.stats.executions", { count: runs.length, peak: maxParallel })}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
                 <button
                   type="button"
                   className={`flex items-center gap-2 rounded-md px-2 py-1 ${
@@ -648,7 +645,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-blue-600" />
-                  {t("processing.legend.functions")}
+                  {t("processing.legend.functions")} ({t("processing.stats.peak", { peak: maxParallel })})
                 </button>
                 <button
                   type="button"
@@ -665,7 +662,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-orange-500" />
-                  {t("processing.legend.transformations")}
+                  {t("processing.legend.transformations")} ({t("processing.stats.peak", { peak: maxTransformParallel })})
                 </button>
                 <button
                   type="button"
@@ -679,7 +676,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-purple-500" />
-                  {t("processing.legend.workflows")}
+                  {t("processing.legend.workflows")} ({t("processing.stats.peak", { peak: maxWorkflowParallel })})
                 </button>
                 <button
                   type="button"
@@ -693,7 +690,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-cyan-500" />
-                  {t("processing.legend.extractors")}
+                  {t("processing.legend.extractors")} ({t("processing.stats.peak", { peak: maxExtractorParallel })})
                 </button>
               </div>
               <div className="mt-4 overflow-x-auto">

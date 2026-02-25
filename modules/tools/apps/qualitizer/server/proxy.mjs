@@ -1,10 +1,16 @@
 import "dotenv/config";
 import fs from "node:fs";
+import path from "node:path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { Agent } from "undici";
 
 const app = Fastify({ logger: true });
+
+const envPath = path.join(process.cwd(), ".env");
+if (!fs.existsSync(envPath)) {
+  app.log.warn("No .env file found in current directory. This is a strong indicator that the setup is wrong.");
+}
 
 const {
   CDF_PROJECT,
@@ -78,6 +84,9 @@ async function getAccessToken() {
 }
 
 app.all("/api/*", async (request, reply) => {
+  // if (request.method === "OPTIONS") {
+  //  return reply.status(204).send();
+  // }
   const token = await getAccessToken();
   const url = `${CDF_URL.replace(/\/$/, "")}${request.url}`;
   const headers = { ...request.headers };
