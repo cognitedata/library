@@ -1,0 +1,7 @@
+ignoredBuiltDependencies:
+  - '@biomejs/biome'
+  - esbuild
+  - msw
+
+patchedDependencies:
+  '@cognite/dune': patches/@cognite__dune.patch

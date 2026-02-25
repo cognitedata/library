@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* Scope app so we override Dune host styles */
+.dm-doc-app {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Force readable app titles – override any Dune/parent styles */
+.dm-doc-app [data-app-title] {
+  color: #ffffff !important;
+  text-shadow: 0 0 0 transparent;
+}
+.dm-doc-app [data-app-subtitle] {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* Elegant overrides: cards, inputs, buttons */
+.dm-doc-app .dm-card {
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s ease;
+}
+.dm-doc-app .dm-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.dm-doc-app input[type="search"],
+.dm-doc-app input[type="text"] {
+  border-radius: 0.5rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dm-doc-app input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+}
+.dm-doc-app .dm-btn-primary {
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, transform 0.05s ease;
+}
+.dm-doc-app .dm-btn-primary:hover:not(:disabled) {
+  transform: translateY(-0.5px);
+}
+.dm-doc-app .dm-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+.dm-doc-app .dm-nav-pill {
+  border-radius: 0.5rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.dm-doc-app .dm-stat {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Right pane: no overflow of errors, clean empty state */
+.dm-doc-app .dm-main-pane {
+  min-height: 12rem;
+}
+.dm-doc-app .dm-empty-state {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  border-radius: 0.75rem;
+  border: 1px dashed currentColor;
+  opacity: 0.85;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+body {
+  min-height: 100vh;
+  margin: 0;
+  width: 100%;
+}

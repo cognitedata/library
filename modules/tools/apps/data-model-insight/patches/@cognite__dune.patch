@@ -1,0 +1,42 @@
+diff --git a/bin/auth/certificate-manager.js b/bin/auth/certificate-manager.js
+index 035e74192618ac1c9f32cf126d4a05317e5b6b6b..a90989dc5c103e3b58e0105245dd3299744fd43a 100644
+--- a/bin/auth/certificate-manager.js
++++ b/bin/auth/certificate-manager.js
+@@ -5,7 +5,7 @@
+  * for the local HTTPS OAuth callback server.
+  */
+ 
+-import { execSync } from "node:child_process";
++import { spawnSync } from "node:child_process";
+ import fs from "node:fs";
+ import path from "node:path";
+ 
+@@ -52,9 +52,25 @@ export class CertificateManager {
+     }
+ 
+     try {
+-      const cmd = `openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -keyout "${this.keyPath}" -out "${this.certPath}" -days 365 2>/dev/null`;
+-
+-      execSync(cmd, { stdio: "pipe" });
++      const result = spawnSync(
++        "openssl",
++        [
++          "req",
++          "-x509",
++          "-newkey", "rsa:2048",
++          "-nodes",
++          "-sha256",
++          "-subj", "/CN=localhost",
++          "-keyout", this.keyPath,
++          "-out", this.certPath,
++          "-days", "365",
++        ],
++        { stdio: "pipe", windowsHide: true }
++      );
++      if (result.status !== 0) {
++        const err = (result.stderr && result.stderr.toString()) || result.error?.message || "Unknown error";
++        throw new Error(err);
++      }
+       console.log("✅ Certificate generated and saved to ~/.cdf-login/\n");
+ 
+       return this.loadCertificates();

@@ -1,0 +1,16 @@
+{
+  "name": "CDF Classic Analysis",
+  "description": "A Dune application for classic CDF project analysis: metadata field distribution across assets, time series, events, and sequences.",
+  "externalId": "cdf-classic-analysis",
+  "versionTag": "0.0.1",
+  "deployments": [
+    {
+      "org": "cog-demo",
+      "project": "lervik-industries",
+      "baseUrl": "https://api.cognitedata.com",
+      "published": true,
+      "deployClientId": "",
+      "deploySecretName": "cog-demo_lervik-industries_api"
+    }
+  ]
+}

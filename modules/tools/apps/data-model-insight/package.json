@@ -1,0 +1,52 @@
+{
+  "name": "my-dm-doc-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.26.2+sha512.0e308ff2005fc7410366f154f625f6631ab2b16b1d2e70238444dd6ae9d630a8482d92a451144debc492416896ed16f7b114a86ec68b8404b2443869e68ffda6",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "deploy": "pnpm run build && echo 'Deploying...' && echo 'Deployed!'",
+    "deploy-preview": "pnpm run build && echo 'Deploying preview...' && echo 'Deployed preview!'"
+  },
+  "dependencies": {
+    "@cognite/dune": "^0.2.2",
+    "@cognite/sdk": "^10.5.0",
+    "@tanstack/react-query": "^5.90.21",
+    "clsx": "^2.1.1",
+    "mermaid": "^11.12.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@tailwindcss/vite": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.10.13",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "@vitest/ui": "^2.1.9",
+    "autoprefixer": "^10.4.24",
+    "happy-dom": "^20.6.1",
+    "patch-package": "^8.0.1",
+    "postcss": "^8.5.6",
+    "shadcn": "^3.8.4",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-mkcert": "^1.17.9",
+    "vitest": "^2.1.9"
+  }
+}

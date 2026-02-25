@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Cognite Data Fusion Application" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CDF Application" />
+    <title>Classic Analysis – CDF metadata distribution</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body style="margin:0;background:#0f172a;color:#e2e8f0;min-height:100vh;font-family:system-ui,sans-serif;">
+    <div id="root" style="padding:1.5rem;max-width:960px;margin:0 auto;">
+      <div id="boot-msg" style="color:#94a3b8;">Loading app…</div>
+    </div>
+    <script>
+      window.__classicAnalysisBoot = true;
+      document.getElementById("boot-msg").textContent = "Classic Analysis – loading…";
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

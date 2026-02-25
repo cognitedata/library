@@ -1,0 +1,17 @@
+{
+  "name": "CDF Data Model Insight App",
+  "description": "An app to collect and present CDF Data Model details",
+  "externalId": "my-model-doc-app",
+  "versionTag": "0.0.1",
+  "deployments": [
+    {
+      "org": "cog-demo",
+      "project": "lervik-industries",
+      "baseUrl": "https://api.cognitedata.com",
+      "published": true,
+      "deployClientId": "",
+      "deploySecretName": "cog-demo_lervik-industries_api"
+    }
+  ]
+}
+
