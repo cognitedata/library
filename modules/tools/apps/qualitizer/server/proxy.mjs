@@ -31,6 +31,14 @@ if (!CDF_PROJECT || !IDP_TOKEN_URL || !IDP_CLIENT_ID || !IDP_CLIENT_SECRET) {
   process.exit(1);
 }
 
+const CDF_BROWSER_URL = process.env.CDF_BROWSER_URL?.trim();
+if (!CDF_BROWSER_URL) {
+  app.log.warn(
+    "CDF_BROWSER_URL is not set. The UI will use default https://fusion.cognite.com for transformation preview links. " +
+      "Add CDF_BROWSER_URL to your .env (e.g. https://your-cluster.fusion.cognite.com/) to customize."
+  );
+}
+
 await app.register(cors, { origin: true });
 
 let cachedToken = null;

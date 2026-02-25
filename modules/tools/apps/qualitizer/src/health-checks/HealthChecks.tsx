@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ApiError } from "@/shared/ApiError";
 import { Loader } from "@/shared/Loader";
 import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
 import { useI18n } from "@/shared/i18n";
+import { extractDataModelRefs } from "@/transformations/transformationChecks";
 import { ModelingHealthPanel } from "./ModelingHealthPanel";
 import { RawHealthPanel } from "./RawHealthPanel";
 import { FunctionsHealthPanel } from "./FunctionsHealthPanel";
@@ -67,6 +70,11 @@ export function HealthChecks() {
   const [permissionsStatus, setPermissionsStatus] = useState<LoadState>("idle");
   const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [dataModelVersioningStatus, setDataModelVersioningStatus] = useState<LoadState>("idle");
+  const [dataModelVersioningError, setDataModelVersioningError] = useState<string | null>(null);
+  const [dataModelVersioningInconsistencies, setDataModelVersioningInconsistencies] = useState<
+    Array<{ modelKey: string; space: string; externalId: string; usages: Array<{ transformationId: string; transformationName: string; version: string | undefined }> }>
+  >([]);
   const [showLoader, setShowLoader] = useState(false);
   const [rawLoadAll, setRawLoadAll] = useState(false);
   const consecutiveErrorsRef = useRef(0);
@@ -169,7 +177,8 @@ export function HealthChecks() {
     rawStatus === "loading" ||
     functionsStatus === "loading" ||
     permissionsStatus === "loading" ||
-    schedulesStatus === "loading";
+    schedulesStatus === "loading" ||
+    dataModelVersioningStatus === "loading";
 
   useEffect(() => {
     setShowLoader(isDashboardLoading);
@@ -186,6 +195,7 @@ export function HealthChecks() {
       permissions: permissionsStatus,
       schedules: schedulesStatus,
       raw: rawStatus,
+      dataModelVersioning: dataModelVersioningStatus,
     };
     let hadNewError = false;
     let hadSuccess = false;
@@ -384,6 +394,117 @@ export function HealthChecks() {
     };
 
     loadPermissions();
+    return () => {
+      cancelled = true;
+    };
+  }, [circuitBreakerTripped, isSdkLoading, sdk, t]);
+
+  useEffect(() => {
+    if (circuitBreakerTripped || isSdkLoading) return;
+    let cancelled = false;
+
+    type ModelUsage = {
+      transformationId: string;
+      transformationName: string;
+      version: string | undefined;
+    };
+
+    const buildModelKey = (space: string | undefined, externalId: string | undefined) =>
+      `${space ?? ""}:${externalId ?? ""}`;
+
+    const loadDataModelVersioning = async () => {
+      setDataModelVersioningStatus("loading");
+      setDataModelVersioningError(null);
+      try {
+        const response = (await sdk.get(
+          `/api/v1/projects/${sdk.project}/transformations`,
+          { params: { includePublic: "true", limit: "1000" } }
+        )) as { data?: { items?: Array<{ id: number | string; name?: string; query?: string }> } };
+        const items = response.data?.items ?? [];
+
+        const byModel = new Map<
+          string,
+          { space: string; externalId: string; usages: ModelUsage[] }
+        >();
+
+        for (const t of items) {
+          if (cancelled) return;
+          let query = t.query;
+          if (query == null || query === "") {
+            try {
+              const single = (await sdk.get(
+                `/api/v1/projects/${sdk.project}/transformations/${t.id}`
+              )) as { data?: { query?: string } };
+              query = single.data?.query ?? "";
+            } catch {
+              query = "";
+            }
+          }
+          if (!query?.trim()) continue;
+
+          const refs = extractDataModelRefs(query);
+          const id = String(t.id);
+          const name = t.name ?? id;
+
+          const seenVersions = new Set<string>();
+          for (const ref of refs) {
+            const space = ref.space ?? "";
+            const externalId = ref.externalId ?? "";
+            const key = buildModelKey(space, externalId);
+            if (!key || key === ":") continue;
+
+            const version = ref.version?.trim() || undefined;
+            const usageKey = `${id}::${version ?? ""}`;
+            if (seenVersions.has(usageKey)) continue;
+            seenVersions.add(usageKey);
+
+            const existing = byModel.get(key);
+            const usage: ModelUsage = {
+              transformationId: id,
+              transformationName: name,
+              version,
+            };
+
+            if (existing) {
+              const alreadyHas = existing.usages.some(
+                (u) => u.transformationId === id && u.version === version
+              );
+              if (!alreadyHas) existing.usages.push(usage);
+            } else {
+              byModel.set(key, { space, externalId, usages: [usage] });
+            }
+          }
+        }
+
+        const inconsistencies: Array<{
+          modelKey: string;
+          space: string;
+          externalId: string;
+          usages: ModelUsage[];
+        }> = [];
+        for (const [key, { space, externalId, usages }] of byModel.entries()) {
+          const versions = [...new Set(usages.map((u) => u.version ?? "(unspecified)"))];
+          if (versions.length > 1) {
+            inconsistencies.push({ modelKey: key, space, externalId, usages });
+          }
+        }
+        inconsistencies.sort((a, b) => a.modelKey.localeCompare(b.modelKey));
+
+        if (!cancelled) {
+          setDataModelVersioningInconsistencies(inconsistencies);
+          setDataModelVersioningStatus("success");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDataModelVersioningError(
+            error instanceof Error ? error.message : t("healthChecks.dataModelVersioning.error")
+          );
+          setDataModelVersioningStatus("error");
+        }
+      }
+    };
+
+    loadDataModelVersioning();
     return () => {
       cancelled = true;
     };
@@ -892,6 +1013,68 @@ export function HealthChecks() {
         schedules={schedules}
         overlaps={scheduleOverlaps}
       />
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("healthChecks.dataModelVersioning.title")}</CardTitle>
+          <CardDescription>
+            {t("healthChecks.dataModelVersioning.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {dataModelVersioningStatus === "loading" ? (
+            <div className="text-sm text-slate-600">{t("healthChecks.loading")}</div>
+          ) : null}
+          {dataModelVersioningStatus === "error" ? (
+            <ApiError
+              message={dataModelVersioningError ?? t("healthChecks.dataModelVersioning.error")}
+            />
+          ) : null}
+          {dataModelVersioningStatus === "success" ? (
+            dataModelVersioningInconsistencies.length > 0 ? (
+              <div className="space-y-3">
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <div className="font-medium">
+                    {t("healthChecks.dataModelVersioning.inconsistenciesCount", {
+                      count: dataModelVersioningInconsistencies.length,
+                    })}
+                  </div>
+                  <ul className="mt-2 list-disc space-y-2 pl-5 text-amber-900">
+                    {dataModelVersioningInconsistencies.map((group) => {
+                      const byVersion = new Map<string, typeof group.usages>();
+                      for (const u of group.usages) {
+                        const v = u.version ?? "(unspecified)";
+                        const list = byVersion.get(v) ?? [];
+                        list.push(u);
+                        byVersion.set(v, list);
+                      }
+                      const modelLabel =
+                        group.space && group.externalId
+                          ? `${group.space} · ${group.externalId}`
+                          : group.modelKey || "(unknown)";
+                      return (
+                        <li key={group.modelKey}>
+                          <span className="font-medium">{modelLabel}</span>
+                          <ul className="mt-1 list-[circle] pl-5 text-amber-800">
+                            {Array.from(byVersion.entries()).map(([version, usages]) => (
+                              <li key={version}>
+                                {version}: {usages.map((u) => u.transformationName).join(", ")}
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                {t("healthChecks.dataModelVersioning.allConsistent")}
+              </div>
+            )
+          ) : null}
+        </CardContent>
+      </Card>
       {showInternal ? (
         <ModelingHealthPanel
           dataModelsStatus={dataModelsStatus}

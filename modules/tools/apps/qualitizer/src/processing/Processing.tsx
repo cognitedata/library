@@ -1101,6 +1101,7 @@ export function Processing() {
           setSelectedTransformationJob(null);
           setSelectedTransformation(null);
         }}
+        project={sdk.project}
         transformationName={
           transformationNameMap[String(selectedTransformationJob?.transformationId ?? "")] ??
           t("processing.unknown.transformation")
