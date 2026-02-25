@@ -1,0 +1,700 @@
+externalId: ctx_key_extraction_default
+config:
+  parameters:
+    debug: true
+    run_all: true
+    overwrite: true
+    raw_db: db_key_extraction
+    raw_table_state: key_extraction_state
+    raw_table_key: default_extracted_keys
+  data:
+    validation:
+      min_confidence: 0.5
+      max_keys_per_type: 1000
+      blacklist_keywords:
+        # Common words/patterns to exclude from key extraction
+        - "test"
+        - "example"
+        - "sample"
+        - "dummy"
+        - "temp"
+        - "temporary"
+        - "null"
+        - "none"
+        - "n/a"
+        - "na"
+        - "unknown"
+    source_views:
+    - view_external_id: CogniteAsset
+      view_space: cdf_cdm
+      view_version: v1
+      instance_space: sp_enterprise_schema
+      entity_type: asset
+      batch_size: 100
+      filters:
+      - operator: CONTAINSANY
+        target_property: tags
+        values:
+        - asset_tag
+      include_properties:
+      - externalId
+      - name
+      - description
+      - tags
+    - view_external_id: CogniteFile
+      view_space: cdf_cdm
+      view_version: v1
+      instance_space: springfield_instances
+      entity_type: file
+      batch_size: 50
+      filters:
+      - operator: IN
+        target_property: mimeType
+        values:
+        - application/pdf
+      include_properties:
+      - externalId
+      - name
+      - description
+      - tags
+      - documentType
+      - drawingNumber
+    - view_external_id: CogniteTimeSeries
+      view_space: cdf_cdm
+      view_version: v1
+      instance_space: springfield_instances
+      entity_type: timeseries
+      batch_size: 200
+      include_properties:
+      - externalId
+      - name
+      - description
+      - tags
+      - unit
+
+    # =============================================================================
+    # REGEX EXTRACTION EXAMPLES
+    # =============================================================================
+    #
+    # SCOPE FILTERS:
+    # Rules can be scoped to specific entity types using scope_filters:
+    #   scope_filters:
+    #     entity_type: ["asset"]              # Only for assets
+    #     entity_type: ["file"]                 # Only for files
+    #     entity_type: ["timeseries"]           # Only for timeseries
+    #     entity_type: ["asset", "timeseries"]  # For assets OR timeseries
+    #   If scope_filters is omitted, the rule applies to all entity types.
+    #
+    # =============================================================================
+
+    extraction_rules:
+    # Regex Example 1: Pump tag extraction (candidate key)
+    # Scoped to 'asset' entity type only
+    - name: "pump_tag_extraction"
+      method: "regex"
+      extraction_type: "candidate_key"
+      description: "Extract pump tags like P-10001, P-10002, P101A from name field (assets only)"
+      enabled: true
+      priority: 50
+      scope_filters:
+        entity_type: ["asset"]
+      parameters:
+        pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
+        max_matches_per_field: 10
+        regex_options:
+          ignore_case: false
+          multiline: false
+          dotall: false
+          unicode: true
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Regex Example 2: Tank reference extraction (foreign key reference)
+    - name: "tank_reference_extraction"
+      method: "regex"
+      extraction_type: "foreign_key_reference"
+      description: "Extract tank references like T-301, T-201 from description field"
+      enabled: true
+      priority: 60
+      parameters:
+        pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
+        max_matches_per_field: 10
+        regex_options:
+          ignore_case: false
+          multiline: false
+          dotall: false
+          unicode: true
+        early_termination: false
+      source_fields:
+      - field_name: "description"
+        required: false
+        max_length: 1000
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "merge_all"
+
+    # Regex Example 3: Instrument tag extraction (candidate key)
+    # Scoped to 'asset' and 'timeseries' entity types
+    - name: "instrument_tag_extraction"
+      method: "regex"
+      extraction_type: "candidate_key"
+      description: "Extract ISA standard instrument tags like FIC-2001, PIC-3002 (assets and timeseries)"
+      enabled: true
+      priority: 55
+      scope_filters:
+        entity_type: ["asset", "timeseries"]
+      parameters:
+        pattern: '\b([A-Z]{2,4})-(\d{3,4})\b'
+        max_matches_per_field: 10
+        regex_options:
+          ignore_case: false
+          multiline: false
+          dotall: false
+          unicode: true
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Regex Example 4: Timeseries tag pattern extraction (candidate key)
+    # Scoped to 'timeseries' entity type only
+    # Extracts tag patterns like '23-LY-92529' from names like 'VAL_23-LY-92529_DensityBands_06sandUL:VALUE'
+    - name: "timeseries_tag_pattern_extraction"
+      method: "regex"
+      extraction_type: "candidate_key"
+      description: "Extract tag patterns like 23-LY-92529 from timeseries names (timeseries only)"
+      enabled: true
+      priority: 52
+      scope_filters:
+        entity_type: ["timeseries"]
+      parameters:
+        pattern: '(?:^|[_\\s])(?P<tag_pattern>\d+-[A-Z]{1,4}-\d{4,6})(?=[_\\s:]|$)'
+        reassemble_format: '{tag_pattern}'
+        capture_groups:
+          - name: "tag_pattern"
+        max_matches_per_field: 10
+        regex_options:
+          ignore_case: false
+          multiline: false
+          dotall: false
+          unicode: true
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Fixed Width: Extract tag patterns from timeseries names
+    # Extracts patterns like 23-LY-92529 from timeseries names starting after "VAL_" prefix
+    # Position 4-16 captures the tag pattern (after "VAL_" = 4 chars, pattern is 10-12 chars)
+    - name: "timeseries_tag_pattern_fixed_width"
+      method: "fixed width"
+      extraction_type: "candidate_key"
+      description: "Extract tag patterns using fixed width from timeseries names starting after VAL_ prefix (timeseries only)"
+      enabled: true
+      priority: 53
+      scope_filters:
+        entity_type: ["timeseries"]
+      parameters:
+        field_definitions:
+        - name: "tag_pattern"
+          start_position: 4
+          end_position: 16
+          trim: true
+          required: true
+          field_type: "string"
+        # Use line_pattern to only process lines that start with "VAL_"
+        line_pattern: "^VAL_"
+        skip_lines: 0
+        stop_on_empty: false
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Regex Example 5: File name extraction (candidate key)
+    # Scoped to 'file' entity type only
+    # Extracts the filename (without path, with extension) from the name field
+    - name: "file_name_extraction"
+      method: "regex"
+      extraction_type: "candidate_key"
+      description: "Extract file name (without path, with extension) as candidate key (files only)"
+      enabled: true
+      priority: 48
+      scope_filters:
+        entity_type: ["file"]
+      parameters:
+        pattern: '(?:^|[/\\\\])([^/\\\\]+)$'
+        max_matches_per_field: 1
+        regex_options:
+          ignore_case: false
+          multiline: false
+          dotall: false
+          unicode: true
+        early_termination: true
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Regex Example 5: Document reference extraction (document reference)
+    # Scoped to 'file' entity type only
+    - name: "pid_document_reference"
+      method: "regex"
+      extraction_type: "document_reference"
+      description: "Extract P&ID document references from description field (files only)"
+      enabled: true
+      priority: 70
+      scope_filters:
+        entity_type: ["file"]
+      parameters:
+        pattern: '\b(PID|P&ID|P_ID)[-_\s]?(\d{4,6})\b'
+        max_matches_per_field: 5
+        regex_options:
+          ignore_case: true
+          multiline: false
+          dotall: false
+          unicode: true
+        early_termination: false
+      source_fields:
+      - field_name: "description"
+        required: false
+        max_length: 1000
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "merge_all"
+
+    # =============================================================================
+    # FIXED WIDTH PARSING EXAMPLES
+    # =============================================================================
+
+    # Fixed Width Example 1: Standard fixed-width tag format
+    - name: "fixed_width_tags"
+      method: "fixed width"
+      extraction_type: "candidate_key"
+      description: "Extract tags from fixed-width formatted text (position-based parsing)"
+      enabled: true
+      priority: 45
+      parameters:
+        field_definitions:
+        - name: tag_id
+          start_position: 0
+          end_position: 11
+          trim: true
+          required: true
+        - name: description
+          start_position: 13
+          end_position: 59
+          trim: true
+          required: false
+        - name: equipment_type
+          start_position: 60
+          end_position: 68
+          trim: true
+          required: false
+        line_pattern: '^\s*[A-Z0-9]'
+        skip_lines: 2
+        stop_on_empty: true
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Fixed Width Example 2: Fixed-width with line numbers
+    - name: "fixed_width_with_line_number"
+      method: "fixed width"
+      extraction_type: "candidate_key"
+      description: "Extract tags from fixed-width format with line number prefix"
+      enabled: true
+      priority: 46
+      parameters:
+        field_definitions:
+        - name: line_number
+          start_position: 0
+          end_position: 5
+          trim: true
+          required: false
+        - name: tag_id
+          start_position: 7
+          end_position: 18
+          trim: true
+          required: true
+        - name: description
+          start_position: 20
+          end_position: 66
+          trim: true
+          required: false
+        line_pattern: '^\s*\d+\s+[A-Z0-9]'
+        skip_lines: 1
+        stop_on_empty: true
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # =============================================================================
+    # TOKEN REASSEMBLY EXAMPLES
+    # =============================================================================
+
+    # Token Reassembly Example 1: Hierarchical tag assembly
+    - name: "hierarchical_tag_assembly"
+      method: "token reassembly"
+      extraction_type: "candidate_key"
+      description: "Assemble hierarchical tags from tokenized components (site-unit-type-number)"
+      enabled: true
+      priority: 40
+      parameters:
+        tokenization:
+          token_patterns:
+          - name: site_code
+            pattern: '\b[A-Z]{2,4}\b'
+            position: 0
+            required: true
+            component_type: site
+          - name: unit_code
+            pattern: '\b\d{3}\b'
+            position: 1
+            required: true
+            component_type: unit
+          - name: equipment_type
+            pattern: '\b[A-Z]{1,2}\b'
+            position: 2
+            required: true
+            component_type: type
+          - name: sequence_number
+            pattern: '\b\d{2,4}\b'
+            position: 3
+            required: true
+            component_type: sequence
+          - name: variant
+            pattern: '\b[A-Z]\b'
+            position: 4
+            required: false
+            component_type: variant
+          separator_pattern: '-'
+          max_tokens: 6
+        assembly_rules:
+        - name: standard_assembly
+          format: '{site_code}-{unit_code}-{equipment_type}{sequence_number}{variant}'
+          conditions:
+            all_required_present: true
+          priority: 10
+        - name: no_variant_assembly
+          format: '{site_code}-{unit_code}-{equipment_type}{sequence_number}'
+          conditions:
+            variant_missing: true
+          priority: 20
+        validation:
+          min_tokens: 3
+          max_tokens: 5
+          validate_assembled: true
+          validation_pattern: '^[A-Z]{2,4}-\d{3}-[A-Z]{1,2}\d{2,4}[A-Z]?$'
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Token Reassembly Example 2: Timeseries token reassembly
+    - name: "timeseries_token_reassembly"
+      method: "token reassembly"
+      extraction_type: "candidate_key"
+      description: "Reassemble instrument tags from separated components"
+      enabled: true
+      priority: 41
+      parameters:
+        tokenization:
+          token_patterns:
+          - name: tag_prefix
+            pattern: '^(FIC|PIC|TIC|LIC|FCV)$'
+            position: 1
+            required: true
+            component_type: instrument_tag
+          - name: tag_number
+            pattern: '^\d{3,4}$'
+            position: 2
+            required: true
+            component_type: number
+          separator_pattern: '-'
+        assembly_rules:
+        - name: unnamed
+          format: '{tag_prefix}-{tag_number}'
+          conditions:
+            all_required_present: true
+        validation:
+          validate_assembled: true
+          validation_pattern: '^[A-Z]{2,4}-\d{4}$'
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # =============================================================================
+    # HEURISTIC EXTRACTION EXAMPLES
+    # =============================================================================
+
+    # Heuristic Example 1: Comprehensive heuristic tag extraction
+    - name: "heuristic_tag_extraction"
+      method: "heuristic"
+      extraction_type: "candidate_key"
+      description: "Use multiple heuristic strategies to extract tags from unstructured text"
+      enabled: true
+      priority: 35
+      parameters:
+        heuristic_strategies:
+        - strategy_id: positional_detection
+          method: positional_detection
+          weight: 0.3
+          rules:
+          - method: positional_detection
+            position: start_of_field
+            pattern: '^[A-Z0-9-_]{5,15}\b'
+            confidence_boost: 0.2
+          - method: positional_detection
+            position: after_keyword
+            pattern: '[A-Z0-9-_]{3,20}'
+            confidence_boost: 0.3
+          - method: positional_detection
+            position: in_parentheses
+            pattern: '\(([A-Z0-9-_]{3,15})\)'
+            confidence_boost: 0.15
+        - strategy_id: frequency_analysis
+          method: frequency_analysis
+          weight: 0.25
+          rules:
+          - method: frequency_analysis
+            analyze_corpus: true
+            min_frequency: 3
+            pattern_stability_threshold: 0.8
+            common_prefix_detection: true
+            common_suffix_detection: true
+        - strategy_id: context_inference
+          method: context_inference
+          weight: 0.25
+          rules:
+          - method: context_inference
+            surrounding_keywords:
+              positive:
+              - pump
+              - valve
+              - tank
+              - equipment
+              - asset
+              - instrument
+              negative:
+              - drawing
+              - document
+              - specification
+              - date
+              - revision
+            context_window: 20
+            keyword_proximity_bonus: 0.2
+            equipment_type_correlation:
+              enabled: true
+              type_indicators:
+                pump:
+                - centrifugal
+                - positive displacement
+                - feed
+                - transfer
+                valve:
+                - control
+                - isolation
+                - safety
+                - relief
+                instrument:
+                - indicator
+                - transmitter
+                - controller
+                - sensor
+        scoring:
+          aggregation_method: weighted_average
+          min_confidence: 0.6
+          normalize_scores: true
+        confidence_modifiers:
+        - condition: multiple_strategies_agree
+          operator: '>=2'
+          modifier: '+0.15'
+        - condition: field_name_indicates_tag
+          field_names:
+          - tag
+          - tagId
+          - equipmentTag
+          modifier: '+0.1'
+        - condition: extracted_value_length
+          range:
+          - 5
+          - 20
+          modifier: '+0.05'
+        validation:
+        - check: length_range
+          min_length: 3
+          max_length: 30
+        - check: character_composition
+          required_character_types:
+          - uppercase
+          - digit
+          max_consecutive_same_char: 3
+        - check: not_common_word
+          dictionary: english_common_words
+          max_dictionary_matches: 0
+        - check: format_consistency
+          compare_to_historical: true
+          consistency_threshold: 0.7
+        current_node_id:
+          space: cdf_cdm
+          external_id: CogniteAsset
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"
+
+    # Heuristic Example 2: Fallback heuristic extraction
+    - name: "heuristic_fallback_extraction"
+      method: "heuristic"
+      extraction_type: "candidate_key"
+      description: "Simpler heuristic fallback for cases where other methods fail"
+      enabled: true
+      priority: 100
+      parameters:
+        heuristic_strategies:
+        - strategy_id: positional_detection
+          method: positional_detection
+          weight: 0.4
+          rules:
+          - method: positional_detection
+            position: after_keyword
+            pattern: '[A-Z0-9-_]{3,20}'
+            confidence_boost: 0.3
+            keywords:
+            - ASSET-
+            - EQUIP-
+            - EQ-
+            - TAG-
+          - method: positional_detection
+            position: start_of_field
+            pattern: '^[A-Z0-9]{5,15}$'
+            confidence_boost: 0.2
+        - strategy_id: context_inference
+          method: context_inference
+          weight: 0.3
+          rules:
+          - method: context_inference
+            surrounding_keywords:
+              positive:
+              - equipment
+              - asset
+              - tag
+              - pump
+              - valve
+              - tank
+              negative:
+              - drawing
+              - document
+              - specification
+            context_window: 20
+            keyword_proximity_bonus: 0.15
+        scoring:
+          aggregation_method: weighted_average
+          min_confidence: 0.5
+          normalize_scores: true
+        confidence_modifiers:
+        - condition: extracted_value_length
+          range:
+          - 5
+          - 15
+          modifier: '+0.1'
+        validation:
+        - check: length_range
+          min_length: 3
+          max_length: 30
+        - check: character_composition
+          required_character_types:
+          - uppercase
+          - digit
+        early_termination: false
+      source_fields:
+      - field_name: "name"
+        required: true
+        max_length: 500
+        field_type: string
+        priority: 1
+        role: target
+        preprocessing:
+        - trim
+      field_selection_strategy: "first_match"

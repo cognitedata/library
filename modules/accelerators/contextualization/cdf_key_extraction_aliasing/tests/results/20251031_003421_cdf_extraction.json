@@ -1,0 +1,376 @@
+{
+  "results": [
+    {
+      "entity": {
+        "id": "ASSET-P-101",
+        "externalId": "ASSET-P-101",
+        "name": "P-101",
+        "description": "Main feed pump for Tank T-301, controlled by FIC-2001",
+        "tags": [
+          "equipment_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "ASSET-P-101",
+        "entity_type": "asset",
+        "candidate_keys": [],
+        "foreign_key_references": [
+          {
+            "value": "T-301",
+            "confidence": 0.9500000000000001,
+            "source_field": "description",
+            "method": "regex",
+            "rule_name": "tank_reference_extraction"
+          }
+        ],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2025-10-31T00:34:20.564175",
+          "total_candidate_keys": 0,
+          "total_foreign_keys": 1,
+          "total_document_references": 0,
+          "validation_config": {
+            "min_confidence": 0.5,
+            "max_keys_per_type": 1000,
+            "blacklist_keywords": [
+              "test",
+              "example",
+              "sample",
+              "dummy",
+              "temp",
+              "temporary",
+              "null",
+              "none",
+              "n/a",
+              "na",
+              "unknown",
+              "P"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "entity": {
+        "id": "ASSET-FCV-2001",
+        "externalId": "ASSET-FCV-2001",
+        "name": "FCV-2001",
+        "description": "Flow control valve in line feeding reactor R-401",
+        "tags": [
+          "equipment_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "ASSET-FCV-2001",
+        "entity_type": "asset",
+        "candidate_keys": [
+          {
+            "value": "FCV-2001",
+            "confidence": 1.0,
+            "source_field": "name",
+            "method": "regex",
+            "rule_name": "instrument_tag_extraction"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2025-10-31T00:34:20.564454",
+          "total_candidate_keys": 1,
+          "total_foreign_keys": 0,
+          "total_document_references": 0,
+          "validation_config": {
+            "min_confidence": 0.5,
+            "max_keys_per_type": 1000,
+            "blacklist_keywords": [
+              "test",
+              "example",
+              "sample",
+              "dummy",
+              "temp",
+              "temporary",
+              "null",
+              "none",
+              "n/a",
+              "na",
+              "unknown",
+              "P"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "entity": {
+        "id": "ASSET-T-301",
+        "externalId": "ASSET-T-301",
+        "name": "T-301",
+        "description": "Feed tank with level control LIC-3001",
+        "tags": [
+          "equipment_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "ASSET-T-301",
+        "entity_type": "asset",
+        "candidate_keys": [
+          {
+            "value": "T-301",
+            "confidence": 0.87,
+            "source_field": "heuristic",
+            "method": "heuristic",
+            "rule_name": "heuristic_tag_extraction"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2025-10-31T00:34:20.564568",
+          "total_candidate_keys": 1,
+          "total_foreign_keys": 0,
+          "total_document_references": 0,
+          "validation_config": {
+            "min_confidence": 0.5,
+            "max_keys_per_type": 1000,
+            "blacklist_keywords": [
+              "test",
+              "example",
+              "sample",
+              "dummy",
+              "temp",
+              "temporary",
+              "null",
+              "none",
+              "n/a",
+              "na",
+              "unknown",
+              "P"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "entity": {
+        "id": "ASSET-R-401",
+        "externalId": "ASSET-R-401",
+        "name": "R-401",
+        "description": "Reactor with temperature control TIC-4001 and pressure control PIC-4002",
+        "tags": [
+          "equipment_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "ASSET-R-401",
+        "entity_type": "asset",
+        "candidate_keys": [
+          {
+            "value": "R-401",
+            "confidence": 0.87,
+            "source_field": "heuristic",
+            "method": "heuristic",
+            "rule_name": "heuristic_tag_extraction"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2025-10-31T00:34:20.564673",
+          "total_candidate_keys": 1,
+          "total_foreign_keys": 0,
+          "total_document_references": 0,
+          "validation_config": {
+            "min_confidence": 0.5,
+            "max_keys_per_type": 1000,
+            "blacklist_keywords": [
+              "test",
+              "example",
+              "sample",
+              "dummy",
+              "temp",
+              "temporary",
+              "null",
+              "none",
+              "n/a",
+              "na",
+              "unknown",
+              "P"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "entity": {
+        "id": "ASSET-E-501",
+        "externalId": "ASSET-E-501",
+        "name": "E-501",
+        "description": "Heat exchanger for reactor cooling",
+        "tags": [
+          "equipment_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "ASSET-E-501",
+        "entity_type": "asset",
+        "candidate_keys": [
+          {
+            "value": "E-501",
+            "confidence": 0.87,
+            "source_field": "heuristic",
+            "method": "heuristic",
+            "rule_name": "heuristic_tag_extraction"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2025-10-31T00:34:20.564770",
+          "total_candidate_keys": 1,
+          "total_foreign_keys": 0,
+          "total_document_references": 0,
+          "validation_config": {
+            "min_confidence": 0.5,
+            "max_keys_per_type": 1000,
+            "blacklist_keywords": [
+              "test",
+              "example",
+              "sample",
+              "dummy",
+              "temp",
+              "temporary",
+              "null",
+              "none",
+              "n/a",
+              "na",
+              "unknown",
+              "P"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "entity": {
+        "id": "ASSET-FIC-1001",
+        "externalId": "ASSET-FIC-1001",
+        "name": "FIC-1001",
+        "description": "Flow Indicator Controller for process line P-101 feeding Tank T-201",
+        "tags": [
+          "instrument_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "ASSET-FIC-1001",
+        "entity_type": "asset",
+        "candidate_keys": [
+          {
+            "value": "FIC-1001",
+            "confidence": 1.0,
+            "source_field": "name",
+            "method": "regex",
+            "rule_name": "instrument_tag_extraction"
+          }
+        ],
+        "foreign_key_references": [
+          {
+            "value": "T-201",
+            "confidence": 0.9500000000000001,
+            "source_field": "description",
+            "method": "regex",
+            "rule_name": "tank_reference_extraction"
+          }
+        ],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2025-10-31T00:34:20.564939",
+          "total_candidate_keys": 1,
+          "total_foreign_keys": 1,
+          "total_document_references": 0,
+          "validation_config": {
+            "min_confidence": 0.5,
+            "max_keys_per_type": 1000,
+            "blacklist_keywords": [
+              "test",
+              "example",
+              "sample",
+              "dummy",
+              "temp",
+              "temporary",
+              "null",
+              "none",
+              "n/a",
+              "na",
+              "unknown",
+              "P"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "entity": {
+        "id": "ASSET-A-FIC-1001",
+        "externalId": "ASSET-A-FIC-1001",
+        "name": "A-FIC-1001",
+        "description": "Flow Indicator Controller for Unit A, process line A-P-101",
+        "tags": [
+          "instrument_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "ASSET-A-FIC-1001",
+        "entity_type": "asset",
+        "candidate_keys": [
+          {
+            "value": "A-FIC-1001",
+            "confidence": 0.82,
+            "source_field": "heuristic",
+            "method": "heuristic",
+            "rule_name": "heuristic_tag_extraction"
+          },
+          {
+            "value": "FIC-1001",
+            "confidence": 0.9500000000000001,
+            "source_field": "name",
+            "method": "regex",
+            "rule_name": "instrument_tag_extraction"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2025-10-31T00:34:20.565057",
+          "total_candidate_keys": 2,
+          "total_foreign_keys": 0,
+          "total_document_references": 0,
+          "validation_config": {
+            "min_confidence": 0.5,
+            "max_keys_per_type": 1000,
+            "blacklist_keywords": [
+              "test",
+              "example",
+              "sample",
+              "dummy",
+              "temp",
+              "temporary",
+              "null",
+              "none",
+              "n/a",
+              "na",
+              "unknown",
+              "P"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

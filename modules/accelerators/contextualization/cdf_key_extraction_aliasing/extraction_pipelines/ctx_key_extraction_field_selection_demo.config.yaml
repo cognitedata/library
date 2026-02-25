@@ -1,0 +1,157 @@
+parameters:
+  debug: true
+  verbose: true
+  run_all: true
+  overwrite: false
+  raw_db: "my_raw_database"
+  raw_table_state: "extraction_state_table"
+  raw_table_key: "extracted_keys_table"
+
+data:
+  field_selection_strategy: "merge_all"
+
+  source_views:
+    - view_external_id: "CogniteEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "description"
+        - "equipmentType"
+        - "manufacturer"
+        - "serialNumber"
+      filters:
+        - operator: "EQUALS"
+          target_property: "equipmentType"
+          values: "Pump"
+          negate: false
+
+    - view_external_id: "CogniteTimeSeries"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "timeseries"
+      batch_size: 50
+      include_properties:
+        - "name"
+        - "description"
+        - "unit"
+      filters:
+        - operator: "IN"
+          target_property: "type"
+          values: ["temperature", "pressure", "flow"]
+          negate: false
+
+    - view_external_id: "CogniteFile"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 75
+      include_properties:
+        - "name"
+        - "mimeType"
+      filters:
+        - operator: "EXISTS"
+          target_property: "uploaded"
+          negate: false
+
+    - view_external_id: "CogniteAsset"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "labels"
+      filters:
+        - operator: "CONTAINSALL"
+          target_property: "labels"
+          values: ["critical", "production"]
+          negate: true
+
+    - view_external_id: "CogniteDocument"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 25
+      include_properties:
+        - "name"
+        - "content"
+      filters:
+        - operator: "SEARCH"
+          target_property: "content"
+          values: "P&ID diagram"
+          negate: false
+
+  extraction_rules:
+    # JSON representation:
+    # [
+    #   {
+    #     "rule_id": "field_selection_demo",
+    #     "method": "regex",
+    #     "priority": 80,
+    #     "source_fields": [
+    #       {"field_name": "primaryTag", "field_type": "string", "required": false, "priority": 1, "role": "target", "max_length": 500, "preprocessing": ["trim"]},
+    #       {"field_name": "secondaryTag", "field_type": "string", "required": false, "priority": 2, "role": "target", "max_length": 500, "preprocessing": ["trim"]},
+    #       {"field_name": "alternateTag", "field_type": "string", "required": false, "priority": 3, "role": "target", "max_length": 500, "preprocessing": ["trim"]}
+    #     ],
+    #     "config": {
+    #       "name": "FIELD_SELECTION_DEMO",
+    #       "pattern": "[A-Z]+\\d+",
+    #       "regex_options": {"multiline": false, "dotall": false, "ignore_case": false, "unicode": true},
+    #       "validation_pattern": null,
+    #       "capture_groups": null,
+    #       "reassemble_format": null,
+    #       "max_matches_per_field": 5,
+    #       "early_termination": true
+    #     }
+    #   }
+    # ]
+    
+    - rule_id: "field_selection_demo"
+      method: "regex"
+      priority: 80
+      source_fields:
+        - field_name: "primaryTag"
+          field_type: "string"
+          required: false
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+        - field_name: "secondaryTag"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+        - field_name: "alternateTag"
+          field_type: "string"
+          required: false
+          priority: 3
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+      config:
+        name: "FIELD_SELECTION_DEMO"
+        pattern: "[A-Z]+\\d+"
+        regex_options:
+          multiline: false
+          dotall: false
+          ignore_case: false
+          unicode: true
+        validation_pattern: null
+        capture_groups: null
+        reassemble_format: null
+        max_matches_per_field: 5
+        early_termination: true

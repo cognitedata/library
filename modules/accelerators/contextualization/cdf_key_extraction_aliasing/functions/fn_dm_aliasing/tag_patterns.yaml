@@ -1,0 +1,261 @@
+# ISA Tag Patterns Configuration
+# This file contains industry-standard tag patterns used by the aliasing engine
+# for pattern recognition and alias generation.
+
+tag_patterns:
+    # Pump patterns
+    pump_patterns:
+      - name: "standard_pump"
+        pattern: '\\bP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Standard pump tags (P-101, P101A, P-2001)"
+        equipment_type: "PUMP"
+        examples: ["P-101", "P101A", "P-2001", "P_101", "P-10001"]
+        priority: 50
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "pump_with_service"
+        pattern: '\\b[A-Z]{2,4}P[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Pump with service designation (FWP-101, CWP-201)"
+        equipment_type: "PUMP"
+        examples: ["FWP-101", "CWP-201", "BWP-301A", "FWP-10001"]
+        priority: 60
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "centrifugal_pump"
+        pattern: '\\bCP[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Centrifugal pump tags"
+        equipment_type: "PUMP"
+        examples: ["CP-101", "CP101A", "CP-2001", "CP-10001"]
+        priority: 70
+        industry_standard: "ISA"
+        validation_rules: []
+
+    # Compressor patterns
+    compressor_patterns:
+      - name: "standard_compressor"
+        pattern: '\\bC[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Standard compressor tags (C-101, C101A)"
+        equipment_type: "COMPRESSOR"
+        examples: ["C-101", "C101A", "C-2001", "C-10001"]
+        priority: 50
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "compressor_with_type"
+        pattern: '\\b[A-Z]{2}C[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Compressor with type designation (AC-101, RC-201)"
+        equipment_type: "COMPRESSOR"
+        examples: ["AC-101", "RC-201", "CC-301A", "AC-10001"]
+        priority: 60
+        industry_standard: "ISA"
+        validation_rules: []
+
+    # Valve patterns
+    valve_patterns:
+      - name: "control_valve"
+        pattern: '\\b[A-Z]{2,3}V[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Control valve tags (FCV-101, PCV-201, TCV-301)"
+        equipment_type: "VALVE"
+        examples: ["FCV-101", "PCV-201", "TCV-301A", "LCV-401", "FCV-10001"]
+        priority: 40
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "manual_valve"
+        pattern: '\\bV[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Manual valve tags (V-101, V101A)"
+        equipment_type: "VALVE"
+        examples: ["V-101", "V101A", "V-2001", "V-10001"]
+        priority: 60
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "safety_valve"
+        pattern: '\\b[A-Z]{2,3}SV[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Safety valve tags (PSV-101, TSV-201)"
+        equipment_type: "VALVE"
+        examples: ["PSV-101", "TSV-201", "FSV-301A", "PSV-10001"]
+        priority: 30
+        industry_standard: "ISA"
+        validation_rules: []
+
+    # Tank and vessel patterns
+    tank_patterns:
+      - name: "standard_tank"
+        pattern: '\\bT[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Standard tank tags (T-101, T101A)"
+        equipment_type: "TANK"
+        examples: ["T-101", "T101A", "T-2001", "T-10001"]
+        priority: 50
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "vessel"
+        pattern: '\\bV[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Vessel tags (V-101, V101A)"
+        equipment_type: "VESSEL"
+        examples: ["V-101", "V101A", "V-2001", "V-10001"]
+        priority: 50
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "reactor"
+        pattern: '\\bR[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Reactor tags (R-101, R101A)"
+        equipment_type: "REACTOR"
+        examples: ["R-101", "R101A", "R-2001", "R-10001"]
+        priority: 50
+        industry_standard: "ISA"
+        validation_rules: []
+
+    # Heat exchanger patterns
+    heat_exchanger_patterns:
+      - name: "heat_exchanger"
+        pattern: '\\bE[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Heat exchanger tags (E-101, E101A)"
+        equipment_type: "HEAT_EXCHANGER"
+        examples: ["E-101", "E101A", "E-2001", "E-10001"]
+        priority: 50
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "heat_exchanger_with_type"
+        pattern: '\\b[A-Z]{2}E[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Heat exchanger with type (HE-101, CE-201)"
+        equipment_type: "HEAT_EXCHANGER"
+        examples: ["HE-101", "CE-201", "AE-301A", "HE-10001"]
+        priority: 60
+        industry_standard: "ISA"
+        validation_rules: []
+
+    # Instrument patterns
+    instrument_patterns:
+      - name: "flow_instrument"
+        pattern: '\\bF[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Flow instruments (FIC-101, FIT-201, FCV-301)"
+        equipment_type: "INSTRUMENT"
+        instrument_type: "FLOW"
+        examples: ["FIC-101", "FIT-201", "FCV-301A", "FE-401", "FIC-10001"]
+        priority: 40
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "pressure_instrument"
+        pattern: '\\bP[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Pressure instruments (PIC-101, PIT-201, PCV-301)"
+        equipment_type: "INSTRUMENT"
+        instrument_type: "PRESSURE"
+        examples: ["PIC-101", "PIT-201", "PCV-301A", "PE-401", "PIC-10001"]
+        priority: 40
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "temperature_instrument"
+        pattern: '\\bT[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Temperature instruments (TIC-101, TIT-201, TCV-301)"
+        equipment_type: "INSTRUMENT"
+        instrument_type: "TEMPERATURE"
+        examples: ["TIC-101", "TIT-201", "TCV-301A", "TE-401", "TIC-10001"]
+        priority: 40
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "level_instrument"
+        pattern: '\\bL[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Level instruments (LIC-101, LIT-201, LCV-301)"
+        equipment_type: "INSTRUMENT"
+        instrument_type: "LEVEL"
+        examples: ["LIC-101", "LIT-201", "LCV-301A", "LE-401", "LIC-10001"]
+        priority: 40
+        industry_standard: "ISA"
+        validation_rules: []
+
+      - name: "analytical_instrument"
+        pattern: '\\bA[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Analytical instruments (AIC-101, AIT-201, ACV-301)"
+        equipment_type: "INSTRUMENT"
+        instrument_type: "ANALYTICAL"
+        examples: ["AIC-101", "AIT-201", "ACV-301A", "AE-401", "AIC-10001"]
+        priority: 40
+        industry_standard: "ISA"
+        validation_rules: []
+
+    # Column patterns
+    column_patterns:
+      - name: "distillation_column"
+        pattern: '\\b[A-Z]?C[-_]?\\\d{1,6}[A-Z]?\\b'
+        description: "Distillation column tags (C-101, DC-201)"
+        equipment_type: "COLUMN"
+        examples: ["C-101", "DC-201", "AC-301A", "DC-10001"]
+        priority: 50
+        industry_standard: "ISA"
+        validation_rules: []
+
+    # Generic patterns
+    generic_patterns:
+      - name: "alphanumeric_tag"
+        pattern: '\\b[A-Z]{1,4}[-_]?\\\d{1,6}[A-Z0-9]?\\b'
+        description: "Generic alphanumeric tag pattern"
+        equipment_type: "GENERIC"
+        examples: ["ABC-1234", "XY-567A", "ABCD_9999", "ABC-10001"]
+        priority: 200
+        industry_standard: "Generic"
+        validation_rules: []
+
+# Document Patterns Library
+document_patterns:
+    - name: "pid_standard"
+      pattern: '\\bP&?ID[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Standard P&ID drawing numbers"
+      document_type: "PID"
+      examples: ["P&ID-2001", "PID_2001_A", "P&ID-123456"]
+      priority: 30
+      required_elements: ["drawing_number"]
+      optional_elements: ["revision", "sheet"]
+
+    - name: "pfd_standard"
+      pattern: '\\bPFD[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Process Flow Diagram numbers"
+      document_type: "PFD"
+      examples: ["PFD-2001", "PFD_2001_A", "PFD-123456"]
+      priority: 30
+      required_elements: ["drawing_number"]
+      optional_elements: []
+
+    - name: "iso_standard"
+      pattern: '\\bISO[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Isometric drawing numbers"
+      document_type: "ISO"
+      examples: ["ISO-2001", "ISO_2001_A", "ISO-123456"]
+      priority: 30
+      required_elements: ["drawing_number"]
+      optional_elements: []
+
+    - name: "specification_standard"
+      pattern: '\\bSPEC[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Specification document numbers"
+      document_type: "SPECIFICATION"
+      examples: ["SPEC-2001", "SPEC_2001_A", "SPEC-123456"]
+      priority: 40
+      required_elements: ["document_number"]
+      optional_elements: []
+
+    - name: "datasheet_standard"
+      pattern: '\\bDS[-_]?\\\d{4,6}[-_]?[A-Z0-9]*\\b'
+      description: "Equipment datasheet numbers"
+      document_type: "DATASHEET"
+      examples: ["DS-2001", "DS_2001_A", "DS-123456"]
+      priority: 40
+      required_elements: ["document_number"]
+      optional_elements: []
+
+    - name: "drawing_with_revision"
+      pattern: '\\b[A-Z]{2,4}[-_]?\\\d{4,8}[-_]?Rev[-_]?[A-Z0-9]+\\b'
+      description: "Drawing numbers with revision"
+      document_type: "GENERIC"
+      examples: ["DRW-2001-Rev-A", "DRW_2001_Rev_2", "DWG-123456-Rev-B"]
+      priority: 50
+      required_elements: ["drawing_number", "revision"]
+      optional_elements: []

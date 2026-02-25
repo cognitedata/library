@@ -1,0 +1,204 @@
+{
+  "timestamp": "2025-11-19T09:00:25.969602",
+  "summary": {
+    "test_type": "Key Extraction",
+    "timestamp": "2025-11-19T09:00:25.969212",
+    "exit_code": 0,
+    "tests_run": 47,
+    "tests_passed": 47,
+    "tests_failed": 0,
+    "tests_errors": 0,
+    "success_rate": 100.0
+  },
+  "tests": [
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestRegexExtraction::test_contains_instrument_name",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestRegexExtraction::test_regex_extraction",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestRegexExtraction::test_unit_prefix_extraction",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestFixedWidthExtraction::test_fixed_width_extraction",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestFixedWidthExtraction::test_fixed_width_position_accuracy",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestTokenReassemblyExtraction::test_token_reassembly_extraction",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestTokenReassemblyExtraction::test_token_reassembly_format",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_confidence_modifiers",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_context_inference_strategy",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_frequency_analysis_strategy",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_multiple_strategy_combination",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_positional_detection_after_keyword",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_positional_detection_in_parentheses",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_positional_detection_keyword_variants",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_engine_initialization",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_extract_single_asset",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_extract_with_description",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_extraction_with_instrument_tags",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_no_extraction_when_rule_disabled",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionWithCDFAssets::test_extract_from_cdf_assets",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionValidation::test_confidence_threshold_filtering",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionValidation::test_max_keys_per_type_limitation",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionEdgeCases::test_empty_description",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionEdgeCases::test_missing_required_field",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionEdgeCases::test_special_characters",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestCompositeFieldExtraction::test_concatenate_strategy",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestCompositeFieldExtraction::test_token_reassembly_strategy",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_fixed_width_extraction_handler",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_heuristic_handler",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_regex_extraction_handler",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_token_reassembly_handler",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionRuleTypes::test_candidate_key_extraction",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionRuleTypes::test_document_reference_extraction",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionRuleTypes::test_foreign_key_reference_extraction",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestConfidenceCalculation::test_confidence_filtering",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestConfidenceCalculation::test_high_confidence_match",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestConfidenceCalculation::test_low_confidence_match",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_multiple_source_fields",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_optional_field_handling",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_required_field_missing",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_required_field_present",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestRulePriorityAndOrdering::test_disabled_rules",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestRulePriorityAndOrdering::test_rule_priority_ordering",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_alias_length_validation",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_allowed_characters_validation",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_maximum_keys_per_type",
+      "status": "passed"
+    },
+    {
+      "name": "modules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_minimum_confidence_filtering",
+      "status": "passed"
+    }
+  ],
+  "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.12.9, pytest-7.4.4, pluggy-1.6.0 -- /Users/darren.downtain@cognitedata.com/.poetry-cache/virtualenvs/key-extraction-aliasing-workflow-TLa7YSxA-py3.12/bin/python\ncachedir: .pytest_cache\nrootdir: /Users/darren.downtain@cognitedata.com/Documents/GitHub/key_extraction_aliasing\nconfigfile: pytest.ini\nplugins: mock-3.15.1, anyio-4.11.0, cov-4.1.0, asyncio-0.21.2\nasyncio: mode=Mode.STRICT\ncollecting ... collected 47 items\n\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestRegexExtraction::test_contains_instrument_name PASSED [  2%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestRegexExtraction::test_regex_extraction PASSED [  4%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestRegexExtraction::test_unit_prefix_extraction PASSED [  6%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestFixedWidthExtraction::test_fixed_width_extraction PASSED [  8%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestFixedWidthExtraction::test_fixed_width_position_accuracy PASSED [ 10%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestTokenReassemblyExtraction::test_token_reassembly_extraction PASSED [ 12%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestTokenReassemblyExtraction::test_token_reassembly_format PASSED [ 14%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_confidence_modifiers PASSED [ 17%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_context_inference_strategy PASSED [ 19%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_frequency_analysis_strategy PASSED [ 21%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_multiple_strategy_combination PASSED [ 23%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_positional_detection_after_keyword PASSED [ 25%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_positional_detection_in_parentheses PASSED [ 27%]\nmodules/contextualization/key_extraction_aliasing/tests/integration/key_extraction/test_key_extraction_scenarios.py::TestHeuristicExtraction::test_positional_detection_keyword_variants PASSED [ 29%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_engine_initialization PASSED [ 31%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_extract_single_asset PASSED [ 34%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_extract_with_description PASSED [ 36%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_extraction_with_instrument_tags PASSED [ 38%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionEngineBasics::test_no_extraction_when_rule_disabled PASSED [ 40%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestKeyExtractionWithCDFAssets::test_extract_from_cdf_assets PASSED [ 42%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionValidation::test_confidence_threshold_filtering PASSED [ 44%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionValidation::test_max_keys_per_type_limitation PASSED [ 46%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionEdgeCases::test_empty_description PASSED [ 48%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionEdgeCases::test_missing_required_field PASSED [ 51%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestExtractionEdgeCases::test_special_characters PASSED [ 53%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestCompositeFieldExtraction::test_concatenate_strategy PASSED [ 55%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_engine.py::TestCompositeFieldExtraction::test_token_reassembly_strategy PASSED [ 57%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_fixed_width_extraction_handler PASSED [ 59%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_heuristic_handler PASSED [ 61%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_regex_extraction_handler PASSED [ 63%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionMethods::test_token_reassembly_handler PASSED [ 65%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionRuleTypes::test_candidate_key_extraction PASSED [ 68%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionRuleTypes::test_document_reference_extraction PASSED [ 70%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestExtractionRuleTypes::test_foreign_key_reference_extraction PASSED [ 72%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestConfidenceCalculation::test_confidence_filtering PASSED [ 74%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestConfidenceCalculation::test_high_confidence_match PASSED [ 76%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestConfidenceCalculation::test_low_confidence_match PASSED [ 78%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_multiple_source_fields PASSED [ 80%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_optional_field_handling PASSED [ 82%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_required_field_missing PASSED [ 85%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestSourceFieldHandling::test_required_field_present PASSED [ 87%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestRulePriorityAndOrdering::test_disabled_rules PASSED [ 89%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestRulePriorityAndOrdering::test_rule_priority_ordering PASSED [ 91%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_alias_length_validation PASSED [ 93%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_allowed_characters_validation PASSED [ 95%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_maximum_keys_per_type PASSED [ 97%]\nmodules/contextualization/key_extraction_aliasing/tests/unit/key_extraction/test_extraction_handlers.py::TestValidationAndFiltering::test_minimum_confidence_filtering PASSED [100%]\n\n============================== 47 passed in 0.05s ==============================\n"
+}

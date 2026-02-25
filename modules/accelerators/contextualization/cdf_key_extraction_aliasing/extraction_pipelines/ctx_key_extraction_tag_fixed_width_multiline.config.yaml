@@ -1,0 +1,171 @@
+parameters:
+  debug: true
+  verbose: true
+  run_all: true
+  overwrite: false
+  raw_db: "my_raw_database"
+  raw_table_state: "extraction_state_table"
+  raw_table_key: "extracted_keys_table"
+
+data:
+  field_selection_strategy: "merge_all"
+
+  source_views:
+    - view_external_id: "CogniteEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "description"
+        - "equipmentType"
+        - "manufacturer"
+        - "serialNumber"
+      filters:
+        - operator: "EQUALS"
+          target_property: "equipmentType"
+          values: "Pump"
+          negate: false
+
+    - view_external_id: "CogniteTimeSeries"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "timeseries"
+      batch_size: 50
+      include_properties:
+        - "name"
+        - "description"
+        - "unit"
+      filters:
+        - operator: "IN"
+          target_property: "type"
+          values: ["temperature", "pressure", "flow"]
+          negate: false
+
+    - view_external_id: "CogniteFile"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 75
+      include_properties:
+        - "name"
+        - "mimeType"
+      filters:
+        - operator: "EXISTS"
+          target_property: "uploaded"
+          negate: false
+
+    - view_external_id: "CogniteAsset"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "labels"
+      filters:
+        - operator: "CONTAINSALL"
+          target_property: "labels"
+          values: ["critical", "production"]
+          negate: true
+
+    - view_external_id: "CogniteDocument"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 25
+      include_properties:
+        - "name"
+        - "content"
+      filters:
+        - operator: "SEARCH"
+          target_property: "content"
+          values: "P&ID diagram"
+          negate: false
+
+  extraction_rules:
+    # JSON representation:
+    # [
+    #   {
+    #     "rule_id": "tag_fixed_width_multiline",
+    #     "method": "fixed width",
+    #     "priority": 35,
+    #     "source_fields": [
+    #       {
+    #         "field_name": "multilineData",
+    #         "field_type": "string",
+    #         "required": true,
+    #         "priority": 1,
+    #         "role": "target",
+    #         "max_length": 5000,
+    #         "preprocessing": []
+    #       }
+    #     ],
+    #     "config": {
+    #       "name": "TAG_FIXED_WIDTH_MULTILINE",
+    #       "field_definitions": [
+    #         {"name": "site_code", "start_position": 0, "end_position": 2, "trim": true, "required": true, "line": 0},
+    #         {"name": "unit_number", "start_position": 3, "end_position": 6, "trim": true, "required": true, "line": 0},
+    #         {"name": "equipment_tag", "start_position": 0, "end_position": 8, "trim": true, "required": true, "line": 1},
+    #         {"name": "description", "start_position": 10, "end_position": 50, "trim": true, "required": false, "line": 2}
+    #       ],
+    #       "line_pattern": null,
+    #       "skip_lines": 2,
+    #       "stop_on_empty": true,
+    #       "record_length": 3,
+    #       "record_delimiter": "---",
+    #       "encoding": "latin-1"
+    #     }
+    #   }
+    # ]
+    
+    - rule_id: "tag_fixed_width_multiline"
+      method: "fixed width"
+      priority: 35
+      source_fields:
+        - field_name: "multilineData"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 5000
+          preprocessing: []
+      config:
+        name: "TAG_FIXED_WIDTH_MULTILINE"
+        field_definitions:
+          - name: "site_code"
+            start_position: 0
+            end_position: 2
+            trim: true
+            required: true
+            line: 0
+          - name: "unit_number"
+            start_position: 3
+            end_position: 6
+            trim: true
+            required: true
+            line: 0
+          - name: "equipment_tag"
+            start_position: 0
+            end_position: 8
+            trim: true
+            required: true
+            line: 1
+          - name: "description"
+            start_position: 10
+            end_position: 50
+            trim: true
+            required: false
+            line: 2
+        line_pattern: null
+        skip_lines: 2
+        stop_on_empty: true
+        record_length: 3
+        record_delimiter: "---"
+        encoding: "latin-1"

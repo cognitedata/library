@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-11-19T08:59:28.476559",
+  "summary": {
+    "test_type": "Key Extraction",
+    "timestamp": "2025-11-19T08:59:28.476113",
+    "exit_code": 4,
+    "tests_run": 0,
+    "tests_passed": 0,
+    "tests_failed": 0,
+    "tests_errors": 0,
+    "success_rate": 0
+  },
+  "tests": [],
+  "output": "============================= test session starts ==============================\nplatform darwin -- Python 3.12.9, pytest-7.4.4, pluggy-1.6.0 -- /Users/darren.downtain@cognitedata.com/.poetry-cache/virtualenvs/key-extraction-aliasing-workflow-TLa7YSxA-py3.12/bin/python\ncachedir: .pytest_cache\nrootdir: /Users/darren.downtain@cognitedata.com/Documents/GitHub/key_extraction_aliasing\nconfigfile: pytest.ini\nplugins: mock-3.15.1, anyio-4.11.0, cov-4.1.0, asyncio-0.21.2\nasyncio: mode=Mode.STRICT\ncollecting ... collected 0 items\n\n============================ no tests ran in 0.00s =============================\n"
+}

@@ -1,0 +1,247 @@
+parameters:
+  debug: true
+  verbose: true
+  run_all: true
+  overwrite: false
+  raw_db: "my_raw_database"
+  raw_table_state: "extraction_state_table"
+  raw_table_key: "extracted_keys_table"
+
+data:
+  field_selection_strategy: "merge_all"
+
+  source_views:
+    - view_external_id: "CogniteEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "description"
+        - "equipmentType"
+        - "manufacturer"
+        - "serialNumber"
+      filters:
+        - operator: "EQUALS"
+          target_property: "equipmentType"
+          values: "Pump"
+          negate: false
+
+    - view_external_id: "CogniteTimeSeries"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "timeseries"
+      batch_size: 50
+      include_properties:
+        - "name"
+        - "description"
+        - "unit"
+      filters:
+        - operator: "IN"
+          target_property: "type"
+          values: ["temperature", "pressure", "flow"]
+          negate: false
+
+    - view_external_id: "CogniteFile"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 75
+      include_properties:
+        - "name"
+        - "mimeType"
+      filters:
+        - operator: "EXISTS"
+          target_property: "uploaded"
+          negate: false
+
+    - view_external_id: "CogniteAsset"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "labels"
+      filters:
+        - operator: "CONTAINSALL"
+          target_property: "labels"
+          values: ["critical", "production"]
+          negate: true
+
+    - view_external_id: "CogniteDocument"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 25
+      include_properties:
+        - "name"
+        - "content"
+      filters:
+        - operator: "SEARCH"
+          target_property: "content"
+          values: "P&ID diagram"
+          negate: false
+
+  extraction_rules:
+    # JSON representation:
+    # [
+    #   {
+    #     "rule_id": "tag_heuristic_learning",
+    #     "method": "heuristic",
+    #     "priority": 55,
+    #     "source_fields": [
+    #       {
+    #         "field_name": "name",
+    #         "field_type": "string",
+    #         "required": true,
+    #         "priority": 1,
+    #         "role": "target",
+    #         "max_length": 500,
+    #         "preprocessing": ["trim", "uppercase"]
+    #       },
+    #       {
+    #         "field_name": "description",
+    #         "field_type": "string",
+    #         "required": false,
+    #         "priority": 2,
+    #         "role": "context",
+    #         "max_length": 1000,
+    #         "preprocessing": ["trim"]
+    #       }
+    #     ],
+    #     "config": {
+    #       "name": "TAG_HEURISTIC_LEARNING",
+    #       "current_node_id": {
+    #         "space": "sp_my_instance_space",
+    #         "external_id": "learning_node_456"
+    #       },
+    #       "heuristic_strategies": [
+    #         {
+    #           "strategy_id": "learn_from_examples",
+    #           "weight": 0.5,
+    #           "method": "example_based_learning",
+    #           "rules": [
+    #             {
+    #               "learning_mode": "similarity",
+    #               "source_db": "validated_tags_db",
+    #               "source_tbl": "equipment_tags",
+    #               "similarity_threshold": 0.85,
+    #               "feature_extraction": {
+    #                 "use_character_ngrams": true,
+    #                 "ngram_sizes": [2, 3, 4],
+    #                 "use_token_patterns": true,
+    #                 "use_position_features": true,
+    #                 "use_length_features": true
+    #               }
+    #             }
+    #           ]
+    #         },
+    #         {
+    #           "strategy_id": "pattern_frequency",
+    #           "weight": 0.5,
+    #           "method": "frequency_analysis",
+    #           "rules": [
+    #             {
+    #               "analyze_corpus": true,
+    #               "min_frequency": 5,
+    #               "pattern_stability_threshold": 0.8,
+    #               "common_prefix_detection": true,
+    #               "common_suffix_detection": true
+    #             }
+    #           ]
+    #         }
+    #       ],
+    #       "scoring": {
+    #         "aggregation_method": "consensus",
+    #         "min_confidence": 0.75,
+    #         "normalize_scores": true
+    #       },
+    #       "confidence_modifiers": [
+    #         {"condition": "multiple_strategies_agree", "operator": ">=2", "modifier": "+0.2"},
+    #         {"condition": "extracted_value_in_known_catalog", "catalog_source": "validated_tags", "modifier": "+0.25"}
+    #       ],
+    #       "validation": [
+    #         {"type": "length_check", "min_length": 3, "max_length": 20},
+    #         {"type": "pattern_match", "pattern": "^[A-Z0-9-_]+$"},
+    #         {"type": "similarity_check", "min_similarity_to_examples": 0.7}
+    #       ]
+    #     }
+    #   }
+    # ]
+
+    - rule_id: "tag_heuristic_learning"
+      method: "heuristic"
+      priority: 55
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+            - "uppercase"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 1000
+          preprocessing:
+            - "trim"
+      config:
+        name: "TAG_HEURISTIC_LEARNING"
+        current_node_id:
+          space: "sp_my_instance_space"
+          external_id: "learning_node_456"
+        heuristic_strategies:
+          - strategy_id: "learn_from_examples"
+            weight: 0.5
+            method: "example_based_learning"
+            rules:
+              - learning_mode: "similarity"
+                source_db: "validated_tags_db"
+                source_tbl: "equipment_tags"
+                similarity_threshold: 0.85
+                feature_extraction:
+                  use_character_ngrams: true
+                  ngram_sizes: [2, 3, 4]
+                  use_token_patterns: true
+                  use_position_features: true
+                  use_length_features: true
+          - strategy_id: "pattern_frequency"
+            weight: 0.5
+            method: "frequency_analysis"
+            rules:
+              - analyze_corpus: true
+                min_frequency: 5
+                pattern_stability_threshold: 0.8
+                common_prefix_detection: true
+                common_suffix_detection: true
+        scoring:
+          aggregation_method: "consensus"
+          min_confidence: 0.75
+          normalize_scores: true
+        confidence_modifiers:
+          - condition: "multiple_strategies_agree"
+            operator: ">=2"
+            modifier: "+0.2"
+          - condition: "extracted_value_in_known_catalog"
+            catalog_source: "validated_tags"
+            modifier: "+0.25"
+        validation:
+          - type: "length_check"
+            min_length: 3
+            max_length: 20
+          - type: "pattern_match"
+            pattern: "^[A-Z0-9-_]+$"
+          - type: "similarity_check"
+            min_similarity_to_examples: 0.7

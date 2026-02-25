@@ -1,0 +1,244 @@
+parameters:
+  debug: true
+  verbose: true
+  run_all: true
+  overwrite: false
+  raw_db: "my_raw_database"
+  raw_table_state: "extraction_state_table"
+  raw_table_key: "extracted_keys_table"
+
+data:
+  field_selection_strategy: "merge_all"
+
+  source_views:
+    - view_external_id: "CogniteEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "description"
+        - "equipmentType"
+        - "manufacturer"
+        - "serialNumber"
+      filters:
+        - operator: "EQUALS"
+          target_property: "equipmentType"
+          values: "Pump"
+          negate: false
+
+    - view_external_id: "CogniteTimeSeries"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "timeseries"
+      batch_size: 50
+      include_properties:
+        - "name"
+        - "description"
+        - "unit"
+      filters:
+        - operator: "IN"
+          target_property: "type"
+          values: ["temperature", "pressure", "flow"]
+          negate: false
+
+    - view_external_id: "CogniteFile"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 75
+      include_properties:
+        - "name"
+        - "mimeType"
+      filters:
+        - operator: "EXISTS"
+          target_property: "uploaded"
+          negate: false
+
+    - view_external_id: "CogniteAsset"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "labels"
+      filters:
+        - operator: "CONTAINSALL"
+          target_property: "labels"
+          values: ["critical", "production"]
+          negate: true
+
+    - view_external_id: "CogniteDocument"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 25
+      include_properties:
+        - "name"
+        - "content"
+      filters:
+        - operator: "SEARCH"
+          target_property: "content"
+          values: "P&ID diagram"
+          negate: false
+
+  extraction_rules:
+    # JSON representation:
+    # [
+    #   {
+    #     "rule_id": "tag_token_reassembly",
+    #     "method": "token reassembly",
+    #     "priority": 25,
+    #     "source_fields": [
+    #       {
+    #         "field_name": "name",
+    #         "field_type": "string",
+    #         "required": true,
+    #         "priority": 1,
+    #         "role": "target",
+    #         "max_length": 500,
+    #         "preprocessing": ["trim", "uppercase"]
+    #       },
+    #       {
+    #         "field_name": "description",
+    #         "field_type": "string",
+    #         "required": false,
+    #         "priority": 2,
+    #         "role": "context",
+    #         "max_length": 1000,
+    #         "preprocessing": ["trim"]
+    #       }
+    #     ],
+    #     "config": {
+    #       "tokenization": {
+    #         "token_patterns": [
+    #           {"name": "site_code", "pattern": "[A-Z]{2,3}", "position": 0, "required": true, "component_type": "location"},
+    #           {"name": "unit_number", "pattern": "\\d{2,4}", "position": 1, "required": true, "component_type": "identifier"},
+    #           {"name": "equipment_type", "pattern": "[A-Z]{1}", "position": 2, "required": true, "component_type": "type"},
+    #           {"name": "equipment_number", "pattern": "\\d{2,4}", "position": 3, "required": true, "component_type": "identifier"},
+    #           {"name": "suffix", "pattern": "[A-Z]{1}", "position": 4, "required": false, "component_type": "modifier"}
+    #         ],
+    #         "separator_patterns": ["-", "_", " ", "/"],
+    #         "max_tokens": 10,
+    #         "min_tokens": 2,
+    #         "cross_field_extraction_paths": ["name", "description"]
+    #       },
+    #       "assembly_rules": [
+    #         {
+    #           "name": "FULL_TAG_WITH_SUFFIX",
+    #           "format": "{site_code}-{unit_number}-{equipment_type}{equipment_number}{suffix}",
+    #           "priority": 10,
+    #           "conditions": {"all_required_present": true, "suffix_present": true}
+    #         },
+    #         {
+    #           "name": "FULL_TAG_NO_SUFFIX",
+    #           "format": "{site_code}-{unit_number}-{equipment_type}{equipment_number}",
+    #           "priority": 20,
+    #           "conditions": {"all_required_present": true, "suffix_missing": true}
+    #         },
+    #         {
+    #           "name": "SIMPLE_TAG",
+    #           "format": "{equipment_type}{equipment_number}",
+    #           "priority": 30,
+    #           "conditions": {"min_token_count": 2}
+    #         }
+    #       ],
+    #       "validation": {
+    #         "min_tokens": 2,
+    #         "max_tokens": 6,
+    #         "validate_assembled": true,
+    #         "validation_pattern": "^[A-Z]{2,3}-\\d{2,4}-[A-Z]\\d{2,4}[A-Z]?$"
+    #       }
+    #     }
+    #   }
+    # ]
+    
+    - rule_id: "tag_token_reassembly"
+      method: "token reassembly"
+      priority: 25
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+            - "uppercase"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 1000
+          preprocessing:
+            - "trim"
+      config:
+        tokenization:
+          token_patterns:
+            - name: "site_code"
+              pattern: "[A-Z]{2,3}"
+              position: 0
+              required: true
+              component_type: "location"
+            - name: "unit_number"
+              pattern: "\\d{2,4}"
+              position: 1
+              required: true
+              component_type: "identifier"
+            - name: "equipment_type"
+              pattern: "[A-Z]{1}"
+              position: 2
+              required: true
+              component_type: "type"
+            - name: "equipment_number"
+              pattern: "\\d{2,4}"
+              position: 3
+              required: true
+              component_type: "identifier"
+            - name: "suffix"
+              pattern: "[A-Z]{1}"
+              position: 4
+              required: false
+              component_type: "modifier"
+          separator_patterns:
+            - "-"
+            - "_"
+            - " "
+            - "/"
+          max_tokens: 10
+          min_tokens: 2
+          cross_field_extraction_paths:
+            - "name"
+            - "description"
+        assembly_rules:
+          - name: "FULL_TAG_WITH_SUFFIX"
+            format: "{site_code}-{unit_number}-{equipment_type}{equipment_number}{suffix}"
+            priority: 10
+            conditions:
+              all_required_present: true
+              suffix_present: true
+          - name: "FULL_TAG_NO_SUFFIX"
+            format: "{site_code}-{unit_number}-{equipment_type}{equipment_number}"
+            priority: 20
+            conditions:
+              all_required_present: true
+              suffix_missing: true
+          - name: "SIMPLE_TAG"
+            format: "{equipment_type}{equipment_number}"
+            priority: 30
+            conditions:
+              min_token_count: 2
+        validation:
+          min_tokens: 2
+          max_tokens: 6
+          validate_assembled: true
+          validation_pattern: "^[A-Z]{2,3}-\\d{2,4}-[A-Z]\\d{2,4}[A-Z]?$"

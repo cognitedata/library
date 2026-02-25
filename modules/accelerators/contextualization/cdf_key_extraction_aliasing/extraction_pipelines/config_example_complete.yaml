@@ -1,0 +1,871 @@
+# ============================================================================
+# COMPLETE CONFIGURATION EXAMPLE - ALL FIELDS POPULATED
+# This YAML demonstrates every possible field in the Config class
+# ============================================================================
+
+# ====================
+# PARAMETERS SECTION
+# ====================
+parameters:
+  debug: true
+  verbose: true
+  run_all: true
+  overwrite: false
+  raw_db: "my_raw_database"
+  raw_table_state: "extraction_state_table"
+  raw_table_key: "extracted_keys_table"
+
+# ====================
+# DATA SECTION
+# ====================
+data:
+  # Field selection strategy - how to handle multiple source fields
+  field_selection_strategy: "merge_all"  # Options: first_match, highest_priority, merge_all, highest_confidence
+
+  # ====================
+  # SOURCE VIEWS
+  # ====================
+  source_views:
+    # Example 1: Asset view with EQUALS filter
+    - view_external_id: "CogniteEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"  # Options: asset, file, timeseries
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "description"
+        - "equipmentType"
+        - "manufacturer"
+        - "serialNumber"
+      filters:
+        - operator: "EQUALS"  # Options: EQUALS, EXISTS, CONTAINSALL, IN, SEARCH
+          target_property: "equipmentType"
+          values: "Pump"
+          negate: false
+
+    # Example 2: Timeseries view with IN filter
+    - view_external_id: "CogniteTimeSeries"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "timeseries"
+      batch_size: 50
+      include_properties:
+        - "name"
+        - "description"
+        - "unit"
+      filters:
+        - operator: "IN"
+          target_property: "type"
+          values: ["temperature", "pressure", "flow"]
+          negate: false
+
+    # Example 3: File view with EXISTS filter
+    - view_external_id: "CogniteFile"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 75
+      include_properties:
+        - "name"
+        - "mimeType"
+      filters:
+        - operator: "EXISTS"
+          target_property: "uploaded"
+          negate: false
+
+    # Example 4: View with CONTAINSALL filter (negated)
+    - view_external_id: "CogniteAsset"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "labels"
+      filters:
+        - operator: "CONTAINSALL"
+          target_property: "labels"
+          values: ["critical", "production"]
+          negate: true  # Exclude items with these labels
+
+    # Example 5: View with SEARCH filter
+    - view_external_id: "CogniteDocument"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 25
+      include_properties:
+        - "name"
+        - "content"
+      filters:
+        - operator: "SEARCH"
+          target_property: "content"
+          values: "P&ID diagram"
+          negate: false
+
+  # ====================
+  # EXTRACTION RULES
+  # ====================
+  extraction_rules:
+    # ========================================
+    # RULE 1: REGEX METHOD - Simple pattern
+    # ========================================
+    - rule_id: "pump_tag_regex_simple"
+      method: "regex"
+      priority: 50
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+            - "uppercase"
+      parameters:
+        name: "PUMP_TAG_SIMPLE"
+        pattern: "\\bP[-_]?\\d{2,4}[A-Z]?\\b"
+        regex_options:
+          multiline: false
+          dotall: false
+          ignore_case: true
+          unicode: true
+        validation_pattern: "^P\\d{2,4}[A-Z]?$"
+        max_matches_per_field: 10
+        early_termination: false
+
+    # ========================================
+    # RULE 2: REGEX METHOD - With capture groups
+    # ========================================
+    - rule_id: "instrument_tag_regex_capture"
+      method: "regex"
+      priority: 30
+      source_fields:
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 1
+          role: "target"
+          separator: null
+          max_length: 1000
+          preprocessing:
+            - "trim"
+        - field_name: "name"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 500
+          preprocessing: []
+      parameters:
+        name: "INSTRUMENT_TAG_CAPTURE"
+        pattern: "(?P<type>[FPTLA][A-Z]{1,2})[-_]?(?P<number>\\d{3,4})(?P<suffix>[A-Z])?"
+        regex_options:
+          multiline: true
+          dotall: false
+          ignore_case: false
+          unicode: true
+        validation_pattern: "^[FPTLA][A-Z]{1,2}[-_]?\\d{3,4}[A-Z]?$"
+        capture_groups:
+          - name: "type"
+            description: "Instrument type code"
+          - name: "number"
+            description: "Instrument number"
+          - name: "suffix"
+            description: "Optional suffix"
+        reassemble_format: "{type}-{number}{suffix}"
+        max_matches_per_field: 50
+        early_termination: false
+
+    # ========================================
+    # RULE 3: FIXED WIDTH METHOD - Single line
+    # ========================================
+    - rule_id: "tag_fixed_width_single"
+      method: "fixed width"
+      priority: 40
+      source_fields:
+        - field_name: "rawData"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 2000
+          preprocessing:
+            - "trim"
+      parameters:
+        name: "TAG_FIXED_WIDTH_SINGLE"
+        field_definitions:
+          - name: "equipment_type"
+            start_position: 0
+            end_position: 1
+            trim: true
+            required: true
+            line: null
+          - name: "equipment_number"
+            start_position: 1
+            end_position: 4
+            trim: true
+            required: true
+            line: null
+          - name: "suffix"
+            start_position: 4
+            end_position: 5
+            trim: true
+            required: false
+            line: null
+        line_pattern: "^\\s*[A-Z0-9]"
+        skip_lines: 0
+        stop_on_empty: false
+        record_length: null
+        record_delimiter: null
+        encoding: "utf-8"  # Options: utf-8, latin-1, ascii
+
+    # ========================================
+    # RULE 4: FIXED WIDTH METHOD - Multi-line
+    # ========================================
+    - rule_id: "tag_fixed_width_multiline"
+      method: "fixed width"
+      priority: 35
+      source_fields:
+        - field_name: "multilineData"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 5000
+          preprocessing: []
+      parameters:
+        name: "TAG_FIXED_WIDTH_MULTILINE"
+        field_definitions:
+          - name: "site_code"
+            start_position: 0
+            end_position: 2
+            trim: true
+            required: true
+            line: 0  # First line
+          - name: "unit_number"
+            start_position: 3
+            end_position: 6
+            trim: true
+            required: true
+            line: 0  # First line
+          - name: "equipment_tag"
+            start_position: 0
+            end_position: 8
+            trim: true
+            required: true
+            line: 1  # Second line
+          - name: "description"
+            start_position: 10
+            end_position: 50
+            trim: true
+            required: false
+            line: 2  # Third line
+        line_pattern: null
+        skip_lines: 2
+        stop_on_empty: true
+        record_length: 3  # 3 lines per record
+        record_delimiter: "---"
+        encoding: "latin-1"
+
+    # ========================================
+    # RULE 5: TOKEN REASSEMBLY METHOD
+    # ========================================
+    - rule_id: "tag_token_reassembly"
+      method: "token reassembly"
+      priority: 25
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+            - "uppercase"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 1000
+          preprocessing:
+            - "trim"
+      parameters:
+        tokenization:
+          token_patterns:
+            - name: "site_code"
+              pattern: "[A-Z]{2,3}"
+              position: 0
+              required: true
+              component_type: "location"
+            - name: "unit_number"
+              pattern: "\\d{2,4}"
+              position: 1
+              required: true
+              component_type: "identifier"
+            - name: "equipment_type"
+              pattern: "[A-Z]{1}"
+              position: 2
+              required: true
+              component_type: "type"
+            - name: "equipment_number"
+              pattern: "\\d{2,4}"
+              position: 3
+              required: true
+              component_type: "identifier"
+            - name: "suffix"
+              pattern: "[A-Z]{1}"
+              position: 4
+              required: false
+              component_type: "modifier"
+          separator_patterns:
+            - "-"
+            - "_"
+            - " "
+            - "/"
+          max_tokens: 10
+          min_tokens: 2
+          cross_field_extraction_paths:
+            - "name"
+            - "description"
+        assembly_rules:
+          - name: "FULL_TAG_WITH_SUFFIX"
+            format: "{site_code}-{unit_number}-{equipment_type}{equipment_number}{suffix}"
+            priority: 10
+            conditions:
+              all_required_present: true
+              suffix_present: true
+          - name: "FULL_TAG_NO_SUFFIX"
+            format: "{site_code}-{unit_number}-{equipment_type}{equipment_number}"
+            priority: 20
+            conditions:
+              all_required_present: true
+              suffix_missing: true
+          - name: "SIMPLE_TAG"
+            format: "{equipment_type}{equipment_number}"
+            priority: 30
+            conditions:
+              min_token_count: 2
+        validation:
+          min_tokens: 2
+          max_tokens: 6
+          validate_assembled: true
+          validation_pattern: "^[A-Z]{2,3}-\\d{2,4}-[A-Z]\\d{2,4}[A-Z]?$"
+
+    # ========================================
+    # RULE 6: HEURISTIC METHOD - Positional Detection
+    # ========================================
+    - rule_id: "tag_heuristic_positional"
+      method: "heuristic"
+      priority: 60
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 1000
+          preprocessing:
+            - "trim"
+            - "lowercase"
+      parameters:
+        name: "TAG_HEURISTIC_POSITIONAL"
+        current_node_id:
+          space: "sp_my_instance_space"
+          external_id: "current_node_123"
+        heuristic_strategies:
+          - strategy_id: "start_of_field_detection"
+            weight: 0.4
+            method: "positional_detection"
+            rules:
+              - method: "positional_detection"
+                position: "start_of_field"
+                pattern: "[A-Z]+[-_]?\\d+"
+                confidence_boost: 0.2
+              - method: "positional_detection"
+                position: "after_keyword"
+                pattern: "[A-Z0-9-_]{3,15}"
+                confidence_boost: 0.15
+          - strategy_id: "frequency_analysis"
+            weight: 0.3
+            method: "frequency_analysis"
+            rules:
+              - analyze_corpus: true
+                min_frequency: 3
+                pattern_stability_threshold: 0.75
+                common_prefix_detection: true
+                common_suffix_detection: true
+          - strategy_id: "context_keywords"
+            weight: 0.3
+            method: "context_inference"
+            rules:
+              - surrounding_keywords:
+                  positive:
+                    - "tag"
+                    - "equipment"
+                    - "instrument"
+                    - "pump"
+                    - "valve"
+                  negative:
+                    - "description"
+                    - "note"
+                    - "comment"
+                    - "ignore"
+                context_window: 20
+                keyword_proximity_bonus: 0.1
+                equipment_type_correlation:
+                  enabled: true
+                  type_indicators:
+                    pump:
+                      - "centrifugal"
+                      - "positive displacement"
+                      - "submersible"
+                    valve:
+                      - "ball"
+                      - "gate"
+                      - "globe"
+                      - "butterfly"
+                    tank:
+                      - "storage"
+                      - "pressure"
+                      - "atmospheric"
+        scoring:
+          aggregation_method: "weighted_average"  # Options: weighted_average, max, consensus
+          min_confidence: 0.6
+          normalize_scores: true
+        confidence_modifiers:
+          - condition: "multiple_strategies_agree"
+            operator: ">=2"
+            modifier: "+0.15"
+          - condition: "field_name_indicates_tag"
+            field_names:
+              - "tagId"
+              - "equipmentTag"
+              - "instrumentTag"
+            modifier: "+0.1"
+          - condition: "extracted_value_length"
+            range: [5, 20]
+            modifier: "+0.05"
+          - condition: "extracted_value_in_known_catalog"
+            catalog_source: "validated_tags"
+            modifier: "+0.2"
+        validation:
+          - type: "length_check"
+            min_length: 3
+            max_length: 25
+          - type: "pattern_match"
+            pattern: "^[A-Z0-9-_]+$"
+          - type: "blacklist_check"
+            blacklist:
+              - "NULL"
+              - "N/A"
+              - "UNKNOWN"
+              - "TBD"
+
+    # ========================================
+    # RULE 7: HEURISTIC METHOD - Example-Based Learning & Frequency Analysis
+    # ========================================
+    - rule_id: "tag_heuristic_learning"
+      method: "heuristic"
+      priority: 55
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+            - "uppercase"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 1000
+          preprocessing:
+            - "trim"
+      parameters:
+        name: "TAG_HEURISTIC_LEARNING"
+        current_node_id:
+          space: "sp_my_instance_space"
+          external_id: "learning_node_456"
+        heuristic_strategies:
+          # Example-based learning strategy
+          - strategy_id: "learn_from_examples"
+            weight: 0.5
+            method: "example_based_learning"
+            rules:
+              - learning_mode: "similarity"
+                source_db: "validated_tags_db"
+                source_tbl: "equipment_tags"
+                similarity_threshold: 0.85
+                feature_extraction:
+                  use_character_ngrams: true
+                  ngram_sizes: [2, 3, 4]
+                  use_token_patterns: true
+                  use_position_features: true
+                  use_length_features: true
+          # Frequency analysis strategy
+          - strategy_id: "pattern_frequency"
+            weight: 0.5
+            method: "frequency_analysis"
+            rules:
+              - analyze_corpus: true
+                min_frequency: 5
+                pattern_stability_threshold: 0.8
+                common_prefix_detection: true
+                common_suffix_detection: true
+        scoring:
+          aggregation_method: "consensus"  # Requires multiple strategies to agree
+          min_confidence: 0.75
+          normalize_scores: true
+        confidence_modifiers:
+          - condition: "multiple_strategies_agree"
+            operator: ">=2"
+            modifier: "+0.2"
+          - condition: "extracted_value_in_known_catalog"
+            catalog_source: "validated_tags"
+            modifier: "+0.25"
+        validation:
+          - type: "length_check"
+            min_length: 3
+            max_length: 20
+          - type: "pattern_match"
+            pattern: "^[A-Z0-9-_]+$"
+          - type: "similarity_check"
+            min_similarity_to_examples: 0.7
+
+    # ========================================
+    # RULE 8: HEURISTIC METHOD - All Four Strategies Combined
+    # ========================================
+    - rule_id: "tag_heuristic_comprehensive"
+      method: "heuristic"
+      priority: 45
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 1000
+          preprocessing:
+            - "trim"
+            - "lowercase"
+        - field_name: "equipmentType"
+          field_type: "string"
+          required: false
+          priority: 3
+          role: "context"
+          max_length: 100
+          preprocessing:
+            - "trim"
+      parameters:
+        name: "TAG_HEURISTIC_COMPREHENSIVE"
+        current_node_id:
+          space: "sp_my_instance_space"
+          external_id: "comprehensive_node_789"
+        heuristic_strategies:
+          # Strategy 1: Positional Detection
+          - strategy_id: "position_analysis"
+            weight: 0.25
+            method: "positional_detection"
+            rules:
+              - method: "positional_detection"
+                position: "start_of_field"
+                pattern: "[A-Z]{1,3}[-_]?\\d{2,6}[A-Z]?"
+                confidence_boost: 0.25
+              - method: "positional_detection"
+                position: "after_keyword"
+                pattern: "[A-Z0-9-_]{3,20}"
+                confidence_boost: 0.15
+          # Strategy 2: Frequency Analysis
+          - strategy_id: "corpus_frequency"
+            weight: 0.25
+            method: "frequency_analysis"
+            rules:
+              - analyze_corpus: true
+                min_frequency: 3
+                pattern_stability_threshold: 0.7
+                common_prefix_detection: true
+                common_suffix_detection: true
+          # Strategy 3: Context Inference
+          - strategy_id: "contextual_clues"
+            weight: 0.25
+            method: "context_inference"
+            rules:
+              - surrounding_keywords:
+                  positive:
+                    - "tag"
+                    - "equipment"
+                    - "instrument"
+                    - "id"
+                    - "identifier"
+                    - "code"
+                  negative:
+                    - "description"
+                    - "note"
+                    - "comment"
+                    - "remark"
+                context_window: 15
+                keyword_proximity_bonus: 0.12
+                equipment_type_correlation:
+                  enabled: true
+                  type_indicators:
+                    pump:
+                      - "centrifugal"
+                      - "positive displacement"
+                      - "submersible"
+                      - "reciprocating"
+                    valve:
+                      - "ball"
+                      - "gate"
+                      - "globe"
+                      - "butterfly"
+                      - "check"
+                    tank:
+                      - "storage"
+                      - "pressure"
+                      - "atmospheric"
+                      - "holding"
+                    heat_exchanger:
+                      - "shell and tube"
+                      - "plate"
+                      - "air cooled"
+          # Strategy 4: Example-Based Learning
+          - strategy_id: "similarity_matching"
+            weight: 0.25
+            method: "example_based_learning"
+            rules:
+              - learning_mode: "similarity"
+                source_db: "master_tag_database"
+                source_tbl: "validated_equipment_tags"
+                similarity_threshold: 0.82
+                feature_extraction:
+                  use_character_ngrams: true
+                  ngram_sizes: [2, 3, 4, 5]
+                  use_token_patterns: true
+                  use_position_features: true
+                  use_length_features: true
+        scoring:
+          aggregation_method: "weighted_average"
+          min_confidence: 0.65
+          normalize_scores: true
+        confidence_modifiers:
+          - condition: "multiple_strategies_agree"
+            operator: ">=3"
+            modifier: "+0.25"
+          - condition: "multiple_strategies_agree"
+            operator: ">=2"
+            modifier: "+0.15"
+          - condition: "field_name_indicates_tag"
+            field_names:
+              - "tagId"
+              - "equipmentTag"
+              - "instrumentTag"
+              - "assetTag"
+              - "equipmentId"
+            modifier: "+0.1"
+          - condition: "extracted_value_length"
+            range: [4, 18]
+            modifier: "+0.08"
+          - condition: "extracted_value_in_known_catalog"
+            catalog_source: "validated_tags"
+            modifier: "+0.2"
+        validation:
+          - type: "length_check"
+            min_length: 3
+            max_length: 25
+          - type: "pattern_match"
+            pattern: "^[A-Z0-9-_/]+$"
+          - type: "blacklist_check"
+            blacklist:
+              - "NULL"
+              - "N/A"
+              - "UNKNOWN"
+              - "TBD"
+              - "NONE"
+              - "TEST"
+          - type: "similarity_check"
+            min_similarity_to_examples: 0.65
+
+    # ========================================
+    # RULE 9: Multiple source fields example
+    # ========================================
+    - rule_id: "multi_field_extraction"
+      method: "regex"
+      priority: 70
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          separator: null
+          max_length: 500
+          preprocessing:
+            - "trim"
+            - "uppercase"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "target"
+          separator: null
+          max_length: 1000
+          preprocessing:
+            - "trim"
+        - field_name: "metadata.tagIds"
+          field_type: "array"
+          required: false
+          priority: 3
+          role: "target"
+          separator: ","
+          max_length: 2000
+          preprocessing:
+            - "trim"
+        - field_name: "equipmentType"
+          field_type: "string"
+          required: false
+          priority: 4
+          role: "context"
+          max_length: 100
+          preprocessing:
+            - "trim"
+            - "lowercase"
+        - field_name: "serialNumber"
+          field_type: "string"
+          required: false
+          priority: 5
+          role: "validation"
+          max_length: 200
+          preprocessing: []
+      parameters:
+        name: "MULTI_FIELD_EXTRACTION"
+        pattern: "[A-Z]{1,3}[-_]?\\d{2,6}[A-Z]?"
+        regex_options:
+          multiline: true
+          dotall: true
+          ignore_case: true
+          unicode: true
+        validation_pattern: "^[A-Z]{1,3}[-_]?\\d{2,6}[A-Z]?$"
+        capture_groups: null
+        reassemble_format: null
+        max_matches_per_field: 100
+        early_termination: false
+
+    # ========================================
+    # RULE 10: Field selection strategy variations
+    # (Note: field_selection_strategy is at the data level,
+    #  but this shows how different source field configs work)
+    # ========================================
+    - rule_id: "field_selection_demo"
+      method: "regex"
+      priority: 80
+      source_fields:
+        - field_name: "primaryTag"
+          field_type: "string"
+          required: false
+          priority: 1  # Highest priority (lowest number)
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+        - field_name: "secondaryTag"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+        - field_name: "alternateTag"
+          field_type: "string"
+          required: false
+          priority: 3  # Lowest priority (highest number)
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+      parameters:
+        name: "FIELD_SELECTION_DEMO"
+        pattern: "[A-Z]+\\d+"
+        regex_options:
+          multiline: false
+          dotall: false
+          ignore_case: false
+          unicode: true
+        validation_pattern: null
+        capture_groups: null
+        reassemble_format: null
+        max_matches_per_field: 5
+        early_termination: true
+
+# ============================================================================
+# NOTES ON FIELD SELECTION STRATEGIES:
+# ============================================================================
+#
+# field_selection_strategy: "first_match"
+#   - Processes source fields in priority order
+#   - Stops after the first field that produces results
+#   - Use when you want the highest priority field to win
+#
+# field_selection_strategy: "highest_priority" (deprecated, treated as first_match)
+#   - Same as first_match
+#   - Fields processed in priority order
+#
+# field_selection_strategy: "merge_all"
+#   - Processes ALL source fields
+#   - Combines results from all fields
+#   - Deduplication keeps highest confidence for duplicates
+#   - Use when you want comprehensive extraction from all fields
+#
+# field_selection_strategy: "highest_confidence" (deprecated, treated as merge_all)
+#   - Same as merge_all with deduplication by confidence
+#
+# ============================================================================
+# FILTER OPERATOR OPTIONS:
+# ============================================================================
+#
+# EQUALS: Checks for equality against a single value
+#   Example: operator: "EQUALS", values: "Pump"
+#
+# EXISTS: Checks if a property exists (is not null)
+#   Example: operator: "EXISTS", values: null
+#
+# CONTAINSALL: Checks if an item contains all specified values
+#   Example: operator: "CONTAINSALL", values: ["critical", "production"]
+#
+# IN: Checks if a value is within a list of specified values
+#   Example: operator: "IN", values: ["temperature", "pressure", "flow"]
+#
+# SEARCH: Performs full text search on a specified property
+#   Example: operator: "SEARCH", values: "P&ID diagram"
+#
+# ============================================================================

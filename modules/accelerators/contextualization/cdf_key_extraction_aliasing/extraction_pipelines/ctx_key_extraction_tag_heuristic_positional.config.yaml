@@ -1,0 +1,300 @@
+parameters:
+  debug: true
+  verbose: true
+  run_all: true
+  overwrite: false
+  raw_db: "my_raw_database"
+  raw_table_state: "extraction_state_table"
+  raw_table_key: "extracted_keys_table"
+
+data:
+  field_selection_strategy: "merge_all"
+
+  source_views:
+    - view_external_id: "CogniteEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "description"
+        - "equipmentType"
+        - "manufacturer"
+        - "serialNumber"
+      filters:
+        - operator: "EQUALS"
+          target_property: "equipmentType"
+          values: "Pump"
+          negate: false
+
+    - view_external_id: "CogniteTimeSeries"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "timeseries"
+      batch_size: 50
+      include_properties:
+        - "name"
+        - "description"
+        - "unit"
+      filters:
+        - operator: "IN"
+          target_property: "type"
+          values: ["temperature", "pressure", "flow"]
+          negate: false
+
+    - view_external_id: "CogniteFile"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 75
+      include_properties:
+        - "name"
+        - "mimeType"
+      filters:
+        - operator: "EXISTS"
+          target_property: "uploaded"
+          negate: false
+
+    - view_external_id: "CogniteAsset"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "labels"
+      filters:
+        - operator: "CONTAINSALL"
+          target_property: "labels"
+          values: ["critical", "production"]
+          negate: true
+
+    - view_external_id: "CogniteDocument"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 25
+      include_properties:
+        - "name"
+        - "content"
+      filters:
+        - operator: "SEARCH"
+          target_property: "content"
+          values: "P&ID diagram"
+          negate: false
+
+  extraction_rules:
+    # JSON representation:
+    # [
+    #   {
+    #     "rule_id": "tag_heuristic_positional",
+    #     "method": "heuristic",
+    #     "priority": 60,
+    #     "source_fields": [
+    #       {
+    #         "field_name": "name",
+    #         "field_type": "string",
+    #         "required": true,
+    #         "priority": 1,
+    #         "role": "target",
+    #         "max_length": 500,
+    #         "preprocessing": ["trim"]
+    #       },
+    #       {
+    #         "field_name": "description",
+    #         "field_type": "string",
+    #         "required": false,
+    #         "priority": 2,
+    #         "role": "context",
+    #         "max_length": 1000,
+    #         "preprocessing": ["trim", "lowercase"]
+    #       }
+    #     ],
+    #     "config": {
+    #       "name": "TAG_HEURISTIC_POSITIONAL",
+    #       "current_node_id": {
+    #         "space": "sp_my_instance_space",
+    #         "external_id": "current_node_123"
+    #       },
+    #       "heuristic_strategies": [
+    #         {
+    #           "strategy_id": "start_of_field_detection",
+    #           "weight": 0.4,
+    #           "method": "positional_detection",
+    #           "rules": [
+    #             {"method": "positional_detection", "position": "start_of_field", "pattern": "[A-Z]+[-_]?\\d+", "confidence_boost": 0.2},
+    #             {"method": "positional_detection", "position": "after_keyword", "pattern": "[A-Z0-9-_]{3,15}", "confidence_boost": 0.15}
+    #           ]
+    #         },
+    #         {
+    #           "strategy_id": "frequency_analysis",
+    #           "weight": 0.3,
+    #           "method": "frequency_analysis",
+    #           "rules": [
+    #             {"analyze_corpus": true, "min_frequency": 3, "pattern_stability_threshold": 0.75, "common_prefix_detection": true, "common_suffix_detection": true}
+    #           ]
+    #         },
+    #         {
+    #           "strategy_id": "context_keywords",
+    #           "weight": 0.3,
+    #           "method": "context_inference",
+    #           "rules": [
+    #             {
+    #               "surrounding_keywords": {
+    #                 "positive": ["tag", "equipment", "instrument", "pump", "valve"],
+    #                 "negative": ["description", "note", "comment", "ignore"]
+    #               },
+    #               "context_window": 20,
+    #               "keyword_proximity_bonus": 0.1,
+    #               "equipment_type_correlation": {
+    #                 "enabled": true,
+    #                 "type_indicators": {
+    #                   "pump": ["centrifugal", "positive displacement", "submersible"],
+    #                   "valve": ["ball", "gate", "globe", "butterfly"],
+    #                   "tank": ["storage", "pressure", "atmospheric"]
+    #                 }
+    #               }
+    #             }
+    #           ]
+    #         }
+    #       ],
+    #       "scoring": {
+    #         "aggregation_method": "weighted_average",
+    #         "min_confidence": 0.6,
+    #         "normalize_scores": true
+    #       },
+    #       "confidence_modifiers": [
+    #         {"condition": "multiple_strategies_agree", "operator": ">=2", "modifier": "+0.15"},
+    #         {"condition": "field_name_indicates_tag", "field_names": ["tagId", "equipmentTag", "instrumentTag"], "modifier": "+0.1"},
+    #         {"condition": "extracted_value_length", "range": [5, 20], "modifier": "+0.05"},
+    #         {"condition": "extracted_value_in_known_catalog", "catalog_source": "validated_tags", "modifier": "+0.2"}
+    #       ],
+    #       "validation": [
+    #         {"type": "length_check", "min_length": 3, "max_length": 25},
+    #         {"type": "pattern_match", "pattern": "^[A-Z0-9-_]+$"},
+    #         {"type": "blacklist_check", "blacklist": ["NULL", "N/A", "UNKNOWN", "TBD"]}
+    #       ]
+    #     }
+    #   }
+    # ]
+
+    - rule_id: "tag_heuristic_positional"
+      method: "heuristic"
+      priority: 60
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          max_length: 500
+          preprocessing:
+            - "trim"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "context"
+          max_length: 1000
+          preprocessing:
+            - "trim"
+            - "lowercase"
+      config:
+        name: "TAG_HEURISTIC_POSITIONAL"
+        current_node_id:
+          space: "sp_my_instance_space"
+          external_id: "current_node_123"
+        heuristic_strategies:
+          - strategy_id: "start_of_field_detection"
+            weight: 0.4
+            method: "positional_detection"
+            rules:
+              - method: "positional_detection"
+                position: "start_of_field"
+                pattern: "[A-Z]+[-_]?\\d+"
+                confidence_boost: 0.2
+              - method: "positional_detection"
+                position: "after_keyword"
+                pattern: "[A-Z0-9-_]{3,15}"
+                confidence_boost: 0.15
+          - strategy_id: "frequency_analysis"
+            weight: 0.3
+            method: "frequency_analysis"
+            rules:
+              - analyze_corpus: true
+                min_frequency: 3
+                pattern_stability_threshold: 0.75
+                common_prefix_detection: true
+                common_suffix_detection: true
+          - strategy_id: "context_keywords"
+            weight: 0.3
+            method: "context_inference"
+            rules:
+              - surrounding_keywords:
+                  positive:
+                    - "tag"
+                    - "equipment"
+                    - "instrument"
+                    - "pump"
+                    - "valve"
+                  negative:
+                    - "description"
+                    - "note"
+                    - "comment"
+                    - "ignore"
+                context_window: 20
+                keyword_proximity_bonus: 0.1
+                equipment_type_correlation:
+                  enabled: true
+                  type_indicators:
+                    pump:
+                      - "centrifugal"
+                      - "positive displacement"
+                      - "submersible"
+                    valve:
+                      - "ball"
+                      - "gate"
+                      - "globe"
+                      - "butterfly"
+                    tank:
+                      - "storage"
+                      - "pressure"
+                      - "atmospheric"
+        scoring:
+          aggregation_method: "weighted_average"
+          min_confidence: 0.6
+          normalize_scores: true
+        confidence_modifiers:
+          - condition: "multiple_strategies_agree"
+            operator: ">=2"
+            modifier: "+0.15"
+          - condition: "field_name_indicates_tag"
+            field_names:
+              - "tagId"
+              - "equipmentTag"
+              - "instrumentTag"
+            modifier: "+0.1"
+          - condition: "extracted_value_length"
+            range: [5, 20]
+            modifier: "+0.05"
+          - condition: "extracted_value_in_known_catalog"
+            catalog_source: "validated_tags"
+            modifier: "+0.2"
+        validation:
+          - type: "length_check"
+            min_length: 3
+            max_length: 25
+          - type: "pattern_match"
+            pattern: "^[A-Z0-9-_]+$"
+          - type: "blacklist_check"
+            blacklist:
+              - "NULL"
+              - "N/A"
+              - "UNKNOWN"
+              - "TBD"
