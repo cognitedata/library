@@ -10,6 +10,8 @@ The Root Cause Analysis (RCA) module provides intelligent Atlas AI agents for ad
 
 All agents in this module connect to and query the RMDM data model within CDF to access equipment, failure notifications, time series, and other maintenance-related data.
 
+For a detailed description of **which RMDM v1 views and fields each agent uses** and what data must be populated for the agents to work, see **[Data Prerequisites for RCA Agents](DATA_PREREQUISITES.md)**.
+
 ---
 
 ## Deployment
