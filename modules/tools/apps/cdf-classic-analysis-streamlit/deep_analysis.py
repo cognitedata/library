@@ -90,11 +90,12 @@ def select_filter_keys_for_deep_analysis(
     metadata_list: list[dict],
     total_count: int,
     resource_type: str,
+    coverage_pct: float = 0.6,
 ) -> list[str]:
     """
     Select filter keys for deep analysis:
     1. Primary keys for the resource type.
-    2. From metadata keys: sorting-like, non-identifier, top 15 by count or meeting 60% threshold.
+    2. From metadata keys: sorting-like, non-identifier, top 15 by count or meeting coverage threshold.
     """
     primary = PRIMARY_FILTER_KEYS.get(resource_type, [])
     seen = set()
@@ -108,7 +109,7 @@ def select_filter_keys_for_deep_analysis(
 
     eligible = [m for m in metadata_list if _is_eligible_metadata_key(m.get("key", ""))]
     sorted_meta = sorted(eligible, key=lambda x: x.get("count", 0), reverse=True)
-    threshold = 0.6 * total_count if total_count > 0 else 0
+    threshold = coverage_pct * total_count if total_count > 0 else 0
 
     for i, item in enumerate(sorted_meta):
         key = (item.get("key") or "").strip()

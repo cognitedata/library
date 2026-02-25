@@ -257,7 +257,7 @@ def main() -> None:
     st.markdown(
         "<style>"
         "div[data-testid='stVerticalBlock'] > div { padding-top: 0; }"
-        "div.block-container { padding-top: 1.5rem; padding-bottom: 6rem; }"
+        "div.block-container { padding-top: 2.5rem; padding-bottom: 6rem; }"
         "h2 { margin-top: 0.3rem !important; margin-bottom: 0.2rem !important; font-size: 1.3rem !important; }"
         "h3 { margin-top: 0.2rem !important; margin-bottom: 0.1rem !important; }"
         "</style>",
@@ -279,6 +279,7 @@ def main() -> None:
     # ---- Deep analysis loading block (must be before UI so API calls run at top level) ----
     if st.session_state.get("_deep_all_pending"):
         _rts = st.session_state.pop("_deep_all_rts", ["assets"])
+        _cov_frac = st.session_state.pop("_deep_coverage_frac", 0.6)
         _sel_ids = st.session_state.get("_selected_dataset_ids", [])
         _ds_ids = [{"id": i} for i in _sel_ids] if _sel_ids else None
         _ds_display = []
@@ -303,13 +304,14 @@ def main() -> None:
 
                     raw_meta = get_metadata_keys_list(adapter, _rt, project, _ds_ids)
                     raw_meta = raw_meta if isinstance(raw_meta, list) else []
-                    sel_keys = select_filter_keys_for_deep_analysis(raw_meta, total_count, _rt) if total_count > 0 else (PRIMARY_FILTER_KEYS.get(_rt, []) or ["type"])[:10]
+                    sel_keys = select_filter_keys_for_deep_analysis(raw_meta, total_count, _rt, _cov_frac) if total_count > 0 else (PRIMARY_FILTER_KEYS.get(_rt, []) or ["type"])[:10]
                     print(f"[DEEP]   Metadata keys: {len(sel_keys)}")
 
                     header_lines = [
                         f"CDF Project: {project}", "",
                         f"Resource type: {_rt_label}",
-                        f"Aggregate count: {total_count:,}", "",
+                        f"Aggregate count: {total_count:,}",
+                        f"Instance count threshold: {int(_cov_frac * 100)}%", "",
                         "Datasets:", "  - " + _datasets_line, "",
                         f"Metadata keys analysed: {len(sel_keys)}", "",
                         "---", "",
@@ -717,6 +719,21 @@ def main() -> None:
     st.write("---")
     st.subheader("Deep analysis")
 
+    _cov_col, _cov_hint = st.columns([1, 3])
+    with _cov_col:
+        coverage_pct = st.number_input(
+            "Instance count threshold (%)", min_value=0, max_value=100, value=60,
+            step=5, key="deep_coverage_pct", help="Metadata keys with count >= this % of total are included",
+        )
+    with _cov_hint:
+        st.markdown(
+            '<p style="font-size:0.875rem; color:rgb(49,51,63); margin-top:2.1rem;">'
+            'The deep analysis may take some time. Results will show below. '
+            'See progress with Inspect‑Console‑Filter("DEEP")</p>',
+            unsafe_allow_html=True,
+        )
+    _coverage_frac = coverage_pct / 100.0
+
     rt_cols = st.columns(len(RESOURCE_OPTIONS) + 3)
     chosen_rts = []
     for ci, opt in enumerate(RESOURCE_OPTIONS):
@@ -745,6 +762,7 @@ def main() -> None:
     if btn_run and chosen_rts:
         st.session_state["_deep_all_pending"] = True
         st.session_state["_deep_all_rts"] = list(chosen_rts)
+        st.session_state["_deep_coverage_frac"] = _coverage_frac
         st.session_state.pop("_deep_results", None)
         st.rerun()
 
