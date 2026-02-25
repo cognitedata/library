@@ -140,12 +140,13 @@ const TOP_METADATA_COUNT = 15;
  * 1. Primary keys for the resource type.
  * 2. From actual loaded metadata keys: those whose name has a sorting concept (as part of the name)
  *    and are not identifier-like (name, externalId, sourceId, etc.). Take the top 15 by count,
- *    then add any further keys that meet the 60% threshold (same name rules).
+ *    then add any further keys that meet the coverage threshold (same name rules).
  */
 export function selectFilterKeysForDeepAnalysis(
   metadataList: MetadataKeyCount[],
   totalCount: number,
-  resourceType: ResourceType
+  resourceType: ResourceType,
+  coveragePct = 0.6
 ): string[] {
   const primary = PRIMARY_FILTER_KEYS[resourceType];
   const seen = new Set<string>();
@@ -161,15 +162,15 @@ export function selectFilterKeysForDeepAnalysis(
 
   const eligible = metadataList.filter(({ key }) => isEligibleMetadataKey(key));
   const sorted = [...eligible].sort((a, b) => b.count - a.count);
-  const threshold = totalCount > 0 ? 0.6 * totalCount : 0;
+  const threshold = totalCount > 0 ? coveragePct * totalCount : 0;
 
   for (let i = 0; i < sorted.length; i++) {
     const { key, count } = sorted[i]!;
     const k = key.trim();
     if (!k || seen.has(k)) continue;
     const inTop15 = i < TOP_METADATA_COUNT;
-    const meets60 = count >= threshold;
-    if (inTop15 || meets60) {
+    const meetsThreshold = count >= threshold;
+    if (inTop15 || meetsThreshold) {
       seen.add(k);
       out.push(k);
     }

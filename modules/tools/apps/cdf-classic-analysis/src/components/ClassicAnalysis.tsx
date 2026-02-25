@@ -207,6 +207,8 @@ export function ClassicAnalysis() {
     sequences: true,
     files: true,
   });
+  const [deepCoveragePct, setDeepCoveragePct] = useState(60);
+  const [deepResults, setDeepResults] = useState<{ rt: string; rtLabel: string; count: number; keys: string[]; report: string }[]>([]);
 
   useEffect(() => {
     if (!sdk) return;
@@ -374,30 +376,6 @@ export function ClassicAnalysis() {
     if (!sdk) return;
     const project = (sdk as { project?: string }).project;
     if (!project) return;
-    let dirHandle: FileSystemDirectoryHandle | null = null;
-    if (typeof window !== "undefined" && "showDirectoryPicker" in window) {
-      try {
-        dirHandle = await (window as Window & { showDirectoryPicker: (opts?: { mode?: string }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: "readwrite" });
-      } catch (e) {
-        if ((e as { name?: string })?.name === "AbortError") return;
-        dirHandle = null;
-      }
-    }
-    const writeFile = async (fileName: string, content: string) => {
-      if (dirHandle) {
-        const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(content);
-        await writable.close();
-      } else {
-        const blob = new Blob([content], { type: "text/plain" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      }
-    };
     const client = getClientAdapter(sdk);
     const dataSetIds = dataSetIdsForApi;
     const resourceTypes = (RESOURCE_OPTIONS.map((o) => o.value).filter((rt) => deepAnalysisResourceTypes[rt])) as ResourceType[];
@@ -405,15 +383,7 @@ export function ClassicAnalysis() {
       setDeepAnalysisProgress(null);
       return;
     }
-    const firstDatasetSlug =
-      selectedDatasetIds.length > 0
-        ? (() => {
-            const d = datasets.find((x) => x.id === selectedDatasetIds[0]);
-            const label = d?.name ?? d?.externalId ?? String(selectedDatasetIds[0]);
-            return slugForFileName(String(label), 36);
-          })()
-        : "all";
-    const projectSlug = slugForFileName(project, 24);
+    setDeepResults([]);
     setDeepAnalysisProgress({ resourceTypeLabel: "…", percent: 0 });
     let totalSteps = 0;
     const resourceTypesWithCount: { rt: ResourceType; totalCount: number }[] = [];
@@ -422,7 +392,7 @@ export function ClassicAnalysis() {
       if (totalCount > 0) {
         resourceTypesWithCount.push({ rt, totalCount });
         const metaList = await withRetry(() => getMetadataKeysList(client, rt, project, dataSetIds));
-        const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt);
+        const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt, deepCoveragePct / 100);
         totalSteps += keys.length;
       }
     }
@@ -436,17 +406,25 @@ export function ClassicAnalysis() {
             })
             .join("\n  - ")
         : "All datasets";
+    const collected: typeof deepResults = [];
     try {
       for (let rtIdx = 0; rtIdx < resourceTypesWithCount.length; rtIdx++) {
       const { rt, totalCount } = resourceTypesWithCount[rtIdx]!;
       const label = RESOURCE_OPTIONS.find((o) => o.value === rt)?.label ?? rt;
       const metaList = await withRetry(() => getMetadataKeysList(client, rt, project, dataSetIds));
-      const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt);
+      const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt, deepCoveragePct / 100);
       const lines: string[] = [
           "CDF Project: " + project,
           "",
+          "Resource type: " + label,
+          "Aggregate count: " + totalCount.toLocaleString(),
+          "Instance count threshold: " + deepCoveragePct + "%",
+          "",
           "Datasets:",
           "  - " + datasetLines,
+          "",
+          "Metadata keys analysed: " + keys.length,
+          ...keys.map((k) => "  - " + k),
           "",
           "---",
           "",
@@ -481,13 +459,34 @@ export function ClassicAnalysis() {
             percent: totalSteps > 0 ? (stepsDone / totalSteps) * 100 : 0,
           });
         }
-        const content = lines.join("\n");
-        const fileName = `${projectSlug}_${firstDatasetSlug}_${rt}_deep_analysis.txt`;
-        await writeFile(fileName, content);
+        collected.push({ rt, rtLabel: label, count: totalCount, keys, report: lines.join("\n") });
       }
+      setDeepResults(collected);
     } finally {
       setDeepAnalysisProgress(null);
     }
+  };
+
+  const downloadDeepReport = () => {
+    const combined = deepResults.map((r) => r.report).join("\n\n");
+    const project = (sdk as { project?: string })?.project ?? "project";
+    const projectSlug = slugForFileName(project, 24);
+    const firstDatasetSlug =
+      selectedDatasetIds.length > 0
+        ? (() => {
+            const d = datasets.find((x) => x.id === selectedDatasetIds[0]);
+            const label = d?.name ?? d?.externalId ?? String(selectedDatasetIds[0]);
+            return slugForFileName(String(label), 36);
+          })()
+        : "all";
+    const rtSlugs = deepResults.map((r) => r.rt).join("_");
+    const fileName = `${projectSlug}_${firstDatasetSlug}_${rtSlugs}_deep_analysis.txt`;
+    const blob = new Blob([combined], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   if (!sdk) {
@@ -501,6 +500,7 @@ export function ClassicAnalysis() {
   return (
     <section className="ca-section">
       <div className="ca-block">
+        {/* ---- All Datasets summary ---- */}
         <span className="ca-heading">All Datasets</span>
         <div className="ca-table-wrap">
           <div className="ca-table-box">
@@ -558,73 +558,34 @@ export function ClassicAnalysis() {
             </div>
           </div>
         </div>
+
+        {/* ---- Datasets (optional) ---- */}
         <div className="ca-datasets-bar">
           <span className="ca-heading">Datasets (optional)</span>
+          <button
+            type="button"
+            onClick={loadDatasets}
+            disabled={loadingDatasets}
+            className="ca-btn"
+          >
+            {loadingDatasets ? "Loading…" : "Load datasets"}
+          </button>
+          {selectedDatasetIds.length > 0 && (
             <button
               type="button"
-              onClick={loadDatasets}
-              disabled={loadingDatasets}
-              className="ca-btn"
+              onClick={() => setSelectedDatasetIds([])}
+              className="ca-btn ca-btn--small"
             >
-              {loadingDatasets ? "Loading…" : "Load datasets"}
+              Clear selection ({selectedDatasetIds.length})
             </button>
-            {selectedDatasetIds.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setSelectedDatasetIds([])}
-                className="ca-btn ca-btn--small"
-              >
-                Clear selection ({selectedDatasetIds.length})
-              </button>
-            )}
-            {loadingCounts && <span className="ca-loading-hint">Loading counts…</span>}
-            <div className="ca-deep-row">
-              <button
-                type="button"
-                onClick={runDeepAnalysis}
-                disabled={!!deepAnalysisProgress || loadingDatasets || RESOURCE_OPTIONS.every((o) => !deepAnalysisResourceTypes[o.value])}
-                className="ca-btn ca-btn--primary"
-                title="Run analysis for selected resource types and download one report file per type"
-              >
-                Run deep analysis
-              </button>
-              <span className="ca-deep-checks" aria-label="Resource types to include">
-                {RESOURCE_OPTIONS.map((o) => (
-                  <label key={o.value} className="ca-deep-check">
-                    <input
-                      type="checkbox"
-                      checked={!!deepAnalysisResourceTypes[o.value]}
-                      onChange={() =>
-                        setDeepAnalysisResourceTypes((prev) => ({ ...prev, [o.value]: !prev[o.value] }))
-                      }
-                      disabled={!!deepAnalysisProgress}
-                      className="ca-checkbox"
-                    />
-                    <span className="ca-deep-check-label">{o.label}</span>
-                  </label>
-                ))}
-              </span>
-              {deepAnalysisProgress && (
-                <span className="ca-deep-progress">
-                  <span className="ca-deep-progress-label">
-                    {deepAnalysisProgress.resourceTypeLabel} {Math.round(deepAnalysisProgress.percent)}%
-                  </span>
-                  <span
-                    className="ca-deep-progress-bar-wrap"
-                    role="progressbar"
-                    aria-valuenow={deepAnalysisProgress.percent}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    style={{ ["--ca-deep-pct" as string]: `${deepAnalysisProgress.percent}%` }}
-                  >
-                    <span className="ca-deep-progress-bar" />
-                  </span>
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="ca-table-wrap">
-          {datasets.length > 0 ? (
+          )}
+          {loadingCounts && <span className="ca-loading-hint">Loading counts…</span>}
+          {!datasets.length && !loadingDatasets && (
+            <span className="ca-loading-hint">Click Load datasets to list available datasets and their resource counts.</span>
+          )}
+        </div>
+        <div className="ca-table-wrap">
+          {datasets.length > 0 && (
             <div className="ca-table-box">
               <div className="ca-table-scroll ca-table-scroll--tall">
                 <table className="ca-table">
@@ -682,10 +643,6 @@ export function ClassicAnalysis() {
                 </table>
               </div>
             </div>
-          ) : (
-            <p className="ca-empty-hint">
-              {loadingDatasets ? "Loading datasets…" : "Click Load datasets to list available datasets and their resource counts."}
-            </p>
           )}
           {datasets.length > 0 && (
             <span className="ca-loading-hint">
@@ -693,78 +650,41 @@ export function ClassicAnalysis() {
               {datasets.length > COUNT_LOAD_CAP ? ` Counts shown for first ${COUNT_LOAD_CAP} datasets.` : ""}
             </span>
           )}
-          </div>
+        </div>
 
-        <div className="ca-form-row">
-        <label className="ca-label">
-          <span className="ca-label-text">Resource type</span>
-          <div className="ca-select-wrap">
-            <select
-              ref={resourceTypeSelectRef}
-              value={resourceType}
-              onChange={(e) => {
-                const r = e.target.value as ResourceType;
-                setResourceType(r);
-                setFilterKey("");
-                setMetadataKeysList([]);
-                setResult(null);
-              }}
-              className="ca-select"
-            >
-              {RESOURCE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <div
-              role="button"
-              tabIndex={-1}
-              onClick={() => resourceTypeSelectRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  resourceTypeSelectRef.current?.click();
-                }
-              }}
-              className="ca-dropdown-arrow"
-              aria-hidden
-              title="Open list"
-            >
-              <span className="ca-dropdown-arrow-char">▼</span>
-            </div>
-          </div>
-        </label>
-        <label className="ca-label">
-          <span className="ca-label-text">
-            Filter key (metadata or &quot;type&quot;
-            {resourceType === "timeseries" && ' , "is step", "is string", "unit"'}
-            {resourceType === "files" && ' , "type", "labels", "author", "source"'}
-            )
-          </span>
-          <div className="ca-filter-row">
-            <div className={`ca-input-wrap${metadataKeysList.length > 0 ? " ca-input-wrap--has-list" : ""}`}>
-              <input
-                ref={filterKeyInputRef}
-                type="text"
-                list="metadata-keys-datalist"
-                value={filterKey}
-                onChange={(e) => setFilterKey(e.target.value)}
-                onFocus={() => {
-                  if (metadataKeysList.length > 0) setFilterKey("");
-                }}
-                placeholder="Select or type a key"
-                className="ca-input"
-              />
-              {metadataKeysList.length > 0 && (
+        {/* ---- Analysis controls (grid aligns Run buttons) ---- */}
+        <div className="ca-analysis-grid">
+          {/* Row 1: Single key analysis */}
+          <div className="ca-form-row">
+            <label className="ca-label">
+              <span className="ca-label-text">Resource type</span>
+              <div className="ca-select-wrap">
+                <select
+                  ref={resourceTypeSelectRef}
+                  value={resourceType}
+                  onChange={(e) => {
+                    const r = e.target.value as ResourceType;
+                    setResourceType(r);
+                    setFilterKey("");
+                    setMetadataKeysList([]);
+                    setResult(null);
+                  }}
+                  className="ca-select"
+                >
+                  {RESOURCE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
                 <div
                   role="button"
                   tabIndex={-1}
-                  onClick={() => filterKeyInputRef.current?.focus()}
+                  onClick={() => resourceTypeSelectRef.current?.click()}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      filterKeyInputRef.current?.focus();
+                      resourceTypeSelectRef.current?.click();
                     }
                   }}
                   className="ca-dropdown-arrow"
@@ -773,43 +693,163 @@ export function ClassicAnalysis() {
                 >
                   <span className="ca-dropdown-arrow-char">▼</span>
                 </div>
-              )}
-            </div>
-            <datalist id="metadata-keys-datalist">
-              {metadataKeysList.map((item) => (
-                <option key={item.key} value={`${item.key} (${item.count})`} />
-              ))}
-            </datalist>
+              </div>
+            </label>
+            <label className="ca-label">
+              <span className="ca-label-text">
+                Filter key (metadata or &quot;type&quot;
+                {resourceType === "timeseries" && ' , "is step", "is string", "unit"'}
+                {resourceType === "files" && ' , "type", "labels", "author", "source"'}
+                )
+              </span>
+              <div className="ca-filter-row">
+                <div className={`ca-input-wrap${metadataKeysList.length > 0 ? " ca-input-wrap--has-list" : ""}`}>
+                  <input
+                    ref={filterKeyInputRef}
+                    type="text"
+                    list="metadata-keys-datalist"
+                    value={filterKey}
+                    onChange={(e) => setFilterKey(e.target.value)}
+                    onFocus={() => {
+                      if (metadataKeysList.length > 0) setFilterKey("");
+                    }}
+                    placeholder="Select or type a key"
+                    className="ca-input"
+                  />
+                  {metadataKeysList.length > 0 && (
+                    <div
+                      role="button"
+                      tabIndex={-1}
+                      onClick={() => filterKeyInputRef.current?.focus()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          filterKeyInputRef.current?.focus();
+                        }
+                      }}
+                      className="ca-dropdown-arrow"
+                      aria-hidden
+                      title="Open list"
+                    >
+                      <span className="ca-dropdown-arrow-char">▼</span>
+                    </div>
+                  )}
+                </div>
+                <datalist id="metadata-keys-datalist">
+                  {metadataKeysList.map((item) => (
+                    <option key={item.key} value={`${item.key} (${item.count})`} />
+                  ))}
+                </datalist>
+                <button
+                  type="button"
+                  onClick={loadMetadataKeys}
+                  disabled={loadingKeys}
+                  className="ca-btn"
+                  title="Load metadata keys for this resource type (with counts) to choose from"
+                >
+                  {loadingKeys ? "Loading…" : "Load metadata keys"}
+                </button>
+              </div>
+            </label>
+          </div>
+          <div className="ca-grid-btn-cell">
             <button
               type="button"
-              onClick={loadMetadataKeys}
-              disabled={loadingKeys}
-              className="ca-btn"
-              title="Load metadata keys for this resource type (with counts) to choose from"
+              onClick={run}
+              disabled={loading}
+              className="ca-btn ca-btn--primary"
             >
-              {loadingKeys ? "Loading…" : "Load metadata keys"}
+              {loading ? "Running…" : "Run analysis"}
             </button>
           </div>
-        </label>
-        <button
-          type="button"
-          onClick={run}
-          disabled={loading}
-          className="ca-btn ca-btn--primary"
-        >
-          {loading ? "Running…" : "Run analysis"}
-        </button>
-        {result && result.rows.length > 0 && (
+
+          {/* Row 2: Deep analysis */}
+          <div className="ca-deep-controls">
+            <label className="ca-threshold-label">
+              <span className="ca-threshold-text">Instance count threshold (%)</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={5}
+                value={deepCoveragePct}
+                onChange={(e) => setDeepCoveragePct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                disabled={!!deepAnalysisProgress}
+                className="ca-threshold-input"
+              />
+            </label>
+            <span className="ca-deep-checks" aria-label="Resource types to include">
+              {RESOURCE_OPTIONS.map((o) => (
+                <label key={o.value} className="ca-deep-check">
+                  <input
+                    type="checkbox"
+                    checked={!!deepAnalysisResourceTypes[o.value]}
+                    onChange={() =>
+                      setDeepAnalysisResourceTypes((prev) => ({ ...prev, [o.value]: !prev[o.value] }))
+                    }
+                    disabled={!!deepAnalysisProgress}
+                    className="ca-checkbox"
+                  />
+                  <span className="ca-deep-check-label">{o.label}</span>
+                </label>
+              ))}
+            </span>
+            {deepAnalysisProgress && (
+              <span className="ca-deep-progress">
+                <span className="ca-deep-progress-label">
+                  {deepAnalysisProgress.resourceTypeLabel} {Math.round(deepAnalysisProgress.percent)}%
+                </span>
+                <span
+                  className="ca-deep-progress-bar-wrap"
+                  role="progressbar"
+                  aria-valuenow={deepAnalysisProgress.percent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  style={{ ["--ca-deep-pct" as string]: `${deepAnalysisProgress.percent}%` }}
+                >
+                  <span className="ca-deep-progress-bar" />
+                </span>
+              </span>
+            )}
+          </div>
+          <div className="ca-grid-btn-cell">
+            <button
+              type="button"
+              onClick={runDeepAnalysis}
+              disabled={!!deepAnalysisProgress || loadingDatasets || RESOURCE_OPTIONS.every((o) => !deepAnalysisResourceTypes[o.value])}
+              className="ca-btn ca-btn--primary"
+              title="Run analysis for selected resource types and download one report file per type"
+            >
+              Run deep analysis
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ---- Results actions bar ---- */}
+      {(result || deepResults.length > 0) && (
+        <div className="ca-results-bar">
+          {result && result.rows.length > 0 && (
+            <button type="button" onClick={downloadTxt} className="ca-btn ca-btn--secondary">
+              Download .txt
+            </button>
+          )}
+          {deepResults.length > 0 && (
+            <button type="button" onClick={downloadDeepReport} className="ca-btn ca-btn--secondary">
+              Download report
+            </button>
+          )}
           <button
             type="button"
-            onClick={downloadTxt}
-            className="ca-btn ca-btn--secondary"
+            onClick={() => { setResult(null); setDeepResults([]); }}
+            className="ca-btn ca-btn--small"
           >
-            Download .txt
+            Clear
           </button>
-        )}
-      </div>
-      </div>
+        </div>
+      )}
+
+      {/* ---- Results (both single-key and deep) ---- */}
       {result && (
         <div className="ca-result-block">
           {result.error && (
@@ -843,6 +883,18 @@ export function ClassicAnalysis() {
               "(no results)"
             )}
           </div>
+        </div>
+      )}
+      {deepResults.length > 0 && (
+        <div className="ca-deep-results">
+          {deepResults.map((res) => (
+            <div key={res.rt} className="ca-result-block">
+              <p className="ca-result-summary">
+                {res.rtLabel} — {res.count.toLocaleString()} resources, {res.keys.length} metadata keys
+              </p>
+              <div className="ca-result-pre">{res.report}</div>
+            </div>
+          ))}
         </div>
       )}
     </section>

@@ -1,6 +1,6 @@
 # Classic Analysis – Cognite Dune Application
 
-This app is a Cognite Dune Application for **classic CDF model analysis**. It analyzes metadata field distribution across **assets**, **time series**, **events**, and **sequences** (with count and sort by count descending). Events support a special **metadata** filter key that groups by metadata field names.
+This app is a Cognite Dune Application for **classic CDF model analysis**. It analyzes metadata field distribution across **assets**, **time series**, **events**, **sequences**, and **files** (with count and sort by count descending). It supports both single-key analysis and automated deep analysis across multiple resource types.
 
 **Target CDF:** org `cog-demo`, project `lervik-industries`, cluster `api.cognite.com`.
 
@@ -79,7 +79,30 @@ If Fusion shows **"No access"** even though you can log in to CDF, access is con
 
 ## Functionality
 
+### All Datasets
+
+On load, the app fetches aggregate counts for each resource type across all datasets and displays them in a summary table. You can optionally click **Load datasets** to list individual datasets with per-resource-type counts. Select one or more datasets to limit subsequent analyses to those datasets only.
+
+### Metadata key specific analysis (Run analysis)
+
 - **Resource type**: Assets, Time series, Events, Sequences, Files.
-- **Filter key**: Metadata key to group by (e.g. `type`, `category`, `subtype`). For Events, use `metadata` to group by metadata **field names** (not values).
-- **Run analysis**: Calls CDF aggregate APIs (`uniqueValues` + `uniqueProperties`), sorts by count descending, shows results with counts.
-- **Download .txt**: Saves the analysis output as a text file.
+- **Filter key**: Metadata key to group by (e.g. `type`, `category`, `subtype`). For Events, use `metadata` to group by metadata **field names** (not values). Files support additional built-in keys: `type`, `labels`, `author`, `source`.
+- **Load metadata keys**: Fetches all metadata keys for the selected resource type (with instance counts) and populates a dropdown for easy selection.
+- **Run analysis**: Calls CDF aggregate APIs (`uniqueValues` + `uniqueProperties`), sorts by count descending, and displays results with counts directly in the browser.
+
+### Deep analysis (Run deep analysis)
+
+Deep analysis automatically discovers the most significant metadata keys for each selected resource type and runs a full breakdown for each key.
+
+- **Instance count threshold (%)**: Controls which metadata keys are included. A key is included if its instance count is at least this percentage of the total resource count for that type. The top 15 qualifying keys are analysed. Default is 60%.
+- **Resource type checkboxes**: Select which resource types to include (Assets, Time series, Events, Sequences, Files).
+- **Run deep analysis**: Runs the analysis across all selected resource types. Progress is shown inline.
+- Results are displayed in the browser below the controls, with a report header showing CDF project, resource type, aggregate count, instance count threshold, datasets, and the list of metadata keys analysed.
+
+### Results display and actions
+
+Both single-key and deep analysis results are shown directly in the browser at the bottom of the page.
+
+- **Download .txt**: Saves the single-key analysis output as a text file.
+- **Download report**: Saves the combined deep analysis report (all resource types) as a single text file.
+- **Clear**: Removes all displayed results (both single-key and deep) from the page.
