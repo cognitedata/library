@@ -291,13 +291,12 @@ def main() -> None:
             name = (getattr(d, "name", None) or getattr(d, "external_id", None) or str(sid)).strip() if d else str(sid)
             _ds_display.append(f"{name} ({sid})")
         _datasets_line = ", ".join(_ds_display) if _ds_display else "All datasets"
-        try:
-            with st.spinner("Running deep analysis…"):
-                _all_results = []
-                for ri, _rt in enumerate(_rts):
-                    _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _rt), _rt)
-                    print(f"[DEEP] [{ri+1}/{len(_rts)}] Starting {_rt_label}…")
-
+        with st.spinner("Running deep analysis…"):
+            _all_results = []
+            for ri, _rt in enumerate(_rts):
+                _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _rt), _rt)
+                print(f"[DEEP] [{ri+1}/{len(_rts)}] Starting {_rt_label}…")
+                try:
                     agg_resource = "documents" if _rt == "files" else _rt
                     count_path = _project_path(project, agg_resource)
                     filter_part = _documents_data_set_filter(_ds_ids) if _rt == "files" else _data_set_filter_aggregate(_ds_ids)
@@ -333,8 +332,6 @@ def main() -> None:
                             lines.append("Error: " + str(e))
                             lines.append("")
 
-                    _pct = int(((ri + 1) / len(_rts)) * 100)
-                    print(f"[DEEP]   Done — {_pct}% overall")
                     _all_results.append({
                         "report": "\n".join(lines),
                         "rt": _rt,
@@ -342,14 +339,25 @@ def main() -> None:
                         "count": total_count,
                         "keys": sel_keys,
                     })
+                except Exception as _rt_err:
+                    _err_msg = str(_rt_err)
+                    _forbidden = "403" in _err_msg or "Forbidden" in _err_msg
+                    _short = "403 Forbidden — insufficient access" if _forbidden else _err_msg
+                    print(f"[DEEP]   SKIPPED {_rt_label}: {_short}")
+                    _all_results.append({
+                        "report": f"CDF Project: {project}\n\nResource type: {_rt_label}\n\n{_short}\n",
+                        "rt": _rt,
+                        "rt_label": _rt_label,
+                        "count": 0,
+                        "keys": [],
+                    })
 
-            st.session_state["_deep_results"] = _all_results
-            st.session_state.pop("_deep_all_pending", None)
-            st.rerun()
-        except Exception as _e:
-            print(f"[DEEP] ERROR: {_e}")
-            st.session_state.pop("_deep_all_pending", None)
-            st.error(f"Deep analysis failed: {_e}")
+                _pct = int(((ri + 1) / len(_rts)) * 100)
+                print(f"[DEEP]   Done — {_pct}% overall")
+
+        st.session_state["_deep_results"] = _all_results
+        st.session_state.pop("_deep_all_pending", None)
+        st.rerun()
 
     # ========================================================================
     # All Datasets summary

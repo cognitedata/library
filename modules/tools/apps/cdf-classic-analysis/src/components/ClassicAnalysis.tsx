@@ -387,13 +387,21 @@ export function ClassicAnalysis() {
     setDeepAnalysisProgress({ resourceTypeLabel: "…", percent: 0 });
     let totalSteps = 0;
     const resourceTypesWithCount: { rt: ResourceType; totalCount: number }[] = [];
+    const skippedResourceTypes: { rt: ResourceType; label: string; error: string }[] = [];
     for (const rt of resourceTypes) {
-      const totalCount = await withRetry(() => getTotalCount(client, project, rt, dataSetIds));
-      if (totalCount > 0) {
-        resourceTypesWithCount.push({ rt, totalCount });
-        const metaList = await withRetry(() => getMetadataKeysList(client, rt, project, dataSetIds));
-        const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt, deepCoveragePct / 100);
-        totalSteps += keys.length;
+      try {
+        const totalCount = await withRetry(() => getTotalCount(client, project, rt, dataSetIds));
+        if (totalCount > 0) {
+          resourceTypesWithCount.push({ rt, totalCount });
+          const metaList = await withRetry(() => getMetadataKeysList(client, rt, project, dataSetIds));
+          const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt, deepCoveragePct / 100);
+          totalSteps += keys.length;
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const label = RESOURCE_OPTIONS.find((o) => o.value === rt)?.label ?? rt;
+        const isForbidden = msg.includes("403") || msg.toLowerCase().includes("forbidden");
+        skippedResourceTypes.push({ rt, label, error: isForbidden ? "403 Forbidden — insufficient access" : msg });
       }
     }
     let stepsDone = 0;
@@ -409,57 +417,79 @@ export function ClassicAnalysis() {
     const collected: typeof deepResults = [];
     try {
       for (let rtIdx = 0; rtIdx < resourceTypesWithCount.length; rtIdx++) {
-      const { rt, totalCount } = resourceTypesWithCount[rtIdx]!;
-      const label = RESOURCE_OPTIONS.find((o) => o.value === rt)?.label ?? rt;
-      const metaList = await withRetry(() => getMetadataKeysList(client, rt, project, dataSetIds));
-      const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt, deepCoveragePct / 100);
-      const lines: string[] = [
-          "CDF Project: " + project,
-          "",
-          "Resource type: " + label,
-          "Aggregate count: " + totalCount.toLocaleString(),
-          "Instance count threshold: " + deepCoveragePct + "%",
-          "",
-          "Datasets:",
-          "  - " + datasetLines,
-          "",
-          "Metadata keys analysed: " + keys.length,
-          ...keys.map((k) => "  - " + k),
-          "",
-          "---",
-          "",
-        ];
-        for (let ki = 0; ki < keys.length; ki++) {
-          const key = keys[ki]!;
-          setDeepAnalysisProgress({
-            resourceTypeLabel: label,
-            percent: totalSteps > 0 ? (stepsDone / totalSteps) * 100 : 0,
-          });
-          const apiKey = filterKeyForApi(key);
-          await delay(DEEP_ANALYSIS_PACE_DELAY_MS);
-          try {
-            const res = await withRetry(() => runAnalysis(client, rt, apiKey, project, dataSetIds));
-            lines.push(`=== Filter key: ${key} ===`);
-            lines.push("");
-            if (res.error) {
-              lines.push("Error: " + res.error);
-            } else {
-              lines.push(res.rows.map((r) => r.text).join(""));
+        const { rt, totalCount } = resourceTypesWithCount[rtIdx]!;
+        const label = RESOURCE_OPTIONS.find((o) => o.value === rt)?.label ?? rt;
+        try {
+          const metaList = await withRetry(() => getMetadataKeysList(client, rt, project, dataSetIds));
+          const keys = selectFilterKeysForDeepAnalysis(metaList, totalCount, rt, deepCoveragePct / 100);
+          const lines: string[] = [
+            "CDF Project: " + project,
+            "",
+            "Resource type: " + label,
+            "Aggregate count: " + totalCount.toLocaleString(),
+            "Instance count threshold: " + deepCoveragePct + "%",
+            "",
+            "Datasets:",
+            "  - " + datasetLines,
+            "",
+            "Metadata keys analysed: " + keys.length,
+            ...keys.map((k) => "  - " + k),
+            "",
+            "---",
+            "",
+          ];
+          for (let ki = 0; ki < keys.length; ki++) {
+            const key = keys[ki]!;
+            setDeepAnalysisProgress({
+              resourceTypeLabel: label,
+              percent: totalSteps > 0 ? (stepsDone / totalSteps) * 100 : 0,
+            });
+            const apiKey = filterKeyForApi(key);
+            await delay(DEEP_ANALYSIS_PACE_DELAY_MS);
+            try {
+              const res = await withRetry(() => runAnalysis(client, rt, apiKey, project, dataSetIds));
+              lines.push(`=== Filter key: ${key} ===`);
+              lines.push("");
+              if (res.error) {
+                lines.push("Error: " + res.error);
+              } else {
+                lines.push(res.rows.map((r) => r.text).join(""));
+              }
+              lines.push("");
+            } catch (e) {
+              lines.push(`=== Filter key: ${key} ===`);
+              lines.push("");
+              lines.push("Error: " + (e instanceof Error ? e.message : String(e)));
+              lines.push("");
             }
-            lines.push("");
-          } catch (e) {
-            lines.push(`=== Filter key: ${key} ===`);
-            lines.push("");
-            lines.push("Error: " + (e instanceof Error ? e.message : String(e)));
-            lines.push("");
+            stepsDone++;
+            setDeepAnalysisProgress({
+              resourceTypeLabel: label,
+              percent: totalSteps > 0 ? (stepsDone / totalSteps) * 100 : 0,
+            });
           }
-          stepsDone++;
-          setDeepAnalysisProgress({
-            resourceTypeLabel: label,
-            percent: totalSteps > 0 ? (stepsDone / totalSteps) * 100 : 0,
+          collected.push({ rt, rtLabel: label, count: totalCount, keys, report: lines.join("\n") });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          const isForbidden = msg.includes("403") || msg.toLowerCase().includes("forbidden");
+          const short = isForbidden ? "403 Forbidden — insufficient access" : msg;
+          collected.push({
+            rt,
+            rtLabel: label,
+            count: 0,
+            keys: [],
+            report: `CDF Project: ${project}\n\nResource type: ${label}\n\n${short}\n`,
           });
         }
-        collected.push({ rt, rtLabel: label, count: totalCount, keys, report: lines.join("\n") });
+      }
+      for (const skipped of skippedResourceTypes) {
+        collected.push({
+          rt: skipped.rt as ResourceType,
+          rtLabel: skipped.label,
+          count: 0,
+          keys: [],
+          report: `CDF Project: ${project}\n\nResource type: ${skipped.label}\n\n${skipped.error}\n`,
+        });
       }
       setDeepResults(collected);
     } finally {
