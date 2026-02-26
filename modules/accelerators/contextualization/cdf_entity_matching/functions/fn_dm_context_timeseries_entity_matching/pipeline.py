@@ -141,8 +141,11 @@ def asset_entity_matching(
 
         len_good_matches = cnt_manual_mappings + cnt_rule_mappings + cnt_entity_matching
         len_bad_matches = len(bad_matches)
-
-        update_pipeline_run(client, logger, pipeline_ext_id, "success", len_good_matches, len_bad_matches, None)
+        if config.parameters.dm_update:
+            msg = f"Relationships updated in the DM (dmUpdate: True)"
+        else:
+            msg = f"Relationships NOT updated in DM, only updated the RAW tables (dmUpdate: False)"
+        update_pipeline_run(client, logger, pipeline_ext_id, "success", len_good_matches, len_bad_matches, msg)
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
@@ -157,7 +160,7 @@ def update_pipeline_run(
     status: str,
     match_count: int = 0,
     not_matches_count: int = 0,
-    error: Optional[str] = None
+    input_msg: Optional[str] = None
 ) -> None:
 
     total_entities = match_count + not_matches_count
@@ -167,11 +170,13 @@ def update_pipeline_run(
             f" - NOT matched due to low score: {not_matches_count}"
         )
         logger.info(msg)
+        if input_msg:
+            logger.info(input_msg)
     else:
         msg = (
             f"Entity matching of: {total_entities} input entities, Matched: {match_count} "
             f" - NOT matched due to low score: {not_matches_count}, "
-            f"{error or 'Unknown error'}, traceback:\n{traceback.format_exc()}"
+            f"{input_msg or 'Unknown error'}, traceback:\n{traceback.format_exc()}"
         )
         logger.error(msg)
 
@@ -390,7 +395,7 @@ def apply_manual_mappings(
                 raw_uploader.add_to_upload_queue(config.parameters.raw_db, config.parameters.raw_tale_ctx_manual, Row(row_key, mapping))
             
                 # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-                if not config.parameters.debug and cnt % BATCH_SIZE_API_SUBMIT == 0:
+                if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
                     if len(clean_asset_list) > 0:
                         client.data_modeling.instances.apply(clean_asset_list)
                         clean_asset_list = []
@@ -402,7 +407,7 @@ def apply_manual_mappings(
             if num_batches > 1:
                 logger.info(f"Completed batch {batch_num}/{num_batches}")
 
-        if not config.parameters.debug:
+        if not config.parameters.debug and config.parameters.dm_update:
             if len(clean_asset_list) > 0:
                 client.data_modeling.instances.apply(clean_asset_list)
 
@@ -615,7 +620,7 @@ def get_new_entities(
                     rule_keys.append(cleaned_value)
                     
         assets = []
-        if not config.parameters.remove_old_asset_links: 
+        if not config.parameters.remove_old_asset_links or not config.parameters.dm_update: # if dmUpdate is False, keep old asset links    
             # keep old asset links
             assets = entity.properties[entity_view_id]["assets"]
         else:
@@ -699,7 +704,7 @@ def get_query_filter(
         is_selected = dm.filters.And(is_selected, is_filter_param)
         dbg_msg = f"{dbg_msg} Entity filtering on: '{view_config.filter_values}' IN: '{view_config.filter_property}'"
 
-    logger.debug(dbg_msg)
+    logger.info(dbg_msg)
 
     return is_selected
 
@@ -856,12 +861,12 @@ def apply_rule_mappings(
                                     config.data.entity_view.as_view_id())
             
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and cnt % BATCH_SIZE_API_SUBMIT == 0:
+            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
                 logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(matches)}")
                 client.data_modeling.instances.apply(item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug:
+        if not config.parameters.debug and config.parameters.dm_update:
             # Apply the updates to the data model
             client.data_modeling.instances.apply(item_update)
  
@@ -957,12 +962,12 @@ def select_and_apply_matches(
                                        entity_assets)
 
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and cnt % BATCH_SIZE_API_SUBMIT == 0:
+            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
                 logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(new_good_matches)}")
                 client.data_modeling.instances.apply(item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug:
+        if not config.parameters.debug and config.parameters.dm_update:
             client.data_modeling.instances.apply(item_update)
             if cnt == 0:
                 logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")

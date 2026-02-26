@@ -3,6 +3,7 @@ config:
   parameters:
     debug: False
     runAll: False
+    dmUpdate: False
     removeOldAssetLinks: False
     rawDb: '{{ dbName }}'
     rawTableState: 'contextualization_state_store'
