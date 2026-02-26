@@ -4,7 +4,7 @@ config:
     debug: False
     runAll: False
     dmUpdate: False
-    removeOldAssetLinks: False
+    removeOldLinks: False
     rawDb: '{{ dbName }}'
     rawTableState: 'contextualization_state_store'
     rawTaleCtxGood: 'contextualization_good'
@@ -13,7 +13,7 @@ config:
     rawTaleCtxRule: 'contextualization_rule_input'
     autoApprovalThreshold: 0.85
   data:
-    assetView:
+    targetView: # target view to match timeseries to, ex: Asset, Tags, Equipment, etc.
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ assetInstanceSpace }}
       externalId: Asset
@@ -21,7 +21,7 @@ config:
       searchProperty: {{ AssetSearchProperty }}
       filterProperty: tags
       filterValues: {{ AssetFilterValues }}
-    entityView:
+    entityView: # entity our source for values to be matched against, ex: TimeSeries, etc.
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ timeseriesInstanceSpace }}
       externalId: {{ reservedWordPrefix }}TimeSeries
