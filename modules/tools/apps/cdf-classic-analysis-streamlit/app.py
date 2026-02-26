@@ -212,11 +212,14 @@ def _run_analysis_for_key(adapter: ClientAdapter, project: str, rt: str, key: st
         if len(val) > max_len:
             mk = []
         else:
+            filter_val = raw_val
+            if pp[0] in ("isStep", "isString") and str(raw_val).lower() in ("true", "false"):
+                filter_val = str(raw_val).lower() == "true"
             up_body = {"aggregate": "uniqueProperties", "path": _meta_path(rt), **filter_part}
             if rt == "files":
-                up_body["filter"] = {"equals": {"property": pp, "value": raw_val}}
+                up_body["filter"] = {"equals": {"property": pp, "value": filter_val}}
             else:
-                up_body["advancedFilter"] = {"equals": {"property": pp, "value": raw_val}}
+                up_body["advancedFilter"] = {"equals": {"property": pp, "value": filter_val}}
             up = adapter.post(agg_path, up_body)
             up_items = (up.get("items") or []) if isinstance(up, dict) else []
             mk = []
