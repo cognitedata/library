@@ -1,0 +1,4 @@
+cognite-sdk
+streamlit
+pandas
+python-dotenv
