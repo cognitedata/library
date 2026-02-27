@@ -55,7 +55,8 @@ description = "Streamlit dashboards and visualization modules"
 canCherryPick = true
 modules = [
     "dashboards/context_quality",
-    "dashboards/project_health"
+    "dashboards/project_health",
+    "dashboards/classic_cdf_analysis"
 ]
 
 [packages.quickstartdp]

@@ -26,6 +26,8 @@ from typing import Any, Optional
 import streamlit as st
 import pandas as pd
 
+from cognite.client import CogniteClient
+
 import analysis as _analysis_module
 from analysis import (
     ClientAdapter,
@@ -65,6 +67,12 @@ RESOURCE_OPTIONS = [
 
 COUNT_LOAD_CAP = 50
 
+# ----------------------------------------------------
+# CDF CLIENT (same pattern as context_quality dashboard)
+# ----------------------------------------------------
+client = CogniteClient()
+project = getattr(client.config, "project", None) or os.environ.get("COGNITE_PROJECT", "")
+
 
 def _is_pyodide() -> bool:
     try:
@@ -79,52 +87,6 @@ def _is_pyodide() -> bool:
     except ImportError:
         pass
     return False
-
-
-def get_client_and_project() -> tuple[Any, str] | None:
-    """Build CogniteClient and project from env/secrets. Returns (client, project) or None."""
-    try:
-        from cognite.client import CogniteClient, ClientConfig
-        from cognite.client.credentials import APIKey, OAuthClientCredentials
-    except ImportError:
-        st.error("Install cognite-sdk: pip install cognite-sdk")
-        return None
-
-    project = os.environ.get("COGNITE_PROJECT") or (st.secrets.get("COGNITE_PROJECT") if hasattr(st, "secrets") else None)
-    base_url = os.environ.get("COGNITE_BASE_URL") or st.secrets.get("COGNITE_BASE_URL", "https://api.cognitedata.com")
-
-    api_key = os.environ.get("COGNITE_API_KEY") or (st.secrets.get("COGNITE_API_KEY") if hasattr(st, "secrets") else None)
-    if api_key and project:
-        config = ClientConfig(
-            client_name="classic-analysis-complete",
-            project=project,
-            credentials=APIKey(api_key),
-            base_url=base_url,
-        )
-        client = CogniteClient(config)
-        return (client, project)
-
-    client_id = os.environ.get("COGNITE_CLIENT_ID") or (st.secrets.get("COGNITE_CLIENT_ID") if hasattr(st, "secrets") else None)
-    client_secret = os.environ.get("COGNITE_CLIENT_SECRET") or (st.secrets.get("COGNITE_CLIENT_SECRET") if hasattr(st, "secrets") else None)
-    tenant_id = os.environ.get("COGNITE_TENANT_ID") or (st.secrets.get("COGNITE_TENANT_ID") if hasattr(st, "secrets") else None)
-    if client_id and client_secret and project:
-        token_url = f"https://login.microsoftonline.com/{tenant_id or 'organizations'}/oauth2/v2.0/token"
-        creds = OAuthClientCredentials(
-            token_url=token_url,
-            client_id=client_id,
-            client_secret=client_secret,
-            scopes=[f"{base_url.rstrip('/')}/.default"],
-        )
-        config = ClientConfig(
-            client_name="classic-analysis-complete",
-            project=project,
-            credentials=creds,
-            base_url=base_url,
-        )
-        client = CogniteClient(config)
-        return (client, project)
-
-    return None
 
 
 def _ensure_sync(val: Any) -> Any:
@@ -267,16 +229,10 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    client_and_project = get_client_and_project()
-    if not client_and_project:
-        st.warning(
-            "Configure CDF credentials. Set COGNITE_PROJECT and either COGNITE_API_KEY or "
-            "COGNITE_CLIENT_ID + COGNITE_CLIENT_SECRET (and optionally COGNITE_TENANT_ID, COGNITE_BASE_URL) "
-            "in environment or Streamlit secrets."
-        )
+    if not project:
+        st.warning("Could not determine CDF project. In CDF, the project is set automatically.")
         return
 
-    client, project = client_and_project
     adapter = ClientAdapter(client, project)
 
     # ---- Deep analysis loading block (must be before UI so API calls run at top level) ----
