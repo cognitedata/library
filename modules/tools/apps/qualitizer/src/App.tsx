@@ -1,19 +1,22 @@
 import mixpanel from "mixpanel-browser";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 import { useSdkManager } from "@/shared/SdkManager";
 import { HealthChecks } from "./health-checks";
 import { Processing } from "./processing";
 import { Permissions } from "./permissions";
+import { Transformations } from "./transformations";
 import { DataCatalog } from "./data-catalog";
 import type { SelectedDataModel, SelectedView } from "@/shared/selection-types";
 import { DataCacheProvider } from "./shared/data-cache";
 import { I18nProvider, useI18n } from "./shared/i18n";
 import { LimitsProvider } from "./shared/LimitsContext";
+import { NavigationProvider } from "./shared/NavigationContext";
 
 const productionPages = [
   { id: "health", labelKey: "nav.healthChecks" },
   { id: "processing", labelKey: "nav.processing" },
+  { id: "transformations", labelKey: "nav.transformations" },
   { id: "permissions", labelKey: "nav.permissions" },
   { id: "meta", labelKey: "nav.dataCatalog" },
 ] as const;
@@ -22,7 +25,6 @@ const internalPages = [
   { id: "models", label: "Data models" },
   { id: "views", label: "Views" },
   { id: "properties", label: "Properties" },
-  { id: "transformations", label: "Transformations" },
   { id: "streams", label: "Streams" },
   { id: "relationships", label: "Relationships" },
   { id: "spaces", label: "Spaces" },
@@ -47,6 +49,10 @@ function AppContent() {
   const showInternal =
     import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
   const [mode, setMode] = useState<AppMode>(productionPages[0].id);
+
+  const navigateToTransformations = useCallback(() => {
+    setMode("transformations");
+  }, []);
   const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(null);
   const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
 
@@ -83,9 +89,10 @@ function AppContent() {
   return (
     <div className="min-h-screen w-full px-6 py-10">
       <LimitsProvider>
+      <NavigationProvider onNavigateToTransformations={navigateToTransformations}>
       <DataCacheProvider>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-nowrap items-start justify-between gap-4">
             <div className="flex flex-col gap-3">
               {availableProjects.length > 1 ? (
                 <label className="flex items-center gap-2 text-xs text-slate-600">
@@ -155,7 +162,7 @@ function AppContent() {
               ) : null}
             </div>
             <div className="flex items-start gap-3">
-              <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+              <div className="ml-auto flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
                 <span className="text-slate-400">{t("app.language")}</span>
                 <button
                   type="button"
@@ -180,25 +187,17 @@ function AppContent() {
                   日本語
                 </button>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-right text-xs text-slate-500">
-                <div>
-                  <span className="font-semibold text-slate-700">Model:</span>{" "}
-                  {selectionSummary.modelLabel}
-                </div>
-                <div>
-                  <span className="font-semibold text-slate-700">View:</span>{" "}
-                  {selectionSummary.viewLabel}
-                </div>
-              </div>
             </div>
           </div>
         {mode === "health" ? <HealthChecks /> : null}
         {mode === "processing" ? <Processing /> : null}
         {mode === "permissions" ? <Permissions /> : null}
         {mode === "meta" ? <DataCatalog /> : null}
+        {mode === "transformations" ? <Transformations /> : null}
           <footer className="text-sm text-slate-500">Project: {selectedProject}</footer>
         </div>
       </DataCacheProvider>
+      </NavigationProvider>
       </LimitsProvider>
     </div>
   );
