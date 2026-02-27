@@ -68,6 +68,10 @@ export function TransformationsHelpModal({ open, onClose, subView }: Transformat
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.runs24h")}</td><td>{t("transformations.list.columnHelp.runs24h")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.lastRun")}</td><td>{t("transformations.list.columnHelp.lastRun")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.totalTime")}</td><td>{t("transformations.list.columnHelp.totalTime")}</td></tr>
+                    <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.reads")}</td><td>{t("transformations.list.columnHelp.reads")}</td></tr>
+                    <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.writes")}</td><td>{t("transformations.list.columnHelp.writes")}</td></tr>
+                    <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.noops")}</td><td>{t("transformations.list.columnHelp.noops")}</td></tr>
+                    <tr><td className="py-1.5 pr-3 font-medium">{t("transformations.list.rateLimit429")}</td><td>{t("transformations.list.columnHelp.rateLimit429")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">Err</td><td>{t("transformations.list.columnHelp.err")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">Stmt</td><td>{t("transformations.list.columnHelp.stmt")}</td></tr>
                     <tr><td className="py-1.5 pr-3 font-medium">Tok</td><td>{t("transformations.list.columnHelp.tok")}</td></tr>

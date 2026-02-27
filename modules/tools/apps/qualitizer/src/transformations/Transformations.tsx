@@ -11,6 +11,18 @@ function formatDurationShort(ms: number | undefined): string {
   if (ms < 1000) return `${ms}ms`;
   return formatDuration(ms);
 }
+
+/** Format large numbers as human-readable K/M (e.g. 1.2K, 3.5M). */
+function formatPrettyNumber(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) {
+    const k = n / 1000;
+    if (k >= 1000) return `${(k / 1000).toFixed(1)}M`;
+    return k % 1 === 0 ? `${k}K` : `${k.toFixed(1)}K`;
+  }
+  const m = n / 1_000_000;
+  return m % 1 === 0 ? `${m}M` : `${m.toFixed(1)}M`;
+}
 import {
   parseTransformationQuery,
   getParsedInsightCounts,
@@ -127,10 +139,44 @@ type TransformationSummary = {
 };
 
 type TransformationJobSummary = {
+  id?: number | string;
   startedTime?: number;
   finishedTime?: number;
   status?: string;
 };
+
+type JobMetricItem = {
+  name: string;
+  timestamp: number;
+  count: number;
+  effective?: boolean;
+};
+
+function aggregateJobMetrics(items: JobMetricItem[]): {
+  reads: number;
+  writes: number;
+  noops: number;
+  rateLimit429: number;
+} {
+  const byName = new Map<string, { timestamp: number; count: number }>();
+  for (const item of items) {
+    const prev = byName.get(item.name);
+    if (!prev || item.timestamp > prev.timestamp) {
+      byName.set(item.name, { timestamp: item.timestamp, count: item.count });
+    }
+  }
+  let reads = 0;
+  let writes = 0;
+  let noops = 0;
+  let rateLimit429 = 0;
+  for (const [name, { count }] of byName) {
+    if (name.includes(".rows.read")) reads += count;
+    if (name === "instances.upserted") writes = count;
+    if (name === "instances.upsertedNoop") noops = count;
+    if (name.includes(".429.")) rateLimit429 += count;
+  }
+  return { reads, writes, noops, rateLimit429 };
+}
 
 type TransformationsListProps = {
   transformationToSelect?: string | null;
@@ -154,6 +200,9 @@ export function TransformationsList({
     Record<string, { count: number; lastRun?: number; totalMs: number }>
   >({});
   const [countsById, setCountsById] = useState<Record<string, ParsedInsightCounts>>({});
+  const [metricsById, setMetricsById] = useState<
+    Record<string, { reads: number; writes: number; noops: number; rateLimit429: number }>
+  >({});
   const [ctePreviews, setCtePreviews] = useState<
     Record<
       string,
@@ -354,6 +403,59 @@ export function TransformationsList({
       cancelled = true;
     };
   }, [safePage, sortedTransformations]);
+
+  useEffect(() => {
+    if (isSdkLoading || !sdk) return;
+    const items = sortedTransformations.slice(
+      safePage * PAGE_SIZE,
+      safePage * PAGE_SIZE + PAGE_SIZE
+    );
+    if (items.length === 0) return;
+    let cancelled = false;
+    setMetricsById({});
+    let index = 0;
+    const run = async () => {
+      if (cancelled || index >= items.length) return;
+      const t = items[index];
+      const id = String(t.id);
+      try {
+        const jobRes = (await sdk.get(
+          `/api/v1/projects/${sdk.project}/transformations/jobs`,
+          { params: { limit: "10", transformationId: id } }
+        )) as { data?: { items?: TransformationJobSummary[] } };
+        const jobs = jobRes.data?.items ?? [];
+        const sorted = [...jobs].sort(
+          (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
+        );
+        const latest = sorted[0];
+        const jobId = latest?.id;
+        if (!jobId) {
+          setMetricsById((prev) => ({ ...prev, [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 } }));
+        } else {
+          const metricsRes = (await sdk.get(
+            `/api/v1/projects/${sdk.project}/transformations/jobs/${jobId}/metrics`
+          )) as { data?: { items?: JobMetricItem[] } };
+          const metricItems = metricsRes.data?.items ?? [];
+          const agg = aggregateJobMetrics(metricItems);
+          if (!cancelled) {
+            setMetricsById((prev) => ({ ...prev, [id]: agg }));
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setMetricsById((prev) => ({ ...prev, [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 } }));
+        }
+      }
+      index += 1;
+      if (index < items.length) {
+        setTimeout(run, 0);
+      }
+    };
+    setTimeout(run, 0);
+    return () => {
+      cancelled = true;
+    };
+  }, [safePage, sortedTransformations, isSdkLoading, sdk]);
 
   const toggleSort = (nextKey: TableSortKey) => {
     if (sortKey === nextKey) {
@@ -739,6 +841,18 @@ export function TransformationsList({
                                 {sortKey === "totalMs" ? (sortDesc ? " ↓" : " ↑") : ""}
                               </button>
                             </th>
+                            <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.reads")}>
+                              {t("transformations.list.reads")}
+                            </th>
+                            <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.writes")}>
+                              {t("transformations.list.writes")}
+                            </th>
+                            <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.noops")}>
+                              {t("transformations.list.noops")}
+                            </th>
+                            <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.rateLimit429")}>
+                              {t("transformations.list.rateLimit429")}
+                            </th>
                             <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.err")}>Err</th>
                             <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.stmt")}>Stmt</th>
                             <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.tok")}>Tok</th>
@@ -792,6 +906,34 @@ export function TransformationsList({
                                     formatDuration(stats.totalMs)
                                   ) : (
                                     "—"
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 tabular-nums">
+                                  {metricsById[id] === undefined ? (
+                                    <CellSpinner />
+                                  ) : (
+                                    formatPrettyNumber(metricsById[id].reads)
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 tabular-nums">
+                                  {metricsById[id] === undefined ? (
+                                    <CellSpinner />
+                                  ) : (
+                                    formatPrettyNumber(metricsById[id].writes)
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 tabular-nums">
+                                  {metricsById[id] === undefined ? (
+                                    <CellSpinner />
+                                  ) : (
+                                    formatPrettyNumber(metricsById[id].noops)
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 tabular-nums">
+                                  {metricsById[id] === undefined ? (
+                                    <CellSpinner />
+                                  ) : (
+                                    formatPrettyNumber(metricsById[id].rateLimit429)
                                   )}
                                 </td>
                                 <td className="px-2 py-2 tabular-nums">
