@@ -54,11 +54,23 @@ Replace `[library.toolkit-data]` with `[library.cognite]` if needed (see other d
 
 ### Step 2: Add the Module
 
+**First try:** Run:
+
+```bash
+cdf modules add .
+```
+
+This works on the first try and shows all available deployment packs. Select **Dashboards** → **Classic CDF Analysis**.
+
+**If you don't see the module:** Use init instead:
+
 ```bash
 cdf modules init .
 ```
 
-Select **Dashboards** → **Classic CDF Analysis**.
+Then select **Dashboards** → **Classic CDF Analysis**.
+
+> **Note:** `cdf modules add` adds modules without overwriting existing ones. `cdf modules init` overwrites your current modules with a fresh selection—commit or back up first if you use init.
 
 ### Step 3: Verify and Deploy
 
