@@ -47,9 +47,10 @@ npm run standalone-internal
 UI environment variables:
 - `CDF_PROJECT` – CDF project URL name
 - `CDF_PROXY_URL` – proxy base URL (e.g. `http://localhost:4243`)
+- `CDF_BROWSER_URL` – Fusion UI base URL for transformation preview links (default `https://fusion.cognite.com`; e.g. `https://cog-itworks.fusion.cognite.com`)
 
 
 Note: the Vite config passes the following envs to the client:
-- `CDF_PROJECT`, `CDF_URL`, `IDP_TENANT_ID`, `IDP_CLIENT_ID`, `IDP_SCOPES`, `CDF_PROXY_URL`
+- `CDF_PROJECT`, `CDF_URL`, `IDP_TENANT_ID`, `IDP_CLIENT_ID`, `IDP_SCOPES`, `CDF_PROXY_URL`, `CDF_BROWSER_URL`
 
 

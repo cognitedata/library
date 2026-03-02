@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.IDP_CLIENT_ID": JSON.stringify(env.IDP_CLIENT_ID),
       "import.meta.env.IDP_SCOPES": JSON.stringify(env.IDP_SCOPES),
       "import.meta.env.CDF_PROXY_URL": JSON.stringify(env.CDF_PROXY_URL),
+      "import.meta.env.CDF_BROWSER_URL": JSON.stringify(env.CDF_BROWSER_URL ?? ""),
     },
     resolve: {
       alias: {

@@ -44,7 +44,6 @@ classic_cdf_analysis/
 ### Step 1: Enable external libraries
 
 Edit your project’s `cdf.toml` and add:
-
 ```toml
 [alpha_flags]
 external-libraries = true
@@ -85,7 +84,6 @@ checksum = "sha256:34d65c5ef7cded58878f838385dc3d39ae261bdd3426bfbd8f55b279ba4c4
 ### Step 2: Add the module
 
 **First try:** Run from your project root:
-
 ```bash
 cdf modules add .
 ```
@@ -116,7 +114,6 @@ modules/
 ### Step 4: Build and deploy
 
 From the project root:
-
 ```bash
 cdf build
 cdf deploy --dry-run
