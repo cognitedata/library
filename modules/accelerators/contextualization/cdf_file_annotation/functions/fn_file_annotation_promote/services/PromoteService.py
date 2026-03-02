@@ -85,10 +85,10 @@ class GeneralPromoteService(IPromoteService):
         )
 
         # RAW database and table configuration
-        self.raw_db = self.config.promote_function.raw_db
-        self.raw_pattern_table = self.config.promote_function.raw_table_doc_pattern
-        self.raw_doc_doc_table = self.config.promote_function.raw_table_doc_doc
-        self.raw_doc_tag_table = self.config.promote_function.raw_table_doc_tag
+        self.raw_db = self.config.raw_tables.raw_db
+        self.raw_pattern_table = self.config.raw_tables.raw_table_doc_pattern
+        self.raw_doc_doc_table = self.config.raw_tables.raw_table_doc_doc
+        self.raw_doc_tag_table = self.config.raw_tables.raw_table_doc_tag
 
         # Promote flags
         self.delete_rejected_edges: bool = self.config.promote_function.delete_rejected_edges
