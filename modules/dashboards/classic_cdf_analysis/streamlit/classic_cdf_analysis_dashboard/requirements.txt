@@ -2,3 +2,4 @@ cognite-sdk
 streamlit
 pandas
 python-dotenv
+pyodide-http>=0.2.1
