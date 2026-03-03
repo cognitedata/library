@@ -26,7 +26,8 @@ from typing import Any, Optional
 import streamlit as st
 import pandas as pd
 
-from cognite.client import CogniteClient
+from cognite.client import CogniteClient, ClientConfig
+from cognite.client.credentials import OAuthClientCredentials
 
 import analysis as _analysis_module
 from analysis import (
@@ -67,14 +68,9 @@ RESOURCE_OPTIONS = [
 
 COUNT_LOAD_CAP = 50
 
-# ----------------------------------------------------
-# CDF CLIENT (same pattern as context_quality dashboard)
-# ----------------------------------------------------
-client = CogniteClient()
-project = getattr(client.config, "project", None) or os.environ.get("COGNITE_PROJECT", "")
-
 
 def _is_pyodide() -> bool:
+    """True when running inside CDF (Stlite/Pyodide); host provides the client."""
     try:
         import sys
         if getattr(sys, "platform", None) == "emscripten":
@@ -87,6 +83,46 @@ def _is_pyodide() -> bool:
     except ImportError:
         pass
     return False
+
+
+def _create_cdf_client():
+    """Use host-injected client in CDF; use explicit OAuth config when running locally with .env."""
+    if _is_pyodide():
+        c = CogniteClient()
+        return c, getattr(c.config, "project", None) or os.environ.get("COGNITE_PROJECT", "")
+    client_id = os.environ.get("COGNITE_CLIENT_ID")
+    client_secret = os.environ.get("COGNITE_CLIENT_SECRET")
+    if client_id and client_secret:
+        base_url = os.environ.get("COGNITE_BASE_URL", "https://api.cognitedata.com")
+        project = os.environ.get("COGNITE_PROJECT", "")
+        token_url = (
+            os.environ.get("COGNITE_TOKEN_URL")
+            or os.environ.get("IDP_TOKEN_URL")
+            or f"https://login.microsoftonline.com/{os.environ.get('COGNITE_TENANT_ID', 'organizations')}/oauth2/v2.0/token"
+        )
+        creds = OAuthClientCredentials(
+            token_url=token_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            scopes=[f"{base_url.rstrip('/')}/.default"],
+        )
+        config = ClientConfig(
+            client_name="classic-cdf-analysis-dashboard",
+            project=project,
+            credentials=creds,
+            base_url=base_url,
+        )
+        return CogniteClient(config), project
+    raise ValueError(
+        "Running locally requires COGNITE_CLIENT_ID and COGNITE_CLIENT_SECRET in .env, "
+        "or run inside CDF where the client is provided by the host."
+    )
+
+
+# ----------------------------------------------------
+# CDF CLIENT: host-injected in CDF, OAuth from .env when local
+# ----------------------------------------------------
+client, project = _create_cdf_client()
 
 
 def _ensure_sync(val: Any) -> Any:
