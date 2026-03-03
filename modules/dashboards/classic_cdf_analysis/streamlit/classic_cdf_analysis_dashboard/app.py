@@ -26,7 +26,8 @@ from typing import Any, Optional
 import streamlit as st
 import pandas as pd
 
-from cognite.client import CogniteClient
+from cognite.client import CogniteClient, ClientConfig
+from cognite.client.credentials import OAuthClientCredentials
 
 import analysis as _analysis_module
 from analysis import (
@@ -70,8 +71,26 @@ COUNT_LOAD_CAP = 50
 # ----------------------------------------------------
 # CDF CLIENT (same pattern as context_quality dashboard)
 # ----------------------------------------------------
-client = CogniteClient()
-project = getattr(client.config, "project", None) or os.environ.get("COGNITE_PROJECT", "")
+_base_url = os.environ.get("COGNITE_BASE_URL", "https://api.cognitedata.com")
+_tenant_id = os.environ.get("COGNITE_TENANT_ID", "organizations")
+_project = os.environ.get("COGNITE_PROJECT", "")
+
+_creds = OAuthClientCredentials(
+    token_url=f"https://login.microsoftonline.com/{_tenant_id}/oauth2/v2.0/token",
+    client_id=os.environ["COGNITE_CLIENT_ID"],
+    client_secret=os.environ["COGNITE_CLIENT_SECRET"],
+    scopes=[f"{_base_url}/.default"],
+)
+
+_cnf = ClientConfig(
+    client_name="classic-cdf-analysis-dashboard",
+    project=_project,
+    credentials=_creds,
+    base_url=_base_url,
+)
+
+client = CogniteClient(_cnf)
+project = _project
 
 
 def _is_pyodide() -> bool:
