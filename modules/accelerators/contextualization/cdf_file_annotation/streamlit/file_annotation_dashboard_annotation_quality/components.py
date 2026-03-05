@@ -109,7 +109,7 @@ class AnnotationComparisonComponent(Component):
                 FieldNames.ASSOCIATED_FILES_TITLE_CASE: FieldNames.ASSOCIATED_FILES_TITLE_CASE,
                 normalized_status_property: FieldNames.STATUS_TITLE_CASE,
             },
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             disabled=True,
         )
@@ -177,7 +177,7 @@ class AnnotationComparisonComponent(Component):
             display_df,
             key=editor_key,
             column_config=potential_column_config,
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             disabled=display_df.columns.difference([FieldNames.SELECT_TITLE_CASE]),
         )
@@ -338,7 +338,7 @@ class TagEntityResourceTypeCoverageComponent(Component):
             ]
         ).properties(height=300, width=800, title="Annotation Coverage by Tag Entity Resource Type")
 
-        st.altair_chart(base_row, width="stretch")
+        st.altair_chart(base_row, use_container_width=True)
 
 class FileResourceTypeCoverageComponent(Component):
     def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
@@ -387,7 +387,7 @@ class FileResourceTypeCoverageComponent(Component):
                 alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE)
             ]
         ).properties(height=300, width=800, title="Annotation Coverage by File Resource Property")
-        st.altair_chart(base_row, width="stretch")
+        st.altair_chart(base_row, use_container_width=True)
 class SecondaryScopeCoverageComponent(Component):
     def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
@@ -435,7 +435,7 @@ class SecondaryScopeCoverageComponent(Component):
             ]
         ).properties(height=300, width=800, title=f"Annotation Coverage by '{secondary_scope_property}'")
 
-        st.altair_chart(base_row, width="stretch")
+        st.altair_chart(base_row, use_container_width=True)
 
 class PerFileFiltersComponent(Component):
     def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
@@ -645,7 +645,7 @@ class FileAggregationComponent(Component):
             display_df,
             key="perfile_files_editor",
             column_config=column_config,
-            width="stretch",
+            use_container_width=True,
             hide_index=True
         )
 
@@ -856,7 +856,7 @@ class PatternCatalogComponent(Component):
                     display_df,
                     key=manual_patterns_editor_key,
                     column_config=manual_column_config,
-                    width="stretch",
+                    use_container_width=True,
                     hide_index=True,
                     num_rows="dynamic",
                     on_change=capture_handler,
@@ -999,4 +999,4 @@ class CoverageThresholdMetricsComponent(Component):
 
         chart = (base + count_text).configure_view(strokeWidth=0)
 
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(chart, use_container_width=True)
