@@ -4,5 +4,5 @@ creator: <insert>
 description: Dashboard to inspect the health of the File Annotation Pipeline
 published: true
 theme: Light
-dataSetExternalId: {{dataset}}
+dataSetExternalId: {{ annotationDatasetExternalId }}
 entrypoint: Pipeline_Health.py

@@ -84,7 +84,7 @@ class ThroughputComponent(Component):
             tooltip=[f"{time_bucket_field}:T", "count:Q"],
         ).properties(title=f"Files Finalized {time_agg}").interactive()
 
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(chart, use_container_width=True)
 
 
 class FileTableComponent(Component):
@@ -143,7 +143,7 @@ class FileTableComponent(Component):
             column_config={
                 FieldNames.SELECT_TITLE_CASE: st.column_config.CheckboxColumn(required=True)
             },
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             disabled=df_display.columns.difference([FieldNames.SELECT_TITLE_CASE]),
             on_change=handler,
@@ -321,7 +321,7 @@ class RunChartsComponent(Component):
             cols = st.columns(2)
             for i, ch in enumerate(charts):
                 with cols[i % 2]:
-                    st.altair_chart(ch, width="stretch")
+                    st.altair_chart(ch, use_container_width=True)
 
 
 class DetailedRunHistoryComponent(Component):
@@ -442,13 +442,13 @@ class DetailedRunHistoryComponent(Component):
         total_pages = (len(filtered_runs) + items_per_page - 1) // items_per_page
         if total_pages > 1:
             p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
-            if p_col1.button("Previous", disabled=(st.session_state.page_num == 0), width="stretch"):
+            if p_col1.button("Previous", disabled=(st.session_state.page_num == 0)):
                 st.session_state.page_num -= 1
                 st.rerun()
             p_col2.markdown(
                 f"<div style='text-align: center; margin-top: 5px;'>Page {st.session_state.page_num + 1} of {total_pages}</div>",
                 unsafe_allow_html=True,
             )
-            if p_col3.button("Next", disabled=(st.session_state.page_num >= total_pages - 1), width="stretch"):
+            if p_col3.button("Next", disabled=(st.session_state.page_num >= total_pages - 1)):
                 st.session_state.page_num += 1
                 st.rerun()

@@ -4,5 +4,5 @@ creator: <insert>
 description: Dashboard to inspect the quality of annotations in the File Annotation Pipeline
 published: true
 theme: Light
-dataSetExternalId: {{dataset}}
+dataSetExternalId: {{ annotationDatasetExternalId }}
 entrypoint: Annotation_Quality.py
