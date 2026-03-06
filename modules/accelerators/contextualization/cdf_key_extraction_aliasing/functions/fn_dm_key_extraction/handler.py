@@ -84,6 +84,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         elif "config" in data:
             # Direct config provided (for standalone usage)
             engine_config = data["config"]
+            cdf_config = None
             logger.info("Using provided config directly")
         else:
             raise ValueError(
@@ -94,8 +95,13 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         engine = KeyExtractionEngine(engine_config)
         data["_engine"] = engine
 
-        # Call pipeline function
-        from pipeline import key_extraction
+        # Call pipeline function (support package and script execution)
+        try:
+            from .pipeline import key_extraction
+        except ImportError:
+            from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
+                key_extraction,
+            )
 
         key_extraction(
             client=client,
@@ -172,7 +178,7 @@ def run_locally():
     # Test data
     data = {
         "logLevel": "DEBUG",
-        "ExtractionPipelineExtId": "ctx_key_extraction_regex",  # Update with your pipeline ID
+        "ExtractionPipelineExtId": "ctx_key_extraction_GEL_prod",
     }
 
     # Run handler

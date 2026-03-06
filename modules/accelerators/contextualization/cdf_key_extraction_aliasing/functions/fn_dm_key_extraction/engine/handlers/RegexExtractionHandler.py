@@ -12,7 +12,8 @@ class RegexExtractionHandler(ExtractionMethodHandler):
         self, text: str, rule: ExtractionRule, context: Dict[str, Any] = None
     ) -> List[ExtractedKey]:
         """Extract keys using regex patterns."""
-        if not text and not rule.config.get("pattern", None):
+        pattern_str = rule.pattern or rule.config.get("pattern", None)
+        if not text and not pattern_str:
             return []
 
         extracted_keys = []
@@ -23,7 +24,7 @@ class RegexExtractionHandler(ExtractionMethodHandler):
             if not rule.case_sensitive:
                 flags |= re.IGNORECASE
 
-            pattern = re.compile(rule.config.get("pattern", None), flags)
+            pattern = re.compile(pattern_str, flags)
 
             # Find all matches
             matches = pattern.finditer(text)

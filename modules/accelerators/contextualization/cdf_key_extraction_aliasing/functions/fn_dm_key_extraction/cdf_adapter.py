@@ -385,9 +385,11 @@ def _convert_rule_dict_to_engine_format(
         method = rule_data.get("method", "regex")
         engine_rule = {
             "name": rule_data.get("name", "unnamed_rule"),
+            "description": rule_data.get("description", ""),
             "priority": rule_data.get("priority", 100),
-            "enabled": True,
+            "enabled": rule_data.get("enabled", True),
             "method": method,
+            "scope_filters": rule_data.get("scope_filters", {}),
             "extraction_type": rule_data.get(
                 "extraction_type", "candidate_key"
             ),  # Use rule's extraction_type or default to candidate_key
