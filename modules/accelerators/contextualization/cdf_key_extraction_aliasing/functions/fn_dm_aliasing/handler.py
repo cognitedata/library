@@ -114,8 +114,6 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             try:
                 import yaml
 
-                from .cdf_adapter import _convert_yaml_direct_to_aliasing_config
-
                 # Go up to key_extraction_aliasing root, then to pipelines
                 pipelines_dir = Path(__file__).parent.parent.parent / "pipelines"
                 all_aliasing_rules = []
