@@ -1,0 +1,179 @@
+workflowExternalId: cdf_key_extraction_GEL_files
+version: 'v1'
+workflowDefinition:
+  description: 'Run fn_dm_key_extraction for Geleen files using inline workflow config and persist keys to RAW'
+  tasks:
+    - externalId: 'fn_dm_key_extraction_gel_files'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_key_extraction'
+          data:
+            logLevel: 'INFO'
+            config:
+              externalId: ctx_key_extraction_GEL_prod
+              config:
+                parameters:
+                  debug: true
+                  run_all: true
+                  overwrite: true
+                  raw_db: db_key_extraction
+                  raw_table_state: key_extraction_state_GEL
+                  raw_table_key: GEL_extracted_keys
+                data:
+                  validation:
+                    min_confidence: 0.5
+                    max_keys_per_type: 1000
+                    blacklist_keywords:
+                      - "test"
+                      - "example"
+                      - "sample"
+                      - "dummy"
+                      - "temp"
+                      - "temporary"
+                      - "null"
+                      - "none"
+                      - "n/a"
+                      - "na"
+                      - "unknown"
+                  source_views:
+                    - view_external_id: CogniteFile
+                      view_space: cdf_cdm
+                      view_version: v1
+                      instance_space: BEN-GEL-ALL-DAT
+                      entity_type: file
+                      batch_size: 1000
+                      filters:
+                        - operator: IN
+                          target_property: mimeType
+                          values:
+                            - application/pdf
+                      include_properties:
+                        - externalId
+                        - name
+                        - description
+                        - tags
+                        - metadata
+                  extraction_rules:
+                    - name: "geleen_file_ocr_rdp_ppg_candidates"
+                      method: "regex"
+                      extraction_type: "candidate_key"
+                      description: "Extract RDP-PID, PPG-SYS, PPG-HAS, PPG-E25, PPG-UTI from file name (Geleen ocr_fix equivalents)"
+                      enabled: true
+                      priority: 65
+                      scope_filters:
+                        entity_type: ["file"]
+                      parameters:
+                        pattern: '\b(?:RDP[-_\s]?PID|PPG[-_\s]?(?:SYS|HAS|E25|UTI))\b'
+                        max_matches_per_field: 10
+                        regex_options:
+                          ignore_case: true
+                          multiline: false
+                          dotall: false
+                          unicode: true
+                        early_termination: false
+                      source_fields:
+                        - field_name: "name"
+                          required: true
+                          max_length: 500
+                          field_type: string
+                          priority: 1
+                          role: target
+                          preprocessing:
+                            - trim
+                      field_selection_strategy: "first_match"
+                    - name: "geleen_file_tag_like_from_name"
+                      method: "regex"
+                      extraction_type: "candidate_key"
+                      description: "Extract asset-tag-like tokens from file name (4+ chars, contains digit)"
+                      enabled: true
+                      priority: 58
+                      scope_filters:
+                        entity_type: ["file"]
+                      parameters:
+                        pattern: '\b(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9][A-Za-z0-9_-]{3,}\b'
+                        max_matches_per_field: 50
+                        regex_options:
+                          ignore_case: false
+                          multiline: false
+                          dotall: false
+                          unicode: true
+                        early_termination: false
+                      source_fields:
+                        - field_name: "name"
+                          required: true
+                          max_length: 500
+                          field_type: string
+                          priority: 1
+                          role: target
+                          preprocessing:
+                            - trim
+                        - field_name: "description"
+                          required: false
+                          max_length: 1000
+                          field_type: string
+                          priority: 2
+                          role: target
+                          preprocessing:
+                            - trim
+                      field_selection_strategy: "merge_all"
+                    - name: "geleen_file_metadata_aliases_extraction"
+                      method: "regex"
+                      extraction_type: "candidate_key"
+                      description: "Extract tag-like tokens from file metadata.aliases (CDM property)"
+                      enabled: true
+                      priority: 72
+                      scope_filters:
+                        entity_type: ["file"]
+                      parameters:
+                        pattern: '\b(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9][A-Za-z0-9_-]{3,}\b'
+                        max_matches_per_field: 200
+                        regex_options:
+                          ignore_case: false
+                          multiline: false
+                          dotall: false
+                          unicode: true
+                        early_termination: false
+                      source_fields:
+                        - field_name: "metadata.aliases"
+                          required: false
+                          max_length: 5000
+                          field_type: array
+                          separator: " "
+                          priority: 1
+                          role: target
+                          preprocessing:
+                            - trim
+                      field_selection_strategy: "merge_all"
+                    - name: "geleen_file_asset_tag_extraction"
+                      method: "regex"
+                      extraction_type: "candidate_key"
+                      description: "Extract standard asset tags from file name (legacy asset_tag_match pattern)"
+                      enabled: true
+                      priority: 55
+                      scope_filters:
+                        entity_type: ["file"]
+                      parameters:
+                        pattern: '\b[A-Z0-9-\/]+[a-zA-Z0-9]\b'
+                        max_matches_per_field: 30
+                        regex_options:
+                          ignore_case: false
+                          multiline: false
+                          dotall: false
+                          unicode: true
+                        early_termination: false
+                      source_fields:
+                        - field_name: "name"
+                          required: true
+                          max_length: 500
+                          field_type: string
+                          priority: 1
+                          role: target
+                          preprocessing:
+                            - trim
+                      field_selection_strategy: "merge_all"
+      name: 'Geleen File Key Extraction'
+      description: 'Runs key extraction for Geleen files from CogniteFile view and writes extracted keys to RAW'
+      retries: 3
+      timeout: 7200
+      onFailure: 'abortWorkflow'

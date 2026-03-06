@@ -258,4 +258,9 @@ def load_config_parameters(
             f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r}"
         )
 
-    return Config.model_validate(yaml.safe_load(raw_config.config))
+    parsed = yaml.safe_load(raw_config.config)
+    # Config may be stored as either:
+    # - {"parameters": ..., "data": ...}
+    # - {"externalId": "...", "config": {"parameters": ..., "data": ...}}
+    config_data = parsed.get("config", parsed)
+    return Config.model_validate(config_data)

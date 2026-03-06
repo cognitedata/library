@@ -20,17 +20,16 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .cdf_adapter import convert_cdf_config_to_engine_config
+from .cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
 from .engine.key_extraction_engine import KeyExtractionEngine
 
 # Try to import CDF config loader - fallback if not available
 try:
-    from .config import Config, load_config_parameters
+    from .config import Config
 
     CDF_CONFIG_AVAILABLE = True
 except ImportError:
     CDF_CONFIG_AVAILABLE = False
-    load_config_parameters = None
     Config = None
 
 
@@ -43,14 +42,15 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
     Args:
         data: Dictionary containing:
-            - ExtractionPipelineExtId: External ID of the extraction pipeline
+            - config: Workflow-provided config payload
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
-        client: CogniteClient instance (required if using CDF config loading)
+        client: CogniteClient instance (required for CDF querying/writing mode)
 
     Returns:
         Dictionary with status and result information
     """
     logger = None
+    cdf_config = None
 
     try:
         # Initialize logging
@@ -63,32 +63,35 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         logger = CogniteFunctionLogger(loglevel, verbose=verbose)
         logger.info(f"Starting key extraction with loglevel = {loglevel} and verbose {"ON" if verbose else "OFF"}")
 
-        # Load configuration from CDF extraction pipeline
-        if CDF_CONFIG_AVAILABLE and client and "ExtractionPipelineExtId" in data:
-            pipeline_ext_id = data["ExtractionPipelineExtId"]
-            logger.info(f"Loading config from extraction pipeline: {pipeline_ext_id}")
+        # Load config from workflow payload
+        if "config" in data:
+            provided_config = data["config"]
 
-            cdf_config = load_config_parameters(client, data)
-            logger.debug(f"Loaded CDF config: {cdf_config}")
-
-            logger = CogniteFunctionLogger(loglevel, cdf_config.parameters.verbose)
-
-            # Convert CDF config to engine format
-            engine_config = convert_cdf_config_to_engine_config(cdf_config)
-            logger.debug(f"Converted to engine config format")
-
-            # Store CDF config for use in pipeline
-            data["_cdf_config"] = cdf_config
-            data["_engine_config"] = engine_config
-
-        elif "config" in data:
-            # Direct config provided (for standalone usage)
-            engine_config = data["config"]
-            cdf_config = None
-            logger.info("Using provided config directly")
+            # Workflow-provided config can be either:
+            # - full pipeline-shaped payload {externalId, config: {parameters, data}}
+            # - config-only payload {parameters, data}
+            # - already-converted engine config
+            if CDF_CONFIG_AVAILABLE and isinstance(provided_config, dict):
+                unwrapped = provided_config.get("config", provided_config)
+                try:
+                    cdf_config = Config.model_validate(unwrapped)
+                    engine_config = convert_cdf_config_to_engine_config(cdf_config)
+                    logger.info("Using workflow-provided config")
+                    data["_cdf_config"] = cdf_config
+                    data["_engine_config"] = engine_config
+                except Exception:
+                    # Fall back to direct engine config mode
+                    engine_config = provided_config
+                    cdf_config = None
+                    logger.info("Using provided engine config directly")
+            else:
+                # Direct config provided (for standalone usage)
+                engine_config = provided_config
+                cdf_config = None
+                logger.info("Using provided config directly")
         else:
             raise ValueError(
-                "Either ExtractionPipelineExtId (with client) or config must be provided in data"
+                "Missing required key 'config' in input data"
             )
 
         # Initialize engine
@@ -125,7 +128,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
 
 def run_locally():
-    """Run handler locally for testing (requires .env file and CDF config)."""
+    """Run handler locally for testing using a config file."""
     import os
 
     from dotenv import load_dotenv
@@ -175,10 +178,19 @@ def run_locally():
 
     client = CogniteClient(cnf)
 
-    # Test data
+    # Test data (workflow-style config payload)
+    config_path = os.getenv(
+        "KEY_EXTRACTION_CONFIG_PATH",
+        str(
+            Path(__file__).resolve().parents[2]
+            / "extraction_pipelines"
+            / "ctx_key_extraction_GEL_prod.config.yaml"
+        ),
+    )
+    workflow_config = load_config_from_yaml(config_path, validate=False)
     data = {
         "logLevel": "DEBUG",
-        "ExtractionPipelineExtId": "ctx_key_extraction_GEL_prod",
+        "config": workflow_config,
     }
 
     # Run handler
