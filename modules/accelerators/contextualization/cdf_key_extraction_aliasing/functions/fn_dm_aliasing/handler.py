@@ -21,6 +21,7 @@ except ImportError:
     CDF_AVAILABLE = False
 
 from .cdf_adapter import convert_cdf_config_to_aliasing_config
+from .cdf_adapter import _convert_yaml_direct_to_aliasing_config
 from .dependencies import create_client, create_logger_service, get_env_variables
 from .engine.tag_aliasing_engine import AliasingEngine
 
@@ -77,9 +78,37 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             data["_aliasing_config"] = aliasing_config
 
         elif "config" in data:
-            # Direct config provided (for standalone usage)
-            aliasing_config = data["config"]
-            logger.info("Using provided config directly")
+            # Workflow/direct config provided
+            provided_config = data["config"]
+            if isinstance(provided_config, dict):
+                unwrapped = provided_config.get("config", provided_config)
+                # CDF/workflow-shaped aliasing config
+                if (
+                    isinstance(unwrapped, dict)
+                    and "data" in unwrapped
+                    and isinstance(unwrapped.get("data"), dict)
+                    and "aliasing_rules" in unwrapped.get("data", {})
+                ):
+                    aliasing_config = _convert_yaml_direct_to_aliasing_config(
+                        {"config": unwrapped}
+                    )
+                    logger.info("Using workflow-provided aliasing config")
+
+                    # Enable RAW upload from config parameters unless explicitly overridden
+                    params = unwrapped.get("parameters", {})
+                    if isinstance(params, dict):
+                        if "raw_db" in params:
+                            data.setdefault("raw_db", params["raw_db"])
+                        if "raw_table_aliases" in params:
+                            data.setdefault("raw_table", params["raw_table_aliases"])
+                        data.setdefault("upload_to_raw", True)
+                else:
+                    # Direct engine-ready config
+                    aliasing_config = provided_config
+                    logger.info("Using provided config directly")
+            else:
+                aliasing_config = provided_config
+                logger.info("Using provided config directly")
         else:
             # Load from aliasing pipeline configs
             try:
