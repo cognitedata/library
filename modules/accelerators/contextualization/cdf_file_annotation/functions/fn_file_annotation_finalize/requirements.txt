@@ -3,7 +3,7 @@ certifi==2025.4.26
 cffi==1.17.1
 charset-normalizer==3.4.2
 cognite-sdk==7.76.0
-cryptography==44.0.3
+cryptography==46.0.5
 dotenv==0.9.9
 idna==3.10
 msal==1.32.3
