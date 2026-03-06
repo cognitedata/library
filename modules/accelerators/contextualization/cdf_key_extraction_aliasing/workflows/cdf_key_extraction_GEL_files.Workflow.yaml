@@ -1,3 +1,0 @@
-externalId: cdf_key_extraction_GEL_files
-description: Workflow that runs Geleen file key extraction using inline workflow config
-dataSetExternalId: 'ds_key_extraction'
