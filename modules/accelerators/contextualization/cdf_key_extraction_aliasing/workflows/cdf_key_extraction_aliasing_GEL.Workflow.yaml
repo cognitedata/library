@@ -1,0 +1,3 @@
+externalId: cdf_key_extraction_aliasing_GEL
+description: Workflow that runs Geleen key extraction and aliasing (without alias persistence to entities)
+dataSetExternalId: 'ds_key_extraction'
