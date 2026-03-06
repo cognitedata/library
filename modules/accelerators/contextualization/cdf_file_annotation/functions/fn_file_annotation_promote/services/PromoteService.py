@@ -194,9 +194,18 @@ class GeneralPromoteService(IPromoteService):
                 num_edges: int = len(edges_with_same_text)
                 should_delete: bool = False
 
-                if len(found_nodes) == 1:
+                if len(found_nodes) == 1 and not (
+                    found_nodes[0].space == edges_with_same_text[0].start_node.space and
+                    found_nodes[0].external_id == edges_with_same_text[0].start_node.external_id
+                ):
                     batch_promoted += num_edges
                     should_delete = False  # Never delete promoted edges
+                elif len(found_nodes) == 1 and (
+                    found_nodes[0].space == edges_with_same_text[0].start_node.space and
+                    found_nodes[0].external_id == edges_with_same_text[0].start_node.external_id
+                ):
+                    batch_rejected += num_edges
+                    should_delete = self.delete_rejected_edges
                 elif len(found_nodes) == 0:
                     batch_rejected += num_edges
                     should_delete = self.delete_rejected_edges
@@ -394,7 +403,10 @@ class GeneralPromoteService(IPromoteService):
         # Prepare update properties for the edge
         update_properties: dict[str, Any] = {}
 
-        if len(found_nodes) == 1:  # Success - single match found
+        if len(found_nodes) == 1 and not (
+            found_nodes[0].space == edge.start_node.space and
+            found_nodes[0].external_id == edge.start_node.external_id
+        ):  # Success - single match found
             matched_node: Node = found_nodes[0]
             self.logger.info(
                 f"✓ Found single match for '{edge_props.get('startNodeText')}' → {matched_node.external_id}. \n\t- Promoting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
@@ -415,6 +427,19 @@ class GeneralPromoteService(IPromoteService):
             resource_type: Any = entity_props.get("resourceType") or entity_props.get("type")
             if resource_type:
                 raw_data["endNodeResourceType"] = resource_type
+
+        elif len(found_nodes) == 1 and (
+            found_nodes[0].space == edge.start_node.space and
+            found_nodes[0].external_id == edge.start_node.external_id
+        ):  # Failure - single match, but it's a self-reference
+            self.logger.info(
+                f"✗ Only self-reference match for '{edge_props.get('startNodeText')}'.\n\t- Rejecting edge: ({edge.space}, {edge.external_id})\n\t- Start node: ({edge.start_node.space}, {edge.start_node.external_id})."
+            )
+            update_properties["status"] = DiagramAnnotationStatus.REJECTED.value
+            updated_tags.append("PromoteAttempted")
+
+            # Update RAW row status
+            raw_data["status"] = DiagramAnnotationStatus.REJECTED.value                    
 
         elif len(found_nodes) == 0:  # Failure - no match found
             self.logger.info(
