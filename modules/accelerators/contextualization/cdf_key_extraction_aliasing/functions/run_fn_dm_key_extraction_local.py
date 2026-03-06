@@ -208,6 +208,7 @@ def main() -> int:
     parser.add_argument("--results-path", default="")
     args = parser.parse_args()
 
+
     config_path = Path(args.config_path)
     if not config_path.is_absolute():
         config_path = REPO_ROOT / config_path
