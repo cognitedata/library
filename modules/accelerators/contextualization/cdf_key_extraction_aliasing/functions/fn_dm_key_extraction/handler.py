@@ -70,9 +70,9 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
             logger = CogniteFunctionLogger(loglevel, cdf_config.parameters.verbose)
         elif "config" in data:
-            # Direct config provided (standalone or when client is None)
-            raw = data["config"]
-            cdf_config = raw if isinstance(raw, Config) else Config(**raw)
+            # Direct config provided (for standalone usage)
+            engine_config = data["config"]
+            cdf_config = None
             logger.info("Using provided config directly")
             if client is None and data.get("entities") is None:
                 logger.warning("client is None and no 'entities' in data; pipeline will have nothing to process.")
@@ -86,8 +86,13 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         data["_engine"] = engine
         data["_cdf_config"] = cdf_config
 
-        # Call pipeline function (standalone when no client: cdf_config=None, pipeline uses data["entities"])
-        from .pipeline import key_extraction
+        # Call pipeline function (support package and script execution)
+        try:
+            from .pipeline import key_extraction
+        except ImportError:
+            from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
+                key_extraction,
+            )
 
         key_extraction(
             client=client,
@@ -164,7 +169,7 @@ def run_locally():
     # Test data
     data = {
         "logLevel": "DEBUG",
-        "ExtractionPipelineExtId": "ctx_key_extraction_regex",  # Update with your pipeline ID
+        "ExtractionPipelineExtId": "ctx_key_extraction_GEL_prod",
     }
 
     # Run handler

@@ -11,7 +11,6 @@ from typing import Any, Dict, Optional
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
-from cognite.extractorutils.uploader import RawUploadQueue
 
 from .common.logger import CogniteFunctionLogger
 from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
@@ -52,6 +51,8 @@ def key_extraction(
         use_cdf_format = cdf_config is not None and client is not None
 
         if use_cdf_format:
+            from cognite.extractorutils.uploader import RawUploadQueue
+
             # Extract parameters from CDF config
             raw_db = cdf_config.parameters.raw_db
             raw_table_key = cdf_config.parameters.raw_table_key
@@ -81,6 +82,9 @@ def key_extraction(
 
         # Process entities with extraction engine
         entities_keys_extracted = {}
+        rule_source_fields_map = {}
+        for rule in getattr(engine, "rules", []):
+            rule_source_fields_map[rule.name] = [sf.field_name for sf in rule.source_fields]
 
         for entity_id, entity_fields in entities_source_fields.items():
             # Convert entity fields to format expected by engine
@@ -90,7 +94,21 @@ def key_extraction(
             # Extract keys
             result = engine.extract_keys(entity, entity_type)
 
-            # Store entity metadata with candidate_keys list (for ApplyService and rule_id grouping)
+            # Store results organized by field_name with extraction type metadata
+            keys = {}
+            for key in result.candidate_keys:
+                field_name = key.source_field
+                if field_name not in keys:
+                    keys[field_name] = {}
+                keys[field_name][key.value] = {
+                    "confidence": key.confidence,
+                    "extraction_type": key.extraction_type.value,
+                    "rule_name": key.rule_name,
+                    "matched_source_field": key.source_field,
+                    "rule_source_fields": rule_source_fields_map.get(key.rule_name, []),
+                }
+
+            # Store entity metadata including view information
             entity_metadata = {
                 "keys": result.candidate_keys,
                 "view_space": entity_fields.get("view_space"),
