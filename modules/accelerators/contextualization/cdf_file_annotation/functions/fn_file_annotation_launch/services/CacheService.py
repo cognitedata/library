@@ -218,7 +218,7 @@ class GeneralCacheService(ICacheService):
         for instance in asset_instances:
             instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
             asset_resource_type: str = (
-                instance_properties[target_entities_resource_type]
+                instance_properties.get(target_entities_resource_type)
                 if target_entities_resource_type
                 else self.target_entities_view.external_id
             )
