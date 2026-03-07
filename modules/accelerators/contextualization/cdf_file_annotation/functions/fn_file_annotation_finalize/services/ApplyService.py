@@ -378,6 +378,9 @@ class GeneralApplyService(IApplyService):
         bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
         page = detect_annotation["region"].get("page")
         for entity in detect_annotation.get("entities", []):
+            # NOTE: Remove self references
+            if file_instance_id.as_tuple() == (entity.get("space"), entity.get("external_id")):
+                continue
             if detect_annotation.get("confidence", 0.0) >= self.approve_threshold:
                 status = DiagramAnnotationStatus.APPROVED.value
             elif detect_annotation.get("confidence", 0.0) >= self.suggest_threshold:
