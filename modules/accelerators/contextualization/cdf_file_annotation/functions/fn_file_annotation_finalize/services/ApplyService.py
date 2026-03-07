@@ -60,7 +60,10 @@ class GeneralApplyService(IApplyService):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
-        self.raw_tables = config.raw_tables
+        self.raw_db: str = self.config.raw_tables.raw_db
+        self.raw_pattern_table: str = self.config.raw_tables.raw_table_doc_pattern
+        self.raw_doc_doc_table: str = self.config.raw_tables.raw_table_doc_doc
+        self.raw_doc_tag_table: str = self.config.raw_tables.raw_table_doc_tag
         self.core_annotation_view_id: ViewId = config.data_model_views.core_annotation_view.as_view_id()
         self.file_view_id: ViewId = config.data_model_views.file_view.as_view_id()
         self.file_annotation_type = config.data_model_views.file_view.annotation_type
@@ -136,22 +139,22 @@ class GeneralApplyService(IApplyService):
         self.update_instances(list_edge_apply=regular_edges + pattern_edges)
         if doc_rows:
             self.client.raw.rows.insert(
-                db_name=self.raw_tables.raw_db,
-                table_name=self.raw_tables.raw_table_doc_doc,
+                db_name=self.raw_db,
+                table_name=self.raw_doc_doc_table,
                 row=doc_rows,
                 ensure_parent=True,
             )
         if tag_rows:
             self.client.raw.rows.insert(
-                db_name=self.raw_tables.raw_db,
-                table_name=self.raw_tables.raw_table_doc_tag,
+                db_name=self.raw_db,
+                table_name=self.raw_doc_tag_table,
                 row=tag_rows,
                 ensure_parent=True,
             )
         if pattern_rows:
             self.client.raw.rows.insert(
-                db_name=self.raw_tables.raw_db,
-                table_name=self.raw_tables.raw_table_doc_pattern,
+                db_name=self.raw_db,
+                table_name=self.raw_pattern_table,
                 row=pattern_rows,
                 ensure_parent=True,
             )
@@ -208,14 +211,14 @@ class GeneralApplyService(IApplyService):
                 self.client.data_modeling.instances.delete(edges=edge_ids)
             if doc_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.raw_tables.raw_db,
-                    table_name=self.raw_tables.raw_table_doc_doc,
+                    db_name=self.raw_db,
+                    table_name=self.raw_doc_doc_table,
                     key=doc_keys,
                 )
             if tag_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.raw_tables.raw_db,
-                    table_name=self.raw_tables.raw_table_doc_tag,
+                    db_name=self.raw_db,
+                    table_name=self.raw_doc_tag_table,
                     key=tag_keys,
                 )
             counts["doc"], counts["tag"] = len(doc_keys), len(tag_keys)
@@ -230,8 +233,8 @@ class GeneralApplyService(IApplyService):
                 self.client.data_modeling.instances.delete(edges=edge_ids)
             if row_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.raw_tables.raw_db,
-                    table_name=self.raw_tables.raw_table_doc_pattern,
+                    db_name=self.raw_db,
+                    table_name=self.raw_pattern_table,
                     key=row_keys,
                 )
             counts["pattern"] = len(row_keys)
