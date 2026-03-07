@@ -321,8 +321,13 @@ class GeneralCacheService(ICacheService):
                     continue
                 if is_separator(part):
                     # Hyphen and space are plain literals; other specials must be wrapped in brackets
+                    # Bracket characters coming from aliases should be ignored in the resulting
+                    # template (they can't match literal brackets in the docs).
+                    # We still treat them as separators so token-boundary checks work.
                     if part == "-" or part == " ":
                         full_template_key_parts.append(part)
+                    elif part in ("[", "]"):
+                        pass
                     else:
                         full_template_key_parts.append(f"[{part}]")
                     continue
