@@ -843,33 +843,42 @@ class PatternCatalogComponent(Component):
             manual_patterns_editor_key = st.session_state.manual_patterns_editor_key
 
             if manual_df is None or manual_df.empty:
-                st.info("No manual patterns available.")
+                columns = list(manual_column_config.keys())
+                display_df = pd.DataFrame(columns=columns)
+
+                st.metric(
+                    "Manual patterns help",
+                    "Hover for instructions",
+                    help=(
+                        "Add, edit or remove patterns here. "
+                        "Use 'Reset changes' to revert in-memory edits or 'Save changes' to persist changes to the raw table."
+                    ),
+                )
             else:
                 columns = [c for c in list(manual_column_config.keys()) if c in manual_df.columns]
-
                 display_df = manual_df.loc[:, columns]
-                
-                capture_handler = DataEditorChangeCaptureFactory.make_change_capture_handler(display_df, manual_patterns_editor_key, FieldNames.PATTERN_SCOPE_SNAKE_CASE, "manual_patterns_changes")
 
-                edited = st.data_editor(
-                    display_df,
-                    key=manual_patterns_editor_key,
-                    column_config=manual_column_config,
-                    width="stretch",
-                    hide_index=True,
-                    num_rows="dynamic",
-                    on_change=capture_handler,
-                )
+            capture_handler = DataEditorChangeCaptureFactory.make_change_capture_handler(display_df, manual_patterns_editor_key, FieldNames.PATTERN_SCOPE_SNAKE_CASE, "manual_patterns_changes")
 
-                col_save, col_reset = st.columns([1, 1])
+            edited = st.data_editor(
+                display_df,
+                key=manual_patterns_editor_key,
+                column_config=manual_column_config,
+                width="stretch",
+                hide_index=True,
+                num_rows="dynamic",
+                on_change=capture_handler,
+            )
 
-                with col_save:
-                    if st.button("Save changes", key="manual_patterns_save_btn"):
-                        self._save_manual_pattern_changes(edited)
-                        st.session_state["manual_patterns_changes"] = set()
-                with col_reset:
-                    if st.button("Reset changes", key="manual_patterns_reset_btn"):
-                        self._reset_manual_pattern_changes()
+            col_save, col_reset = st.columns([1, 1])
+
+            with col_save:
+                if st.button("Save changes", key="manual_patterns_save_btn"):
+                    self._save_manual_pattern_changes(edited)
+                    st.session_state["manual_patterns_changes"] = set()
+            with col_reset:
+                if st.button("Reset changes", key="manual_patterns_reset_btn"):
+                    self._reset_manual_pattern_changes()
 
         with right:
             st.subheader("Automatic Patterns")
