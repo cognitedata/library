@@ -102,7 +102,7 @@ class DataFetcher:
                 columns=annotation_columns
             )
 
-            if not docs_df.empty:
+            if docs_df is not None and not docs_df.empty:
                 if actual_df is None or actual_df.empty:
                     actual_df = docs_df
                 else:
