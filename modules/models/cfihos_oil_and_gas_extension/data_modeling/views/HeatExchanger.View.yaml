@@ -573,3 +573,4 @@ properties:
       externalId: CFIHOS_HeatExchanger
       type: container
     containerPropertyIdentifier: additionalProperties
+    description: Overflow properties stored as JSON for rarely-queried fields

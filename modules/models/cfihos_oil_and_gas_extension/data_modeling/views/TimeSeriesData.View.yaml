@@ -8,6 +8,18 @@ implements:
   type: view
 version: "{{dm_version}}"
 properties:
+  stateSet:
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: stateSet
+    description: The state set of the time series, only in effect when type is 'state'
+    source:
+      space: cdf_cdm
+      externalId: CogniteStateSet
+      version: v1
+      type: view
   assets:
     container:
       space: cdf_cdm

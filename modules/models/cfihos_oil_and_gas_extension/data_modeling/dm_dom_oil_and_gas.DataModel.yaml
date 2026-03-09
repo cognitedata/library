@@ -13,7 +13,7 @@ version: "{{dm_version}}"
 views:
 # CFIHOS extension views ({{space}})
 - space: "{{space}}"
-  externalId: CommonLCI
+  externalId: CommonLCIProperties
   version: "{{dm_version}}"
   type: view
 - space: "{{space}}"
@@ -37,7 +37,7 @@ views:
   version: "{{dm_version}}"
   type: view
 - space: "{{space}}"
-  externalId: FunctionalLocation
+  externalId: FunctionalLocationProperties
   version: "{{dm_version}}"
   type: view
 - space: "{{space}}"

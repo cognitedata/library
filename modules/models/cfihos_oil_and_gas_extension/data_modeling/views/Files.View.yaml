@@ -22,14 +22,14 @@ properties:
         externalId: Equipment
         version: "{{dm_version}}"
         type: view
-      identifier: asset
+      identifier: files
     name: Equipment
     description: An automatically updated list of equipment related to the file.
     connectionType: multi_reverse_direct_relation
   assets:
     container:
       space: cdf_cdm
-      externalId: CogniteTimeSeries
+      externalId: CogniteFile
       type: container
     containerPropertyIdentifier: assets
     name: Tags

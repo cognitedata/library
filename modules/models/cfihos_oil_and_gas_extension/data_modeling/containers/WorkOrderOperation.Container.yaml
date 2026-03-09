@@ -4,6 +4,14 @@ name: WorkOrderOperation
 description: SAP work order operation aligned with CogniteOperation standard
 usedFor: node
 properties:
+  functionalLocation:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: functionalLocation
   routingNo:
     type:
       list: false
@@ -308,6 +316,12 @@ constraints:
       space: cdf_cdm
       externalId: CogniteSchedulable
       type: container
+  activityPresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
   operationPresent:
     constraintType: requires
     require:
@@ -315,6 +329,12 @@ constraints:
       externalId: CogniteOperation
       type: container
 indexes:
+  functionalLocation:
+    indexType: btree
+    properties:
+      - functionalLocation
+    bySpace: false
+    cursorable: false
   wctrDiscipline:
     indexType: btree
     properties:

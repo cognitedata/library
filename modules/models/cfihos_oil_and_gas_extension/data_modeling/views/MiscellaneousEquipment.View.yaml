@@ -394,3 +394,4 @@ properties:
       externalId: CFIHOS_MiscellaneousEquipment
       type: container
     containerPropertyIdentifier: additionalProperties
+    description: Overflow properties stored as JSON for rarely-queried fields

@@ -155,7 +155,6 @@ properties:
     nullable: true
     autoIncrement: false
     name: avevaTagStatus
-
   classViewExtId:
     type:
       list: false
@@ -164,8 +163,8 @@ properties:
     immutable: false
     nullable: true
     autoIncrement: false
-    name: avevaTagStatus
-  CommonLCI:
+    name: classViewExtId
+  CommonLCIProperties:
     type:
       list: false
       type: direct
@@ -173,14 +172,13 @@ properties:
     nullable: true
     autoIncrement: false
     name: CommonLCIProperties
-  FunctionalLocation:
+  FunctionalLocationProperties:
     type:
       list: false
       type: direct
     immutable: false
     nullable: true
     autoIncrement: false
-    name: FunctionalLocation
   classSpecific:
     type:
       list: false
@@ -249,16 +247,16 @@ indexes:
     - CFIHOS_10000005
     indexType: btree
     cursorable: true
-  FunctionalLocation:
+  FunctionalLocationProperties:
     indexType: btree
     properties:
-      - FunctionalLocation
+      - FunctionalLocationProperties
     bySpace: false
     cursorable: false
-  CommonLCI:
+  CommonLCIProperties:
     indexType: btree
     properties:
-      - CommonLCI
+      - CommonLCIProperties
     bySpace: false
     cursorable: false
   classSpecific:

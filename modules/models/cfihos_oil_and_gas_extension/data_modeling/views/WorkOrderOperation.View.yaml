@@ -75,6 +75,19 @@ properties:
       externalId: Equipment
       version: "{{dm_version}}"
       type: view
+  functionalLocation:
+    name: Functional Location
+    description: The functional location the operation is related to.
+    container:
+      space: "{{space}}"  
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: functionalLocation
+    source:
+      space: "{{space}}"
+      externalId: FunctionalLocationProperties
+      version: "{{dm_version}}"
+      type: view
   labels:
     container:
       space: cdf_cdm

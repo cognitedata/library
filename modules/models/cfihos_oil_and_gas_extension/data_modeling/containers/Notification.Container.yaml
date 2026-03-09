@@ -183,6 +183,12 @@ constraints:
       space: cdf_cdm
       externalId: CogniteSchedulable
       type: container
+  activityPresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
   notificationPresent:
     constraintType: requires
     require:

@@ -61,6 +61,7 @@ properties:
       type: container
     containerPropertyIdentifier: mainAssets
     name: mainAssets
+    description: Main asset identifiers associated with this failure mode
   facilities:
     container:
       space: "{{space}}"
@@ -68,6 +69,7 @@ properties:
       type: container
     containerPropertyIdentifier: facilities
     name: facilities
+    description: Facility codes where this failure mode has been observed
   standard:
     container:
       space: "{{space}}"

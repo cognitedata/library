@@ -25,11 +25,11 @@ properties:
       space: '{{space}}'
       externalId: Tag
       type: container
-    containerPropertyIdentifier: FunctionalLocation
+    containerPropertyIdentifier: FunctionalLocationProperties
     description: Direct relation to functional location properties
     source:
       space: '{{space}}'
-      externalId: FunctionalLocation
+      externalId: FunctionalLocationProperties
       version: '{{dm_version}}'
       type: view
   CommonLCIProperties:
@@ -37,11 +37,11 @@ properties:
       space: '{{space}}'
       externalId: Tag
       type: container
-    containerPropertyIdentifier: CommonLCI
+    containerPropertyIdentifier: CommonLCIProperties
     description: Direct relation to common lifecycle information properties
     source:
       space: '{{space}}'
-      externalId: CommonLCI
+      externalId: CommonLCIProperties
       version: '{{dm_version}}'
       type: view
   labels:
@@ -289,6 +289,13 @@ properties:
       type: container
     containerPropertyIdentifier: validNamingConvention
     description: Indicates if the tag follows the naming convention
+  classViewExtId:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: classViewExtId
+    description: External ID of the class-specific view for this tag (e.g., CFIHOS_Pump, CFIHOS_Valve)
   classSpecificProperties:
     container:
       space: '{{space}}'

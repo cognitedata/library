@@ -54,7 +54,13 @@ properties:
     nullable: true
     autoIncrement: false
     name: additionalProperties
-constraints: {}
+constraints:
+  describablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
 indexes:
   code:
     indexType: btree
