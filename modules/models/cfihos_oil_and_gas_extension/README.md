@@ -1,128 +1,150 @@
-# CFIHOS CDM Extension
+# Oil and Gas Domain Model — CFIHOS Extension
 
-## 📝 Description
+A tag-centric data model for oil and gas operations that merges data from AVEVA, SAP, OPC UA, and PI into a single queryable structure. Built on the CFIHOS 2.0 standard and deployed as a Cognite Toolkit module extending the Cognite Data Model (CDM) and Industry Data Model (IDM).
 
-The CFIHOS CDM Extension is a Python tool that enables data engineers, data scientists and solution architects to convert the CFIHOS standard into views and containers that can be adopted into existing data models. It is configuration based and allows you to make a filter to setup exactly which CFIHOS tag classes to create views and containers for.
+The model favors **simplicity and denormalization** over strict normalization. Rather than forcing users to join across many small tables, related properties are flattened into fewer, wider views. Time series data from PI and OPC UA is merged into a single `TimeSeriesData` view with prefixed properties (`pi_*`, `opcua_*`), and document data that would normally span document, revision, and file entities is flattened into a single `Files` view. This makes the data immediately accessible to AI tools, search engines, dashboards, and developers — a single query returns everything you need about an entity without complex joins.
 
-## ✨ Purpose
+## What this model provides
 
-The purpose is to enable other members of Cognite to leverage the same design pattern as provided and used by Aker BP for modeling CFIHOS within Data Modeling in CDF.
+- A unified **Tag** as the single `CogniteAsset` implementation — the central hub connecting equipment, work orders, time series, files, and functional locations
+- **17 CFIHOS equipment class views** (Compressor, Valve, Pump, HeatExchanger, etc.) linked to tags via polymorphic direct relations
+- **Work management** views (WorkOrder, WorkOrderOperation, Notification) extending IDM types (`CogniteMaintenanceOrder`, `CogniteOperation`, `CogniteNotification`)
+- **Denormalized time series** (`TimeSeriesData`) combining PI and OPC UA properties into one searchable view
+- **Document management** (`Files`) extending `CogniteFile` with document metadata
+- **Functional locations** and **maintenance/integrity** data from SAP
+- **Failure modes** linked to tags and notifications per ISO 14224
+- **Alarm records** stored using Records & Stream service (Container definition `usedFor: record`) containers for event-level data
 
-## 👤 Author and Project
+## Architecture
 
-Details of the original author or contributor of this artefact and information about the project where it was originally developed or first used.
+### CDM extensions (cdf_cdm)
 
-* **Name:** Christoffer Holm-Kjøhl
+| View | Extends | Purpose |
+|------|---------|---------|
+| Tag | CogniteAsset | Central asset node — the single CogniteAsset implementation |
+| Equipment | CogniteEquipment | Physical equipment with class, type, model, and standard references |
+| Files | CogniteFile | Document metadata with revision tracking and workflow status |
+| TimeSeriesData | CogniteTimeSeries | Denormalized PI + OPC UA time series properties |
+| FailureMode | CogniteDescribable | ISO 14224 failure modes linked to equipment and notifications |
+| CommonLCI | CogniteDescribable | Common lifecycle information shared across tags |
 
-* **Project Name:** Valhall CDM Upgrade Pilot / Shared OPS CDM Upgrade
+### IDM extensions (cdf_idm)
 
-* **Date (Approx):** 2025-04
+| View | Extends | Purpose |
+|------|---------|---------|
+| WorkOrder | CogniteMaintenanceOrder | SAP work orders with scheduling, status, and planner group details |
+| WorkOrderOperation | CogniteOperation | Individual operations within work orders |
+| Notification | CogniteNotification | Maintenance notifications with failure analysis properties |
 
-## 🚀 How to Use
+### Domain-specific views (no CDM/IDM base)
 
-Provide step-by-step instructions on how to use this artefact. Be clear and specific.
+| View | Purpose |
+|------|---------|
+| FunctionalLocation | SAP functional location hierarchy with criticality and discipline |
+| MaintenanceAndIntegrity | Maintenance and integrity properties linked to tags |
+| 17 CFIHOS equipment class views | Class-specific properties per CFIHOS 2.0 taxonomy |
 
-1. Clone or download the GSS Knowledge Base repository.
+### Record containers (no view needed)
 
-2. Navigate to the `[others]/[cfihos_cdm_extension]` directory.
+| Container | Purpose |
+|-----------|---------|
+| AlarmRecord | OPC UA alarm events — queried directly against the container |
+| OpcuaAlarm | OPC UA alarm metadata with tag references |
 
-3. Copy the contents of this folder into your project repository.
+## Key design decisions
 
-4. Setup the virtual environment with the defined dependencies in the pyproject.toml or defined below.
+### Denormalization over joins
 
-5. Run the `src/cfihos.ipynb` notebook to generate a JSON output that contains the parsed contents of the CFIHOS tag classes, either from CFIHOS 1.5.1 or CFIHOS 2.0.
-   1. More information is also available in the notebook itself.
+PI and OPC UA properties are merged into `TimeSeriesData` with `pi_` and `opcua_` prefixes rather than requiring joins through separate PI and OPCUA views. This means a single query on `TimeSeriesData` returns source tag, point type, data type, engineering units — everything needed to understand a time series without additional lookups.
 
-6. Update the configuration variables within the `src/config.yaml`. Make sure that the output JSON is referred to in the `cfihos.source_input`.
+### Single CogniteAsset
 
-7. Run the `main.py` file. This should create a folder called `toolkit-output` where your view and container YAML definitions should end up.
+Only `Tag` implements `CogniteAsset`. This avoids UI navigation conflicts in CDF applications (IndustryCanvas, Asset Explorer) that expect one asset hierarchy. Equipment, functional locations, and other entities link to tags via direct relations.
 
-8. Follow any additional setup or execution instructions specific to this artefact.
+> **Naming note — `labels` vs `tags`:** Because the CogniteAsset view is named `Tag` in this model, the inherited `tags` property from `CogniteDescribable` (text-based labels) creates a naming conflict. The view exposes this property as `labels` to avoid confusion. In transformations, queries, and API access, always use `labels` — never `tags` — when referring to the text-based label list. Using `tags` may be interpreted as a reference to the `Tag` view or its direct relations, leading to errors or unexpected results.
 
-## 🧩 Dependencies
+### Polymorphic equipment classes
 
-List any external dependencies required to use this artefact (e.g., specific libraries, software versions, Cognite SDK version).
+The `classSpecificProperties` direct relation on Tag intentionally omits a `source` view — it can point to any of the 17 CFIHOS equipment class views (Pump, Valve, Compressor, etc.). This allows a single tag to reference its class-specific properties without hardcoding the target type.
 
-* Python 3.11+
-* Cognite SDK 7.0+
-* pydantic 2.0+
-* duckdb 1.4+
-* polars 1.3+ (polars has two packages, so if `polars-lts-cpu` does not work, try `polars`)
-* ipykernel 7.0+ (notebook)
-* rich 14.0+  (notebook)
-* pyarrow 22.0+
-* fastexcel 0.16+
-* pandas 2.3+
-* pyyaml 6.0+
+### Flattened document model
 
-## 📍 Project Log
+The `Files` view combines what would traditionally be three separate entities — document, document revision, and revision file — into a single denormalized view. Instead of querying across Document → DocumentRevision → RevisionFile to find a document's status, discipline, issue date, and revision info, everything is accessible in one flat structure. This eliminates multi-hop joins for document search and makes the full document context available to AI in a single query.
 
-**If you are using this template for your project, please add your project name here:**
+### Merged Equipment and EquipmentType
 
-* **Project Name:** [Add your project name here]
-* **Project Name:** [Add your project name here]
-* **Project Name:** [Add your project name here]
+The default IDM defines `CogniteEquipment` and `CogniteEquipmentType` as separate entities linked by a direct relation. In this model, the EquipmentType properties (`code`, `equipmentClass`, `standard`, `standardReference`) are denormalized directly into the `Equipment` container and view. This means equipment class, type, and standard information is available in a single query without joining through the EquipmentType relationship. The inherited `equipmentType` relation from `CogniteEquipment` still exists (it comes from the CDM) but is not actively used — all type information lives directly on the equipment node.
 
-## 📌 Notes
+### additionalProperties as overflow
 
-### Config related
+Every container includes an `additionalProperties` (JSON) field for properties that exceed the 100-property container limit or are rarely queried. This keeps the core schema lean while preserving access to all source data.
 
-One can choose to include CFIHOS parent tag classes into the data model by setting the `include` value to **true**. The `source_input` is used to refer to the input data needed to create the views and containers for the CFIHOS parent tag classes.
+## Module structure
 
-The source data is expected on a format adhering to the `CfihosClassList` class defined in *src/classes/cfihos.py*.
+```
+cfihos_oil_and_gas_extension/
+├── default.config.yaml          # Module variables (space, version, dataset, auth)
+├── module.toml                  # Toolkit module metadata
+├── data_modeling/
+│   ├── containers/              # Container definitions (properties, indexes, constraints)
+│   ├── views/                   # View definitions (implements, properties, relations)
+│   ├── dm_dom_oil_and_gas.DataModel.yaml       # Domain data model
+│   └── dm_sol_search_oil_and_gas.DataModel.yaml # Search-optimized data model
+├── data_sets/                   # Dataset configuration
+├── auth/                        # Security group definitions (owner, read)
+├── locations/                   # Location filter configuration
+└── cfihos_model_config/         # CFIHOS code generator (see below)
+```
 
-It is also possible to create a filter on the specific CFIHOS tag classes one would like to include. Follow the `FilterParser` class (*src/cfihos_utils/filter.py*) for more information on the filtering capabilities.
+## Generating CFIHOS containers and views
 
-You can filter on the CFIHOS tag classes by utilizing the `filter` keyword in the `config.yaml`. The logical operators `and`, `or` and `not`, as well as the comparators `include` and `eq` are supported.
+The `cfihos_model_config/` directory contains a Python tool that generates container and view YAML files from the CFIHOS standard. Use this to create your own CFIHOS equipment class definitions.
 
-### Changing Whether to Use Friendly Names or CFIHOS codes
+### How it works
 
-If desired, it is possible to change whether the containers, views or their properties should use friendly names (human understandable) or codes (CFIHOS-something).
+1. Parse CFIHOS tag class data from Excel into JSON using the `src/cfihos.ipynb` notebook (supports CFIHOS 1.5.1 and 2.0)
+2. Configure which tag classes to include in `src/config.yaml` using name-based filters
+3. Run `src/main.py` to generate Toolkit-compatible YAML files in a `toolkit-output/` folder
+4. Copy the generated files into your module's `data_modeling/containers/` and `data_modeling/views/` directories
 
-The `CfihosClass` class has two properties, `clean_name` and `clean_id`. These are compliant with DMS naming conventions, so if you need to use either name or code as something external id, then use these. Otherwise it is fine to use the `name` or `id_`.
+### Configuration
 
-The default behaviour is that containers and views use friendly names. Container properties use CFIHOS codes and view properties use friendly names.
+The `src/config.yaml` controls which CFIHOS classes are generated:
 
-#### Modifying properties
+```yaml
+cfihos:
+  include: true
+  source_input: "CFIHOS/cfihos_classes.json"
+  implements:
+    - space: cdf_cdm
+      external_id: CogniteDescribable
+      version: v1
+  filter:
+    include:
+      name:
+        - compressor
+        - valve
+        - pump
+        # Add more class names as needed
+```
 
-In the *src/cfihos_utils/view.py*:
+### Customization options
 
-* on line 77 and 78, you can change whether to use the `prop`'s clean_id (CFIHOS code) or the clean_name.
+- **Friendly names vs CFIHOS codes**: Container properties default to CFIHOS codes (e.g., `CFIHOS_40000479`), view properties use friendly names (e.g., `valveType`). Configurable in `view.py` and `container.py`.
+- **Property trimming**: Many CFIHOS classes have hundreds of properties. The tool supports filtering by property presence/importance if a class library is integrated. The 100-property container limit applies — overflow goes to `additionalProperties`.
+- **Property propagation**: Properties from child tag classes are propagated upward to parents during generation, excluding properties unique to sub-hierarchies that already have their own views.
 
-In the *src/cfihos_utils/container.py*:
+### Dependencies
 
-* on line 31, modify the key in the properties dict to what you prefer.
+- Python 3.11+, Cognite SDK 7.0+, pydantic 2.0+, duckdb 1.4+, polars 1.3+, pyyaml 6.0+
 
-#### Modifying Container / View External ID or Name
+## Deployment
 
-In the *src/cfihos_utils/view.py*:
+Deploy using Cognite Toolkit:
 
-* on line 89, set the ViewApply's external_id according to your liking.
-* Optionally, uncomment the `name` and set it according to your liking as well.
+```bash
+cdf build
+cdf deploy --env dev
+```
 
-In the *src/cfihos_utils/container.py*:
-
-* on line 43, set the ContainerApply's external_id according to your liking.
-* Optionally, add the `name` according to your liking as well.
-
-### Properties
-
-Naturally, many tag classes in CFIHOS have a lot of properties, and not all of them may be relevant to your use case. In Aker BP, we managed to trim the number of properties significantly by re-using information about a property's presence (importance) via Aker BP's class library.
-
-The functionality for that still exists in the code base, but one would need to update the code to adhere for it. The designed way is to add an additional section in the cfihos.ipynb notebook that would integrate with a customer's class library, so that the JSON output contains this information.
-
-### Property Propagation
-
-By default, when parsing the CFIHOS excel sheets, properties are not immediately propagated upwards to their tag class parents. This is however, done during runtime execution of the main.py file. The reason for this is to allow a much more dynamic way of only including unique properties within any sub-section of the CFIHOS hierarchy.
-
-Here's a visual example:
-
-![CFIHOS Tag Class Hierarchy](imgs/cfihos_tag_class_hierarchy.png)
-
-![Properties to a tag class are collected based on the properties of all children tag classes.](imgs/collecting_properties.png)
-
-![We don't want to collect properties that are only used within sub hierarchies (of tag classes also being represented as views in our data model).](imgs/property_filtering.png)
-
-### Equipment
-
-Equipment information from CFIHOS is not accounted for in this package.
+Configuration variables are defined in `default.config.yaml` and can be overridden per environment in `config.<env>.yaml` at the project root.

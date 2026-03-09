@@ -1,0 +1,352 @@
+space: "{{space}}"
+externalId: Files
+name: Files
+description: A unified view for documents and revision files. Implements the CogniteFile
+  standard and exposes CFIHOS-specific document and revision properties.
+implements:
+  - space: cdf_cdm
+    externalId: CogniteFile
+    version: v1
+    type: view
+version: "{{dm_version}}"
+properties:
+  equipment:
+    source:
+      space: "{{space}}"
+      externalId: Equipment
+      version: "{{dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{space}}"
+        externalId: Equipment
+        version: "{{dm_version}}"
+        type: view
+      identifier: asset
+    name: Equipment
+    description: An automatically updated list of equipment related to the file.
+    connectionType: multi_reverse_direct_relation
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: assets
+    name: Tags
+    description: A list of tags the file is related to.
+    source:
+      space: "{{space}}"
+      externalId: Tag
+      version: "{{dm_version}}"
+      type: view
+  labels:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  mainAsset:
+    name: mainAsset
+    description: Main asset reference
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: mainAsset
+  area:
+    name: area
+    description: Area code
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: area
+  facility:
+    name: facility
+    description: Facility code
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: facility
+  system:
+    name: system
+    description: System code
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: system
+  documentTypeCode:
+    name: documentTypeCode
+    description: Document type code
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentTypeCode
+  documentClassId:
+    name: documentClassId
+    description: Document class identifier
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentClassId
+  documentClassName:
+    name: documentClassName
+    description: Document class name
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentClassName
+  documentNumber:
+    name: documentNumber
+    description: Document number
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentNumber
+  disciplineCode:
+    name: disciplineCode
+    description: Discipline code
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: disciplineCode
+  disciplineCodeDesc:
+    name: disciplineCodeDesc
+    description: Discipline code description
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: disciplineCodeDesc
+  documentHasMarkup:
+    name: documentHasMarkup
+    description: Whether the document has markup
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentHasMarkup
+  documentSource:
+    name: documentSource
+    description: Source of the document
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentSource
+  documentStorage:
+    name: documentStorage
+    description: Storage location of the document
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentStorage
+  documentTitle:
+    name: documentTitle
+    description: Title of the document
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentTitle
+  equipmentPackage:
+    name: equipmentPackage
+    description: Equipment package reference
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: equipmentPackage
+  issueDate:
+    name: issueDate
+    description: Issue date
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: issueDate
+  originatingContractor:
+    name: originatingContractor
+    description: Originating contractor
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: originatingContractor
+  project:
+    name: project
+    description: Project reference
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: project
+  purchaseOrderNumber:
+    name: purchaseOrderNumber
+    description: Purchase order number
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: purchaseOrderNumber
+  remarks:
+    name: remarks
+    description: Remarks
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: remarks
+  useProjectStatus:
+    name: useProjectStatus
+    description: Use project status
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: useProjectStatus
+  vendorDocumentNumber:
+    name: vendorDocumentNumber
+    description: Vendor document number
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: vendorDocumentNumber
+  workflowStatus:
+    name: workflowStatus
+    description: Workflow status
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: workflowStatus
+  workingSetId:
+    name: workingSetId
+    description: Working set identifier
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: workingSetId
+  referenceDocumentNumber:
+    name: referenceDocumentNumber
+    description: Reference to another document
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: referenceDocumentNumber
+  supersededByDocument:
+    name: supersededByDocument
+    description: Document that supersedes this one
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: supersededByDocument
+  currentRevision:
+    name: currentRevision
+    description: Current revision
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: currentRevision
+  revisionFiles:
+    name: revisionFiles
+    description: List of revision files
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: revisionFiles
+  site:
+    name: site
+    description: Site code
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: site
+  documentRevision:
+    name: documentRevision
+    description: Document revision code
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentRevision
+  documentRevisionRemark:
+    name: documentRevisionRemark
+    description: Document revision remark
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: documentRevisionRemark
+  createSvgFile:
+    name: createSvgFile
+    description: Create SVG file flag
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: createSvgFile
+  updatedDate:
+    name: updatedDate
+    description: Updated date
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: updatedDate
+  annotatedDate:
+    name: annotatedDate
+    description: Annotated date
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: annotatedDate
+  extension:
+    name: extension
+    description: File extension
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: extension
+  state:
+    name: state
+    description: File state
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: state
+  subject:
+    name: subject
+    description: Subject
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: subject
+  additionalProperties:
+    name: additionalProperties
+    description: Additional properties as JSON
+    container:
+      space: "{{space}}"
+      externalId: Files
+      type: container
+    containerPropertyIdentifier: additionalProperties

@@ -1,0 +1,459 @@
+space: '{{space}}'
+externalId: Tag
+description: Core tag properties including area, facility, system, discipline, and relationships to equipment classes, work orders, and time series.
+implements:
+- space: cdf_cdm
+  externalId: CogniteAsset
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  object3D:
+    container:
+      space: cdf_cdm
+      externalId: CogniteVisualizable
+      type: container
+    containerPropertyIdentifier: object3D
+    description: Direct relation to an Object3D instance representing the 3D resource
+    source:
+      space: cdf_cdm
+      externalId: Cognite3DObject
+      version: v1
+      type: view
+  FunctionalLocationProperties:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: FunctionalLocation
+    description: Direct relation to functional location properties
+    source:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      version: '{{dm_version}}'
+      type: view
+  CommonLCIProperties:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CommonLCI
+    description: Direct relation to common lifecycle information properties
+    source:
+      space: '{{space}}'
+      externalId: CommonLCI
+      version: '{{dm_version}}'
+      type: view
+  labels:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  sourceContext:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceContext
+    description: Context of the source id. For systems where the sourceId is globally
+      unique, the sourceContext is expected to not be set.
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  sourceCreatedTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedTime
+    description: When the instance was created in source system (if available)
+  sourceUpdatedTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedTime
+    description: When the instance was last updated in the source system (if available)
+  sourceCreatedUser:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedUser
+    description: User identifier from the source system on who created the source
+      data. This identifier is not guaranteed to match the user identifiers in CDF
+  sourceUpdatedUser:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedUser
+    description: User identifier from the source system on who last updated the source
+      data. This identifier is not guaranteed to match the user identifiers in CDF
+  parent:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_parent
+    name: Parent
+    description: The parent of the asset.
+    source:
+      space: '{{space}}'
+      externalId: Tag
+      version: '{{dm_version}}'
+      type: view
+  root:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_root
+    name: Root
+    description: An automatically updated reference to the top-level asset of the
+      hierarchy.
+    source:
+      space: '{{space}}'
+      externalId: Tag
+      version: '{{dm_version}}'
+      type: view
+  path:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_path
+    name: Path
+    description: An automatically updated ordered list of this asset's ancestors,
+      starting with the root asset. Enables subtree filtering to find all assets under
+      a parent.
+    source:
+      space: '{{space}}'
+      externalId: Tag
+      version: '{{dm_version}}'
+      type: view
+  pathLastUpdatedTime:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetHierarchy_path_last_updated_time
+    name: Path last updated time
+    description: The last time the path was updated for this asset.
+  assetClass:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: assetClass
+    name: Tag class
+    description: Specifies the class of the tag. It's a direct relation to CogniteAssetClass.
+    source:
+      space: cdf_cdm
+      externalId: CogniteAssetClass
+      version: v1
+      type: view
+  type:
+    container:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    containerPropertyIdentifier: type
+    name: Tag type
+    description: Specifies the type of the asset. It's a direct relation to CogniteAssetType.
+    source:
+      space: cdf_cdm
+      externalId: CogniteAssetType
+      version: v1
+      type: view
+  tagNumber:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000166
+    description: Tag number identifier (e.g. equipment or functional location tag)
+  area:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Area code within the facility
+  classId:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: classId
+    description: CFIHOS equipment class identifier
+  className:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: className
+    description: CFIHOS equipment class name
+  facility:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: Facility code where the tag is located
+  parentTag:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: Reference to the parent tag in the hierarchy
+  project:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000084
+    description: Project code associated with the tag
+  system:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code the tag belongs to
+  tagDiscipline:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000153
+    description: Engineering discipline of the tag (e.g. mechanical, electrical, instrument)
+  fromTag:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000182
+    description: Source tag for connection or flow direction
+  toTag:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000184
+    description: Destination tag for connection or flow direction
+  foundInSources:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: foundInSources
+    description: List of data sources where this tag was found
+  missingParent:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: missingParent
+    description: Indicates if the parent tag reference is unresolved
+  validNamingConvention:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: validNamingConvention
+    description: Indicates if the tag follows the naming convention
+  classSpecificProperties:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: classSpecific
+    description: Direct relation to class-specific equipment properties.
+  children:
+    source:
+      space: '{{space}}'
+      externalId: Tag
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: Tag
+        version: '{{dm_version}}'
+        type: view
+      identifier: parent
+    name: Children
+    description: An automatically updated list of assets with this asset as their
+      parent.
+    connectionType: multi_reverse_direct_relation
+  files:
+    source:
+      space: '{{space}}'
+      externalId: Files
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: Files
+        version: '{{dm_version}}'
+        type: view
+      identifier: assets
+    name: Files
+    description: An automatically updated list of files related to the asset.
+    connectionType: multi_reverse_direct_relation
+  equipment:
+    source:
+      space: "{{space}}"
+      externalId: Equipment
+      version: "{{dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{space}}"
+        externalId: Equipment
+        version: "{{dm_version}}"
+        type: view
+      identifier: asset
+    name: Equipment
+    description: An automatically updated list of equipment related to the asset.
+    connectionType: multi_reverse_direct_relation
+  activities:
+    source:
+      space: "{{space}}"
+      externalId: WorkOrder
+      version: "{{dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{space}}"
+        externalId: WorkOrder
+        version: "{{dm_version}}"
+        type: view
+      identifier: assets
+    name: Work Orders
+    description: An automatically updated list of work orders related to the asset.
+    connectionType: multi_reverse_direct_relation
+  timeSeries:
+    source:
+      space: '{{space}}'
+      externalId: TimeSeriesData
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: TimeSeriesData
+        version: '{{dm_version}}'
+        type: view
+      identifier: assets
+    name: Time series
+    description: An automatically updated list of time series related to the asset.
+    connectionType: multi_reverse_direct_relation
+  failureModes:
+    source:
+      space: '{{space}}'
+      externalId: FailureMode
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: FailureMode
+        version: '{{dm_version}}'
+        type: view
+      identifier: assets
+    name: Failure modes
+    description: An automatically updated list of failure modes related to the asset.
+    connectionType: multi_reverse_direct_relation
+  primaryWorkOrder:
+    source:
+      space: '{{space}}'
+      externalId: WorkOrder
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: WorkOrder
+        version: '{{dm_version}}'
+        type: view
+      identifier: mainAsset
+    name: Primary work order
+    description: The primary work order related to the asset.
+    connectionType: multi_reverse_direct_relation
+  workOrders:
+    source:
+      space: '{{space}}'
+      externalId: WorkOrder
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: WorkOrder
+        version: '{{dm_version}}'
+        type: view
+      identifier: assets
+    name: Work orders
+    description: An automatically updated list of work orders related to the asset.
+    connectionType: multi_reverse_direct_relation
+  notifications:
+    source:
+      space: '{{space}}'
+      externalId: Notification
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: Notification
+        version: '{{dm_version}}'
+        type: view
+      identifier: asset
+    name: Notifications
+    description: Notifications related to this tag
+    connectionType: multi_reverse_direct_relation
+  workOrderOperations:
+    source:
+      space: '{{space}}'
+      externalId: WorkOrderOperation
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: WorkOrderOperation
+        version: '{{dm_version}}'
+        type: view
+      identifier: mainAsset
+    name: WorkOrderOperations
+    description: Work order operations related to this tag
+    connectionType: multi_reverse_direct_relation

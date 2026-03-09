@@ -1,0 +1,123 @@
+space: "{{search_space}}"
+externalId: "{{search_data_model_external_id}}"
+name: "{{search_data_model_name}}"
+description: >
+  The Oil And Gas Domain Model provides a unified asset hierarchy by merging data from Aveva (LCI),
+  SAP (Maintenance & Integrity), and OPC UA (SAS) sources into a single tag-centric structure.
+  Built on the CFIHOS 2.0 standard with example project Class Library taxonomy integration,
+  it models equipment classes, work orders, notifications, and time series references.
+  Extending the Cognite Data Model (CDM), this foundation enables Atlas AI capabilities
+  and unified data exploration across currently Aveva, OPC UA, SAP, and D2 sources,
+  with new sources to be added in H1 2026.
+version: "{{dm_version}}"
+views:
+# CFIHOS extension views ({{space}})
+- space: "{{space}}"
+  externalId: CommonLCI
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Compressor
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: DrillingEquipment
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: ElectricalEquipmentClass
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Enclosure
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Files
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: FunctionalLocation
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: HealthSafetyAndEnvironmentEquipmentClass
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: HeatExchanger
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Infrastructure
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: InstrumentEquipment
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: ItAndTelecomEquipment
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: MechanicalEquipmentClass
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: MiscellaneousEquipment
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Notification
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: PipingAndPipelineEquipment
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Pump
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: SubseaEquipmentClass
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Tag
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: TimeSeriesData
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Tool
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Turbine
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: Valve
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: WorkOrder
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: WorkOrderOperation
+  version: "{{dm_version}}"
+  type: view
+# CFIHOS extension views (other spaces)
+- space: "{{space}}"
+  externalId: MaintenanceAndIntegrity
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
+  externalId: FailureMode
+  version: "{{dm_version}}"
+  type: view

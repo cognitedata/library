@@ -1,0 +1,86 @@
+space: "{{space}}"
+externalId: FailureMode
+name: Failure Mode
+description: The manner in which failure occurs. Failure modes are used with one or
+  more equipment classes.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{dm_version}}"
+properties:
+  notifications:
+    source:
+      space: "{{space}}"
+      externalId: Notification
+      version: "{{dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{space}}"
+        externalId: Notification
+        version: "{{dm_version}}"
+        type: view
+      identifier: failureMode
+    name: Notifications
+    description: Notifications that reference this failure mode
+    connectionType: multi_reverse_direct_relation
+  assets:
+    name: Tags
+    description: A list of tags the failure mode is related to.
+    container:
+      space: "{{space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{space}}"
+      externalId: Tag
+      version: "{{dm_version}}"
+      type: view
+  code:
+    container:
+      space: "{{space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: code
+    name: code
+    description: The code of the failure mode according to ISO 14224
+  labels:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  mainAssets:
+    container:
+      space: "{{space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: mainAssets
+    name: mainAssets
+  facilities:
+    container:
+      space: "{{space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: facilities
+    name: facilities
+  standard:
+    container:
+      space: "{{space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: standard
+    name: standard
+    description: Standard the failure mode is defined in (e.g. ISO 14224)
+  additionalProperties:
+    container:
+      space: "{{space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: additionalProperties
+    name: additionalProperties
+    description: Additional properties stored as JSON

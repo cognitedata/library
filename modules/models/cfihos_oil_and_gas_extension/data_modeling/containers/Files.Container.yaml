@@ -1,0 +1,348 @@
+space: "{{space}}"
+externalId: Files
+name: Files
+description: CFIHOS file container merging Document and RevisionFile properties, aligned with CogniteFile standard
+usedFor: node
+properties:
+  mainAsset:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: mainAsset
+  area:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: area
+  facility:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: facility
+  system:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: system
+  documentTypeCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentTypeCode
+  documentClassId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentClassId
+  documentClassName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentClassName
+  documentNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentNumber
+  disciplineCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: disciplineCode
+  disciplineCodeDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: disciplineCodeDesc
+  documentHasMarkup:
+    type:
+      list: false
+      type: boolean
+    autoIncrement: false
+    name: documentHasMarkup
+  documentSource:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentSource
+  documentStorage:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentStorage
+  documentTitle:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentTitle
+  equipmentPackage:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: equipmentPackage
+  issueDate:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: issueDate
+  originatingContractor:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: originatingContractor
+  project:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: project
+  purchaseOrderNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: purchaseOrderNumber
+  remarks:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: remarks
+  useProjectStatus:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: useProjectStatus
+  vendorDocumentNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: vendorDocumentNumber
+  workflowStatus:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: workflowStatus
+  workingSetId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: workingSetId
+  referenceDocumentNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: referenceDocumentNumber
+  supersededByDocument:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: supersededByDocument
+  currentRevision:
+    type:
+      list: false
+      type: boolean
+    autoIncrement: false
+    name: currentRevision
+  revisionFiles:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: revisionFiles
+  site:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: site
+  documentRevision:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentRevision
+  documentRevisionRemark:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: documentRevisionRemark
+  createSvgFile:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: createSvgFile
+  updatedDate:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: updatedDate
+  annotatedDate:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: annotatedDate
+  extension:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: extension
+  state:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: state
+  subject:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: subject
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    autoIncrement: false
+    name: additionalProperties
+constraints:
+  describablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+  sourceablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+  filePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+indexes:
+  site:
+    indexType: btree
+    properties:
+      - site
+    bySpace: false
+    cursorable: false
+  documentTypeCode:
+    indexType: btree
+    properties:
+      - documentTypeCode
+    bySpace: false
+    cursorable: false
+  disciplineCode:
+    indexType: btree
+    properties:
+      - disciplineCode
+    bySpace: false
+    cursorable: false
+  documentNumber:
+    indexType: btree
+    properties:
+      - documentNumber
+    bySpace: false
+    cursorable: true
+  facility:
+    indexType: btree
+    properties:
+      - facility
+    bySpace: false
+    cursorable: false
+  issueDate:
+    indexType: btree
+    properties:
+      - issueDate
+    bySpace: false
+    cursorable: true
+  workflowStatus:
+    indexType: btree
+    properties:
+      - workflowStatus
+    bySpace: false
+    cursorable: false
+  referenceDocumentNumber:
+    indexType: btree
+    properties:
+      - referenceDocumentNumber
+    bySpace: false
+    cursorable: false
+  supersededByDocument:
+    indexType: btree
+    properties:
+      - supersededByDocument
+    bySpace: false
+    cursorable: false
+  currentRevision:
+    indexType: btree
+    properties:
+      - currentRevision
+    bySpace: false
+    cursorable: true

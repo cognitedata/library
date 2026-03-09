@@ -4,7 +4,7 @@ data_model_external_id: "{{ data_model_external_id }}"
 data_model_version: "{{ data_model_version }}"
 cfihos:
   include: true
-  source_input: "CFIHOS/cfihos_classes_2.json"
+  source_input: "CFIHOS/cfihos_classes.json"
   implements:
       - space: cdf_cdm
         external_id: CogniteDescribable

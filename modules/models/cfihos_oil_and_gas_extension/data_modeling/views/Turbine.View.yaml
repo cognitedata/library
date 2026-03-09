@@ -1,0 +1,351 @@
+space: '{{space}}'
+externalId: Turbine
+description: A physical object intended to rotate within a fluid and transform energy
+  within a fluid into mechanical power.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  labels:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  area:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Physical location on the facility where the equipment is installed
+  facility:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: The facility code of a tagged object
+  parentTag:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: The main Tag number of a system that child Tags are related
+  system:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code as per the used standard
+  approvalAuthority:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000111
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  atexCategory:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000009
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  atexExplosiveAtmosphere:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000010
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  atexGroup:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000011
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  description:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000177
+    description: Functional description of the tag
+  equipmentIdentifier:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000031
+    description: Equipment Identifier
+  exCertificateNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000109
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  explosionProtection:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000108
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  gasGroup:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specifies the gas group classification of the physical object in
+      accordance to a known standard.
+  hazardousAreaClassificationArea:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Hazardous area zone of the area where the equipment is installed.
+  ipRating:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000173
+    description: IP rating
+  length:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201
+    description: Length
+  length_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201_UOM
+    description: Length UOM, length.
+  manufacturer:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000158
+    description: The original equipment manufacturer of a tagged item
+  modelNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000159
+    description: Model identification of the item
+  partNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000249
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  serialNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000163
+    description: Serial number of the item
+  temperatureClass:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specifies the temperature classification of the physical object in
+      accordance to a known standard.
+  weightDry:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494
+    description: The weight of the equipment without any contents
+  weightDry_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494_UOM
+    description: Weight (dry) UOM, mass.
+  weightOperating:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516
+    description: The weight of the equipment in use
+  weightOperating_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516_UOM
+    description: Weight (operating) UOM, mass.
+  explosionProtectionGasGroup:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  explosionProtectionTemperatureClass:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specify the temperature classification of the physical object in
+      accordance with CENELEC EN50014
+  explosionProtectionZone:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  lowerLimitOperatingTemperature:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504
+    description: A temperature that is the lowest temperature at which a functional
+      or physical object is expected to operate.
+  lowerLimitOperatingTemperature_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504_UOM
+    description: Lower limit operating temperature UOM, temperature.
+  normalOutputPower:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292
+    description: The power which is the power a functional or physical object deliver
+      normally.
+  normalOutputPower_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292_UOM
+    description: Normal output power UOM, power.
+  safetyIntegrityLevel:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000579
+    description: A relative level of risk-reduction provided by a safety function,
+      or to specify a target level of risk reduction
+  testMedium:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000412
+    description: The medium used for testing purpose.
+  testPressure:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532
+    description: A pressure to which an object should be subjected to test for leakage
+      and structural integrity.
+  testPressure_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532_UOM
+    description: Test pressure UOM, pressure.
+  thermalInsulationClass:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000177
+    description: The class of electrical insulation used by a  physical object.
+  upperLimitDesignPressure:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535
+    description: The highest pressure at which a functional or physical object is
+      designed for.
+  upperLimitDesignPressure_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535_UOM
+    description: Upper limit design pressure UOM, pressure.
+  upperLimitDesignTemperature:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536
+    description: The highest temperature at which a functional or physical object
+      is designed.
+  upperLimitDesignTemperature_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536_UOM
+    description: Upper limit design temperature UOM, temperature.
+  upperLimitOperatingTemperature:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538
+    description: A temperature that is the highest temperature at which a functional
+      or physical object is expected to operate.
+  upperLimitOperatingTemperature_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538_UOM
+    description: Upper limit operating temperature UOM, temperature.
+  additionalProperties:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Turbine
+      type: container
+    containerPropertyIdentifier: additionalProperties

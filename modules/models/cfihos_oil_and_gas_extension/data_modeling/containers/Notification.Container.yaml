@@ -1,0 +1,222 @@
+space: "{{space}}"
+externalId: Notification
+name: Notification
+description: SAP notification aligned with CogniteNotification standard
+usedFor: node
+properties:
+  failureMode:
+    type:
+      list: false
+      type: direct
+    nullable: true
+    autoIncrement: false
+    name: failureMode
+  detectionMethodCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: detectionMethodCode
+  systemStatusCode:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemStatusCode
+  systemStatusCodeDesc:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemStatusCodeDesc
+  notificationPriorityType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: notificationPriorityType
+  mainWorkCenter:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: mainWorkCenter
+  plannerGroup:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: plannerGroup
+  detectionMethodCodeDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: detectionMethodCodeDesc
+  failureModeCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: failureModeCode
+  failureModeCodeDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: failureModeCodeDesc
+  failureEffectCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: failureEffectCode
+  failureEffectCodeDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: failureEffectCodeDesc
+  catalogType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: catalogType
+  catalogGroup:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: catalogGroup
+  newDueDate:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: newDueDate
+  dueDate:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: dueDate
+  locationId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: locationId
+  mainWorkCenterID:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: mainWorkCenterID
+  mainWctrDiscipline:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: mainWctrDiscipline
+  maintPlant:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    nullable: true
+    autoIncrement: false
+    name: maintPlant
+  objectNo:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: objectNo
+  notificationTypeDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: notificationTypeDesc
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+constraints:
+  describablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+  sourceablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+  schedulablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+  notificationPresent:
+    constraintType: requires
+    require:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+indexes:
+  detectionMethodCode:
+    indexType: btree
+    properties:
+      - detectionMethodCode
+    bySpace: false
+    cursorable: false
+  failureMode:
+    indexType: btree
+    properties:
+      - failureMode
+    bySpace: false
+    cursorable: false
+  dueDate:
+    indexType: btree
+    properties:
+      - dueDate
+    bySpace: false
+    cursorable: true
+  notificationPriorityType:
+    indexType: btree
+    properties:
+      - notificationPriorityType
+    bySpace: false
+    cursorable: false
+  mainWctrDiscipline:
+    indexType: btree
+    properties:
+      - mainWctrDiscipline
+    bySpace: false
+    cursorable: false

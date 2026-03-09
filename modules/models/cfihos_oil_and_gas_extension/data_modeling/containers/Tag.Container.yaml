@@ -1,0 +1,270 @@
+space: "{{space}}"
+externalId: Tag
+description: Core tag properties from CFIHOS including area, facility, system, and equipment class references.
+properties:
+  CFIHOS_10000166:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: tagNumber
+  CFIHOS_10000001:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: area
+  classId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: classId
+  className:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: className
+  CFIHOS_10000005:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: facility
+  CFIHOS_10000178:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: parentTag
+  CFIHOS_10000084:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: project
+  CFIHOS_10000157:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: system
+  CFIHOS_10000153:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: tagDiscipline
+  CFIHOS_10000182:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: fromTag
+  CFIHOS_10000184:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: toTag
+  CFIHOS_10000179:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: originatingContractor
+  updatedDate:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: updatedDate
+  CFIHOS_10000169:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: dateInstalled
+  useProjectStatus:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: useProjectStatus
+  CFIHOS_10000128:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: purchaseOrderNo
+  CFIHOS_10000025:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: avevaTagStatus
+
+  classViewExtId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: avevaTagStatus
+  CommonLCI:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: CommonLCIProperties
+  FunctionalLocation:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: FunctionalLocation
+  classSpecific:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: classSpecificProperties
+  foundInSources:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: foundInSources
+  missingParent:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: missingParent
+  validNamingConvention:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: validNamingConvention
+  cfihosTagClassCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: cfihosTagClassCode
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+constraints:
+  cdf_cdm_CogniteAsset:
+    require:
+      space: cdf_cdm
+      externalId: CogniteAsset
+      type: container
+    constraintType: requires
+indexes:
+  cfihosTagClassCodeIndex:
+    properties:
+    - cfihosTagClassCode
+    cursorable: false
+    indexType: btree
+  facilityIndex:
+    properties:
+    - CFIHOS_10000005
+    indexType: btree
+    cursorable: true
+  FunctionalLocation:
+    indexType: btree
+    properties:
+      - FunctionalLocation
+    bySpace: false
+    cursorable: false
+  CommonLCI:
+    indexType: btree
+    properties:
+      - CommonLCI
+    bySpace: false
+    cursorable: false
+  classSpecific:
+    indexType: btree
+    properties:
+      - classSpecific
+    bySpace: false
+    cursorable: false
+usedFor: node

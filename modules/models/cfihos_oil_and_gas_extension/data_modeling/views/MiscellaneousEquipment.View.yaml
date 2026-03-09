@@ -1,0 +1,396 @@
+space: '{{space}}'
+externalId: MiscellaneousEquipment
+description: An equipment class that contains classes that not covered by any other
+  parent class.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  labels:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  area:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Physical location on the facility where the equipment is installed
+  facility:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: The facility code of a tagged object
+  parentTag:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: The main Tag number of a system that child Tags are related
+  system:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code as per the used standard
+  approvalAuthority:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000111
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  atexCategory:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000009
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  atexExplosiveAtmosphere:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000010
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  atexGroup:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000011
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  description:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000177
+    description: Functional description of the tag
+  equipmentIdentifier:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000031
+    description: Equipment Identifier
+  exCertificateNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000109
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  explosionProtection:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000108
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  gasGroup:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specifies the gas group classification of the physical object in
+      accordance to a known standard.
+  hazardousAreaClassificationArea:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Hazardous area zone of the area where the equipment is installed.
+  ipRating:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000173
+    description: IP rating
+  length:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201
+    description: Length
+  length_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201_UOM
+    description: Length UOM, length.
+  manufacturer:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000158
+    description: The original equipment manufacturer of a tagged item
+  modelNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000159
+    description: Model identification of the item
+  nominalDiameter:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000509
+    description: Something is of a diameter that it is not rated (?)
+  nominalDiameter_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000509_UOM
+    description: Nominal diameter UOM, length.
+  nominalPower:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292
+    description: Nominal Power
+  nominalPower_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292_UOM
+    description: Nominal power UOM, power/heat loss/heat gain.
+  partNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000249
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  pedCategory:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000320
+    description: PED category. Applicable for installations that require conformity
+      with Pressure Equipment Directive
+  powerConsumption:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000602
+    description: the electrical energy over time that must be supplied to an electrical
+      appliance to maintain its operation
+  powerConsumption_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000602_UOM
+    description: Power consumption UOM, group powercon.
+  powerFactorCos:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000329
+    description: The equipments electrical load Power Factor (Cos)
+  powerFactorCos_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000329_UOM
+    description: Power factor (cos) UOM, dimensionless ratios.
+  powerOutputRated:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000523
+    description: The rating of the power produced by an item
+  powerOutputRated_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000523_UOM
+    description: Power output rated UOM, group poweroutput rated.
+  ratedCurrent:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000521
+    description: Rated current
+  ratedCurrent_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000521_UOM
+    description: Rated current UOM, electrical - current.
+  serialNumber:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000163
+    description: Serial number of the item
+  setPoint:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000581
+    description: The level at which an instrument is set - eg PSVs, bursting discs,
+      regulators, etc
+  setPoint_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000581_UOM
+    description: Set point UOM, group setpoint.
+  temperatureClass:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specifies the temperature classification of the physical object in
+      accordance to a known standard.
+  testMedium:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000412
+    description: The medium that was used to test the pressure of a line
+  testPressure:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532
+    description: The pressure to which a line is tested
+  testPressure_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532_UOM
+    description: Test pressure UOM, pressure.
+  traceTemperature:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211
+    description: The temperature at which trace heating is set or required
+  traceTemperature_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211_UOM
+    description: Trace temperature UOM, temperature.
+  voltageLevel:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000528
+    description: The voltage level of a cable
+  voltageLevel_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000528_UOM
+    description: Voltage level UOM, electrical - voltage.
+  weightDry:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494
+    description: The weight of the equipment without any contents
+  weightDry_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494_UOM
+    description: Weight (dry) UOM, mass.
+  weightOperating:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516
+    description: The weight of the equipment in use
+  weightOperating_UOM:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516_UOM
+    description: Weight (operating) UOM, mass.
+  explosionProtectionGasGroup:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  explosionProtectionTemperatureClass:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specify the temperature classification of the physical object in
+      accordance with CENELEC EN50014
+  explosionProtectionZone:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  additionalProperties:
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_MiscellaneousEquipment
+      type: container
+    containerPropertyIdentifier: additionalProperties
