@@ -1,5 +1,6 @@
 space: "{{space}}"
 externalId: TimeSeriesData
+name: Time Series Data
 description: View that provides references to time series for both PI and OPCUA.
 implements:
 - space: cdf_cdm
@@ -8,18 +9,6 @@ implements:
   type: view
 version: "{{dm_version}}"
 properties:
-  stateSet:
-    container:
-      space: cdf_cdm
-      externalId: CogniteTimeSeries
-      type: container
-    containerPropertyIdentifier: stateSet
-    description: The state set of the time series, only in effect when type is 'state'
-    source:
-      space: cdf_cdm
-      externalId: CogniteStateSet
-      version: v1
-      type: view
   assets:
     container:
       space: cdf_cdm
@@ -45,6 +34,19 @@ properties:
       space: "{{space}}"
       externalId: Equipment
       version: "{{dm_version}}"
+      type: view
+  stateSet:
+    name: State Set
+    description: The state set of the time series, only in effect when the type is 'state'.
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: stateSet
+    source:
+      space: cdf_cdm
+      externalId: CogniteStateSet
+      version: v1
       type: view
   activities:
     connectionType: multi_reverse_direct_relation
@@ -87,6 +89,7 @@ properties:
     name: Time series type
     description: Type of the time series.
   labels:
+    name: Labels
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -102,6 +105,7 @@ properties:
     name: Asset Name
     description: Name of the asset the time series is related to.
   facility:
+    name: Facility
     container:
       space: "{{space}}"
       externalId: TimeSeriesData
@@ -109,6 +113,7 @@ properties:
     containerPropertyIdentifier: facility
     description: Facility code where the time series originates
   assetDescription:
+    name: Asset Description
     container:
       space: "{{space}}"
       externalId: TimeSeriesData
@@ -116,6 +121,7 @@ properties:
     containerPropertyIdentifier: assetDescription
     description: Description of the asset linked to the time series
   additionalProperties:
+    name: Additional Properties
     container:
       space: "{{space}}"
       externalId: TimeSeriesData
@@ -128,7 +134,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_archiving
-    name: pi_archiving
+    name: PI Archiving
     description: PI archiving enabled flag.
   pi_compDev:
     container:
@@ -136,7 +142,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compDev
-    name: pi_compDev
+    name: PI Compression Deviation
     description: PI compression deviation threshold
   pi_compDevPercent:
     container:
@@ -144,7 +150,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compDevPercent
-    name: pi_compDevPercent
+    name: PI Compression Deviation Percent
     description: PI compression deviation as percentage
   pi_compDevPercent_UOM:
     container:
@@ -152,7 +158,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compDevPercent_UOM
-    name: pi_compDevPercent_UOM
+    name: PI Compression Deviation Percent UOM
     description: Unit of measure for compression deviation percentage
   pi_compDev_UOM:
     container:
@@ -160,7 +166,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compDev_UOM
-    name: pi_compDev_UOM
+    name: PI Compression Deviation UOM
     description: Unit of measure for compression deviation
   pi_compMax:
     container:
@@ -168,7 +174,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compMax
-    name: pi_compMax
+    name: PI Compression Max
     description: PI maximum compression time in seconds
   pi_compMax_UOM:
     container:
@@ -176,7 +182,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compMax_UOM
-    name: pi_compMax_UOM
+    name: PI Compression Max UOM
     description: Unit of measure for maximum compression time
   pi_compMin:
     container:
@@ -184,7 +190,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compMin
-    name: pi_compMin
+    name: PI Compression Min
     description: PI minimum compression time in seconds
   pi_compMin_UOM:
     container:
@@ -192,7 +198,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compMin_UOM
-    name: pi_compMin_UOM
+    name: PI Compression Min UOM
     description: Unit of measure for minimum compression time
   pi_compressing:
     container:
@@ -200,7 +206,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_compressing
-    name: pi_compressing
+    name: PI Compressing
     description: PI compression enabled flag.
   pi_digitalSet:
     container:
@@ -208,7 +214,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_digitalSet
-    name: pi_digitalSet
+    name: PI Digital Set
     description: PI digital state set name for discrete tags
   pi_exDesc:
     container:
@@ -216,7 +222,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_exDesc
-    name: pi_exDesc
+    name: PI Exception Description
     description: PI extended descriptor text
   pi_excDev:
     container:
@@ -224,7 +230,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excDev
-    name: pi_excDev
+    name: PI Exception Deviation
     description: PI exception deviation threshold
   pi_excDevPercent:
     container:
@@ -232,7 +238,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excDevPercent
-    name: pi_excDevPercent
+    name: PI Exception Deviation Percent
     description: PI exception deviation as percentage
   pi_excDevPercent_UOM:
     container:
@@ -240,7 +246,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excDevPercent_UOM
-    name: pi_excDevPercent_UOM
+    name: PI Exception Deviation Percent UOM
     description: Unit of measure for exception deviation percentage
   pi_excDev_UOM:
     container:
@@ -248,7 +254,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excDev_UOM
-    name: pi_excDev_UOM
+    name: PI Exception Deviation UOM
     description: Unit of measure for exception deviation
   pi_excMax:
     container:
@@ -256,7 +262,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excMax
-    name: pi_excMax
+    name: PI Exception Max
     description: PI maximum exception time in seconds
   pi_excMax_UOM:
     container:
@@ -264,7 +270,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excMax_UOM
-    name: pi_excMax_UOM
+    name: PI Exception Max UOM
     description: Unit of measure for maximum exception time
   pi_excMin:
     container:
@@ -272,7 +278,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excMin
-    name: pi_excMin
+    name: PI Exception Min
     description: PI minimum exception time in seconds
   pi_excMin_UOM:
     container:
@@ -280,7 +286,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_excMin_UOM
-    name: pi_excMin_UOM
+    name: PI Exception Min UOM
     description: Unit of measure for minimum exception time
   pi_pointId:
     container:
@@ -288,7 +294,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_pointId
-    name: pi_pointId
+    name: PI Point ID
     description: PI point numeric identifier
   pi_pointSource:
     container:
@@ -296,7 +302,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_pointSource
-    name: pi_pointSource
+    name: PI Point Source
     description: PI point source character identifying the data collector
   pi_pointType:
     container:
@@ -304,7 +310,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_pointType
-    name: pi_pointType
+    name: PI Point Type
     description: PI point type (e.g. float32, digital, string)
   pi_ptClassId:
     container:
@@ -312,7 +318,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_ptClassId
-    name: pi_ptClassId
+    name: PI Point Class ID
     description: PI point class identifier
   pi_ptClassName:
     container:
@@ -320,7 +326,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_ptClassName
-    name: pi_ptClassName
+    name: PI Point Class Name
     description: PI point class name
   pi_ptClassRev:
     container:
@@ -328,7 +334,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_ptClassRev
-    name: pi_ptClassRev
+    name: PI Point Class Revision
     description: PI point class revision number
   pi_recNo:
     container:
@@ -336,7 +342,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_recNo
-    name: pi_recNo
+    name: PI Record Number
     description: PI record number
   pi_shutdown:
     container:
@@ -344,7 +350,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_shutdown
-    name: pi_shutdown
+    name: PI Shutdown
     description: PI shutdown flag.
   pi_sourceTag:
     container:
@@ -352,7 +358,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_sourceTag
-    name: pi_sourceTag
+    name: PI Source Tag
     description: Original source tag name from PI
   pi_tag:
     container:
@@ -360,7 +366,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_tag
-    name: pi_tag
+    name: PI Tag
     description: PI tag name
   pi_typicalValue:
     container:
@@ -368,7 +374,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: pi_typicalValue
-    name: pi_typicalValue
+    name: PI Typical Value
     description: Typical expected value for the tag
   opcua_definition:
     container:
@@ -376,7 +382,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: opcua_definition
-    name: opcua_definition
+    name: OPC UA Definition
     description: OPC UA node definition
   opcua_euRange:
     container:
@@ -384,7 +390,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: opcua_euRange
-    name: opcua_euRange
+    name: OPC UA Engineering Unit Range
     description: OPC UA engineering unit range (low-high)
   opcua_terminal:
     container:
@@ -392,7 +398,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: opcua_terminal
-    name: opcua_terminal
+    name: OPC UA Terminal
     description: OPC UA terminal identifier
   opcua_typeDefinition:
     container:
@@ -400,7 +406,7 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: opcua_typeDefinition
-    name: opcua_typeDefinition
+    name: OPC UA Type Definition
     description: OPC UA type definition node
   opcua_dataType:
     container:
@@ -408,5 +414,98 @@ properties:
       externalId: TimeSeriesData
       type: container
     containerPropertyIdentifier: opcua_dataType
-    name: opcua_dataType
+    name: OPC UA Data Type
     description: OPC UA data type (e.g. Double, Float, Boolean)
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the time series
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the time series
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source ID
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  sourceContext:
+    name: Source Context
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceContext
+    description: Context of the source id
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  sourceCreatedTime:
+    name: Source Created Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedTime
+    description: When the instance was created in the source system
+  sourceUpdatedTime:
+    name: Source Updated Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedTime
+    description: When the instance was last updated in the source system
+  sourceCreatedUser:
+    name: Source Created User
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedUser
+    description: User identifier from the source system on who created the source data
+  sourceUpdatedUser:
+    name: Source Updated User
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedUser
+    description: User identifier from the source system on who last updated the source data

@@ -1,5 +1,6 @@
 space: '{{space}}'
 externalId: MechanicalEquipmentClass
+name: Mechanical Equipment Class
 description: An equipment class that contains classes that normally are the responsibility
   of a department for mechanical engineering.
 implements:
@@ -10,6 +11,7 @@ implements:
 version: '{{dm_version}}'
 properties:
   labels:
+    name: Labels
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -17,6 +19,7 @@ properties:
     containerPropertyIdentifier: tags
     description: Text based labels for generic use, limited to 1000
   area:
+    name: Area
     container:
       space: '{{space}}'
       externalId: Tag
@@ -24,6 +27,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000001
     description: Physical location on the facility where the equipment is installed
   facility:
+    name: Facility
     container:
       space: '{{space}}'
       externalId: Tag
@@ -31,6 +35,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000005
     description: The facility code of a tagged object
   parentTag:
+    name: Parent Tag
     container:
       space: '{{space}}'
       externalId: Tag
@@ -38,6 +43,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000178
     description: The main Tag number of a system that child Tags are related
   system:
+    name: System
     container:
       space: '{{space}}'
       externalId: Tag
@@ -45,6 +51,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000157
     description: System code as per the used standard
   approvalAuthority:
+    name: Approval Authority
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -53,6 +60,7 @@ properties:
     description: The name of the nationally accredited approval body that has issued
       the examination certificate for the physical object.
   atexCategory:
+    name: ATEX Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -61,6 +69,7 @@ properties:
     description: Specifies in which category the physical object is divided in accordance
       with the directive 94/9/EC.
   atexExplosiveAtmosphere:
+    name: ATEX Explosive Atmosphere
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -69,6 +78,7 @@ properties:
     description: Specifies in which explosive atmosphere the physical object is divided
       in accordance with the directive 94/9/EC.
   atexGroup:
+    name: ATEX Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -77,6 +87,7 @@ properties:
     description: Specifies in which group the physical object is divided in accordance
       with the directive 94/9/EC.
   description:
+    name: Description
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -84,6 +95,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000177
     description: Functional description of the tag
   efficiency:
+    name: Efficiency
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -91,6 +103,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000495
     description: the ratio of the output to the input of any system
   efficiency_UOM:
+    name: Efficiency UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -98,6 +111,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000495_UOM
     description: Efficiency UOM, true.
   equipmentIdentifier:
+    name: Equipment Identifier
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -105,6 +119,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000031
     description: Equipment Identifier
   exCertificateNumber:
+    name: Ex Certificate Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -113,6 +128,7 @@ properties:
     description: The examination certificate number for the physical object issued
       by a notified body.
   explosionProtection:
+    name: Explosion Protection
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -121,6 +137,7 @@ properties:
     description: Specifies the identification of electrical equipment's explosion
       protection and type of ignition protection in accordance to a known standard.
   gasGroup:
+    name: Gas Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -129,6 +146,7 @@ properties:
     description: Specifies the gas group classification of the physical object in
       accordance to a known standard.
   hazardousAreaClassificationArea:
+    name: Hazardous Area Classification Area
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -136,6 +154,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000113
     description: Hazardous area zone of the area where the equipment is installed.
   iOType:
+    name: I OType
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -143,6 +162,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000598
     description: The type of input / output
   insulationClass:
+    name: Insulation Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -150,6 +170,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000177
     description: The class to which insulation is rated
   ipRating:
+    name: Ip Rating
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -157,6 +178,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000173
     description: IP rating
   length:
+    name: Length
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -164,6 +186,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201
     description: Length
   length_UOM:
+    name: Length UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -171,6 +194,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201_UOM
     description: Length UOM, length.
   lineServiceCode:
+    name: Line Service Code
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -178,6 +202,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000615
     description: Code for substance flowing through the line as per used standard
   manufacturer:
+    name: Manufacturer
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -185,6 +210,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000158
     description: The original equipment manufacturer of a tagged item
   modelNumber:
+    name: Model Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -192,6 +218,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000159
     description: Model identification of the item
   nominalDiameter:
+    name: Nominal Diameter
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -199,6 +226,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000509
     description: Something is of a diameter that it is not rated (?)
   nominalDiameter_UOM:
+    name: Nominal Diameter UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -206,6 +234,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000509_UOM
     description: Nominal diameter UOM, length.
   nominalPower:
+    name: Nominal Power
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -213,6 +242,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000292
     description: Nominal Power
   nominalPower_UOM:
+    name: Nominal Power UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -220,6 +250,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000292_UOM
     description: Nominal power UOM, power/heat loss/heat gain.
   partNumber:
+    name: Part Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -228,6 +259,7 @@ properties:
     description: Part number for basic model, the part number shall not show the configured
       equipment (NEW IN REVISION 2)
   pedCategory:
+    name: Ped Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -236,6 +268,7 @@ properties:
     description: PED category. Applicable for installations that require conformity
       with Pressure Equipment Directive
   powerConsumption:
+    name: Power Consumption
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -244,6 +277,7 @@ properties:
     description: the electrical energy over time that must be supplied to an electrical
       appliance to maintain its operation
   powerConsumption_UOM:
+    name: Power Consumption UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -251,6 +285,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000602_UOM
     description: Power consumption UOM, group powercon.
   powerFactorCos:
+    name: Power Factor Cos
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -258,6 +293,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000329
     description: The equipments electrical load Power Factor (Cos)
   powerFactorCos_UOM:
+    name: Power Factor Cos UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -265,6 +301,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000329_UOM
     description: Power factor (cos) UOM, dimensionless ratios.
   powerOutputRated:
+    name: Power Output Rated
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -272,6 +309,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000523
     description: The rating of the power produced by an item
   powerOutputRated_UOM:
+    name: Power Output Rated UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -279,6 +317,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000523_UOM
     description: Power output rated UOM, group poweroutput rated.
   ratedCurrent:
+    name: Rated Current
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -286,6 +325,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000521
     description: Rated current
   ratedCurrent_UOM:
+    name: Rated Current UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -293,6 +333,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000521_UOM
     description: Rated current UOM, electrical - current.
   safetyIntegrityLevelEquipment:
+    name: Safety Integrity Level Equipment
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -301,6 +342,7 @@ properties:
     description: 'Safety Integrity Level - ref. relevant discipline requirements.
       Typical: 0 : NA (not applicable) 1 : SIL 1 2 : SIL 2 3 : SIL 3'
   serialNumber:
+    name: Serial Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -308,6 +350,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000163
     description: Serial number of the item
   setPoint:
+    name: Set Point
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -316,6 +359,7 @@ properties:
     description: The level at which an instrument is set - eg PSVs, bursting discs,
       regulators, etc
   setPointHigh:
+    name: Set Point High
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -323,6 +367,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000582
     description: The trip or alarm High set point
   setPointHigh_UOM:
+    name: Set Point High UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -330,6 +375,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000582_UOM
     description: Set point high UOM, group setpoint.
   setPointLow:
+    name: Set Point Low
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -337,6 +383,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000583
     description: The trip or alarm Low set point
   setPointLow_UOM:
+    name: Set Point Low UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -344,6 +391,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000583_UOM
     description: Set point low UOM, group setpoint.
   setPoint_UOM:
+    name: Set Point UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -351,6 +399,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000581_UOM
     description: Set point UOM, group setpoint.
   signalType:
+    name: Signal Type
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -358,6 +407,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000371
     description: The method a signal is transmitted
   temperatureClass:
+    name: Temperature Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -366,6 +416,7 @@ properties:
     description: Specifies the temperature classification of the physical object in
       accordance to a known standard.
   testMedium:
+    name: Test Medium
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -373,6 +424,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000412
     description: The medium that was used to test the pressure of a line
   testPressure:
+    name: Test Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -380,6 +432,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000532
     description: The pressure to which a line is tested
   testPressure_UOM:
+    name: Test Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -387,6 +440,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000532_UOM
     description: Test pressure UOM, pressure.
   traceTemperature:
+    name: Trace Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -394,6 +448,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000211
     description: The temperature at which trace heating is set or required
   traceTemperature_UOM:
+    name: Trace Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -401,6 +456,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000211_UOM
     description: Trace temperature UOM, temperature.
   valveType:
+    name: Valve Type
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -408,6 +464,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000479
     description: The type of valve, for example, ball, butterfly, gate, etc
   voltageLevel:
+    name: Voltage Level
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -415,6 +472,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000528
     description: The voltage level of a cable
   voltageLevel_UOM:
+    name: Voltage Level UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -422,6 +480,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000528_UOM
     description: Voltage level UOM, electrical - voltage.
   weightDry:
+    name: Weight Dry
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -429,6 +488,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494
     description: The weight of the equipment without any contents
   weightDry_UOM:
+    name: Weight Dry UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -436,6 +496,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494_UOM
     description: Weight (dry) UOM, mass.
   weightOperating:
+    name: Weight Operating
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -443,6 +504,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516
     description: The weight of the equipment in use
   weightOperating_UOM:
+    name: Weight Operating UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -450,6 +512,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516_UOM
     description: Weight (operating) UOM, mass.
   cableCrossSectionalArea:
+    name: Cable Cross Sectional Area
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -457,6 +520,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000032
     description: The cross sectional area of the cable cores
   cableCrossSectionalArea_UOM:
+    name: Cable Cross Sectional Area UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -464,6 +528,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000032_UOM
     description: Cable cross sectional area UOM, surface / area.
   explosionProtectionConcept:
+    name: Explosion Protection Concept
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -472,6 +537,7 @@ properties:
     description: Specify the identification of electrical equipment's explosion protection
       and type of ignition protection in accordance with IEC/EN 60079-0.
   explosionProtectionGasGroup:
+    name: Explosion Protection Gas Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -480,6 +546,7 @@ properties:
     description: Specify the gas group classification of the physical object in accordance
       with IEC/EN 60079-20
   explosionProtectionNotifiedBody:
+    name: Explosion Protection Notified Body
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -488,6 +555,7 @@ properties:
     description: The name of the nationally accredited approval body that has issued
       the examination certificate for the physical object.
   explosionProtectionTemperatureClass:
+    name: Explosion Protection Temperature Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -496,6 +564,7 @@ properties:
     description: Specify the temperature classification of the physical object in
       accordance with CENELEC EN50014
   explosionProtectionZone:
+    name: Explosion Protection Zone
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -504,6 +573,7 @@ properties:
     description: Specify the hazardous zone in which the functional or physical object
       is expected to operate.
   fireSafe:
+    name: Fire Safe
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -512,6 +582,7 @@ properties:
     description: The standard and classification of the fire rated equipment including
       valves, firewalls, doors, windows
   fluidName:
+    name: Fluid Name
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -519,6 +590,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000132
     description: The name of the product in liquid or gas phase.
   ingressProtection:
+    name: Ingress Protection
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -527,6 +599,7 @@ properties:
     description: Specify the degree of ingress protection for the physical object
       in accordance with IEC/EN 50629 or NEMA, UL and CSA type rating.
   lowerLimitDesignTemperature:
+    name: Lower Limit Design Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -535,6 +608,7 @@ properties:
     description: The lowest temperature at which a functional or physical object is
       designed.
   lowerLimitDesignTemperature_UOM:
+    name: Lower Limit Design Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -542,6 +616,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000503_UOM
     description: Lower limit design temperature UOM, temperature.
   lowerLimitOperatingTemperature:
+    name: Lower Limit Operating Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -550,6 +625,7 @@ properties:
     description: A temperature that is the lowest temperature at which a functional
       or physical object is expected to operate.
   lowerLimitOperatingTemperature_UOM:
+    name: Lower Limit Operating Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -557,6 +633,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000504_UOM
     description: Lower limit operating temperature UOM, temperature.
   nominalCurrent:
+    name: Nominal Current
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -565,6 +642,7 @@ properties:
     description: A current which is the current a functional or physical object has
       been designed to operate normally.
   nominalCurrent_UOM:
+    name: Nominal Current UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -572,6 +650,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000241_UOM
     description: Nominal current UOM, true.
   normalOperatingLiquidDensity:
+    name: Normal Operating Liquid Density
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -580,6 +659,7 @@ properties:
     description: The density of the fluid in liquid phase at which a functional or
       physical object is expected to operate normally.
   normalOperatingLiquidDensity_UOM:
+    name: Normal Operating Liquid Density UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -587,6 +667,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000273_UOM
     description: Normal operating liquid density UOM, density.
   normalOperatingLiquidDynamicViscosity:
+    name: Normal Operating Liquid Dynamic Viscosity
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -595,6 +676,7 @@ properties:
     description: The dynamic viscosity of the fluid in liquid phase at which a functional
       or physical object is expected to operate normally.
   normalOperatingLiquidDynamicViscosity_UOM:
+    name: Normal Operating Liquid Dynamic Viscosity UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -602,6 +684,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000274_UOM
     description: Normal operating liquid dynamic viscosity UOM, dynamic viscosity.
   normalOperatingPressure:
+    name: Normal Operating Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -610,6 +693,7 @@ properties:
     description: A pressure at which a functional or physical object is expected to
       operate normally.
   normalOperatingPressure_UOM:
+    name: Normal Operating Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -617,6 +701,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000512_UOM
     description: Normal operating pressure UOM, pressure.
   normalOperatingRotationalSpeed:
+    name: Normal Operating Rotational Speed
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -625,6 +710,7 @@ properties:
     description: The rotational speed which is the normal operating rotational speed
       for the functional or physical object.
   normalOperatingRotationalSpeed_UOM:
+    name: Normal Operating Rotational Speed UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -632,6 +718,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000283_UOM
     description: Normal operating rotational speed UOM, true.
   normalOutputPower:
+    name: Normal Output Power
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -640,6 +727,7 @@ properties:
     description: The power which is the power a functional or physical object deliver
       normally.
   normalOutputPower_UOM:
+    name: Normal Output Power UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -647,6 +735,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000292_UOM
     description: Normal output power UOM, power.
   operationContinuousIntermittent:
+    name: Operation Continuous Intermittent
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -655,6 +744,7 @@ properties:
     description: Specifies if the equipment is working continuously or in an intermittent
       way.
   pressureEquipmentCategory:
+    name: Pressure Equipment Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -663,6 +753,7 @@ properties:
     description: The pressure equipment category according to the pressure equipment
       directive 97/23/EC.
   ratedOutputPower:
+    name: Rated Output Power
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -671,6 +762,7 @@ properties:
     description: A power that is the power a motor has been designed to deliver under
       specified conditions.
   ratedOutputPower_UOM:
+    name: Rated Output Power UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -678,6 +770,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000523_UOM
     description: Rated output power UOM, power.
   ratedSpeedAt11Load:
+    name: Rated Speed At11 Load
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -686,6 +779,7 @@ properties:
     description: A rotational speed that is a rotational speed of an electric rotating
       machine working at its full load.
   ratedSpeedAt11Load_UOM:
+    name: Rated Speed At11 Load UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -693,6 +787,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000527_UOM
     description: Rated speed at 1/1 load UOM, true.
   ratedVoltage:
+    name: Rated Voltage
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -701,6 +796,7 @@ properties:
     description: A voltage that is the voltage between lines at the terminals of the
       machine at rated output
   ratedVoltage_UOM:
+    name: Rated Voltage UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -708,6 +804,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000528_UOM
     description: Rated voltage UOM, electrical tension / voltage.
   safetyIntegrityLevel:
+    name: Safety Integrity Level
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -716,6 +813,7 @@ properties:
     description: A relative level of risk-reduction provided by a safety function,
       or to specify a target level of risk reduction
   thermalInsulationClass:
+    name: Thermal Insulation Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -723,6 +821,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000177
     description: The class of electrical insulation used by a  physical object.
   upperLimitDesignPressure:
+    name: Upper Limit Design Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -731,6 +830,7 @@ properties:
     description: The highest pressure at which a functional or physical object is
       designed for.
   upperLimitDesignPressure_UOM:
+    name: Upper Limit Design Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -738,6 +838,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000535_UOM
     description: Upper limit design pressure UOM, pressure.
   upperLimitDesignTemperature:
+    name: Upper Limit Design Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -746,6 +847,7 @@ properties:
     description: The highest temperature at which a functional or physical object
       is designed.
   upperLimitDesignTemperature_UOM:
+    name: Upper Limit Design Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -753,6 +855,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000536_UOM
     description: Upper limit design temperature UOM, temperature.
   upperLimitOperatingTemperature:
+    name: Upper Limit Operating Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -761,6 +864,7 @@ properties:
     description: A temperature that is the highest temperature at which a functional
       or physical object is expected to operate.
   upperLimitOperatingTemperature_UOM:
+    name: Upper Limit Operating Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
@@ -768,9 +872,34 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000538_UOM
     description: Upper limit operating temperature UOM, temperature.
   additionalProperties:
+    name: Additional Properties
     container:
       space: '{{space}}'
       externalId: CFIHOS_MechanicalEquipmentClass
       type: container
     containerPropertyIdentifier: additionalProperties
     description: Overflow properties stored as JSON for rarely-queried fields
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

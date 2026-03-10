@@ -26,7 +26,7 @@ The model favors **simplicity and denormalization** over strict normalization. R
 | Files | CogniteFile | Document metadata with revision tracking and workflow status |
 | TimeSeriesData | CogniteTimeSeries | Denormalized PI + OPC UA time series properties |
 | FailureMode | CogniteDescribable | ISO 14224 failure modes linked to equipment and notifications |
-| CommonLCI | CogniteDescribable | Common lifecycle information shared across tags |
+| CommonLCIProperties | CogniteDescribable | Common lifecycle information shared across tags |
 
 ### IDM extensions (cdf_idm)
 
@@ -40,7 +40,7 @@ The model favors **simplicity and denormalization** over strict normalization. R
 
 | View | Purpose |
 |------|---------|
-| FunctionalLocation | SAP functional location hierarchy with criticality and discipline |
+| FunctionalLocationProperties | SAP functional location hierarchy with criticality and discipline |
 | MaintenanceAndIntegrity | Maintenance and integrity properties linked to tags |
 | 17 CFIHOS equipment class views | Class-specific properties per CFIHOS 2.0 taxonomy |
 

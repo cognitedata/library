@@ -85,6 +85,10 @@ views:
   version: "{{dm_version}}"
   type: view
 - space: "{{space}}"
+  externalId: Equipment
+  version: "{{dm_version}}"
+  type: view
+- space: "{{space}}"
   externalId: Tag
   version: "{{dm_version}}"
   type: view

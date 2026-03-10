@@ -1,5 +1,6 @@
 space: '{{space}}'
 externalId: Tag
+name: Tag
 description: Core tag properties including area, facility, system, discipline, and relationships to equipment classes, work orders, and time series.
 implements:
 - space: cdf_cdm
@@ -9,6 +10,7 @@ implements:
 version: '{{dm_version}}'
 properties:
   object3D:
+    name: Object3 D
     container:
       space: cdf_cdm
       externalId: CogniteVisualizable
@@ -21,6 +23,7 @@ properties:
       version: v1
       type: view
   FunctionalLocationProperties:
+    name: Functional Location Properties
     container:
       space: '{{space}}'
       externalId: Tag
@@ -33,6 +36,7 @@ properties:
       version: '{{dm_version}}'
       type: view
   CommonLCIProperties:
+    name: Common LCIProperties
     container:
       space: '{{space}}'
       externalId: Tag
@@ -45,6 +49,7 @@ properties:
       version: '{{dm_version}}'
       type: view
   labels:
+    name: Labels
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -52,6 +57,7 @@ properties:
     containerPropertyIdentifier: tags
     description: Text based labels for generic use, limited to 1000
   aliases:
+    name: Aliases
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -59,6 +65,7 @@ properties:
     containerPropertyIdentifier: aliases
     description: Alternative names for the node
   sourceId:
+    name: Source Id
     container:
       space: cdf_cdm
       externalId: CogniteSourceable
@@ -66,6 +73,7 @@ properties:
     containerPropertyIdentifier: sourceId
     description: Identifier from the source system
   sourceContext:
+    name: Source Context
     container:
       space: cdf_cdm
       externalId: CogniteSourceable
@@ -74,6 +82,7 @@ properties:
     description: Context of the source id. For systems where the sourceId is globally
       unique, the sourceContext is expected to not be set.
   source:
+    name: Source
     container:
       space: cdf_cdm
       externalId: CogniteSourceable
@@ -86,6 +95,7 @@ properties:
       version: v1
       type: view
   sourceCreatedTime:
+    name: Source Created Time
     container:
       space: cdf_cdm
       externalId: CogniteSourceable
@@ -93,6 +103,7 @@ properties:
     containerPropertyIdentifier: sourceCreatedTime
     description: When the instance was created in source system (if available)
   sourceUpdatedTime:
+    name: Source Updated Time
     container:
       space: cdf_cdm
       externalId: CogniteSourceable
@@ -100,6 +111,7 @@ properties:
     containerPropertyIdentifier: sourceUpdatedTime
     description: When the instance was last updated in the source system (if available)
   sourceCreatedUser:
+    name: Source Created User
     container:
       space: cdf_cdm
       externalId: CogniteSourceable
@@ -108,6 +120,7 @@ properties:
     description: User identifier from the source system on who created the source
       data. This identifier is not guaranteed to match the user identifiers in CDF
   sourceUpdatedUser:
+    name: Source Updated User
     container:
       space: cdf_cdm
       externalId: CogniteSourceable
@@ -192,6 +205,7 @@ properties:
       version: v1
       type: view
   tagNumber:
+    name: Tag Number
     container:
       space: '{{space}}'
       externalId: Tag
@@ -199,6 +213,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000166
     description: Tag number identifier (e.g. equipment or functional location tag)
   area:
+    name: Area
     container:
       space: '{{space}}'
       externalId: Tag
@@ -206,6 +221,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000001
     description: Area code within the facility
   classId:
+    name: Class Id
     container:
       space: '{{space}}'
       externalId: Tag
@@ -213,6 +229,7 @@ properties:
     containerPropertyIdentifier: classId
     description: CFIHOS equipment class identifier
   className:
+    name: Class Name
     container:
       space: '{{space}}'
       externalId: Tag
@@ -220,6 +237,7 @@ properties:
     containerPropertyIdentifier: className
     description: CFIHOS equipment class name
   facility:
+    name: Facility
     container:
       space: '{{space}}'
       externalId: Tag
@@ -227,6 +245,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000005
     description: Facility code where the tag is located
   parentTag:
+    name: Parent Tag
     container:
       space: '{{space}}'
       externalId: Tag
@@ -234,6 +253,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000178
     description: Reference to the parent tag in the hierarchy
   project:
+    name: Project
     container:
       space: '{{space}}'
       externalId: Tag
@@ -241,6 +261,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000084
     description: Project code associated with the tag
   system:
+    name: System
     container:
       space: '{{space}}'
       externalId: Tag
@@ -248,6 +269,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000157
     description: System code the tag belongs to
   tagDiscipline:
+    name: Tag Discipline
     container:
       space: '{{space}}'
       externalId: Tag
@@ -255,6 +277,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000153
     description: Engineering discipline of the tag (e.g. mechanical, electrical, instrument)
   fromTag:
+    name: From Tag
     container:
       space: '{{space}}'
       externalId: Tag
@@ -262,6 +285,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000182
     description: Source tag for connection or flow direction
   toTag:
+    name: To Tag
     container:
       space: '{{space}}'
       externalId: Tag
@@ -269,6 +293,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000184
     description: Destination tag for connection or flow direction
   foundInSources:
+    name: Found In Sources
     container:
       space: '{{space}}'
       externalId: Tag
@@ -276,6 +301,7 @@ properties:
     containerPropertyIdentifier: foundInSources
     description: List of data sources where this tag was found
   missingParent:
+    name: Missing Parent
     container:
       space: '{{space}}'
       externalId: Tag
@@ -283,6 +309,7 @@ properties:
     containerPropertyIdentifier: missingParent
     description: Indicates if the parent tag reference is unresolved
   validNamingConvention:
+    name: Valid Naming Convention
     container:
       space: '{{space}}'
       externalId: Tag
@@ -290,6 +317,7 @@ properties:
     containerPropertyIdentifier: validNamingConvention
     description: Indicates if the tag follows the naming convention
   classViewExtId:
+    name: Class View Ext Id
     container:
       space: '{{space}}'
       externalId: Tag
@@ -297,6 +325,7 @@ properties:
     containerPropertyIdentifier: classViewExtId
     description: External ID of the class-specific view for this tag (e.g., CFIHOS_Pump, CFIHOS_Valve)
   classSpecificProperties:
+    name: Class Specific Properties
     container:
       space: '{{space}}'
       externalId: Tag
@@ -464,3 +493,27 @@ properties:
     name: WorkOrderOperations
     description: Work order operations related to this tag
     connectionType: multi_reverse_direct_relation
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the tag
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the tag
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000

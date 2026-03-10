@@ -10,7 +10,7 @@ def trim_properties_from_classes(
 ) -> CfihosClassList:
     """Trim Common and or Core properties from the CFIHOS classes.
 
-    As they are already represented as part of Tag or CommonLCI, it's redundant to have them in the CFIHOS classes.
+    As they are already represented as part of Tag or CommonLCIProperties, it's redundant to have them in the CFIHOS classes.
 
     Note that this only applies to the properties given some presence ranking.
 

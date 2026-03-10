@@ -48,6 +48,7 @@ properties:
     name: code
     description: The code of the failure mode according to ISO 14224
   labels:
+    name: Labels
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -86,3 +87,35 @@ properties:
     containerPropertyIdentifier: additionalProperties
     name: additionalProperties
     description: Additional properties stored as JSON
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

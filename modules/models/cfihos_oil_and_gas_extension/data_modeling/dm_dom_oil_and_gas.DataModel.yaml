@@ -215,6 +215,10 @@ views:
   externalId: CogniteDiagramAnnotation
   version: v1
   type: view
+- space: "{{space}}"
+  externalId: Equipment
+  version: "{{dm_version}}"
+  type: view
 - space: cdf_cdm
   externalId: CogniteEquipment
   version: v1

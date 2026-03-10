@@ -1,5 +1,6 @@
 space: '{{space}}'
 externalId: InstrumentEquipment
+name: Instrument Equipment
 description: A physical object that detects an aspect of something; records, modifies
   and/or displays such an aspect or performs a combination of these activities.
 implements:
@@ -10,6 +11,7 @@ implements:
 version: '{{dm_version}}'
 properties:
   labels:
+    name: Labels
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -17,6 +19,7 @@ properties:
     containerPropertyIdentifier: tags
     description: Text based labels for generic use, limited to 1000
   area:
+    name: Area
     container:
       space: '{{space}}'
       externalId: Tag
@@ -24,6 +27,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000001
     description: Physical location on the facility where the equipment is installed
   facility:
+    name: Facility
     container:
       space: '{{space}}'
       externalId: Tag
@@ -31,6 +35,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000005
     description: The facility code of a tagged object
   parentTag:
+    name: Parent Tag
     container:
       space: '{{space}}'
       externalId: Tag
@@ -38,6 +43,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000178
     description: The main Tag number of a system that child Tags are related
   system:
+    name: System
     container:
       space: '{{space}}'
       externalId: Tag
@@ -45,6 +51,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000157
     description: System code as per the used standard
   approvalAuthority:
+    name: Approval Authority
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -53,6 +60,7 @@ properties:
     description: The name of the nationally accredited approval body that has issued
       the examination certificate for the physical object.
   atexCategory:
+    name: ATEX Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -61,6 +69,7 @@ properties:
     description: Specifies in which category the physical object is divided in accordance
       with the directive 94/9/EC.
   atexExplosiveAtmosphere:
+    name: ATEX Explosive Atmosphere
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -69,6 +78,7 @@ properties:
     description: Specifies in which explosive atmosphere the physical object is divided
       in accordance with the directive 94/9/EC.
   atexGroup:
+    name: ATEX Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -77,6 +87,7 @@ properties:
     description: Specifies in which group the physical object is divided in accordance
       with the directive 94/9/EC.
   description:
+    name: Description
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -84,6 +95,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000177
     description: Functional description of the tag
   efficiency:
+    name: Efficiency
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -91,6 +103,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000495
     description: the ratio of the output to the input of any system
   efficiency_UOM:
+    name: Efficiency UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -98,6 +111,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000495_UOM
     description: Efficiency UOM, dimensionless ratios.
   equipmentIdentifier:
+    name: Equipment Identifier
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -105,6 +119,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000031
     description: Equipment Identifier
   exCertificateNumber:
+    name: Ex Certificate Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -113,6 +128,7 @@ properties:
     description: The examination certificate number for the physical object issued
       by a notified body.
   explosionProtection:
+    name: Explosion Protection
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -121,6 +137,7 @@ properties:
     description: Specifies the identification of electrical equipment's explosion
       protection and type of ignition protection in accordance to a known standard.
   gasGroup:
+    name: Gas Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -129,6 +146,7 @@ properties:
     description: Specifies the gas group classification of the physical object in
       accordance to a known standard.
   hazardousAreaClassificationArea:
+    name: Hazardous Area Classification Area
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -136,6 +154,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000113
     description: Hazardous area zone of the area where the equipment is installed.
   iOType:
+    name: I OType
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -143,6 +162,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000598
     description: The type of input / output
   ipRating:
+    name: Ip Rating
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -150,6 +170,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000173
     description: IP rating
   length:
+    name: Length
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -157,6 +178,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201
     description: Length
   length_UOM:
+    name: Length UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -164,6 +186,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201_UOM
     description: Length UOM, length.
   manufacturer:
+    name: Manufacturer
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -171,6 +194,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000158
     description: The original equipment manufacturer of a tagged item
   modelNumber:
+    name: Model Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -178,6 +202,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000159
     description: Model identification of the item
   nominalDiameter:
+    name: Nominal Diameter
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -185,6 +210,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000509
     description: Something is of a diameter that it is not rated (?)
   nominalDiameter_UOM:
+    name: Nominal Diameter UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -192,6 +218,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000509_UOM
     description: Nominal diameter UOM, length.
   nominalPower:
+    name: Nominal Power
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -199,6 +226,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000292
     description: Nominal Power
   nominalPower_UOM:
+    name: Nominal Power UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -206,6 +234,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000292_UOM
     description: Nominal power UOM, power/heat loss/heat gain.
   partNumber:
+    name: Part Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -214,6 +243,7 @@ properties:
     description: Part number for basic model, the part number shall not show the configured
       equipment (NEW IN REVISION 2)
   pedCategory:
+    name: Ped Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -222,6 +252,7 @@ properties:
     description: PED category. Applicable for installations that require conformity
       with Pressure Equipment Directive
   powerConsumption:
+    name: Power Consumption
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -230,6 +261,7 @@ properties:
     description: the electrical energy over time that must be supplied to an electrical
       appliance to maintain its operation
   powerConsumption_UOM:
+    name: Power Consumption UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -237,6 +269,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000602_UOM
     description: Power consumption UOM, group powercon.
   powerFactorCos:
+    name: Power Factor Cos
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -244,6 +277,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000329
     description: The equipments electrical load Power Factor (Cos)
   powerFactorCos_UOM:
+    name: Power Factor Cos UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -251,6 +285,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000329_UOM
     description: Power factor (cos) UOM, dimensionless ratios.
   powerOutputRated:
+    name: Power Output Rated
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -258,6 +293,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000523
     description: The rating of the power produced by an item
   powerOutputRated_UOM:
+    name: Power Output Rated UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -265,6 +301,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000523_UOM
     description: Power output rated UOM, group poweroutput rated.
   ratedCurrent:
+    name: Rated Current
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -272,6 +309,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000521
     description: Rated current
   ratedCurrent_UOM:
+    name: Rated Current UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -279,6 +317,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000521_UOM
     description: Rated current UOM, electrical - current.
   safetyIntegrityLevelEquipment:
+    name: Safety Integrity Level Equipment
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -287,6 +326,7 @@ properties:
     description: 'Safety Integrity Level - ref. relevant discipline requirements.
       Typical: 0 : NA (not applicable) 1 : SIL 1 2 : SIL 2 3 : SIL 3'
   serialNumber:
+    name: Serial Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -294,6 +334,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000163
     description: Serial number of the item
   setPoint:
+    name: Set Point
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -302,6 +343,7 @@ properties:
     description: The level at which an instrument is set - eg PSVs, bursting discs,
       regulators, etc
   setPointHigh:
+    name: Set Point High
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -309,6 +351,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000582
     description: The trip or alarm High set point
   setPointHigh_UOM:
+    name: Set Point High UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -316,6 +359,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000582_UOM
     description: Set point high UOM, group setpoint.
   setPointLow:
+    name: Set Point Low
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -323,6 +367,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000583
     description: The trip or alarm Low set point
   setPointLow_UOM:
+    name: Set Point Low UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -330,6 +375,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000583_UOM
     description: Set point low UOM, group setpoint.
   setPoint_UOM:
+    name: Set Point UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -337,6 +383,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000581_UOM
     description: Set point UOM, group setpoint.
   signalType:
+    name: Signal Type
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -344,6 +391,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000371
     description: The method a signal is transmitted
   temperatureClass:
+    name: Temperature Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -352,6 +400,7 @@ properties:
     description: Specifies the temperature classification of the physical object in
       accordance to a known standard.
   traceTemperature:
+    name: Trace Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -359,6 +408,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000211
     description: The temperature at which trace heating is set or required
   traceTemperature_UOM:
+    name: Trace Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -366,6 +416,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000211_UOM
     description: Trace temperature UOM, temperature.
   voltageLevel:
+    name: Voltage Level
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -373,6 +424,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000528
     description: The voltage level of a cable
   voltageLevel_UOM:
+    name: Voltage Level UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -380,6 +432,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000528_UOM
     description: Voltage level UOM, electrical - voltage.
   weightDry:
+    name: Weight Dry
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -387,6 +440,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494
     description: The weight of the equipment without any contents
   weightDry_UOM:
+    name: Weight Dry UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -394,6 +448,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494_UOM
     description: Weight (dry) UOM, mass.
   weightOperating:
+    name: Weight Operating
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -401,6 +456,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516
     description: The weight of the equipment in use
   weightOperating_UOM:
+    name: Weight Operating UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -408,6 +464,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516_UOM
     description: Weight (operating) UOM, mass.
   explosionProtectionGasGroup:
+    name: Explosion Protection Gas Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -416,6 +473,7 @@ properties:
     description: Specify the gas group classification of the physical object in accordance
       with IEC/EN 60079-20
   explosionProtectionTemperatureClass:
+    name: Explosion Protection Temperature Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -424,6 +482,7 @@ properties:
     description: Specify the temperature classification of the physical object in
       accordance with CENELEC EN50014
   explosionProtectionZone:
+    name: Explosion Protection Zone
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -432,6 +491,7 @@ properties:
     description: Specify the hazardous zone in which the functional or physical object
       is expected to operate.
   fluidName:
+    name: Fluid Name
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -439,6 +499,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000132
     description: The name of the product in liquid or gas phase.
   pressureEquipmentCategory:
+    name: Pressure Equipment Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -447,6 +508,7 @@ properties:
     description: The pressure equipment category according to the pressure equipment
       directive 97/23/EC.
   safetyIntegrityLevel:
+    name: Safety Integrity Level
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
@@ -455,9 +517,34 @@ properties:
     description: A relative level of risk-reduction provided by a safety function,
       or to specify a target level of risk reduction
   additionalProperties:
+    name: Additional Properties
     container:
       space: '{{space}}'
       externalId: CFIHOS_InstrumentEquipment
       type: container
     containerPropertyIdentifier: additionalProperties
     description: Overflow properties stored as JSON for rarely-queried fields
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

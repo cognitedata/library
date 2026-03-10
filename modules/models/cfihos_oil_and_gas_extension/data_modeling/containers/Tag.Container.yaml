@@ -252,13 +252,13 @@ indexes:
     properties:
       - FunctionalLocationProperties
     bySpace: false
-    cursorable: false
+    cursorable: true
   CommonLCIProperties:
     indexType: btree
     properties:
       - CommonLCIProperties
     bySpace: false
-    cursorable: false
+    cursorable: true
   classSpecific:
     indexType: btree
     properties:

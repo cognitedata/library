@@ -207,7 +207,7 @@ indexes:
     properties:
       - failureMode
     bySpace: false
-    cursorable: false
+    cursorable: true
   dueDate:
     indexType: btree
     properties:

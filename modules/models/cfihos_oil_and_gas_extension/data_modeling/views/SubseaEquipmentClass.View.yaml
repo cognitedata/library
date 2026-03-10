@@ -1,5 +1,6 @@
 space: '{{space}}'
 externalId: SubseaEquipmentClass
+name: Subsea Equipment Class
 description: An equipment class whose members are used in conjunction with subsea or
   subaquatic installations and/or operations.
 implements:
@@ -10,6 +11,7 @@ implements:
 version: '{{dm_version}}'
 properties:
   labels:
+    name: Labels
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -17,6 +19,7 @@ properties:
     containerPropertyIdentifier: tags
     description: Text based labels for generic use, limited to 1000
   area:
+    name: Area
     container:
       space: '{{space}}'
       externalId: Tag
@@ -24,6 +27,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000001
     description: Physical location on the facility where the equipment is installed
   facility:
+    name: Facility
     container:
       space: '{{space}}'
       externalId: Tag
@@ -31,6 +35,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000005
     description: The facility code of a tagged object
   parentTag:
+    name: Parent Tag
     container:
       space: '{{space}}'
       externalId: Tag
@@ -38,6 +43,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000178
     description: The main Tag number of a system that child Tags are related
   system:
+    name: System
     container:
       space: '{{space}}'
       externalId: Tag
@@ -45,6 +51,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000157
     description: System code as per the used standard
   approvalAuthority:
+    name: Approval Authority
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -53,6 +60,7 @@ properties:
     description: The name of the nationally accredited approval body that has issued
       the examination certificate for the physical object.
   atexCategory:
+    name: ATEX Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -61,6 +69,7 @@ properties:
     description: Specifies in which category the physical object is divided in accordance
       with the directive 94/9/EC.
   atexExplosiveAtmosphere:
+    name: ATEX Explosive Atmosphere
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -69,6 +78,7 @@ properties:
     description: Specifies in which explosive atmosphere the physical object is divided
       in accordance with the directive 94/9/EC.
   atexGroup:
+    name: ATEX Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -77,6 +87,7 @@ properties:
     description: Specifies in which group the physical object is divided in accordance
       with the directive 94/9/EC.
   description:
+    name: Description
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -84,6 +95,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000177
     description: Functional description of the tag
   equipmentIdentifier:
+    name: Equipment Identifier
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -91,6 +103,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000031
     description: Equipment Identifier
   exCertificateNumber:
+    name: Ex Certificate Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -99,6 +112,7 @@ properties:
     description: The examination certificate number for the physical object issued
       by a notified body.
   explosionProtection:
+    name: Explosion Protection
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -107,6 +121,7 @@ properties:
     description: Specifies the identification of electrical equipment's explosion
       protection and type of ignition protection in accordance to a known standard.
   gasGroup:
+    name: Gas Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -115,6 +130,7 @@ properties:
     description: Specifies the gas group classification of the physical object in
       accordance to a known standard.
   hazardousAreaClassificationArea:
+    name: Hazardous Area Classification Area
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -122,6 +138,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000113
     description: Hazardous area zone of the area where the equipment is installed.
   ipRating:
+    name: Ip Rating
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -129,6 +146,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000173
     description: IP rating
   length:
+    name: Length
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -136,6 +154,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201
     description: Length
   length_UOM:
+    name: Length UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -143,6 +162,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201_UOM
     description: Length UOM, length.
   manufacturer:
+    name: Manufacturer
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -150,6 +170,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000158
     description: The original equipment manufacturer of a tagged item
   modelNumber:
+    name: Model Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -157,6 +178,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000159
     description: Model identification of the item
   nominalDiameter:
+    name: Nominal Diameter
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -164,6 +186,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000509
     description: Something is of a diameter that it is not rated (?)
   nominalDiameter_UOM:
+    name: Nominal Diameter UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -171,6 +194,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000509_UOM
     description: Nominal diameter UOM, length.
   partNumber:
+    name: Part Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -179,6 +203,7 @@ properties:
     description: Part number for basic model, the part number shall not show the configured
       equipment (NEW IN REVISION 2)
   serialNumber:
+    name: Serial Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -186,6 +211,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000163
     description: Serial number of the item
   setPoint:
+    name: Set Point
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -194,6 +220,7 @@ properties:
     description: The level at which an instrument is set - eg PSVs, bursting discs,
       regulators, etc
   setPoint_UOM:
+    name: Set Point UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -201,6 +228,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000581_UOM
     description: Set point UOM, group setpoint.
   temperatureClass:
+    name: Temperature Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -209,6 +237,7 @@ properties:
     description: Specifies the temperature classification of the physical object in
       accordance to a known standard.
   traceTemperature:
+    name: Trace Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -216,6 +245,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000211
     description: The temperature at which trace heating is set or required
   traceTemperature_UOM:
+    name: Trace Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -223,6 +253,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000211_UOM
     description: Trace temperature UOM, temperature.
   voltageLevel:
+    name: Voltage Level
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -230,6 +261,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000528
     description: The voltage level of a cable
   voltageLevel_UOM:
+    name: Voltage Level UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -237,6 +269,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000528_UOM
     description: Voltage level UOM, electrical - voltage.
   weightDry:
+    name: Weight Dry
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -244,6 +277,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494
     description: The weight of the equipment without any contents
   weightDry_UOM:
+    name: Weight Dry UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -251,6 +285,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494_UOM
     description: Weight (dry) UOM, mass.
   weightOperating:
+    name: Weight Operating
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -258,6 +293,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516
     description: The weight of the equipment in use
   weightOperating_UOM:
+    name: Weight Operating UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -265,6 +301,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516_UOM
     description: Weight (operating) UOM, mass.
   fluidName:
+    name: Fluid Name
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -272,6 +309,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000132
     description: The name of the product in liquid or gas phase.
   fluidPhase:
+    name: Fluid Phase
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -279,6 +317,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000133
     description: Specify if the fluid is in liquid, gas or both phases.
   lowerLimitDesignTemperature:
+    name: Lower Limit Design Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -287,6 +326,7 @@ properties:
     description: The lowest temperature at which a functional or physical object is
       designed.
   lowerLimitDesignTemperature_UOM:
+    name: Lower Limit Design Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -294,6 +334,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000503_UOM
     description: Lower limit design temperature UOM, temperature.
   normalOperatingPressure:
+    name: Normal Operating Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -302,6 +343,7 @@ properties:
     description: A pressure at which a functional or physical object is expected to
       operate normally.
   normalOperatingPressure_UOM:
+    name: Normal Operating Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -309,6 +351,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000512_UOM
     description: Normal operating pressure UOM, pressure.
   upperLimitDesignPressure:
+    name: Upper Limit Design Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -317,6 +360,7 @@ properties:
     description: The highest pressure at which a functional or physical object is
       designed for.
   upperLimitDesignPressure_UOM:
+    name: Upper Limit Design Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -324,6 +368,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000535_UOM
     description: Upper limit design pressure UOM, pressure.
   upperLimitDesignTemperature:
+    name: Upper Limit Design Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -332,6 +377,7 @@ properties:
     description: The highest temperature at which a functional or physical object
       is designed.
   upperLimitDesignTemperature_UOM:
+    name: Upper Limit Design Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
@@ -339,9 +385,34 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000536_UOM
     description: Upper limit design temperature UOM, temperature.
   additionalProperties:
+    name: Additional Properties
     container:
       space: '{{space}}'
       externalId: CFIHOS_SubseaEquipmentClass
       type: container
     containerPropertyIdentifier: additionalProperties
     description: Overflow properties stored as JSON for rarely-queried fields
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

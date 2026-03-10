@@ -334,7 +334,7 @@ indexes:
     properties:
       - functionalLocation
     bySpace: false
-    cursorable: false
+    cursorable: true
   wctrDiscipline:
     indexType: btree
     properties:

@@ -1,5 +1,6 @@
 space: '{{space}}'
 externalId: Compressor
+name: Compressor
 description: A physical object that is driven by a prime mover by which energy is
   either constantly or periodically added to an amount of gas in order to increase
   its pressure.
@@ -11,6 +12,7 @@ implements:
 version: '{{dm_version}}'
 properties:
   area:
+    name: Area
     container:
       space: '{{space}}'
       externalId: Tag
@@ -18,6 +20,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000001
     description: Physical location on the facility where the equipment is installed
   facility:
+    name: Facility
     container:
       space: '{{space}}'
       externalId: Tag
@@ -25,6 +28,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000005
     description: The facility code of a tagged object
   parentTag:
+    name: Parent Tag
     container:
       space: '{{space}}'
       externalId: Tag
@@ -32,6 +36,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000178
     description: The main Tag number of a system that child Tags are related
   labels:
+    name: Labels
     container:
       space: cdf_cdm
       externalId: CogniteDescribable
@@ -39,6 +44,7 @@ properties:
     containerPropertyIdentifier: tags
     description: Text based labels for generic use, limited to 1000
   system:
+    name: System
     container:
       space: '{{space}}'
       externalId: Tag
@@ -46,6 +52,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000157
     description: System code as per the used standard
   approvalAuthority:
+    name: Approval Authority
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -54,6 +61,7 @@ properties:
     description: The name of the nationally accredited approval body that has issued
       the examination certificate for the physical object.
   atexCategory:
+    name: ATEX Category
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -62,6 +70,7 @@ properties:
     description: Specifies in which category the physical object is divided in accordance
       with the directive 94/9/EC.
   atexExplosiveAtmosphere:
+    name: ATEX Explosive Atmosphere
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -70,6 +79,7 @@ properties:
     description: Specifies in which explosive atmosphere the physical object is divided
       in accordance with the directive 94/9/EC.
   atexGroup:
+    name: ATEX Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -78,6 +88,7 @@ properties:
     description: Specifies in which group the physical object is divided in accordance
       with the directive 94/9/EC.
   description:
+    name: Description
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -85,6 +96,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000177
     description: Functional description of the tag
   designPressureMax:
+    name: Design Pressure Max
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -92,6 +104,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000535
     description: The operating pressure the equipment is designed to withstand
   designPressureMax_UOM:
+    name: Design Pressure Max UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -99,6 +112,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000535_UOM
     description: Design pressure max UOM, true.
   designTemperatureMax:
+    name: Design Temperature Max
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -106,6 +120,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000536
     description: The maximum temperature which the equipment is designed to withstand
   designTemperatureMax_UOM:
+    name: Design Temperature Max UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -113,6 +128,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000536_UOM
     description: Design temperature max UOM, true.
   designTemperatureMin:
+    name: Design Temperature Min
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -120,6 +136,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000503
     description: The minimum temperature which the equipment is designed to withstand
   designTemperatureMin_UOM:
+    name: Design Temperature Min UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -127,6 +144,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000503_UOM
     description: Design temperature min UOM, true.
   equipmentIdentifier:
+    name: Equipment Identifier
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -134,6 +152,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000031
     description: Equipment Identifier
   exCertificateNumber:
+    name: Ex Certificate Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -142,6 +161,7 @@ properties:
     description: The examination certificate number for the physical object issued
       by a notified body.
   explosionProtection:
+    name: Explosion Protection
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -150,6 +170,7 @@ properties:
     description: Specifies the identification of electrical equipment's explosion
       protection and type of ignition protection in accordance to a known standard.
   gasGroup:
+    name: Gas Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -158,6 +179,7 @@ properties:
     description: Specifies the gas group classification of the physical object in
       accordance to a known standard.
   hazardousAreaClassificationArea:
+    name: Hazardous Area Classification Area
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -165,6 +187,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000113
     description: Hazardous area zone of the area where the equipment is installed.
   ipRating:
+    name: Ip Rating
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -172,6 +195,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000173
     description: IP rating
   length:
+    name: Length
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -179,6 +203,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201
     description: Length
   length_UOM:
+    name: Length UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -186,6 +211,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000201_UOM
     description: Length UOM, length.
   manufacturer:
+    name: Manufacturer
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -193,6 +219,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000158
     description: The original equipment manufacturer of a tagged item
   modelNumber:
+    name: Model Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -200,6 +227,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000159
     description: Model identification of the item
   partNumber:
+    name: Part Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -208,6 +236,7 @@ properties:
     description: Part number for basic model, the part number shall not show the configured
       equipment (NEW IN REVISION 2)
   powerConsumption:
+    name: Power Consumption
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -216,6 +245,7 @@ properties:
     description: the electrical energy over time that must be supplied to an electrical
       appliance to maintain its operation
   powerConsumption_UOM:
+    name: Power Consumption UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -223,6 +253,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000602_UOM
     description: Power consumption UOM, true.
   powerOutputRated:
+    name: Power Output Rated
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -230,6 +261,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000523
     description: The rating of the power produced by an item
   powerOutputRated_UOM:
+    name: Power Output Rated UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -237,6 +269,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000523_UOM
     description: Power output rated UOM, true.
   serialNumber:
+    name: Serial Number
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -244,6 +277,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_10000163
     description: Serial number of the item
   temperatureClass:
+    name: Temperature Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -252,6 +286,7 @@ properties:
     description: Specifies the temperature classification of the physical object in
       accordance to a known standard.
   weightDry:
+    name: Weight Dry
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -259,6 +294,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494
     description: The weight of the equipment without any contents
   weightDry_UOM:
+    name: Weight Dry UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -266,6 +302,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000494_UOM
     description: Weight (dry) UOM, mass.
   weightOperating:
+    name: Weight Operating
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -273,6 +310,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516
     description: The weight of the equipment in use
   weightOperating_UOM:
+    name: Weight Operating UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -280,6 +318,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000516_UOM
     description: Weight (operating) UOM, mass.
   compressibilityFactorZAtInlet:
+    name: Compressibility Factor ZAt Inlet
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -287,6 +326,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000060
     description: The compressibility (Z) factor for the process medium at inlet conditions
   compressibilityFactorZAtInlet_UOM:
+    name: Compressibility Factor ZAt Inlet UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -294,6 +334,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000060_UOM
     description: Compressibility factor z at inlet UOM, volume proportion.
   corrosiveAgents:
+    name: Corrosive Agents
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -301,6 +342,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000064
     description: Specify which corrosive agents are present in the process fluid.
   corrosiveGas:
+    name: Corrosive Gas
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -308,6 +350,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000065
     description: Specify if the gas is corrosive.
   designSpecification:
+    name: Design Specification
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -315,6 +358,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000487
     description: A specification according to which an item is intended to be designed
   directionOfRotation:
+    name: Direction Of Rotation
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -322,6 +366,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000075
     description: Specify the direction of rotation of the functional or physical object.
   explosionProtectionGasGroup:
+    name: Explosion Protection Gas Group
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -330,6 +375,7 @@ properties:
     description: Specify the gas group classification of the physical object in accordance
       with IEC/EN 60079-20
   explosionProtectionTemperatureClass:
+    name: Explosion Protection Temperature Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -338,6 +384,7 @@ properties:
     description: Specify the temperature classification of the physical object in
       accordance with CENELEC EN50014
   explosionProtectionZone:
+    name: Explosion Protection Zone
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -346,6 +393,7 @@ properties:
     description: Specify the hazardous zone in which the functional or physical object
       is expected to operate.
   fluidName:
+    name: Fluid Name
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -353,6 +401,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000132
     description: The name of the product in liquid or gas phase.
   lowerLimitDesignOutletTemperature:
+    name: Lower Limit Design Outlet Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -361,6 +410,7 @@ properties:
     description: The temperature which is the lowest temperature a functional or physical
       object is designed at its outlet connection
   lowerLimitDesignOutletTemperature_UOM:
+    name: Lower Limit Design Outlet Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -368,6 +418,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000550_UOM
     description: Lower limit design outlet temperature UOM, true.
   lowerLimitOperatingSuctionPressure:
+    name: Lower Limit Operating Suction Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -376,6 +427,7 @@ properties:
     description: The suction pressure which is the lowest pressure at  which a functional
       or physical object is expected to operate.
   lowerLimitOperatingSuctionPressure_UOM:
+    name: Lower Limit Operating Suction Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -383,6 +435,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000219_UOM
     description: Lower limit operating suction pressure UOM, true.
   lowerLimitOperatingTemperature:
+    name: Lower Limit Operating Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -391,6 +444,7 @@ properties:
     description: A temperature that is the lowest temperature at which a functional
       or physical object is expected to operate.
   lowerLimitOperatingTemperature_UOM:
+    name: Lower Limit Operating Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -398,6 +452,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000504_UOM
     description: Lower limit operating temperature UOM, temperature.
   lowerLimitOperatingVolumeFlowRate:
+    name: Lower Limit Operating Volume Flow Rate
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -406,6 +461,7 @@ properties:
     description: A volume flow rate that is the lowest volume flow rate at which a
       functional or physical object is expected to operate.
   lowerLimitOperatingVolumeFlowRate_UOM:
+    name: Lower Limit Operating Volume Flow Rate UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -413,6 +469,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000505_UOM
     description: Lower limit operating volume flow rate UOM, true.
   normalOperatingCoolingWaterPressure:
+    name: Normal Operating Cooling Water Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -421,6 +478,7 @@ properties:
     description: The pressure at which a functional or physical objects cooling water
       is expected to operate.
   normalOperatingCoolingWaterPressure_UOM:
+    name: Normal Operating Cooling Water Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -428,6 +486,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000253_UOM
     description: Normal operating cooling water pressure UOM, true.
   normalOperatingDynamicViscosity:
+    name: Normal Operating Dynamic Viscosity
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -436,6 +495,7 @@ properties:
     description: The dynamic viscosity at which a functional or physical object is
       expected to operate normally.
   normalOperatingDynamicViscosity_UOM:
+    name: Normal Operating Dynamic Viscosity UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -443,6 +503,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000255_UOM
     description: Normal operating dynamic viscosity UOM, true.
   normalOperatingInletPressure:
+    name: Normal Operating Inlet Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -451,6 +512,7 @@ properties:
     description: An inlet pressure at which a functional or physical object is expected
       to operate normally.
   normalOperatingInletPressure_UOM:
+    name: Normal Operating Inlet Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -458,6 +520,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000511_UOM
     description: Normal operating inlet pressure UOM, true.
   normalOperatingInletTemperature:
+    name: Normal Operating Inlet Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -466,6 +529,7 @@ properties:
     description: The temperature at which a functional or physical object is expected
       to operate normally at its inlet connection.
   normalOperatingInletTemperature_UOM:
+    name: Normal Operating Inlet Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -473,6 +537,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000272_UOM
     description: Normal operating inlet temperature UOM, true.
   normalOperatingMassFlowRate:
+    name: Normal Operating Mass Flow Rate
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -481,6 +546,7 @@ properties:
     description: The mass flow rate at which a functional or physical object is expected
       to operate normally.
   normalOperatingMassFlowRate_UOM:
+    name: Normal Operating Mass Flow Rate UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -488,6 +554,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000275_UOM
     description: Normal operating mass flow rate UOM, true.
   normalOperatingOutletPressure:
+    name: Normal Operating Outlet Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -496,6 +563,7 @@ properties:
     description: The pressure at which a functional or physical object is expected
       to operate normally at its outlet connection.
   normalOperatingOutletPressure_UOM:
+    name: Normal Operating Outlet Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -503,6 +571,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000278_UOM
     description: Normal operating outlet pressure UOM, true.
   normalOperatingVolumeFlowRateAtNormalOperatingPressureAndNormalOperatingTemperature:
+    name: Normal Operating Volume Flow Rate At Normal Operating Pressure And Normal Operating Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -512,6 +581,7 @@ properties:
       expected to operate normally. The volume flow rate is calculated at normal operating
       pressure and normal operating temperature.
   normalOperatingVolumeFlowRateAtNormalOperatingPressureAndNormalOperatingTemperature_UOM:
+    name: Normal Operating Volume Flow Rate At Normal Operating Pressure And Normal Operating Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -520,6 +590,7 @@ properties:
     description: Normal operating volume flow rate (at normal operating pressure and
       normal operating temperature) UOM, volume flow rate.
   operationContinuousIntermittent:
+    name: Operation Continuous Intermittent
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -528,6 +599,7 @@ properties:
     description: Specifies if the equipment is working continuously or in an intermittent
       way.
   testMedium:
+    name: Test Medium
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -535,6 +607,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000412
     description: The medium used for testing purpose.
   testPressure:
+    name: Test Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -543,6 +616,7 @@ properties:
     description: A pressure to which an object should be subjected to test for leakage
       and structural integrity.
   testPressure_UOM:
+    name: Test Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -550,6 +624,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000532_UOM
     description: Test pressure UOM, pressure.
   thermalInsulationClass:
+    name: Thermal Insulation Class
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -557,6 +632,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000177
     description: The class of electrical insulation used by a  physical object.
   upperLimitAllowableSpeed:
+    name: Upper Limit Allowable Speed
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -564,6 +640,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000453
     description: The speed which is the highest allowed.
   upperLimitAllowableSpeed_UOM:
+    name: Upper Limit Allowable Speed UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -571,6 +648,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000453_UOM
     description: Upper limit allowable speed UOM, true.
   upperLimitCoolingWaterInletTemperature:
+    name: Upper Limit Cooling Water Inlet Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -579,6 +657,7 @@ properties:
     description: The temperature which is the highest cooling water temperature at
       which a functional or physical object is expected to operate at its inlet connection.
   upperLimitCoolingWaterInletTemperature_UOM:
+    name: Upper Limit Cooling Water Inlet Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -586,6 +665,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000455_UOM
     description: Upper limit cooling water inlet temperature UOM, true.
   upperLimitCoolingWaterOutletTemperature:
+    name: Upper Limit Cooling Water Outlet Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -594,6 +674,7 @@ properties:
     description: The temperature which is the highest cooling water temperature at
       which a functional or physical object is expected to operate at its outlet connection.
   upperLimitCoolingWaterOutletTemperature_UOM:
+    name: Upper Limit Cooling Water Outlet Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -601,6 +682,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000456_UOM
     description: Upper limit cooling water outlet temperature UOM, true.
   upperLimitDesignOutletTemperature:
+    name: Upper Limit Design Outlet Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -609,6 +691,7 @@ properties:
     description: The temperature which is the highest temperature a functional or
       physical object is designed at its outlet connection
   upperLimitDesignOutletTemperature_UOM:
+    name: Upper Limit Design Outlet Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -616,6 +699,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000572_UOM
     description: Upper limit design outlet temperature UOM, true.
   upperLimitDesignVolumeFlowRate:
+    name: Upper Limit Design Volume Flow Rate
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -624,6 +708,7 @@ properties:
     description: A volume flow rate that is the highest volume flow rate at which
       a functional or physical object is designed to operate.
   upperLimitDesignVolumeFlowRate_UOM:
+    name: Upper Limit Design Volume Flow Rate UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -631,6 +716,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000573_UOM
     description: Upper limit design volume flow rate UOM, true.
   upperLimitOperatingInletPressure:
+    name: Upper Limit Operating Inlet Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -639,6 +725,7 @@ properties:
     description: The pressure which is the highest pressure at which a functional
       or physical object is expected to operate at its inlet connection.
   upperLimitOperatingInletPressure_UOM:
+    name: Upper Limit Operating Inlet Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -646,6 +733,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000466_UOM
     description: Upper limit operating inlet pressure UOM, true.
   upperLimitOperatingOutletPressure:
+    name: Upper Limit Operating Outlet Pressure
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -654,6 +742,7 @@ properties:
     description: The pressure which is the highest pressure at which a functional
       or physical object is expected to operate at its outlet connection.
   upperLimitOperatingOutletPressure_UOM:
+    name: Upper Limit Operating Outlet Pressure UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -661,6 +750,7 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000575_UOM
     description: Upper limit operating outlet pressure UOM, true.
   upperLimitOperatingTemperature:
+    name: Upper Limit Operating Temperature
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -669,6 +759,7 @@ properties:
     description: A temperature that is the highest temperature at which a functional
       or physical object is expected to operate.
   upperLimitOperatingTemperature_UOM:
+    name: Upper Limit Operating Temperature UOM
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
@@ -676,9 +767,34 @@ properties:
     containerPropertyIdentifier: CFIHOS_40000538_UOM
     description: Upper limit operating temperature UOM, temperature.
   additionalProperties:
+    name: Additional Properties
     container:
       space: '{{space}}'
       externalId: CFIHOS_Compressor
       type: container
     containerPropertyIdentifier: additionalProperties
     description: Overflow properties stored as JSON for rarely-queried fields
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
