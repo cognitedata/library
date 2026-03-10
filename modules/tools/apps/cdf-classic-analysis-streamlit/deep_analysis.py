@@ -13,7 +13,7 @@ PRIMARY_FILTER_KEYS = {
 
 SORTING_SUBSTRINGS = [
     "type", "category", "level", "class", "kind", "group", "classification",
-    "tier", "grade", "tag", "sort", "family", "genre", "style", "variant",
+    "tier", "grade", "sort", "family", "genre", "style", "variant",
     "division", "rank", "taxonomy", "rubric", "grouping",
 ]
 
@@ -23,6 +23,7 @@ IDENTIFIER_KEY_PARTS = [
     {"term": "external_id"},
     {"term": "sourceid"},
     {"term": "source_id"},
+    {"term": "tag"},
     {"term": "uuid"},
     {"term": "guid"},
     {"term": "id", "exact_or_suffix": True},
