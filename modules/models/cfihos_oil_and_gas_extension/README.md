@@ -17,6 +17,8 @@ The model favors **simplicity and denormalization** over strict normalization. R
 
 ## Architecture
 
+![Data Model View Relationships](data_model_views.png)
+
 ### CDM extensions (cdf_cdm)
 
 | View | Extends | Purpose |
@@ -91,7 +93,7 @@ The module follows a four-stage workflow from discovery through production verif
 
 ### 1. Discovery & Setup
 
-Find this module on [GitHub](https://github.com/cognitedata/library) or the [Cognite Hub Deployment Packs Library](https://hub.cognite.com). Clone the repository and set up a local Cognite Toolkit development environment with the required dependencies.
+Find this module on [GitHub](https://github.com/cognitedata/library) or the [Cognite Hub Deployment Packs Library](https://hub.cognite.com). Download from HUB or Clone the repository from GitHub and set up a local Cognite Toolkit development environment with the required dependencies.
 
 ### 2. AI-Assisted Development
 
