@@ -9,7 +9,7 @@ The model favors **simplicity and denormalization** over strict normalization. R
 - A unified **Tag** as the single `CogniteAsset` implementation — the central hub connecting equipment, work orders, time series, files, and functional locations
 - **17 CFIHOS equipment class views** (Compressor, Valve, Pump, HeatExchanger, etc.) linked to tags via polymorphic direct relations
 - **Work management** views (WorkOrder, WorkOrderOperation, Notification) extending IDM types (`CogniteMaintenanceOrder`, `CogniteOperation`, `CogniteNotification`)
-- **Denormalized time series** (`TimeSeriesData`) combining PI and OPC UA properties into one searchable view
+- **Denormalized time series** (`TimeSeriesData`) combining PI and OPC UA properties into one searchable view, with explicit `stateSet` and `equipment` relations
 - **Document management** (`Files`) extending `CogniteFile` with document metadata
 - **Functional locations** and **maintenance/integrity** data from SAP
 - **Failure modes** linked to tags and notifications per ISO 14224
@@ -75,9 +75,35 @@ The `Files` view combines what would traditionally be three separate entities �
 
 The default IDM defines `CogniteEquipment` and `CogniteEquipmentType` as separate entities linked by a direct relation. In this model, the EquipmentType properties (`code`, `equipmentClass`, `standard`, `standardReference`) are denormalized directly into the `Equipment` container and view. This means equipment class, type, and standard information is available in a single query without joining through the EquipmentType relationship. The inherited `equipmentType` relation from `CogniteEquipment` still exists (it comes from the CDM) but is not actively used — all type information lives directly on the equipment node.
 
+### AI readiness and NEAT compliance
+
+All views and view properties carry human-readable `name` fields to satisfy NEAT-DMS-AI-READINESS checks. CDM-inherited properties (`name`, `description`, `tags`, `aliases`, and the CogniteSourceable/CogniteSchedulable families) are explicitly defined in each view rather than left as implicit inherits — this gives every property a display name and description that AI tools, search engines, and the CDF UI can surface.
+
 ### additionalProperties as overflow
 
 Every container includes an `additionalProperties` (JSON) field for properties that exceed the 100-property container limit or are rarely queried. This keeps the core schema lean while preserving access to all source data.
+
+## Working with the module
+
+![Data Model Development Workflow](dm-workflow.png)
+
+The module follows a four-stage workflow from discovery through production verification:
+
+### 1. Discovery & Setup
+
+Find this module on [GitHub](https://github.com/cognitedata/library) or the [Cognite Hub Deployment Packs Library](https://hub.cognite.com). Clone the repository and set up a local Cognite Toolkit development environment with the required dependencies.
+
+### 2. AI-Assisted Development
+
+Use Cursor with the data modeling rules and skills (`.cursor/rules/cdf-*.mdc`, `.cursor/skills/`) to adapt the model to your project's needs. The AI assistant understands CDM/IDM conventions, index best practices, direct relation patterns, and CFIHOS structure — use it to add views, modify properties, or extend equipment classes. The included CFIHOS code generator (`cfihos_model_config/`) can scaffold new equipment class containers and views from the standard.
+
+### 3. Build & Deploy
+
+Build and deploy with Cognite Toolkit (`cdf build && cdf deploy`). Before deploying, validate the model locally with Toolkit's dry-run and with [NEAT](https://docs.cognite.com/cdf/deploy/neat/index) using the included `NEAT_inspect_DM.ipynb` notebook. NEAT runs 38+ validation rules covering AI readiness, connection integrity, query performance, and CDF schema limits.
+
+### 4. Project & Verification
+
+After deployment to the CDF project, re-run NEAT against the live model to confirm all validation checks pass. Use Toolkit to verify resource state matches the YAML definitions. Iterate as needed — the workflow loops back through AI-assisted development for any fixes.
 
 ## Module structure
 
