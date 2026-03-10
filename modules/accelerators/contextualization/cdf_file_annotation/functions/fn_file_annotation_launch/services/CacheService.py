@@ -355,6 +355,10 @@ class GeneralCacheService(ICacheService):
                 pattern_builders[key]["annotation_type"] = entity.get("annotation_type")
 
             aliases = entity.get("search_property", [])
+
+            if not aliases:
+                continue
+
             for alias in aliases:
                 if not alias:
                     continue

@@ -313,11 +313,15 @@ class GeneralLaunchService(AbstractLaunchService):
                 self.logger.info(
                     f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
                 )
-                pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
-                    files=batch.file_references, pattern_samples=self.in_memory_patterns
-                )
-                update_properties["patternModeJobId"] = pattern_job_id
-                update_properties["patternModeJobToken"] = pattern_job_token
+                if total_patterns:
+                    pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
+                        files=batch.file_references, pattern_samples=self.in_memory_patterns
+                    )
+                    update_properties["patternModeJobId"] = pattern_job_id
+                    update_properties["patternModeJobToken"] = pattern_job_token
+                else:
+                    self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
+
 
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
@@ -390,11 +394,14 @@ class LocalLaunchService(GeneralLaunchService):
                 self.logger.info(
                     f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
                 )
-                pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
-                    files=batch.file_references, pattern_samples=self.in_memory_patterns
-                )
-                update_properties["patternModeJobId"] = pattern_job_id
-                update_properties["patternModeJobToken"] = pattern_job_token
+                if total_patterns:
+                    pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
+                        files=batch.file_references, pattern_samples=self.in_memory_patterns
+                    )
+                    update_properties["patternModeJobId"] = pattern_job_id
+                    update_properties["patternModeJobToken"] = pattern_job_token
+                else:
+                    self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
 
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
