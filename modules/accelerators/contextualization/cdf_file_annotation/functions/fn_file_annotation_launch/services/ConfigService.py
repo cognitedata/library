@@ -165,6 +165,22 @@ class DataModelServiceConfig(BaseModel, alias_generator=to_camel):
     get_file_entities_query: QueryConfig | list[QueryConfig]
 
 
+class RawTablesConfig(BaseModel, alias_generator=to_camel):
+    """
+    Consolidated configuration for RAW database and tables used across all functions.
+    This section centralizes all RAW storage configuration to avoid duplication
+    and ensure consistency across prepare, launch, finalize, and promote functions.
+    """
+
+    raw_db: str
+    raw_table_cache: str
+    raw_table_doc_tag: str
+    raw_table_doc_doc: str
+    raw_table_doc_pattern: str
+    raw_table_promote_cache: str
+    raw_manual_patterns_catalog: str
+
+
 class CacheServiceConfig(BaseModel, alias_generator=to_camel):
     cache_time_limit: int
 
@@ -248,6 +264,16 @@ class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
     text_normalization: TextNormalizationConfig
 
 
+class PromoteCacheServiceConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for the CacheService in the promote function.
+
+    Controls caching behavior for text→entity mappings.
+    """
+
+    cache_table_name: str
+
+
 class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     """
     Configuration for the promote function.
@@ -259,12 +285,13 @@ class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     - entitySearchService: Controls entity search strategies
 
     Batch size is controlled via getCandidatesQuery.limit field.
-    RAW database and table configuration is centralized in rawTables section.
     """
 
     get_candidates_query: QueryConfig | list[QueryConfig]
     delete_rejected_edges: bool
     delete_suggested_edges: bool
+    promote_file_entities: bool = True
+    promote_target_entities: bool = True
     entity_search_service: EntitySearchServiceConfig
 
 
@@ -275,26 +302,9 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
     target_entities_view: ViewPropertyConfig
 
 
-class RawTables(BaseModel, alias_generator=to_camel):
-    """
-    Consolidated configuration for RAW database and tables used across all functions.
-
-    This section centralizes all RAW storage configuration to avoid duplication
-    and ensure consistency across prepare, launch, finalize, and promote functions.
-    """
-
-    raw_db: str
-    raw_table_cache: str
-    raw_table_doc_tag: str
-    raw_table_doc_doc: str
-    raw_table_doc_pattern: str
-    raw_table_promote_cache: str
-    raw_manual_patterns_catalog: str
-
-
 class Config(BaseModel, alias_generator=to_camel):
+    raw_tables: RawTablesConfig
     data_model_views: DataModelViews
-    raw_tables: RawTables
     prepare_function: PrepareFunction
     launch_function: LaunchFunction
     finalize_function: FinalizeFunction
@@ -418,6 +428,8 @@ def _format_diagram_detect_config(config: DiagramDetectConfigModel | None) -> st
             lines.append(f"      • Customize fuzziness: {', '.join(fuzz_parts)}")
     if config.direction_delta is not None:
         lines.append(f"      • Direction delta: {config.direction_delta}")
+    if config.direction_weights is not None:
+        lines.append(f"      • Direction weights: {config.direction_weights}")
     if config.min_fuzzy_score is not None:
         lines.append(f"      • Min fuzzy score: {config.min_fuzzy_score}")
     if config.read_embedded_text is not None:
@@ -503,8 +515,6 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
             "",
             "CACHE SERVICE",
             f"  • Cache time limit: {cache.cache_time_limit} hours",
-            "",
-            "RAW TABLES (from consolidated config)",
             f"  • RAW DB: {raw.raw_db}",
             f"  • Cache table: {raw.raw_table_cache}",
             f"  • Manual patterns catalog: {raw.raw_manual_patterns_catalog}",
@@ -566,8 +576,6 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
             f"  • Auto approval threshold: {apply.auto_approval_threshold}",
             f"  • Auto suggest threshold: {apply.auto_suggest_threshold}",
             f"  • Sink node: {apply.sink_node.space}/{apply.sink_node.external_id}",
-            "",
-            "RAW TABLES (from consolidated config)",
             f"  • RAW DB: {raw.raw_db}",
             f"  • Doc-Tag table: {raw.raw_table_doc_tag}",
             f"  • Doc-Doc table: {raw.raw_table_doc_doc}",
@@ -592,7 +600,6 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
     """
     promote = config.promote_function
     raw = config.raw_tables
-
     lines = [
         "=" * 80,
         f"FUNCTION: Promote ({pipeline_ext_id})",
@@ -601,8 +608,8 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
         "PROMOTE SERVICE CONFIG",
         f"  • Delete rejected edges: {promote.delete_rejected_edges}",
         f"  • Delete suggested edges: {promote.delete_suggested_edges}",
-        "",
-        "RAW TABLES (from consolidated config)",
+        f"  • Promote file entities: {promote.promote_file_entities}",
+        f"  • Promote target entities: {promote.promote_target_entities}",
         f"  • RAW DB: {raw.raw_db}",
         f"  • Doc-Tag table: {raw.raw_table_doc_tag}",
         f"  • Doc-Doc table: {raw.raw_table_doc_doc}",

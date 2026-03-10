@@ -218,7 +218,7 @@ class GeneralCacheService(ICacheService):
         for instance in asset_instances:
             instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
             asset_resource_type: str = (
-                instance_properties[target_entities_resource_type]
+                instance_properties.get(target_entities_resource_type)
                 if target_entities_resource_type
                 else self.target_entities_view.external_id
             )
@@ -321,8 +321,13 @@ class GeneralCacheService(ICacheService):
                     continue
                 if is_separator(part):
                     # Hyphen and space are plain literals; other specials must be wrapped in brackets
+                    # Bracket characters coming from aliases should be ignored in the resulting
+                    # template (they can't match literal brackets in the docs).
+                    # We still treat them as separators so token-boundary checks work.
                     if part == "-" or part == " ":
                         full_template_key_parts.append(part)
+                    elif part in ("[", "]"):
+                        pass
                     else:
                         full_template_key_parts.append(f"[{part}]")
                     continue

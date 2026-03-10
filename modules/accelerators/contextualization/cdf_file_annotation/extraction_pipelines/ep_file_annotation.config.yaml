@@ -149,6 +149,8 @@ config:
           operator: In
           targetProperty: tags
       limit: 500  # Number of edges to process per batch
+    promoteFileEntities: True # Controls if promote is run on file entities
+    promoteTargetEntities: True # Controls if promote is run on target entities
     deleteRejectedEdges: True
     deleteSuggestedEdges: True
     entitySearchService:
