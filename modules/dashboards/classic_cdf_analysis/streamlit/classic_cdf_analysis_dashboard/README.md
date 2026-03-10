@@ -18,7 +18,7 @@ Pick a resource type and a single metadata/filter key, then run analysis to see 
 
 ### Deep analysis
 
-Select one or more resource types (Assets, Time series, Events, Sequences, Files). A single button press runs aggregate count, discovers metadata keys, selects the most relevant keys, and analyses each one — producing a downloadable report per resource type
+Select one or more resource types (Assets, Time series, Events, Sequences, Files). A single button press runs aggregate count, discovers metadata keys, selects the most relevant keys, and analyses each one — producing a downloadable report per resource type.
 
 #### Instance count threshold
 
