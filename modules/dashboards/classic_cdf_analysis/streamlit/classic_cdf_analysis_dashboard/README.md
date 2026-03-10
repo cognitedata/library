@@ -18,7 +18,20 @@ Pick a resource type and a single metadata/filter key, then run analysis to see 
 
 ### Deep analysis
 
-Select one or more resource types (Assets, Time series, Events, Sequences, Files). A single button press runs aggregate count, discovers metadata keys, selects the most relevant keys, and analyses each one — producing a downloadable report per resource type.
+Select one or more resource types (Assets, Time series, Events, Sequences, Files). A single button press runs aggregate count, discovers metadata keys, selects the most relevant keys, and analyses each one — producing a downloadable report per resource type
+
+#### Instance count threshold
+
+The **Instance count threshold (%)** controls which metadata keys are included in the deep analysis. For each resource type the app fetches the total resource count and the per-key instance counts. A metadata key is included if it meets **either** of these conditions:
+
+1. **Top 15** — the key is among the 15 most frequent eligible metadata keys (regardless of threshold), or
+2. **Meets threshold** — the key's instance count is ≥ the threshold percentage of the total resource count.
+
+The default is **60 %**. Lowering it includes more keys (longer report, more API calls). Raising it restricts the report to only the most prevalent keys.
+
+Only "sorting-like" keys (containing terms like *type*, *category*, *level*, *class*, etc.) are considered. Keys that look like identifiers (containing *name*, *id*, *uuid*, etc.) or datetime fields are automatically excluded.
+
+Progress messages are printed to the browser console during processing. Open the browser dev tools (F12 → Console) and filter on `DEEP` to follow along.
 
 ## Project layout
 
