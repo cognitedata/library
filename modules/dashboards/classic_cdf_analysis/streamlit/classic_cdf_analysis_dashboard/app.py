@@ -26,9 +26,6 @@ from typing import Any, Optional
 import streamlit as st
 import pandas as pd
 
-from cognite.client import CogniteClient, ClientConfig
-from cognite.client.credentials import OAuthClientCredentials
-
 import analysis as _analysis_module
 from analysis import (
     ClientAdapter,
@@ -46,6 +43,7 @@ from analysis import (
     _documents_data_set_filter,
     _parse_count_response as _analysis_parse_count_response,
     _project_path,
+    _unique_properties_keys_documents,
 )
 _analysis_unwrap = getattr(_analysis_module, "_unwrap_maybe_coro", None)
 
@@ -70,7 +68,6 @@ COUNT_LOAD_CAP = 50
 
 
 def _is_pyodide() -> bool:
-    """True when running inside CDF (Stlite/Pyodide); host provides the client."""
     try:
         import sys
         if getattr(sys, "platform", None) == "emscripten":
@@ -85,21 +82,34 @@ def _is_pyodide() -> bool:
     return False
 
 
-def _create_cdf_client():
-    """Use host-injected client in CDF; use explicit OAuth config when running locally with .env."""
-    if _is_pyodide():
-        c = CogniteClient()
-        return c, getattr(c.config, "project", None) or os.environ.get("COGNITE_PROJECT", "")
-    client_id = os.environ.get("COGNITE_CLIENT_ID")
-    client_secret = os.environ.get("COGNITE_CLIENT_SECRET")
-    if client_id and client_secret:
-        base_url = os.environ.get("COGNITE_BASE_URL", "https://api.cognitedata.com")
-        project = os.environ.get("COGNITE_PROJECT", "")
-        token_url = (
-            os.environ.get("COGNITE_TOKEN_URL")
-            or os.environ.get("IDP_TOKEN_URL")
-            or f"https://login.microsoftonline.com/{os.environ.get('COGNITE_TENANT_ID', 'organizations')}/oauth2/v2.0/token"
+def get_client_and_project() -> tuple[Any, str] | None:
+    """Build CogniteClient and project from env/secrets. Returns (client, project) or None."""
+    try:
+        from cognite.client import CogniteClient, ClientConfig
+        from cognite.client.credentials import APIKey, OAuthClientCredentials
+    except ImportError:
+        st.error("Install cognite-sdk: pip install cognite-sdk")
+        return None
+
+    project = os.environ.get("COGNITE_PROJECT") or (st.secrets.get("COGNITE_PROJECT") if hasattr(st, "secrets") else None)
+    base_url = os.environ.get("COGNITE_BASE_URL") or st.secrets.get("COGNITE_BASE_URL", "https://api.cognitedata.com")
+
+    api_key = os.environ.get("COGNITE_API_KEY") or (st.secrets.get("COGNITE_API_KEY") if hasattr(st, "secrets") else None)
+    if api_key and project:
+        config = ClientConfig(
+            client_name="classic-analysis-complete",
+            project=project,
+            credentials=APIKey(api_key),
+            base_url=base_url,
         )
+        client = CogniteClient(config)
+        return (client, project)
+
+    client_id = os.environ.get("COGNITE_CLIENT_ID") or (st.secrets.get("COGNITE_CLIENT_ID") if hasattr(st, "secrets") else None)
+    client_secret = os.environ.get("COGNITE_CLIENT_SECRET") or (st.secrets.get("COGNITE_CLIENT_SECRET") if hasattr(st, "secrets") else None)
+    tenant_id = os.environ.get("COGNITE_TENANT_ID") or (st.secrets.get("COGNITE_TENANT_ID") if hasattr(st, "secrets") else None)
+    if client_id and client_secret and project:
+        token_url = f"https://login.microsoftonline.com/{tenant_id or 'organizations'}/oauth2/v2.0/token"
         creds = OAuthClientCredentials(
             token_url=token_url,
             client_id=client_id,
@@ -107,22 +117,15 @@ def _create_cdf_client():
             scopes=[f"{base_url.rstrip('/')}/.default"],
         )
         config = ClientConfig(
-            client_name="classic-cdf-analysis-dashboard",
+            client_name="classic-analysis-complete",
             project=project,
             credentials=creds,
             base_url=base_url,
         )
-        return CogniteClient(config), project
-    raise ValueError(
-        "Running locally requires COGNITE_CLIENT_ID and COGNITE_CLIENT_SECRET in .env, "
-        "or run inside CDF where the client is provided by the host."
-    )
+        client = CogniteClient(config)
+        return (client, project)
 
-
-# ----------------------------------------------------
-# CDF CLIENT: host-injected in CDF, OAuth from .env when local
-# ----------------------------------------------------
-client, project = _create_cdf_client()
+    return None
 
 
 def _ensure_sync(val: Any) -> Any:
@@ -206,18 +209,30 @@ def _run_analysis_for_key(adapter: ClientAdapter, project: str, rt: str, key: st
             continue
         val = str(raw_val) if not isinstance(raw_val, str) else raw_val
         cnt = int(item.get("count", 0) or 0)
+        is_labels = rt == "files" and len(pp) == 1 and pp[0] == "labels"
         max_len = 512 if rt == "files" else 64
-        if len(val) > max_len:
+        if is_labels:
             mk = []
+        elif len(val) > max_len:
+            mk = []
+        elif rt == "files":
+            eq_filter = {"equals": {"property": pp, "value": raw_val}}
+            ds_filter = filter_part.get("filter") if filter_part else None
+            merged = {"and": [ds_filter, eq_filter]} if ds_filter else eq_filter
+            up = adapter.post(agg_path, {
+                "aggregate": "uniqueProperties",
+                "properties": [{"property": ["sourceFile", "metadata"]}],
+                "limit": 1000,
+                "filter": merged,
+            })
+            up_items = (up.get("items") or []) if isinstance(up, dict) else []
+            mk = _unique_properties_keys_documents(up_items)
         else:
+            up_body = {"aggregate": "uniqueProperties", "path": _meta_path(rt), **filter_part}
             filter_val = raw_val
             if pp[0] in ("isStep", "isString") and str(raw_val).lower() in ("true", "false"):
                 filter_val = str(raw_val).lower() == "true"
-            up_body = {"aggregate": "uniqueProperties", "path": _meta_path(rt), **filter_part}
-            if rt == "files":
-                up_body["filter"] = {"equals": {"property": pp, "value": filter_val}}
-            else:
-                up_body["advancedFilter"] = {"equals": {"property": pp, "value": filter_val}}
+            up_body["advancedFilter"] = {"equals": {"property": pp, "value": filter_val}}
             up = adapter.post(agg_path, up_body)
             up_items = (up.get("items") or []) if isinstance(up, dict) else []
             mk = []
@@ -231,7 +246,10 @@ def _run_analysis_for_key(adapter: ClientAdapter, project: str, rt: str, key: st
                     mk.append(prop[-1])
         label = api_key.title()
         count_str = f"Count: {cnt}\n" if cnt else ""
-        meta_part = f"Metadata keys: [{', '.join(mk)}]\n\n" if mk else "\n"
+        if is_labels:
+            meta_part = "Metadata keys: (not available for labels)\n\n"
+        else:
+            meta_part = f"Metadata keys: [{', '.join(mk)}]\n\n" if mk else "\n"
         results.append({"count": cnt, "text": f"{label}: {val}\n{count_str}{meta_part}"})
 
     results.sort(key=lambda r: r["count"], reverse=True)
@@ -265,10 +283,16 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    if not project:
-        st.warning("Could not determine CDF project. In CDF, the project is set automatically.")
+    client_and_project = get_client_and_project()
+    if not client_and_project:
+        st.warning(
+            "Configure CDF credentials. Set COGNITE_PROJECT and either COGNITE_API_KEY or "
+            "COGNITE_CLIENT_ID + COGNITE_CLIENT_SECRET (and optionally COGNITE_TENANT_ID, COGNITE_BASE_URL) "
+            "in environment or Streamlit secrets."
+        )
         return
 
+    client, project = client_and_project
     adapter = ClientAdapter(client, project)
 
     # ---- Deep analysis loading block (must be before UI so API calls run at top level) ----
@@ -283,12 +307,13 @@ def main() -> None:
             name = (getattr(d, "name", None) or getattr(d, "external_id", None) or str(sid)).strip() if d else str(sid)
             _ds_display.append(f"{name} ({sid})")
         _datasets_line = ", ".join(_ds_display) if _ds_display else "All datasets"
-        with st.spinner("Running deep analysis…"):
-            _all_results = []
-            for ri, _rt in enumerate(_rts):
-                _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _rt), _rt)
-                print(f"[DEEP] [{ri+1}/{len(_rts)}] Starting {_rt_label}…")
-                try:
+        try:
+            with st.spinner("Running deep analysis…"):
+                _all_results = []
+                for ri, _rt in enumerate(_rts):
+                    _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _rt), _rt)
+                    print(f"[DEEP] [{ri+1}/{len(_rts)}] Starting {_rt_label}…")
+
                     agg_resource = "documents" if _rt == "files" else _rt
                     count_path = _project_path(project, agg_resource)
                     filter_part = _documents_data_set_filter(_ds_ids) if _rt == "files" else _data_set_filter_aggregate(_ds_ids)
@@ -324,6 +349,8 @@ def main() -> None:
                             lines.append("Error: " + str(e))
                             lines.append("")
 
+                    _pct = int(((ri + 1) / len(_rts)) * 100)
+                    print(f"[DEEP]   Done — {_pct}% overall")
                     _all_results.append({
                         "report": "\n".join(lines),
                         "rt": _rt,
@@ -331,25 +358,14 @@ def main() -> None:
                         "count": total_count,
                         "keys": sel_keys,
                     })
-                except Exception as _rt_err:
-                    _err_msg = str(_rt_err)
-                    _forbidden = "403" in _err_msg or "Forbidden" in _err_msg
-                    _short = "403 Forbidden — insufficient access" if _forbidden else _err_msg
-                    print(f"[DEEP]   SKIPPED {_rt_label}: {_short}")
-                    _all_results.append({
-                        "report": f"CDF Project: {project}\n\nResource type: {_rt_label}\n\n{_short}\n",
-                        "rt": _rt,
-                        "rt_label": _rt_label,
-                        "count": 0,
-                        "keys": [],
-                    })
 
-                _pct = int(((ri + 1) / len(_rts)) * 100)
-                print(f"[DEEP]   Done — {_pct}% overall")
-
-        st.session_state["_deep_results"] = _all_results
-        st.session_state.pop("_deep_all_pending", None)
-        st.rerun()
+            st.session_state["_deep_results"] = _all_results
+            st.session_state.pop("_deep_all_pending", None)
+            st.rerun()
+        except Exception as _e:
+            print(f"[DEEP] ERROR: {_e}")
+            st.session_state.pop("_deep_all_pending", None)
+            st.error(f"Deep analysis failed: {_e}")
 
     # ========================================================================
     # All Datasets summary
@@ -380,19 +396,64 @@ def main() -> None:
                     counts.setdefault("functions", 0)
                     counts.setdefault("workflows", 0)
                     counts.setdefault("rawTables", 0)
+                # Fetch metadata key counts per resource type
+                meta_key_counts = {}
+                for _mk_rt in ["assets", "timeseries", "events", "sequences", "files"]:
+                    try:
+                        _mk_list = get_metadata_keys_list(adapter, _mk_rt, project)
+                        meta_key_counts[_mk_rt] = len(_mk_list) if isinstance(_mk_list, list) else 0
+                    except Exception:
+                        meta_key_counts[_mk_rt] = 0
+                st.session_state.meta_key_counts = meta_key_counts
                 st.session_state.all_counts = counts
             except Exception as e:
                 st.error(f"Failed to load counts: {e}")
                 st.session_state.all_counts = {}
 
     all_counts = st.session_state.all_counts or {}
-    cols = st.columns([2, 2, 2, 2, 2, 2, 2, 2, 2])
-    headers = ["Assets", "Timeseries", "Events", "Sequences", "Files", "Transformations", "Functions", "Workflows", "Raw tables"]
-    for i, h in enumerate(headers):
-        cols[i].write("**" + h + "**")
-    for i, k in enumerate(["assets", "timeseries", "events", "sequences", "files", "transformations", "functions", "workflows", "rawTables"]):
-        v = all_counts.get(k)
-        cols[i].write(f"{v:,}" if isinstance(v, (int, float)) else "—")
+    _mk_counts = st.session_state.get("meta_key_counts", {})
+
+    _hdr = ["Assets", "Timeseries", "Events", "Sequences", "Files", "Transformations", "Functions", "Workflows", "Raw tables"]
+    _keys = ["assets", "timeseries", "events", "sequences", "files", "transformations", "functions", "workflows", "rawTables"]
+    _mk_rt_keys = ["assets", "timeseries", "events", "sequences", "files"]
+
+    def _fmt_count(v):
+        return f"{v:,}" if isinstance(v, (int, float)) else "—"
+
+    _css = """<style>
+    .ad-tbl table { width:100%; border-collapse:collapse; border:none !important; margin-bottom:0.5rem; }
+    .ad-tbl th, .ad-tbl td { border:none !important; padding:0.5rem 0.75rem; font-size:0.875rem; text-align:right; }
+    .ad-tbl th { background:rgba(151,166,195,0.15); font-weight:600; white-space:nowrap; }
+    .ad-tbl .ad-lbl { text-align:left; }
+    .ad-tbl .ad-bold { font-weight:700; }
+    .ad-tbl .ad-muted { color:#64748b; }
+    </style>"""
+
+    _rows_html = "<tr>"
+    _rows_html += '<th class="ad-lbl"></th>'
+    for h in _hdr:
+        _rows_html += f"<th>{h}</th>"
+    _rows_html += "</tr>"
+
+    _rows_html += "<tr>"
+    _rows_html += '<td class="ad-lbl">Count</td>'
+    for k in _keys:
+        _rows_html += f'<td class="ad-bold">{_fmt_count(all_counts.get(k))}</td>'
+    _rows_html += "</tr>"
+
+    if _mk_counts:
+        _rows_html += "<tr>"
+        _rows_html += '<td class="ad-lbl ad-muted">Metadata keys</td>'
+        for k in _keys:
+            if k in _mk_rt_keys:
+                v = _mk_counts.get(k)
+                _rows_html += f'<td class="ad-muted">{v}</td>' if isinstance(v, int) else '<td class="ad-muted">—</td>'
+            else:
+                _rows_html += '<td class="ad-muted"></td>'
+        _rows_html += "</tr>"
+
+    _table_html = f'{_css}<div class="ad-tbl"><table>{_rows_html}</table></div>'
+    st.markdown(_table_html, unsafe_allow_html=True)
 
     # ========================================================================
     # Datasets (optional) — shared by both analysis sections
@@ -723,18 +784,11 @@ def main() -> None:
     st.write("---")
     st.subheader("Deep analysis")
 
-    _cov_col, _cov_hint = st.columns([1, 3])
+    _cov_col, _cov_spacer = st.columns([1, 3])
     with _cov_col:
         coverage_pct = st.number_input(
-            "Instance count threshold (%)", min_value=0, max_value=100, value=60,
+            "Coverage threshold (%)", min_value=0, max_value=100, value=60,
             step=5, key="deep_coverage_pct", help="Metadata keys with count >= this % of total are included",
-        )
-    with _cov_hint:
-        st.markdown(
-            '<p style="font-size:0.875rem; color:rgb(49,51,63); margin-top:2.1rem;">'
-            'The deep analysis may take some time. Results will show below. '
-            'See progress with Inspect‑Console‑Filter("DEEP")</p>',
-            unsafe_allow_html=True,
         )
     _coverage_frac = coverage_pct / 100.0
 
