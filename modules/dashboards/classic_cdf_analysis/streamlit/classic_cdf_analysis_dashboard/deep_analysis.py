@@ -112,16 +112,18 @@ def select_filter_keys_for_deep_analysis(
     sorted_meta = sorted(eligible, key=lambda x: x.get("count", 0), reverse=True)
     threshold = coverage_pct * total_count if total_count > 0 else 0
 
-    for i, item in enumerate(sorted_meta):
+    added = 0
+    for item in sorted_meta:
+        if added >= TOP_METADATA_COUNT:
+            break
         key = (item.get("key") or "").strip()
         if not key or key in seen:
             continue
         count = item.get("count", 0)
-        in_top_15 = i < TOP_METADATA_COUNT
-        meets_60 = count >= threshold
-        if in_top_15 or meets_60:
+        if count >= threshold:
             seen.add(key)
             out.append(key)
+            added += 1
 
     return out
 

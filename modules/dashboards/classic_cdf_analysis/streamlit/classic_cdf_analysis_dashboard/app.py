@@ -178,9 +178,8 @@ def _prop_path(fk: str, rt: str) -> list:
         if n == "source": return ["sourceFile", "source"]
         return ["sourceFile", "metadata", fk.strip()]
     if rt == "events":
-        n = fk.strip().lower()
-        if n == "type": return ["type"]
-        return ["metadata", fk.strip()]
+        from analysis import _events_property_path
+        return _events_property_path(fk.strip())
     return ["metadata", fk.strip()]
 
 
@@ -228,12 +227,17 @@ def _run_analysis_for_key(adapter: ClientAdapter, project: str, rt: str, key: st
             up_items = (up.get("items") or []) if isinstance(up, dict) else []
             mk = _unique_properties_keys_documents(up_items)
         else:
-            up_body = {"aggregate": "uniqueProperties", "path": _meta_path(rt), **filter_part}
             filter_val = raw_val
             if pp[0] in ("isStep", "isString") and str(raw_val).lower() in ("true", "false"):
                 filter_val = str(raw_val).lower() == "true"
-            up_body["advancedFilter"] = {"equals": {"property": pp, "value": filter_val}}
-            up = adapter.post(agg_path, up_body)
+            value_clause = {"equals": {"property": pp, "value": filter_val}}
+            ds_clause = filter_part.get("advancedFilter") if filter_part else None
+            merged_af = {"and": [value_clause, ds_clause]} if ds_clause else value_clause
+            up = adapter.post(agg_path, {
+                "aggregate": "uniqueProperties",
+                "path": _meta_path(rt),
+                "advancedFilter": merged_af,
+            })
             up_items = (up.get("items") or []) if isinstance(up, dict) else []
             mk = []
             for p in up_items:
@@ -244,7 +248,9 @@ def _run_analysis_for_key(adapter: ClientAdapter, project: str, rt: str, key: st
                     prop = p["values"][0].get("property")
                 if isinstance(prop, list) and len(prop) > 0:
                     mk.append(prop[-1])
-        label = api_key.title()
+        from analysis import _parse_metadata_tag
+        bare_key, _ = _parse_metadata_tag(api_key)
+        label = bare_key.title()
         count_str = f"Count: {cnt}\n" if cnt else ""
         if is_labels:
             meta_part = "Metadata keys: (not available for labels)\n\n"
@@ -299,6 +305,13 @@ def main() -> None:
     if st.session_state.get("_deep_all_pending"):
         _rts = st.session_state.pop("_deep_all_rts", ["assets"])
         _cov_frac = st.session_state.pop("_deep_coverage_frac", 0.6)
+        _deep_mode = st.session_state.pop("_deep_mode_for_run", "auto")
+        # Preserve widget states across this non-UI run so they aren't reset
+        st.session_state["deep_mode_radio"] = "Custom" if _deep_mode == "custom" else "Auto"
+        _rts_set = set(_rts)
+        for _opt in RESOURCE_OPTIONS:
+            st.session_state[f"deep_rt_{_opt['value']}"] = _opt["value"] in _rts_set
+        _custom_selections = st.session_state.pop("_deep_custom_selections", {})
         _sel_ids = st.session_state.get("_selected_dataset_ids", [])
         _ds_ids = [{"id": i} for i in _sel_ids] if _sel_ids else None
         _ds_display = []
@@ -313,51 +326,68 @@ def main() -> None:
                 for ri, _rt in enumerate(_rts):
                     _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _rt), _rt)
                     print(f"[DEEP] [{ri+1}/{len(_rts)}] Starting {_rt_label}…")
+                    try:
+                        agg_resource = "documents" if _rt == "files" else _rt
+                        count_path = _project_path(project, agg_resource)
+                        filter_part = _documents_data_set_filter(_ds_ids) if _rt == "files" else _data_set_filter_aggregate(_ds_ids)
+                        count_res = adapter.post(count_path, {"aggregate": "count", **filter_part})
+                        total_count = _analysis_parse_count_response(count_res)
+                        print(f"[DEEP]   Count: {total_count:,}")
 
-                    agg_resource = "documents" if _rt == "files" else _rt
-                    count_path = _project_path(project, agg_resource)
-                    filter_part = _documents_data_set_filter(_ds_ids) if _rt == "files" else _data_set_filter_aggregate(_ds_ids)
-                    count_res = adapter.post(count_path, {"aggregate": "count", **filter_part})
-                    total_count = _analysis_parse_count_response(count_res)
-                    print(f"[DEEP]   Count: {total_count:,}")
+                        if _deep_mode == "custom" and _rt in _custom_selections:
+                            sel_keys = _custom_selections[_rt]
+                        else:
+                            raw_meta = get_metadata_keys_list(adapter, _rt, project, _ds_ids)
+                            raw_meta = raw_meta if isinstance(raw_meta, list) else []
+                            sel_keys = select_filter_keys_for_deep_analysis(raw_meta, total_count, _rt, _cov_frac) if total_count > 0 else (PRIMARY_FILTER_KEYS.get(_rt, []) or ["type"])[:10]
+                        print(f"[DEEP]   Metadata keys: {len(sel_keys)}")
 
-                    raw_meta = get_metadata_keys_list(adapter, _rt, project, _ds_ids)
-                    raw_meta = raw_meta if isinstance(raw_meta, list) else []
-                    sel_keys = select_filter_keys_for_deep_analysis(raw_meta, total_count, _rt, _cov_frac) if total_count > 0 else (PRIMARY_FILTER_KEYS.get(_rt, []) or ["type"])[:10]
-                    print(f"[DEEP]   Metadata keys: {len(sel_keys)}")
+                        header_lines = [
+                            f"CDF Project: {project}", "",
+                            f"Resource type: {_rt_label}",
+                            f"Aggregate count: {total_count:,}",
+                            f"Instance count threshold: {int(_cov_frac * 100)}%", "",
+                            "Datasets:", "  - " + _datasets_line, "",
+                            f"Metadata keys analysed: {len(sel_keys)}",
+                            *[f"  - {k}" for k in sel_keys], "",
+                            "---", "",
+                        ]
+                        lines = list(header_lines)
+                        for ki, key in enumerate(sel_keys):
+                            if not key:
+                                continue
+                            print(f"[DEEP]   Key [{ki+1}/{len(sel_keys)}]: {key}")
+                            try:
+                                lines.extend(_run_analysis_for_key(adapter, project, _rt, key, _ds_ids))
+                            except Exception as e:
+                                lines.append(f"=== Filter key: {key} ===")
+                                lines.append("")
+                                lines.append("Error: " + str(e))
+                                lines.append("")
 
-                    header_lines = [
-                        f"CDF Project: {project}", "",
-                        f"Resource type: {_rt_label}",
-                        f"Aggregate count: {total_count:,}",
-                        f"Instance count threshold: {int(_cov_frac * 100)}%", "",
-                        "Datasets:", "  - " + _datasets_line, "",
-                        f"Metadata keys analysed: {len(sel_keys)}",
-                        *[f"  - {k}" for k in sel_keys], "",
-                        "---", "",
-                    ]
-                    lines = list(header_lines)
-                    for ki, key in enumerate(sel_keys):
-                        if not key:
-                            continue
-                        print(f"[DEEP]   Key [{ki+1}/{len(sel_keys)}]: {key}")
-                        try:
-                            lines.extend(_run_analysis_for_key(adapter, project, _rt, key, _ds_ids))
-                        except Exception as e:
-                            lines.append(f"=== Filter key: {key} ===")
-                            lines.append("")
-                            lines.append("Error: " + str(e))
-                            lines.append("")
-
-                    _pct = int(((ri + 1) / len(_rts)) * 100)
-                    print(f"[DEEP]   Done — {_pct}% overall")
-                    _all_results.append({
-                        "report": "\n".join(lines),
-                        "rt": _rt,
-                        "rt_label": _rt_label,
-                        "count": total_count,
-                        "keys": sel_keys,
-                    })
+                        _pct = int(((ri + 1) / len(_rts)) * 100)
+                        print(f"[DEEP]   Done — {_pct}% overall")
+                        _all_results.append({
+                            "report": "\n".join(lines),
+                            "rt": _rt,
+                            "rt_label": _rt_label,
+                            "count": total_count,
+                            "keys": sel_keys,
+                        })
+                    except Exception as _rt_err:
+                        _err_str = str(_rt_err)
+                        if "403" in _err_str or "Forbidden" in _err_str:
+                            _err_line = "403 Forbidden — insufficient access for this resource type"
+                        else:
+                            _err_line = _err_str
+                        print(f"[DEEP]   ERROR for {_rt_label}: {_err_line}")
+                        _all_results.append({
+                            "report": f"Resource type: {_rt_label}\n\nError: {_err_line}\n",
+                            "rt": _rt,
+                            "rt_label": _rt_label,
+                            "count": 0,
+                            "keys": [],
+                        })
 
             st.session_state["_deep_results"] = _all_results
             st.session_state.pop("_deep_all_pending", None)
@@ -376,11 +406,11 @@ def main() -> None:
     if st.session_state.all_counts is None:
         with st.spinner("Loading project counts…"):
             try:
-                def _safe_count(rt: str) -> int:
+                def _safe_count(rt: str):
                     try:
                         return get_aggregate_count_no_filter(adapter, project, rt)
                     except Exception:
-                        return 0
+                        return "N/A"
                 counts = {
                     "assets": _safe_count("assets"),
                     "timeseries": _safe_count("timeseries"),
@@ -403,7 +433,7 @@ def main() -> None:
                         _mk_list = get_metadata_keys_list(adapter, _mk_rt, project)
                         meta_key_counts[_mk_rt] = len(_mk_list) if isinstance(_mk_list, list) else 0
                     except Exception:
-                        meta_key_counts[_mk_rt] = 0
+                        meta_key_counts[_mk_rt] = "N/A"
                 st.session_state.meta_key_counts = meta_key_counts
                 st.session_state.all_counts = counts
             except Exception as e:
@@ -418,6 +448,8 @@ def main() -> None:
     _mk_rt_keys = ["assets", "timeseries", "events", "sequences", "files"]
 
     def _fmt_count(v):
+        if v == "N/A":
+            return "N/A"
         return f"{v:,}" if isinstance(v, (int, float)) else "—"
 
     _css = """<style>
@@ -447,7 +479,12 @@ def main() -> None:
         for k in _keys:
             if k in _mk_rt_keys:
                 v = _mk_counts.get(k)
-                _rows_html += f'<td class="ad-muted">{v}</td>' if isinstance(v, int) else '<td class="ad-muted">—</td>'
+                if v == "N/A":
+                    _rows_html += '<td class="ad-muted">N/A</td>'
+                elif isinstance(v, int):
+                    _rows_html += f'<td class="ad-muted">{v}</td>'
+                else:
+                    _rows_html += '<td class="ad-muted">—</td>'
             else:
                 _rows_html += '<td class="ad-muted"></td>'
         _rows_html += "</tr>"
@@ -499,7 +536,7 @@ def main() -> None:
                     try:
                         st.session_state.setdefault("dataset_counts", {})[d.id] = get_dataset_resource_counts(adapter, project, {"id": d.id})
                     except Exception:
-                        st.session_state.setdefault("dataset_counts", {})[d.id] = {"assets": 0, "timeseries": 0, "events": 0, "sequences": 0, "files": 0}
+                        st.session_state.setdefault("dataset_counts", {})[d.id] = {"assets": "N/A", "timeseries": "N/A", "events": "N/A", "sequences": "N/A", "files": "N/A"}
             st.session_state.dataset_counts_next = end_i
             st.rerun()
 
@@ -520,6 +557,8 @@ def main() -> None:
             selected_ids_set = {str(x) for x in st.session_state.get("_selected_dataset_ids", [])}
 
             def _fmt_cell(x):
+                if x == "N/A":
+                    return "N/A"
                 return f"{x:,}" if isinstance(x, (int, float)) else str(x)
 
             rows = []
@@ -709,13 +748,41 @@ def main() -> None:
         run_single = st.button("Run analysis", type="primary", key="run_single")
     with col_dl_s:
         _has_result_rows = bool(result and result.get("rows"))
-        txt = "".join(r.get("text", "") for r in (result or {}).get("rows", [])) if _has_result_rows else ""
+        if _has_result_rows:
+            _res_rt = (result or {}).get("resourceType", "")
+            _res_fk = filter_key_for_api((result or {}).get("filterKey", ""))
+            _res_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _res_rt), _res_rt)
+            _res_count = (st.session_state.get("all_counts") or {}).get(_res_rt, 0)
+            _ds_lines = "All datasets"
+            if selected_ids and datasets_list:
+                _ds_names = []
+                for _sid in selected_ids:
+                    _dd = next((d for d in datasets_list if getattr(d, "id", None) is not None and int(getattr(d, "id", 0)) == int(_sid)), None)
+                    _ds_names.append(getattr(_dd, "name", None) or getattr(_dd, "external_id", None) or str(_sid) if _dd else str(_sid))
+                _ds_lines = "\n  - ".join(_ds_names)
+            _row_text = "".join(r.get("text", "") for r in (result or {}).get("rows", []))
+            _dl_lines = [
+                f"CDF Project: {project}", "",
+                f"Resource type: {_res_label}",
+                f"Aggregate count: {_res_count:,}", "",
+                "Datasets:",
+                f"  - {_ds_lines}", "",
+                "Metadata keys analysed: 1",
+                f"  - {_res_fk}", "",
+                "---", "",
+                f"=== Filter key: {_res_fk} ===", "",
+                _row_text, "",
+            ]
+            txt = "\n".join(_dl_lines)
+        else:
+            txt = ""
         project_slug = slug_for_file_name(project, 24)
         _first_slug = "all"
         if selected_ids and datasets_list:
             _fd = next((d for d in datasets_list if getattr(d, "id", None) is not None and int(getattr(d, "id", 0)) == int(selected_ids[0])), None)
             _first_slug = slug_for_file_name(getattr(_fd, "name", None) or getattr(_fd, "external_id", None) or str(selected_ids[0]), 36) if _fd else "all"
-        _dl_fname = f"{project_slug}_{_first_slug}_{(result or {}).get('resourceType', 'out')}_analysis_{(result or {}).get('filterKey', 'key')}.txt"
+        _key_slug = slug_for_file_name(filter_key_for_api((result or {}).get("filterKey", "key")), 30)
+        _dl_fname = f"{project_slug}_{_first_slug}_{(result or {}).get('resourceType', 'out')}_{_key_slug}_analysis.txt"
         st.download_button("Download .txt", data=txt, file_name=_dl_fname, mime="text/plain", key="download_txt", disabled=(not _has_result_rows))
     with col_clr_s:
         btn_clear_result = st.button("Clear", key="clear_result", disabled=(not result))
@@ -764,17 +831,35 @@ def main() -> None:
     if result:
         if result.get("error"):
             st.error(result["error"])
-        st.caption(f"**{len(result.get('rows', []))}** entries (sorted by count descending)")
+        _disp_rt = result.get("resourceType", "")
+        _disp_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _disp_rt), _disp_rt)
+        _disp_count = (st.session_state.get("all_counts") or {}).get(_disp_rt, 0)
+        _disp_ds = f"{len(selected_ids)} selected" if selected_ids else "All"
+        _disp_fk = filter_key_for_api(result.get("filterKey", ""))
+        st.markdown(
+            f'<span style="color:#94a3b8; font-size:0.8125rem;">'
+            f'CDF Project: {project}'
+            f' <span style="color:#475569;">|</span> '
+            f'Resource type: {_disp_label}'
+            f' <span style="color:#475569;">|</span> '
+            f'Aggregate count: {_disp_count:,}'
+            f' <span style="color:#475569;">|</span> '
+            f'Datasets: {_disp_ds}'
+            f'</span>',
+            unsafe_allow_html=True,
+        )
+        st.caption(f"Filter key: {_disp_fk} — **{len(result.get('rows', []))}** entries (sorted by count descending)")
         if result.get("rows"):
             wrap_style = (
                 "white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; "
                 "word-break: break-word; margin-bottom: 0.3rem; font-family: inherit; font-size: 0.85rem;"
+                "max-width: 100%;"
             )
             inner = "".join(
                 f'<div style="{wrap_style}">{html.escape(r.get("text", ""))}</div>' for r in result["rows"]
             )
             st.markdown(
-                f'<div style="min-width:0;overflow:visible;box-sizing:border-box;">{inner}</div>',
+                f'<div style="min-width:0;max-width:100%;overflow:hidden;box-sizing:border-box;">{inner}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -784,21 +869,36 @@ def main() -> None:
     st.write("---")
     st.subheader("Deep analysis")
 
-    _cov_col, _cov_spacer = st.columns([1, 3])
+    _mode_col, _cov_col, _cov_spacer = st.columns([1, 1, 2])
+    with _mode_col:
+        _deep_mode = st.radio("Mode", ["Auto", "Custom"], horizontal=True, key="deep_mode_radio",
+                              help="Auto: algorithm selects keys. Custom: you pick from the full list.")
+    _deep_mode_val = "custom" if _deep_mode == "Custom" else "auto"
     with _cov_col:
-        coverage_pct = st.number_input(
-            "Coverage threshold (%)", min_value=0, max_value=100, value=60,
-            step=5, key="deep_coverage_pct", help="Metadata keys with count >= this % of total are included",
-        )
+        if _deep_mode_val == "auto":
+            coverage_pct = st.number_input(
+                "Threshold (%)", min_value=0, max_value=100, value=60,
+                step=5, key="deep_coverage_pct", help="Metadata keys with count >= this % of total are included",
+            )
+        else:
+            coverage_pct = st.session_state.get("deep_coverage_pct", 60)
     _coverage_frac = coverage_pct / 100.0
 
-    rt_cols = st.columns(len(RESOURCE_OPTIONS) + 3)
+    for opt in RESOURCE_OPTIONS:
+        st.session_state.setdefault(f"deep_rt_{opt['value']}", True)
+    rt_cols = st.columns(len(RESOURCE_OPTIONS) + 4)
     chosen_rts = []
     for ci, opt in enumerate(RESOURCE_OPTIONS):
         with rt_cols[ci]:
-            checked = st.checkbox(opt["label"], value=True, key=f"deep_rt_{opt['value']}")
+            checked = st.checkbox(opt["label"], key=f"deep_rt_{opt['value']}")
             if checked:
                 chosen_rts.append(opt["value"])
+
+    with rt_cols[len(RESOURCE_OPTIONS)]:
+        if _deep_mode_val == "custom":
+            btn_load_keys = st.button("Load keys", key="deep_load_keys_btn", disabled=(not chosen_rts))
+        else:
+            btn_load_keys = False
 
     deep_results = st.session_state.get("_deep_results") or []
     combined_report = "\n\n".join(r["report"] for r in deep_results) if deep_results else ""
@@ -808,24 +908,89 @@ def main() -> None:
         _fd2 = next((d for d in datasets_list if getattr(d, "id", None) is not None and int(getattr(d, "id", 0)) == int(selected_ids[0])), None)
         first_slug = slug_for_file_name(getattr(_fd2, "name", None) or getattr(_fd2, "external_id", None) or str(selected_ids[0]), 36) if _fd2 else "all"
 
-    with rt_cols[len(RESOURCE_OPTIONS)]:
-        btn_run = st.button("Run deep analysis", type="primary", key="deep_btn_run", disabled=(not chosen_rts))
     with rt_cols[len(RESOURCE_OPTIONS) + 1]:
+        btn_run = st.button("Run deep analysis", type="primary", key="deep_btn_run", disabled=(not chosen_rts))
+    with rt_cols[len(RESOURCE_OPTIONS) + 2]:
         _dl_rts = "_".join(r["rt"] for r in deep_results) if deep_results else "all"
         _dl_name = f"{slug_for_file_name(project, 24)}_{first_slug}_{_dl_rts}_deep_analysis.txt"
         st.download_button("Download report", data=combined_report, file_name=_dl_name, mime="text/plain", key="deep_dl", disabled=(not deep_results))
-    with rt_cols[len(RESOURCE_OPTIONS) + 2]:
+    with rt_cols[len(RESOURCE_OPTIONS) + 3]:
         btn_new = st.button("Clear", key="deep_btn_new", disabled=(not deep_results))
+
+    # Load custom keys (runs BEFORE display so data is available on the same run)
+    if btn_load_keys and chosen_rts:
+        _sel_ids_load = st.session_state.get("_selected_dataset_ids", [])
+        _ds_ids_load = [{"id": i} for i in _sel_ids_load] if _sel_ids_load else None
+        with st.spinner("Loading metadata keys…"):
+            _custom = {}
+            for _rt_load in chosen_rts:
+                _rt_lbl = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _rt_load), _rt_load)
+                try:
+                    _total_load = get_total_count(adapter, project, _rt_load, _ds_ids_load)
+                    _meta_load = get_metadata_keys_list(adapter, _rt_load, project, _ds_ids_load)
+                    _meta_load = _meta_load if isinstance(_meta_load, list) else []
+                    _auto_sel = set(
+                        select_filter_keys_for_deep_analysis(_meta_load, _total_load, _rt_load, _coverage_frac)
+                        if _total_load > 0 else (PRIMARY_FILTER_KEYS.get(_rt_load, []) or [])
+                    )
+                    _custom[_rt_load] = [{"key": m["key"], "count": m.get("count", 0), "auto": m["key"] in _auto_sel} for m in _meta_load]
+                except Exception as _e:
+                    _err_msg = str(_e)
+                    if "403" in _err_msg or "Forbidden" in _err_msg:
+                        st.warning(f"{_rt_lbl}: 403 Forbidden — insufficient access, skipped")
+                    else:
+                        st.warning(f"{_rt_lbl}: {_err_msg}, skipped")
+            _prev_custom = st.session_state.get("_deep_custom_keys", {})
+            for _rt_clr in chosen_rts:
+                st.session_state.pop(f"deep_custom_sel_{_rt_clr}", None)
+                for _old_item in _prev_custom.get(_rt_clr, []):
+                    st.session_state.pop(f"deep_ck_{_rt_clr}_{_old_item.get('key', '')}", None)
+            st.session_state["_deep_custom_keys"] = _custom
+
+    # Custom key selection panels (rendered after load so data is available immediately)
+    _deep_custom_keys = st.session_state.get("_deep_custom_keys", {})
+    _custom_selections = {}
+    if _deep_mode_val == "custom" and _deep_custom_keys:
+        _visible_rts = [rt for rt in chosen_rts if rt in _deep_custom_keys]
+        if _visible_rts:
+            _ck_cols = st.columns(len(_visible_rts))
+            for ci, _ck_rt in enumerate(_visible_rts):
+                _ck_items = _deep_custom_keys[_ck_rt]
+                _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _ck_rt), _ck_rt)
+                _sel_count = sum(1 for item in _ck_items if st.session_state.get(f"deep_ck_{_ck_rt}_{item['key']}", item.get("auto", False)))
+                with _ck_cols[ci]:
+                    st.markdown(f"**{_rt_label}** &nbsp; <span style='color:#64748b;font-size:0.8rem;'>{_sel_count}/{len(_ck_items)} selected</span>", unsafe_allow_html=True)
+                    _rt_selected = []
+                    _sorted_items = sorted(_ck_items, key=lambda x: (not x.get("auto", False), -x.get("count", 0)))
+                    with st.container(height=260):
+                        for item in _sorted_items:
+                            _cb_key = f"deep_ck_{_ck_rt}_{item['key']}"
+                            _default = item.get("auto", False)
+                            _checked = st.checkbox(
+                                f"{item['key']} ({item.get('count', 0):,})",
+                                value=_default,
+                                key=_cb_key,
+                            )
+                            if _checked:
+                                _rt_selected.append(item["key"])
+                    _custom_selections[_ck_rt] = _rt_selected
 
     if btn_run and chosen_rts:
         st.session_state["_deep_all_pending"] = True
         st.session_state["_deep_all_rts"] = list(chosen_rts)
         st.session_state["_deep_coverage_frac"] = _coverage_frac
+        st.session_state["_deep_mode_for_run"] = _deep_mode_val
+        if _deep_mode_val == "custom" and _custom_selections:
+            st.session_state["_deep_custom_selections"] = _custom_selections
         st.session_state.pop("_deep_results", None)
         st.rerun()
 
     if btn_new:
         st.session_state.pop("_deep_results", None)
+        _prev_ck = st.session_state.pop("_deep_custom_keys", {})
+        for _clr_rt, _clr_items in (_prev_ck or {}).items():
+            for _clr_item in _clr_items:
+                st.session_state.pop(f"deep_ck_{_clr_rt}_{_clr_item.get('key', '')}", None)
         st.rerun()
 
     if deep_results:
@@ -835,7 +1000,13 @@ def main() -> None:
             count = res.get("count", 0)
             n_keys = len(res.get("keys", []))
             st.subheader(f"{rt_label} ({count:,} resources, {n_keys} metadata keys)")
-            st.text(res["report"])
+            _report_html = html.escape(res["report"]).replace("\n", "<br>")
+            st.markdown(
+                '<div style="white-space:normal;word-wrap:break-word;overflow-wrap:break-word;'
+                'font-size:0.85rem;line-height:1.5;">'
+                f'{_report_html}</div>',
+                unsafe_allow_html=True,
+            )
             st.write("---")
 
 
