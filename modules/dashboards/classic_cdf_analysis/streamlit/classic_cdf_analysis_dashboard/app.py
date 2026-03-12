@@ -1,7 +1,6 @@
 """
 Classic CDF Analysis — Complete.
-Combines single-key analysis and multi-resource-type deep analysis in one app
-with a shared dataset section.
+Multi-resource-type analysis with a shared dataset section.
 """
 from __future__ import annotations
 
@@ -35,7 +34,6 @@ from analysis import (
     get_global_extended_counts,
     get_metadata_keys_list,
     get_total_count,
-    run_analysis,
 )
 from analysis import (
     _aggregate_resource,
@@ -47,7 +45,7 @@ from analysis import (
 )
 _analysis_unwrap = getattr(_analysis_module, "_unwrap_maybe_coro", None)
 
-from deep_analysis import PRIMARY_FILTER_KEYS, select_filter_keys_for_deep_analysis, slug_for_file_name
+from key_selection import PRIMARY_FILTER_KEYS, select_filter_keys_for_analysis, slug_for_file_name
 
 try:
     import logging
@@ -301,17 +299,16 @@ def main() -> None:
     client, project = client_and_project
     adapter = ClientAdapter(client, project)
 
-    # ---- Deep analysis loading block (must be before UI so API calls run at top level) ----
-    if st.session_state.get("_deep_all_pending"):
-        _rts = st.session_state.pop("_deep_all_rts", ["assets"])
-        _cov_frac = st.session_state.pop("_deep_coverage_frac", 0.6)
-        _deep_mode = st.session_state.pop("_deep_mode_for_run", "auto")
-        # Preserve widget states across this non-UI run so they aren't reset
-        st.session_state["deep_mode_radio"] = "Custom" if _deep_mode == "custom" else "Auto"
+    # ---- Analysis loading block (must be before UI so API calls run at top level) ----
+    if st.session_state.get("_analysis_all_pending"):
+        _rts = st.session_state.pop("_analysis_all_rts", ["assets"])
+        _cov_frac = st.session_state.pop("_analysis_coverage_frac", 0.6)
+        _run_mode = st.session_state.pop("_analysis_mode_for_run", "auto")
+        st.session_state["analysis_mode_radio"] = "Custom" if _run_mode == "custom" else "Auto"
         _rts_set = set(_rts)
         for _opt in RESOURCE_OPTIONS:
-            st.session_state[f"deep_rt_{_opt['value']}"] = _opt["value"] in _rts_set
-        _custom_selections = st.session_state.pop("_deep_custom_selections", {})
+            st.session_state[f"analysis_rt_{_opt['value']}"] = _opt["value"] in _rts_set
+        _custom_selections = st.session_state.pop("_analysis_custom_selections", {})
         _sel_ids = st.session_state.get("_selected_dataset_ids", [])
         _ds_ids = [{"id": i} for i in _sel_ids] if _sel_ids else None
         _ds_display = []
@@ -321,26 +318,26 @@ def main() -> None:
             _ds_display.append(f"{name} ({sid})")
         _datasets_line = ", ".join(_ds_display) if _ds_display else "All datasets"
         try:
-            with st.spinner("Running deep analysis…"):
+            with st.spinner("Running analysis…"):
                 _all_results = []
                 for ri, _rt in enumerate(_rts):
                     _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _rt), _rt)
-                    print(f"[DEEP] [{ri+1}/{len(_rts)}] Starting {_rt_label}…")
+                    print(f"[ANALYSIS] [{ri+1}/{len(_rts)}] Starting {_rt_label}…")
                     try:
                         agg_resource = "documents" if _rt == "files" else _rt
                         count_path = _project_path(project, agg_resource)
                         filter_part = _documents_data_set_filter(_ds_ids) if _rt == "files" else _data_set_filter_aggregate(_ds_ids)
                         count_res = adapter.post(count_path, {"aggregate": "count", **filter_part})
                         total_count = _analysis_parse_count_response(count_res)
-                        print(f"[DEEP]   Count: {total_count:,}")
+                        print(f"[ANALYSIS]   Count: {total_count:,}")
 
-                        if _deep_mode == "custom" and _rt in _custom_selections:
+                        if _run_mode == "custom" and _rt in _custom_selections:
                             sel_keys = _custom_selections[_rt]
                         else:
                             raw_meta = get_metadata_keys_list(adapter, _rt, project, _ds_ids)
                             raw_meta = raw_meta if isinstance(raw_meta, list) else []
-                            sel_keys = select_filter_keys_for_deep_analysis(raw_meta, total_count, _rt, _cov_frac) if total_count > 0 else (PRIMARY_FILTER_KEYS.get(_rt, []) or ["type"])[:10]
-                        print(f"[DEEP]   Metadata keys: {len(sel_keys)}")
+                            sel_keys = select_filter_keys_for_analysis(raw_meta, total_count, _rt, _cov_frac) if total_count > 0 else (PRIMARY_FILTER_KEYS.get(_rt, []) or ["type"])[:10]
+                        print(f"[ANALYSIS]   Metadata keys: {len(sel_keys)}")
 
                         header_lines = [
                             f"CDF Project: {project}", "",
@@ -356,7 +353,7 @@ def main() -> None:
                         for ki, key in enumerate(sel_keys):
                             if not key:
                                 continue
-                            print(f"[DEEP]   Key [{ki+1}/{len(sel_keys)}]: {key}")
+                            print(f"[ANALYSIS]   Key [{ki+1}/{len(sel_keys)}]: {key}")
                             try:
                                 lines.extend(_run_analysis_for_key(adapter, project, _rt, key, _ds_ids))
                             except Exception as e:
@@ -366,7 +363,7 @@ def main() -> None:
                                 lines.append("")
 
                         _pct = int(((ri + 1) / len(_rts)) * 100)
-                        print(f"[DEEP]   Done — {_pct}% overall")
+                        print(f"[ANALYSIS]   Done — {_pct}% overall")
                         _all_results.append({
                             "report": "\n".join(lines),
                             "rt": _rt,
@@ -380,7 +377,7 @@ def main() -> None:
                             _err_line = "403 Forbidden — insufficient access for this resource type"
                         else:
                             _err_line = _err_str
-                        print(f"[DEEP]   ERROR for {_rt_label}: {_err_line}")
+                        print(f"[ANALYSIS]   ERROR for {_rt_label}: {_err_line}")
                         _all_results.append({
                             "report": f"Resource type: {_rt_label}\n\nError: {_err_line}\n",
                             "rt": _rt,
@@ -389,13 +386,13 @@ def main() -> None:
                             "keys": [],
                         })
 
-            st.session_state["_deep_results"] = _all_results
-            st.session_state.pop("_deep_all_pending", None)
+            st.session_state["_analysis_results"] = _all_results
+            st.session_state.pop("_analysis_all_pending", None)
             st.rerun()
         except Exception as _e:
-            print(f"[DEEP] ERROR: {_e}")
-            st.session_state.pop("_deep_all_pending", None)
-            st.error(f"Deep analysis failed: {_e}")
+            print(f"[ANALYSIS] ERROR: {_e}")
+            st.session_state.pop("_analysis_all_pending", None)
+            st.error(f"Analysis failed: {_e}")
 
     # ========================================================================
     # All Datasets summary
@@ -527,7 +524,7 @@ def main() -> None:
         dataset_counts = st.session_state.get("dataset_counts", {})
         to_load = (datasets or [])[:COUNT_LOAD_CAP]
         next_i = st.session_state.get("dataset_counts_next", 0)
-        if datasets and next_i < len(to_load) and not st.session_state.get("_deep_all_pending"):
+        if datasets and next_i < len(to_load) and not st.session_state.get("_analysis_all_pending"):
             st.info("Loading resource counts…")
             batch_size = 10
             end_i = min(next_i + batch_size, len(to_load))
@@ -546,7 +543,7 @@ def main() -> None:
         if datasets:
             if st.session_state.pop("_clear_dataset_selection", False):
                 st.session_state["_dataset_editor_version"] = st.session_state.get("_dataset_editor_version", 0) + 1
-                for key in ("metadata_keys_list", "metadata_keys_list_rt", "metadata_keys_list_dataset_ids", "last_result", "_selected_dataset_ids"):
+                for key in ("_selected_dataset_ids",):
                     if key in st.session_state:
                         del st.session_state[key]
 
@@ -685,223 +682,45 @@ def main() -> None:
     else:
         st.caption("Using **all datasets** for analysis. Select rows above to limit.")
 
-    _current_selection_key = tuple(sorted(selected_ids)) if selected_ids else ()
-    if st.session_state.get("metadata_keys_list_dataset_ids") != _current_selection_key:
-        for key in ("metadata_keys_list", "metadata_keys_list_rt", "metadata_keys_list_dataset_ids"):
-            if key in st.session_state:
-                del st.session_state[key]
-
     # ========================================================================
-    # Run analysis (single resource type + filter key) — compact layout
+    # Analysis (multi-resource-type, all keys)
     # ========================================================================
     st.write("---")
-    st.subheader("Run analysis")
-
-    metadata_keys_list = st.session_state.get("metadata_keys_list", [])
-    metadata_keys_rt = st.session_state.get("metadata_keys_list_rt")
-
-    col_rt, col_fk = st.columns([1, 3])
-    with col_rt:
-        resource_type = st.selectbox(
-            "Resource type",
-            options=[o["value"] for o in RESOURCE_OPTIONS],
-            format_func=lambda x: next(o["label"] for o in RESOURCE_OPTIONS if o["value"] == x),
-            key="resource_type",
-        )
-    with col_fk:
-        filter_key_placeholder = "Select or type a key"
-        if resource_type == "timeseries":
-            filter_key_placeholder += ' (e.g. "is step", "is string", "unit")'
-        if resource_type == "files":
-            filter_key_placeholder += ' ("type", "labels", "author", "source")'
-
-        _selection_matches = st.session_state.get("metadata_keys_list_dataset_ids") == _current_selection_key
-        if metadata_keys_rt == resource_type and _selection_matches:
-            if not metadata_keys_list:
-                filter_key_raw = st.selectbox(
-                    "Filter key (metadata or \"type\")",
-                    options=["No metadata available"],
-                    index=0,
-                    key="filter_key_select",
-                )
-                filter_key_raw = "" if filter_key_raw == "No metadata available" else filter_key_raw
-            else:
-                options = [""] + [f"{x['key']} ({x['count']})" for x in metadata_keys_list]
-                filter_key_raw = st.selectbox(
-                    "Filter key (metadata or \"type\")",
-                    options=options,
-                    key="filter_key_select",
-                ) or ""
-        else:
-            filter_key_raw = st.text_input(
-                "Filter key (metadata or \"type\")",
-                value="",
-                placeholder=filter_key_placeholder,
-                key="filter_key_input",
-            ) or ""
-
-    result = st.session_state.get("last_result")
-    _s1, _s2, col_load, _s3, _s4, col_run_s, col_dl_s, col_clr_s = st.columns([1, 1, 1, 1, 1, 1, 1, 1])
-    with col_load:
-        btn_load_keys = st.button("Load metadata keys", key="load_keys")
-    with col_run_s:
-        run_single = st.button("Run analysis", type="primary", key="run_single")
-    with col_dl_s:
-        _has_result_rows = bool(result and result.get("rows"))
-        if _has_result_rows:
-            _res_rt = (result or {}).get("resourceType", "")
-            _res_fk = filter_key_for_api((result or {}).get("filterKey", ""))
-            _res_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _res_rt), _res_rt)
-            _res_count = (st.session_state.get("all_counts") or {}).get(_res_rt, 0)
-            _ds_lines = "All datasets"
-            if selected_ids and datasets_list:
-                _ds_names = []
-                for _sid in selected_ids:
-                    _dd = next((d for d in datasets_list if getattr(d, "id", None) is not None and int(getattr(d, "id", 0)) == int(_sid)), None)
-                    _ds_names.append(getattr(_dd, "name", None) or getattr(_dd, "external_id", None) or str(_sid) if _dd else str(_sid))
-                _ds_lines = "\n  - ".join(_ds_names)
-            _row_text = "".join(r.get("text", "") for r in (result or {}).get("rows", []))
-            _dl_lines = [
-                f"CDF Project: {project}", "",
-                f"Resource type: {_res_label}",
-                f"Aggregate count: {_res_count:,}", "",
-                "Datasets:",
-                f"  - {_ds_lines}", "",
-                "Metadata keys analysed: 1",
-                f"  - {_res_fk}", "",
-                "---", "",
-                f"=== Filter key: {_res_fk} ===", "",
-                _row_text, "",
-            ]
-            txt = "\n".join(_dl_lines)
-        else:
-            txt = ""
-        project_slug = slug_for_file_name(project, 24)
-        _first_slug = "all"
-        if selected_ids and datasets_list:
-            _fd = next((d for d in datasets_list if getattr(d, "id", None) is not None and int(getattr(d, "id", 0)) == int(selected_ids[0])), None)
-            _first_slug = slug_for_file_name(getattr(_fd, "name", None) or getattr(_fd, "external_id", None) or str(selected_ids[0]), 36) if _fd else "all"
-        _key_slug = slug_for_file_name(filter_key_for_api((result or {}).get("filterKey", "key")), 30)
-        _dl_fname = f"{project_slug}_{_first_slug}_{(result or {}).get('resourceType', 'out')}_{_key_slug}_analysis.txt"
-        st.download_button("Download .txt", data=txt, file_name=_dl_fname, mime="text/plain", key="download_txt", disabled=(not _has_result_rows))
-    with col_clr_s:
-        btn_clear_result = st.button("Clear", key="clear_result", disabled=(not result))
-
-    if btn_load_keys:
-        with st.spinner("Loading…"):
-            try:
-                lst = get_metadata_keys_list(adapter, resource_type, project, data_set_ids_for_api)
-                lst = _ensure_sync(lst) if lst is not None else []
-                lst = lst if isinstance(lst, list) else []
-                if data_set_ids_for_api:
-                    try:
-                        total = get_total_count(adapter, project, resource_type, data_set_ids_for_api)
-                        total = _ensure_sync(total)
-                        total = int(total) if isinstance(total, (int, float)) else 0
-                        if total <= 0:
-                            lst = []
-                    except Exception:
-                        lst = []
-                st.session_state.metadata_keys_list = lst
-                st.session_state.metadata_keys_list_rt = resource_type
-                st.session_state.metadata_keys_list_dataset_ids = _current_selection_key
-                st.rerun()
-            except Exception as e:
-                st.error(str(e))
-
-    if run_single:
-        raw_key = (filter_key_raw or "").strip()
-        if not raw_key or raw_key.lower() == "no metadata":
-            st.warning("Enter a filter key (or load metadata keys and choose one).")
-        else:
-            fk = filter_key_for_api(raw_key)
-            with st.spinner("Running…"):
-                try:
-                    result = run_analysis(adapter, resource_type, fk, project, data_set_ids_for_api)
-                    st.session_state.last_result = result
-                    st.rerun()
-                except Exception as e:
-                    st.session_state.last_result = {"resourceType": resource_type, "filterKey": fk, "rows": [], "error": str(e)}
-                    st.rerun()
-
-    if btn_clear_result:
-        st.session_state.pop("last_result", None)
-        st.rerun()
-
-    if result:
-        if result.get("error"):
-            st.error(result["error"])
-        _disp_rt = result.get("resourceType", "")
-        _disp_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _disp_rt), _disp_rt)
-        _disp_count = (st.session_state.get("all_counts") or {}).get(_disp_rt, 0)
-        _disp_ds = f"{len(selected_ids)} selected" if selected_ids else "All"
-        _disp_fk = filter_key_for_api(result.get("filterKey", ""))
-        st.markdown(
-            f'<span style="color:#94a3b8; font-size:0.8125rem;">'
-            f'CDF Project: {project}'
-            f' <span style="color:#475569;">|</span> '
-            f'Resource type: {_disp_label}'
-            f' <span style="color:#475569;">|</span> '
-            f'Aggregate count: {_disp_count:,}'
-            f' <span style="color:#475569;">|</span> '
-            f'Datasets: {_disp_ds}'
-            f'</span>',
-            unsafe_allow_html=True,
-        )
-        st.caption(f"Filter key: {_disp_fk} — **{len(result.get('rows', []))}** entries (sorted by count descending)")
-        if result.get("rows"):
-            wrap_style = (
-                "white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; "
-                "word-break: break-word; margin-bottom: 0.3rem; font-family: inherit; font-size: 0.85rem;"
-                "max-width: 100%;"
-            )
-            inner = "".join(
-                f'<div style="{wrap_style}">{html.escape(r.get("text", ""))}</div>' for r in result["rows"]
-            )
-            st.markdown(
-                f'<div style="min-width:0;max-width:100%;overflow:hidden;box-sizing:border-box;">{inner}</div>',
-                unsafe_allow_html=True,
-            )
-
-    # ========================================================================
-    # Deep analysis (multi-resource-type, all keys)
-    # ========================================================================
-    st.write("---")
-    st.subheader("Deep analysis")
+    st.subheader("Analysis")
 
     _mode_col, _cov_col, _cov_spacer = st.columns([1, 1, 2])
     with _mode_col:
-        _deep_mode = st.radio("Mode", ["Auto", "Custom"], horizontal=True, key="deep_mode_radio",
-                              help="Auto: algorithm selects keys. Custom: you pick from the full list.")
-    _deep_mode_val = "custom" if _deep_mode == "Custom" else "auto"
+        _mode_radio = st.radio("Mode", ["Auto", "Custom"], horizontal=True, key="analysis_mode_radio",
+                               help="Auto: algorithm selects keys. Custom: you pick from the full list.")
+    _mode_val = "custom" if _mode_radio == "Custom" else "auto"
     with _cov_col:
-        if _deep_mode_val == "auto":
+        if _mode_val == "auto":
             coverage_pct = st.number_input(
                 "Threshold (%)", min_value=0, max_value=100, value=60,
-                step=5, key="deep_coverage_pct", help="Metadata keys with count >= this % of total are included",
+                step=5, key="analysis_coverage_pct", help="Metadata keys with count >= this % of total are included",
             )
         else:
-            coverage_pct = st.session_state.get("deep_coverage_pct", 60)
+            coverage_pct = st.session_state.get("analysis_coverage_pct", 60)
     _coverage_frac = coverage_pct / 100.0
 
     for opt in RESOURCE_OPTIONS:
-        st.session_state.setdefault(f"deep_rt_{opt['value']}", True)
+        st.session_state.setdefault(f"analysis_rt_{opt['value']}", True)
     rt_cols = st.columns(len(RESOURCE_OPTIONS) + 4)
     chosen_rts = []
     for ci, opt in enumerate(RESOURCE_OPTIONS):
         with rt_cols[ci]:
-            checked = st.checkbox(opt["label"], key=f"deep_rt_{opt['value']}")
+            checked = st.checkbox(opt["label"], key=f"analysis_rt_{opt['value']}")
             if checked:
                 chosen_rts.append(opt["value"])
 
     with rt_cols[len(RESOURCE_OPTIONS)]:
-        if _deep_mode_val == "custom":
-            btn_load_keys = st.button("Load keys", key="deep_load_keys_btn", disabled=(not chosen_rts))
+        if _mode_val == "custom":
+            btn_load_keys = st.button("Load keys", key="analysis_load_keys_btn", disabled=(not chosen_rts))
         else:
             btn_load_keys = False
 
-    deep_results = st.session_state.get("_deep_results") or []
-    combined_report = "\n\n".join(r["report"] for r in deep_results) if deep_results else ""
+    analysis_results = st.session_state.get("_analysis_results") or []
+    combined_report = "\n\n".join(r["report"] for r in analysis_results) if analysis_results else ""
 
     first_slug = "all"
     if selected_ids and datasets_list:
@@ -909,15 +728,15 @@ def main() -> None:
         first_slug = slug_for_file_name(getattr(_fd2, "name", None) or getattr(_fd2, "external_id", None) or str(selected_ids[0]), 36) if _fd2 else "all"
 
     with rt_cols[len(RESOURCE_OPTIONS) + 1]:
-        btn_run = st.button("Run deep analysis", type="primary", key="deep_btn_run", disabled=(not chosen_rts))
+        btn_run = st.button("Run analysis", type="primary", key="analysis_btn_run", disabled=(not chosen_rts))
     with rt_cols[len(RESOURCE_OPTIONS) + 2]:
-        _dl_rts = "_".join(r["rt"] for r in deep_results) if deep_results else "all"
-        _dl_name = f"{slug_for_file_name(project, 24)}_{first_slug}_{_dl_rts}_deep_analysis.txt"
-        st.download_button("Download report", data=combined_report, file_name=_dl_name, mime="text/plain", key="deep_dl", disabled=(not deep_results))
+        _dl_rts = "_".join(r["rt"] for r in analysis_results) if analysis_results else "all"
+        _dl_mode = "custom" if _mode_val == "custom" else "auto"
+        _dl_name = f"{slug_for_file_name(project, 24)}_{first_slug}_{_dl_rts}_{_dl_mode}_analysis.txt"
+        st.download_button("Download report", data=combined_report, file_name=_dl_name, mime="text/plain", key="analysis_dl", disabled=(not analysis_results))
     with rt_cols[len(RESOURCE_OPTIONS) + 3]:
-        btn_new = st.button("Clear", key="deep_btn_new", disabled=(not deep_results))
+        btn_new = st.button("Clear", key="analysis_btn_new", disabled=(not analysis_results))
 
-    # Load custom keys (runs BEFORE display so data is available on the same run)
     if btn_load_keys and chosen_rts:
         _sel_ids_load = st.session_state.get("_selected_dataset_ids", [])
         _ds_ids_load = [{"id": i} for i in _sel_ids_load] if _sel_ids_load else None
@@ -930,7 +749,7 @@ def main() -> None:
                     _meta_load = get_metadata_keys_list(adapter, _rt_load, project, _ds_ids_load)
                     _meta_load = _meta_load if isinstance(_meta_load, list) else []
                     _auto_sel = set(
-                        select_filter_keys_for_deep_analysis(_meta_load, _total_load, _rt_load, _coverage_frac)
+                        select_filter_keys_for_analysis(_meta_load, _total_load, _rt_load, _coverage_frac)
                         if _total_load > 0 else (PRIMARY_FILTER_KEYS.get(_rt_load, []) or [])
                     )
                     _custom[_rt_load] = [{"key": m["key"], "count": m.get("count", 0), "auto": m["key"] in _auto_sel} for m in _meta_load]
@@ -940,31 +759,30 @@ def main() -> None:
                         st.warning(f"{_rt_lbl}: 403 Forbidden — insufficient access, skipped")
                     else:
                         st.warning(f"{_rt_lbl}: {_err_msg}, skipped")
-            _prev_custom = st.session_state.get("_deep_custom_keys", {})
+            _prev_custom = st.session_state.get("_analysis_custom_keys", {})
             for _rt_clr in chosen_rts:
-                st.session_state.pop(f"deep_custom_sel_{_rt_clr}", None)
+                st.session_state.pop(f"analysis_custom_sel_{_rt_clr}", None)
                 for _old_item in _prev_custom.get(_rt_clr, []):
-                    st.session_state.pop(f"deep_ck_{_rt_clr}_{_old_item.get('key', '')}", None)
-            st.session_state["_deep_custom_keys"] = _custom
+                    st.session_state.pop(f"analysis_ck_{_rt_clr}_{_old_item.get('key', '')}", None)
+            st.session_state["_analysis_custom_keys"] = _custom
 
-    # Custom key selection panels (rendered after load so data is available immediately)
-    _deep_custom_keys = st.session_state.get("_deep_custom_keys", {})
+    _analysis_custom_keys = st.session_state.get("_analysis_custom_keys", {})
     _custom_selections = {}
-    if _deep_mode_val == "custom" and _deep_custom_keys:
-        _visible_rts = [rt for rt in chosen_rts if rt in _deep_custom_keys]
+    if _mode_val == "custom" and _analysis_custom_keys:
+        _visible_rts = [rt for rt in chosen_rts if rt in _analysis_custom_keys]
         if _visible_rts:
             _ck_cols = st.columns(len(_visible_rts))
             for ci, _ck_rt in enumerate(_visible_rts):
-                _ck_items = _deep_custom_keys[_ck_rt]
+                _ck_items = _analysis_custom_keys[_ck_rt]
                 _rt_label = next((o["label"] for o in RESOURCE_OPTIONS if o["value"] == _ck_rt), _ck_rt)
-                _sel_count = sum(1 for item in _ck_items if st.session_state.get(f"deep_ck_{_ck_rt}_{item['key']}", item.get("auto", False)))
+                _sel_count = sum(1 for item in _ck_items if st.session_state.get(f"analysis_ck_{_ck_rt}_{item['key']}", item.get("auto", False)))
                 with _ck_cols[ci]:
                     st.markdown(f"**{_rt_label}** &nbsp; <span style='color:#64748b;font-size:0.8rem;'>{_sel_count}/{len(_ck_items)} selected</span>", unsafe_allow_html=True)
                     _rt_selected = []
                     _sorted_items = sorted(_ck_items, key=lambda x: (not x.get("auto", False), -x.get("count", 0)))
                     with st.container(height=260):
                         for item in _sorted_items:
-                            _cb_key = f"deep_ck_{_ck_rt}_{item['key']}"
+                            _cb_key = f"analysis_ck_{_ck_rt}_{item['key']}"
                             _default = item.get("auto", False)
                             _checked = st.checkbox(
                                 f"{item['key']} ({item.get('count', 0):,})",
@@ -976,26 +794,26 @@ def main() -> None:
                     _custom_selections[_ck_rt] = _rt_selected
 
     if btn_run and chosen_rts:
-        st.session_state["_deep_all_pending"] = True
-        st.session_state["_deep_all_rts"] = list(chosen_rts)
-        st.session_state["_deep_coverage_frac"] = _coverage_frac
-        st.session_state["_deep_mode_for_run"] = _deep_mode_val
-        if _deep_mode_val == "custom" and _custom_selections:
-            st.session_state["_deep_custom_selections"] = _custom_selections
-        st.session_state.pop("_deep_results", None)
+        st.session_state["_analysis_all_pending"] = True
+        st.session_state["_analysis_all_rts"] = list(chosen_rts)
+        st.session_state["_analysis_coverage_frac"] = _coverage_frac
+        st.session_state["_analysis_mode_for_run"] = _mode_val
+        if _mode_val == "custom" and _custom_selections:
+            st.session_state["_analysis_custom_selections"] = _custom_selections
+        st.session_state.pop("_analysis_results", None)
         st.rerun()
 
     if btn_new:
-        st.session_state.pop("_deep_results", None)
-        _prev_ck = st.session_state.pop("_deep_custom_keys", {})
+        st.session_state.pop("_analysis_results", None)
+        _prev_ck = st.session_state.pop("_analysis_custom_keys", {})
         for _clr_rt, _clr_items in (_prev_ck or {}).items():
             for _clr_item in _clr_items:
-                st.session_state.pop(f"deep_ck_{_clr_rt}_{_clr_item.get('key', '')}", None)
+                st.session_state.pop(f"analysis_ck_{_clr_rt}_{_clr_item.get('key', '')}", None)
         st.rerun()
 
-    if deep_results:
+    if analysis_results:
         st.write("---")
-        for res in deep_results:
+        for res in analysis_results:
             rt_label = res.get("rt_label", "")
             count = res.get("count", 0)
             n_keys = len(res.get("keys", []))
