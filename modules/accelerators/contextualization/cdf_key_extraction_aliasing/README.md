@@ -10,7 +10,7 @@ Latest run results: [Key Extraction and Aliasing Report](docs/key_extraction_ali
 
 The module provides:
 
-- **4 Extraction Methods**: Regex, Fixed Width, Token Reassembly, and Heuristic
+- **5 Extraction Methods**: Regex, Fixed Width, Token Reassembly, Heuristic, and Passthrough
 - **3 Extraction Types**: Candidate keys, Foreign key references, Document references
 - **12 Transformation Types**: Character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite
 - **CDF Integration**: Data model views, functions, and workflows
@@ -219,7 +219,7 @@ Workflow `key_extraction_aliasing` runs key extraction then aliasing (aliasing c
 ```bash
 cdf-tk deploy workflows
 cdf-tk deploy functions
-cdf-tk deploy extraction_pipelines
+cdf-tk deploy pipelines
 cdf-tk deploy data_sets
 ```
 

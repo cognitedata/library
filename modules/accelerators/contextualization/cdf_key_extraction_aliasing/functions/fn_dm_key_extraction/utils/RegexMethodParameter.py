@@ -1,3 +1,4 @@
+import re
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
@@ -14,6 +15,18 @@ class RegexOptions(BaseModel):
         False, description="Case-insensitive matching (e.g., False)."
     )
     unicode: bool = Field(True, description="Enable Unicode support (e.g., True).")
+
+    def to_regex_flags(self) -> int:
+        flags = 0
+        if self.multiline:
+            flags |= re.MULTILINE
+        if self.dotall:
+            flags |= re.DOTALL
+        if self.ignore_case:
+            flags |= re.IGNORECASE
+        if self.unicode:
+            flags |= re.UNICODE
+        return flags
 
 
 class RegexMethodParameter(BaseModel):

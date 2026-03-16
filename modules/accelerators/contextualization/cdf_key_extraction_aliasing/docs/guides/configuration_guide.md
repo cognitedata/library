@@ -364,6 +364,28 @@ Uses rule-based heuristics for extraction when patterns are inconsistent.
 - Legacy systems with varied formats
 - Fallback for unmatched patterns
 
+#### 5. Passthrough Method
+
+Uses the entire field value as the extracted key with no pattern matching or parsing. The value is trimmed and emitted as a single key. Use when the source field already contains the identifier (e.g. `name`, `externalId`).
+
+```yaml
+- name: "name_as_candidate_key"
+  method: "passthrough"
+  extraction_type: "candidate_key"
+  enabled: true
+  priority: 50
+  parameters:
+    min_confidence: 1.0   # optional; default 1.0
+  source_fields:
+    - field_name: "name"
+      required: true
+  field_selection_strategy: "first_match"
+```
+
+**Use Cases:**
+- Field value is already the identifier (e.g. asset name = tag)
+- Using external IDs or primary keys as candidate keys as-is
+
 ### Field Selection Strategies
 
 When multiple keys are extracted from the same field or entity:

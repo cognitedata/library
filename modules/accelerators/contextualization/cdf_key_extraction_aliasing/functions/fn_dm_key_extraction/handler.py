@@ -6,12 +6,7 @@ CDF Functions or called directly, maintaining compatibility with the CDF
 workflow format while using the existing KeyExtractionEngine.
 """
 
-import sys
-from pathlib import Path
 from typing import Any, Dict
-
-# Add parent path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 try:
     from cognite.client import CogniteClient
@@ -20,7 +15,6 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .cdf_adapter import convert_cdf_config_to_engine_config
 from .engine.key_extraction_engine import KeyExtractionEngine
 
 # Try to import CDF config loader - fallback if not available
@@ -43,9 +37,11 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
     Args:
         data: Dictionary containing:
-            - ExtractionPipelineExtId: External ID of the extraction pipeline
+            - ExtractionPipelineExtId: External ID of the extraction pipeline (when client is provided)
+            - config: Optional direct config for engine (used when no client or for standalone)
+            - entities: Optional dict of entity_id -> fields for standalone mode (when client is None)
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
-        client: CogniteClient instance (required if using CDF config loading)
+        client: CogniteClient instance (optional; when None, pass config + entities in data for standalone mode)
 
     Returns:
         Dictionary with status and result information
@@ -63,7 +59,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         logger = CogniteFunctionLogger(loglevel, verbose=verbose)
         logger.info(f"Starting key extraction with loglevel = {loglevel} and verbose {"ON" if verbose else "OFF"}")
 
-        # Load configuration from CDF extraction pipeline
+        # Load configuration from CDF extraction pipeline or direct config
+        cdf_config = None
         if CDF_CONFIG_AVAILABLE and client and "ExtractionPipelineExtId" in data:
             pipeline_ext_id = data["ExtractionPipelineExtId"]
             logger.info(f"Loading config from extraction pipeline: {pipeline_ext_id}")
@@ -72,37 +69,32 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             logger.debug(f"Loaded CDF config: {cdf_config}")
 
             logger = CogniteFunctionLogger(loglevel, cdf_config.parameters.verbose)
-
-            # Convert CDF config to engine format
-            engine_config = convert_cdf_config_to_engine_config(cdf_config)
-            logger.debug(f"Converted to engine config format")
-
-            # Store CDF config for use in pipeline
-            data["_cdf_config"] = cdf_config
-            data["_engine_config"] = engine_config
-
         elif "config" in data:
-            # Direct config provided (for standalone usage)
-            engine_config = data["config"]
+            # Direct config provided (standalone or when client is None)
+            raw = data["config"]
+            cdf_config = raw if isinstance(raw, Config) else Config(**raw)
             logger.info("Using provided config directly")
+            if client is None and data.get("entities") is None:
+                logger.warning("client is None and no 'entities' in data; pipeline will have nothing to process.")
         else:
             raise ValueError(
                 "Either ExtractionPipelineExtId (with client) or config must be provided in data"
             )
 
-        # Initialize engine
-        engine = KeyExtractionEngine(engine_config)
+        # Initialize engine with typed Config (pass cdf_config directly)
+        engine = KeyExtractionEngine(cdf_config, logger=logger)
         data["_engine"] = engine
+        data["_cdf_config"] = cdf_config
 
-        # Call pipeline function
-        from pipeline import key_extraction
+        # Call pipeline function (standalone when no client: cdf_config=None, pipeline uses data["entities"])
+        from .pipeline import key_extraction
 
         key_extraction(
             client=client,
             logger=logger,
             data=data,
             engine=engine,
-            cdf_config=cdf_config if CDF_CONFIG_AVAILABLE and client else None,
+            cdf_config=cdf_config if (CDF_CONFIG_AVAILABLE and client) else None,
         )
 
         return {"status": "succeeded", "data": data}

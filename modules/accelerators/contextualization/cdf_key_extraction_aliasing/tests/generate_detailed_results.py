@@ -404,7 +404,7 @@ def generate_key_extraction_results():
                     "method": key.method.name
                     if hasattr(key.method, "name")
                     else str(key.method),
-                    "rule_name": key.rule_name,
+                    "rule_id": key.rule_id,
                 }
             )
 
@@ -418,7 +418,7 @@ def generate_key_extraction_results():
                     "method": key.method.name
                     if hasattr(key.method, "name")
                     else str(key.method),
-                    "rule_name": key.rule_name,
+                    "rule_id": key.rule_id,
                 }
             )
 
@@ -466,7 +466,7 @@ def generate_key_extraction_results():
                     "method": key.method.name
                     if hasattr(key.method, "name")
                     else str(key.method),
-                    "rule_name": key.rule_name,
+                    "rule_id": key.rule_id,
                 }
             )
 
@@ -480,7 +480,7 @@ def generate_key_extraction_results():
                     "method": key.method.name
                     if hasattr(key.method, "name")
                     else str(key.method),
-                    "rule_name": key.rule_name,
+                    "rule_id": key.rule_id,
                 }
             )
 
@@ -494,7 +494,7 @@ def generate_key_extraction_results():
                     "method": doc.method.name
                     if hasattr(doc.method, "name")
                     else str(doc.method),
-                    "rule_name": doc.rule_name,
+                    "rule_id": doc.rule_id,
                 }
             )
 
@@ -542,7 +542,7 @@ def generate_key_extraction_results():
                     "method": key.method.name
                     if hasattr(key.method, "name")
                     else str(key.method),
-                    "rule_name": key.rule_name,
+                    "rule_id": key.rule_id,
                 }
             )
 
@@ -556,7 +556,7 @@ def generate_key_extraction_results():
                     "method": key.method.name
                     if hasattr(key.method, "name")
                     else str(key.method),
-                    "rule_name": key.rule_name,
+                    "rule_id": key.rule_id,
                 }
             )
 
@@ -570,7 +570,7 @@ def generate_key_extraction_results():
                     "method": doc.method.name
                     if hasattr(doc.method, "name")
                     else str(doc.method),
-                    "rule_name": doc.rule_name,
+                    "rule_id": doc.rule_id,
                 }
             )
 

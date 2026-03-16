@@ -1,0 +1,51 @@
+# CDF Toolkit Function Definitions
+# The directory with the function code should have the same name
+# and externalId as the function itself as defined below.
+
+- name: 'dm:context:key:extraction'
+  externalId: 'fn_dm_key_extraction'
+  dataSetExternalId: 'ds_key_extraction'
+  owner: 'Anonymous'
+  description: 'Extract candidate keys, foreign key references, and document references from CDF data model entities using regex, fixed-width parsing, token reassembly, and heuristic methods'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    # The below two environment variables are set by the Toolkit
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  # Number of cores, not available in Azure
+  runtime: 'py311'
+  functionPath: 'handler.py'
+  # Data set id for the zip file with the code that is uploaded.
+
+- name: 'dm:context:tag:aliasing'
+  externalId: 'fn_dm_aliasing'
+  dataSetExternalId: 'ds_tag_aliasing'
+  owner: 'Anonymous'
+  description: 'Generate aliases for asset tags, equipment identifiers, and document names to improve entity matching and contextualization accuracy'
+  metadata:
+    version: '{{aliasing_function_version}}'
+  envVars:
+    # The below two environment variables are set by the Toolkit
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  # Number of cores, not available in Azure
+  runtime: 'py311'
+  functionPath: 'handler.py'
+  # Data set id for the zip file with the code that is uploaded.
+
+- name: 'dm:context:alias:persistence'
+  externalId: 'fn_dm_alias_persistence'
+  dataSetExternalId: 'ds_tag_aliasing'
+  owner: 'Anonymous'
+  description: 'Persist generated aliases back to source entities in the CDF data model'
+  metadata:
+    version: '{{alias_persistence_function_version}}'
+  envVars:
+    # The below two environment variables are set by the Toolkit
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  # Number of cores, not available in Azure
+  runtime: 'py311'
+  functionPath: 'handler.py'
+  # Data set id for the zip file with the code that is uploaded.

@@ -1,0 +1,53 @@
+workflowExternalId: cdf_key_extraction_aliasing
+version: 'v1'
+workflowDefinition:
+  description: 'Workflow that extracts keys from CDF data model entities and generates aliases for improved matching'
+  tasks:
+    - externalId: 'fn_dm_key_extraction'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_key_extraction'
+          data:
+            ExtractionPipelineExtId: 'ctx_key_extraction_default'
+            logLevel: 'INFO'
+      name: 'Key Extraction Function'
+      description: 'Extract candidate keys, foreign key references, and document references from CDF entities. Results are stored in entities_keys_extracted and can be accessed by subsequent tasks.'
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+    - externalId: 'fn_dm_aliasing'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_aliasing'
+          data:
+            ExtractionPipelineExtId: 'ctx_aliasing_default'
+            logLevel: 'INFO'
+            # The aliasing function will process extracted keys from the key extraction task
+            # It expects 'tags' or 'entities' in the data dict, which should be populated
+            # from the previous task's entities_keys_extracted results
+            # Note: The handler should extract tags from entities_keys_extracted if present
+      name: 'Aliasing Function'
+      description: 'Generate aliases for candidate keys extracted from entities. Processes only candidate keys (not foreign key references or document references). Results are stored in aliasing_results for the alias persistence task.'
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'fn_dm_key_extraction'
+    - externalId: 'fn_dm_alias_persistence'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_alias_persistence'
+          data:
+            logLevel: 'INFO'
+            # The alias persistence function reads aliasing_results from the aliasing task
+            # and maps them back to source entities using entities_keys_extracted from key extraction
+      name: 'Alias Persistence Function'
+      description: 'Persist generated aliases back to source entities in the CDF data model. Reads aliasing results and maps aliases to entities using key extraction results.'
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'fn_dm_aliasing'

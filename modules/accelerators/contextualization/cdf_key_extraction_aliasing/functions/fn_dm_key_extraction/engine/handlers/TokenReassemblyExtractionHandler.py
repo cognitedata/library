@@ -3,6 +3,7 @@ import re
 from typing import Any, Callable, Dict, Iterator, Optional
 
 from ...utils.DataStructures import *
+from ...utils.rule_utils import get_extraction_type_from_rule, get_method_from_rule
 from ...utils.TokenReassemblyMethodParameter import (
     AssemblyRule,
     TokenReassemblyMethodParameter,
@@ -211,7 +212,10 @@ class TokenReassemblyExtractionHandler(ExtractionMethodHandler):
             # We may want to score this differently?
             results.extend(
                 self._assemble_tokens(
-                    tokens, assembly_rule, tkr_rule, rule.extraction_type, context
+                    tokens, assembly_rule, tkr_rule,
+                    get_extraction_type_from_rule(rule),
+                    get_method_from_rule(rule),
+                    context,
                 )
             )
 
@@ -253,6 +257,7 @@ class TokenReassemblyExtractionHandler(ExtractionMethodHandler):
         assembly_rule: AssemblyRule,
         rule: TokenReassemblyMethodParameter,
         extraction_type: ExtractionType,
+        method: ExtractionMethod,
         context: Optional[Dict[str, Any]] = None,
     ) -> list[ExtractedKey]:
         results = []
@@ -275,19 +280,13 @@ class TokenReassemblyExtractionHandler(ExtractionMethodHandler):
                         f"Successfully assembled key '{assembled_key}' using rule '{assembly_rule.name}'",
                     )
                     confidence = assembly_rule.priority / 100
-                    # Blacklist: set confidence to 0.0 if assembled value contains any blacklisted keyword
-                    blacklist_keywords = (context or {}).get("blacklist_keywords") or []
-                    if blacklist_keywords and any(
-                        kw.lower() in assembled_key.lower() for kw in blacklist_keywords
-                    ):
-                        confidence = 0.0
                     results.append(
                         ExtractedKey(
                             value=assembled_key,
-                            method=rule.method,
+                            method=method,
                             confidence=confidence,
                             source_field="unknown",
-                            rule_name=assembly_rule.name,
+                            rule_id=assembly_rule.name,
                             extraction_type=extraction_type,
                             metadata={"tokens_used": list(mapping.keys())},
                         )

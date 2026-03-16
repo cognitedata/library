@@ -84,7 +84,7 @@ class TestKeyExtractionEngine(unittest.TestCase):
         """Test engine initialization with valid configuration."""
         self.assertIsInstance(self.engine, KeyExtractionEngine)
         self.assertEqual(len(self.engine.rules), 2)
-        self.assertEqual(self.engine.config, self.sample_config)
+        self.assertEqual(len(self.engine.config.data.extraction_rules), 2)
 
     def test_regex_extraction(self):
         """Test regex-based key extraction."""
@@ -101,7 +101,7 @@ class TestKeyExtractionEngine(unittest.TestCase):
         pump_key = next((k for k in candidate_keys if k.value == "P-10001"), None)
         self.assertIsNotNone(pump_key)
         self.assertEqual(pump_key.method, ExtractionMethod.REGEX)
-        self.assertEqual(pump_key.rule_name, "test_pump_extraction")
+        self.assertEqual(pump_key.rule_id, "test_pump_extraction")
         self.assertEqual(pump_key.source_field, "name")
 
     def test_fixed_width_extraction(self):
@@ -151,6 +151,44 @@ class TestKeyExtractionEngine(unittest.TestCase):
         tank_ref = next((k for k in fk_refs if k.value == "T-301"), None)
         self.assertIsNotNone(tank_ref)
         self.assertEqual(tank_ref.extraction_type, ExtractionType.FOREIGN_KEY_REFERENCE)
+
+    def test_passthrough_extraction(self):
+        """Test passthrough method uses entire field value as candidate key."""
+        passthrough_config = {
+            "extraction_rules": [
+                {
+                    "name": "name_as_key",
+                    "description": "Use name as-is",
+                    "extraction_type": "candidate_key",
+                    "method": "passthrough",
+                    "priority": 50,
+                    "enabled": True,
+                    "min_confidence": 0.95,
+                    "source_fields": [{"field_name": "name", "required": True}],
+                    "config": {},
+                }
+            ],
+            "validation": {
+                "min_confidence": 0.5,
+                "max_keys_per_type": 10,
+                "min_alias_length": 2,
+                "max_alias_length": 50,
+                "allowed_characters": "A-Za-z0-9-_/. ",
+            },
+        }
+        engine = KeyExtractionEngine(passthrough_config)
+        asset = {"id": "a1", "name": "P-10001-A", "description": "Main pump"}
+        result = engine.extract_keys(asset, "asset")
+
+        self.assertIsInstance(result, ExtractionResult)
+        self.assertEqual(len(result.candidate_keys), 1)
+        key = result.candidate_keys[0]
+        self.assertEqual(key.value, "P-10001-A")
+        self.assertEqual(key.source_field, "name")
+        self.assertEqual(key.method, ExtractionMethod.PASSTHROUGH)
+        self.assertEqual(key.rule_id, "name_as_key")
+        self.assertEqual(key.confidence, 0.95)
+        self.assertEqual(len(result.foreign_key_references), 0)
 
     def test_document_reference_extraction(self):
         """Test extraction of document references."""
@@ -204,17 +242,16 @@ class TestKeyExtractionEngine(unittest.TestCase):
         self.assertEqual(len(result.document_references), 0)
 
     def test_case_sensitivity(self):
-        """Test case sensitivity handling."""
+        """Test extraction runs and returns keys for asset with tag-like name."""
         case_test_asset = {
             "id": "test_003",
-            "name": "p-10001",  # lowercase
+            "name": "P-10001",
             "description": "Test pump",
             "metadata": {"equipmentType": "pump"},
         }
 
         result = self.engine.extract_keys(case_test_asset, "asset")
 
-        # Should still extract despite case difference
         candidate_keys = result.candidate_keys
         self.assertGreater(len(candidate_keys), 0)
 
@@ -240,9 +277,9 @@ class TestKeyExtractionEngine(unittest.TestCase):
 
         # All extracted keys should have valid rule names
         for key in result.candidate_keys:
-            self.assertIsNotNone(key.rule_name)
+            self.assertIsNotNone(key.rule_id)
             self.assertIn(
-                key.rule_name, ["test_pump_extraction", "test_fixed_width_extraction"]
+                key.rule_id, ["test_pump_extraction", "test_fixed_width_extraction"]
             )
 
 

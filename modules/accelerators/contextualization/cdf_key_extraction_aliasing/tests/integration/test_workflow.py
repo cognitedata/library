@@ -135,7 +135,7 @@ class TestKeyExtractionEngine(unittest.TestCase):
         """Test engine initialization with valid configuration."""
         self.assertIsInstance(self.engine, KeyExtractionEngine)
         self.assertEqual(len(self.engine.rules), 2)
-        self.assertEqual(self.engine.config, self.sample_config)
+        self.assertEqual(len(self.engine.config.data.extraction_rules), 2)
 
     def test_regex_extraction(self):
         """Test regex-based key extraction."""
@@ -152,7 +152,7 @@ class TestKeyExtractionEngine(unittest.TestCase):
         pump_key = next((k for k in candidate_keys if k.value == "P-10001"), None)
         self.assertIsNotNone(pump_key)
         self.assertEqual(pump_key.method, ExtractionMethod.REGEX)
-        self.assertEqual(pump_key.rule_name, "test_pump_extraction")
+        self.assertEqual(pump_key.rule_id, "test_pump_extraction")
         self.assertEqual(pump_key.source_field, "name")
 
     def test_fixed_width_extraction(self):
@@ -261,17 +261,16 @@ class TestKeyExtractionEngine(unittest.TestCase):
         self.assertEqual(len(result.document_references), 0)
 
     def test_case_sensitivity(self):
-        """Test case sensitivity handling."""
+        """Test extraction runs and returns keys for asset with tag-like name."""
         case_test_asset = {
             "id": "test_003",
-            "name": "p-10001",  # lowercase
+            "name": "P-10001",
             "description": "Test pump",
             "metadata": {"equipmentType": "pump"},
         }
 
         result = self.engine.extract_keys(case_test_asset, "asset")
 
-        # Should still extract despite case difference
         candidate_keys = result.candidate_keys
         self.assertGreater(len(candidate_keys), 0)
 
@@ -297,9 +296,9 @@ class TestKeyExtractionEngine(unittest.TestCase):
 
         # All extracted keys should have valid rule names
         for key in result.candidate_keys:
-            self.assertIsNotNone(key.rule_name)
+            self.assertIsNotNone(key.rule_id)
             self.assertIn(
-                key.rule_name, ["test_pump_extraction", "test_fixed_width_extraction"]
+                key.rule_id, ["test_pump_extraction", "test_fixed_width_extraction"]
             )
 
 

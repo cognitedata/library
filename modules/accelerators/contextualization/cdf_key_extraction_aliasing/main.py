@@ -17,9 +17,10 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
-# Paths relative to this file (key_extraction_aliasing package dir)
+# Paths relative to this file (cdf_key_extraction_aliasing package dir)
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parent.parent.parent
+# Repo root is one level above modules (library)
+REPO_ROOT = SCRIPT_DIR.parent.parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 # Import our modules
@@ -328,7 +329,7 @@ def _generate_report(
         for key in ext_result.get("candidate_keys", []):
             candidate_keys_by_type[entity_type] += 1
             methods[key.get("method", "unknown")] += 1
-            rules[key.get("rule_name", "unknown")] += 1
+            rules[key.get("rule_id", "unknown")] += 1
             confidence_scores.append(key.get("confidence", 0))
 
         for fk in ext_result.get("foreign_key_references", []):
@@ -1034,7 +1035,7 @@ def main():
                                     if hasattr(k.method, "value")
                                     else k.method
                                 ),
-                                "rule_name": k.rule_name,
+                                "rule_id": k.rule_id,
                             }
                             for k in res.candidate_keys
                         ],
@@ -1048,7 +1049,7 @@ def main():
                                     if hasattr(k.method, "value")
                                     else k.method
                                 ),
-                                "rule_name": k.rule_name,
+                                "rule_id": k.rule_id,
                             }
                             for k in res.foreign_key_references
                         ],
@@ -1062,7 +1063,7 @@ def main():
                                     if hasattr(k.method, "value")
                                     else k.method
                                 ),
-                                "rule_name": k.rule_name,
+                                "rule_id": k.rule_id,
                             }
                             for k in res.document_references
                         ],

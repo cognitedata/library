@@ -1,0 +1,179 @@
+parameters:
+  debug: true
+  verbose: true
+  run_all: true
+  overwrite: false
+  raw_db: "my_raw_database"
+  raw_table_state: "extraction_state_table"
+  raw_table_key: "extracted_keys_table"
+
+data:
+  field_selection_strategy: "merge_all"
+
+  source_views:
+    - view_external_id: "CogniteEquipment"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "description"
+        - "equipmentType"
+        - "manufacturer"
+        - "serialNumber"
+      filters:
+        - operator: "EQUALS"
+          target_property: "equipmentType"
+          values: "Pump"
+          negate: false
+
+    - view_external_id: "CogniteTimeSeries"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "timeseries"
+      batch_size: 50
+      include_properties:
+        - "name"
+        - "description"
+        - "unit"
+      filters:
+        - operator: "IN"
+          target_property: "type"
+          values: ["temperature", "pressure", "flow"]
+          negate: false
+
+    - view_external_id: "CogniteFile"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 75
+      include_properties:
+        - "name"
+        - "mimeType"
+      filters:
+        - operator: "EXISTS"
+          target_property: "uploaded"
+          negate: false
+
+    - view_external_id: "CogniteAsset"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "asset"
+      batch_size: 100
+      include_properties:
+        - "name"
+        - "labels"
+      filters:
+        - operator: "CONTAINSALL"
+          target_property: "labels"
+          values: ["critical", "production"]
+          negate: true
+
+    - view_external_id: "CogniteDocument"
+      view_space: "sp_enterprise_process_industry"
+      view_version: "v1"
+      instance_space: "sp_my_instance_space"
+      entity_type: "file"
+      batch_size: 25
+      include_properties:
+        - "name"
+        - "content"
+      filters:
+        - operator: "SEARCH"
+          target_property: "content"
+          values: "P&ID diagram"
+          negate: false
+
+  extraction_rules:
+    # JSON representation:
+    # [
+    #   {
+    #     "rule_id": "multi_field_extraction",
+    #     "method": "regex",
+    #     "priority": 70,
+    #     "source_fields": [
+    #       {"field_name": "name", "field_type": "string", "required": true, "priority": 1, "role": "target", "separator": null, "max_length": 500, "preprocessing": ["trim", "uppercase"]},
+    #       {"field_name": "description", "field_type": "string", "required": false, "priority": 2, "role": "target", "separator": null, "max_length": 1000, "preprocessing": ["trim"]},
+    #       {"field_name": "metadata.tagIds", "field_type": "array", "required": false, "priority": 3, "role": "target", "separator": ",", "max_length": 2000, "preprocessing": ["trim"]},
+    #       {"field_name": "equipmentType", "field_type": "string", "required": false, "priority": 4, "role": "context", "max_length": 100, "preprocessing": ["trim", "lowercase"]},
+    #       {"field_name": "serialNumber", "field_type": "string", "required": false, "priority": 5, "role": "validation", "max_length": 200, "preprocessing": []}
+    #     ],
+    #     "config": {
+    #       "name": "MULTI_FIELD_EXTRACTION",
+    #       "pattern": "[A-Z]{1,3}[-_]?\\d{2,6}[A-Z]?",
+    #       "regex_options": {"multiline": true, "dotall": true, "ignore_case": true, "unicode": true},
+    #       "validation_pattern": "^[A-Z]{1,3}[-_]?\\d{2,6}[A-Z]?$",
+    #       "capture_groups": null,
+    #       "reassemble_format": null,
+    #       "max_matches_per_field": 100,
+    #       "early_termination": false
+    #     }
+    #   }
+    # ]
+    
+    - rule_id: "multi_field_extraction"
+      method: "regex"
+      priority: 70
+      source_fields:
+        - field_name: "name"
+          field_type: "string"
+          required: true
+          priority: 1
+          role: "target"
+          separator: null
+          max_length: 500
+          preprocessing:
+            - "trim"
+            - "uppercase"
+        - field_name: "description"
+          field_type: "string"
+          required: false
+          priority: 2
+          role: "target"
+          separator: null
+          max_length: 1000
+          preprocessing:
+            - "trim"
+        - field_name: "metadata.tagIds"
+          field_type: "array"
+          required: false
+          priority: 3
+          role: "target"
+          separator: ","
+          max_length: 2000
+          preprocessing:
+            - "trim"
+        - field_name: "equipmentType"
+          field_type: "string"
+          required: false
+          priority: 4
+          role: "context"
+          max_length: 100
+          preprocessing:
+            - "trim"
+            - "lowercase"
+        - field_name: "serialNumber"
+          field_type: "string"
+          required: false
+          priority: 5
+          role: "validation"
+          max_length: 200
+          preprocessing: []
+      config:
+        name: "MULTI_FIELD_EXTRACTION"
+        pattern: "[A-Z]{1,3}[-_]?\\d{2,6}[A-Z]?"
+        regex_options:
+          multiline: true
+          dotall: true
+          ignore_case: true
+          unicode: true
+        validation_pattern: "^[A-Z]{1,3}[-_]?\\d{2,6}[A-Z]?$"
+        capture_groups: null
+        reassemble_format: null
+        max_matches_per_field: 100
+        early_termination: false

@@ -2,6 +2,12 @@ import re
 from typing import Any, Dict, Optional
 
 from ...utils.DataStructures import *
+from ...utils.confidence import compute_fixed_width_confidence
+from ...utils.fixed_width_utils import (
+    convert_fixed_width_pattern_to_regex,
+    validate_field_type,
+)
+from ...utils.rule_utils import common_extracted_key_attrs, get_config, get_rule_id
 from .ExtractionMethodHandler import ExtractionMethodHandler
 
 
@@ -16,11 +22,11 @@ class FixedWidthExtractionHandler(ExtractionMethodHandler):
             return []
 
         self.logger.verbose(
-            "DEBUG", f"Fixed width extraction for rule '{rule.name}' on text '{text}'"
+            "DEBUG", f"Fixed width extraction for rule '{get_rule_id(rule)}' on text '{text}'"
         )
 
         extracted_keys = []
-        config = rule.config
+        config = get_config(rule)
 
         # Get field definitions (legacy format) or positions (new format)
         field_definitions = config.get("field_definitions", [])
@@ -32,7 +38,7 @@ class FixedWidthExtractionHandler(ExtractionMethodHandler):
         if not field_definitions and not positions:
             self.logger.verbose(
                 "WARNING",
-                f"No field definitions or positions found for fixed width rule '{rule.name}'",
+                f"No field definitions or positions found for fixed width rule '{get_rule_id(rule)}'",
             )
             return []
 
@@ -126,11 +132,11 @@ class FixedWidthExtractionHandler(ExtractionMethodHandler):
         extracted_keys = []
 
         # First, try to match the pattern if it exists
-        pattern = rule.pattern
+        pattern = getattr(rule, "pattern", None) or (rule.get("pattern") if isinstance(rule, dict) else None)
         # Only validate pattern if it exists and field_definitions are provided
         if pattern:
             # Convert pattern to regex for validation
-            regex_pattern = self._convert_fixed_width_pattern_to_regex(pattern)
+            regex_pattern = convert_fixed_width_pattern_to_regex(pattern)
             # If conversion fails or returns None, skip pattern validation
             if regex_pattern:
                 match = re.match(regex_pattern, line)
@@ -176,28 +182,22 @@ class FixedWidthExtractionHandler(ExtractionMethodHandler):
 
             # Validate field type if specified
             if field_value and field_type != "unknown":
-                if not self._validate_field_type(field_value, field_type):
+                if not validate_field_type(field_value, field_type):
                     continue
 
             if field_value:
-                confidence = self._calculate_fixed_width_confidence(
-                    field_value, field_type, required
+                confidence = compute_fixed_width_confidence(
+                    field_value, field_type, required, validate_fn=validate_field_type
                 )
 
-                # Blacklist: set confidence to 0.0 if extracted value contains any blacklisted keyword
-                blacklist_keywords = (context or {}).get("blacklist_keywords") or []
-                if blacklist_keywords and any(
-                    kw.lower() in field_value.lower() for kw in blacklist_keywords
-                ):
-                    confidence = 0.0
-
+                common = common_extracted_key_attrs(rule)
                 extracted_key = ExtractedKey(
                     value=field_value,
-                    extraction_type=rule.extraction_type,
+                    extraction_type=common["extraction_type"],
                     source_field=field_name,
                     confidence=confidence,
-                    method=rule.method,
-                    rule_name=rule.name,
+                    method=common["method"],
+                    rule_id=common["rule_id"],
                     metadata={
                         "start_position": start_pos,
                         "end_position": end_pos,
@@ -209,102 +209,6 @@ class FixedWidthExtractionHandler(ExtractionMethodHandler):
                 extracted_keys.append(extracted_key)
 
         return extracted_keys
-
-    def _convert_fixed_width_pattern_to_regex(self, pattern: str) -> Optional[str]:
-        """Convert fixed width pattern to regex for validation."""
-        try:
-            # Handle patterns like "P{position:0,length:1}\d{position:1,length:3}[A-Z]{position:4,length:1}"
-            # Convert to regex like "P\d{3}[A-Z]?"
-
-            self.logger.verbose("DEBUG", f"Converting fixed width pattern: {pattern}")
-
-            # Extract position and length information
-            position_matches = re.findall(r"\{position:(\d+),length:(\d+)\}", pattern)
-
-            # Build regex pattern by replacing position specifications with proper regex
-            regex_pattern = pattern
-
-            # Replace each position specification with appropriate regex
-            for i, (pos, length) in enumerate(position_matches):
-                pos_int = int(pos)
-                length_int = int(length)
-
-                # Find the character class before this position spec
-                before_pos = pattern[
-                    : pattern.find(f"{{position:{pos},length:{length}}}")
-                ]
-                char_class = before_pos[-1] if before_pos else ""
-
-                if char_class == "d":
-                    # Replace \d{position:x,length:y} with \d{y}
-                    regex_pattern = regex_pattern.replace(
-                        f"\\d{{position:{pos},length:{length}}}", f"\\d{{{length}}}"
-                    )
-                elif char_class in "[]":
-                    # Handle character classes like [A-Z]{position:x,length:y}
-                    char_class_start = before_pos.rfind("[")
-                    if char_class_start != -1:
-                        char_class_content = before_pos[char_class_start:]
-                        regex_pattern = regex_pattern.replace(
-                            f"{char_class_content}{{position:{pos},length:{length}}}",
-                            f"{char_class_content}{{{length}}}",
-                        )
-                else:
-                    # Handle literal characters like P{position:x,length:y}
-                    # For literal characters, just use the character repeated if length > 1
-                    if length_int == 1:
-                        regex_pattern = regex_pattern.replace(
-                            f"{char_class}{{position:{pos},length:{length}}}",
-                            char_class,
-                        )
-                    else:
-                        regex_pattern = regex_pattern.replace(
-                            f"{char_class}{{position:{pos},length:{length}}}",
-                            f"{char_class}{{{length}}}",
-                        )
-
-            # Clean up any remaining position specifications
-            regex_pattern = re.sub(r"\{position:\d+,length:\d+\}", "", regex_pattern)
-
-            # Convert escaped characters
-            regex_pattern = regex_pattern.replace("\\d", r"\d")
-
-            self.logger.verbose("DEBUG", f"Converted to regex pattern: {regex_pattern}")
-
-            return regex_pattern
-        except Exception as e:
-            self.logger.verbose(
-                "WARNING", f"Failed to convert pattern '{pattern}' to regex: {e}"
-            )
-            return None
-
-    def _validate_field_type(self, value: str, field_type: str) -> bool:
-        """Validate field value against expected type."""
-        if field_type == "equipment_type":
-            return value.isalpha() and len(value) <= 3
-        elif field_type == "number":
-            return value.isdigit()
-        elif field_type == "suffix":
-            return value.isalnum() and len(value) <= 2
-        elif field_type == "instrument_type":
-            return value.isalpha() and len(value) <= 4
-        return True
-
-    def _calculate_fixed_width_confidence(
-        self, value: str, field_type: str, required: bool
-    ) -> float:
-        """Calculate confidence score for fixed width extraction."""
-        base_confidence = 0.9  # Fixed width parsing has high base confidence
-
-        # Adjust based on field type validation
-        if self._validate_field_type(value, field_type):
-            base_confidence += 0.05
-
-        # Adjust based on required field
-        if required:
-            base_confidence += 0.05
-
-        return min(base_confidence, 1.0)
 
     def _reconstruct_complete_tags(
         self, extracted_keys: List[ExtractedKey], rule: ExtractionRule
@@ -341,15 +245,16 @@ class FixedWidthExtractionHandler(ExtractionMethodHandler):
 
             # Create a new extracted key for the complete tag
             if complete_tag:
+                common = common_extracted_key_attrs(rule)
                 reconstructed_key = ExtractedKey(
                     value=complete_tag,
-                    extraction_type=rule.extraction_type,
+                    extraction_type=common["extraction_type"],
                     source_field=sorted_keys[0].source_field,
                     confidence=min(
                         k.confidence for k in sorted_keys
                     ),  # Use minimum confidence
-                    method=rule.method,
-                    rule_name=rule.name,
+                    method=common["method"],
+                    rule_id=common["rule_id"],
                     metadata={
                         "reconstructed": True,
                         "component_keys": [k.value for k in sorted_keys],

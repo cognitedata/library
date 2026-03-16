@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "entity": {
+        "id": "asset_tag_BLO_BAY_1_SEC_800_GLY_ETH_Temperature_Element_TE_1226",
+        "externalId": "asset_tag_BLO_BAY_1_SEC_800_GLY_ETH_Temperature_Element_TE_1226",
+        "name": "TE-1226",
+        "description": "Temperature Element TE-1226 for Glycol Ethers in Section 800 of Bayport 1 at Bayport Choate",
+        "tags": [
+          "asset_tag"
+        ]
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "asset_tag_BLO_BAY_1_SEC_800_GLY_ETH_Temperature_Element_TE_1226",
+        "entity_type": "asset",
+        "candidate_keys": [],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {
+          "extraction_timestamp": "2026-02-27T11:26:05.917447",
+          "total_candidate_keys": 0,
+          "total_foreign_keys": 0,
+          "total_document_references": 0,
+          "validation_config": 

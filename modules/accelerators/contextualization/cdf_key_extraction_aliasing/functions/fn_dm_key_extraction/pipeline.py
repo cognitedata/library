@@ -15,6 +15,7 @@ from cognite.extractorutils.uploader import RawUploadQueue
 
 from .common.logger import CogniteFunctionLogger
 from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
+from .services.ApplyService import GeneralApplyService
 
 logger = None  # Use CogniteFunctionLogger directly
 
@@ -56,8 +57,6 @@ def key_extraction(
             raw_table_key = cdf_config.parameters.raw_table_key
             raw_table_state = cdf_config.parameters.raw_table_state
             overwrite = cdf_config.parameters.overwrite
-            run_all = cdf_config.parameters.run_all
-            debug = cdf_config.parameters.debug
 
             logger.debug(
                 f"Using CDF format: raw_db={raw_db}, raw_table_key={raw_table_key}"
@@ -68,9 +67,9 @@ def key_extraction(
                 cdf_client=client, max_queue_size=500000, trigger_log_level="INFO"
             )
 
-            # Get entities from source views
+            # Get entities from source view
             entities_source_fields = _get_target_entities_cdf(
-                client, cdf_config, logger, overwrite, raw_db, raw_table_key
+                client, cdf_config, logger
             )
 
         else:
@@ -91,25 +90,16 @@ def key_extraction(
             # Extract keys
             result = engine.extract_keys(entity, entity_type)
 
-            # Store results organized by field_name with extraction type metadata
-            keys = {}
-            for key in result.candidate_keys:
-                field_name = key.source_field
-                if field_name not in keys:
-                    keys[field_name] = {}
-                keys[field_name][key.value] = {
-                    "confidence": key.confidence,
-                    "extraction_type": key.extraction_type.value,
-                }
-
-            # Store entity metadata including view information
+            # Store entity metadata with candidate_keys list (for ApplyService and rule_id grouping)
             entity_metadata = {
-                "keys": keys,
+                "keys": result.candidate_keys,
                 "view_space": entity_fields.get("view_space"),
                 "view_external_id": entity_fields.get("view_external_id"),
                 "view_version": entity_fields.get("view_version"),
                 "instance_space": entity_fields.get("instance_space"),
                 "entity_type": entity_type,
+                "resource_property": cdf_config.data.source_view.resource_property if cdf_config else None,
+                "space": cdf_config.data.source_view.instance_space if cdf_config else entity_fields.get("instance_space"),
             }
             entities_keys_extracted[entity_id] = entity_metadata
             keys_extracted += len(result.candidate_keys)
@@ -118,27 +108,38 @@ def key_extraction(
             f"Extracted {keys_extracted} keys from {len(entities_keys_extracted)} entities"
         )
 
-        # Upload to RAW if using CDF format
+        # Upload to RAW if using CDF format (group by rule_id, one table per rule)
         if use_cdf_format:
-            # Ensure tables exist
-            _create_table_if_not_exists(client, raw_db, raw_table_key, logger)
             _create_table_if_not_exists(client, raw_db, raw_table_state, logger)
-
-            # Upload keys organized by field_name
+            results_by_rule = {}
             for ext_id, entity_metadata in entities_keys_extracted.items():
-                field_keys = entity_metadata.get("keys", {})
-                if field_keys:
-                    columns = {}
-                    for field_name, keys_dict in field_keys.items():
-                        # Convert dict of {key: {confidence, extraction_type}} to list format expected by RAW
-                        # Column names use field_name (e.g., "NAME", "DESCRIPTION")
-                        columns[field_name.upper()] = list(keys_dict.keys())
-
-                    new_row = Row(key=ext_id, columns=columns)
+                field_keys = entity_metadata.get("keys", [])
+                for key in field_keys:
+                    rule_id = key.rule_id
+                    if rule_id not in results_by_rule:
+                        results_by_rule[rule_id] = {}
+                    if ext_id not in results_by_rule[rule_id]:
+                        results_by_rule[rule_id][ext_id] = {
+                            "value": [key.value],
+                            "extraction_type": key.extraction_type.value if hasattr(key.extraction_type, "value") else str(key.extraction_type),
+                            "source_field": key.source_field,
+                            "confidence": key.confidence,
+                            "method": key.method.value if hasattr(key.method, "value") else str(key.method),
+                            "metadata": key.metadata,
+                            "resource_property": entity_metadata.get("resource_property"),
+                        }
+                    else:
+                        results_by_rule[rule_id][ext_id]["value"].append(key.value)
+            for rule_id, entities_for_rule in results_by_rule.items():
+                rule_table_name = f"{raw_table_key}_{rule_id}"
+                _create_table_if_not_exists(client, raw_db, rule_table_name, logger)
+                for ext_id, rule_results in entities_for_rule.items():
+                    new_row = Row(key=ext_id, columns=rule_results)
                     raw_uploader.add_to_upload_queue(
-                        database=raw_db, table=raw_table_key, raw_row=new_row
+                        database=raw_db,
+                        table=rule_table_name,
+                        raw_row=new_row,
                     )
-
             logger.debug(f"Uploading {raw_uploader.upload_queue_size} rows to RAW")
             try:
                 raw_uploader.upload()
@@ -146,6 +147,14 @@ def key_extraction(
             except Exception as e:
                 logger.error(f"Failed to upload rows to RAW: {e}")
                 raise
+
+        # Apply keys to nodes if configured
+        if use_cdf_format and cdf_config and cdf_config.parameters.apply:
+            try:
+                apply_service = GeneralApplyService(client, cdf_config, logger)
+                apply_service.run()
+            except Exception as e:
+                logger.error(f"Apply service failed: {e}")
 
         # Update pipeline run status
         if use_cdf_format and client:
@@ -205,36 +214,35 @@ def _get_target_entities_cdf(
     client: CogniteClient,
     config: Any,
     logger: Any,
-    overwrite: bool,
-    raw_db: str,
-    raw_table_key: str,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Get entities from CDF data model views.
 
     Args:
         client: CogniteClient instance
-        config: CDF Config object
+        config: CDF Config object (with data.source_view or data.source_views)
         logger: Logger instance
-        overwrite: Whether to overwrite existing keys
-        raw_db: RAW database name
-        raw_table_key: RAW table name for keys
 
     Returns:
         Dictionary mapping entity external IDs to their field values
     """
     entities_source = {}
+    source_views = getattr(config.data, "source_views", None) or (
+        [config.data.source_view] if getattr(config.data, "source_view", None) else []
+    )
+    if not source_views:
+        logger.error("No Source View(s) defined for key extraction")
+        raise ValueError("No Source View(s) defined for key extraction")
 
-    if not config.data.source_views:
-        logger.error("No Source Views defined for key extraction")
-        raise ValueError("No Source Views defined for key extraction")
-
+    raw_db = config.parameters.raw_db
+    raw_table_key = config.parameters.raw_table_key
+    overwrite = config.parameters.overwrite
     excluded_entities = []
     if not overwrite:
         excluded_entities = _read_table_keys(client, raw_db, raw_table_key)
         logger.debug(f"Excluding {len(excluded_entities)} existing entities")
 
-    for entity_view_config in config.data.source_views:
+    for entity_view_config in source_views:
         entity_view_id = entity_view_config.as_view_id()
 
         logger.debug(f"Querying view: {entity_view_id}")
@@ -282,31 +290,23 @@ def _get_target_entities_cdf(
                 for rule in config.data.extraction_rules:
                     source_fields = rule.source_fields
                     if not isinstance(source_fields, list):
-                        source_fields = [source_fields]
-
+                        source_fields = [source_fields] if source_fields else []
                     for source_field in source_fields:
-                        field_name = source_field.field_name
+                        field_name = getattr(source_field, "field_name", source_field)
                         field_value = entity_props.get(field_name)
-
-                        if field_value is None:
-                            if source_field.required:
-                                logger.verbose(
-                                    "WARNING",
-                                    f"Missing required field '{field_name}' in entity: {entity_external_id}",
-                                )
-                        else:
-                            # Apply preprocessing
-                            if (
-                                hasattr(source_field, "preprocessing")
-                                and source_field.preprocessing
-                            ):
+                        if field_value is not None:
+                            if hasattr(source_field, "preprocessing") and source_field.preprocessing:
                                 field_value = _apply_preprocessing(
-                                    field_value, source_field.preprocessing
+                                    str(field_value), source_field.preprocessing
                                 )
-
                             entities_source[entity_external_id][
-                                field_name
+                                f"{rule.name}_{field_name}"
                             ] = field_value
+                        elif getattr(source_field, "required", False):
+                            logger.verbose(
+                                "WARNING",
+                                f"Missing required field '{field_name}' in entity: {entity_external_id}",
+                            )
 
             logger.info(
                 f"Processed {len(entities_source)} entities from view: {entity_view_id}"

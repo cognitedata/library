@@ -1,0 +1,270 @@
+externalId: ctx_aliasing_default
+config:
+  parameters: {debug: true, run_all: true, overwrite: true, raw_db: db_tag_aliasing, raw_table_state: tag_aliasing_state,
+    raw_table_aliases: default_aliases}
+  data:
+    aliasing_rules:
+    - name: normalize_separators_to_hyphen
+      type: character_substitution
+      description: Convert underscores, spaces, slashes, and periods to hyphens for standardization
+      enabled: true
+      priority: 10
+      preserve_original: true
+      config:
+        substitutions: {_: '-', ' ': '-', /: '-', .: '-'}
+        cascade_substitutions: false
+        max_aliases_per_input: 20
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: separator_variants_bidirectional
+      type: character_substitution
+      description: Generate bidirectional separator variants (hyphen, underscore, space, none)
+      enabled: true
+      priority: 11
+      preserve_original: true
+      config:
+        substitutions:
+          '-': ['_', ' ', '']
+          '_': ['-', ' ', '']
+          ' ': ['-', '_', '']
+        cascade_substitutions: false
+        max_aliases_per_input: 25
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: add_site_prefix
+      type: prefix_suffix
+      description: Add site prefixes based on context (Plant_A -> PA-, Plant_B -> PB-)
+      enabled: true
+      priority: 20
+      preserve_original: true
+      config:
+        operation: add_prefix
+        context_mapping:
+          Plant_A: {prefix: PA-}
+          Plant_B: {prefix: PB-}
+          Plant_C: {prefix: PC-}
+        resolve_from: site
+        conditions: {missing_prefix: true}
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: add_unit_prefix
+      type: prefix_suffix
+      description: Add unit prefixes based on context
+      enabled: true
+      priority: 21
+      preserve_original: true
+      config:
+        operation: add_prefix
+        context_mapping:
+          Unit_100: {prefix: U100-}
+          Unit_200: {prefix: U200-}
+          Unit_300: {prefix: U300-}
+        resolve_from: unit
+        conditions: {missing_prefix: true}
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: add_equipment_type_suffix
+      type: prefix_suffix
+      description: Add equipment type suffix to tags
+      enabled: true
+      priority: 22
+      preserve_original: true
+      config:
+        operation: add_suffix
+        context_mapping:
+          pump: {suffix: -PUMP}
+          valve: {suffix: -VALVE}
+          tank: {suffix: -TANK}
+          compressor: {suffix: -COMP}
+        resolve_from: equipment_type
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: pattern_based_replacement
+      type: regex_substitution
+      description: Replace patterns using regex (e.g., P-101 -> PUMP-101)
+      enabled: true
+      priority: 25
+      preserve_original: true
+      config:
+        patterns:
+        - {pattern: ^P-(\d+)$, replacement: PUMP-\\1}
+        - {pattern: ^V-(\d+)$, replacement: VALVE-\\1}
+        - {pattern: ^T-(\d+)$, replacement: TANK-\\1}
+        - {pattern: ^C-(\d+)$, replacement: COMPRESSOR-\\1}
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: equipment_type_expansion
+      type: equipment_type_expansion
+      description: Expand equipment type abbreviations to full names
+      enabled: true
+      priority: 30
+      preserve_original: true
+      config:
+        type_mappings:
+          P: [PUMP, PMP]
+          V: [VALVE, VLV]
+          T: [TANK, TNK]
+          C: [COMPRESSOR, COMP]
+          E: [EXCHANGER, EXCH]
+          R: [REACTOR, REAC]
+          F: [FILTER, FLT]
+          H: [HEATER, HTR]
+        format_templates: ['{type}-{tag}', '{type}_{tag}']
+        auto_detect: true
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: generate_instruments
+      type: related_instruments
+      description: Generate related instrument tags for equipment
+      enabled: true
+      priority: 40
+      preserve_original: true
+      config:
+        applicable_equipment_types: [pump, compressor, tank, reactor]
+        instrument_types:
+        - prefix: FIC
+          description: Flow Indicator Controller
+          applicable_to: [pump, compressor]
+        - prefix: PIC
+          description: Pressure Indicator Controller
+          applicable_to: [pump, compressor, tank]
+        - prefix: TIC
+          description: Temperature Indicator Controller
+          applicable_to: [pump, reactor]
+        - prefix: LIC
+          description: Level Indicator Controller
+          applicable_to: [tank, reactor]
+        format_rules: {separator: '-', case: upper}
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: hierarchical_expansion
+      type: hierarchical_expansion
+      description: Generate hierarchical tag expansions (site-unit-equipment)
+      enabled: true
+      priority: 50
+      preserve_original: true
+      config:
+        hierarchy_levels:
+        - {level: equipment, format: '{site}-{unit}-{equipment}'}
+        generate_partial_paths: true
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: equipment_tag_expansion
+      type: pattern_based_expansion
+      description: Expand equipment tag patterns with variations
+      enabled: true
+      priority: 52
+      preserve_original: true
+      config:
+        patterns:
+        - pattern: ^([A-Z]{1,2})([-_]?)(\d{2,6})([A-Z]?)$
+          example_formats: ['{type}{separator}{number}{suffix}', '{type}{number}{suffix}', '{type}{separator}{number}']
+        format_adaptation: true
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: hierarchical_tag_expansion
+      type: pattern_based_expansion
+      description: Expand hierarchical tag patterns (site-unit-equipment)
+      enabled: true
+      priority: 53
+      preserve_original: true
+      config:
+        patterns:
+        - pattern: ^([A-Z]{2,4})([-_])(\d{3})([-_])([A-Z]{1,2})([-_]?)(\d{2,4})([A-Z]?)$
+          example_formats: ['{site}{separator1}{unit}{separator2}{type}{separator3}{number}{suffix}', '{site}{separator1}{unit}{separator2}{type}{number}{suffix}',
+            '{site}{separator1}{unit}{separator2}{type}{separator3}{number}']
+        format_adaptation: true
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: pattern_recognition_aliases
+      type: pattern_recognition
+      description: Generate aliases based on pattern recognition from tag pattern library
+      enabled: false
+      priority: 85
+      preserve_original: true
+      config:
+        pattern_categories: [equipment_types, instrument_types]
+        similarity_threshold: 0.8
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment]
+    - name: generate_separator_variants
+      type: character_substitution
+      description: Generate multiple separator variants for comprehensive matching
+      enabled: true
+      priority: 12
+      preserve_original: true
+      config:
+        substitutions:
+          '-': [_, ' ', '']
+        cascade_substitutions: false
+        max_aliases_per_input: 25
+        bidirectional: false
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment, timeseries]
+    - name: isa_instrument_expansion
+      type: pattern_based_expansion
+      description: Expand ISA standard instrument tag patterns
+      enabled: true
+      priority: 51
+      preserve_original: true
+      config:
+        patterns:
+        - pattern: ^([A-Z])([A-Z])([A-Z])(-?)(\d{2,4})([A-Z]?)$
+          example_formats: ['{prefix1}{prefix2}{prefix3}{separator}{number}{suffix}', '{prefix1}{prefix2}{prefix3}{separator}{number}']
+          explanations: {prefix1: 'Measured/Initiated variable (F=Flow, P=Pressure, T=Temperature, L=Level)', prefix2: 'Modifier
+              (I=Indicator, C=Controller, T=Transmitter, A=Alarm)', prefix3: 'Function (C=Control, A=Alarm, S=Switch)'}
+        format_adaptation: true
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment, timeseries]
+    - name: case_variants
+      type: case_transformation
+      description: Generate upper and lower case variants
+      enabled: true
+      priority: 70
+      preserve_original: true
+      config:
+        operations: [upper, lower]
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment, timeseries]
+    - name: leading_zero_normalization
+      type: leading_zero_normalization
+      description: Normalize leading zeros in numeric tags
+      enabled: true
+      priority: 75
+      preserve_original: true
+      config: {preserve_single_zero: true, min_length: 4}
+      conditions: {}
+      scope_filters:
+        entity_type: [asset, equipment, timeseries]
+    - name: document_aliases
+      type: document_aliases
+      description: Generate aliases for P&ID and drawing documents, including removing revision numbers from file names
+      enabled: true
+      priority: 60
+      preserve_original: true
+      config:
+        pid_rules: {remove_ampersand: true, add_spaces: true, revision_variants: true}
+        drawing_rules:
+          zero_padding: {enabled: true, target_length: 6}
+          sheet_variants: true
+        file_rules:
+          remove_revision_numbers: true
+      conditions: {}
+      scope_filters:
+        entity_type: [file]
+    validation: {max_aliases_per_tag: 50, min_alias_length: 2, max_alias_length: 50, allowed_characters: r"A-Za-z0-9-_/. "}

@@ -51,8 +51,16 @@ class SourceFieldParameter(BaseModel):
         ...,
         description="Name or path to the metadata field (e.g., 'description', 'metadata.tagIds').",
     )
+    table_id: Optional[str] = Field(
+        None,
+        description="Identifier for the source of the field if contained in RAW table (e.g., 'cdf', 'external_api').",
+    )
+    join_fields: Optional[Dict[str, str]] = Field(
+        None,
+        description="Mapping of join fields between view and table (e.g., {'view_field': 'sourceId', 'table_field': 'sourceId'}).",
+    )
     field_type: str = Field(
-        ..., description="Data type of the field (e.g., 'string', 'array', 'object')."
+        "string", description="Data type of the field (e.g., 'string', 'array', 'object')."
     )
     required: bool = Field(
         ...,
@@ -63,6 +71,10 @@ class SourceFieldParameter(BaseModel):
     )
     role: FieldRole = Field(
         None, description="Role in extraction: 'target', 'context', 'validation'."
+    )
+    max_length: Optional[int] = Field(
+        None,
+        description="Maximum field length to process (performance) (optional, e.g., 1000).",
     )
 
     # 2. Optional fields are defined next, using None or default_factory
@@ -82,9 +94,10 @@ class ExtractionMethod(Enum):
     """Enumeration of available extraction methods."""
 
     REGEX = "regex"
-    FIXED_WIDTH = "fixed_width"
-    TOKEN_REASSEMBLY = "token_reassembly"
+    FIXED_WIDTH = "fixed width"
+    TOKEN_REASSEMBLY = "token reassembly"
     HEURISTIC = "heuristic"
+    PASSTHROUGH = "passthrough"  # Use entire field value as key (no regex/parsing)
 
 
 class ExtractionType(Enum):
@@ -143,15 +156,20 @@ class ExtractedKey:
         source_field: str,
         confidence: float,
         method: ExtractionMethod,
-        rule_name: str,
+        rule_id: str,
         metadata: Optional[Dict[str, Any]] = None,
     ):
         self.value = value
+        # Normalize to enum if passed as string (e.g. from handlers)
+        if isinstance(extraction_type, str) and extraction_type in [e.value for e in ExtractionType]:
+            extraction_type = ExtractionType(extraction_type)
         self.extraction_type = extraction_type
         self.source_field = source_field
         self._confidence = round(confidence, 2)  # Truncate to 2 decimal places
+        if isinstance(method, str) and method in [e.value for e in ExtractionMethod]:
+            method = ExtractionMethod(method)
         self.method = method
-        self.rule_name = rule_name
+        self.rule_id = rule_id
         self.metadata = metadata if metadata is not None else {}
 
     @property
@@ -168,7 +186,7 @@ class ExtractedKey:
         return (
             f"ExtractedKey(value={self.value!r}, extraction_type={self.extraction_type!r}, "
             f"source_field={self.source_field!r}, confidence={self._confidence}, "
-            f"method={self.method!r}, rule_name={self.rule_name!r})"
+            f"method={self.method!r}, rule_id={self.rule_id!r})"
         )
 
 

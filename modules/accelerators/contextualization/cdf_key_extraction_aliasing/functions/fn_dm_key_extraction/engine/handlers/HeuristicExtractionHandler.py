@@ -4,6 +4,7 @@ import re
 from cognite.client.data_classes.data_modeling.ids import NodeId, ViewId
 
 from ...utils.DataStructures import *
+from ...utils.rule_utils import common_extracted_key_attrs, get_config, get_rule_id
 from .ExtractionMethodHandler import ExtractionMethodHandler
 
 
@@ -18,13 +19,13 @@ class HeuristicExtractionHandler(ExtractionMethodHandler):
             return []
 
         extracted_keys = []
-        config = rule.config
+        config = get_config(rule)
 
         # Get heuristic strategies
         strategies = config.get("heuristic_strategies", [])
         if not strategies:
             self.logger.verbose(
-                "WARNING", f"No heuristic strategies found for rule '{rule.name}'"
+                "WARNING", f"No heuristic strategies found for rule '{get_rule_id(rule)}'"
             )
             return []
 
@@ -93,21 +94,16 @@ class HeuristicExtractionHandler(ExtractionMethodHandler):
             # Normalize score
             adjusted_score = max(0, min(1, adjusted_score))
 
-            # Blacklist: set confidence to 0.0 if extracted value contains any blacklisted keyword
-            blacklist_keywords = (context or {}).get("blacklist_keywords") or []
-            if blacklist_keywords and any(
-                kw.lower() in candidate.lower() for kw in blacklist_keywords
-            ):
-                adjusted_score = 0.0
-
-            if adjusted_score >= rule.min_confidence:
+            min_confidence = getattr(rule, "min_confidence", 0.3)
+            if adjusted_score >= min_confidence:
+                common = common_extracted_key_attrs(rule)
                 extracted_key = ExtractedKey(
                     value=candidate,
-                    extraction_type=rule.extraction_type,
+                    extraction_type=common["extraction_type"],
                     source_field="heuristic",
                     confidence=adjusted_score,
-                    method=rule.method,
-                    rule_name=rule.name,
+                    method=common["method"],
+                    rule_id=common["rule_id"],
                     metadata={
                         "base_score": base_score,
                         "adjusted_score": adjusted_score,
@@ -194,15 +190,18 @@ class HeuristicExtractionHandler(ExtractionMethodHandler):
                     context.get("view_version", ""),
                 )
                 instances_result = None
+                client = (context or {}).get("client")
                 try:
-                    sources = [sources]
-                    instances_result = (
-                        self.client.data_modeling.instances.retrieve_nodes(
-                            nodes=current_node_id, sources=sources
+                    if client:
+                        sources = [sources]
+                        instances_result = (
+                            client.data_modeling.instances.retrieve_nodes(
+                                nodes=current_node_id, sources=sources
+                            )
                         )
-                    )
-
-                    corpus = flatten_dict_values(instances_result.dump())
+                        corpus = flatten_dict_values(instances_result.dump())
+                    else:
+                        corpus = [text]
                 except Exception as e:
                     self.logger.verbose(
                         "ERROR",

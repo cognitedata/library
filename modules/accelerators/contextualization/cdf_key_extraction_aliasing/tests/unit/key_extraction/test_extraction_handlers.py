@@ -22,6 +22,9 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.handlers import (
+    PassthroughExtractionHandler,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
     ExtractedKey,
     ExtractionMethod,
@@ -189,6 +192,39 @@ class TestExtractionMethods(unittest.TestCase):
         result = handler.extract(test_text, rule)
 
         self.assertIsInstance(result, list)
+
+    def test_passthrough_extraction_handler(self):
+        """Test passthrough extraction handler uses entire field value as key."""
+        handler = PassthroughExtractionHandler()
+
+        rule = ExtractionRule(
+            name="test_passthrough",
+            description="Use field value as-is",
+            extraction_type=ExtractionType.CANDIDATE_KEY,
+            method=ExtractionMethod.PASSTHROUGH,
+            pattern="",
+            priority=50,
+            enabled=True,
+            min_confidence=0.95,
+            case_sensitive=False,
+            source_fields=[{"field_name": "name", "required": True}],
+            config={},
+        )
+
+        test_text = "  P-10001-A  "
+        result = handler.extract(test_text, rule)
+
+        self.assertIsInstance(result, list)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].value, "P-10001-A")
+        self.assertEqual(result[0].confidence, 0.95)
+        self.assertEqual(result[0].method, ExtractionMethod.PASSTHROUGH)
+        self.assertTrue(result[0].metadata.get("passthrough"))
+
+        empty_result = handler.extract("", rule)
+        self.assertEqual(len(empty_result), 0)
+        whitespace_result = handler.extract("   ", rule)
+        self.assertEqual(len(whitespace_result), 0)
 
 
 class TestExtractionRuleTypes(unittest.TestCase):
@@ -512,12 +548,12 @@ class TestRulePriorityAndOrdering(unittest.TestCase):
         self.assertGreater(len(result.candidate_keys), 0)
 
         # Check that both rule names appear in the results
-        rule_names = [key.rule_name for key in result.candidate_keys]
+        rule_ids = [key.rule_id for key in result.candidate_keys]
         self.assertIn(
-            "high_priority_rule", rule_names, "Should contain high priority rule"
+            "high_priority_rule", rule_ids, "Should contain high priority rule"
         )
         self.assertIn(
-            "low_priority_rule", rule_names, "Should contain low priority rule"
+            "low_priority_rule", rule_ids, "Should contain low priority rule"
         )
 
     def test_disabled_rules(self):
@@ -530,9 +566,9 @@ class TestRulePriorityAndOrdering(unittest.TestCase):
         result = engine.extract_keys(test_asset, "asset")
 
         # Only enabled rules should process
-        rule_names = [key.rule_name for key in result.candidate_keys]
-        self.assertNotIn("low_priority_rule", rule_names)
-        self.assertIn("high_priority_rule", rule_names)
+        rule_ids = [key.rule_id for key in result.candidate_keys]
+        self.assertNotIn("low_priority_rule", rule_ids)
+        self.assertIn("high_priority_rule", rule_ids)
 
 
 class TestValidationAndFiltering(unittest.TestCase):

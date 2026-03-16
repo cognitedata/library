@@ -14,6 +14,13 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
+# Shared rule normalization (used by both Pydantic and dict paths)
+try:
+    from .utils.rule_utils import get_extraction_type_from_rule, normalize_method
+except ImportError:
+    get_extraction_type_from_rule = None
+    normalize_method = None
+
 # Import CDF Config model internally (not exposed to users)
 try:
     from .config import Config, load_config_parameters
@@ -53,22 +60,25 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
 
 
 def _convert_extraction_rule(cdf_rule: Any) -> Dict[str, Any]:
-    """Convert a CDF ExtractionRuleConfig to engine format."""
+    """Convert a CDF ExtractionRuleConfig to engine format (canonical method and extraction_type)."""
     try:
+        method_canonical = normalize_method(cdf_rule.method).value if normalize_method else (cdf_rule.method or "regex")
+        extraction_type_canonical = get_extraction_type_from_rule(cdf_rule).value if get_extraction_type_from_rule else "candidate_key"
         engine_rule = {
             "name": cdf_rule.name,
             "priority": cdf_rule.priority,
             "enabled": True,  # Default to enabled
-            "method": cdf_rule.method,
-            "extraction_type": "candidate_key",  # Default
+            "method": method_canonical,
+            "extraction_type": extraction_type_canonical,
             "source_fields": _convert_source_fields(cdf_rule.source_fields),
             "config": {},
         }
 
         # Convert method-specific parameters
         method_params = cdf_rule.method_parameters
+        method_raw = (cdf_rule.method or "").lower().strip()
 
-        if cdf_rule.method == "regex":
+        if method_raw == "regex" or method_canonical == "regex":
             engine_rule["pattern"] = method_params.pattern
             engine_rule["case_sensitive"] = not method_params.regex_options.ignore_case
             engine_rule["min_confidence"] = 0.7  # Default
@@ -121,15 +131,15 @@ def _convert_extraction_rule(cdf_rule: Any) -> Dict[str, Any]:
                     "reassemble_format"
                 ] = method_params.reassemble_format
 
-        elif cdf_rule.method == "fixed width":
+        elif method_raw in ("fixed width", "fixed_width") or method_canonical == "fixed width":
             # Convert fixed width parameters
             engine_rule["config"] = _convert_fixed_width_params(method_params)
 
-        elif cdf_rule.method == "token reassembly":
+        elif method_raw in ("token reassembly", "token_reassembly") or method_canonical == "token reassembly":
             # Convert token reassembly parameters
             engine_rule["config"] = _convert_token_reassembly_params(method_params)
 
-        elif cdf_rule.method == "heuristic":
+        elif method_raw == "heuristic" or method_canonical == "heuristic":
             # Convert heuristic parameters
             engine_rule["config"] = _convert_heuristic_params(method_params)
             engine_rule["min_confidence"] = method_params.scoring.min_confidence
@@ -380,17 +390,21 @@ def _convert_yaml_direct_to_engine_config(
 def _convert_rule_dict_to_engine_format(
     rule_data: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
-    """Convert a rule dictionary directly to engine format without Pydantic."""
+    """Convert a rule dictionary to engine format; outputs canonical method and extraction_type."""
     try:
-        method = rule_data.get("method", "regex")
+        method_raw = rule_data.get("method", "regex")
+        method_canonical = normalize_method(method_raw).value if normalize_method else method_raw
+        extraction_type = (
+            get_extraction_type_from_rule(rule_data).value
+            if get_extraction_type_from_rule
+            else rule_data.get("extraction_type", "candidate_key")
+        )
         engine_rule = {
             "name": rule_data.get("name", "unnamed_rule"),
             "priority": rule_data.get("priority", 100),
             "enabled": True,
-            "method": method,
-            "extraction_type": rule_data.get(
-                "extraction_type", "candidate_key"
-            ),  # Use rule's extraction_type or default to candidate_key
+            "method": method_canonical,
+            "extraction_type": extraction_type,
             "source_fields": _convert_source_fields_dict(
                 rule_data.get("source_fields", [])
             ),
@@ -400,14 +414,10 @@ def _convert_rule_dict_to_engine_format(
             "config": {},
         }
 
-        # Normalize method name (convert "fixed width" -> "fixed_width", "token reassembly" -> "token_reassembly")
-        method_normalized = method.replace(" ", "_")
-        engine_rule["method"] = method_normalized
-
         # Handle method-specific parameters
         params = rule_data.get("parameters", {})
 
-        if method == "regex" or method_normalized == "regex":
+        if method_canonical == "regex":
             engine_rule["pattern"] = params.get("pattern", "")
             engine_rule["case_sensitive"] = not params.get("regex_options", {}).get(
                 "ignore_case", True
@@ -432,18 +442,22 @@ def _convert_rule_dict_to_engine_format(
             if "reassemble_format" in params:
                 engine_rule["config"]["reassemble_format"] = params["reassemble_format"]
 
-        elif method == "fixed width" or method_normalized == "fixed_width":
+        elif method_canonical == "fixed width":
             engine_rule["config"] = _convert_fixed_width_params_dict(params)
 
-        elif method == "token reassembly" or method_normalized == "token_reassembly":
+        elif method_canonical == "token reassembly":
             engine_rule["config"] = _convert_token_reassembly_params_dict(params)
 
-        elif method == "heuristic" or method_normalized == "heuristic":
+        elif method_canonical == "heuristic":
             engine_rule["config"] = _convert_heuristic_params_dict(params)
             if "scoring" in params:
                 engine_rule["min_confidence"] = params["scoring"].get(
                     "min_confidence", 0.7
                 )
+
+        elif method_canonical == "passthrough":
+            engine_rule["config"] = {}
+            engine_rule["min_confidence"] = params.get("min_confidence", 1.0)
 
         return engine_rule
 

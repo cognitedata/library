@@ -495,7 +495,7 @@ def format_extraction_result(
                 "method": key.method.name
                 if hasattr(key.method, "name")
                 else str(key.method),
-                "rule_name": key.rule_name,
+                "rule_id": key.rule_id,
             }
         )
 
@@ -509,7 +509,7 @@ def format_extraction_result(
                 "method": key.method.name
                 if hasattr(key.method, "name")
                 else str(key.method),
-                "rule_name": key.rule_name,
+                "rule_id": key.rule_id,
             }
         )
 
@@ -523,7 +523,7 @@ def format_extraction_result(
                 "method": doc.method.name
                 if hasattr(doc.method, "name")
                 else str(doc.method),
-                "rule_name": doc.rule_name,
+                "rule_id": doc.rule_id,
             }
         )
 
@@ -685,7 +685,7 @@ Examples:
                 print(f"         - Confidence: {key.confidence:.2f}")
                 print(f"         - Method: {key.method.value}")
                 print(f"         - Source Field: {key.source_field}")
-                print(f"         - Rule: {key.rule_name}")
+                print(f"         - Rule: {key.rule_id}")
 
             if result.foreign_key_references:
                 print(
