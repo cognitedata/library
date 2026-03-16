@@ -19,6 +19,7 @@ modules = [
 id = "dp:infield_quickstart"
 title = "Infield Quickstart"
 description = "Accelerate Infield App Configuration"
+canCherryPick = false
 modules = [
     "accelerators/infield_quickstart/cdf_apm_base",
     "accelerators/infield_quickstart/cdf_infield_common",
