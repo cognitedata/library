@@ -1,0 +1,367 @@
+space: "{{space}}"
+externalId: WorkOrderOperation
+name: WorkOrderOperation
+description: SAP work order operation aligned with CogniteOperation standard
+usedFor: node
+properties:
+  functionalLocation:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: functionalLocation
+  routingNo:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: routingNo
+  operation:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: operation
+  operationCounter:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: operationCounter
+  opWctrPlant:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: opWctrPlant
+  opWctr:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: opWctr
+  wctrDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: wctrDesc
+  wctrDiscipline:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: wctrDiscipline
+  longText:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: longText
+  totalCapacity:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: totalCapacity
+  totalCapacity_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: totalCapacity_UOM
+  capacity:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: capacity
+  operatingTime:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: operatingTime
+  operatingTime_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: operatingTime_UOM
+  plannedWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: plannedWork
+  plannedWork_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: plannedWork_UOM
+  plannedPersons:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: plannedPersons
+  duration:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: duration
+  duration_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: duration_UOM
+  actualWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: actualWork
+  actualWork_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: actualWork_UOM
+  criticalWork:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: criticalWork
+  remoteFirst:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: remoteFirst
+  workAboveSeas:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: workAboveSeas
+  ssdCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: ssdCode
+  operationalConsequence:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: operationalConsequence
+  systemCondition:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemCondition
+  barrierCharacteristic:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: barrierCharacteristic
+  earliestStartDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: earliestStartDateTime
+  earliestEndDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: earliestEndDateTime
+  actualStartDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: actualStartDateTime
+  actualEndDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: actualEndDateTime
+  mustStartOn:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: mustStartOn
+  mustEndOn:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: mustEndOn
+  subOperation:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: subOperation
+  wctrID:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: wctrID
+  forecastWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: forecastWork
+  remainingWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: remainingWork
+  systemStatusCode:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemStatusCode
+  systemStatusCodeDesc:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemStatusCodeDesc
+  userStatusCode:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: userStatusCode
+  userStatusCodeDesc:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: userStatusCodeDesc
+  operationDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: operationDesc
+  objectNo:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: objectNo
+constraints:
+  describablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+  sourceablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+  schedulablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+  activityPresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+  operationPresent:
+    constraintType: requires
+    require:
+      space: cdf_idm
+      externalId: CogniteOperation
+      type: container
+indexes:
+  functionalLocation:
+    indexType: btree
+    properties:
+      - functionalLocation
+    bySpace: false
+    cursorable: true
+  wctrDiscipline:
+    indexType: btree
+    properties:
+      - wctrDiscipline
+    bySpace: false
+    cursorable: false
+  operationCounter:
+    indexType: btree
+    properties:
+      - operationCounter
+    bySpace: false
+    cursorable: false
+  actualStartDateTime:
+    indexType: btree
+    properties:
+      - actualStartDateTime
+    bySpace: false
+    cursorable: true
+  actualEndDateTime:
+    indexType: btree
+    properties:
+      - actualEndDateTime
+    bySpace: false
+    cursorable: true
+  objectNo:
+    indexType: btree
+    properties:
+      - objectNo
+    bySpace: false
+    cursorable: false

@@ -1,0 +1,53 @@
+space: "{{space}}"
+externalId: CFIHOS_Infrastructure
+description: A basic physical and organizational structure or facilities (e.g. buildings
+  and roads) needed for the operation of a site.
+properties:
+  CFIHOS_10000177:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: description
+    description: Functional description of the tag
+  CFIHOS_40000585:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: fireSafe
+    description: The standard and classification of the fire rated equipment including
+      valves, firewalls, doors, windows
+  CFIHOS_40000177:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: thermalInsulationClass
+    description: The class of electrical insulation used by a  physical object.
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+    description: Additional properties for the CFIHOS class infrastructure
+constraints:
+  sp_ops_domain_model_Tag:
+    require:
+      space: "{{space}}"
+      externalId: Tag
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

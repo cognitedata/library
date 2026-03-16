@@ -1,0 +1,40 @@
+[project]
+name = "cfihos-cdm-extension"
+version = "1.0.0"
+description = "Package for Generating Views and Containers based off of the CFIHOS standard."
+authors = [
+    {name = "christoffer-hk",email = "christoffer.holm-kjohl@cognite.com"}
+]
+readme = "README.md"
+packages = [
+    { include = ".", from = "src" }
+]
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "cognite-sdk (>=7.89.0,<8.0.0)",
+    "pydantic (>=2.12.4,<3.0.0)",
+    "duckdb (>=1.4.1,<2.0.0)",
+    "polars-lts-cpu (>=1.33.1,<2.0.0)",
+    "ipykernel (>=7.1.0,<8.0.0)",
+    "rich (>=14.2.0,<15.0.0)",
+    "fastexcel (>=0.16.0,<0.17.0)",
+    "pyarrow (>=22.0.0,<23.0.0)",
+    "pandas (>=2.3.3,<3.0.0)",
+    "pyyaml (>=6.0.3,<7.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "ANN", "UP", "S"]
+fixable = ["ALL"]
+unfixable = []

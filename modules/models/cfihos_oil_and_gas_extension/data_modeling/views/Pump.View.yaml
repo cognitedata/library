@@ -1,0 +1,990 @@
+space: '{{space}}'
+externalId: Pump
+name: Pump
+description: A physical object that adds or removes mechanical energy to a fluid,
+  either constantly or periodically.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  area:
+    name: Area
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Physical location on the facility where the equipment is installed
+  facility:
+    name: Facility
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: The facility code of a tagged object
+  parentTag:
+    name: Parent Tag
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: The main Tag number of a system that child Tags are related
+  system:
+    name: System
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code as per the used standard
+  actualFluid:
+    name: Actual Fluid
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000132
+    description: Actual Fluid
+  approvalAuthority:
+    name: Approval Authority
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000111
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  atexCategory:
+    name: ATEX Category
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000009
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  atexExplosiveAtmosphere:
+    name: ATEX Explosive Atmosphere
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000010
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  atexGroup:
+    name: ATEX Group
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000011
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  designPressureMax:
+    name: Design Pressure Max
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535
+    description: The operating pressure the equipment is designed to withstand
+  designPressureMax_UOM:
+    name: Design Pressure Max UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535_UOM
+    description: Design pressure max UOM, true.
+  designTemperatureMax:
+    name: Design Temperature Max
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536
+    description: The maximum temperature which the equipment is designed to withstand
+  designTemperatureMax_UOM:
+    name: Design Temperature Max UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536_UOM
+    description: Design temperature max UOM, true.
+  designTemperatureMin:
+    name: Design Temperature Min
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503
+    description: The minimum temperature which the equipment is designed to withstand
+  designTemperatureMin_UOM:
+    name: Design Temperature Min UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503_UOM
+    description: Design temperature min UOM, true.
+  equipmentIdentifier:
+    name: Equipment Identifier
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000031
+    description: Equipment Identifier
+  exCertificateNumber:
+    name: Ex Certificate Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000109
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  explosionProtection:
+    name: Explosion Protection
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000108
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  gasGroup:
+    name: Gas Group
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specifies the gas group classification of the physical object in
+      accordance to a known standard.
+  hazardousAreaClassificationArea:
+    name: Hazardous Area Classification Area
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Hazardous area zone of the area where the equipment is installed.
+  length:
+    name: Length
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201
+    description: Length
+  length_UOM:
+    name: Length UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201_UOM
+    description: Length UOM, length.
+  manufacturer:
+    name: Manufacturer
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000158
+    description: The original equipment manufacturer of a tagged item
+  modelNumber:
+    name: Model Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000159
+    description: Model identification of the item
+  nominalDiameter:
+    name: Nominal Diameter
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000509
+    description: Something is of a diameter that it is not rated (?)
+  nominalDiameter_UOM:
+    name: Nominal Diameter UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000509_UOM
+    description: Nominal diameter UOM, length.
+  nominalPower:
+    name: Nominal Power
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292
+    description: Nominal Power
+  nominalPower_UOM:
+    name: Nominal Power UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292_UOM
+    description: Nominal power UOM, power/heat loss/heat gain.
+  operatingPressureNormal:
+    name: Operating Pressure Normal
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000512
+    description: Operatin pressure normal
+  operatingPressureNormal_UOM:
+    name: Operating Pressure Normal UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000512_UOM
+    description: Operating pressure normal UOM, true.
+  partNumber:
+    name: Part Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000249
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  pedCategory:
+    name: Ped Category
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000320
+    description: PED category. Applicable for installations that require conformity
+      with Pressure Equipment Directive
+  powerConsumption:
+    name: Power Consumption
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000602
+    description: the electrical energy over time that must be supplied to an electrical
+      appliance to maintain its operation
+  powerConsumption_UOM:
+    name: Power Consumption UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000602_UOM
+    description: Power consumption UOM, true.
+  powerOutputRated:
+    name: Power Output Rated
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000523
+    description: The rating of the power produced by an item
+  powerOutputRated_UOM:
+    name: Power Output Rated UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000523_UOM
+    description: Power output rated UOM, true.
+  serialNumber:
+    name: Serial Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000163
+    description: Serial number of the item
+  setPoint:
+    name: Set Point
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000581
+    description: The level at which an instrument is set - eg PSVs, bursting discs,
+      regulators, etc
+  setPoint_UOM:
+    name: Set Point UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000581_UOM
+    description: Set point UOM, group setpoint.
+  temperatureClass:
+    name: Temperature Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specifies the temperature classification of the physical object in
+      accordance to a known standard.
+  traceTemperature:
+    name: Trace Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211
+    description: The temperature at which trace heating is set or required
+  traceTemperature_UOM:
+    name: Trace Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211_UOM
+    description: Trace temperature UOM, temperature.
+  weightDry:
+    name: Weight Dry
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494
+    description: The weight of the equipment without any contents
+  weightDry_UOM:
+    name: Weight Dry UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494_UOM
+    description: Weight (dry) UOM, mass.
+  weightOperating:
+    name: Weight Operating
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516
+    description: The weight of the equipment in use
+  weightOperating_UOM:
+    name: Weight Operating UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516_UOM
+    description: Weight (operating) UOM, mass.
+  corrosiveLiquid:
+    name: Corrosive Liquid
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000066
+    description: Specify if the liquid contains corrosive agents.
+  density:
+    name: Density
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000546
+    description: The mass per unit volume of an object or a fluid
+  density_UOM:
+    name: Density UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000546_UOM
+    description: Density UOM, density.
+  designSpecification:
+    name: Design Specification
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000487
+    description: A specification according to which an item is intended to be designed
+  driverType:
+    name: Driver Type
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000087
+    description: A general description of the device that produces the mechanical
+      or electrical power that runs the equipment. For example diesel engine, electric
+      motor, gas turbine etc.
+  erosiveLiquid:
+    name: Erosive Liquid
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000104
+    description: Specify if the liquid contains erosive agents.
+  explosionProtectionGasGroup:
+    name: Explosion Protection Gas Group
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  explosionProtectionTemperatureClass:
+    name: Explosion Protection Temperature Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specify the temperature classification of the physical object in
+      accordance with CENELEC EN50014
+  explosionProtectionZone:
+    name: Explosion Protection Zone
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  fluidName:
+    name: Fluid Name
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000132
+    description: The name of the product in liquid or gas phase.
+  immersed:
+    name: Immersed
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000172
+    description: Specify if the functional or physical object can be immersed or not.
+  liquidName:
+    name: Liquid Name
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000205
+    description: The name of the product in liquid phase.
+  lowerLimitDesignPressure:
+    name: Lower Limit Design Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000551
+    description: The lowest pressure at which a functional or physical object is designed.
+  lowerLimitDesignPressure_UOM:
+    name: Lower Limit Design Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000551_UOM
+    description: Lower limit design pressure UOM, true.
+  lowerLimitDesignTemperature:
+    name: Lower Limit Design Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503
+    description: The lowest temperature at which a functional or physical object is
+      designed.
+  lowerLimitDesignTemperature_UOM:
+    name: Lower Limit Design Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503_UOM
+    description: Lower limit design temperature UOM, temperature.
+  lowerLimitOperatingDischargePressure:
+    name: Lower Limit Operating Discharge Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000207
+    description: The discharge pressure which is the lowest pressure at which a functional
+      or physical object is expected to operate
+  lowerLimitOperatingDischargePressure_UOM:
+    name: Lower Limit Operating Discharge Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000207_UOM
+    description: Lower limit operating discharge pressure UOM, true.
+  lowerLimitOperatingPressure:
+    name: Lower Limit Operating Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000556
+    description: A pressure which is the lowest pressure at which a functional or
+      physical object is expected to operate.
+  lowerLimitOperatingPressure_UOM:
+    name: Lower Limit Operating Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000556_UOM
+    description: Lower limit operating pressure UOM, true.
+  lowerLimitOperatingSuctionPressure:
+    name: Lower Limit Operating Suction Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000219
+    description: The suction pressure which is the lowest pressure at  which a functional
+      or physical object is expected to operate.
+  lowerLimitOperatingSuctionPressure_UOM:
+    name: Lower Limit Operating Suction Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000219_UOM
+    description: Lower limit operating suction pressure UOM, true.
+  lowerLimitOperatingTemperature:
+    name: Lower Limit Operating Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504
+    description: A temperature that is the lowest temperature at which a functional
+      or physical object is expected to operate.
+  lowerLimitOperatingTemperature_UOM:
+    name: Lower Limit Operating Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504_UOM
+    description: Lower limit operating temperature UOM, temperature.
+  lowerLimitOperatingVolumeFlowRate:
+    name: Lower Limit Operating Volume Flow Rate
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000505
+    description: A volume flow rate that is the lowest volume flow rate at which a
+      functional or physical object is expected to operate.
+  lowerLimitOperatingVolumeFlowRate_UOM:
+    name: Lower Limit Operating Volume Flow Rate UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000505_UOM
+    description: Lower limit operating volume flow rate UOM, true.
+  normalOperatingDifferentialPressure:
+    name: Normal Operating Differential Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000254
+    description: The differential pressure  at which a functional or physical object
+      is expected to operate normally.
+  normalOperatingDifferentialPressure_UOM:
+    name: Normal Operating Differential Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000254_UOM
+    description: Normal operating differential pressure UOM, true.
+  normalOperatingInletTemperature:
+    name: Normal Operating Inlet Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000272
+    description: The temperature at which a functional or physical object is expected
+      to operate normally at its inlet connection.
+  normalOperatingInletTemperature_UOM:
+    name: Normal Operating Inlet Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000272_UOM
+    description: Normal operating inlet temperature UOM, true.
+  normalOperatingLiquidDynamicViscosity:
+    name: Normal Operating Liquid Dynamic Viscosity
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000274
+    description: The dynamic viscosity of the fluid in liquid phase at which a functional
+      or physical object is expected to operate normally.
+  normalOperatingLiquidDynamicViscosity_UOM:
+    name: Normal Operating Liquid Dynamic Viscosity UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000274_UOM
+    description: Normal operating liquid dynamic viscosity UOM, dynamic viscosity.
+  normalOperatingTemperature:
+    name: Normal Operating Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000514
+    description: A temperature at which a functional or physical object is expected
+      to operate normally.
+  normalOperatingTemperature_UOM:
+    name: Normal Operating Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000514_UOM
+    description: Normal operating temperature UOM, true.
+  normalOperatingVolumeFlowRate:
+    name: Normal Operating Volume Flow Rate
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000558
+    description: The volume flow rate at which a functional or physical object is
+      expected to operate normally.
+  normalOperatingVolumeFlowRate_UOM:
+    name: Normal Operating Volume Flow Rate UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000558_UOM
+    description: Normal operating volume flow rate UOM, true.
+  normalVolumeFlowRate:
+    name: Normal Volume Flow Rate
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000293
+    description: A volume flow rate a functional or physical object is designed to
+      deliver under normal conditions.
+  normalVolumeFlowRate_UOM:
+    name: Normal Volume Flow Rate UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000293_UOM
+    description: Normal volume flow rate UOM, true.
+  operationContinuousIntermittent:
+    name: Operation Continuous Intermittent
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000309
+    description: Specifies if the equipment is working continuously or in an intermittent
+      way.
+  operationSingleParallel:
+    name: Operation Single Parallel
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000310
+    description: Specifies if the equipment is working alone or with similar equipment
+      in parallel.
+  orientation:
+    name: Orientation
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000561
+    description: The mount position of an equipment such as horizontal, vertical or
+      submerged
+  outletFlangeRating:
+    name: Outlet Flange Rating
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000312
+    description: Is a possessed aspect being a design pressure of a flange.
+  pumpType:
+    name: Pump Type
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000637
+    description: The pump type selected on a pump's specification sheet
+  ratedVolumeFlowRate:
+    name: Rated Volume Flow Rate
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000333
+    description: A volume flow rate a functional or physical object is designed to
+      deliver at specified conditions.
+  ratedVolumeFlowRate_UOM:
+    name: Rated Volume Flow Rate UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000333_UOM
+    description: Rated volume flow rate UOM, true.
+  testMedium:
+    name: Test Medium
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000412
+    description: The medium used for testing purpose.
+  testPressure:
+    name: Test Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532
+    description: A pressure to which an object should be subjected to test for leakage
+      and structural integrity.
+  testPressure_UOM:
+    name: Test Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532_UOM
+    description: Test pressure UOM, pressure.
+  thermalInsulationClass:
+    name: Thermal Insulation Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000177
+    description: The class of electrical insulation used by a  physical object.
+  upperLimitDesignPressure:
+    name: Upper Limit Design Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535
+    description: The highest pressure at which a functional or physical object is
+      designed for.
+  upperLimitDesignPressure_UOM:
+    name: Upper Limit Design Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535_UOM
+    description: Upper limit design pressure UOM, pressure.
+  upperLimitDesignTemperature:
+    name: Upper Limit Design Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536
+    description: The highest temperature at which a functional or physical object
+      is designed.
+  upperLimitDesignTemperature_UOM:
+    name: Upper Limit Design Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536_UOM
+    description: Upper limit design temperature UOM, temperature.
+  upperLimitOperatingDifferentialPressure:
+    name: Upper Limit Operating Differential Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000461
+    description: The differential pressure which is the highest differential pressure
+      at which a functional or physical object is expected to operate.
+  upperLimitOperatingDifferentialPressure_UOM:
+    name: Upper Limit Operating Differential Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000461_UOM
+    description: Upper limit operating differential pressure UOM, true.
+  upperLimitOperatingDischargePressure:
+    name: Upper Limit Operating Discharge Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000462
+    description: The discharge pressure which is the highest pressure at which a functional
+      or physical object is expected to operate.
+  upperLimitOperatingDischargePressure_UOM:
+    name: Upper Limit Operating Discharge Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000462_UOM
+    description: Upper limit operating discharge pressure UOM, true.
+  upperLimitOperatingPressure:
+    name: Upper Limit Operating Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000537
+    description: A pressure which is the highest pressure at which a functional or
+      physical object is expected to operate.
+  upperLimitOperatingPressure_UOM:
+    name: Upper Limit Operating Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000537_UOM
+    description: Upper limit operating pressure UOM, true.
+  upperLimitOperatingSuctionPressure:
+    name: Upper Limit Operating Suction Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000476
+    description: The pressure which is the highest pressure at which a functional
+      or physical object is expected to operate at its inlet connection.
+  upperLimitOperatingSuctionPressure_UOM:
+    name: Upper Limit Operating Suction Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000476_UOM
+    description: Upper limit operating suction pressure UOM, true.
+  upperLimitOperatingTemperature:
+    name: Upper Limit Operating Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538
+    description: A temperature that is the highest temperature at which a functional
+      or physical object is expected to operate.
+  upperLimitOperatingTemperature_UOM:
+    name: Upper Limit Operating Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538_UOM
+    description: Upper limit operating temperature UOM, temperature.
+  upperLimitOperatingVolumeFlowRate:
+    name: Upper Limit Operating Volume Flow Rate
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000577
+    description: A volume flow rate that is the highest volume flow rate at which
+      a functional or physical object is expected to operate.
+  upperLimitOperatingVolumeFlowRate_UOM:
+    name: Upper Limit Operating Volume Flow Rate UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000577_UOM
+    description: Upper limit operating volume flow rate UOM, true.
+  additionalProperties:
+    name: Additional Properties
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Pump
+      type: container
+    containerPropertyIdentifier: additionalProperties
+    description: Overflow properties stored as JSON for rarely-queried fields
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

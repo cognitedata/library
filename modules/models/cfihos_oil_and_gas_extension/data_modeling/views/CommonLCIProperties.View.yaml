@@ -1,0 +1,163 @@
+space: '{{space}}'
+externalId: CommonLCIProperties
+name: Common LCI Properties
+description: Common lifecycle information shared across tags, including contractor, installation date, status, and purchase order details.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  tag:
+    name: Tag
+    description: The tag that is related to the common LCI
+    connectionType: single_reverse_direct_relation
+    source:
+      space: '{{space}}'
+      externalId: Tag
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: Tag
+        version: '{{dm_version}}'
+        type: view
+      identifier: CommonLCIProperties
+  area:
+    name: Area
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Physical location on the facility where the equipment is installed
+  facility:
+    name: Facility
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: The facility code of a tagged object
+  parentTag:
+    name: Parent Tag
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: The main Tag number of a system that child Tags are related
+  system:
+    name: System
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code as per the used standard
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  originatingContractor:
+    name: Originating Contractor
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000179
+    description: Contractor responsible for originating the tag data
+  updatedDate:
+    name: Updated Date
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: updatedDate
+    description: Date when the tag information was last updated
+  dateInstalled:
+    name: Date Installed
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000169
+    description: Date when the equipment was installed
+  useProjectStatus:
+    name: Use Project Status
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: useProjectStatus
+    description: Project status flag for the tag
+  purchaseOrderNo:
+    name: Purchase Order No
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000128
+    description: Purchase order number for the equipment
+  avevaTagStatus:
+    name: Aveva Tag Status
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000025
+    description: AVEVA tag status indicator
+  cfihosTagClassCode:
+    name: Cfihos Tag Class Code
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: cfihosTagClassCode
+    description: CFIHOS tag classification code
+  additionalProperties:
+    name: Additional Properties
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: additionalProperties
+    description: Additional properties stored as JSON
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

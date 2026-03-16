@@ -1,0 +1,109 @@
+space: '{{space}}'
+externalId: Infrastructure
+name: Infrastructure
+description: A basic physical and organizational structure or facilities (e.g. buildings
+  and roads) needed for the operation of a site.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  area:
+    name: Area
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Physical location on the facility where the equipment is installed
+  facility:
+    name: Facility
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: The facility code of a tagged object
+  parentTag:
+    name: Parent Tag
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: The main Tag number of a system that child Tags are related
+  system:
+    name: System
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code as per the used standard
+  description:
+    name: Description
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Infrastructure
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000177
+    description: Functional description of the tag
+  fireSafe:
+    name: Fire Safe
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Infrastructure
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000585
+    description: The standard and classification of the fire rated equipment including
+      valves, firewalls, doors, windows
+  thermalInsulationClass:
+    name: Thermal Insulation Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Infrastructure
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000177
+    description: The class of electrical insulation used by a  physical object.
+  additionalProperties:
+    name: Additional Properties
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_Infrastructure
+      type: container
+    containerPropertyIdentifier: additionalProperties
+    description: Overflow properties stored as JSON for rarely-queried fields
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

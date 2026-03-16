@@ -1,0 +1,446 @@
+space: "{{space}}"
+externalId: CFIHOS_HealthSafetyAndEnvironmentEquipmentClass
+description: An equipment class that contains classes of artefacts intended to be
+  used to provide health and safety and to prevent environmental hazards.
+properties:
+  CFIHOS_40000111:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: approvalAuthority
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  CFIHOS_40000009:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexCategory
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_40000010:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexExplosiveAtmosphere
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  CFIHOS_40000011:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexGroup
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_10000177:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: description
+    description: Functional description of the tag
+  CFIHOS_10000031:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentIdentifier
+    description: Equipment Identifier
+  CFIHOS_40000109:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: exCertificateNumber
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  CFIHOS_40000108:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtection
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  CFIHOS_40000110:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionGasGroup
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  CFIHOS_40000113:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionZone
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  CFIHOS_40000598:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: iOType
+    description: The type of input / output
+  CFIHOS_40000173:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ipRating
+    description: IP rating
+  CFIHOS_40000201:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length
+    description: Length
+  CFIHOS_40000201_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length_UOM
+    description: Length UOM, length.
+  CFIHOS_10000158:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: manufacturer
+    description: The original equipment manufacturer of a tagged item
+  CFIHOS_10000159:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: modelNumber
+    description: Model identification of the item
+  CFIHOS_40000509:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalDiameter
+    description: Something is of a diameter that it is not rated (?)
+  CFIHOS_40000509_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalDiameter_UOM
+    description: Nominal diameter UOM, length.
+  CFIHOS_40000292:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalPower
+    description: Nominal Power
+  CFIHOS_40000292_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalPower_UOM
+    description: Nominal power UOM, power/heat loss/heat gain.
+  CFIHOS_10000249:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: partNumber
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  CFIHOS_40000320:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pedCategory
+    description: PED category. Applicable for installations that require conformity
+      with Pressure Equipment Directive
+  CFIHOS_40000602:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerConsumption
+    description: the electrical energy over time that must be supplied to an electrical
+      appliance to maintain its operation
+  CFIHOS_40000602_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerConsumption_UOM
+    description: Power consumption UOM, group powercon.
+  CFIHOS_40000329:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerFactorCos
+    description: The equipments electrical load Power Factor (Cos)
+  CFIHOS_40000329_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerFactorCos_UOM
+    description: Power factor (cos) UOM, dimensionless ratios.
+  CFIHOS_40000523:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerOutputRated
+    description: The rating of the power produced by an item
+  CFIHOS_40000523_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerOutputRated_UOM
+    description: Power output rated UOM, group poweroutput rated.
+  CFIHOS_40000521:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ratedCurrent
+    description: Rated current
+  CFIHOS_40000521_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ratedCurrent_UOM
+    description: Rated current UOM, electrical - current.
+  CFIHOS_40000579:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: safetyIntegrityLevelEquipment
+    description: 'Safety Integrity Level - ref. relevant discipline requirements.
+      Typical: 0 : NA (not applicable) 1 : SIL 1 2 : SIL 2 3 : SIL 3'
+  CFIHOS_10000163:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: serialNumber
+    description: Serial number of the item
+  CFIHOS_40000371:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: signalType
+    description: The method a signal is transmitted
+  CFIHOS_40000112:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionTemperatureClass
+    description: Specify the temperature classification of the physical object in
+      accordance with CENELEC EN50014
+  CFIHOS_40000211:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: traceTemperature
+    description: The temperature at which trace heating is set or required
+  CFIHOS_40000211_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: traceTemperature_UOM
+    description: Trace temperature UOM, temperature.
+  CFIHOS_40000528:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: voltageLevel
+    description: The voltage level of a cable
+  CFIHOS_40000528_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: voltageLevel_UOM
+    description: Voltage level UOM, electrical - voltage.
+  CFIHOS_40000494:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightDry
+    description: The weight of the equipment without any contents
+  CFIHOS_40000494_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightDry_UOM
+    description: Weight (dry) UOM, mass.
+  CFIHOS_40000516:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating
+    description: The weight of the equipment in use
+  CFIHOS_40000516_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating_UOM
+    description: Weight (operating) UOM, mass.
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+    description: Additional properties for the CFIHOS class health, safety and environment
+      equipment class
+constraints:
+  sp_ops_domain_model_Tag:
+    require:
+      space: "{{space}}"
+      externalId: Tag
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

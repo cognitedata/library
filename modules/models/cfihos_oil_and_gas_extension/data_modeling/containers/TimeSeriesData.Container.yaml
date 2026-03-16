@@ -1,0 +1,414 @@
+space: "{{space}}"
+externalId: TimeSeriesData
+description: References linking time series to assets, merging PI and OPC UA sources.
+usedFor: node
+properties:
+  assetName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  assetDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  facility:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  timeSeriesType:
+    type:
+      type: enum
+      values:
+        PI:
+          name: PI
+          description: Time series from PI source.
+        OPCUA:
+          name: OPCUA
+          description: Time series from OPC UA source.
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: timeSeriesType
+    description: Type of the time series.
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+  pi_archiving:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_archiving
+  pi_compDev:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compDev
+  pi_compDevPercent:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compDevPercent
+  pi_compDevPercent_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compDevPercent_UOM
+  pi_compDev_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compDev_UOM
+  pi_compMax:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compMax
+  pi_compMax_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compMax_UOM
+  pi_compMin:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compMin
+  pi_compMin_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compMin_UOM
+  pi_compressing:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_compressing
+  pi_digitalSet:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_digitalSet
+  pi_exDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_exDesc
+  pi_excDev:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excDev
+  pi_excDevPercent:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excDevPercent
+  pi_excDevPercent_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excDevPercent_UOM
+  pi_excDev_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excDev_UOM
+  pi_excMax:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excMax
+  pi_excMax_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excMax_UOM
+  pi_excMin:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excMin
+  pi_excMin_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_excMin_UOM
+  pi_pointId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_pointId
+  pi_pointSource:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_pointSource
+  pi_pointType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_pointType
+  pi_ptClassId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_ptClassId
+  pi_ptClassName:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_ptClassName
+  pi_ptClassRev:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_ptClassRev
+  pi_recNo:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_recNo
+  pi_shutdown:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_shutdown
+  pi_sourceTag:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_sourceTag
+  pi_tag:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_tag
+  pi_typicalValue:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pi_typicalValue
+  opcua_definition:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: opcua_definition
+  opcua_euRange:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: opcua_euRange
+  opcua_terminal:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: opcua_terminal
+  opcua_typeDefinition:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: opcua_typeDefinition
+  opcua_dataType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: opcua_dataType
+constraints:
+  cdf_cdm_CogniteTimeSeries:
+    require:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    constraintType: requires
+indexes:
+  facility:
+    indexType: btree
+    properties:
+      - facility
+    bySpace: false
+    cursorable: false
+  timeSeriesType:
+    indexType: btree
+    properties:
+      - timeSeriesType
+    bySpace: false
+    cursorable: false
+  pi_sourceTag:
+    indexType: btree
+    properties:
+      - pi_sourceTag
+    bySpace: false
+    cursorable: true
+  pi_pointSource:
+    indexType: btree
+    properties:
+      - pi_pointSource
+    bySpace: false
+    cursorable: false
+  pi_pointType:
+    indexType: btree
+    properties:
+      - pi_pointType
+    bySpace: false
+    cursorable: false
+  pi_tag:
+    indexType: btree
+    properties:
+      - pi_tag
+    bySpace: false
+    cursorable: false
+  opcua_dataType:
+    indexType: btree
+    properties:
+      - opcua_dataType
+    bySpace: false
+    cursorable: false
