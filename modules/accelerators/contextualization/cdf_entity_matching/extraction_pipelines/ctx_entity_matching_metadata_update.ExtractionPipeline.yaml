@@ -2,9 +2,6 @@ externalId: 'ep_ctx_entity_matching_metadata_update'
 name: 'ctx:entity_matching_metadata_update'
 dataSetExternalId: 'ds_timeseries_{{location_name}}' 
 description: 'Update / add alias and tags timeseries and assets'
-rawTables:
-  - dbName: '{{ dbName }}'
-    tableName: 'timeseries_state_store'
 source: '{{source_name}}'
 documentation: >
   # Create Alias and tags for timeseries and assets
