@@ -1,0 +1,14 @@
+externalId: {{ fileToAssetTransformationExternalId }}
+dataSetExternalId: {{ annotationDatasetExternalId }}
+name: File to Asset Connection from Annotations
+destination:
+  type: nodes
+  view:
+    space: {{ fileSchemaSpace }}
+    externalId: {{ fileExternalId }}
+    version: {{ fileVersion }}
+  instanceSpace: {{ fileInstanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+

@@ -307,9 +307,9 @@ def get_all_entities(
         entities.append(
         {
             "external_id": file.external_id,
-            "name": file.properties[job_config.file_view.as_view_id()]["name"],
+            "name": file.properties[job_config.file_view.as_view_id()].get("name", ""),
             "space": file.space,
-            search_property: file.properties[job_config.file_view.as_view_id()][search_property],
+            "search_property": file.properties[job_config.file_view.as_view_id()].get(search_property, ""),
             "annotation_type_external_id": job_config.file_view.type,
         }
     )

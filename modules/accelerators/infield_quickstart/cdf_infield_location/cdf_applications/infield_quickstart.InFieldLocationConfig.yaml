@@ -1,0 +1,13 @@
+# Per location, configure both InFieldLocationConfig and LocationFilter
+# quickstart only supports configuration of the fields listed in this example.
+space: APM_Config # must be APM_Config
+externalId: ext_infield_{{first_location}}_config
+rootLocationExternalId: ext_infield_{{first_location}}_config # must be the externalId of the locationFilters
+appInstanceSpace: sp_infield_{{first_location}}_app_data
+featureToggles:
+  threeD: true
+  trends: true
+  documents: true
+  workorders: true
+  notifications: true
+  media: true

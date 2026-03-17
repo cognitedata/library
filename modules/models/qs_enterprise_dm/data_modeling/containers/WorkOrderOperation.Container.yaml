@@ -1,0 +1,16 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: WorkOrderOperation
+name: Work Order Operation
+properties:
+  objectNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Object Number
+constraints: {}
+indexes: {}
+usedFor: all

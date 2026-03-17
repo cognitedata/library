@@ -1,0 +1,14 @@
+externalId: asset_tagging_tr
+name: Asset Tagging
+destination:
+  dataModel:
+    space: {{ schemaSpace }}
+    externalId: YourOrgProcessIndustries
+    version: v1
+    destinationType: YourOrgAsset
+  instanceSpace: {{ assetInstanceSpace }}
+  type: instances
+dataSetExternalId: {{ files_dataset }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

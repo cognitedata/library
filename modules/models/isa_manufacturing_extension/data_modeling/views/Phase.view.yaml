@@ -1,0 +1,167 @@
+space: {{ isaSchemaSpace }}
+externalId: Phase
+name: Phase
+description: The lowest level of procedural element in the procedural control model.
+version: {{ viewVersion }}
+properties:
+  phase_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: phase_id
+    name: Phase id
+    description: >
+      Unique identifier for the phase entity, conforming to ISA-88 procedural element standards. 
+      A phase represents the lowest level procedural element that performs a specific processing 
+      activity. The phase_id serves as the primary key and enables traceability of phases throughout 
+      the batch execution lifecycle. This identifier is critical for phase-level batch tracking, 
+      recipe execution, and detailed process analysis. [ISA-88]
+  phase_name:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: phase_name
+    name: Phase name
+    description: >
+      Human-readable name for the phase, typically describing the specific processing activity 
+      (e.g., "Heat to Temperature", "Add Material", "Hold for Time", "Transfer to Next Unit"). 
+      The phase_name follows ISA-88 naming conventions for phases and should be descriptive enough 
+      for process engineers and operators to understand the phase's function. This name is often 
+      used in control system displays, batch records, and operational documentation. [ISA-88]
+  phase_class:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: phase_class
+    name: Phase class
+    description: >
+      Classification of the phase according to its processing activity type, following ISA-88 phase 
+      classifications. Common phase classes include process phases (heating, cooling, mixing, 
+      reaction), transfer phases (material transfer, product transfer), and control phases 
+      (waiting, holding, monitoring). The phase_class enables filtering and analysis by phase 
+      function, supports recipe design patterns, and facilitates phase reuse across different 
+      operations. This classification should follow standardized phase class taxonomies for 
+      consistency. [ISA-88]
+  operation:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: operation
+    name: Operation
+    description: >
+      Reference to the Operation entity that contains this phase, establishing the ISA-88 
+      hierarchical relationship where operations contain phases. The operation relationship enables 
+      navigation from phase to operation level, supporting operational-level phase analysis and 
+      resource allocation. This relationship is essential for understanding how phases contribute 
+      to operation execution and batch execution within specific operations. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Operation
+      version: {{ viewVersion }}
+      type: view
+  equipment_module:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: equipment_module
+    name: Equipment module
+    description: >
+      Reference to the EquipmentModule entity that is utilized by this phase during execution, 
+      establishing the ISA-88 relationship between procedural control and physical equipment. The 
+      equipment_module relationship enables navigation from phase to equipment module, supporting 
+      equipment utilization analysis, phase sequencing, and resource allocation. This relationship 
+      links procedural control (ISA-88) to physical equipment (ISA-88 Equipment Model) and is 
+      essential for understanding equipment requirements for phase execution. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: EquipmentModule
+      version: {{ viewVersion }}
+      type: view
+  batch:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: batch
+    name: Batch
+    description: >
+      Reference to the Batch entity that this phase is part of, establishing the relationship 
+      between phases and batch execution. The batch relationship enables navigation from phase to 
+      batch level, supporting batch-level phase analysis and execution tracking. This relationship 
+      is essential for understanding how phases contribute to batch execution and enables 
+      phase-level batch data analysis. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Batch
+      version: {{ viewVersion }}
+      type: view
+  sequence_number:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: sequence_number
+    name: Sequence number
+    description: >
+      Numeric value indicating the order or sequence in which this phase should be executed within 
+      the operation, following ISA-88 phase sequencing standards. The sequence_number enables proper 
+      phase ordering and supports sequential execution logic in batch recipes. This value is 
+      critical for recipe execution, phase scheduling, and process flow control. Lower sequence 
+      numbers indicate earlier execution order. [ISA-88]
+  phase_state:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: phase_state
+    name: Phase state
+    description: >
+      Current state of the phase execution according to ISA-88 state models. Common phase states 
+      include "Idle", "Running", "Held", "Restarting", "Aborting", "Aborted", "Completing", 
+      "Complete", "Archived". The phase_state provides real-time visibility into phase status and 
+      enables state-based queries, reporting, and workflow automation. State transitions should 
+      follow ISA-88 state model definitions to ensure consistent phase state management across the 
+      manufacturing system. [ISA-88]
+  timeSeries:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: Phase
+      type: container
+    containerPropertyIdentifier: timeSeries
+    name: Time series
+    description: >
+      Time series for the phase, typically describing the phase's purpose or time period (e.g., "100%", "50%", "25%"). The time series follows ISA-88 naming conventions and should be 
+      descriptive enough for process engineers and operators to identify the time series's purpose. 
+      This time series is often used in control system displays, batch records, and operational 
+      documentation. [ISA-88]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISATimeSeries
+      version: {{ viewVersion }}
+      type: view
+  # Reverse relationships
+  process_parameters:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProcessParameter
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProcessParameter
+        version: {{ viewVersion }}
+        type: view
+      identifier: phases
+    name: Process parameters
+    description: >
+      Reverse relationship collection of all ProcessParameter entities that are associated with this phase. Process parameters 
+      represent the process parameters that are used during the phase execution. This relationship enables 
+      navigation from phase to process parameter level, supporting process parameter-level production planning analysis and 
+      production tracking. This relationship is essential for ISA-88 production tracking, where process parameters are used to track phases. [ISA-88]
+    connectionType: multi_reverse_direct_relation

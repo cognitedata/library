@@ -1,0 +1,89 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: WorkOrderOperationConfirmation
+name: Work Order Operation Confirmation
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSchedulable
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  confirmationNumber:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: confirmationNumber
+    name: Confirmation Number
+  workOrderOperation:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: workOrderOperation
+    name: Work Order Operation
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperation
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  actualWork:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: actualWork
+    name: Actual Work
+  forecastWork:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: forecastWork
+    name: Forecast Work
+  startTime:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: startTime
+    name: Start Time
+  endTime:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: endTime
+    name: End Time
+  confirmedQuantity:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: confirmedQuantity
+    name: Confirmed Quantity
+  totalActualCost:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: totalActualCost
+    name: Total Actual Cost
+  totalPlannedCost:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: totalPlannedCost
+    name: Total Planned Cost
+  remarks:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: WorkOrderOperationConfirmation
+      type: container
+    containerPropertyIdentifier: remarks
+    name: Remarks

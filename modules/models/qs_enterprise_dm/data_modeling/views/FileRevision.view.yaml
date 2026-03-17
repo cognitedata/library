@@ -1,0 +1,100 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: FileRevision
+name: Files
+description: Represents files.
+implements:
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  facility:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      type: container
+    containerPropertyIdentifier: facility
+    name: Site
+  unit:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      type: container
+    containerPropertyIdentifier: unit
+    name: Unit
+  line:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      type: container
+    containerPropertyIdentifier: line
+    name: Line
+  fileRevision:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      type: container
+    containerPropertyIdentifier: fileRevision
+    name: File Revision
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: A list of assets this file is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Asset
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  category:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: category
+    name: Category
+    description: Specifies the detected category the file belongs to. It's a direct
+      relation to an instance of CogniteFileCategory.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileCategory
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  equipment:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Equipment
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: Equipment
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: files
+    name: Equipment
+    description: An automatically updated list of equipment this file is related to.
+    connectionType: multi_reverse_direct_relation
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      type: container
+    containerPropertyIdentifier: UUID

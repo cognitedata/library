@@ -1,0 +1,15 @@
+externalId: {{ operationTransformationExternalId }}
+dataSetExternalId: {{ dataset }}
+name: Operation Transformations for {{ sourceName }}
+destination:
+  type: instances
+  dataModel:
+    space: {{ schemaSpace }}
+    externalId: {{ datamodelExternalId }}
+    destinationType: Operation
+    version: {{ datamodelVersion }}
+  instanceSpace: {{ instanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+

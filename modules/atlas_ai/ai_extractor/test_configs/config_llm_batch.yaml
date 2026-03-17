@@ -1,0 +1,36 @@
+# Test Config: LLM Batch Processing
+# Sends multiple instances to LLM in a single prompt for efficiency
+# Use this when processing large numbers of instances with short descriptions
+
+agent:
+  externalId: "ai_property_extractor_agent"
+
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+
+extraction:
+  textProperty: "description"
+  properties:
+    - property: tags
+      writeMode: add_new_only
+    - property: aliases
+      writeMode: add_new_only
+
+processing:
+  batchSize: 20       # Query 20 instances at a time from CDF
+  llmBatchSize: 5     # Send 5 instances per LLM call (4 LLM calls per batch)
+
+stateStore:
+  enabled: true
+  rawDatabase: "ai_extractor_state"
+  rawTable: "extraction_state"
+  configVersion: "v1-llm-batch"
+
+prompt:
+  customInstructions: |
+    Extract relevant tags and aliases from the asset description.
+    - tags: Keywords or categories that describe the asset
+    - aliases: Alternative names or identifiers for the asset
+    Return as JSON arrays of strings.

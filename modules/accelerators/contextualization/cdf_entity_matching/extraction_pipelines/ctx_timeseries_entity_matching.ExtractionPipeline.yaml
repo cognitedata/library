@@ -3,13 +3,13 @@ name: 'ctx:timeseries:{{location_name}}:{{source_name}}:_entity_matching'
 dataSetExternalId: 'ds_timeseries_{{location_name}}' 
 description: 'Entity Matching of timeseries and assets from source  {{location_name}}:{{source_name}}'
 rawTables:
-  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+  - dbName: '{{ dbName }}'
     tableName: 'contextualization_good'
-  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+  - dbName: '{{ dbName }}'
     tableName: 'contextualization_bad'
-  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+  - dbName: '{{ dbName }}'
     tableName: 'contextualization_manual_input'
-  - dbName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+  - dbName: '{{ dbName }}'
     tableName: 'contextualization_state_store'
 source: '{{source_name}}'
 documentation: >
@@ -47,15 +47,16 @@ documentation: >
    searchProperty: Property used to create the entity matching link, typically alias
    
    debug -  write DEBUG messages and only process one timeseries if True
-   debugEntity - if debug is True, process only this entity/timeseries name
    runAll - if True run on all found timeseries, 
             if False only run on document not updated since last entity matching
+   dmUpdate - if True, update the metadata in the DM, if False, only update the RAW tables
    rawdb - Raw database where status Information is stored
    rawTableState - Table to store state related to process
    rawTaleCtxGood: Table to store entities with score higher than the autoApprovalThreshold
    rawTaleCtxBad: Table to store entities with score lower than the autoApprovalThreshold
    rawTaleCtxManual: Raw table to store manual mappings
    autoApprovalThreshold - Threshold for auto approval of entity matching
+
    ```
 
    ## Running the process

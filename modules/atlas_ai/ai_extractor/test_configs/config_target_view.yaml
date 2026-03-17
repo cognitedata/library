@@ -1,0 +1,49 @@
+# Test Config: Target View (cross-view extraction)
+# Reads from CogniteAsset (source) and writes to rmdm/Asset (target)
+# Uses overwrite mode + aiTimestampProperty to properly test cross-view writes.
+#
+# NOTE: Since rmdm/Asset implements CogniteAsset, the shared properties
+# (tags, aliases) live in the same container. The key thing to verify is:
+#   1. lastProcessedByAiExtractor is written to the TARGET view container
+#   2. Properties are extracted and written correctly
+#   3. The function reads description from source, writes results to target
+
+agent:
+  externalId: "ai_property_extractor_agent"
+
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+
+# Target view for writing extracted properties
+targetView:
+  space: "rmdm"
+  externalId: "Asset"
+  version: "6fe0dbb2ca7378"
+
+extraction:
+  textProperty: "description"
+  aiTimestampProperty: "lastProcessedByAiExtractor"
+  properties:
+    - property: tags
+      writeMode: overwrite
+    - property: aliases
+      writeMode: overwrite
+
+processing:
+  batchSize: 10
+  llmBatchSize: 1
+
+stateStore:
+  enabled: true
+  rawDatabase: "ai_extractor_state"
+  rawTable: "extraction_state"
+  configVersion: "v1-target-view"
+
+prompt:
+  customInstructions: |
+    Extract relevant tags and aliases from the asset description.
+    - tags: Keywords or categories that describe the asset
+    - aliases: Alternative names or identifiers for the asset
+    Return as JSON arrays of strings.

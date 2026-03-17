@@ -14,7 +14,6 @@ from contextlib import contextmanager
 from typing import List, Dict, Any, Optional, Tuple, Set, Callable
 from collections import defaultdict
 import re
-import json
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from logger import CogniteFunctionLogger
@@ -321,12 +320,12 @@ def optimize_pipeline_run(original_pipeline_func, client, logger, data, config):
         # optimize_pipeline_run(asset_entity_matching, client, logger, data, config)
     """
     
-    # Initialize optimization components
-    batch_processor = BatchProcessor(batch_size=2000)
-    concurrent_loader = ConcurrentDataLoader(max_workers=4)
-    matching_engine = OptimizedMatchingEngine(logger)
-    robust_client = RobustAPIClient(client, logger)
-    cache = SimpleCache(max_size=1000)
+    # Initialize optimization components (reserved for future use)
+    _batch_processor = BatchProcessor(batch_size=2000)
+    _concurrent_loader = ConcurrentDataLoader(max_workers=4)
+    _matching_engine = OptimizedMatchingEngine(logger)
+    _robust_client = RobustAPIClient(client, logger)
+    _cache = SimpleCache(max_size=1000)
     
     # Monitor initial state
     monitor_memory_usage(logger, "Pipeline start")
@@ -365,8 +364,9 @@ def patch_existing_pipeline():
     # Set process priority (if possible)
     try:
         import os
-        os.nice(-5)  # Increase priority slightly
-    except:
+        if hasattr(os, "nice"):
+            os.nice(-5)  # Increase priority slightly (Unix only)
+    except OSError:
         pass
     
     return True

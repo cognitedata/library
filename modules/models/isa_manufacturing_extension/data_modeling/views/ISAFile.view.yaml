@@ -1,0 +1,115 @@
+space: {{ isaSchemaSpace }}
+externalId: ISAFile
+name: ISA File
+description: Files linked to ISA assets
+implements:
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  assets:
+    container:
+      space: cdf_cdm
+      externalId: CogniteFile
+      type: container
+    containerPropertyIdentifier: assets
+    name: Assets
+    description: >
+      Reverse relationship collection of all ISA Asset entities that are associated with this 
+      file. The assets relationship enables navigation from file to asset hierarchy, supporting 
+      asset-centric file queries and asset documentation management. This relationship follows 
+      ISA-95 asset documentation standards and enables comprehensive asset documentation management, 
+      supporting engineering, operations, and maintenance activities. Document organization should 
+      follow ISA-95 document classification and naming conventions to ensure consistency and 
+      interoperability. [ISA-95]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ISAAsset
+      version: {{ viewVersion }}
+      type: view
+  equipment:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Equipment
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: Equipment
+        version: {{ viewVersion }}
+        type: view
+      identifier: files
+    name: Equipment
+    description: >
+      Reverse relationship collection of all Equipment entities that are associated with this file. 
+      Equipment represents physical equipment used in manufacturing processes according to ISA-88 
+      Equipment Model. This relationship enables file-to-equipment navigation, supporting equipment 
+      documentation management and equipment-related file queries. Files may include equipment 
+      datasheets, operation manuals, maintenance procedures, engineering drawings, certificates, 
+      and other equipment-related documentation. Document organization should follow ISA-88 equipment 
+      documentation classification and naming conventions. [ISA-88]
+    connectionType: multi_reverse_direct_relation
+  product_definition:
+    name: Product definition
+    description: >
+      Reference to the ProductDefinition entity that is defined for this unit, establishing 
+      the relationship between units and product definitions. The product_definition relationship enables 
+      navigation from unit to product definition level, supporting product definition-level production planning analysis and 
+      production tracking. This relationship is essential for understanding how product definitions are defined and executed within the unit. [ISA-95 Level 3]
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProductDefinition
+        version: {{ viewVersion }}
+        type: view
+      identifier: files
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductDefinition
+      version: {{ viewVersion }}
+      type: view
+    connectionType: multi_reverse_direct_relation
+  product_requests:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductRequest
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProductRequest
+        version: {{ viewVersion }}
+        type: view
+      identifier: files
+    name: Product requests
+    description: >
+      Reverse relationship collection of all ProductRequest entities that are executed on this unit. 
+      Product requests represent specific product requests for manufacturing execution at ISA-88. 
+      This relationship enables unit-to-product request navigation, supporting unit utilization analysis, 
+      product request sequencing, and resource allocation. Product requests link batch execution to specific 
+      units, enabling unit performance and utilization analysis. [ISA-88]
+    connectionType: multi_reverse_direct_relation
+  product_segment:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductSegment
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProductSegment
+        version: {{ viewVersion }}
+        type: view
+      identifier: files
+    name: Product segment
+    description: >
+      Reverse relationship collection of all ProductSegment entities that are associated with this file. 
+      Product segments represent segments for product activities and resource allocation. This relationship enables 
+      navigation from file to product segment level, supporting product segment-level production planning analysis and 
+      production tracking. This relationship is essential for understanding how product segments are defined and executed within the file. [ISA-95 Level 3]
+    connectionType: multi_reverse_direct_relation 

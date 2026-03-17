@@ -1,0 +1,100 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: Equipment
+name: Equipment
+description: Equipment represents physical supplies or devices.
+implements:
+- space: cdf_cdm
+  externalId: CogniteEquipment
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  asset:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: asset
+    name: Asset
+    description: The asset the equipment is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Asset
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  equipmentType:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: equipmentType
+    name: Equipment type
+    description: Specifies the type of the equipment. It's a direct relation to CogniteEquipmentType.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: EquipmentType
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  files:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: files
+    name: Files
+    description: A list of files the equipment relates to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileRevision
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  activities:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Activity
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: Activity
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: equipment
+    name: Activities
+    description: An automatically updated list of activities related to the equipment.
+    connectionType: multi_reverse_direct_relation
+  timeSeries:
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: {{ reservedWordPrefix }}TimeSeries
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+    through:
+      source:
+        space: {{ enterpriseSchemaSpace }}
+        externalId: {{ reservedWordPrefix }}TimeSeries
+        version: {{ enterpriseDataModelVersion }}
+        type: view
+      identifier: equipment
+    name: Time series
+    description: An automatically updated list of time series related to the equipment.
+    connectionType: multi_reverse_direct_relation
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: UUID

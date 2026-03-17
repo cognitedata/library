@@ -1,0 +1,18 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: FileCategory
+name: File category
+description: Represents the categories of files as determined by contextualization
+  or categorization.
+implements:
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: FileCategory
+      type: container
+    containerPropertyIdentifier: UUID

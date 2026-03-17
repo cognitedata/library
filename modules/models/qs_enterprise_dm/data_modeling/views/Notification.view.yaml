@@ -1,0 +1,56 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: Notification
+name: Notification
+description: A formal record to report maintenance issues, defects, or requests, starting
+  the process for planning and running maintenance activities.
+implements:
+- space: cdf_idm
+  externalId: CogniteNotification
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  maintenanceOrder:
+    container:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    name: Maintenance order
+    description: The maintenance order that was created from the notification.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: MaintenanceOrder
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  asset:
+    container:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+    containerPropertyIdentifier: asset
+    name: Asset
+    description: The asset (functional location) the notification is related to.
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Asset
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: UUID

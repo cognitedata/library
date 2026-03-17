@@ -1,0 +1,41 @@
+# Test Config: AI Property Mapping
+# Reads "tags" property metadata from source view but writes to "aiTags" in target view
+# Use this to keep AI-generated values separate from source system values
+
+agent:
+  externalId: "ai_property_extractor_agent"
+
+view:
+  space: "cdf_cdm"
+  externalId: "CogniteAsset"
+  version: "v1"
+
+# Target view for writing AI-extracted properties
+targetView:
+  space: "rmdm"
+  externalId: "Asset"
+  version: "6fe0dbb2ca7378"
+
+extraction:
+  textProperty: "description"
+  properties:
+    # Extract based on "tags" metadata, but write to "aiTags" in target view
+    - property: tags
+      targetProperty: aiTags
+      writeMode: add_new_only
+
+processing:
+  batchSize: 10
+  llmBatchSize: 1
+
+stateStore:
+  enabled: true
+  rawDatabase: "ai_extractor_state"
+  rawTable: "extraction_state"
+  configVersion: "v1-ai-property-mapping"
+
+prompt:
+  customInstructions: |
+    Extract relevant tags from the asset description.
+    - tags: Keywords or categories that describe the asset
+    Return as a JSON array of strings.

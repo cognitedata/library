@@ -1,7 +1,7 @@
 import os
 import sys
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 # Add the current directory to the path so we can import the modules
@@ -233,7 +233,7 @@ class TestRunLocally:
         call_args = mock_handle.call_args
         assert call_args[0][0] == {
             "logLevel": "INFO",
-            "ExtractionPipelineExtId": "ep_ctx_timeseries_LOC_SOURCE_entity_matching"
+            "ExtractionPipelineExtId": "ep_ctx_timeseries_Springfield_springfield_entity_matching"
         }
         assert call_args[0][1] == mock_client_instance
     

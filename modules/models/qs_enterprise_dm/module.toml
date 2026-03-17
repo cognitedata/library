@@ -1,0 +1,5 @@
+[module]
+title = "Quick Start Enterprise Data Model"
+is_selected_by_default = false
+id = "dp:models:qs_enterprise_dm"
+package_id = "dp:quickstart"

@@ -1,0 +1,25 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: WorkOrder
+name: Work Order
+properties:
+  objectNumber:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Object Number
+  mainEquipment:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Main Equipment
+    description: The main equipment this work order is associated with.
+constraints: {}
+indexes: {}
+usedFor: all

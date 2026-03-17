@@ -6,11 +6,11 @@ metadata:
     names:
       - '{{source_name}}'
   rawTables:
-    - databaseName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    - databaseName: '{{ dbName }}'
       tableName: 'contextualization_good'
-    - databaseName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    - databaseName: '{{ dbName }}'
       tableName: 'contextualization_bad'
-    - databaseName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    - databaseName: '{{ dbName }}'
       tableName: 'contextualization_manual_input'
-    - databaseName: 'ds_timeseries_{{location_name}}_{{source_name}}'
+    - databaseName: '{{ dbName }}'
       tableName: 'contextualization_state_store'

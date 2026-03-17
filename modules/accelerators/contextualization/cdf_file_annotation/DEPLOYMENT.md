@@ -115,8 +115,6 @@ variables:
       instanceSpaces:
         - springfield_instances
         - cdf_cdm_units
-      runWorkflowUserIds:
-        - <insert>
 
     contextualization:
       cdf_file_annotation:

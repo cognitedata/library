@@ -1,0 +1,116 @@
+space: "{{space}}"
+externalId: CFIHOS_Tool
+description: A mechanical implement or device used for cutting, striking, rubbing or
+  other manual or industrial processes.
+properties:
+  CFIHOS_40000110:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionGasGroup
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  CFIHOS_40000113:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionZone
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  CFIHOS_40000503:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature
+    description: The lowest temperature at which a functional or physical object is
+      designed.
+  CFIHOS_40000503_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature_UOM
+    description: Lower limit design temperature UOM, temperature.
+  CFIHOS_40000320:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pressureEquipmentCategory
+    description: The pressure equipment category according to the pressure equipment
+      directive 97/23/EC.
+  CFIHOS_40000535:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure
+    description: The highest pressure at which a functional or physical object is
+      designed for.
+  CFIHOS_40000535_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure_UOM
+    description: Upper limit design pressure UOM, pressure.
+  CFIHOS_40000536:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature
+    description: The highest temperature at which a functional or physical object
+      is designed.
+  CFIHOS_40000536_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature_UOM
+    description: Upper limit design temperature UOM, temperature.
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+    description: Additional properties for the CFIHOS class tool
+constraints:
+  sp_ops_domain_model_Tag:
+    require:
+      space: "{{space}}"
+      externalId: Tag
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

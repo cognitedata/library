@@ -1,0 +1,17 @@
+- description: Dataset containing CDF resources that are used for `oil and gas` model
+  externalId: "{{dataset_external_id}}"
+  metadata:
+    consoleCreatedBy:
+      username: "{{admin_user}}"
+    consoleGoverned: "{{governed}}"
+    consoleLabels:
+      - OIL AND GAS
+      - DOMAIN MODEL
+      - CFIHOS
+    consoleOwners:
+      - email: "{{integrationOwnerEmail}}"
+        name: "{{integrationOwnerName}}"
+    rawTables: []
+    transformations: []
+  name: "{{dataset_name}}"
+  writeProtected: "{{write_protected}}"

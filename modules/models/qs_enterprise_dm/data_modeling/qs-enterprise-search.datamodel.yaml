@@ -1,0 +1,84 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: {{ enterpriseDataModelId }}Search
+name: {{ organizationName }} enterprise search model
+description: {{ organizationName }} enterprise search model
+version: {{ enterpriseSearchDataModelVersion }} # bump this when changing the list OR main version
+views:
+
+# Cognite CDM views
+
+- space: cdf_cdm
+  externalId: CogniteAsset
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipment
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteTimeSeries
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFile
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetClass
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetType
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteEquipmentType
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+
+# Custom enterprise views
+
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Asset
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Equipment
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: {{ reservedWordPrefix }}TimeSeries
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: FileRevision
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: Notification
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: WorkOrder
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: AssetClass
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: AssetType
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: EquipmentType
+  version: {{enterpriseDataModelVersion}}
+  type: view
+- space: {{ enterpriseSchemaSpace }}
+  externalId: FileCategory
+  version: {{enterpriseDataModelVersion}}
+  type: view

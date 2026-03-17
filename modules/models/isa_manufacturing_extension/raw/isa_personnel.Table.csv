@@ -1,0 +1,62 @@
+key,personnel_id,name,role,site_externalId
+PERS_BAS_OPS_001,P-OPS-001,Ana Keller,Operator,SITE_BAS
+PERS_BAS_OPS_002,P-OPS-002,Markus Frei,Operator,SITE_BAS
+PERS_BAS_OPS_003,P-OPS-003,Lea Baumgartner,Technician,SITE_BAS
+PERS_BAS_QC_001,P-QC-001,Sven Richter,Quality Analyst,SITE_BAS
+PERS_BAS_QC_002,P-QC-002,Isabel Tanner,Quality Analyst,SITE_BAS
+PERS_OSL_FILL_001,P-FILL-001,Lars Nilsen,Operator,SITE_OSL
+PERS_OSL_FILL_002,P-FILL-002,Kari Olsen,Operator,SITE_OSL
+PERS_OSL_FILL_003,P-FILL-003,Jonas Berg,Technician,SITE_OSL
+PERS_OSL_QA_001,P-QA-001,Helene Soder,Quality Inspector,SITE_OSL
+PERS_OSL_QC_001,P-QC-003,Martin Aas,Quality Analyst,SITE_OSL
+PERS_LDN_LAB_001,P-LAB-001,Eleanor Wright,Scientist,SITE_LDN
+PERS_LDN_LAB_002,P-LAB-002,Oliver Harris,Technician,SITE_LDN
+PERS_LDN_MAINT_001,P-MNT-001,Aaron Patel,Maintenance Technician,SITE_LDN
+PERS_AUS_PACK_001,P-PACK-001,Rachel Torres,Operator,SITE_AUS
+PERS_AUS_PACK_002,P-PACK-002,Emily Cooper,Operator,SITE_AUS
+PERS_AUS_PACK_003,P-PACK-003,Tyler Brooks,Technician,SITE_AUS
+PERS_AUS_QA_001,P-QA-004,Noah Ramirez,Quality Inspector,SITE_AUS
+PERS_AUS_QC_001,P-QC-005,Olivia Nguyen,Quality Analyst,SITE_AUS
+PERS_BER_MAINT_001,P-MNT-002,Klara Vogel,Technician,SITE_BER
+PERS_BER_MAINT_002,P-MNT-003,Fabian Brand,Technician,SITE_BER
+PERS_BER_SUP_001,P-SUP-001,Johanna Müller,Supervisor,SITE_BER
+PERS_QA_GLOBAL_001,P-QA-005,Nathan Lewis,Quality Manager,SITE_LDN
+PERS_QA_GLOBAL_002,P-QA-006,Sophia Martin,Quality Manager,SITE_BAS
+PERS_PILOT_001,P-PILOT-001,Grace Kim,Engineer,SITE_SF
+PERS_PILOT_002,P-PILOT-002,Daniel Perez,Operator,SITE_SF
+PERS_PILOT_QC_001,P-PILOT-003,Alison Chen,Quality Analyst,SITE_SF
+PERS_OSL_SUP_001,P-SUP-002,Erik Hansen,Supervisor,SITE_OSL
+PERS_BAS_SUP_001,P-SUP-003,Katharina Blum,Supervisor,SITE_BAS
+PERS_AUS_SUP_001,P-SUP-004,Logan Scott,Supervisor,SITE_AUS
+PERS_LDN_SUP_001,P-SUP-005,Hannah Clarke,Supervisor,SITE_LDN
+PERS_BER_QC_001,P-QC-007,Stefan Weber,Quality Analyst,SITE_BER
+PERS_BER_QA_001,P-QA-007,Laura Fischer,Quality Inspector,SITE_BER
+PERS_BAS_QA_002,P-QA-008,Julia Steiner,Quality Inspector,SITE_BAS
+PERS_BAS_MAINT_002,P-MNT-004,Niklas Roth,Technician,SITE_BAS
+PERS_OSL_MAINT_001,P-MNT-005,Stian Eide,Technician,SITE_OSL
+PERS_LDN_QC_003,P-QC-009,Charlotte Evans,Quality Analyst,SITE_LDN
+PERS_AUS_QC_002,P-QC-010,Isabella Flores,Quality Analyst,SITE_AUS
+PERS_AUS_MAINT_001,P-MNT-006,Ethan Rivera,Technician,SITE_AUS
+PERS_QA_GLOBAL_003,P-QA-009,Mia Hughes,Quality Manager,SITE_OSL
+PERS_QA_GLOBAL_004,P-QA-010,Liam Bennett,Quality Manager,SITE_BER
+PERS_PILOT_MAINT_001,P-MNT-007,Luke Adams,Technician,SITE_SF
+PERS_PILOT_SUP_001,P-SUP-006,Ava Morgan,Supervisor,SITE_SF
+PERS_BAS_QC_003,P-QC-011,Helena Graf,Quality Analyst,SITE_BAS
+PERS_LDN_QA_001,P-QA-011,Samuel Parker,Quality Inspector,SITE_LDN
+PERS_OSL_QC_002,P-QC-012,Ida Johansen,Quality Analyst,SITE_OSL
+PERS_AUS_QA_002,P-QA-012,Chloe Murphy,Quality Inspector,SITE_AUS
+PERS_BER_QA_002,P-QA-013,Jonas Keller,Quality Inspector,SITE_BER
+PERS_BER_QC_002,P-QC-013,Marie Hoffmann,Quality Analyst,SITE_BER
+PERS_BAS_MAINT_003,P-MNT-008,Luca Schmid,Technician,SITE_BAS
+PERS_OSL_MAINT_002,P-MNT-009,Heidi Dahl,Technician,SITE_OSL
+PERS_LDN_MAINT_002,P-MNT-010,James Collins,Technician,SITE_LDN
+PERS_AUS_MAINT_002,P-MNT-011,Mason Diaz,Technician,SITE_AUS
+PERS_SF_QC_001,P-QC-014,Amelia Johnson,Quality Analyst,SITE_SF
+PERS_SF_QA_001,P-QA-014,Oliver Walker,Quality Inspector,SITE_SF
+PERS_GLOBAL_HSE_001,P-HSE-001,Sophia Walker,HSE Specialist,SITE_OSL
+PERS_GLOBAL_HSE_002,P-HSE-002,Jackson Reed,HSE Specialist,SITE_BAS
+PERS_GLOBAL_HR_001,P-HR-001,Madison Lee,HR Coordinator,SITE_LDN
+PERS_GLOBAL_TRAIN_001,P-TRN-001,William Carter,Training Coordinator,SITE_BER
+PERS_GLOBAL_IT_001,P-IT-001,Lucas Turner,IT Analyst,SITE_OSL
+PERS_GLOBAL_IT_002,P-IT-002,Abigail Scott,IT Analyst,SITE_AUS
+

@@ -1,0 +1,77 @@
+key,name,description,unit,isStep,isString,asset_externalId,equipment_externalId,work_order_id
+TS_R12_CHARGE_PRESS,R12 Charge Pump Discharge Pressure,Discharge pressure measured on the R12 charge pump discharge header,bar,false,false,EM_R12_CHARGE,EQ_R12_CHARGE_PUMP,WO-R12-001
+TS_R12_CHARGE_FLOW,R12 Charge Loop Flow,Flow through the R12 charge loop coriolis meter,m3/h,false,false,EM_R12_CHARGE,EQ_R12_CHARGE_FLOWMETER,WO-R12-001
+TS_R12_CHARGE_TEMP,R12 Charge Loop Temperature,Product temperature downstream of the charge heat exchanger,degC,false,false,EM_R12_CHARGE,EQ_R12_CHARGE_TEMP_SENSOR,WO-R12-002
+TS_R12_VFD_SPEED,R12 Charge Pump VFD Speed,Drive speed command for the R12 charge pump frequency drive,rpm,false,false,EM_R12_CHARGE,EQ_R12_CHARGE_VFD,WO-R12-003
+TS_FILL_PUMP_FLOW,Fill Pump Flow Rate,Instantaneous flow rate into the fill manifold,l/min,false,false,EM_FILL_PUMP,EQ_FILL_PUMP_FLOWMETER,WO-FILL-001
+TS_FILL_PUMP_PRESS,Fill Pump Discharge Pressure,Discharge pressure of the fill transfer pump,bar,false,false,EM_FILL_PUMP,EQ_FILL_PRESSURE_TRANSMITTER,WO-FILL-002
+TS_FILL_TANK_LEVEL,Fill Tank Level,Level inside the fill buffer tank,"%",false,false,UNIT_FILL_TANK,EQ_FILL_PUMP_LEVEL_SWITCH,WO-FILL-003
+TS_FILL_PUMP_TEMP,Fill Pump Housing Temperature,Temperature of the fill pump bearing housing,degC,false,false,EM_FILL_PUMP,EQ_FILL_PUMP_TEMP_SENSOR,WO-FILL-003
+TS_R13_MIXER_SPEED,R13 Mixer Speed,Mixer impeller speed in reactor R13,rpm,false,false,EM_R13_MIX,EQ_R13_MIXER,WO-R13-001
+TS_R13_MIXER_TORQUE,R13 Mixer Torque,Torque feedback on the R13 mixer drive,"%",false,false,EM_R13_MIX,EQ_R13_MIX_TORQUE_SENSOR,WO-R13-002
+TS_R13_VESSEL_TEMP,R13 Vessel Temperature,Bulk temperature inside reactor R13,degC,false,false,UNIT_R13,EQ_R13_MIX_TEMP_SENSOR,WO-R13-002
+TS_R13_VESSEL_PRESS,R13 Vessel Pressure,Headspace pressure inside reactor R13,bar,false,false,UNIT_R13,EQ_R13_MIX_PRESSURE_TX,WO-R13-003
+TS_QC_CHROM_PRESS,QC Chrom Pump Pressure,Inlet pressure to the QC chromatography skid,bar,false,false,EM_QC_CHROM,EQ_QC_CHROM_PUMP,WO-QC-CHR-001
+TS_QC_CHROM_FLOW,QC Chrom Flow Rate,Eluent flow through the chromatography skid,ml/min,false,false,EM_QC_CHROM,EQ_QC_CHROM_SYSTEM,WO-QC-CHR-002
+TS_QC_CHROM_VALVE_POS,QC Chrom Valve Position,Fraction valve position signal from the chromatography controller,"%",false,false,EM_QC_CHROM,EQ_QC_CHROM_CONTROLLER,WO-QC-CHR-003
+TS_QC_DATA_SYSTEM_STATUS,QC Chrom System CPU Load,Controller CPU load for the chromatography data system,"%",false,false,EM_QC_CHROM,EQ_QC_CHROM_DATA_SYSTEM,WO-QC-CHR-004
+TS_QC_UV_INTENSITY,QC UV Detector Intensity,Measured UV absorbance intensity,au,false,false,EM_QC_UV,EQ_QC_UV_DETECTOR,WO-QC-UV-001
+TS_QC_UV_LAMP_TEMP,QC UV Lamp Temperature,Temperature of the UV lamp housing,degC,false,false,EM_QC_UV,EQ_QC_UV_LAMP,WO-QC-UV-001
+TS_QC_UV_POWER_LOAD,QC UV Power Supply Load,Output load percentage for the UV power supply,"%",false,false,EM_QC_UV,EQ_QC_UV_POWER_SUPPLY,WO-QC-UV-002
+TS_QC_UV_COOLANT_TEMP,QC UV Cooling Air Temperature,Temperature of cooling air exiting the UV module,degC,false,false,EM_QC_UV,EQ_QC_UV_COOLING_FAN,WO-QC-UV-003
+TS_QC_FRACTION_WEIGHT,QC Fraction Collected Mass,Total mass collected in currently filling fraction,g,false,false,EM_QC_FRACTION,EQ_QC_FRACTION_COLLECTOR,WO-QC-CHR-003
+TS_QC_FRACTION_PUMP_SPEED,QC Fraction Pump Speed,Speed command for the fraction transfer pump,rpm,false,false,EM_QC_FRACTION,EQ_QC_FRACTION_PUMP,WO-QC-CHR-003
+TS_QA_PH,QA pH Measurement,Inline pH measurement for QA sampling,pH,false,false,EM_QA_SENS,EQ_QA_PH_SENSOR,WO-QA-002
+TS_QA_CONDUCTIVITY,QA Conductivity Measurement,Conductivity of QA sample stream,mS/cm,false,false,EM_QA_SENS,EQ_QA_CONDUCTIVITY_SENSOR,WO-QA-002
+TS_QA_TURBIDITY,QA Turbidity Measurement,Turbidity observed during QA inspection,NTU,false,false,EM_QA_SENS,EQ_QA_TURBIDITY_METER,WO-QA-003
+TS_QA_HUMIDITY,QA Lab Humidity,Relative humidity in QA lab sensor enclosure,"%",false,false,EM_QA_SENS,EQ_QA_HUMIDITY_LOGGER,WO-QA-004
+TS_CONV_SPEED,Conveyor Line Speed,Speed of packaging conveyor line,m/min,false,false,EM_CONV_DRV1,EQ_CONV1_SPEED_SENSOR,WO-CONV-002
+TS_CONV_MOTOR_TEMP,Conveyor Motor Temperature,Motor winding temperature for conveyor drive,degC,false,false,EM_CONV_DRV1,EQ_CONV1_MOTOR,WO-CONV-003
+TS_COMP_DISCH_PRESS,Compressor Discharge Pressure,Discharge pressure of the utility compressor,bar,false,false,EM_COMP_CTRL,EQ_COMPRESSOR_PRESSURE_TX,WO-COMP-002
+TS_COMP_VIBRATION,Compressor Vibration Velocity,Vibration RMS velocity measured on compressor,"mm/s",false,false,EM_COMP_CTRL,EQ_COMPRESSOR_VIBRATION_MON,WO-COMP-003
+TS_COMP_BEARING_TEMP,Compressor Bearing Temperature,Bearing pocket temperature on compressor,degC,false,false,EM_COMP_CTRL,EQ_COMPRESSOR_TEMP_SENSOR,WO-COMP-002
+TS_R14_HEATER_TEMP,R14 Heater Outlet Temperature,Outlet temperature from R14 heater loop,degC,false,false,EM_R14_HEAT,EQ_R14_HEATER_TEMP_SENSOR,WO-R14-001
+TS_R14_HEATER_POWER,R14 Heater Power Output,Power output command of the R14 heater controller,kW,false,false,EM_R14_HEAT,EQ_R14_HEATER_CONTROLLER,WO-R14-002
+TS_R15_VALVE_POSITION,R15 Valve Manifold Position,Aggregated valve position feedback for R15 manifold,"%",false,false,EM_R15_VALVE,EQ_R15_VALVE_POSITIONER,WO-R15-002
+TS_R15_MANIFOLD_PRESS,R15 Manifold Pressure,Common manifold pressure for R15 valves,bar,false,false,EM_R15_VALVE,EQ_R15_VALVE_PRESSURE_TX,WO-R15-002
+TS_BLDR_MOTOR_SPEED,Blender Motor Speed,Rotational speed of the blender drive motor,rpm,false,false,EM_BLDR_MOTOR,EQ_BLDR_MOTOR_DRIVE,WO-BLDR-001
+TS_BLDR_TORQUE,Blender Gearbox Torque,Output torque from the blender gearbox,"%",false,false,EM_BLDR_MOTOR,EQ_BLDR_MOTOR_GEARBOX,WO-BLDR-003
+TS_BLDR_VIBRATION,Blender Motor Vibration,Vibration velocity measured on blender motor,mm/s,false,false,EM_BLDR_MOTOR,EQ_BLDR_MOTOR_VIBRATION,WO-BLDR-002
+TS_PILOT_REACTOR_TEMP,Pilot Reactor Temperature,Reactor temperature in pilot plant vessel,degC,false,false,UNIT_PILOT_REACT,EQ_PILOT_TEMP_SENSOR,WO-PILOT-003
+TS_PILOT_REACTOR_PRESS,Pilot Reactor Pressure,Reactor pressure in pilot plant vessel,bar,false,false,UNIT_PILOT_REACT,EQ_PILOT_PRESSURE_TX,WO-PILOT-002
+TS_PILOT_FLOW,Pilot Feed Flow,Feed flow rate into pilot reactor,kg/h,false,false,UNIT_PILOT_REACT,EQ_PILOT_FLOWMETER,WO-PILOT-003
+TS_PILOT_CONTROLLER_OUTPUT,Pilot Control Output,Controller output percentage for pilot reactor,"%",false,false,EM_PILOT_CTRL,EQ_PILOT_CONTROLLER,WO-PILOT-004
+TS_R12_PANEL_STATUS,R12 Control Panel Status,Run/stop status reported by the R12 charge control panel,state,true,true,EM_R12_CHARGE,EQ_R12_CHARGE_CONTROL_PANEL,WO-R12-003
+TS_R12_SAFETY_STATE,R12 Safety Valve State,Open/closed indication from the charge safety valve,state,true,true,EM_R12_CHARGE,EQ_R12_CHARGE_SAFETY_VALVE,WO-R12-004
+TS_FILL_VFD_SPEED,Fill Pump VFD Speed,Speed feedback from the fill pump drive,rpm,false,false,EM_FILL_PUMP,EQ_FILL_PUMP_VFD,WO-FILL-004
+TS_FILL_PANEL_STATUS,Fill Control Panel Status,Operational status reported from the fill control panel,state,true,true,EM_FILL_PUMP,EQ_FILL_PUMP_CONTROL_PANEL,WO-FILL-004
+TS_FILL_PUMP_CURRENT,Fill Pump Motor Current,Measured current draw of the fill transfer pump,A,false,false,EM_FILL_PUMP,EQ_FILL_TRANSFER_PUMP,WO-FILL-001
+TS_R13_INTERLOCK_STATE,R13 Mixer Interlock State,Safety interlock state for the R13 mixer,state,true,true,EM_R13_MIX,EQ_R13_MIX_SAFETY_INTERLOCK,WO-R13-004
+TS_R13_PANEL_TEMP,R13 Control Panel Temperature,Internal temperature of the R13 control panel,degC,false,false,EM_R13_MIX,EQ_R13_MIX_CONTROL_PANEL,WO-R13-003
+TS_QC_CHROM_SYS_STATE,QC Chrom System State,Execution state of the chromatography skid controller,state,true,true,EM_QC_CHROM,EQ_QC_CHROM_SYSTEM,WO-QC-CHR-001
+TS_QC_CHROM_PUMP_CURRENT,QC Chrom Pump Current,Current draw for the chromatography feed pump,A,false,false,EM_QC_CHROM,EQ_QC_CHROM_PUMP,WO-QC-CHR-001
+TS_QC_UV_MONITOR_GAIN,QC UV Monitor Gain,Optical gain reported by the UV monitoring probe,au,false,false,EM_QC_UV,EQ_QC_UV_MONITOR,WO-QC-UV-004
+TS_QC_UV_LAMP_STATUS,QC UV Lamp Status,On/off status of the UV lamp assembly,state,true,true,EM_QC_UV,EQ_QC_UV_LAMP,WO-QC-UV-001
+TS_QA_SENSOR_STATE,QA Sensor Array State,Health state for QA sensor array,state,true,true,EM_QA_SENS,EQ_QA_SENSOR_ARRAY,WO-QA-001
+TS_QA_LOGGER_MEMORY,QA Logger Free Memory,Available storage on QA data logger,GB,false,false,EM_QA_SENS,EQ_QA_DATA_LOGGER,WO-QA-001
+TS_QA_SPECTRAL_INTENSITY,QA Spectrometer Intensity,Measured spectral intensity during QA checks,au,false,false,EM_QA_SENS,EQ_QA_SPECTROMETER,WO-QA-003
+TS_CONV_SCANNER_STATE,Conveyor Safety Scanner State,Status word from the conveyor safety scanner,state,true,true,EM_CONV_DRV1,EQ_CONV1_SAFETY_SCANNER,WO-CONV-004
+TS_CONV_PANEL_MODE,Conveyor Control Mode,Mode selection reported by the conveyor control panel,state,true,true,EM_CONV_DRV1,EQ_CONV1_CONTROL_PANEL,WO-CONV-002
+TS_CONV_VFD_LOAD,Conveyor VFD Load,Load percentage on the conveyor drive,"%",false,false,EM_CONV_DRV1,EQ_CONV1_VFD,WO-CONV-001
+TS_COMP_SIS_STATE,Compressor SIS State,Safety system state for the compressor controller,state,true,true,EM_COMP_CTRL,EQ_COMPRESSOR_SIS,WO-COMP-004
+TS_COMP_BACKUP_STATUS,Compressor Backup Controller Status,Running status of the redundant compressor controller,state,true,true,EM_COMP_CTRL,EQ_COMPRESSOR_BACKUP_CTRL,WO-COMP-001
+TS_COMP_CTRL_MODE,Compressor Control Mode,Operating mode reported by the main compressor panel,state,true,true,EM_COMP_CTRL,EQ_COMPRESSOR_CTRL,WO-COMP-001
+TS_R14_FLOW_SWITCH_STATE,R14 Flow Switch State,Flow switch indication for the R14 heater loop,state,true,true,EM_R14_HEAT,EQ_R14_HEATER_FLOW_SWITCH,WO-R14-003
+TS_R14_VFD_SPEED,R14 Heater Pump Speed,Speed feedback on the R14 circulation VFD,rpm,false,false,EM_R14_HEAT,EQ_R14_HEATER_VFD,WO-R14-002
+TS_R15_ACTUATOR_PRESS,R15 Actuator Supply Pressure,Supply pressure feeding the R15 valve actuator,bar,false,false,EM_R15_VALVE,EQ_R15_VALVE_ACTUATOR,WO-R15-002
+TS_R15_POSITIONER_STATE,R15 Positioner State,Command state from the valve positioner,state,true,true,EM_R15_VALVE,EQ_R15_VALVE_POSITIONER,WO-R15-002
+TS_BLDR_PANEL_STATE,Blender Control Panel State,Run state reported from blender control panel,state,true,true,EM_BLDR_CTRL,EQ_BLDR_CONTROL_PANEL,WO-BLDR-005
+TS_BLDR_HMI_ALARMS,Blender HMI Alarm Count,Active alarm count presented on the blender HMI,count,false,false,EM_BLDR_CTRL,EQ_BLDR_CONTROL_HMI,WO-BLDR-005
+TS_BLDR_FILTER_DP,Blender Filter Differential Pressure,Differential pressure across blender motor filter,mbar,false,false,EM_BLDR_MOTOR,EQ_BLDR_MOTOR_FILTER,WO-BLDR-004
+TS_BLDR_SAFETY_SWITCH,Blender Safety Switch State,Guard switch status on blender enclosure,state,true,true,EM_BLDR_MOTOR,EQ_BLDR_MOTOR_SAFETY_SWITCH,WO-BLDR-004
+TS_BLDR_BRAKE_TEMP,Blender Brake Temperature,Temperature of the blender motor brake,degC,false,false,EM_BLDR_MOTOR,EQ_BLDR_MOTOR_BRAKE,WO-BLDR-003
+TS_PILOT_CONTROLLER_MODE,Pilot Controller Mode,Mode reported by the pilot reactor controller,state,true,true,EM_PILOT_CTRL,EQ_PILOT_CONTROLLER,WO-PILOT-004
+TS_PILOT_INTERLOCK_STATE,Pilot Interlock State,Status of safety interlocks in the pilot skid,state,true,true,EM_PILOT_CTRL,EQ_PILOT_INTERLOCK,WO-PILOT-005
+TS_PILOT_LOGGER_CPU,Pilot Logger CPU Load,CPU load percentage reported by pilot data logger,"%",false,false,EM_PILOT_CTRL,EQ_PILOT_DATA_LOGGER,WO-PILOT-002
+TS_PILOT_FLOW_DENSITY,Pilot Feed Density,Calculated density from pilot flow meter,kg/m3,false,false,EM_PILOT_CTRL,EQ_PILOT_FLOWMETER,WO-PILOT-003
+TS_PILOT_PANEL_TEMP,Pilot Panel Temperature,Internal temperature of pilot control panel,degC,false,false,EM_PILOT_CTRL,EQ_PILOT_CONTROL_PANEL,WO-PILOT-004

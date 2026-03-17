@@ -1,0 +1,7 @@
+[module]
+title = "AI Property Extractor Function"
+is_selected_by_default = false
+id = "dp:atlas_ai:ai_extractor"
+package_id = "dp:atlas_ai"
+
+

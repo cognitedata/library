@@ -1,8 +1,9 @@
 - workflowExternalId: {{ workflowExternalId }}
-  version: {{ prepareWorkflowVersion }}
+  version: v1
   workflowDefinition:
-    description: "Create annotation state instances for files marked to annotate."
+    description: "Complete file annotation pipeline: prepare → launch → finalize → promote → link assets"
     tasks:
+      # Step 1: Prepare - Create annotation state instances for files marked to annotate
       - externalId: fn_prepare
         type: "function"
         parameters:
@@ -15,18 +16,16 @@
               }
           isAsyncComplete: false
         name: Prepare File Annotations
-        description: Prepare
+        description: Create annotation state instances for files marked ToAnnotate
         retries: 0
         timeout: 600
         onFailure: "abortWorkflow"
 
-- workflowExternalId: {{ workflowExternalId }}
-  version: {{ launchWorkflowVersion }}
-  workflowDefinition:
-    description: "Create diagram detect jobs for annotation state instances marked new or retry."
-    tasks:
+      # Step 2: Launch - Create diagram detect jobs
       - externalId: fn_launch
         type: "function"
+        dependsOn:
+          - externalId: fn_prepare
         parameters:
           function:
             externalId: {{ launchFunctionExternalId }}
@@ -37,18 +36,16 @@
               }
           isAsyncComplete: false
         name: Launch File Annotations
-        description: Launch
+        description: Create diagram detect jobs for annotation state instances
         retries: 0
         timeout: 600
         onFailure: "abortWorkflow"
 
-- workflowExternalId: {{ workflowExternalId }}
-  version: {{ finalizeWorkflowVersion }}
-  workflowDefinition:
-    description: "Process the diagram detect jobs created by the launch workflow"
-    tasks:
-      - externalId: fn_finalize_thread_1
+      # Step 3: Finalize - Process diagram detect jobs
+      - externalId: fn_finalize
         type: "function"
+        dependsOn:
+          - externalId: fn_launch
         parameters:
           function:
             externalId: {{ finalizeFunctionExternalId }}
@@ -58,87 +55,17 @@
                 "logLevel": "INFO"
               }
           isAsyncComplete: false
-        name: Finalize File Annotations - Thread 1 
-        description: Finalize
+        name: Finalize File Annotations
+        description: Process diagram detect jobs
         retries: 0
         timeout: 600
         onFailure: "abortWorkflow"
 
-      - externalId: fn_finalize_thread_2
-        type: "function"
-        parameters:
-          function:
-            externalId: {{ finalizeFunctionExternalId }}
-            data:
-              {
-                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
-              }
-          isAsyncComplete: false
-        name: Finalize File Annotations - Thread 2
-        description: Finalize
-        retries: 0
-        timeout: 600
-        onFailure: "abortWorkflow"
-
-      - externalId: fn_finalize_thread_3
-        type: "function"
-        parameters:
-          function:
-            externalId: {{ finalizeFunctionExternalId }}
-            data:
-              {
-                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
-              }
-          isAsyncComplete: false
-        name: Finalize File Annotations - Thread 3
-        description: Finalize
-        retries: 0
-        timeout: 600
-        onFailure: "abortWorkflow"
-
-      - externalId: fn_finalize_thread_4
-        type: "function"
-        parameters:
-          function:
-            externalId: {{ finalizeFunctionExternalId }}
-            data:
-              {
-                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
-              }
-          isAsyncComplete: false
-        name: Finalize File Annotations - Thread 4
-        description: Finalize
-        retries: 0
-        timeout: 600
-        onFailure: "abortWorkflow"
-
-      - externalId: fn_finalize_thread_5
-        type: "function"
-        parameters:
-          function:
-            externalId: {{ finalizeFunctionExternalId }}
-            data:
-              {
-                "ExtractionPipelineExtId": {{ extractionPipelineExternalId }},
-                "logLevel": "INFO"
-              }
-          isAsyncComplete: false
-        name: Finalize File Annotations - Thread 5
-        description: Finalize
-        retries: 0
-        timeout: 600
-        onFailure: "abortWorkflow"
-      
-- workflowExternalId: {{ workflowExternalId }}
-  version: {{ promoteWorkflowVersion }}
-  workflowDefinition:
-    description: "Attempt to automatically promote annotation edges created from the pattern mode results in the finalize workflow."
-    tasks:
+      # Step 4: Promote - Auto-promote suggested annotations
       - externalId: fn_promote
         type: "function"
+        dependsOn:
+          - externalId: fn_finalize
         parameters:
           function:
             externalId: {{ promoteFunctionExternalId }}
@@ -149,7 +76,22 @@
               }
           isAsyncComplete: false
         name: Promote File Annotations
-        description: Auto promote tags
+        description: Auto-promote suggested pattern mode annotations
         retries: 0
         timeout: 600
+        onFailure: "abortWorkflow"
+
+      # Step 5: Link Assets - Populate assets property on File instances
+      - externalId: tr_file_to_asset
+        type: "transformation"
+        dependsOn:
+          - externalId: fn_promote
+        parameters:
+          transformation:
+            externalId: {{ fileToAssetTransformationExternalId }}
+            concurrencyPolicy: fail
+        name: Link Files to Assets
+        description: Populate assets property on File instances from approved annotations
+        retries: 1
+        timeout: 1800
         onFailure: "abortWorkflow"

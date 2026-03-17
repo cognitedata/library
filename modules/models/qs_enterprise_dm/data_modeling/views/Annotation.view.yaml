@@ -1,0 +1,28 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: Annotation
+description: Annotation represents contextualization results or links
+implements:
+- space: cdf_cdm
+  externalId: CogniteAnnotation
+  version: "{{ cdmDataModelVersion }}"
+  type: view
+version: {{ enterpriseDataModelVersion }}
+properties:
+  source:
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: SourceSystem
+      version: {{ enterpriseDataModelVersion }}
+      type: view
+  UUID:
+    container:
+      space: {{ enterpriseSchemaSpace }}
+      externalId: Annotation
+      type: container
+    containerPropertyIdentifier: UUID

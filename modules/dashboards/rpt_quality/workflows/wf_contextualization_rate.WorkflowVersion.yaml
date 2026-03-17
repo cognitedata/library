@@ -1,0 +1,86 @@
+workflowExternalId: wf_contextualization_rate
+version: v1
+workflowDefinition:
+  tasks:
+    - externalId: wf_task_report_sap_maintenanceorders_linkrate
+      name: Link rate for sap_maintenanceorders
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_report_sap_maintenanceorders_linkrate
+          concurrencyPolicy: fail
+          useTransformationCredentials: false
+      onFailure: abortWorkflow
+      retries: 1
+      timeout: {{workflow_timeout_per_job}}
+
+
+    - externalId: wf_task_report_sap_operations_linkrate
+      name: Link rate for sap_operations
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_report_sap_operations_linkrate
+          concurrencyPolicy: fail
+          useTransformationCredentials: false
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: wf_task_report_sap_maintenanceorders_linkrate
+      retries: 1
+      timeout: {{workflow_timeout_per_job}}
+
+    - externalId: wf_task_report_pi_timeseries_linkrate
+      name: Link rate for pi_timeseries
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_report_pi_timeseries_linkrate
+          concurrencyPolicy: fail
+          useTransformationCredentials: false
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: wf_task_report_sap_operations_linkrate
+      retries: 1
+      timeout: {{workflow_timeout_per_job}}
+      
+    - externalId: wf_task_report_files_annotationrate
+      name: Annotation rate for files
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_report_files_annotationrate
+          concurrencyPolicy: fail
+          useTransformationCredentials: false
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: wf_task_report_pi_timeseries_linkrate
+      retries: 1
+      timeout: {{workflow_timeout_per_job}}
+
+    - externalId: wf_task_report_files_assets_not_in_baseline
+      name: report files {{ organization }} assets not in baseline
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_report_files_assets_not_in_baseline
+          concurrencyPolicy: fail
+          useTransformationCredentials: false
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: wf_task_report_files_annotationrate
+      retries: 1
+      timeout: {{workflow_timeout_per_job}}
+
+    - externalId: wf_task_report_files_files_not_in_baseline
+      name: report files {{ organization }} files not in baseline
+      type: transformation
+      parameters:
+        transformation:
+          externalId: tr_report_files_files_not_in_baseline
+          concurrencyPolicy: fail
+          useTransformationCredentials: false
+      onFailure: abortWorkflow
+      dependsOn:
+        - externalId: wf_task_report_files_assets_not_in_baseline
+      retries: 1
+      timeout: {{workflow_timeout_per_job}}

@@ -1,0 +1,17 @@
+sourceName: SAP Springfield S/4HANA Assets
+sourceId: sap_springfield_s4hana_assets
+schemaSpace: sp_enterprise_process_industry
+assetTransformationExternalId: sap_assets_springfield_s4hana
+equipmentTransformationExternalId: sap_equipment_springfield_s4hana
+equipmentToAssetTransformationExternalId: sap_equipment_to_asset_springfield_s4hana
+dataset: ingestion
+datamodelExternalId: ORGProcessIndustries
+datamodelVersion: v1
+instanceSpace: springfield_instances
+rawSourceDatabase: ingestion
+
+groupSourceId: <GROUP_SOURCE_ID>
+workflow: sap_s4hana_population
+# TODO: Update to use the actual client ID and secret 'workflowClientId: ${SAP_SPRINGFIELD_S4HANA_CLIENT_ID} & workflowClientSecret: ${SAP_SPRINGFIELD_S4HANA_CLIENT_SECRET}'
+workflowClientId: ${IDP_CLIENT_ID}
+workflowClientSecret: ${IDP_CLIENT_SECRET}

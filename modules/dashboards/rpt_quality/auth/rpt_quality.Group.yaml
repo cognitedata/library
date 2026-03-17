@@ -1,0 +1,58 @@
+name: gp_rpt_quality
+sourceId: {{ groupSourceId }}
+metadata:
+  origin: cdf-project-templates
+capabilities:
+  - projectsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        all: {}
+  - groupsAcl:
+      actions:
+        - LIST
+      scope:
+        all: {}
+  - sessionsAcl:
+      actions:
+        - CREATE
+      scope:
+        all: {}
+  - rawAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        tableScope:
+          dbsToTables:
+            {{ annotation_db }}:
+              - {{ annotation_patterns_tbl }}
+              - {{ annotation_docs_tbl }}
+              - {{ annotation_tags_tbl }}
+  - rawAcl:
+      actions:
+        - READ
+        - WRITE
+        - LIST
+      scope:
+        tableScope:
+          dbsToTables:
+            db_quality_reports: []
+  - transformationsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - ds_quality_reports
+  - workflowOrchestrationAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids:
+            - ds_quality_reports
+

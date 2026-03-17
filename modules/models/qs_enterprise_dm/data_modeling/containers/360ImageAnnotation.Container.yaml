@@ -1,0 +1,14 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: {{ reservedWordPrefix }}360ImageAnnotation
+usedFor: all
+properties:
+  UUID:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+constraints: {}
+indexes: {}

@@ -15,18 +15,4 @@
   functionPath: 'handler.py'
   # Data set id for the zip file with the code that is uploaded.
   dataSetExternalId: '{{files_dataset}}'
-- name: 'dm:context:metadata_update'
-  externalId: 'fn_dm_context_metadata_update'
-  owner: 'Anonymous'
-  description: 'Update aliases for files and assets as prep for Contextualization of P&ID files'
-  metadata:
-    version: '{{function_version}}'
-  envVars:
-    # The below two environment variables are set by the Toolkit
-    ENV_TYPE: '${CDF_BUILD_TYPE}'
-    CDF_ENV: '${CDF_ENVIRON}'
-  # Number of cores, not available in Azure
-  runtime: 'py311'
-  functionPath: 'handler.py'
-  # Data set id for the zip file with the code that is uploaded.
-  dataSetExternalId: '{{files_dataset}}'
+

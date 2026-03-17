@@ -3,7 +3,7 @@ config:
   parameters:
     debug: False
     debugFile: 'PH-ME-P-0156-001.pdf'
-    runAll: False
+    runAll: True
     cleanOldAnnotations: False
     rawDb: 'ds_files_{{location_name}}_{{source_name}}'
     rawTableState: 'files_state_store'

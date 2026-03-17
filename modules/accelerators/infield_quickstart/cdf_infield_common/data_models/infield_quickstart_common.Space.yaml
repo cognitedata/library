@@ -1,0 +1,6 @@
+- space: cognite_app_data # used to store user and user preference data
+  name: cognite_app_data
+  description: Space for Infield App Data
+- space: APM_Config # used to store app configuration
+  name: APM_Config
+  description: Space for application configurations

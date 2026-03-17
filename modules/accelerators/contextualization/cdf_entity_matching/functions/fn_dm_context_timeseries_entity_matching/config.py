@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Literal, cast
+from typing import Any
 
 import yaml
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
 
 # Configuration classes
 class Parameters(BaseModel, alias_generator=to_camel):
     debug: bool
+    dm_update: bool
     run_all: bool
-    remove_old_asset_links: bool
+    remove_old_links: bool
     raw_db: str
     raw_table_state: str
     raw_tale_ctx_good: str
@@ -42,7 +42,7 @@ class ViewPropertyConfig(BaseModel, alias_generator=to_camel):
 
 class ConfigData(BaseModel, alias_generator=to_camel):
     entity_view: ViewPropertyConfig
-    asset_view: ViewPropertyConfig
+    target_view: ViewPropertyConfig
 
 class Config(BaseModel, alias_generator=to_camel):
     parameters: Parameters

@@ -1,39 +1,40 @@
 # cdf_p_and_id_annotation
 
-The module creates a simple data pipeline for processing files from
+The module creates a simple data pipeline for annotation files from
 your location. The processing here is related to the
 annotation/contextualization mapping of tags in P&ID documents
 to assets and files.
 
+## Why Use This Module?
+
+**Save Time and Accelerate Your P&ID Contextualization**
+
+This module is built from **production-proven code** that has been successfully deployed across multiple customer environments. Instead of building a P&ID annotation pipeline from scratch—which typically takes weeks or months of development, testing, and iteration—you can deploy this module in hours and start contextualizing your P&ID documents immediately.
+
+**Key Benefits:**
+
+- ⚡ **Production-Ready**: Battle-tested code based on real-world implementations from several customers running in production environments
+- 🚀 **Quick Deployment**: Get up and running in hours, not weeks. Simple configuration and deployment process
+- 🔧 **Easy to Extend**: Clean, modular architecture makes it straightforward to customize for your specific needs
+- 📈 **Scalable Foundation**: Currently runs in a single-threaded process, but designed to be easily extended with parallel processing and async modules for handling large volumes of P&ID files
+- 🎯 **Proven Results**: Leverage best practices and lessons learned from multiple production deployments
+
+**Time Savings:**
+
+- **Development Time**: Save weeks of development time by using proven, production-ready code
+- **Maintenance**: Reduce ongoing maintenance burden with stable, tested code
+- **Iteration Speed**: Quickly adapt and extend the module to meet your specific requirements
+
+Whether you're processing hundreds or thousands of P&ID documents, this module provides a solid foundation that can scale with your needs. Start with the single-threaded implementation for immediate value, then extend to parallel/async processing as your volume grows.
+
+## Key Features
+
 Key features are:
 
-- Update of metadata and aliases for Files and Assets/Tags.
-  - Configuration in extraction pipeline matching the names and structure
-    of data modeling. See list examples list and description in list for
-    annotation function.
-  - DEBUG mode
-    - Extensive logging
-    - Processing one file name provided as input in configuration
-  - Metadata and aliases for files
-    - Using AI / LMM endpoint in CDF to generate a summary that will be used
-      as a description (if no description exist for document)
-    - Summary is used to generate tags – if processing diagrams are found in
-      the text, the tag PID is added with other keywords as tags to the
-      document metadata
-    - Generation different alias versions of the file name used for matching
-      between P&ID diagrams. Full file name containing version and revision
-      is usually not used in the diagrams referring to other diagrams. For
-      this reason aliases of the file name is created to reflect this an make
-      the matching more precise.
-  - Alias for Assets/Tags
-    - Creating asset alias without system numbers, making matching with this
-      more precise.
-    - Process uses a raw table to store State, preventing processing of items
-      already processed.
-
-NOTE this code should be updated to reflect the project need for file name
-and asset matching depending on naming standards in the company’s P&ID
-documents
+- Tagging transformations for filtering input
+  - **Asset Tagging Transformation** (`tr_asset_tagging`): Adds 'PID' tag to assets to enable filtering in the annotation process. This transformation serves as an example of how to filter which assets are included in the annotation matching process.
+  - **File Tagging Transformation** (`tr_file_tagging`): Adds 'PID' tag to files to enable filtering in the annotation process. This transformation serves as an example of how to filter which files are included in the annotation matching process.
+  - These transformations can be customized based on your project's needs for identifying which assets and files should be processed for P&ID annotation.
 
 - Run P&ID annotation process
   - Configuration in extraction pipeline matching the names and structure of
@@ -77,6 +78,16 @@ documents
     - Create annotation in DM service
     - Log status from process to extraction pipeline log
 
+**Performance & Scalability:**
+
+The current implementation processes files sequentially in a single-threaded mode, which is ideal for getting started quickly and handling moderate volumes of P&ID files. For production environments with large-scale requirements (thousands of files), the module can be extended with:
+
+- **Parallel Processing**: Process multiple files concurrently to reduce overall processing time
+- **Async Operations**: Implement asynchronous I/O operations for better resource utilization
+- **Batch Optimization**: Optimize batch sizes based on your infrastructure and file characteristics
+
+The modular architecture makes these extensions straightforward, allowing you to scale the solution as your needs grow.
+
 ## Managed resources
 
 This module manages the following resources:
@@ -87,38 +98,47 @@ This module manages the following resources:
        running transformation, function (contextualization) and updating files
 
 2. data set:
-   - ID: `ds_files_{{location_name}}`
+   - ID: `{{files_dataset}}` (default: `ds_files_LOC`)
      - Content: Data lineage, used Links to used functions, extraction
-       pipelines, transformation, and raw tables
+       pipelines, transformations, and raw tables
 
 3. extraction pipeline:
    - ID: `ep_ctx_files_{{location_name}}_{{source_name}}_pandid_annotation`
      - Content: Documentation and configuration for a CDF function running
        P&ID contextualization/annotation (see function for more description)
-   - ID: `ep_ctx_file_metadata_update`
-     - Content: Documentation and configuration for a CDF function updating
-       aliases for asset & files (see function for more description)
 
-4. function:
+4. transformations:
+   - ID: `asset_tagging_tr`
+     - Content: Adds 'PID' tag to assets. This transformation serves as an example
+       of how to filter which assets are included in the annotation process by
+       adding tags that can be used in the annotation configuration's filterProperty.
+   - ID: `file_tagging_tr`
+     - Content: Adds 'PID' tag to files. This transformation serves as an example
+       of how to filter which files are included in the annotation process by
+       adding tags that can be used in the annotation configuration's filterProperty.
+
+5. function:
    - ID: `fn_dm_context_files_{{location_name}}_{{source_name}}_annotation`
-     - Content: reads new/updated files using the SYNC api. Extracts all
+     - Content: Reads new/updated files using the SYNC api. Extracts all
        tags in P&ID that match tags from Asset & Files to create CDF
        annotations used for linking found objects in the document to
        other resource types in CDF
-   - ID: `fn_dm_context_{{location_name}}_{{source_name}}_alias_update`
-     - Content: Reads new/updated assets and files to create & update the
-       alias property.
 
-5. raw: in database : ds_files_{{source_name}}_{{location_name}}
-   - ID: documents_docs
-     - Content: DB with table for with all
+6. raw: in database `{{files_dataset}}` (typically `ds_files_{{location_name}}_{{source_name}}`)
+   - ID: `documents_docs`
+     - Content: Table storing document-to-document relationships found in P&ID files
+   - ID: `documents_tags`
+     - Content: Table storing document-to-tag relationships found in P&ID files
+   - ID: `files_state_store`
+     - Content: Table storing state/cursor information for incremental processing
 
-6. workflow
-   - ID: `wf_{{location_name}}_files_annotation`
-     - Content: Start Function:
-       `fn_dm_context_{{location_name}}_{{source_name}}_alias_update` and then
-       Function:
-       `fn_dm_context_files_{{location_name}}_{{source_name}}_annotation`
+7. workflow
+   - ID: `{{workflow}}` (default: `entity_matching`)
+     - Content: Orchestrates the P&ID annotation process:
+       1. Runs `asset_tagging_tr` transformation to tag assets
+       2. Runs `file_tagging_tr` transformation to tag files
+       3. Runs `fn_dm_context_files_{{location_name}}_{{source_name}}_annotation`
+          function to perform annotation (depends on both tagging transformations)
 
 ## Variables
 
@@ -145,6 +165,12 @@ The following variables are required and defined in this module:
 >   - Instance space related to equipment (if used)
 > - assetInstanceSpace:
 >   - Instance space related to assets / tags / functional locations
+> - annotationSchemaSpace:
+>   - Schema space for the annotation view (typically `cdf_cdm`)
+> - organization:
+>   - Organization name used in view external IDs (e.g., `YourOrg`)
+> - workflow:
+>   - External ID for the workflow (default: `entity_matching`)
 > - functionClientId:
 >   - Environment variable that contains the value for Application ID for
 >     system account used to run function
@@ -154,11 +180,128 @@ The following variables are required and defined in this module:
 > - files_location_processing_group_source_id:
 >   - Object ID from Azure AD for used to link to the CDF group created
 
-## Usage
+## Deployment
 
-  poetry shell
-  cdf build
-  cdf deploy
+### Prerequisites
+
+Before you start, ensure you have:
+
+- A Cognite Toolkit project set up locally
+- Your project contains the standard `cdf.toml` file
+- Valid authentication to your target CDF environment
+
+### Step 1: Enable External Libraries
+
+Edit your project's `cdf.toml` and add:
+
+```toml
+[alpha_flags]
+external-libraries = true
+
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
+```
+
+This allows the Toolkit to retrieve official library packages.
+
+> **📝 Note: Replacing the Default Library**
+>
+> By default, a Cognite Toolkit project contains a `[library.toolkit-data]` section pointing to `https://github.com/cognitedata/toolkit-data/...`. This provides core modules like Quickstart, SourceSystem, Common, etc.
+>
+> **These two library sections cannot coexist.** To use this Deployment Pack, you must **replace** the `toolkit-data` section with `library.cognite`:
+>
+> | Replace This | With This |
+> |--------------|-----------|
+> | `[library.toolkit-data]` | `[library.cognite]` |
+> | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
+>
+> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, P&ID Annotation, etc.).
+
+> **⚠️ Checksum Warning**
+>
+> When running `cdf modules add`, you may see a warning like:
+>
+> ```
+> WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
+> Please verify the checksum with the source and update cdf.toml if needed.
+> This may indicate that the package content has changed.
+> ```
+>
+> **This is expected behavior.** The checksum in this documentation may be outdated because it gets updated with every release. The package will still download successfully despite the warning.
+>
+> **To resolve the warning:** Copy the new checksum value shown in the warning message and update your `cdf.toml` with it. For example, if the warning shows `sha256:da2b33d60c66700f...`, update your config to:
+>
+> ```toml
+> [library.cognite]
+> url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+> checksum = "sha256:da2b33d60c66700f..."
+> ```
+
+### Step 2: Add the Module
+
+Run:
+
+```bash
+cdf modules init .
+```
+
+> **⚠️ Disclaimer**: This command will overwrite existing modules. Commit changes before running, or use a fresh directory.
+
+### Step 3: Select the Contextualization Package
+
+From the menu, select:
+
+```
+Contextualization: Module templates for data contextualization
+```
+
+Then select **Contextualization P&ID Annotation**.
+
+> **⚠️ Important: Module Selection**
+>
+> When the module selection menu appears:
+> ```
+> Which modules in contextualization would you like to add?
+> ▶ ○ Contextualization P&ID Annotation
+>   ○ Contextualization File Annotation
+>   ○ Contextualization Entity Matching
+> ```
+>
+> You must **press Space** to select the module (the `○` becomes `●`), **then press Enter** to confirm:
+> ```
+> ▶ ● Contextualization P&ID Annotation   ← Selected (filled circle)
+>   ○ Contextualization File Annotation
+>   ○ Contextualization Entity Matching
+> ```
+>
+> If you only press Enter without pressing Space first, no modules will be added!
+
+### Step 4: Build and Deploy
+
+```bash
+poetry shell
+cdf build
+cdf deploy
+```
+
+### Tagging Transformations
+
+The module includes two example transformations that demonstrate how to filter input to the annotation process:
+
+1. **Asset Tagging** (`tr_asset_tagging`):
+   - Adds the 'PID' tag to assets that should be included in the P&ID annotation process
+   - Uses upsert mode to update existing assets or add tags to new ones
+   - The transformation checks if the 'PID' tag already exists before adding it
+   - Customize this transformation based on your project's criteria for which assets should be annotated
+
+2. **File Tagging** (`tr_file_tagging`):
+   - Adds the 'PID' tag to files that should be included in the P&ID annotation process
+   - Uses upsert mode to update existing files or add tags to new ones
+   - The transformation checks if the 'PID' tag already exists before adding it
+   - Customize this transformation based on your project's criteria for which files should be annotated
+
+These transformations run before the annotation function in the workflow, ensuring that only tagged assets and files are considered during the annotation matching process. The tags added by these transformations are then used in the annotation configuration's `filterProperty` and `filterValues` settings.
 
 ### P&ID configuration
 
@@ -215,7 +358,7 @@ config:
   parameters:
     debug: False
     debugFile: 'PH-ME-P-0156-001.pdf'
-    runAll: False
+    runAll: True
     cleanOldAnnotations: False
     rawDb: 'ds_files_{{location_name}}_{{source_name}}'
     rawTableState: 'files_state_store'
@@ -225,14 +368,14 @@ config:
     autoSuggestThreshold: 0.50
   data:
     annotationView:
-      schemaSpace: {{ schemaSpace }}
+      schemaSpace: {{ annotationSchemaSpace }}
       externalId: CogniteDiagramAnnotation
       version: {{ viewVersion }}
     annotationJob:
       fileView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ fileInstanceSpace }}
-        externalId: CogniteFile
+        externalId: {{organization}}File
         version: {{ viewVersion }}
         searchProperty: aliases
         type: diagrams.FileLink
@@ -240,20 +383,16 @@ config:
         filterValues: ["PID", "ISO", "PLOT PLANS"]
       entityViews:
         - schemaSpace: {{ schemaSpace }}
-          instanceSpace: {{ equipmentInstanceSpace }}
-          externalId: CogniteEquipment
-          version: {{ viewVersion }}
-          searchProperty: aliases
-          type: diagrams.FileLink
-        - schemaSpace: {{ schemaSpace }}
           instanceSpace: {{ assetInstanceSpace }}
-          externalId: CogniteAsset
+          externalId: {{organization}}Asset
           version: {{ viewVersion }}
           searchProperty: aliases
           type: diagrams.AssetLink
           filterProperty: tags
-          filterValues: ["PID"] 
+          filterValues: ["PID"]
 ```
+
+**Note**: The `filterProperty` and `filterValues` configuration allows you to filter which files and assets are included in the annotation process. The tagging transformations (`tr_asset_tagging` and `tr_file_tagging`) add the 'PID' tag to demonstrate how to prepare your data for filtering. You can customize these transformations based on your project's needs.
 
 #### Running functions locally
 
@@ -265,8 +404,12 @@ for logging on to your CDF project
 
 #### Cognite Function runtime
 
-Using Cognite Functions to run workloads will be limited by the underlying
-resources in the cloud provider functions. Hence processing many P&ID
-documents will not be optimal in a CDF function since it will time
-out and fail. One solution for this is to do the initial one-time job locally
-and let the function deal with all new and updated files.
+The current implementation processes files sequentially, which works well for incremental processing of new and updated files. However, when processing large volumes of P&ID documents (hundreds or thousands), Cognite Functions may be limited by timeout constraints and underlying cloud provider resources.
+
+**Recommended Approach:**
+- Use the function for **incremental processing** of new and updated files (the default `runAll: False` mode)
+- For **initial bulk processing**, run the function locally or extend it with parallel/async processing capabilities
+- The modular architecture makes it straightforward to extend the function with parallel processing for handling large-scale initial loads
+
+**Future Scalability:**
+The codebase is designed to be easily extended with parallel processing and async modules, allowing you to scale from processing dozens to thousands of P&ID files efficiently. This makes it a future-proof solution that grows with your needs.

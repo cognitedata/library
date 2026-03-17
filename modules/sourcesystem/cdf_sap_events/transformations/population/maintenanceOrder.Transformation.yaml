@@ -1,0 +1,15 @@
+externalId: {{ maintenanceOrderTransformationExternalId }}
+dataSetExternalId: {{ dataset }}
+name: Maintenance Order Transformations for {{ sourceName }}
+destination:
+  type: instances
+  dataModel:
+    space: {{ schemaSpace }}
+    externalId: {{ datamodelExternalId }}
+    destinationType: MaintenanceOrder
+    version: {{ datamodelVersion }}
+  instanceSpace: {{ instanceSpace }}
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+

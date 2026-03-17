@@ -1,0 +1,145 @@
+space: {{ isaSchemaSpace }}
+externalId: MaterialLot
+name: MaterialLot
+description: A unique amount of material having a set of common traits. Some examples of common
+  traits are material source, the master recipe used to produce the material, and distinct
+  physical properties.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: {{ viewVersion }}
+properties:
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    name: Material Lot Name
+    description: >
+      Human-readable name for the material lot, typically representing the material lot's common name, 
+      lot number, or other identifying information. The material_lot_name follows ISA-95 material lot 
+      naming conventions and should be descriptive enough for operational personnel to identify the 
+      material lot. This name is often used in production orders, batch records, material specifications, 
+      and operational documentation. The material_lot_name should align with material lot naming standards 
+      to ensure consistency across the enterprise. [ISA-95 Level 3]
+  material_lot_id:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: MaterialLot
+      type: container
+    containerPropertyIdentifier: material_lot_id
+    name: Material Lot ID
+    description: >
+      Unique identifier for the material lot entity, conforming to ISA-95 Level 3 material lot 
+      tracking standards. A material lot represents a specific lot or batch of a material, enabling 
+      lot-level tracking and traceability. The material_lot_id serves as the primary key and enables 
+      consistent lot tracking across all manufacturing operations, from material receipt through 
+      production consumption to finished product shipment. This identifier is critical for regulatory 
+      compliance, quality control, and material traceability in batch manufacturing processes. 
+      [ISA-95 Level 3]
+  material:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: MaterialLot
+      type: container
+    containerPropertyIdentifier: material
+    name: Materials
+    description: >
+      Reference to the Material entity that this lot represents, establishing the relationship 
+      between the material master and specific material lots. The material relationship enables 
+      navigation from lot to material master data, supporting material specification lookups, 
+      quality requirements, and material handling procedures. This relationship is essential for 
+      lot-level material management and traceability. [ISA-95 Level 3]
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: Material
+      version: {{ viewVersion }}
+      type: view
+  lot_number:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: MaterialLot
+      type: container
+    containerPropertyIdentifier: lot_number
+    name: Lot Number
+    description: >
+      Human-readable lot number or identifier assigned to the material lot, typically used for 
+      operational reference and displayed on material labels, certificates, and documentation. 
+      The lot_number follows ISA-95 material lot naming conventions and may include production 
+      date, supplier information, or other organizational identifiers. This number is often used 
+      in quality control systems, material traceability, and regulatory documentation. The 
+      lot_number should be unique within the material type to ensure proper identification and 
+      prevent confusion. [ISA-95 Level 3]
+  manufacture_date:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: MaterialLot
+      type: container
+    containerPropertyIdentifier: manufacture_date
+    name: Manufacture Date
+    description: >
+      Date when the material lot was manufactured or produced, enabling age-based material 
+      management and shelf-life tracking. The manufacture_date is critical for materials with 
+      expiration dates, shelf-life requirements, or age-dependent quality characteristics. This 
+      date enables calculation of material age, remaining shelf life, and supports first-in-first-out 
+      (FIFO) inventory management strategies. The manufacture_date is essential for regulatory 
+      compliance and quality assurance in industries with material aging requirements. [ISA-95 Level 3]
+  quality_results:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: QualityResult
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: QualityResult
+        version: {{ viewVersion }}
+        type: view
+      identifier: material_lot
+    name: Quality Results
+    description: >
+      Reverse relationship collection of all QualityResult entities associated with this material lot. 
+      Quality results represent test results and analytical data for materials and batches, enabling 
+      quality analysis, compliance verification, and material release decisions. This relationship 
+      enables material lot-to-quality result navigation, supporting lot-level quality tracking and 
+      regulatory compliance. The quality_results relationship is essential for material quality 
+      tracking and regulatory compliance in batch manufacturing processes. [ISA-95 Level 3]
+    connectionType: multi_reverse_direct_relation
+  expiry_date:
+    container:
+      space: {{ isaSchemaSpace }}
+      externalId: MaterialLot
+      type: container
+    containerPropertyIdentifier: expiry_date
+    name: Expiry Date
+    description: >
+      Date when the material lot expires or becomes unsuitable for use, enabling expiration-based 
+      material management and quality control. The expiry_date is critical for materials with 
+      shelf-life limitations, stability requirements, or time-dependent quality characteristics. 
+      This date enables expiration tracking, material quarantine, and supports inventory management 
+      to prevent use of expired materials. The expiry_date is essential for regulatory compliance, 
+      quality assurance, and safety in industries with material expiration requirements. [ISA-95 Level 3]
+  product_segment:
+    source:
+      space: {{ isaSchemaSpace }}
+      externalId: ProductSegment
+      version: {{ viewVersion }}
+      type: view
+    through:
+      source:
+        space: {{ isaSchemaSpace }}
+        externalId: ProductSegment
+        version: {{ viewVersion }}
+        type: view
+      identifier: material_requirements
+    name: Product Segments
+    description: >
+      Reference to the ProductSegment entity that is associated with this material lot, establishing the 
+      relationship between material lots and product segments. The product_segment relationship enables 
+      navigation from material lot to product segment level, supporting product segment-level production planning analysis and 
+      production tracking. This relationship is essential for ISA-95 Level 3 production tracking, where material lots are used to track product segments. [ISA-95 Level 3]
+    connectionType: multi_reverse_direct_relation

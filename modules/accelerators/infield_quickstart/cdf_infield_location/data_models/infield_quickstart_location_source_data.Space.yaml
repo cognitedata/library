@@ -1,0 +1,4 @@
+# used to read source data from the customer, core resources or extentions
+space: sp_asset_{{first_location}}_source
+name: sp:infield:{{first_location}}:source
+description: Space for Infield Location Source Data

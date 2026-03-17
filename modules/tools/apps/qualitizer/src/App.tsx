@@ -1,0 +1,215 @@
+import mixpanel from "mixpanel-browser";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAppSdk } from "@/shared/auth";
+import { useSdkManager } from "@/shared/SdkManager";
+import { HealthChecks } from "./health-checks";
+import { Processing } from "./processing";
+import { Permissions } from "./permissions";
+import { Transformations } from "./transformations";
+import { DataCatalog } from "./data-catalog";
+import type { SelectedDataModel, SelectedView } from "@/shared/selection-types";
+import { DataCacheProvider } from "./shared/data-cache";
+import { I18nProvider, useI18n } from "./shared/i18n";
+import { LimitsProvider } from "./shared/LimitsContext";
+import { NavigationProvider } from "./shared/NavigationContext";
+
+const productionPages = [
+  { id: "health", labelKey: "nav.healthChecks" },
+  { id: "processing", labelKey: "nav.processing" },
+  { id: "transformations", labelKey: "nav.transformations" },
+  { id: "permissions", labelKey: "nav.permissions" },
+  { id: "meta", labelKey: "nav.dataCatalog" },
+] as const;
+
+const internalPages = [
+  { id: "models", label: "Data models" },
+  { id: "views", label: "Views" },
+  { id: "properties", label: "Properties" },
+  { id: "streams", label: "Streams" },
+  { id: "relationships", label: "Relationships" },
+  { id: "spaces", label: "Spaces" },
+  { id: "testing", label: "Testing" },
+  { id: "overlap", label: "Overlap" },
+  { id: "settings", label: "Settings" },
+] as const;
+
+type AppMode =
+  | (typeof productionPages)[number]["id"]
+  | (typeof internalPages)[number]["id"];
+
+function AppContent() {
+  const { isLoading } = useAppSdk();
+  const {
+    project: selectedProject,
+    availableProjects,
+    setSelectedProject,
+    projectResolved,
+  } = useSdkManager();
+  const { language, setLanguage, t } = useI18n();
+  const showInternal =
+    import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
+  const [mode, setMode] = useState<AppMode>(productionPages[0].id);
+
+  const navigateToTransformations = useCallback(() => {
+    setMode("transformations");
+  }, []);
+  const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(null);
+  const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
+
+  useEffect(() => {
+    if (selectedProject) {
+      mixpanel.register({ cdf_project: selectedProject });
+    }
+  }, [selectedProject]);
+
+  useEffect(() => {
+    if (selectedView) {
+      window.dispatchEvent(new Event("selected-view-update"));
+    }
+  }, [selectedView]);
+
+  const selectionSummary = useMemo(() => {
+    const modelLabel = selectedModel
+      ? `${selectedModel.name ?? selectedModel.externalId} · ${selectedModel.space}${
+          selectedModel.version ? ` · ${selectedModel.version}` : ""
+        }`
+      : "None";
+    const viewLabel = selectedView
+      ? `${selectedView.name ?? selectedView.externalId} · ${selectedView.space}${
+          selectedView.version ? ` · ${selectedView.version}` : ""
+        }`
+      : "None";
+    return { modelLabel, viewLabel };
+  }, [selectedModel, selectedView]);
+
+  if (isLoading || !projectResolved) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div className="min-h-screen w-full px-6 py-10">
+      <LimitsProvider>
+      <NavigationProvider onNavigateToTransformations={navigateToTransformations}>
+      <DataCacheProvider>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+          <div className="flex flex-nowrap items-start justify-between gap-4">
+            <div className="flex flex-col gap-3">
+              {availableProjects.length > 1 ? (
+                <label className="flex items-center gap-2 text-xs text-slate-600">
+                  <span className="text-slate-400">{t("shared.project.label")}</span>
+                  <select
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                    value={selectedProject}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      if (!next || next === selectedProject) return;
+                      setSelectedProject(next);
+                      window.location.reload();
+                    }}
+                  >
+                    {availableProjects.map((project) => (
+                      <option key={project} value={project}>
+                        {project}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                {productionPages.map((page) => (
+                  <button
+                    key={page.id}
+                    type="button"
+                    onClick={() => {
+                      setMode(page.id);
+                      mixpanel.track("navigation", { page_type: page.id });
+                    }}
+                    className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition ${
+                      mode === page.id
+                        ? "bg-slate-900 text-white"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                  {t(page.labelKey)}
+                  </button>
+                ))}
+              </div>
+              {showInternal ? (
+                <>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Internal
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {internalPages.map((page) => (
+                      <button
+                        key={page.id}
+                        type="button"
+                        onClick={() => {
+                          setMode(page.id);
+                          mixpanel.track("navigation", { page_type: page.id });
+                        }}
+                        className={`cursor-pointer rounded-md px-4 py-2 text-sm font-medium transition ${
+                          mode === page.id
+                            ? "bg-slate-900 text-white"
+                            : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {page.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="ml-auto flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                <span className="text-slate-400">{t("app.language")}</span>
+                <button
+                  type="button"
+                  className={`rounded-md px-2 py-1 text-xs font-medium ${
+                    language === "en"
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  onClick={() => setLanguage("en")}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-md px-2 py-1 text-xs font-medium ${
+                    language === "ja"
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  onClick={() => setLanguage("ja")}
+                >
+                  日本語
+                </button>
+              </div>
+            </div>
+          </div>
+        {mode === "health" ? <HealthChecks /> : null}
+        {mode === "processing" ? <Processing /> : null}
+        {mode === "permissions" ? <Permissions /> : null}
+        {mode === "meta" ? <DataCatalog /> : null}
+        {mode === "transformations" ? <Transformations /> : null}
+          <footer className="text-sm text-slate-500">Project: {selectedProject}</footer>
+        </div>
+      </DataCacheProvider>
+      </NavigationProvider>
+      </LimitsProvider>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <I18nProvider>
+      <AppContent />
+    </I18nProvider>
+  );
+}
+
+export default App;
+

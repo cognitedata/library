@@ -1,0 +1,243 @@
+space: "{{space}}"
+externalId: Equipment
+name: Equipment
+description: Physical equipment used in the oil and gas industry
+implements:
+- space: cdf_cdm
+  externalId: CogniteEquipment
+  version: v1
+  type: view
+version: "{{dm_version}}"
+properties:
+  asset:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: asset
+    name: Tag
+    description: Tag (asset) associated with this equipment.
+    source:
+      space: "{{space}}"
+      externalId: Tag
+      version: "{{dm_version}}"
+      type: view
+  activities:
+    source:
+      space: "{{space}}"
+      externalId: WorkOrder
+      version: "{{dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{space}}"
+        externalId: WorkOrder
+        version: "{{dm_version}}"
+        type: view
+      identifier: equipment
+    name: Work Orders
+    description: An automatically updated list of work orders related to the equipment.
+    connectionType: multi_reverse_direct_relation
+  operations:
+    connectionType: multi_reverse_direct_relation
+    name: Operations
+    description: Lists the individual work items on the equipment. An automatically
+      populated list of operations related to the equipment.
+    source:
+      space: "{{space}}"
+      externalId: WorkOrderOperation
+      version: "{{dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{space}}"
+        externalId: WorkOrderOperation
+        version: "{{dm_version}}"
+        type: view
+      identifier: equipment
+  timeSeries:
+    source:
+      space: "{{space}}"
+      externalId: TimeSeriesData
+      version: "{{dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{space}}"
+        externalId: TimeSeriesData
+        version: "{{dm_version}}"
+        type: view
+      identifier: equipment
+    name: Time Series
+    description: Time series associated with this equipment.
+    connectionType: multi_reverse_direct_relation
+  files:
+    container:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container
+    containerPropertyIdentifier: files
+    name: files
+    description: Document files associated with this equipment.
+    source:
+      space: "{{space}}"
+      externalId: Files
+      version: "{{dm_version}}"
+      type: view
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  model:
+    container:
+      space: "{{space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: model
+    name: model
+    description: Equipment model designation or part number from the manufacturer.
+  class:
+    container:
+      space: "{{space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: class
+    name: class
+    description: Equipment class classification.
+  type:
+    container:
+      space: "{{space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: type
+    name: type
+    description: Equipment type classification.
+  code:
+    container:
+      space: "{{space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: code
+    name: code
+    description: A unique identifier for the type of equipment.
+  equipmentClass:
+    container:
+      space: "{{space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: equipmentClass
+    name: equipmentClass
+    description: Class of equipment.
+  standard:
+    container:
+      space: "{{space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: standard
+    name: standard
+    description: Standard identifier this equipment is sourced from, such as ISO14224.
+  standardReference:
+    container:
+      space: "{{space}}"
+      externalId: Equipment
+      type: container
+    containerPropertyIdentifier: standardReference
+    name: standardReference
+    description: Reference to the source of the equipment specification.
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source ID
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  sourceContext:
+    name: Source Context
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceContext
+    description: Context of the source id
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  sourceCreatedTime:
+    name: Source Created Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedTime
+    description: When the instance was created in the source system
+  sourceUpdatedTime:
+    name: Source Updated Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedTime
+    description: When the instance was last updated in the source system
+  sourceCreatedUser:
+    name: Source Created User
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceCreatedUser
+    description: User identifier from the source system on who created the source data
+  sourceUpdatedUser:
+    name: Source Updated User
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceUpdatedUser
+    description: User identifier from the source system on who last updated the source data

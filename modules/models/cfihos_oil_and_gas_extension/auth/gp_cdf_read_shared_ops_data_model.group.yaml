@@ -1,0 +1,21 @@
+name: gp_{{environment}}_read_shared_ops_data_model
+sourceId: {{read_source_id}}
+
+capabilities:
+  - datasetsAcl:
+      actions:
+        - READ
+      scope:
+        idScope:
+          ids:
+            - {{dataset_external_id}}
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - {{space}}
+metadata:
+  origin: {{admin_user}}

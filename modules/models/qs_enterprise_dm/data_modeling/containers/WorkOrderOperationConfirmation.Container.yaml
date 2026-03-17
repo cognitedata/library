@@ -1,0 +1,93 @@
+space: {{ enterpriseSchemaSpace }}
+externalId: WorkOrderOperationConfirmation
+name: Work Order Operation Confirmation
+properties:
+  confirmationNumber:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Confirmation Number
+  workOrderOperation:
+    type:
+      list: false
+      type: direct
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Work Order Operation
+  actualWork:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Actual Work
+  forecastWork:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Forecast Work
+  startTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Start Time
+  endTime:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: End Time
+  confirmedQuantity:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Confirmed Quantity
+  totalActualCost:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Total Actual Cost
+  totalPlannedCost:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Total Planned Cost
+  remarks:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Remarks
+constraints: {}
+indexes:
+  workOrderOperation:
+    properties:
+    - workOrderOperation
+    cursorable: false
+    indexType: btree
+usedFor: node

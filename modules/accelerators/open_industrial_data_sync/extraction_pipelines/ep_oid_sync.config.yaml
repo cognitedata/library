@@ -1,0 +1,41 @@
+externalId: ep_oid_sync
+config:
+  # Connection details for Open Industrial Data (publicdata CDF project)
+  # These are separate from your main CDF project credentials
+  oid_connection:
+    tenant_id: "48d5043c-cf70-4c49-881c-c638f5796997"  # OID Azure AD tenant
+    client_id: "1b90ede3-271e-401b-81a0-a4d52bea3273"  # OID client ID (get your secret from the Cognite Hub at https://hub.cognite.com/open-industrial-data-211)
+    cluster: "api"                                      # OID cluster
+    project: "publicdata"                               # OID project name
+    # client_secret is provided via CDF secrets (not in config)
+
+  # Data synchronization configuration
+  sync_configuration:
+    # Real-time sync window: How much recent data to sync on each run
+    # Should be LARGER than schedule frequency to prevent gaps
+    # Examples: "15m-ago" for 10-min schedule (50% buffer), "35m-ago" for 30-min schedule
+    sync_realtime_start: "15m-ago"     # Start time for real-time sync (15 minutes of data for 10-min schedule)
+    
+    sync_all_end: "168h-ago"           # End time for all syncs (7 days ago, due to OID publication delay)
+    sync_random_start: "12w-ago"       # Start time for random backfill (12 weeks ago)
+    instance_space: {{ instanceSpace }}  # Target space for writing time series
+    
+    # Reset backfill: Set to true to remove all "oid_backfilled" tags and restart backfill process
+    # This will be automatically reset to false after running once
+    reset_backfill: false
+    
+    # TimeSeries view configuration - derived from root variables
+    timeseries_view_space: {{ schemaSpace }}
+    timeseries_view_external_id: {{ reservedWordPrefix }}TimeSeries
+    timeseries_view_version: {{ datamodelVersion }}
+
+  # Time offset configuration to simulate real-time data
+  # Data from OID is ~1 week old, so we shift it forward to appear current
+  time_offset:
+    offset_weeks: 1      # Shift data forward by 1 week
+    offset_minutes: 10   # Additional 10 minutes offset for fine-tuning
+
+  # Logging configuration
+  logging:
+    log_level: "INFO"    # Options: DEBUG, INFO, WARNING, ERROR
+

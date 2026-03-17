@@ -1,0 +1,233 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36" version="29.6.1">
+  <diagram name="CFIHOS Oil &amp; Gas Data Model" id="datamodel">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="2600" pageHeight="1000" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="lbl_connected" parent="1" style="text;html=1;align=left;verticalAlign=top;fontSize=14;fontColor=#333333;" value="&lt;b&gt;Connected Views&lt;/b&gt;" vertex="1">
+          <mxGeometry height="30" width="200" x="30" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_isolated" parent="1" style="text;html=1;align=left;verticalAlign=top;fontSize=14;fontColor=#333333;" value="&lt;b&gt;CFIHOS classes&lt;/b&gt;" vertex="1">
+          <mxGeometry height="30" width="400" x="1100" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_direct" parent="1" style="text;html=1;align=left;fontSize=10;fontColor=#666666;" value="→  direct relation (property name on arrow)" vertex="1">
+          <mxGeometry height="20" width="350" x="30" y="890" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_blue" parent="1" style="text;html=1;align=left;fontSize=10;fontColor=#666666;" value="&lt;font color=&quot;#6c8ebf&quot;&gt;■&lt;/font&gt; Core entity" vertex="1">
+          <mxGeometry height="20" width="150" x="30" y="915" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_yellow" parent="1" style="text;html=1;align=left;fontSize=10;fontColor=#666666;" value="&lt;font color=&quot;#d6b656&quot;&gt;■&lt;/font&gt; Tag property view" vertex="1">
+          <mxGeometry height="20" width="160" x="190" y="915" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_purple" parent="1" style="text;html=1;align=left;fontSize=10;fontColor=#666666;" value="&lt;font color=&quot;#9673a6&quot;&gt;■&lt;/font&gt; Maintenance / notification" vertex="1">
+          <mxGeometry height="20" width="200" x="360" y="915" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_green" parent="1" style="text;html=1;align=left;fontSize=10;fontColor=#666666;" value="&lt;font color=&quot;#82b366&quot;&gt;■&lt;/font&gt;&amp;nbsp;CFIHOS classes" vertex="1">
+          <mxGeometry height="20" width="160" x="570" y="915" as="geometry" />
+        </mxCell>
+        <mxCell id="CommonLCIProperties" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;" value="CommonLCIProperties&amp;nbsp;" vertex="1">
+          <mxGeometry height="40" width="230" x="100" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="FunctionalLocationProperties" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;" value="FunctionalLocationProperties" vertex="1">
+          <mxGeometry height="40" width="270" x="620" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="Tag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Tag&lt;/b&gt;" vertex="1">
+          <mxGeometry height="60" width="130" x="410" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="FailureMode" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="FailureMode (ISO 14224)" vertex="1">
+          <mxGeometry height="40" width="150" x="830" y="416" as="geometry" />
+        </mxCell>
+        <mxCell id="TimeSeriesData" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="TimeSeriesData" vertex="1">
+          <mxGeometry height="40" width="190" x="30" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="Equipment" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Equipment" vertex="1">
+          <mxGeometry height="40" width="150" x="380" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="Files" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Files" vertex="1">
+          <mxGeometry height="40" width="110" x="750" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="WorkOrder" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#e1d5e7;strokeColor=#9673a6;" value="WorkOrder" vertex="1">
+          <mxGeometry height="40" width="160" x="30" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="WorkOrderOperation" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#e1d5e7;strokeColor=#9673a6;" value="WorkOrderOperation" vertex="1">
+          <mxGeometry height="40" width="230" x="310" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="Notification" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Notification" vertex="1">
+          <mxGeometry height="40" width="160" x="690" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="Compressor" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Compressor" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="DrillingEquipment" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="DrillingEquipment" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ElectricalEquipmentClass" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="ElectricalEquipmentClass" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="Enclosure" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Enclosure" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="HeatExchanger" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="HeatExchanger" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="HealthSafetyAndEnvironmentEquipmentClass" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="HealthSafetyAnd&lt;br&gt;EnvironmentEquipmentClass" vertex="1">
+          <mxGeometry height="44" width="250" x="1420" y="192" as="geometry" />
+        </mxCell>
+        <mxCell id="Infrastructure" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Infrastructure" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="InstrumentEquipment" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="InstrumentEquipment" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="ItAndTelecomEquipment" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="ItAndTelecomEquipment" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="MechanicalEquipmentClass" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="MechanicalEquipmentClass" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="MiscellaneousEquipment" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="MiscellaneousEquipment" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="PipingAndPipelineEquipment" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="PipingAndPipelineEquipment" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="Pump" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Pump" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="SubseaEquipmentClass" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="SubseaEquipmentClass" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="Tool" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Tool" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="Turbine" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Turbine" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="Valve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Valve" vertex="1">
+          <mxGeometry height="36" width="250" x="1100" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="MaintenanceAndIntegrity" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="MaintenanceAndIntegrity" vertex="1">
+          <mxGeometry height="36" width="250" x="1420" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tag_clci" edge="1" parent="1" source="Tag" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="CommonLCIProperties" value="CommonLCIProperties">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tag_flp" edge="1" parent="1" source="Tag" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;exitX=0.8;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="FunctionalLocationProperties" value="FunctionalLocationProperties">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tag_self" edge="1" parent="1" source="Tag" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="parent, root, path">
+          <mxGeometry relative="1" x="-0.5" y="-20" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="560" y="290" />
+              <mxPoint x="560" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_tsd_tag" edge="1" parent="1" source="TimeSeriesData" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="assets (tags)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tsd_eq" edge="1" parent="1" source="TimeSeriesData" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Equipment" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="jbRf_2SsB8yA1_f3jdo8-2" connectable="0" parent="e_tsd_eq" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;span style=&quot;color: rgb(102, 102, 102); font-size: 9px;&quot;&gt;timeSeries&lt;/span&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.2273" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_eq_tag" edge="1" parent="1" source="Equipment" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="asset (tag)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_eq_files" edge="1" parent="1" source="Equipment" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Files" value="files">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_files_tag" edge="1" parent="1" source="Files" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="assets (tag)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fm_tag" edge="1" parent="1" source="FailureMode" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="assets (tags)">
+          <mxGeometry relative="1" x="-0.3905" y="1" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="690" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_wo_tag" edge="1" parent="1" source="WorkOrder" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="mainAsset, assets">
+          <mxGeometry relative="1" x="-0.1378" y="9" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="340" y="580" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_wo_tsd" edge="1" parent="1" source="WorkOrder" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="TimeSeriesData" value="timeSeries">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_wo_eq" edge="1" parent="1" source="WorkOrder" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Equipment" value="equipment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_woo_tag" edge="1" parent="1" source="WorkOrderOperation" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="assets (tags),&amp;nbsp;&lt;div&gt;mainAsset&lt;/div&gt;">
+          <mxGeometry relative="1" x="-0.5797" y="-16" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="290" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_woo_wo" edge="1" parent="1" source="WorkOrderOperation" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="WorkOrder" value="maintenanceOrder">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_woo_tsd" edge="1" parent="1" source="WorkOrderOperation" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="TimeSeriesData" value="timeSeries">
+          <mxGeometry relative="1" x="-0.3601" y="-12" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="270" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_woo_eq" edge="1" parent="1" source="WorkOrderOperation" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Equipment" value="equipment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_woo_flp" edge="1" parent="1" source="WorkOrderOperation" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="FunctionalLocationProperties" value="functionalLocation">
+          <mxGeometry relative="1" x="0.6098" y="-6" as="geometry">
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_notif_wo" edge="1" parent="1" source="Notification" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="WorkOrder" value="maintenanceOrder">
+          <mxGeometry relative="1" x="-0.1398" y="-20" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="430" y="840" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_notif_tag" edge="1" parent="1" source="Notification" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="Tag" value="asset( tag)">
+          <mxGeometry relative="1" x="-0.1006" y="11" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_notif_fm" edge="1" parent="1" source="Notification" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" target="FailureMode" value="failureMode">
+          <mxGeometry relative="1" x="0.3108" y="17" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="930" y="570" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="jbRf_2SsB8yA1_f3jdo8-3" parent="1" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" value="" vertex="1">
+          <mxGeometry height="520" width="20" x="1040" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="jbRf_2SsB8yA1_f3jdo8-4" edge="1" parent="1" style="endArrow=classic;html=1;curved=1;strokeColor=#999999;fontSize=9;fontColor=#666666;" value="asset (tag)">
+          <mxGeometry relative="1" x="0.3108" y="17" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="760" y="290" />
+            </Array>
+            <mxPoint x="1030" y="340" as="sourcePoint" />
+            <mxPoint x="540" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,309 @@
+space: "{{space}}"
+externalId: CFIHOS_DrillingEquipment
+description: Equipment intended to enable the drilling of holes, typically in the earth for oil and/or gas production.
+properties:
+  CFIHOS_40000111:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: approvalAuthority
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  CFIHOS_40000009:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexCategory
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_40000010:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexExplosiveAtmosphere
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  CFIHOS_40000011:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexGroup
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_10000177:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: description
+    description: Functional description of the tag
+  CFIHOS_10000031:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentIdentifier
+    description: Equipment Identifier
+  CFIHOS_40000109:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: exCertificateNumber
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  CFIHOS_40000108:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtection
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  CFIHOS_40000110:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: gasGroup
+    description: Specifies the gas group classification of the physical object in
+      accordance to a known standard.
+  CFIHOS_40000113:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionZone
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  CFIHOS_40000173:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ipRating
+    description: IP rating
+  CFIHOS_40000201:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length
+    description: Length
+  CFIHOS_40000201_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length_UOM
+    description: Length UOM, length.
+  CFIHOS_10000158:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: manufacturer
+    description: The original equipment manufacturer of a tagged item
+  CFIHOS_10000159:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: modelNumber
+    description: Model identification of the item
+  CFIHOS_10000249:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: partNumber
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  CFIHOS_10000163:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: serialNumber
+    description: Serial number of the item
+  CFIHOS_40000112:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: temperatureClass
+    description: Specifies the temperature classification of the physical object in
+      accordance to a known standard.
+  CFIHOS_40000494:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightDry
+    description: The weight of the equipment without any contents
+  CFIHOS_40000494_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightDry_UOM
+    description: Weight (dry) UOM, mass.
+  CFIHOS_40000516:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating
+    description: The weight of the equipment in use
+  CFIHOS_40000516_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating_UOM
+    description: Weight (operating) UOM, mass.
+  CFIHOS_40000503:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature
+    description: The lowest temperature at which a functional or physical object is
+      designed.
+  CFIHOS_40000503_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature_UOM
+    description: Lower limit design temperature UOM, temperature.
+  CFIHOS_40000535:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure
+    description: The highest pressure at which a functional or physical object is
+      designed for.
+  CFIHOS_40000535_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure_UOM
+    description: Upper limit design pressure UOM, pressure.
+  CFIHOS_40000536:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature
+    description: The highest temperature at which a functional or physical object
+      is designed.
+  CFIHOS_40000536_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature_UOM
+    description: Upper limit design temperature UOM, temperature.
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+    description: Additional properties for the CFIHOS class drilling equipment
+constraints:
+  sp_ops_domain_model_Tag:
+    require:
+      space: "{{space}}"
+      externalId: Tag
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

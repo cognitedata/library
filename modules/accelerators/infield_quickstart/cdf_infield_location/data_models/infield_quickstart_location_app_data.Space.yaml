@@ -1,0 +1,4 @@
+# used to store uploaded images from infield
+space: sp_infield_{{first_location}}_app_data
+name: sp:infield:{{first_location}}:app_data
+description: Space for Infield Location App Data

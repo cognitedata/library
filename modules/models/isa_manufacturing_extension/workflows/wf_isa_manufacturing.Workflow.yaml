@@ -1,0 +1,4 @@
+externalId: wf_isa_manufacturing
+description: Build ISA assets then enrich with typed overlays
+dataSetExternalId: {{ datasetExternalId }}
+

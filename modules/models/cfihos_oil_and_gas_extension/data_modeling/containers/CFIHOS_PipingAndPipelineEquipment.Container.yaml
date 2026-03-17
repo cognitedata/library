@@ -1,0 +1,962 @@
+space: "{{space}}"
+externalId: CFIHOS_PipingAndPipelineEquipment
+description: A physical object used in or in connection with a piping system.
+properties:
+  CFIHOS_40000111:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: approvalAuthority
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  CFIHOS_40000009:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexCategory
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_40000010:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexExplosiveAtmosphere
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  CFIHOS_40000011:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexGroup
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_40000105:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: calculationLength
+    description: 'The length over which the pressure-loss calculation has been carried
+      out (ref. BAR_LOSS_CALC). Typical if the pressure-loss calculation has been
+      done pr. 100 m, then the value here shall be 100. Unit: meter [m].'
+  CFIHOS_40000105_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: calculationLength_UOM
+    description: Calculation length UOM, length.
+  CFIHOS_40000060:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: compressibilityFactorZ
+    description: The factor to which something can be compressed
+  CFIHOS_40000491:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: corrosionAllowance
+    description: A code indicating the thickness of material allowed to be removed
+      through corrosion without compromising the design safety of the equipment item
+  CFIHOS_40000491_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: corrosionAllowance_UOM
+    description: Corrosion allowance UOM, length.
+  CFIHOS_40000259:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: densityGas
+    description: The mass per unit volume of a gas
+  CFIHOS_40000259_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: densityGas_UOM
+    description: Density (gas) UOM, density.
+  CFIHOS_40000273:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: densityLiquid
+    description: The mass per unit volume of a liquid
+  CFIHOS_40000273_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: densityLiquid_UOM
+    description: Density (liquid) UOM, density.
+  CFIHOS_40000546:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: densityMedium
+    description: Density Medium
+  CFIHOS_40000546_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: densityMedium_UOM
+    description: Density medium UOM, density.
+  CFIHOS_10000177:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: description
+    description: Functional description of the tag
+  CFIHOS_40000535:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure
+    description: The highest pressure at which a functional or physical object is
+      designed for.
+  CFIHOS_40000535_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure_UOM
+    description: Upper limit design pressure UOM, pressure.
+  CFIHOS_40000536:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature
+    description: The highest temperature at which a functional or physical object
+      is designed.
+  CFIHOS_40000536_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature_UOM
+    description: Upper limit design temperature UOM, temperature.
+  CFIHOS_40000503:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature
+    description: The lowest temperature at which a functional or physical object is
+      designed.
+  CFIHOS_40000503_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature_UOM
+    description: Lower limit design temperature UOM, temperature.
+  CFIHOS_40000495:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: efficiency
+    description: the ratio of the output to the input of any system
+  CFIHOS_40000495_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: efficiency_UOM
+    description: Efficiency UOM, dimensionless ratios.
+  CFIHOS_10000031:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentIdentifier
+    description: Equipment Identifier
+  CFIHOS_40000109:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: exCertificateNumber
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  CFIHOS_40000108:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtection
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  CFIHOS_40000289:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: flowTemperature
+    description: Flow Temperature
+  CFIHOS_40000289_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: flowTemperature_UOM
+    description: Flow temperature UOM, temperature.
+  CFIHOS_40000110:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionGasGroup
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  CFIHOS_40000113:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionZone
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  CFIHOS_40000158:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: hotOilFlushing
+    description: 'Hot oil flushing. Values: Y = Rated for hot oil flushing. N = Not
+      rated for hot oil flushing.'
+  CFIHOS_40000598:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: iOType
+    description: The type of input / output
+  CFIHOS_40000177:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: insulationClass
+    description: The class to which insulation is rated
+  CFIHOS_40000499:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: insulationThickness
+    description: The thickness of insulation installed on equipment and lines for
+      Heat Conservation or Personal Protection
+  CFIHOS_40000499_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: insulationThickness_UOM
+    description: Insulation thickness UOM, length.
+  CFIHOS_40000173:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ipRating
+    description: IP rating
+  CFIHOS_40000201:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length
+    description: Length
+  CFIHOS_40000201_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length_UOM
+    description: Length UOM, length.
+  CFIHOS_40000615:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: serviceCode
+    description: A code that indicates a type of product for that an item is intended
+      to be used.
+  CFIHOS_10000158:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: manufacturer
+    description: The original equipment manufacturer of a tagged item
+  CFIHOS_10000159:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: modelNumber
+    description: Model identification of the item
+  CFIHOS_40000457:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: momentumRhov2
+    description: rhov2 is a measure of the fluids momentum and is used in calculating
+      stresses and loadings on vessel nozzles
+  CFIHOS_40000457_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: momentumRhov2_UOM
+    description: Momentum (rhov2) UOM, momentum.
+  CFIHOS_40000250:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nonDestructiveTestingMethods
+    description: Specify the non destructive group of methods of checking the structural
+      quality of the functional or physical object.
+  CFIHOS_40000509:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalDiameter
+    description: Something is of a diameter that it is not rated (?)
+  CFIHOS_40000509_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalDiameter_UOM
+    description: Nominal diameter UOM, length.
+  CFIHOS_40000292:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalPower
+    description: Nominal Power
+  CFIHOS_40000292_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalPower_UOM
+    description: Nominal power UOM, power/heat loss/heat gain.
+  CFIHOS_40000512:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingPressure
+    description: A pressure at which a functional or physical object is expected to
+      operate normally.
+  CFIHOS_40000512_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingPressure_UOM
+    description: Normal operating pressure UOM, pressure.
+  CFIHOS_40000538:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingTemperature
+    description: A temperature that is the highest temperature at which a functional
+      or physical object is expected to operate.
+  CFIHOS_40000538_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingTemperature_UOM
+    description: Upper limit operating temperature UOM, temperature.
+  CFIHOS_40000504:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingTemperature
+    description: A temperature that is the lowest temperature at which a functional
+      or physical object is expected to operate.
+  CFIHOS_40000504_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingTemperature_UOM
+    description: Lower limit operating temperature UOM, temperature.
+  CFIHOS_10000249:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: partNumber
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  CFIHOS_40000320:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pressureEquipmentCategory
+    description: The pressure equipment category according to the pressure equipment
+      directive 97/23/EC.
+  CFIHOS_40000133:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: phase
+    description: Identified the fluid phase passing through the equipment
+  CFIHOS_40000488:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pipingClass
+    description: A specification defined by specified circumstances in which piping
+      components may be applied.
+  CFIHOS_40000523:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerOutputRated
+    description: The rating of the power produced by an item
+  CFIHOS_40000523_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerOutputRated_UOM
+    description: Power output rated UOM, group poweroutput rated.
+  CFIHOS_40000513:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pressureLoss
+    description: 'Allowed pressure-loss in the line over the length stated in CALC_LENGTH.
+      Unit: Bar gauge [BarG].'
+  CFIHOS_40000513_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pressureLoss_UOM
+    description: Pressure loss UOM, pressure.
+  CFIHOS_40000579:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: safetyIntegrityLevelEquipment
+    description: 'Safety Integrity Level - ref. relevant discipline requirements.
+      Typical: 0 : NA (not applicable) 1 : SIL 1 2 : SIL 2 3 : SIL 3'
+  CFIHOS_10000163:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: serialNumber
+    description: Serial number of the item
+  CFIHOS_40000581:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPoint
+    description: The level at which an instrument is set - eg PSVs, bursting discs,
+      regulators, etc
+  CFIHOS_40000582:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPointHigh
+    description: The trip or alarm High set point
+  CFIHOS_40000582_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPointHigh_UOM
+    description: Set point high UOM, group setpoint.
+  CFIHOS_40000583:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPointLow
+    description: The trip or alarm Low set point
+  CFIHOS_40000583_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPointLow_UOM
+    description: Set point low UOM, group setpoint.
+  CFIHOS_40000581_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPoint_UOM
+    description: Set point UOM, group setpoint.
+  CFIHOS_40000371:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: signalType
+    description: The method a signal is transmitted
+  CFIHOS_40000372:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: sourService
+    description: 'Sour service. Values: Y = Rated for sour service. N = Not rated
+      for sour service.'
+  CFIHOS_40000112:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionTemperatureClass
+    description: Specify the temperature classification of the physical object in
+      accordance with CENELEC EN50014
+  CFIHOS_40000412:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testMedium
+    description: The medium that was used to test the pressure of a line
+  CFIHOS_40000532:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testPressure
+    description: The pressure to which a line is tested
+  CFIHOS_40000532_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testPressure_UOM
+    description: Test pressure UOM, pressure.
+  CFIHOS_40000211:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingHeatTracingTemperature
+    description: The temperature which is the lowest heat tracing temperature at which
+      a functional or physical object is expected to operate.
+  CFIHOS_40000211_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingHeatTracingTemperature_UOM
+    description: Lower limit operating heat tracing temperature UOM, temperature.
+  CFIHOS_40000247:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: valveSize
+    description: Valve connection and bore size
+  CFIHOS_40000479:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: valveType
+    description: The type of valve, for example, ball, butterfly, gate, etc
+  CFIHOS_40000510:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: velocity
+    description: The speed at which something travels
+  CFIHOS_40000510_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: velocity_UOM
+    description: Velocity UOM, velocity.
+  CFIHOS_40000260:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: viscosityGas
+    description: The "thickness" of a gas or its ability to flow
+  CFIHOS_40000260_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: viscosityGas_UOM
+    description: Viscosity (gas) UOM, viscosity - dynamic.
+  CFIHOS_40000274:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: viscosityLiquid
+    description: The "thickness" of a liquid or its ability to flow
+  CFIHOS_40000274_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: viscosityLiquid_UOM
+    description: Viscosity (liquid) UOM, viscosity - dynamic.
+  CFIHOS_40000540:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: wallThickness
+    description: Wall Thickness
+  CFIHOS_40000540_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: wallThickness_UOM
+    description: Wall thickness UOM, length.
+  CFIHOS_40000494:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: dryWeight
+    description: A weight of an object excluding any operating or process fluids.
+  CFIHOS_40000494_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: dryWeight_UOM
+    description: Dry weight UOM, mass / weight.
+  CFIHOS_40000516:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating
+    description: The weight of the equipment in use
+  CFIHOS_40000516_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating_UOM
+    description: Weight (operating) UOM, mass.
+  CFIHOS_40000132:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: fluidName
+    description: The name of the product in liquid or gas phase.
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+    description: Additional properties for the CFIHOS class piping and pipeline equipment
+constraints:
+  sp_ops_domain_model_Tag:
+    require:
+      space: "{{space}}"
+      externalId: Tag
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

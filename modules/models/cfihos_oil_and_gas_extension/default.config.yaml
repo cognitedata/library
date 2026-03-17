@@ -1,0 +1,30 @@
+# Dataset configuration
+dataset_external_id: ds_oil_and_gas_domain_model       # CDF dataset external ID for all resources in this module
+dataset_name: "Oil and Gas Domain Model"                # Display name for the dataset in CDF
+write_protected: false                                  # Whether the dataset is write-protected
+governed: false                                         # Whether the dataset is governed (access control via data policies)
+
+# Access control / group configuration
+admin_user: "admin.user@firm.com"                       # Admin user email used in owner and read groups
+integrationOwnerEmail: "integration.owner@firm.com"     # Email of the integration owner (used in dataset metadata)
+integrationOwnerName: "Integration Owner"               # Name of the integration owner (used in dataset metadata)
+owner_source_id: "source_id"                            # Source ID for the owner security group
+read_source_id: "source_id"                             # Source ID for the read security group
+
+# Data modeling spaces
+space: "dm_dom_oil_and_gas"                             # Primary space for all containers, views, and data model definitions
+search_space: "dm_sol_oil_and_gas_search"               # Space for the search-optimized data model and its views
+instance_space: "inst_location"                         # Space where node/edge instances (location filter data) are stored
+
+# Data model versioning
+dm_version: v1                                          # Version used for all views in the domain data model
+search_dm_version: v1                                   # Version used for all views in the search data model
+
+# Data model identifiers
+search_data_model_external_id: dm_oil_and_gas_domain_model_search  # External ID for the search data model
+search_data_model_name: "Oil and Gas Domain Model Search"          # Display name for the search data model
+data_model_external_id: dm_oil_and_gas_domain_model                # External ID for the domain data model
+data_model_name: "Oil and Gas Domain Model"                        # Display name for the domain data model
+
+# Environment
+environment: dev                                        # Deployment environment (dev, test, prod)

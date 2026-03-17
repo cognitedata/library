@@ -1,0 +1,9 @@
+externalId: classic_cdf_analysis_dashboard
+name: Classic CDF Analysis
+creator: Per-Olav Opdahl
+description: |
+  Metadata field distribution for Assets, Time series, Events, Sequences, and Files.
+  Run analysis (single key) and Deep analysis (multi-resource) with optional dataset selection.
+published: true
+entrypoint: app.py
+dataSetExternalId: classic_cdf_analysis_apps

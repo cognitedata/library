@@ -1,0 +1,5 @@
+[module]
+title = "Ingestion Workflow"
+is_selected_by_default = false
+id = "dp:acc:cdf_ingestion"
+package_id = "dp:accelerators"

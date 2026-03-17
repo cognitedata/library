@@ -1,0 +1,49 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 336 >>
+stream
+BT
+/F1 16 Tf
+72 730 Td
+(QC Chromatography Pump) Tj
+/F1 12 Tf
+0 -24 Td
+(Asset: Chromatography \(EM_QC_CHROM\)) Tj
+0 -18 Td
+(Equipment: QC Chromatography Pump \(EQ_QC_CHROM_PUMP\)) Tj
+0 -18 Td
+(Class: Analytical) Tj
+0 -18 Td
+(Type: HPLC Pump) Tj
+0 -18 Td
+(Generated automatically for documentation testing.) Tj
+0 -18 Td
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000017 00000 n 
+0000000069 00000 n 
+0000000129 00000 n 
+0000000258 00000 n 
+0000000651 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+724
+%%EOF
