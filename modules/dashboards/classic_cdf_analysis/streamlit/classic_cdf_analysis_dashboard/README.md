@@ -1,28 +1,29 @@
-# Classic CDF Analysis — Complete (Streamlit)
+# Classic CDF Analysis — Streamlit
 
-A single Streamlit app that combines **Run analysis** (single metadata key) and **Deep analysis** (all keys across multiple resource types) with a shared dataset section. Designed to run inside CDF via Stlite/Pyodide, or locally with a `.env` file.
+A Streamlit app for **classic CDF model analysis** across **assets**, **time series**, **events**, **sequences**, and **files**. Supports **auto** and **custom** analysis modes with a shared dataset section. Designed to run inside CDF via Stlite/Pyodide, or locally with a `.env` file.
 
 ## Features
 
 ### All Datasets summary
 
-Project-wide resource counts (assets, time series, events, sequences, files, transformations, functions, workflows, raw tables) displayed on load.
+Project-wide resource counts (assets, time series, events, sequences, files, transformations, functions, workflows, raw tables) and unique metadata property key counts displayed on load.
 
 ### Datasets (optional)
 
 Load the dataset catalogue, view per-dataset counts, and optionally restrict all analysis to selected datasets.
 
-### Run analysis
+### Analysis
 
-Pick a resource type and a single metadata/filter key, then run analysis to see distinct values, counts, and related metadata keys. Results can be downloaded as `.txt`.
+Select one or more resource types (Assets, Time series, Events, Sequences, Files) and run analysis in one of two modes:
 
-### Deep analysis
+- **Auto mode** — the algorithm selects metadata keys based on a configurable instance-count threshold.
+- **Custom mode** — load all available metadata keys per resource type and pick manually.
 
-Select one or more resource types (Assets, Time series, Events, Sequences, Files). A single button press runs aggregate count, discovers metadata keys, selects the most relevant keys, and analyses each one — producing a downloadable report per resource type.
+Results are displayed in-browser and can be downloaded as a text report (filename includes `auto` or `custom` mode label).
 
-#### Instance count threshold
+#### Instance count threshold (Auto mode)
 
-The **Instance count threshold (%)** controls which metadata keys are included in the deep analysis. For each resource type the app fetches the total resource count and the per-key instance counts. A metadata key is included if it meets **either** of these conditions:
+The **Instance count threshold (%)** controls which metadata keys are included in auto mode. For each resource type the app fetches the total resource count and the per-key instance counts. A metadata key is included if it meets **either** of these conditions:
 
 1. **Top 15** — the key is among the 15 most frequent eligible metadata keys (regardless of threshold), or
 2. **Meets threshold** — the key's instance count is ≥ the threshold percentage of the total resource count.
@@ -31,17 +32,18 @@ The default is **60 %**. Lowering it includes more keys (longer report, more API
 
 Only "sorting-like" keys (containing terms like *type*, *category*, *level*, *class*, etc.) are considered. Keys that look like identifiers (containing *name*, *id*, *uuid*, etc.) or datetime fields are automatically excluded.
 
-Progress messages are printed to the browser console during processing. Open the browser dev tools (F12 → Console) and filter on `DEEP` to follow along.
+Progress messages are printed to the browser console during processing. Open the browser dev tools (F12 → Console) and filter on `ANALYSIS` to follow along.
 
 ## Project layout
 
 | File | Purpose |
 |------|---------|
 | `app.py` | Main application — UI, session state, CDF client setup |
-| `analysis.py` | CDF aggregate/list API calls and analysis logic (ported from `../src/analysis.ts`) |
-| `deep_analysis.py` | Filter key selection heuristics for deep analysis (ported from `../src/deepAnalysis.ts`) |
+| `analysis.py` | CDF aggregate/list API calls and analysis logic |
+| `key_selection.py` | Filter key selection heuristics for analysis |
 | `build_cdf_json.py` | Builds the CDF import JSON from the Python source files |
 | `Classic-Analysis-Complete-CDF-source.json` | Generated — import this into CDF to deploy |
+| `requirements.txt` | Python dependencies for local and CDF deployment |
 | `README.md` | This file |
 
 ## Running locally
@@ -49,7 +51,7 @@ Progress messages are printed to the browser console during processing. Open the
 ### 1. Install dependencies
 
 ```bash
-pip install streamlit cognite-sdk pandas python-dotenv
+pip install -r requirements.txt
 ```
 
 ### 2. Configure CDF credentials
@@ -124,5 +126,3 @@ The app will be available to users who have access to the CDF project.
 \* Provide either `COGNITE_API_KEY` or both `COGNITE_CLIENT_ID` and `COGNITE_CLIENT_SECRET`.
 
 When deployed to CDF, credentials are handled automatically — no configuration needed.
-
-
