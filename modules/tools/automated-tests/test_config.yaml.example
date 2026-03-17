@@ -1,0 +1,33 @@
+# Copy to test_config.yaml and fill in for your project.
+# If test_config.yaml is missing or a section is empty, those tests are skipped.
+# Only test_transformations.py runs when no config is present.
+
+# Compare raw table counts between .env.TEST and .env.PROD projects.
+# Requires .env.TEST and .env.PROD in the automated-tests folder.
+compare_env:
+  - database: db_dl_files_gvl
+    table: tbl_gvlrs253_doclib_gvl
+  - database: db_si_spec_sheet_gvl
+    table: tbl_si_spec_sheet_gvl
+
+# Check that listed RAW tables have row counts within min/max (optional).
+# Uses .env only.
+object_counts:
+  - database: db_dl_files_gvl
+    table: tbl_gvlrs253_doclib_gvl
+    min: 200000
+    max: 500000
+  - database: db_indp_intelex_gvl
+    table: tbl_indp_incident_equipment_gvl
+    min: 10000
+    max: 50000
+
+# File-extraction tests: log age, failure files. Requires UNC or local paths
+# and .env.TEST / .env.PROD. Omit or leave env_folders empty to skip.
+file_extraction:
+  env_folders:
+    prod: '\\\\server\\share\\prod'
+    test: '\\\\server\\share\\test'
+    dev: '\\\\server\\share\\dev'
+  # Optional: list of site names for check_failure_file_age etc.
+  sites: []

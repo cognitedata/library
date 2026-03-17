@@ -1,0 +1,16 @@
+client:
+  project: "${CDF_PROJECT}"
+  client_name: "automated-testing"
+  base_url: "${CDF_URL}"
+  credentials:
+    client_credentials:
+      token_url: "${IDP_TOKEN_URL}"
+      client_id: "${IDP_CLIENT_ID}"
+      client_secret: "${IDP_CLIENT_SECRET}"
+      scopes: ["${IDP_SCOPES}"]
+
+
+global:
+  max_retries: 10
+  max_retry_backoff: 10
+

@@ -1,0 +1,10 @@
+.env
+.env.TEST
+.env.PROD
+.env.*
+test_config.yaml
+test-results/
+.pytest_cache/
+__pycache__/
+*.pyc
+data/edms-sample-row.json
