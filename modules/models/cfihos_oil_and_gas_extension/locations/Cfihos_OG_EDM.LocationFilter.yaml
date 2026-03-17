@@ -1,0 +1,10 @@
+externalId: cfihos_og_edm_location_filter
+name: 'CFIHOS Oil and Gas Enterprise Data Model (EDM)'
+description: 'This is a description of the location CFIHOS Oil and Gas Enterprise Data Model (EDM), including all views and interfaces.'
+dataModels:
+  - externalId: CFIHOS_OG_EDM
+    space: {{ space }}
+    version: {{ dm_version }}
+instanceSpaces:
+  - {{ instance_space }}
+dataModelingType: DATA_MODELING_ONLY
