@@ -1,4 +1,4 @@
 [module]
 title = "CDF Project Health Dashboard"
 id = "CDF Project Health Dashboard"
-package_id = "dp:dashboards"
+package_id = "dp:project_health"

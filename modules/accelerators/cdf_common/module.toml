@@ -2,4 +2,4 @@
 title = "cdf_common"
 is_selected_by_default = false
 id = "CDF Common"
-package_id = "dp:accelerators"
+package_id = "dp:cdf_common"

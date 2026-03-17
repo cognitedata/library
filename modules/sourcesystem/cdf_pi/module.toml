@@ -2,4 +2,4 @@
 title = "OSIsoft/AVEVA PI Data Source"
 is_selected_by_default = false
 id = "dp:sourcesystem:cdf_pi"
-package_id = "dp:accelerators"
+package_id = "dp:cdf_pi"

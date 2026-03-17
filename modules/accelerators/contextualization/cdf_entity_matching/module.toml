@@ -1,5 +1,5 @@
 [module]
 title = "Contextualization Entity Matching"
 id = "CDF Entity Matching"
-package_id = "dp:accelerators"
+package_id = "dp:cdf_entity_matching"
     

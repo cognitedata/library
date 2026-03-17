@@ -2,4 +2,4 @@
 title = "OOTB AI Agents"
 is_selected_by_default = false
 id = "Atlas AI OOTB Agents"
-package_id = "dp:atlas_ai"
+package_id = "dp:ootb_agents"

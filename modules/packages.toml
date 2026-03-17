@@ -5,15 +5,24 @@ The open-source Github repository ("Repository") is provided "as is", without wa
 """
 
 
-[packages.contextualization]
-id = "dp:contextualization"
-title = "Contextualization"
-description = "Module templates for data contextualization"
-modules = [
-    "accelerators/contextualization/cdf_p_and_id_annotation",
-    "accelerators/contextualization/cdf_file_annotation",
-    "accelerators/contextualization/cdf_entity_matching",
-]
+[packages.cdf_p_and_id_annotation]
+id = "dp:cdf_p_and_id_annotation"
+title = "CDF P&ID Annotation"
+description = "Data pipeline for P&ID annotation and contextualization mapping of tags to assets and files."
+modules = ["accelerators/contextualization/cdf_p_and_id_annotation"]
+
+[packages.cdf_file_annotation]
+id = "dp:cdf_file_annotation"
+title = "CDF File Annotation Module"
+description = "Framework for automating file annotation in CDF using a data model-centric approach."
+modules = ["accelerators/contextualization/cdf_file_annotation"]
+
+[packages.cdf_entity_matching]
+id = "dp:cdf_entity_matching"
+title = "CDF Entity Matching Module"
+description = "Entity matching for contextualizing timeseries data with assets in CDF."
+modules = ["accelerators/contextualization/cdf_entity_matching"]
+
 
 [packages.infield_quickstart]
 id = "dp:infield_quickstart"
@@ -25,40 +34,72 @@ modules = [
     "accelerators/infield_quickstart/cdf_infield_location"
 ]
 
-[packages.models]
-id = "dp:models"
-title = "Data models"
-description = "Data models that extend the core data model"
-canCherryPick = true
-modules = [
-    "models/rmdm_v1",
-    "models/isa_manufacturing_extension",
-    "models/cdf_process_industry_extension",
-    "models/qs_enterprise_dm",
-    "models/cfihos_oil_and_gas_extension",
-]
+[packages.rmdm_v1]
+id = "dp:rmdm_v1"
+title = "Reliability Maintenance Data Model"
+description = "Reliability & Maintenance Data Model, ISO14224 compliant"
+modules = ["models/rmdm_v1"]
 
-[packages.atlas_ai]
-id = "dp:atlas_ai"
-title = "Atlas AI Deployment Pack"
-description = "Deploy all Atlas AI modules in one package."
-canCherryPick = true  # allows users to select individual modules
-modules = [
-    "atlas_ai/ootb_agents",
-    "atlas_ai/rca_with_rmdm",
-    "atlas_ai/ai_extractor"
-]
+[packages.isa_manufacturing_extension]
+id = "dp:isa_manufacturing_extension"
+title = "ISA Manufacturing Extension"
+description = "ISA-95/ISA-88 based manufacturing domain model for CDF."
+modules = ["models/isa_manufacturing_extension"]
 
-[packages.dashboards]
-id = "dp:dashboards"
-title = "Dashboards"
-description = "Streamlit dashboards and visualization modules"
-canCherryPick = true
-modules = [
-    "dashboards/context_quality",
-    "dashboards/project_health",
-    "dashboards/classic_cdf_analysis"
-]
+[packages.cdf_process_industry_extension]
+id = "dp:cdf_process_industry_extension"
+title = "CDF Process Industry Extension"
+description = "Extension of the Cognite Process Industry data model with organization-specific views and containers."
+modules = ["models/cdf_process_industry_extension"]
+
+[packages.qs_enterprise_dm]
+id = "dp:qs_enterprise_dm"
+title = "Quick Start Enterprise Data Model"
+description = "Enterprise data model for CDF extending CDM for process industry use cases."
+modules = ["models/qs_enterprise_dm"]
+
+[packages.cfihos_oil_and_gas_extension]
+id = "dp:cfihos_oil_and_gas_extension"
+title = "Oil and Gas Domain Model — CFIHOS Extension"
+description = "Tag-centric data model for oil and gas operations based on CFIHOS 2.0, extending CDM and IDM."
+modules = ["models/cfihos_oil_and_gas_extension"]
+
+[packages.ootb_agents]
+id = "dp:ootb_agents"
+title = "Out-of-the-Box Agents"
+description = "Pre-configured Atlas AI agents for data exploration and CDF integration."
+modules = ["atlas_ai/ootb_agents"]
+
+[packages.rca_with_rmdm]
+id = "dp:rca_with_rmdm"
+title = "Root Cause Analysis (RCA) Agents"
+description = "Atlas AI agents for root cause analysis using the RMDM v1 data model."
+modules = ["atlas_ai/rca_with_rmdm"]
+
+[packages.ai_extractor]
+id = "dp:ai_extractor"
+title = "AI Property Extractor"
+description = "Extract structured property values from unstructured text in CDF using LLM agents."
+modules = ["atlas_ai/ai_extractor"]
+
+[packages.context_quality]
+id = "dp:context_quality"
+title = "Contextualization Quality Dashboard"
+description = "Measure and visualize contextualization quality of CDF data (asset hierarchy, equipment, time series, maintenance, file annotation, 3D)."
+modules = ["dashboards/context_quality"]
+
+[packages.project_health]
+id = "dp:project_health"
+title = "CDF Project Health Dashboard"
+description = "Measure and visualize health of CDF resources (extraction pipelines, workflows, transformations, functions) by dataset."
+modules = ["dashboards/project_health"]
+
+[packages.classic_cdf_analysis]
+id = "dp:classic_cdf_analysis"
+title = "Classic CDF Analysis"
+description = "Streamlit app for metadata field distribution across Assets, Time series, Events, Sequences, and Files."
+modules = ["dashboards/classic_cdf_analysis"]
+
 
 [packages.quickstartdp]
 id = "dp:quickstart"
@@ -81,38 +122,56 @@ modules = [
     "models/qs_enterprise_dm",
 ]
 
+[packages.cdf_pi]
+id = "dp:cdf_pi"
+title = "CDF PI"
+description = "Ingestion of time series metadata from OSIsoft/AVEVA PI into CDF."
+modules = ["sourcesystem/cdf_pi"]
 
-[packages.sourcesystem]
-id = "dp:sourcesystem"
-title = "Source Systems"
-description = "Source systems modules"
-canCherryPick = true
-modules = [
-    "sourcesystem/cdf_pi",
-    "sourcesystem/cdf_sap_assets",
-    "sourcesystem/cdf_sap_events",
-    "sourcesystem/cdf_sharepoint",
-]
+[packages.cdf_sap_assets]
+id = "dp:cdf_sap_assets"
+title = "CDF SAP Assets"
+description = "Ingestion of asset and equipment master data from SAP S/4HANA into CDF."
+modules = ["sourcesystem/cdf_sap_assets"]
 
+[packages.cdf_sap_events]
+id = "dp:cdf_sap_events"
+title = "CDF SAP Events"
+description = "Ingestion of maintenance events (work orders, operations) from SAP S/4HANA into CDF."
+modules = ["sourcesystem/cdf_sap_events"]
 
-[packages.common]
-id = "dp:common"
-title = "Common"
-description = "Common modules"
-canCherryPick = true
-modules = [
-    "accelerators/cdf_common",
-    "accelerators/cdf_ingestion",
-]
+[packages.cdf_sharepoint]
+id = "dp:cdf_sharepoint"
+title = "CDF SharePoint Files"
+description = "Ingestion of document files from SharePoint into CDF."
+modules = ["sourcesystem/cdf_sharepoint"]
 
-[packages.tools]
-id = "tool"
-title = "Tools and Accelerators"
-description = "Tools and accelerators for CDF projects"
-canCherryPick = true
-modules = [
-    "tools/notebooks/cdf_performance_testing",
-    "tools/notebooks/cdf_transformation_jobs_metric_explorer",
-    "tools/apps/qualitizer"
-]
+[packages.cdf_common]
+id = "dp:cdf_common"
+title = "CDF Common"
+description = "Foundational resources for CDF projects: spaces, datasets, RAW, annotation-to-direct-relation writer."
+modules = ["accelerators/cdf_common"]
 
+[packages.cdf_ingestion]
+id = "dp:cdf_ingestion"
+title = "CDF Ingestion"
+description = "Workflow orchestration for data ingestion and contextualization (transformations in dependency order)."
+modules = ["accelerators/cdf_ingestion"]
+
+[packages.cdf_performance_testing]
+id = "dp:cdf_performance_testing"
+title = "CDF Performance Testing"
+description = "Framework for testing CDF operation performance with Jupyter notebooks (benchmarking, visualization)."
+modules = ["tools/notebooks/cdf_performance_testing"]
+
+[packages.cdf_transformation_jobs_metric_explorer]
+id = "dp:cdf_transformation_jobs_metric_explorer"
+title = "TSJM Analysis Notebook"
+description = "Export, visualize, and analyze CDF Transformation Job Metrics (TSJM)."
+modules = ["tools/notebooks/cdf_transformation_jobs_metric_explorer"]
+
+[packages.qualitizer]
+id = "dp:qualitizer"
+title = "Qualitizer"
+description = "Tools to understand, troubleshoot, and improve the quality of your CDF deployment."
+modules = ["tools/apps/qualitizer"]

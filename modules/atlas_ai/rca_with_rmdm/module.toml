@@ -2,5 +2,5 @@
 title = "RCA With RMDM"
 is_selected_by_default = false
 id = "Atlas AI RCA With RMDM"
-package_id = "dp:atlas_ai"
+package_id = "dp:rca_with_rmdm"
 

@@ -1,5 +1,5 @@
 [module]
 title = "CDF Performance Testing"
 id = "Performance Testing Notebook"
-package_id = "tool"
+package_id = "dp:cdf_performance_testing"
 
