@@ -16,6 +16,24 @@ VALUE_TOO_LONG_PREVIEW_LEN = 1024
 
 ResourceType = str  # "assets" | "timeseries" | "events" | "sequences" | "files"
 
+METADATA_TAG = " [metadata]"
+CORE_EVENT_PROPS = ("type", "subtype")
+
+
+def _parse_metadata_tag(filter_key: str) -> tuple[str, bool]:
+    """Strip the [metadata] tag suffix if present, returning (bare_key, was_tagged)."""
+    if filter_key.endswith(METADATA_TAG):
+        return filter_key[: -len(METADATA_TAG)], True
+    return filter_key, False
+
+
+def _events_property_path(filter_key: str) -> list:
+    """Resolve the CDF property path for an events filter key."""
+    bare, tagged = _parse_metadata_tag(filter_key)
+    if not tagged and bare in CORE_EVENT_PROPS:
+        return [bare]
+    return ["metadata", bare]
+
 
 def _project_path(project: str, resource: str) -> str:
     from urllib.parse import quote
@@ -161,6 +179,13 @@ def _get_files_property_path(filter_key: str) -> list:
 
 def _advanced_filter_equals(property_path: list, value: str | bool) -> dict:
     return {"advancedFilter": {"equals": {"property": property_path, "value": value}}}
+
+
+def _merged_advanced_filter(property_path: list, value: str | bool, ds_filter: dict) -> dict:
+    """Merge a value advancedFilter with an optional dataset advancedFilter using 'and'."""
+    value_clause = {"equals": {"property": property_path, "value": value}}
+    ds_clause = ds_filter.get("advancedFilter") if ds_filter else None
+    return {"advancedFilter": {"and": [value_clause, ds_clause]} if ds_clause else value_clause}
 
 
 def _filter_equals(property_path: list, value: str | bool) -> dict:
@@ -487,11 +512,11 @@ def get_dataset_resource_counts(
     count_body = _count_body_for_dataset(data_set_id)  # advancedFilter for assets/timeseries/events/sequences
     count_body_files = _count_body_for_dataset_documents(data_set_id)  # Documents API for files column
 
-    def _safe_dataset_count(path_key: str, body: dict) -> int:
+    def _safe_dataset_count(path_key: str, body: dict):
         try:
             return _parse_count_response(client.post(paths[path_key], body))
         except Exception:
-            return 0
+            return "N/A"
 
     res = {
         "assets": _safe_dataset_count("assets", count_body),
@@ -524,19 +549,25 @@ def run_asset_analysis(
             if not parsed:
                 continue
             value, count = parsed
+            skipped_long = False
             if len(value) > CDF_FILTER_MAX_LEN:
                 keys = []
+                skipped_long = True
             else:
                 up = client.post(path, {
                     "aggregate": "uniqueProperties",
                     "path": ["metadata"],
-                    **_advanced_filter_equals(["metadata", filter_key], value),
-                    **filter_part,
+                    **_merged_advanced_filter(["metadata", filter_key], value, filter_part),
                 })
                 keys = _unique_properties_keys(up.get("items") or [])
             count_str = f"Count: {count}\n" if count else ""
             label = filter_key.title()
-            meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n" if keys else _value_too_long_meta_part(value)
+            if keys:
+                meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n"
+            elif skipped_long:
+                meta_part = _value_too_long_meta_part(value)
+            else:
+                meta_part = "Metadata keys: (none returned)\n\n"
             results.append({
                 "count": count,
                 "text": f"{label}: {value}\n{count_str}{meta_part}",
@@ -572,8 +603,10 @@ def run_timeseries_analysis(
             if not parsed:
                 continue
             value, count = parsed
+            skipped_long = False
             if len(value) > CDF_FILTER_MAX_LEN:
                 keys = []
+                skipped_long = True
             else:
                 filter_val = value
                 if prop_path[0] in ("isStep", "isString") and value in ("true", "false"):
@@ -581,13 +614,17 @@ def run_timeseries_analysis(
                 up = client.post(path, {
                     "aggregate": "uniqueProperties",
                     "path": ["metadata"],
-                    **_advanced_filter_equals(prop_path, filter_val),
-                    **filter_part,
+                    **_merged_advanced_filter(prop_path, filter_val, filter_part),
                 })
                 keys = _unique_properties_keys(up.get("items") or [])
             count_str = f"Count: {count}\n" if count else ""
             label = filter_key.title()
-            meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n" if keys else _value_too_long_meta_part(value)
+            if keys:
+                meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n"
+            elif skipped_long:
+                meta_part = _value_too_long_meta_part(value)
+            else:
+                meta_part = "Metadata keys: (none returned)\n\n"
             results.append({
                 "count": count,
                 "text": f"{label}: {value}\n{count_str}{meta_part}",
@@ -642,8 +679,7 @@ def run_events_analysis(
                 try:
                     cr = client.post(path, {
                         "aggregate": "count",
-                        **_advanced_filter_equals(["metadata", meta_field], sample_value),
-                        **filter_part,
+                        **_merged_advanced_filter(["metadata", meta_field], sample_value, filter_part),
                     })
                     count = (cr.get("items") or [{}])[0].get("count")
                 except Exception:
@@ -651,8 +687,7 @@ def run_events_analysis(
                 up = client.post(path, {
                     "aggregate": "uniqueProperties",
                     "path": ["metadata"],
-                    **_advanced_filter_equals(["metadata", meta_field], sample_value),
-                    **filter_part,
+                    **_merged_advanced_filter(["metadata", meta_field], sample_value, filter_part),
                 })
                 keys = _unique_properties_keys(up.get("items") or [])
                 count_str = f"Count: {count}\n" if count is not None else ""
@@ -666,7 +701,7 @@ def run_events_analysis(
                 })
             results.sort(key=lambda r: r["count"], reverse=True)
             return {"resourceType": "events", "filterKey": filter_key, "rows": results}
-        event_prop = ["type"] if filter_key == "type" else ["metadata", filter_key]
+        event_prop = _events_property_path(filter_key)
         uv = client.post(path, {
             "aggregate": "uniqueValues",
             "properties": [{"property": event_prop}],
@@ -678,19 +713,25 @@ def run_events_analysis(
             if not parsed:
                 continue
             value, count = parsed
+            skipped_long = False
             if len(value) > CDF_FILTER_MAX_LEN:
                 keys = []
+                skipped_long = True
             else:
                 up = client.post(path, {
                     "aggregate": "uniqueProperties",
                     "path": ["metadata"],
-                    **_advanced_filter_equals(event_prop, value),
-                    **filter_part,
+                    **_merged_advanced_filter(event_prop, value, filter_part),
                 })
                 keys = _unique_properties_keys(up.get("items") or [])
             count_str = f"Count: {count}\n" if count else ""
             label = filter_key.title()
-            meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n" if keys else _value_too_long_meta_part(value)
+            if keys:
+                meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n"
+            elif skipped_long:
+                meta_part = _value_too_long_meta_part(value)
+            else:
+                meta_part = "Metadata keys: (none returned)\n\n"
             results.append({
                 "count": count,
                 "text": f"{label}: {value}\n{count_str}{meta_part}",
@@ -725,19 +766,25 @@ def run_sequences_analysis(
             if not parsed:
                 continue
             value, count = parsed
+            skipped_long = False
             if len(value) > CDF_FILTER_MAX_LEN:
                 keys = []
+                skipped_long = True
             else:
                 up = client.post(path, {
                     "aggregate": "uniqueProperties",
                     "path": ["metadata"],
-                    **_advanced_filter_equals(["metadata", filter_key], value),
-                    **filter_part,
+                    **_merged_advanced_filter(["metadata", filter_key], value, filter_part),
                 })
                 keys = _unique_properties_keys(up.get("items") or [])
             count_str = f"Count: {count}\n" if count else ""
             label = filter_key.title()
-            meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n" if keys else _value_too_long_meta_part(value)
+            if keys:
+                meta_part = f"Metadata keys: [{', '.join(keys)}]\n\n"
+            elif skipped_long:
+                meta_part = _value_too_long_meta_part(value)
+            else:
+                meta_part = "Metadata keys: (none returned)\n\n"
             results.append({
                 "count": count,
                 "text": f"{label}: {value}\n{count_str}{meta_part}",
@@ -882,12 +929,13 @@ def get_metadata_keys_list(
                 from_agg.append({"key": key, "count": item.get("count") or 0})
         from_agg.sort(key=lambda x: x["count"], reverse=True)
         total = get_total_count(client, project, "files", data_set_ids)
+        _file_core = {"type", "labels", "author", "source"}
         return [
             {"key": "type", "count": total},
             {"key": "labels", "count": total},
             {"key": "author", "count": total},
             {"key": "source", "count": total},
-        ] + from_agg
+        ] + [x for x in from_agg if x["key"] not in _file_core]
     filter_part = _data_set_filter_aggregate(data_set_ids)
     path = _project_path(project, resource_type)
     body = {"aggregate": "uniqueProperties", "path": ["metadata"], **filter_part}
@@ -908,9 +956,21 @@ def get_metadata_keys_list(
     out.sort(key=lambda x: x["count"], reverse=True)
     if resource_type == "timeseries":
         total = get_total_count(client, project, "timeseries", data_set_ids)
+        _ts_core = {"is step", "is string", "unit"}
         return [
             {"key": "is step", "count": total},
             {"key": "is string", "count": total},
             {"key": "unit", "count": total},
-        ] + out
+        ] + [x for x in out if x["key"] not in _ts_core]
+    if resource_type == "events":
+        total = get_total_count(client, project, "events", data_set_ids)
+        core_entries = [{"key": k, "count": total} for k in CORE_EVENT_PROPS]
+        core_set = set(CORE_EVENT_PROPS)
+        tagged_out = [
+            {"key": f"{item['key']}{METADATA_TAG}", "count": item["count"]}
+            if item["key"] in core_set
+            else item
+            for item in out
+        ]
+        return core_entries + tagged_out
     return out
