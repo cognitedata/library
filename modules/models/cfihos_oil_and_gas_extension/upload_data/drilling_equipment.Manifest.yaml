@@ -1,0 +1,5 @@
+kind: RawRows
+type: rawTable
+table:
+  dbName: cfihos_oil_and_gas
+  tableName: drilling_equipment
