@@ -80,32 +80,51 @@ def _is_pyodide() -> bool:
     return False
 
 
+def _secret(key: str) -> str | None:
+    """Read a config value from env vars first, then Streamlit secrets."""
+    val = os.environ.get(key)
+    if val:
+        return val
+    try:
+        return st.secrets.get(key) if hasattr(st, "secrets") else None
+    except Exception:
+        return None
+
+
 def get_client_and_project() -> tuple[Any, str] | None:
     """Build CogniteClient and project from env/secrets. Returns (client, project) or None."""
     try:
+        from cognite.client import CogniteClient as _C
+        _c = _C()
+        if getattr(_c.config, "project", None):
+            return (_c, _c.config.project)
+    except Exception:
+        pass
+    try:
         from cognite.client import CogniteClient, ClientConfig
-        from cognite.client.credentials import APIKey, OAuthClientCredentials
+        from cognite.client.credentials import OAuthClientCredentials, Token
     except ImportError:
-        st.error("Install cognite-sdk: pip install cognite-sdk")
+        st.error("Install cognite-sdk >= 7: `pip install cognite-sdk`")
         return None
 
-    project = os.environ.get("COGNITE_PROJECT") or (st.secrets.get("COGNITE_PROJECT") if hasattr(st, "secrets") else None)
-    base_url = os.environ.get("COGNITE_BASE_URL") or st.secrets.get("COGNITE_BASE_URL", "https://api.cognitedata.com")
+    project = _secret("COGNITE_PROJECT")
+    base_url = _secret("COGNITE_BASE_URL") or "https://api.cognitedata.com"
 
-    api_key = os.environ.get("COGNITE_API_KEY") or (st.secrets.get("COGNITE_API_KEY") if hasattr(st, "secrets") else None)
-    if api_key and project:
+    # 1) Bearer-token auth  (CDF_TOKEN or COGNITE_TOKEN)
+    token = _secret("CDF_TOKEN") or _secret("COGNITE_TOKEN")
+    if token and project:
         config = ClientConfig(
             client_name="classic-analysis-complete",
             project=project,
-            credentials=APIKey(api_key),
+            credentials=Token(token),
             base_url=base_url,
         )
-        client = CogniteClient(config)
-        return (client, project)
+        return (CogniteClient(config), project)
 
-    client_id = os.environ.get("COGNITE_CLIENT_ID") or (st.secrets.get("COGNITE_CLIENT_ID") if hasattr(st, "secrets") else None)
-    client_secret = os.environ.get("COGNITE_CLIENT_SECRET") or (st.secrets.get("COGNITE_CLIENT_SECRET") if hasattr(st, "secrets") else None)
-    tenant_id = os.environ.get("COGNITE_TENANT_ID") or (st.secrets.get("COGNITE_TENANT_ID") if hasattr(st, "secrets") else None)
+    # 2) OAuth client-credentials auth
+    client_id = _secret("COGNITE_CLIENT_ID")
+    client_secret = _secret("COGNITE_CLIENT_SECRET")
+    tenant_id = _secret("COGNITE_TENANT_ID")
     if client_id and client_secret and project:
         token_url = f"https://login.microsoftonline.com/{tenant_id or 'organizations'}/oauth2/v2.0/token"
         creds = OAuthClientCredentials(
@@ -120,11 +139,9 @@ def get_client_and_project() -> tuple[Any, str] | None:
             credentials=creds,
             base_url=base_url,
         )
-        client = CogniteClient(config)
-        return (client, project)
+        return (CogniteClient(config), project)
 
     return None
-
 
 def _ensure_sync(val: Any) -> Any:
     """If val is a coroutine/awaitable or JS Promise, resolve it synchronously."""

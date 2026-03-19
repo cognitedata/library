@@ -1,5 +1,5 @@
-cognite-sdk
-streamlit
-pandas
+streamlit>=1.28.0
+cognite-sdk>=7.0.0,<8
+pandas>=2.0.0
 python-dotenv
 pyodide-http>=0.2.1
