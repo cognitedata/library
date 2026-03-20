@@ -1,0 +1,10 @@
+# Config for upload asset hierarchy pipeline. Set fileExternalId (and optionally dataSetExternalId)
+# to the CDF File containing the asset CSV, or pass them when triggering the run.
+externalId: 'ep_ctx_3d_{{default_location}}_{{source_name}}_upload_asset_hierarchy'
+config:
+  data:
+    parameters:
+      assetInstanceSpace: {{asset_instance_space}}
+      # Optional: CDF File external id of the asset hierarchy CSV
+      # fileExternalId: 'asset_hierarchy.csv'
+      # dataSetExternalId: 'ds_3d_{{default_location}}'

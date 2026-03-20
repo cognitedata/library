@@ -1,0 +1,14 @@
+externalId: ds_3d_{{default_location}}
+name:  3d:{{default_location}}
+description: 3D data for {{default_location}} uploaded from sharepoint
+metadata:
+  consoleSource:
+    names:
+      - '{{source_name}}'
+  rawTables:
+    - databaseName: 3d_{{default_location}}_{{source_name}}
+      tableName: 'contextualization_good'
+    - databaseName: '3d_{{default_location}}_{{source_name}}'
+      tableName: 'contextualization_bad'
+    - databaseName: '3d_{{default_location}}_{{source_name}}'
+      tableName: 'contextualization_manual_input'

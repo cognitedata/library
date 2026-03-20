@@ -1,0 +1,22 @@
+# 3D file extractor: watches a local folder and uploads files to CDF. Set file_extractor_watch_path in config.dev.yaml.
+externalId: 'ep_src_3d_{{default_location}}_{{source_name}}'
+config:
+  logger:
+    console:
+      level: INFO
+    file:
+      level: INFO
+      path: "c:/tmp/file_extractor.log"
+
+  cognite:
+    data-set:
+      external-id: 'ds_3d_{{default_location}}'
+
+  files:
+    extensions:
+      - .zip
+      - .nwd
+      - .rvm
+    file-provider:
+      type: local
+      path: '{{file_extractor_watch_path}}'

@@ -1,0 +1,15 @@
+# Toolkit function definition. The code directory must have the same name as externalId.
+# Variables (e.g. {{default_location}}, {{source_name}}) are substituted from config.dev.yaml at build.
+- name: 'context:3d:{{default_location}}:{{source_name}}:asset'
+  externalId: 'fn_context_3d_{{default_location}}_{{source_name}}_asset'
+  owner: 'Anonymous'
+  description: 'Contextualization of 3d model and asset data for {{default_location}}:{{source_name}}'
+  metadata:
+    version: '0.1.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  cpu: 0.60
+  runtime: 'py311'
+  functionPath: './handler.py'
+  dataSetExternalId: 'ds_3d_{{default_location}}'

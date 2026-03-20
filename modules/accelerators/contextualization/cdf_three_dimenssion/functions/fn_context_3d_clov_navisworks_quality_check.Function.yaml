@@ -1,0 +1,14 @@
+# Toolkit function definition. The code directory must have the same name as externalId.
+- name: 'context:3d:{{default_location}}:{{source_name}}:quality_check'
+  externalId: 'fn_context_3d_{{default_location}}_{{source_name}}_quality_check'
+  owner: 'Anonymous'
+  description: 'Quality checking the contextualization of 3D model and assets for {{default_location}}:{{source_name}} after possible manual changes'
+  metadata:
+    version: '0.1.0'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  cpu: 0.60
+  runtime: 'py311'
+  functionPath: './handler.py'
+  dataSetExternalId: 'ds_3d_{{default_location}}'

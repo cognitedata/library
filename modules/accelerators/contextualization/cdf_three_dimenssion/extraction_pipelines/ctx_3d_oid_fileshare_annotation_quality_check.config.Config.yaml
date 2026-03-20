@@ -1,0 +1,12 @@
+externalId: 'ep_ctx_3d_{{default_location}}_{{source_name}}_annotation_quality_check'
+config:
+  data:
+    debug: False
+    rawdb: '3d_{{default_location}}_{{source_name}}'
+    rawTableGood: 'contextualization_good'
+    rawTableBad: 'contextualization_bad'
+    rawTableManual: 'contextualization_manual_input'
+    assetRootExtId: {{external_root_id_asset}}
+    3dDataSetExtId: 'ds_3d_{{default_location}}'
+    3dModelName: '{{3d_model_name}}'
+
