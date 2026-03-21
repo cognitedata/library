@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import { ApiError } from "@/shared/ApiError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LoadState } from "@/processing/types";
@@ -192,6 +193,8 @@ export function TransformationsList({
 }: TransformationsListProps = {}) {
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const pc = isPrivateMode ? " private-mask" : "";
   const [status, setStatus] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [transformations, setTransformations] = useState<TransformationSummary[]>([]);
@@ -882,7 +885,7 @@ export function TransformationsList({
                                 className="cursor-pointer hover:bg-slate-50"
                                 onClick={() => setSelectedId(id)}
                               >
-                                <td className="px-2 py-2 text-sm font-medium">{label}</td>
+                                <td className={`px-2 py-2 text-sm font-medium${pc}`}>{label}</td>
                                 <td className="px-2 py-2">
                                   {!statsReady ? (
                                     <CellSpinner />
@@ -915,20 +918,21 @@ export function TransformationsList({
                                     formatPrettyNumber(metricsById[id].reads)
                                   )}
                                 </td>
-                                <td className="px-2 py-2 tabular-nums">
-                                  {metricsById[id] === undefined ? (
-                                    <CellSpinner />
-                                  ) : (
-                                    formatPrettyNumber(metricsById[id].writes)
-                                  )}
-                                </td>
-                                <td className="px-2 py-2 tabular-nums">
-                                  {metricsById[id] === undefined ? (
-                                    <CellSpinner />
-                                  ) : (
-                                    formatPrettyNumber(metricsById[id].noops)
-                                  )}
-                                </td>
+                                {(() => {
+                                  const m = metricsById[id];
+                                  const noop_eq_writes = m != null && m.writes > 0 && m.noops === m.writes;
+                                  const redCls = noop_eq_writes ? " bg-red-100 text-red-800" : "";
+                                  return (
+                                    <>
+                                      <td className={`px-2 py-2 tabular-nums${redCls}`}>
+                                        {m === undefined ? <CellSpinner /> : formatPrettyNumber(m.writes)}
+                                      </td>
+                                      <td className={`px-2 py-2 tabular-nums${redCls}`}>
+                                        {m === undefined ? <CellSpinner /> : formatPrettyNumber(m.noops)}
+                                      </td>
+                                    </>
+                                  );
+                                })()}
                                 <td className="px-2 py-2 tabular-nums">
                                   {metricsById[id] === undefined ? (
                                     <CellSpinner />
@@ -1080,7 +1084,7 @@ export function TransformationsList({
                     <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
                       <span>
                         {t("transformations.list.selected")}{" "}
-                        <span className="font-semibold text-slate-900">
+                        <span className={`font-semibold text-slate-900${pc}`}>
                           {selectedTransformation?.name ?? selectedTransformation?.id ?? "—"}
                         </span>
                       </span>

@@ -3,6 +3,7 @@ import { ApiError } from "@/shared/ApiError";
 import { useAppSdk } from "@/shared/auth";
 import { useI18n } from "@/shared/i18n";
 import { Loader } from "@/shared/Loader";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import {
   getActionDisplay,
   getCapability,
@@ -18,6 +19,8 @@ import { usePermissionsData } from "./usePermissionsData";
 export function Permissions() {
   const { sdk, isLoading: isDuneLoading } = useAppSdk();
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const pc = isPrivateMode ? " private-mask" : "";
   const {
     status,
     errorMessage,
@@ -218,7 +221,7 @@ export function Permissions() {
                   <tbody className="divide-y divide-slate-100">
                     {groups.map((group) => (
                       <tr key={group.id}>
-                        <td className="px-2 py-2 text-sm font-medium text-slate-800">
+                        <td className={`px-2 py-2 text-sm font-medium text-slate-800${pc}`}>
                           <div>
                             {group.name ?? t("permissions.group.fallback", { id: group.id })}
                           </div>
@@ -351,7 +354,7 @@ export function Permissions() {
                   <tbody className="divide-y divide-slate-100">
                     {comparisonRows.map((group) => (
                       <tr key={group.id}>
-                        <td className="px-3 py-2 font-medium text-slate-700">
+                        <td className={`px-3 py-2 font-medium text-slate-700${pc}`}>
                           {groupNameMap.get(group.id)}
                         </td>
                         {comparisonUsers.map((user) => {
@@ -393,7 +396,7 @@ export function Permissions() {
                       <th className="px-3 py-2 font-medium">{t("permissions.table.groups")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className={`divide-y divide-slate-100${pc}`}>
                     {spaceRows.map((space) => (
                       <tr key={space.space}>
                         <td className="px-3 py-2">{space.space}</td>
@@ -447,7 +450,7 @@ export function Permissions() {
                       <th className="px-3 py-2 font-medium">{t("permissions.table.groups")}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className={`divide-y divide-slate-100${pc}`}>
                     {datasetRows.map((dataset) => (
                       <tr key={dataset.id}>
                         <td className="px-3 py-2">

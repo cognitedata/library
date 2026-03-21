@@ -30,6 +30,30 @@ export function getTransformationRunHistoryUrl(
   return `${CDF_BROWSER_URL}/${project}/transformations/${id}/run-history?cluster=${CDF_CLUSTER}&workspace=data-management`;
 }
 
+export function getAssetUrl(
+  project: string,
+  instanceSpace: string,
+  instanceExternalId: string,
+  viewSpace = "cdf_cdm",
+  viewVersion = "v1",
+  viewExternalId = "CogniteAsset"
+): string {
+  const encoded = encodeURIComponent(instanceExternalId);
+  return `${CDF_BROWSER_URL}/${project}/search/asset/${viewSpace}/${viewVersion}/${viewExternalId}/${instanceSpace}/${encoded}?cluster=${CDF_CLUSTER}`;
+}
+
+export function getFunctionsPageUrl(project: string): string {
+  return `${CDF_BROWSER_URL}/${project}/functions?cluster=${CDF_CLUSTER}&workspace=data-management`;
+}
+
+export function getWorkflowEditorUrl(
+  project: string,
+  workflowExternalId: string
+): string {
+  const encoded = encodeURIComponent(workflowExternalId);
+  return `${CDF_BROWSER_URL}/${project}/flows/${encoded}/editor?cluster=${CDF_CLUSTER}&workspace=data-management`;
+}
+
 export function warnIfCdfBrowserUrlMissing(): void {
   if (isMissing) {
     console.warn(

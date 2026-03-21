@@ -7,11 +7,12 @@ import { Processing } from "./processing";
 import { Permissions } from "./permissions";
 import { Transformations } from "./transformations";
 import { DataCatalog } from "./data-catalog";
-import type { SelectedDataModel, SelectedView } from "@/shared/selection-types";
 import { DataCacheProvider } from "./shared/data-cache";
 import { I18nProvider, useI18n } from "./shared/i18n";
 import { LimitsProvider } from "./shared/LimitsContext";
 import { NavigationProvider } from "./shared/NavigationContext";
+import { PrivateModeProvider, usePrivateMode } from "./shared/PrivateModeContext";
+import { loadNavState, saveNavState } from "./shared/nav-persistence";
 
 const productionPages = [
   { id: "health", labelKey: "nav.healthChecks" },
@@ -22,11 +23,12 @@ const productionPages = [
 ] as const;
 
 const internalPages = [
+  { id: "assets", label: "Assets" },
   { id: "models", label: "Data models" },
   { id: "views", label: "Views" },
   { id: "properties", label: "Properties" },
   { id: "streams", label: "Streams" },
-  { id: "relationships", label: "Relationships" },
+  { id: "edges", label: "Edges" },
   { id: "spaces", label: "Spaces" },
   { id: "testing", label: "Testing" },
   { id: "overlap", label: "Overlap" },
@@ -46,15 +48,31 @@ function AppContent() {
     projectResolved,
   } = useSdkManager();
   const { language, setLanguage, t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
   const showInternal =
     import.meta.env.VITE_SHOW_INTERNAL === "true" || import.meta.env.VITE_STANDALONE !== "true";
-  const [mode, setMode] = useState<AppMode>(productionPages[0].id);
+  const validModes = useMemo(() => {
+    const prod = productionPages.map((p) => p.id);
+    const internal = showInternal ? internalPages.map((p) => p.id) : [];
+    return new Set<AppMode>([...prod, ...internal] as AppMode[]);
+  }, [showInternal]);
+  const initialMode = useMemo(() => {
+    const { mode: stored } = loadNavState();
+    if (stored && validModes.has(stored as AppMode)) return stored as AppMode;
+    return productionPages[0].id;
+  }, [validModes]);
+  const [mode, setModeState] = useState<AppMode>(initialMode);
 
+  const setMode = useCallback(
+    (next: AppMode) => {
+      setModeState(next);
+      saveNavState({ mode: next });
+    },
+    []
+  );
   const navigateToTransformations = useCallback(() => {
     setMode("transformations");
   }, []);
-  const [selectedModel, setSelectedModel] = useState<SelectedDataModel | null>(null);
-  const [selectedView, setSelectedView] = useState<SelectedView | null>(null);
 
   useEffect(() => {
     if (selectedProject) {
@@ -62,25 +80,7 @@ function AppContent() {
     }
   }, [selectedProject]);
 
-  useEffect(() => {
-    if (selectedView) {
-      window.dispatchEvent(new Event("selected-view-update"));
-    }
-  }, [selectedView]);
 
-  const selectionSummary = useMemo(() => {
-    const modelLabel = selectedModel
-      ? `${selectedModel.name ?? selectedModel.externalId} · ${selectedModel.space}${
-          selectedModel.version ? ` · ${selectedModel.version}` : ""
-        }`
-      : "None";
-    const viewLabel = selectedView
-      ? `${selectedView.name ?? selectedView.externalId} · ${selectedView.space}${
-          selectedView.version ? ` · ${selectedView.version}` : ""
-        }`
-      : "None";
-    return { modelLabel, viewLabel };
-  }, [selectedModel, selectedView]);
 
   if (isLoading || !projectResolved) {
     return <div>Loading...</div>;
@@ -98,7 +98,7 @@ function AppContent() {
                 <label className="flex items-center gap-2 text-xs text-slate-600">
                   <span className="text-slate-400">{t("shared.project.label")}</span>
                   <select
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                    className={`rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 ${isPrivateMode ? "private-mask" : ""}`}
                     value={selectedProject}
                     onChange={(event) => {
                       const next = event.target.value;
@@ -162,6 +162,7 @@ function AppContent() {
               ) : null}
             </div>
             <div className="flex items-start gap-3">
+              <PrivateModeBadge />
               <div className="ml-auto flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
                 <span className="text-slate-400">{t("app.language")}</span>
                 <button
@@ -189,12 +190,17 @@ function AppContent() {
               </div>
             </div>
           </div>
+        <div data-private-mode={isPrivateMode && mode !== "settings" && mode !== "health" && mode !== "processing" && mode !== "permissions" && mode !== "transformations" ? "true" : undefined}>
         {mode === "health" ? <HealthChecks /> : null}
         {mode === "processing" ? <Processing /> : null}
         {mode === "permissions" ? <Permissions /> : null}
         {mode === "meta" ? <DataCatalog /> : null}
         {mode === "transformations" ? <Transformations /> : null}
-          <footer className="text-sm text-slate-500">Project: {selectedProject}</footer>
+
+        </div>
+          <footer className="text-sm text-slate-500">
+            Project: <span className={isPrivateMode ? "private-mask" : ""}>{selectedProject}</span>
+          </footer>
         </div>
       </DataCacheProvider>
       </NavigationProvider>
@@ -203,10 +209,39 @@ function AppContent() {
   );
 }
 
+function PrivateModeBadge() {
+  const { isPrivateMode, setPrivateMode } = usePrivateMode();
+  const { t } = useI18n();
+  if (!isPrivateMode) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => setPrivateMode(false)}
+      className="flex cursor-pointer items-center gap-1.5 rounded-full border border-orange-300 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 shadow-sm transition hover:bg-orange-100"
+      title={t("privateMode.clickToDisable")}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="h-3.5 w-3.5"
+      >
+        <path
+          fillRule="evenodd"
+          d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z"
+          clipRule="evenodd"
+        />
+      </svg>
+      {t("privateMode.badge")}
+    </button>
+  );
+}
 function App() {
   return (
     <I18nProvider>
+      <PrivateModeProvider>
       <AppContent />
+      </PrivateModeProvider>
     </I18nProvider>
   );
 }
