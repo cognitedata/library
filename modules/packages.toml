@@ -13,6 +13,7 @@ modules = [
     "accelerators/contextualization/cdf_p_and_id_annotation",
     "accelerators/contextualization/cdf_file_annotation",
     "accelerators/contextualization/cdf_entity_matching",
+    "accelerators/contextualization/cdf_three_dimenssion",
 ]
 
 [packages.infield_quickstart]
