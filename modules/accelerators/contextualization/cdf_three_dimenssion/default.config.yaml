@@ -1,0 +1,74 @@
+# CDF Toolkit config for dev environment.
+# Variables here are substituted into YAML templates (auth/, extraction_pipelines/, functions/, raw/, data_sets/).
+
+environment:
+  name: dev
+  project: ${CDF_PROJECT}
+  validation-type: dev
+  selected:
+    - modules/
+
+variables:
+  default_location: clov
+  source_name: navisworks
+  # CDF RAW database and tables (used by scripts and pipeline config)
+  raw_db: 3d_clov_navisworks
+  raw_table_manual: contextualization_manual_input
+  # RAW table for asset hierarchy CSV before transformation (tr_ctx_3d_*_asset_hierarchy_from_raw)
+  raw_table_asset_staging: asset_hierarchy_staging
+  # Required when project is DATA_MODELING_ONLY: space for function code (CogniteFile NodeId)
+  function_space: upstream-value-chain
+  "3d_model_name": deployment_pack
+  # CAD model name/type for apply_cad_contextualization script (defaults: 3d_model_name, CAD)
+  cad_model_name: deployment_pack
+  cad_model_type: CAD
+  # DM-only CAD contextualization defaults (used by pipeline config / apply_dm_cad_contextualization)
+  default_cad_space: rmdm
+  default_dm_space: upstream-value-chain
+  # View space for AssetExtension (used in transformation destination)
+  data_model_space: upstream-value-chain
+  default_dm_ext_id: upstream_value_chain
+  default_dm_version: v1
+  default_scene_space: scene
+  cad_contextualization_batch_size: 100
+  cad_model_view: { space: sp_enterprise_process_industry, external_id: CADModel, version: v1 }
+  cad_revision_view: { space: sp_enterprise_process_industry, external_id: CADRevision, version: v1 }
+  scene_config_view: { space: scene, external_id: SceneConfiguration, version: v1 }
+  scene_model_view: { space: cdf_3d_schema, external_id: Cdf3dModel, version: "1" }
+  rev_props_view: { space: scene, external_id: RevisionProperties, version: v1 }
+  # 3D DM required views (for apply_cad_contextualization script and pipeline); list of { space, external_id, version }
+  required_views:
+    - { space: cdf_cdm, external_id: Cognite3DObject, version: v1 }
+    - { space: cdf_cdm, external_id: CogniteCADNode, version: v1 }
+    - { space: cdf_cdm, external_id: CogniteCADRevision, version: v1 }
+    - { space: cdf_cdm, external_id: CogniteCADModel, version: v1 }
+    - { space: cdf_cdm, external_id: Cognite3DRevision, version: v1 }
+    - { space: cdf_cdm, external_id: Cognite3DModel, version: v1 }
+    - { space: cdf_cdm, external_id: Cognite3DTransformation, version: v1 }
+    - { space: cdf_cdm, external_id: CogniteVisualizable, version: v1 }
+    - { space: cdf_cdm, external_id: Cognite360Image, version: v1 }
+    - { space: cdf_cdm, external_id: Cognite360ImageAnnotation, version: v1 }
+    - { space: cdf_cdm, external_id: CogniteAnnotation, version: v1 }
+    - { space: cdf_cdm, external_id: Cognite360ImageCollection, version: v1 }
+    - { space: cdf_cdm, external_id: Cognite360ImageStation, version: v1 }
+    - { space: cdf_cdm, external_id: CognitePointCloudVolume, version: v1 }
+    - { space: cdf_cdm, external_id: CognitePointCloudRevision, version: v1 }
+    - { space: scene, external_id: SceneConfiguration, version: v1 }
+    - { space: scene, external_id: RevisionProperties, version: v1 }
+    - { space: cdf_3d_schema, external_id: Cdf3dModel, version: "1" }
+  asset_instance_space: instance_upstream_value_chain
+  cad_node_instance_space: rmdm
+  "3d_dataset": ds_3d_clov
+  # File extractor: local folder to watch for 3D files (.zip). Change to your path (e.g. /path/to/3d_files).
+  file_extractor_watch_path: c:/tmp/files
+  # Single Azure AD group for all 3D pipeline actors (extractor, processing, read)
+  3d_location_group_source_id: ${3d_location_group_source_id}
+  # Set to real Azure AD app client ID/secret to enable schedules / transformations
+  # CI/CD credentials for transformations — read from .env
+  cicd_clientId: ${cicd_clientId}
+  cicd_clientSecret: ${cicd_clientSecret}
+  # OAuth token URL for transformations (same tenant as IDP). Required for tr_ctx_3d_*_three_dimension_asset_to_dm.
+  cicd_tokenUri: ${IDP_TOKEN_URL}
+  # CDF project and cluster (for transformation OAuth scopes) — read from .env
+  cdf_project_name: ${CDF_PROJECT}
+  cdf_cluster: ${CDF_CLUSTER}
