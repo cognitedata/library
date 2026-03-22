@@ -73,3 +73,17 @@ export type PermissionScopeDriftEntry = {
   leftOnly: string[];
   rightOnly: string[];
 };
+
+export type CompliantGroupEntry = {
+  groupName: string;
+  capabilityCount: number;
+  reason:
+    | "all_scope"
+    | "no_capabilities"
+    | "no_scope_entries"
+    | "unique_scoping"
+    | "below_threshold"
+    | "identical_scoping";
+  label: string;
+  details?: string;
+};

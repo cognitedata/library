@@ -1,15 +1,28 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useI18n } from "@/shared/i18n";
 import { useNavigation } from "@/shared/NavigationContext";
+import { loadNavState, saveNavState } from "@/shared/nav-persistence";
 import { DataModelUsage } from "./DataModelUsage";
 import { TransformationsList } from "./Transformations";
 import { TransformationOverlap } from "./TransformationOverlap";
 
 type SubView = "list" | "overlap" | "dataModelUsage";
 
+const SUB_VIEWS: SubView[] = ["list", "overlap", "dataModelUsage"];
+
+function getInitialSubView(): SubView {
+  const stored = loadNavState().transformationsSubView;
+  return stored && SUB_VIEWS.includes(stored) ? stored : "list";
+}
+
 export function TransformationsPage() {
   const { t } = useI18n();
-  const [subView, setSubView] = useState<SubView>("list");
+  const [subView, setSubViewState] = useState<SubView>(getInitialSubView);
+
+  const setSubView = useCallback((next: SubView) => {
+    setSubViewState(next);
+    saveNavState({ transformationsSubView: next });
+  }, []);
   const nav = useNavigation();
   const clearListSelectionRef = useRef<(() => void) | null>(null);
 

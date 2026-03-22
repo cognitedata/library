@@ -23,6 +23,8 @@ const translations: Record<Language, Record<string, string>> = {
       "Working really hard pulling data from CDF. You can dismiss this message to watch partial data being loaded. Once all data is available this page will close by itself.",
     "shared.loader.dismissOnce": "Dismiss this time",
     "shared.loader.dismissForever": "Never show this loader again",
+    "privateMode.badge": "Private Mode",
+    "privateMode.clickToDisable": "Click to disable private mode",
     "nav.processing": "Processing",
     "nav.permissions": "Permissions",
     "nav.dataCatalog": "Data Catalog",
@@ -65,6 +67,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.heatmap.legend.one": "1",
     "processing.heatmap.legend.mid": "5",
     "processing.heatmap.legend.high": "10+",
+    "processing.heatmap.legend.now": "Now (UTC)",
     "processing.heatmap.unknownFunction": "Unknown function",
     "processing.heatmap.unknownTransformation": "Unknown transformation",
     "processing.heatmap.hover.title": "{time} · {count}",
@@ -395,6 +398,16 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.modeling.unusedSpaces.none": "All spaces contain models, views, or containers.",
     "healthChecks.modeling.viewsProcessed": "Views processed {processed} / {total}",
     "healthChecks.modeling.spacesLoading": "Loading spaces list",
+    "healthChecks.transformations.loading": "Loading transformations…",
+    "healthChecks.transformations.noops.title": "Transformation writes vs no-ops",
+    "healthChecks.transformations.noops.description":
+      "Flags transformations where every write in the last job was a no-op, meaning no data was actually changed. This often indicates redundant runs wasting resources.",
+    "healthChecks.transformations.noops.error": "Failed to load transformation metrics.",
+    "healthChecks.transformations.noops.count":
+      "{count} of {total} transformation(s) had all writes equal to no-ops in their last run.",
+    "healthChecks.transformations.noops.detail": "{writes} writes, all no-ops",
+    "healthChecks.transformations.noops.allGood":
+      "All {total} transformations with recent jobs produced effective writes.",
     "healthChecks.dataModelVersioning.title": "Data model version consistency",
     "healthChecks.dataModelVersioning.description":
       "Transformations referencing the same data model should use the same version. Inconsistencies can cause unexpected behavior.",
@@ -470,12 +483,15 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.permissions.drift.count":
       "{count} capability scopes look almost the same.",
     "healthChecks.permissions.drift.none": "No near-duplicate capability scopes detected.",
+    "healthChecks.permissions.drift.emptyList": "None.",
     "healthChecks.permissions.drift.noActions": "no actions",
     "healthChecks.permissions.drift.explain.show": "Explain",
     "healthChecks.permissions.drift.explain.hide": "Hide",
     "healthChecks.permissions.drift.common": "Common entries",
     "healthChecks.permissions.drift.uniqueLeft": "Unique to {group}",
     "healthChecks.permissions.drift.uniqueRight": "Unique to {group}",
+    "healthChecks.permissions.drift.uniqueToPrefix": "Unique to ",
+    "healthChecks.permissions.drift.uniqueToSuffix": "",
     "healthChecks.permissions.drift.itemDiff":
       "{capability} ({actions}) · {scopeType} differs by a few items: {left} vs {right}",
     "healthChecks.permissions.drift.unknownCapability": "Unknown",
@@ -493,6 +509,8 @@ const translations: Record<Language, Record<string, string>> = {
       "CDF からデータを取得しています。このメッセージは一時的に閉じて、部分的に読み込まれた内容を確認できます。すべてのデータが利用可能になると、この画面は自動的に閉じます。",
     "shared.loader.dismissOnce": "今回は閉じる",
     "shared.loader.dismissForever": "今後このローダーを表示しない",
+    "privateMode.badge": "プライベートモード",
+    "privateMode.clickToDisable": "クリックしてプライベートモードを無効にする",
     "nav.processing": "処理",
     "nav.permissions": "権限",
     "nav.dataCatalog": "データカタログ",
@@ -535,6 +553,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.heatmap.legend.one": "1",
     "processing.heatmap.legend.mid": "5",
     "processing.heatmap.legend.high": "10+",
+    "processing.heatmap.legend.now": "現在 (UTC)",
     "processing.heatmap.unknownFunction": "不明な関数",
     "processing.heatmap.unknownTransformation": "不明な変換",
     "processing.heatmap.hover.title": "{time} · {count}",
@@ -868,6 +887,16 @@ const translations: Record<Language, Record<string, string>> = {
       "すべてのスペースにモデル・ビュー・コンテナがあります。",
     "healthChecks.modeling.viewsProcessed": "ビュー処理 {processed} / {total}",
     "healthChecks.modeling.spacesLoading": "スペース一覧を読み込み中",
+    "healthChecks.transformations.loading": "変換を読み込み中…",
+    "healthChecks.transformations.noops.title": "変換の書き込み vs No-op",
+    "healthChecks.transformations.noops.description":
+      "最後のジョブですべての書き込みがNo-opだった変換をフラグします。これはデータが実際に変更されなかったことを意味し、冗長な実行によるリソースの浪費を示唆します。",
+    "healthChecks.transformations.noops.error": "変換メトリクスの読み込みに失敗しました。",
+    "healthChecks.transformations.noops.count":
+      "{total} 件中 {count} 件の変換で、最後の実行ですべての書き込みがNo-opでした。",
+    "healthChecks.transformations.noops.detail": "{writes} 件の書き込み、すべてNo-op",
+    "healthChecks.transformations.noops.allGood":
+      "最近のジョブがある {total} 件すべての変換で実効的な書き込みがありました。",
     "healthChecks.dataModelVersioning.title": "データモデルバージョンの一貫性",
     "healthChecks.dataModelVersioning.description":
       "同じデータモデルを参照する変換は同じバージョンを使用する必要があります。不整合があると予期しない動作の原因になります。",
@@ -944,12 +973,15 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.permissions.drift.count":
       "{count} 件のケイパビリティでスコープがほぼ同じです。",
     "healthChecks.permissions.drift.none": "近似したスコープ差分は検出されませんでした。",
+    "healthChecks.permissions.drift.emptyList": "なし。",
     "healthChecks.permissions.drift.noActions": "アクションなし",
     "healthChecks.permissions.drift.explain.show": "説明",
     "healthChecks.permissions.drift.explain.hide": "非表示",
     "healthChecks.permissions.drift.common": "共通のエントリ",
     "healthChecks.permissions.drift.uniqueLeft": "{group} のみに存在",
     "healthChecks.permissions.drift.uniqueRight": "{group} のみに存在",
+    "healthChecks.permissions.drift.uniqueToPrefix": "",
+    "healthChecks.permissions.drift.uniqueToSuffix": " のみに存在",
     "healthChecks.permissions.drift.itemDiff":
       "{capability} ({actions}) · {scopeType} に小さな差分: {left} と {right}",
     "healthChecks.permissions.drift.unknownCapability": "不明",
