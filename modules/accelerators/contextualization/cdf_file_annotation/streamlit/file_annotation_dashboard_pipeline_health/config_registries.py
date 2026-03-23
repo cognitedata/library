@@ -1,7 +1,6 @@
-from typing import Dict, List
-
+from data_structures import FunctionRunConfig, CallerType
 from constants import FieldNames
-from data_structures import CallerType, FunctionRunConfig
+from typing import List, Dict
 
 
 class FunctionRunConfigRegistry:

@@ -2,16 +2,16 @@ from enum import Enum
 from typing import Any, Literal, Optional
 
 import yaml
-from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
 from cognite.client.data_classes.contextualization import (
+    DiagramDetectConfig,
     ConnectionFlags,
     CustomizeFuzziness,
-    DiagramDetectConfig,
     DirectionWeights,
 )
 from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.filters import Filter
+from cognite.client import CogniteClient
+from cognite.client import data_modeling as dm
 from cognite.client.exceptions import CogniteAPIError
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
@@ -165,6 +165,22 @@ class DataModelServiceConfig(BaseModel, alias_generator=to_camel):
     get_file_entities_query: QueryConfig | list[QueryConfig]
 
 
+class RawTablesConfig(BaseModel, alias_generator=to_camel):
+    """
+    Consolidated configuration for RAW database and tables used across all functions.
+    This section centralizes all RAW storage configuration to avoid duplication
+    and ensure consistency across prepare, launch, finalize, and promote functions.
+    """
+
+    raw_db: str
+    raw_table_cache: str
+    raw_table_doc_tag: str
+    raw_table_doc_doc: str
+    raw_table_doc_pattern: str
+    raw_table_promote_cache: str
+    raw_manual_patterns_catalog: str
+
+
 class CacheServiceConfig(BaseModel, alias_generator=to_camel):
     cache_time_limit: int
 
@@ -248,6 +264,16 @@ class EntitySearchServiceConfig(BaseModel, alias_generator=to_camel):
     text_normalization: TextNormalizationConfig
 
 
+class PromoteCacheServiceConfig(BaseModel, alias_generator=to_camel):
+    """
+    Configuration for the CacheService in the promote function.
+
+    Controls caching behavior for text→entity mappings.
+    """
+
+    cache_table_name: str
+
+
 class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     """
     Configuration for the promote function.
@@ -259,12 +285,13 @@ class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
     - entitySearchService: Controls entity search strategies
 
     Batch size is controlled via getCandidatesQuery.limit field.
-    RAW database and table configuration is centralized in rawTables section.
     """
 
     get_candidates_query: QueryConfig | list[QueryConfig]
     delete_rejected_edges: bool
     delete_suggested_edges: bool
+    promote_file_entities: bool = True
+    promote_target_entities: bool = True
     entity_search_service: EntitySearchServiceConfig
 
 
@@ -275,26 +302,9 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
     target_entities_view: ViewPropertyConfig
 
 
-class RawTables(BaseModel, alias_generator=to_camel):
-    """
-    Consolidated configuration for RAW database and tables used across all functions.
-
-    This section centralizes all RAW storage configuration to avoid duplication
-    and ensure consistency across prepare, launch, finalize, and promote functions.
-    """
-
-    raw_db: str
-    raw_table_cache: str
-    raw_table_doc_tag: str
-    raw_table_doc_doc: str
-    raw_table_doc_pattern: str
-    raw_table_promote_cache: str
-    raw_manual_patterns_catalog: str
-
-
 class Config(BaseModel, alias_generator=to_camel):
+    raw_tables: RawTablesConfig
     data_model_views: DataModelViews
-    raw_tables: RawTables
     prepare_function: PrepareFunction
     launch_function: LaunchFunction
     finalize_function: FinalizeFunction
@@ -385,6 +395,150 @@ def _format_query_summary(query: QueryConfig | list[QueryConfig], query_name: st
     return "\n".join(lines)
 
 
+def _format_diagram_detect_config(config: DiagramDetectConfigModel | None) -> str:
+    """Format diagram detect configuration into a readable string."""
+    if config is None:
+        return "    - Diagram detect config: None"
+
+    lines = ["    - Diagram detect config:"]
+
+    if config.annotation_extract is not None:
+        lines.append(f"      • Annotation extract: {config.annotation_extract}")
+    if config.case_sensitive is not None:
+        lines.append(f"      • Case sensitive: {config.case_sensitive}")
+    if config.connection_flags is not None:
+        flags = config.connection_flags
+        flag_parts = []
+        if flags.no_text_inbetween is not None:
+            flag_parts.append(f"noTextInbetween={flags.no_text_inbetween}")
+        if flags.natural_reading_order is not None:
+            flag_parts.append(f"naturalReadingOrder={flags.natural_reading_order}")
+        if flag_parts:
+            lines.append(f"      • Connection flags: {', '.join(flag_parts)}")
+    if config.customize_fuzziness is not None:
+        fuzz = config.customize_fuzziness
+        fuzz_parts = []
+        if fuzz.fuzzy_score is not None:
+            fuzz_parts.append(f"score={fuzz.fuzzy_score}")
+        if fuzz.max_boxes is not None:
+            fuzz_parts.append(f"maxBoxes={fuzz.max_boxes}")
+        if fuzz.min_chars is not None:
+            fuzz_parts.append(f"minChars={fuzz.min_chars}")
+        if fuzz_parts:
+            lines.append(f"      • Customize fuzziness: {', '.join(fuzz_parts)}")
+    if config.direction_delta is not None:
+        lines.append(f"      • Direction delta: {config.direction_delta}")
+    if config.direction_weights is not None:
+        lines.append(f"      • Direction weights: {config.direction_weights}")
+    if config.min_fuzzy_score is not None:
+        lines.append(f"      • Min fuzzy score: {config.min_fuzzy_score}")
+    if config.read_embedded_text is not None:
+        lines.append(f"      • Read embedded text: {config.read_embedded_text}")
+    if config.remove_leading_zeros is not None:
+        lines.append(f"      • Remove leading zeros: {config.remove_leading_zeros}")
+    if config.substitutions is not None:
+        lines.append(f"      • Substitutions: {len(config.substitutions)} patterns")
+
+    return "\n".join(lines)
+
+
+def format_prepare_config(config: Config, pipeline_ext_id: str) -> str:
+    """
+    Format the prepare function configuration for logging.
+
+    Args:
+        config: The configuration object
+        pipeline_ext_id: The extraction pipeline external ID
+
+    Returns:
+        Formatted configuration string ready for logging
+    """
+    lines = ["=" * 80, f"FUNCTION: Prepare ({pipeline_ext_id})", "=" * 80, "", "PREPARE SERVICE CONFIG"]
+
+    # Files to Annotate Query
+    lines.append(_format_query_summary(config.prepare_function.get_files_to_annotate_query, "Files to Annotate Query"))
+
+    # Files for Annotation Reset Query (if configured)
+    if config.prepare_function.get_files_for_annotation_reset_query is not None:
+        lines.append("")
+        lines.append(
+            _format_query_summary(
+                config.prepare_function.get_files_for_annotation_reset_query, "Files for Annotation Reset Query"
+            )
+        )
+
+    lines.extend(["", "=" * 80])
+    return "\n".join(lines)
+
+
+def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
+    """
+    Format the launch function configuration for logging.
+
+    Args:
+        config: The configuration object
+        pipeline_ext_id: The extraction pipeline external ID
+
+    Returns:
+        Formatted configuration string ready for logging
+    """
+    launch = config.launch_function
+
+    lines = [
+        "=" * 80,
+        f"FUNCTION: Launch ({pipeline_ext_id})",
+        "=" * 80,
+        "",
+        "LAUNCH SERVICE CONFIG",
+        f"  • Batch size: {launch.batch_size}",
+        f"  • Pattern mode: {launch.pattern_mode}",
+        f"  • Primary scope property: {launch.primary_scope_property}",
+        f"  • Secondary scope property: {launch.secondary_scope_property}",
+        f"  • File search property: {launch.file_search_property}",
+        f"  • Target entities search property: {launch.target_entities_search_property}",
+        "",
+        "DATA MODEL SERVICE",
+    ]
+
+    # Add queries
+    lines.append(_format_query_summary(launch.data_model_service.get_files_to_process_query, "Files to Process Query"))
+    lines.append("")
+    lines.append(_format_query_summary(launch.data_model_service.get_target_entities_query, "Target Entities Query"))
+    lines.append("")
+    lines.append(_format_query_summary(launch.data_model_service.get_file_entities_query, "File Entities Query"))
+
+    # Cache service
+    cache = launch.cache_service
+    raw = config.raw_tables
+    lines.extend(
+        [
+            "",
+            "CACHE SERVICE",
+            f"  • Cache time limit: {cache.cache_time_limit} hours",
+            f"  • RAW DB: {raw.raw_db}",
+            f"  • Cache table: {raw.raw_table_cache}",
+            f"  • Manual patterns catalog: {raw.raw_manual_patterns_catalog}",
+        ]
+    )
+
+    # Annotation service
+    annot = launch.annotation_service
+    lines.extend(
+        [
+            "",
+            "ANNOTATION SERVICE",
+            f"  • Page range: {annot.page_range} pages",
+            f"  • Partial match: {annot.partial_match}",
+            f"  • Min tokens: {annot.min_tokens}",
+        ]
+    )
+
+    lines.append(_format_diagram_detect_config(annot.diagram_detect_config))
+
+    lines.extend(["", "=" * 80])
+    return "\n".join(lines)
+
+
 def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
     """
     Format the finalize function configuration for logging.
@@ -422,12 +576,63 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
             f"  • Auto approval threshold: {apply.auto_approval_threshold}",
             f"  • Auto suggest threshold: {apply.auto_suggest_threshold}",
             f"  • Sink node: {apply.sink_node.space}/{apply.sink_node.external_id}",
-            "",
-            "RAW TABLES (from consolidated config)",
             f"  • RAW DB: {raw.raw_db}",
             f"  • Doc-Tag table: {raw.raw_table_doc_tag}",
             f"  • Doc-Doc table: {raw.raw_table_doc_doc}",
             f"  • Doc-Pattern table: {raw.raw_table_doc_pattern}",
+        ]
+    )
+
+    lines.extend(["", "=" * 80])
+    return "\n".join(lines)
+
+
+def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
+    """
+    Format the promote function configuration for logging.
+
+    Args:
+        config: The configuration object
+        pipeline_ext_id: The extraction pipeline external ID
+
+    Returns:
+        Formatted configuration string ready for logging
+    """
+    promote = config.promote_function
+    raw = config.raw_tables
+    lines = [
+        "=" * 80,
+        f"FUNCTION: Promote ({pipeline_ext_id})",
+        "=" * 80,
+        "",
+        "PROMOTE SERVICE CONFIG",
+        f"  • Delete rejected edges: {promote.delete_rejected_edges}",
+        f"  • Delete suggested edges: {promote.delete_suggested_edges}",
+        f"  • Promote file entities: {promote.promote_file_entities}",
+        f"  • Promote target entities: {promote.promote_target_entities}",
+        f"  • RAW DB: {raw.raw_db}",
+        f"  • Doc-Tag table: {raw.raw_table_doc_tag}",
+        f"  • Doc-Doc table: {raw.raw_table_doc_doc}",
+        f"  • Doc-Pattern table: {raw.raw_table_doc_pattern}",
+        f"  • Promote cache table: {raw.raw_table_promote_cache}",
+        "",
+    ]
+
+    lines.append(_format_query_summary(promote.get_candidates_query, "Candidates Query"))
+
+    # Entity search service
+    entity_search = promote.entity_search_service
+    text_norm = entity_search.text_normalization
+    lines.extend(
+        [
+            "",
+            "ENTITY SEARCH SERVICE",
+            f"  • Enable global entity search: {entity_search.enable_global_entity_search}",
+            f"  • Max entity search limit: {entity_search.max_entity_search_limit}",
+            "  • Text normalization:",
+            f"    - Remove special characters: {text_norm.remove_special_characters}",
+            f"    - Convert to lowercase: {text_norm.convert_to_lowercase}",
+            f"    - Strip leading zeros: {text_norm.strip_leading_zeros}",
         ]
     )
 

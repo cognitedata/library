@@ -1,6 +1,5 @@
-from typing import Callable, Optional
-
 import streamlit as st
+from typing import Callable, Optional
 from constants import FieldNames
 
 

@@ -1,9 +1,8 @@
-from typing import Any, Optional
-
 import streamlit as st
-from client_factory import CogniteClientFactory
-from dotenv import load_dotenv
 from ui import PipelineHealthUI
+from typing import Any, Optional
+from dotenv import load_dotenv
+from client_factory import CogniteClientFactory
 
 st.set_page_config(page_title="Pipeline Health", page_icon="🩺", layout="wide")
 
@@ -16,3 +15,4 @@ def main() -> None:
 
 if __name__ == "__main__":
 	main()
+

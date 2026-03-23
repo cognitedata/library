@@ -1,15 +1,15 @@
-from abc import ABC, abstractmethod
-from typing import Callable, List, Optional, Tuple, Union
-
-import altair as alt
-import pandas as pd
-import streamlit as st
 from config_registries import FunctionRunConfigRegistry
-from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
-from data_structures import KPI
+import streamlit as st
+import pandas as pd
+import altair as alt
 from factories import FactoryHandler
+from typing import Optional, List, Tuple, Callable, Union
+from constants import FieldNames
+
+from data_structures import KPI
+from abc import ABC, abstractmethod
 
 
 class Component(ABC):
@@ -84,7 +84,7 @@ class ThroughputComponent(Component):
             tooltip=[f"{time_bucket_field}:T", "count:Q"],
         ).properties(title=f"Files Finalized {time_agg}").interactive()
 
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width="stretch")
 
 
 class FileTableComponent(Component):
@@ -143,7 +143,7 @@ class FileTableComponent(Component):
             column_config={
                 FieldNames.SELECT_TITLE_CASE: st.column_config.CheckboxColumn(required=True)
             },
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             disabled=df_display.columns.difference([FieldNames.SELECT_TITLE_CASE]),
             on_change=handler,
@@ -321,7 +321,7 @@ class RunChartsComponent(Component):
             cols = st.columns(2)
             for i, ch in enumerate(charts):
                 with cols[i % 2]:
-                    st.altair_chart(ch, use_container_width=True)
+                    st.altair_chart(ch, width="stretch")
 
 
 class DetailedRunHistoryComponent(Component):
@@ -442,13 +442,13 @@ class DetailedRunHistoryComponent(Component):
         total_pages = (len(filtered_runs) + items_per_page - 1) // items_per_page
         if total_pages > 1:
             p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
-            if p_col1.button("Previous", disabled=(st.session_state.page_num == 0)):
+            if p_col1.button("Previous", disabled=(st.session_state.page_num == 0), width="stretch"):
                 st.session_state.page_num -= 1
                 st.rerun()
             p_col2.markdown(
                 f"<div style='text-align: center; margin-top: 5px;'>Page {st.session_state.page_num + 1} of {total_pages}</div>",
                 unsafe_allow_html=True,
             )
-            if p_col3.button("Next", disabled=(st.session_state.page_num >= total_pages - 1)):
+            if p_col3.button("Next", disabled=(st.session_state.page_num >= total_pages - 1), width="stretch"):
                 st.session_state.page_num += 1
                 st.rerun()

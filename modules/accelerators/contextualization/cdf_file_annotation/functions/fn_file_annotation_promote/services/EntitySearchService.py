@@ -1,12 +1,11 @@
 import abc
 import re
 from typing import Any
-
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, ViewId
 from cognite.client.data_classes.filters import Filter, In
-from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
+from services.ConfigService import Config
 
 
 class IEntitySearchService(abc.ABC):
@@ -324,7 +323,7 @@ class EntitySearchService(IEntitySearchService):
 
         # Helper function to strip leading zeros
         def strip_leading_zeros_in_text(s: str) -> str:
-            return re.sub(r"\b0+(\d+)", r"\1", s)
+            return re.sub(r"(?<!\d)0+(\d+)", r"\1", s)
 
         # Helper function to remove special characters
         def remove_special_chars(s: str) -> str:

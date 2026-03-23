@@ -1,9 +1,7 @@
+import pandas as pd
 import re
 from datetime import timedelta
-
-import pandas as pd
 from constants import FieldNames
-
 
 class DataProcessor:
     @staticmethod

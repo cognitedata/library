@@ -1,0 +1,41 @@
+space_name: "{{ space_name }}"
+data_model_name: "My Little Data Model"
+data_model_external_id: "{{ data_model_external_id }}"
+data_model_version: "{{ data_model_version }}"
+cfihos:
+  include: true
+  source_input: "CFIHOS/cfihos_classes.json"
+  implements:
+      - space: cdf_cdm
+        external_id: CogniteDescribable
+        version: v1
+  use_presence: false
+  # constraints:  # Optional constraints to apply if you have e.g. a general Tag view/container.
+  #   requireTag:
+  #     constraintType: requires
+  #     require:
+  #       space: "{{ space_name }}"
+  #       externalId: Tag
+  filter:
+    include:
+      name:
+        - compressor
+        - health, safety and environment equipment class
+        - heat exchanger
+        - pump
+        - rotary pump
+        - piping and pipeline equipment
+        - infrastructure
+        - enclosure
+        - instrument equipment
+        - IT and telecom equipment
+        - electrical equipment class
+        - tool
+        - miscellaneous equipment
+        - valve
+        - drilling equipment
+        - subsea equipment class
+        - mechanical equipment class
+        - turbine
+    # view_filter:
+      # default: all

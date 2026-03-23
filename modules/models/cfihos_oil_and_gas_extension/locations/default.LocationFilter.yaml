@@ -1,0 +1,11 @@
+externalId: "{{environment}}_ops_domain_model"
+name: "{{data_model_name}}"
+description: "{{data_model_name}}"
+dataModels:
+  - externalId: "{{data_model_external_id}}"
+    space: "{{space}}"
+    version: "{{search_dm_version}}"
+instanceSpaces:
+  - "{{space}}"
+  - "{{instance_space}}"
+dataModelingType: DATA_MODELING_ONLY

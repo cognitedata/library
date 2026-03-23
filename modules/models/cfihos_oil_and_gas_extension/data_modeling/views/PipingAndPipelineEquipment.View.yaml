@@ -1,0 +1,1053 @@
+space: '{{space}}'
+externalId: PipingAndPipelineEquipment
+name: Piping and Pipeline Equipment
+description: A physical object used in or in connection with a piping system.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  area:
+    name: Area
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Physical location on the facility where the equipment is installed
+  facility:
+    name: Facility
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: The facility code of a tagged object
+  parentTag:
+    name: Parent Tag
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: The main Tag number of a system that child Tags are related
+  system:
+    name: System
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code as per the used standard
+  approvalAuthority:
+    name: Approval Authority
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000111
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  atexCategory:
+    name: ATEX Category
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000009
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  atexExplosiveAtmosphere:
+    name: ATEX Explosive Atmosphere
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000010
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  atexGroup:
+    name: ATEX Group
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000011
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  calculationLength:
+    name: Calculation Length
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000105
+    description: 'The length over which the pressure-loss calculation has been carried
+      out (ref. BAR_LOSS_CALC). Typical if the pressure-loss calculation has been
+      done pr. 100 m, then the value here shall be 100. Unit: meter [m].'
+  calculationLength_UOM:
+    name: Calculation Length UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000105_UOM
+    description: Calculation length UOM, length.
+  compressibilityFactorZ:
+    name: Compressibility Factor Z
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000060
+    description: The factor to which something can be compressed
+  corrosionAllowance:
+    name: Corrosion Allowance
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000491
+    description: A code indicating the thickness of material allowed to be removed
+      through corrosion without compromising the design safety of the equipment item
+  corrosionAllowance_UOM:
+    name: Corrosion Allowance UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000491_UOM
+    description: Corrosion allowance UOM, length.
+  densityGas:
+    name: Density Gas
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000259
+    description: The mass per unit volume of a gas
+  densityGas_UOM:
+    name: Density Gas UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000259_UOM
+    description: Density (gas) UOM, density.
+  densityLiquid:
+    name: Density Liquid
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000273
+    description: The mass per unit volume of a liquid
+  densityLiquid_UOM:
+    name: Density Liquid UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000273_UOM
+    description: Density (liquid) UOM, density.
+  densityMedium:
+    name: Density Medium
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000546
+    description: Density Medium
+  densityMedium_UOM:
+    name: Density Medium UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000546_UOM
+    description: Density medium UOM, density.
+  description:
+    name: Description
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000177
+    description: Functional description of the tag
+  designPressureMax:
+    name: Design Pressure Max
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535
+    description: The operating pressure the equipment is designed to withstand
+  designPressureMax_UOM:
+    name: Design Pressure Max UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535_UOM
+    description: Design pressure max UOM, pressure.
+  designTemperatureMax:
+    name: Design Temperature Max
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536
+    description: The maximum temperature which the equipment is designed to withstand
+  designTemperatureMax_UOM:
+    name: Design Temperature Max UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536_UOM
+    description: Design temperature max UOM, temperature.
+  designTemperatureMin:
+    name: Design Temperature Min
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503
+    description: The minimum temperature which the equipment is designed to withstand
+  designTemperatureMin_UOM:
+    name: Design Temperature Min UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503_UOM
+    description: Design temperature min UOM, temperature.
+  efficiency:
+    name: Efficiency
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000495
+    description: the ratio of the output to the input of any system
+  efficiency_UOM:
+    name: Efficiency UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000495_UOM
+    description: Efficiency UOM, dimensionless ratios.
+  equipmentIdentifier:
+    name: Equipment Identifier
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000031
+    description: Equipment Identifier
+  exCertificateNumber:
+    name: Ex Certificate Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000109
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  explosionProtection:
+    name: Explosion Protection
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000108
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  flowTemperature:
+    name: Flow Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000289
+    description: Flow Temperature
+  flowTemperature_UOM:
+    name: Flow Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000289_UOM
+    description: Flow temperature UOM, temperature.
+  gasGroup:
+    name: Gas Group
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specifies the gas group classification of the physical object in
+      accordance to a known standard.
+  hazardousAreaClassificationArea:
+    name: Hazardous Area Classification Area
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Hazardous area zone of the area where the equipment is installed.
+  hotOilFlushing:
+    name: Hot Oil Flushing
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000158
+    description: 'Hot oil flushing. Values: Y = Rated for hot oil flushing. N = Not
+      rated for hot oil flushing.'
+  iOType:
+    name: I OType
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000598
+    description: The type of input / output
+  insulationClass:
+    name: Insulation Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000177
+    description: The class to which insulation is rated
+  insulationThickness:
+    name: Insulation Thickness
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000499
+    description: The thickness of insulation installed on equipment and lines for
+      Heat Conservation or Personal Protection
+  insulationThickness_UOM:
+    name: Insulation Thickness UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000499_UOM
+    description: Insulation thickness UOM, length.
+  ipRating:
+    name: Ip Rating
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000173
+    description: IP rating
+  length:
+    name: Length
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201
+    description: Length
+  length_UOM:
+    name: Length UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000201_UOM
+    description: Length UOM, length.
+  lineServiceCode:
+    name: Line Service Code
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000615
+    description: Code for substance flowing through the line as per used standard
+  manufacturer:
+    name: Manufacturer
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000158
+    description: The original equipment manufacturer of a tagged item
+  modelNumber:
+    name: Model Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000159
+    description: Model identification of the item
+  momentumRhov2:
+    name: Momentum Rhov2
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000457
+    description: rhov2 is a measure of the fluids momentum and is used in calculating
+      stresses and loadings on vessel nozzles
+  momentumRhov2_UOM:
+    name: Momentum Rhov2 UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000457_UOM
+    description: Momentum (rhov2) UOM, momentum.
+  ndtTestClass:
+    name: Ndt Test Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000250
+    description: Code for Non-Destructive-Test (NDT) according to Project Specifications.
+  nominalDiameter:
+    name: Nominal Diameter
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000509
+    description: Something is of a diameter that it is not rated (?)
+  nominalDiameter_UOM:
+    name: Nominal Diameter UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000509_UOM
+    description: Nominal diameter UOM, length.
+  nominalPower:
+    name: Nominal Power
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292
+    description: Nominal Power
+  nominalPower_UOM:
+    name: Nominal Power UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000292_UOM
+    description: Nominal power UOM, power/heat loss/heat gain.
+  operatingPressureNormal:
+    name: Operating Pressure Normal
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000512
+    description: Operatin pressure normal
+  operatingPressureNormal_UOM:
+    name: Operating Pressure Normal UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000512_UOM
+    description: Operating pressure normal UOM, pressure.
+  operatingTemperatureMax:
+    name: Operating Temperature Max
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538
+    description: Maximum temperature the item should by exposed to under normal operation
+  operatingTemperatureMax_UOM:
+    name: Operating Temperature Max UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538_UOM
+    description: Operating temperature max UOM, temperature.
+  operatingTemperatureMin:
+    name: Operating Temperature Min
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504
+    description: Minimum temperature the item should by exposed to under normal operation
+  operatingTemperatureMin_UOM:
+    name: Operating Temperature Min UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504_UOM
+    description: Operating temperature min UOM, temperature.
+  partNumber:
+    name: Part Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000249
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  pedCategory:
+    name: Ped Category
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000320
+    description: PED category. Applicable for installations that require conformity
+      with Pressure Equipment Directive
+  phase:
+    name: Phase
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000133
+    description: Identified the fluid phase passing through the equipment
+  pipingSpecificationClass:
+    name: Piping Specification Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000488
+    description: A specification which is specific for a collection of piping items
+  powerOutputRated:
+    name: Power Output Rated
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000523
+    description: The rating of the power produced by an item
+  powerOutputRated_UOM:
+    name: Power Output Rated UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000523_UOM
+    description: Power output rated UOM, group poweroutput rated.
+  pressureLoss:
+    name: Pressure Loss
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000513
+    description: 'Allowed pressure-loss in the line over the length stated in CALC_LENGTH.
+      Unit: Bar gauge [BarG].'
+  pressureLoss_UOM:
+    name: Pressure Loss UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000513_UOM
+    description: Pressure loss UOM, pressure.
+  safetyIntegrityLevelEquipment:
+    name: Safety Integrity Level Equipment
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000579
+    description: 'Safety Integrity Level - ref. relevant discipline requirements.
+      Typical: 0 : NA (not applicable) 1 : SIL 1 2 : SIL 2 3 : SIL 3'
+  serialNumber:
+    name: Serial Number
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000163
+    description: Serial number of the item
+  setPoint:
+    name: Set Point
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000581
+    description: The level at which an instrument is set - eg PSVs, bursting discs,
+      regulators, etc
+  setPointHigh:
+    name: Set Point High
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000582
+    description: The trip or alarm High set point
+  setPointHigh_UOM:
+    name: Set Point High UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000582_UOM
+    description: Set point high UOM, group setpoint.
+  setPointLow:
+    name: Set Point Low
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000583
+    description: The trip or alarm Low set point
+  setPointLow_UOM:
+    name: Set Point Low UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000583_UOM
+    description: Set point low UOM, group setpoint.
+  setPoint_UOM:
+    name: Set Point UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000581_UOM
+    description: Set point UOM, group setpoint.
+  signalType:
+    name: Signal Type
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000371
+    description: The method a signal is transmitted
+  sourService:
+    name: Sour Service
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000372
+    description: 'Sour service. Values: Y = Rated for sour service. N = Not rated
+      for sour service.'
+  temperatureClass:
+    name: Temperature Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specifies the temperature classification of the physical object in
+      accordance to a known standard.
+  testMedium:
+    name: Test Medium
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000412
+    description: The medium that was used to test the pressure of a line
+  testPressure:
+    name: Test Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532
+    description: The pressure to which a line is tested
+  testPressure_UOM:
+    name: Test Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000532_UOM
+    description: Test pressure UOM, pressure.
+  traceTemperature:
+    name: Trace Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211
+    description: The temperature at which trace heating is set or required
+  traceTemperature_UOM:
+    name: Trace Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211_UOM
+    description: Trace temperature UOM, temperature.
+  valveSize:
+    name: Valve Size
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000247
+    description: Valve connection and bore size
+  valveType:
+    name: Valve Type
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000479
+    description: The type of valve, for example, ball, butterfly, gate, etc
+  velocity:
+    name: Velocity
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000510
+    description: The speed at which something travels
+  velocity_UOM:
+    name: Velocity UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000510_UOM
+    description: Velocity UOM, velocity.
+  viscosityGas:
+    name: Viscosity Gas
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000260
+    description: The "thickness" of a gas or its ability to flow
+  viscosityGas_UOM:
+    name: Viscosity Gas UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000260_UOM
+    description: Viscosity (gas) UOM, viscosity - dynamic.
+  viscosityLiquid:
+    name: Viscosity Liquid
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000274
+    description: The "thickness" of a liquid or its ability to flow
+  viscosityLiquid_UOM:
+    name: Viscosity Liquid UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000274_UOM
+    description: Viscosity (liquid) UOM, viscosity - dynamic.
+  wallThickness:
+    name: Wall Thickness
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000540
+    description: Wall Thickness
+  wallThickness_UOM:
+    name: Wall Thickness UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000540_UOM
+    description: Wall thickness UOM, length.
+  weightDry:
+    name: Weight Dry
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494
+    description: The weight of the equipment without any contents
+  weightDry_UOM:
+    name: Weight Dry UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494_UOM
+    description: Weight (dry) UOM, mass.
+  weightOperating:
+    name: Weight Operating
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516
+    description: The weight of the equipment in use
+  weightOperating_UOM:
+    name: Weight Operating UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000516_UOM
+    description: Weight (operating) UOM, mass.
+  dryWeight:
+    name: Dry Weight
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494
+    description: A weight of an object excluding any operating or process fluids.
+  dryWeight_UOM:
+    name: Dry Weight UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000494_UOM
+    description: Dry weight UOM, mass / weight.
+  explosionProtectionGasGroup:
+    name: Explosion Protection Gas Group
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000110
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  explosionProtectionTemperatureClass:
+    name: Explosion Protection Temperature Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000112
+    description: Specify the temperature classification of the physical object in
+      accordance with CENELEC EN50014
+  explosionProtectionZone:
+    name: Explosion Protection Zone
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000113
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  fluidName:
+    name: Fluid Name
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000132
+    description: The name of the product in liquid or gas phase.
+  lowerLimitDesignTemperature:
+    name: Lower Limit Design Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503
+    description: The lowest temperature at which a functional or physical object is
+      designed.
+  lowerLimitDesignTemperature_UOM:
+    name: Lower Limit Design Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000503_UOM
+    description: Lower limit design temperature UOM, temperature.
+  lowerLimitOperatingHeatTracingTemperature:
+    name: Lower Limit Operating Heat Tracing Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211
+    description: The temperature which is the lowest heat tracing temperature at which
+      a functional or physical object is expected to operate.
+  lowerLimitOperatingHeatTracingTemperature_UOM:
+    name: Lower Limit Operating Heat Tracing Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000211_UOM
+    description: Lower limit operating heat tracing temperature UOM, temperature.
+  lowerLimitOperatingTemperature:
+    name: Lower Limit Operating Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504
+    description: A temperature that is the lowest temperature at which a functional
+      or physical object is expected to operate.
+  lowerLimitOperatingTemperature_UOM:
+    name: Lower Limit Operating Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000504_UOM
+    description: Lower limit operating temperature UOM, temperature.
+  nonDestructiveTestingMethods:
+    name: Non Destructive Testing Methods
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000250
+    description: Specify the non destructive group of methods of checking the structural
+      quality of the functional or physical object.
+  normalOperatingPressure:
+    name: Normal Operating Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000512
+    description: A pressure at which a functional or physical object is expected to
+      operate normally.
+  normalOperatingPressure_UOM:
+    name: Normal Operating Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000512_UOM
+    description: Normal operating pressure UOM, pressure.
+  pipingClass:
+    name: Piping Class
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000488
+    description: A specification defined by specified circumstances in which piping
+      components may be applied.
+  pressureEquipmentCategory:
+    name: Pressure Equipment Category
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000320
+    description: The pressure equipment category according to the pressure equipment
+      directive 97/23/EC.
+  serviceCode:
+    name: Service Code
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000615
+    description: A code that indicates a type of product for that an item is intended
+      to be used.
+  upperLimitDesignPressure:
+    name: Upper Limit Design Pressure
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535
+    description: The highest pressure at which a functional or physical object is
+      designed for.
+  upperLimitDesignPressure_UOM:
+    name: Upper Limit Design Pressure UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000535_UOM
+    description: Upper limit design pressure UOM, pressure.
+  upperLimitDesignTemperature:
+    name: Upper Limit Design Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536
+    description: The highest temperature at which a functional or physical object
+      is designed.
+  upperLimitDesignTemperature_UOM:
+    name: Upper Limit Design Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000536_UOM
+    description: Upper limit design temperature UOM, temperature.
+  upperLimitOperatingTemperature:
+    name: Upper Limit Operating Temperature
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538
+    description: A temperature that is the highest temperature at which a functional
+      or physical object is expected to operate.
+  upperLimitOperatingTemperature_UOM:
+    name: Upper Limit Operating Temperature UOM
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: CFIHOS_40000538_UOM
+    description: Upper limit operating temperature UOM, temperature.
+  additionalProperties:
+    name: Additional Properties
+    container:
+      space: '{{space}}'
+      externalId: CFIHOS_PipingAndPipelineEquipment
+      type: container
+    containerPropertyIdentifier: additionalProperties
+    description: Overflow properties stored as JSON for rarely-queried fields
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the entity
+  tags:
+    name: Tags
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node

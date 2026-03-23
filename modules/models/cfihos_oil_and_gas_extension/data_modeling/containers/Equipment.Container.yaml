@@ -1,0 +1,76 @@
+space: "{{space}}"
+externalId: Equipment
+name: Equipment
+description: Physical equipment used in the oil and gas industry
+properties:
+  class:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: class
+  type:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: type
+  model:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: model
+  code:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: code
+  equipmentClass:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentClass
+  standard:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: standard
+  standardReference:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: standardReference
+indexes:
+constraints:
+  requiresCogniteEquipment:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteEquipment
+      type: container

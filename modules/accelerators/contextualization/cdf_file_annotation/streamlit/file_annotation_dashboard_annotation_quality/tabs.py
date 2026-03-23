@@ -1,17 +1,16 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 from components import (
-    AnnotationComparisonComponent,
-    FileAggregationComponent,
-    FileResourceTypeCoverageComponent,
-    ManualPromotingComponent,
     OverallAnnotationCoverageComponent,
     PatternCatalogComponent,
-    PerFileFiltersComponent,
-    SecondaryScopeCoverageComponent,
+    AnnotationComparisonComponent,
+    ManualPromotingComponent,
     TagEntityResourceTypeCoverageComponent,
-)
-
+    FileResourceTypeCoverageComponent,
+    SecondaryScopeCoverageComponent,
+    PerFileFiltersComponent,
+    FileAggregationComponent,
+) 
 
 class OverallTab:
     def render(self, client, extraction_pipeline_cfg, actual_df: pd.DataFrame, potential_df: pd.DataFrame) -> None:

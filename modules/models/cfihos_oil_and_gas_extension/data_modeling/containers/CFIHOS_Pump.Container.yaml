@@ -1,0 +1,996 @@
+space: "{{space}}"
+externalId: CFIHOS_Pump
+description: A physical object that adds or removes mechanical energy to a fluid,
+  either constantly or periodically.
+properties:
+  CFIHOS_40000132:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: fluidName
+    description: The name of the product in liquid or gas phase.
+  CFIHOS_40000111:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: approvalAuthority
+    description: The name of the nationally accredited approval body that has issued
+      the examination certificate for the physical object.
+  CFIHOS_40000009:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexCategory
+    description: Specifies in which category the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_40000010:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexExplosiveAtmosphere
+    description: Specifies in which explosive atmosphere the physical object is divided
+      in accordance with the directive 94/9/EC.
+  CFIHOS_40000011:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: atexGroup
+    description: Specifies in which group the physical object is divided in accordance
+      with the directive 94/9/EC.
+  CFIHOS_40000535:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure
+    description: The highest pressure at which a functional or physical object is
+      designed for.
+  CFIHOS_40000535_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignPressure_UOM
+    description: Upper limit design pressure UOM, pressure.
+  CFIHOS_40000536:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature
+    description: The highest temperature at which a functional or physical object
+      is designed.
+  CFIHOS_40000536_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitDesignTemperature_UOM
+    description: Upper limit design temperature UOM, temperature.
+  CFIHOS_40000503:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature
+    description: The lowest temperature at which a functional or physical object is
+      designed.
+  CFIHOS_40000503_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignTemperature_UOM
+    description: Lower limit design temperature UOM, temperature.
+  CFIHOS_10000031:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: equipmentIdentifier
+    description: Equipment Identifier
+  CFIHOS_40000109:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: exCertificateNumber
+    description: The examination certificate number for the physical object issued
+      by a notified body.
+  CFIHOS_40000108:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtection
+    description: Specifies the identification of electrical equipment's explosion
+      protection and type of ignition protection in accordance to a known standard.
+  CFIHOS_40000110:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionGasGroup
+    description: Specify the gas group classification of the physical object in accordance
+      with IEC/EN 60079-20
+  CFIHOS_40000113:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionZone
+    description: Specify the hazardous zone in which the functional or physical object
+      is expected to operate.
+  CFIHOS_40000201:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length
+    description: Length
+  CFIHOS_40000201_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: length_UOM
+    description: Length UOM, length.
+  CFIHOS_10000158:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: manufacturer
+    description: The original equipment manufacturer of a tagged item
+  CFIHOS_10000159:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: modelNumber
+    description: Model identification of the item
+  CFIHOS_40000509:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalDiameter
+    description: Something is of a diameter that it is not rated (?)
+  CFIHOS_40000509_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalDiameter_UOM
+    description: Nominal diameter UOM, length.
+  CFIHOS_40000292:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalPower
+    description: Nominal Power
+  CFIHOS_40000292_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: nominalPower_UOM
+    description: Nominal power UOM, power/heat loss/heat gain.
+  CFIHOS_40000512:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: operatingPressureNormal
+    description: Operatin pressure normal
+  CFIHOS_40000512_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: operatingPressureNormal_UOM
+    description: Operating pressure normal UOM, true.
+  CFIHOS_10000249:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: partNumber
+    description: Part number for basic model, the part number shall not show the configured
+      equipment (NEW IN REVISION 2)
+  CFIHOS_40000320:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pedCategory
+    description: PED category. Applicable for installations that require conformity
+      with Pressure Equipment Directive
+  CFIHOS_40000602:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerConsumption
+    description: the electrical energy over time that must be supplied to an electrical
+      appliance to maintain its operation
+  CFIHOS_40000602_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerConsumption_UOM
+    description: Power consumption UOM, true.
+  CFIHOS_40000523:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerOutputRated
+    description: The rating of the power produced by an item
+  CFIHOS_40000523_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: powerOutputRated_UOM
+    description: Power output rated UOM, true.
+  CFIHOS_10000163:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: serialNumber
+    description: Serial number of the item
+  CFIHOS_40000581:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPoint
+    description: The level at which an instrument is set - eg PSVs, bursting discs,
+      regulators, etc
+  CFIHOS_40000581_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: setPoint_UOM
+    description: Set point UOM, group setpoint.
+  CFIHOS_40000112:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: explosionProtectionTemperatureClass
+    description: Specify the temperature classification of the physical object in
+      accordance with CENELEC EN50014
+  CFIHOS_40000211:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: traceTemperature
+    description: The temperature at which trace heating is set or required
+  CFIHOS_40000211_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: traceTemperature_UOM
+    description: Trace temperature UOM, temperature.
+  CFIHOS_40000494:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightDry
+    description: The weight of the equipment without any contents
+  CFIHOS_40000494_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightDry_UOM
+    description: Weight (dry) UOM, mass.
+  CFIHOS_40000516:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating
+    description: The weight of the equipment in use
+  CFIHOS_40000516_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: weightOperating_UOM
+    description: Weight (operating) UOM, mass.
+  CFIHOS_40000066:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: corrosiveLiquid
+    description: Specify if the liquid contains corrosive agents.
+  CFIHOS_40000546:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: density
+    description: The mass per unit volume of an object or a fluid
+  CFIHOS_40000546_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: density_UOM
+    description: Density UOM, density.
+  CFIHOS_40000487:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: designSpecification
+    description: A specification according to which an item is intended to be designed
+  CFIHOS_40000087:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: driverType
+    description: A general description of the device that produces the mechanical
+      or electrical power that runs the equipment. For example diesel engine, electric
+      motor, gas turbine etc.
+  CFIHOS_40000104:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: erosiveLiquid
+    description: Specify if the liquid contains erosive agents.
+  CFIHOS_40000172:
+    type:
+      list: false
+      type: boolean
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: immersed
+    description: Specify if the functional or physical object can be immersed or not.
+  CFIHOS_40000205:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: liquidName
+    description: The name of the product in liquid phase.
+  CFIHOS_40000551:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignPressure
+    description: The lowest pressure at which a functional or physical object is designed.
+  CFIHOS_40000551_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitDesignPressure_UOM
+    description: Lower limit design pressure UOM, true.
+  CFIHOS_40000207:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingDischargePressure
+    description: The discharge pressure which is the lowest pressure at which a functional
+      or physical object is expected to operate
+  CFIHOS_40000207_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingDischargePressure_UOM
+    description: Lower limit operating discharge pressure UOM, true.
+  CFIHOS_40000556:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingPressure
+    description: A pressure which is the lowest pressure at which a functional or
+      physical object is expected to operate.
+  CFIHOS_40000556_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingPressure_UOM
+    description: Lower limit operating pressure UOM, true.
+  CFIHOS_40000219:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingSuctionPressure
+    description: The suction pressure which is the lowest pressure at  which a functional
+      or physical object is expected to operate.
+  CFIHOS_40000219_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingSuctionPressure_UOM
+    description: Lower limit operating suction pressure UOM, true.
+  CFIHOS_40000504:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingTemperature
+    description: A temperature that is the lowest temperature at which a functional
+      or physical object is expected to operate.
+  CFIHOS_40000504_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingTemperature_UOM
+    description: Lower limit operating temperature UOM, temperature.
+  CFIHOS_40000505:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingVolumeFlowRate
+    description: A volume flow rate that is the lowest volume flow rate at which a
+      functional or physical object is expected to operate.
+  CFIHOS_40000505_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: lowerLimitOperatingVolumeFlowRate_UOM
+    description: Lower limit operating volume flow rate UOM, true.
+  CFIHOS_40000254:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingDifferentialPressure
+    description: The differential pressure  at which a functional or physical object
+      is expected to operate normally.
+  CFIHOS_40000254_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingDifferentialPressure_UOM
+    description: Normal operating differential pressure UOM, true.
+  CFIHOS_40000272:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingInletTemperature
+    description: The temperature at which a functional or physical object is expected
+      to operate normally at its inlet connection.
+  CFIHOS_40000272_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingInletTemperature_UOM
+    description: Normal operating inlet temperature UOM, true.
+  CFIHOS_40000274:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingLiquidDynamicViscosity
+    description: The dynamic viscosity of the fluid in liquid phase at which a functional
+      or physical object is expected to operate normally.
+  CFIHOS_40000274_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingLiquidDynamicViscosity_UOM
+    description: Normal operating liquid dynamic viscosity UOM, dynamic viscosity.
+  CFIHOS_40000514:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingTemperature
+    description: A temperature at which a functional or physical object is expected
+      to operate normally.
+  CFIHOS_40000514_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingTemperature_UOM
+    description: Normal operating temperature UOM, true.
+  CFIHOS_40000558:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingVolumeFlowRate
+    description: The volume flow rate at which a functional or physical object is
+      expected to operate normally.
+  CFIHOS_40000558_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalOperatingVolumeFlowRate_UOM
+    description: Normal operating volume flow rate UOM, true.
+  CFIHOS_40000293:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalVolumeFlowRate
+    description: A volume flow rate a functional or physical object is designed to
+      deliver under normal conditions.
+  CFIHOS_40000293_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: normalVolumeFlowRate_UOM
+    description: Normal volume flow rate UOM, true.
+  CFIHOS_40000309:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: operationContinuousIntermittent
+    description: Specifies if the equipment is working continuously or in an intermittent
+      way.
+  CFIHOS_40000310:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: operationSingleParallel
+    description: Specifies if the equipment is working alone or with similar equipment
+      in parallel.
+  CFIHOS_40000561:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: orientation
+    description: The mount position of an equipment such as horizontal, vertical or
+      submerged
+  CFIHOS_40000312:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: outletFlangeRating
+    description: Is a possessed aspect being a design pressure of a flange.
+  CFIHOS_40000637:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: pumpType
+    description: The pump type selected on a pump's specification sheet
+  CFIHOS_40000333:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ratedVolumeFlowRate
+    description: A volume flow rate a functional or physical object is designed to
+      deliver at specified conditions.
+  CFIHOS_40000333_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: ratedVolumeFlowRate_UOM
+    description: Rated volume flow rate UOM, true.
+  CFIHOS_40000412:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testMedium
+    description: The medium used for testing purpose.
+  CFIHOS_40000532:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testPressure
+    description: A pressure to which an object should be subjected to test for leakage
+      and structural integrity.
+  CFIHOS_40000532_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: testPressure_UOM
+    description: Test pressure UOM, pressure.
+  CFIHOS_40000177:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: thermalInsulationClass
+    description: The class of electrical insulation used by a  physical object.
+  CFIHOS_40000461:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingDifferentialPressure
+    description: The differential pressure which is the highest differential pressure
+      at which a functional or physical object is expected to operate.
+  CFIHOS_40000461_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingDifferentialPressure_UOM
+    description: Upper limit operating differential pressure UOM, true.
+  CFIHOS_40000462:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingDischargePressure
+    description: The discharge pressure which is the highest pressure at which a functional
+      or physical object is expected to operate.
+  CFIHOS_40000462_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingDischargePressure_UOM
+    description: Upper limit operating discharge pressure UOM, true.
+  CFIHOS_40000537:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingPressure
+    description: A pressure which is the highest pressure at which a functional or
+      physical object is expected to operate.
+  CFIHOS_40000537_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingPressure_UOM
+    description: Upper limit operating pressure UOM, true.
+  CFIHOS_40000476:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingSuctionPressure
+    description: The pressure which is the highest pressure at which a functional
+      or physical object is expected to operate at its inlet connection.
+  CFIHOS_40000476_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingSuctionPressure_UOM
+    description: Upper limit operating suction pressure UOM, true.
+  CFIHOS_40000538:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingTemperature
+    description: A temperature that is the highest temperature at which a functional
+      or physical object is expected to operate.
+  CFIHOS_40000538_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingTemperature_UOM
+    description: Upper limit operating temperature UOM, temperature.
+  CFIHOS_40000577:
+    type:
+      list: false
+      type: float32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingVolumeFlowRate
+    description: A volume flow rate that is the highest volume flow rate at which
+      a functional or physical object is expected to operate.
+  CFIHOS_40000577_UOM:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: upperLimitOperatingVolumeFlowRate_UOM
+    description: Upper limit operating volume flow rate UOM, true.
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+    description: Additional properties for the CFIHOS class pump
+constraints:
+  sp_ops_domain_model_Tag:
+    require:
+      space: "{{space}}"
+      externalId: Tag
+      type: container
+    constraintType: requires
+indexes: {}
+usedFor: node

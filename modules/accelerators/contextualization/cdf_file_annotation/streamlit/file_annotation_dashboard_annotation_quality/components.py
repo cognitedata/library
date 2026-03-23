@@ -1,18 +1,17 @@
-import uuid
-from abc import ABC, abstractmethod
-from typing import Optional
-
-import altair as alt
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import altair as alt
+from abc import ABC, abstractmethod
 from cognite.client import CogniteClient
-from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
+from constants import FieldNames
 from data_structures import AnnotationTag, ExtractionPipelineConfig
 from data_updater import DataUpdater
+from typing import Optional
+from cognite.client.data_classes.data_modeling import filters
 from factories import DataEditorChangeCaptureFactory
-
+import uuid
 
 class Component(ABC):
     @abstractmethod
@@ -109,7 +108,7 @@ class AnnotationComparisonComponent(Component):
                 FieldNames.ASSOCIATED_FILES_TITLE_CASE: FieldNames.ASSOCIATED_FILES_TITLE_CASE,
                 normalized_status_property: FieldNames.STATUS_TITLE_CASE,
             },
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             disabled=True,
         )
@@ -177,14 +176,14 @@ class AnnotationComparisonComponent(Component):
             display_df,
             key=editor_key,
             column_config=potential_column_config,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             disabled=display_df.columns.difference([FieldNames.SELECT_TITLE_CASE]),
         )
 
         st.write(f"Row Count: {len(editable_data)}")
 
-        selected_rows = editable_data[editable_data[FieldNames.SELECT_TITLE_CASE]]
+        selected_rows = editable_data[editable_data[FieldNames.SELECT_TITLE_CASE] == True]
 
         if selected_rows.empty:
             st.session_state["selected_potential_tags"] = []
@@ -338,7 +337,7 @@ class TagEntityResourceTypeCoverageComponent(Component):
             ]
         ).properties(height=300, width=800, title="Annotation Coverage by Tag Entity Resource Type")
 
-        st.altair_chart(base_row, use_container_width=True)
+        st.altair_chart(base_row, width="stretch")
 
 class FileResourceTypeCoverageComponent(Component):
     def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
@@ -387,7 +386,7 @@ class FileResourceTypeCoverageComponent(Component):
                 alt.Tooltip(FieldNames.TOTAL_POSSIBLE_SNAKE_CASE, title=FieldNames.TOTAL_ANNOTATIONS_TITLE_CASE)
             ]
         ).properties(height=300, width=800, title="Annotation Coverage by File Resource Property")
-        st.altair_chart(base_row, use_container_width=True)
+        st.altair_chart(base_row, width="stretch")
 class SecondaryScopeCoverageComponent(Component):
     def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
         self.extraction_pipeline_cfg = extraction_pipeline_cfg
@@ -435,7 +434,7 @@ class SecondaryScopeCoverageComponent(Component):
             ]
         ).properties(height=300, width=800, title=f"Annotation Coverage by '{secondary_scope_property}'")
 
-        st.altair_chart(base_row, use_container_width=True)
+        st.altair_chart(base_row, width="stretch")
 
 class PerFileFiltersComponent(Component):
     def __init__(self, extraction_pipeline_cfg: ExtractionPipelineConfig, actual_df: pd.DataFrame | None = None, potential_df: pd.DataFrame | None = None):
@@ -645,7 +644,7 @@ class FileAggregationComponent(Component):
             display_df,
             key="perfile_files_editor",
             column_config=column_config,
-            use_container_width=True,
+            width="stretch",
             hide_index=True
         )
 
@@ -653,7 +652,7 @@ class FileAggregationComponent(Component):
 
         selected_files = []
 
-        selected_rows = editable_data[editable_data[FieldNames.SELECT_TITLE_CASE]]
+        selected_rows = editable_data[editable_data[FieldNames.SELECT_TITLE_CASE] == True]
         selected_count = 0 if selected_rows is None else (int(selected_rows.shape[0]))
 
         if selected_count > 0:
@@ -844,33 +843,42 @@ class PatternCatalogComponent(Component):
             manual_patterns_editor_key = st.session_state.manual_patterns_editor_key
 
             if manual_df is None or manual_df.empty:
-                st.info("No manual patterns available.")
+                columns = list(manual_column_config.keys())
+                display_df = pd.DataFrame(columns=columns)
+
+                st.metric(
+                    "Manual patterns help",
+                    "Hover for instructions",
+                    help=(
+                        "Add, edit or remove patterns here. "
+                        "Use 'Reset changes' to revert in-memory edits or 'Save changes' to persist changes to the raw table."
+                    ),
+                )
             else:
                 columns = [c for c in list(manual_column_config.keys()) if c in manual_df.columns]
-
                 display_df = manual_df.loc[:, columns]
-                
-                capture_handler = DataEditorChangeCaptureFactory.make_change_capture_handler(display_df, manual_patterns_editor_key, FieldNames.PATTERN_SCOPE_SNAKE_CASE, "manual_patterns_changes")
 
-                edited = st.data_editor(
-                    display_df,
-                    key=manual_patterns_editor_key,
-                    column_config=manual_column_config,
-                    use_container_width=True,
-                    hide_index=True,
-                    num_rows="dynamic",
-                    on_change=capture_handler,
-                )
+            capture_handler = DataEditorChangeCaptureFactory.make_change_capture_handler(display_df, manual_patterns_editor_key, FieldNames.PATTERN_SCOPE_SNAKE_CASE, "manual_patterns_changes")
 
-                col_save, col_reset = st.columns([1, 1])
+            edited = st.data_editor(
+                display_df,
+                key=manual_patterns_editor_key,
+                column_config=manual_column_config,
+                width="stretch",
+                hide_index=True,
+                num_rows="dynamic",
+                on_change=capture_handler,
+            )
 
-                with col_save:
-                    if st.button("Save changes", key="manual_patterns_save_btn"):
-                        self._save_manual_pattern_changes(edited)
-                        st.session_state["manual_patterns_changes"] = set()
-                with col_reset:
-                    if st.button("Reset changes", key="manual_patterns_reset_btn"):
-                        self._reset_manual_pattern_changes()
+            col_save, col_reset = st.columns([1, 1])
+
+            with col_save:
+                if st.button("Save changes", key="manual_patterns_save_btn"):
+                    self._save_manual_pattern_changes(edited)
+                    st.session_state["manual_patterns_changes"] = set()
+            with col_reset:
+                if st.button("Reset changes", key="manual_patterns_reset_btn"):
+                    self._reset_manual_pattern_changes()
 
         with right:
             st.subheader("Automatic Patterns")
@@ -999,4 +1007,4 @@ class CoverageThresholdMetricsComponent(Component):
 
         chart = (base + count_text).configure_view(strokeWidth=0)
 
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width="stretch")

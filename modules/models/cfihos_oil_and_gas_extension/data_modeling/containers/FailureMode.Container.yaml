@@ -1,0 +1,77 @@
+space: '{{space}}'
+externalId: FailureMode
+name: FailureMode
+description: The manner in which failure occurs, used with one or more equipment classes.
+properties:
+  assets:
+    type:
+      list: true
+      type: direct
+    autoIncrement: false
+    name: assets
+  code:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: code
+    description: The code of the failure mode according to ISO 14224
+  mainAssets:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: mainAssets
+  facilities:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: facilities
+  standard:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: standard
+  additionalProperties:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: additionalProperties
+constraints:
+  describablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+indexes:
+  code:
+    indexType: btree
+    properties:
+      - code
+    bySpace: false
+    cursorable: true
+  standard:
+    indexType: btree
+    properties:
+      - standard
+    bySpace: false
+    cursorable: false
+usedFor: node

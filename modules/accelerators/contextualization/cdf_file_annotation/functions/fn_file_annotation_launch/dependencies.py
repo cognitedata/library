@@ -1,17 +1,18 @@
 import os
-from pathlib import Path
-from typing import Any, Tuple
 
-from cognite.client import ClientConfig, CogniteClient
-from cognite.client.credentials import OAuthClientCredentials
+from pathlib import Path
 from dotenv import load_dotenv
-from services.AnnotationService import GeneralAnnotationService
-from services.CacheService import GeneralCacheService
-from services.ConfigService import Config, load_config_parameters
-from services.DataModelService import GeneralDataModelService
-from services.LoggerService import CogniteFunctionLogger
-from services.PipelineService import GeneralPipelineService
+from typing import Any, Tuple
+from cognite.client import CogniteClient, ClientConfig
+from cognite.client.credentials import OAuthClientCredentials
+
 from utils.DataStructures import EnvConfig
+from services.LoggerService import CogniteFunctionLogger
+from services.ConfigService import Config, load_config_parameters
+from services.CacheService import GeneralCacheService
+from services.DataModelService import GeneralDataModelService
+from services.AnnotationService import GeneralAnnotationService
+from services.PipelineService import GeneralPipelineService
 
 
 def get_env_variables() -> EnvConfig:
@@ -73,16 +74,18 @@ def create_config_service(
     return config, client
 
 
-def create_logger_service(log_level: str) -> CogniteFunctionLogger:
-    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR"}
-    level = log_level if log_level in valid_levels else "INFO"
-    return CogniteFunctionLogger(log_level=level)
+def create_logger_service(log_level):
+    if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+        return CogniteFunctionLogger()
+    else:
+        return CogniteFunctionLogger(log_level=log_level)
 
 
-def create_write_logger_service(log_level: str, filepath: str) -> CogniteFunctionLogger:
-    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR"}
-    level = log_level if log_level in valid_levels else "INFO"
-    return CogniteFunctionLogger(log_level=level, write=True, filepath=filepath)
+def create_write_logger_service(log_level, filepath):
+    if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+        return CogniteFunctionLogger(write=True, filepath=filepath)
+    else:
+        return CogniteFunctionLogger(log_level=log_level, write=True, filepath=filepath)
 
 
 def create_general_cache_service(

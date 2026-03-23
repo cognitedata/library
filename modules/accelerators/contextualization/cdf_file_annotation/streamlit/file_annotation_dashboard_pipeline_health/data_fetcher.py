@@ -1,15 +1,16 @@
-import time
-from typing import Any, Callable, Optional
-
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import yaml
+import time
+from typing import Optional
+from typing import Callable, Any
+from data_structures import ViewPropertyConfig
+from constants import FieldNames
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowList
 from cognite.client.data_classes.data_modeling import NodeId, filters
 from cognite.client.exceptions import CogniteAPIError
-from constants import FieldNames
-from data_structures import CallerType, ViewPropertyConfig
+from data_structures import CallerType
 
 
 class DataFetcher:

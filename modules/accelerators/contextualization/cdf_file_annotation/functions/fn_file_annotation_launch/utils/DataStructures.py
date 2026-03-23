@@ -1,17 +1,17 @@
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from dataclasses import dataclass, asdict, field
 from typing import Literal, cast
+from enum import Enum
+from datetime import datetime, timezone, timedelta
 
-from cognite.client.data_classes.contextualization import (
-    FileReference,
-)
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeApply,
     NodeId,
+    NodeApply,
     NodeOrEdgeData,
     ViewId,
+)
+from cognite.client.data_classes.contextualization import (
+    FileReference,
 )
 
 
@@ -247,6 +247,9 @@ class BatchOfPairedNodes:
             last_page = annotated_page_count + page_range
             if page_count <= last_page:
                 last_page = page_count
+            # NOTE: Additional common sense check. This can happen when a file was sent to finalize and the annotated_page_count and page_count properties were set but ran into an error and was put into a retry state
+            if last_page < first_page:
+                first_page = last_page
             file_reference: FileReference = FileReference(
                 file_instance_id=file_node_id,
                 first_page=first_page,

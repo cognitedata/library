@@ -1,18 +1,14 @@
-import time
-from typing import Any, Callable, Optional
-
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import yaml
-from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
+import time
+from typing import Optional, Callable, Any
+from data_structures import ViewPropertyConfig, CallerType, AnnotationFrames, ExtractionPipelineConfig, AnnotationStatus
 from constants import FieldNames
+from cognite.client import CogniteClient
+from cognite.client.data_classes.data_modeling import filters
+from cognite.client.exceptions import CogniteAPIError
 from data_processor import DataProcessor
-from data_structures import (
-    AnnotationFrames,
-    AnnotationStatus,
-    ExtractionPipelineConfig,
-)
 
 
 class DataFetcher:
@@ -106,7 +102,7 @@ class DataFetcher:
                 columns=annotation_columns
             )
 
-            if not docs_df.empty:
+            if docs_df is not None and not docs_df.empty:
                 if actual_df is None or actual_df.empty:
                     actual_df = docs_df
                 else:

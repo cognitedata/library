@@ -1,0 +1,357 @@
+space: "{{space}}"
+externalId: WorkOrder
+name: WorkOrder
+description: WorkOrder container aligned with CogniteMaintenanceOrder standard
+usedFor: node
+properties:
+  order:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: order
+  routingNo:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: routingNo
+  locationId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: locationId
+  objectListNo:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: objectListNo
+  dueDate:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: dueDate
+  newDueDate:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: newDueDate
+  resourceType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: resourceType
+  mainWctr:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: mainWctr
+  headerNotification:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: headerNotification
+  mainOrder:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: mainOrder
+  totalPlannedWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: totalPlannedWork
+  totalActualWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: totalActualWork
+  remainingWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: remainingWork
+  planningPlant:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: planningPlant
+  maintPlant:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: maintPlant
+  maintActivityType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: maintActivityType
+  typeDescription:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: typeDescription
+  systemStatusCode:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemStatusCode
+  systemStatusCodeDesc:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemStatusCodeDesc
+  SPNPriority:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: SPNPriority
+  scheduledStartDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: scheduledStartDateTime
+  scheduledFinishDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: scheduledFinishDateTime
+  actualOrderStartDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: actualOrderStartDateTime
+  actualOrderFinishDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: actualOrderFinishDateTime
+  createdDateTime:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: createdDateTime
+  plannerGroup:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: plannerGroup
+  plannerGroupDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: plannerGroupDesc
+  reschedulingCounter:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: reschedulingCounter
+  revision:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: revision
+  systemCondition:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemCondition
+  systemConditionDesc:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: systemConditionDesc
+  ssdCode:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: ssdCode
+  SPNCategory:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: SPNCategory
+  newDueDateCounter:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: newDueDateCounter
+  actualDueDate:
+    type:
+      list: false
+      type: timestamp
+    autoIncrement: false
+    name: actualDueDate
+  wctrID:
+    type:
+      list: false
+      type: int32
+    autoIncrement: false
+    name: wctrID
+  objectNo:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: objectNo
+  maintenanceProcessingPhase:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: maintenanceProcessingPhase
+  priorityType:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: priorityType
+  userStatusCode:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: userStatusCode
+  userStatusCodeDesc:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: userStatusCodeDesc
+  totalRemainingWork:
+    type:
+      list: false
+      type: float64
+    autoIncrement: false
+    name: totalRemainingWork
+  notSystemStatus:
+    type:
+      list: true
+      collation: ucs_basic
+      type: text
+    autoIncrement: false
+    name: notSystemStatus
+constraints:
+  describablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+  sourceablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+  schedulablePresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+  activityPresent:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+  maintenanceOrderPresent:
+    constraintType: requires
+    require:
+      space: cdf_idm
+      externalId: CogniteMaintenanceOrder
+      type: container
+indexes:
+  maintActivityType:
+    indexType: btree
+    properties:
+      - maintActivityType
+    bySpace: false
+    cursorable: false
+  SPNPriority:
+    indexType: btree
+    properties:
+      - SPNPriority
+    bySpace: false
+    cursorable: true
+  order:
+    indexType: btree
+    properties:
+      - order
+    bySpace: false
+    cursorable: true
+  dueDate:
+    indexType: btree
+    properties:
+      - dueDate
+    bySpace: false
+    cursorable: true
+  scheduledStartDateTime:
+    indexType: btree
+    properties:
+      - scheduledStartDateTime
+    bySpace: false
+    cursorable: true
+  plannerGroup:
+    indexType: btree
+    properties:
+      - plannerGroup
+    bySpace: false
+    cursorable: false

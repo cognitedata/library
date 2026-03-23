@@ -35,7 +35,8 @@ modules = [
     "models/rmdm_v1",
     "models/isa_manufacturing_extension",
     "models/cdf_process_industry_extension",
-    "models/qs_enterprise_dm"
+    "models/qs_enterprise_dm",
+    "models/cfihos_oil_and_gas_extension",
 ]
 
 [packages.atlas_ai]
