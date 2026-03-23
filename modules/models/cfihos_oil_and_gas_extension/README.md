@@ -162,6 +162,26 @@ cfihos:
 - **Property trimming**: Many CFIHOS classes have hundreds of properties. The tool supports filtering by property presence/importance if a class library is integrated. The 100-property container limit applies — overflow goes to `additionalProperties`.
 - **Property propagation**: Properties from child tag classes are propagated upward to parents during generation, excluding properties unique to sub-hierarchies that already have their own views.
 
+### Data Upload commands
+
+cdf.toml file, add :
+```bash
+[plugins]
+purge = true
+data = true
+```
+
+```bash
+cdf data upload dir  C:\Cognite\context\modules\models\cfihos_oil_and_gas_extension\upload_data\raw
+cdf data upload dir  C:\Cognite\context\modules\models\cfihos_oil_and_gas_extension\upload_data\Files
+```
+
+### Data Purge
+
+```bash
+cdf data purge space dm_dom_oil_and_gas  
+```
+
 ### Dependencies
 
 - Python 3.11+, Cognite SDK 7.0+, pydantic 2.0+, duckdb 1.4+, polars 1.3+, pyyaml 6.0+
