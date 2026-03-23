@@ -22,8 +22,7 @@ class CogniteClientFactory:
         creds = OAuthClientCredentials(
             token_url=token_url,
             client_id=client_id,
-            client_secret=client_s
-            ecret,
+            client_secret=client_secret,
             scopes=scopes,
         )
         cnf = ClientConfig(
