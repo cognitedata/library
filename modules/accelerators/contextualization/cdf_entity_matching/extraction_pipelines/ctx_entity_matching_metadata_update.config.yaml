@@ -11,10 +11,10 @@ config:
       timeseriesView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ timeseriesInstanceSpace }}
-        externalId: {{ entityViewExternalId }}
+        externalId: {{ TimeSeriesViewExternalId }}
         version: {{ viewVersion }}
       assetView:
         schemaSpace: {{ schemaSpace }}
         instanceSpace: {{ assetInstanceSpace }}
-        externalId: {{ targetViewExternalId }}
+        externalId: {{ AssetViewExternalId }}
         version: {{ viewVersion }}
