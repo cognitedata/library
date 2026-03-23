@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "cognite-docs": {
+      "url": "https://docs.cognite.com/mcp"
+    },
+    "github": {
+      "args": [
+        "-c",
+        "GITHUB_PERSONAL_ACCESS_TOKEN=$(security find-generic-password -s github-mcp-pat -a github-mcp -w) npx -y @modelcontextprotocol/server-github"
+      ],
+      "command": "/bin/sh"
+    }
+  }
+}

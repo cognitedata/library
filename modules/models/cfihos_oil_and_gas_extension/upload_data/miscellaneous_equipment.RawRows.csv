@@ -1,3 +1,0 @@
-key,tagNumber,name,description,area,facility,system,parentTag,labels,approvalAuthority,equipmentIdentifier,manufacturer,modelNumber,serialNumber,weightDry,weightOperating,nominalDiameter,nominalPower,powerConsumption,powerFactorCos,ratedCurrent,voltageLevel
-23-MI-8401,23-MI-8401,Lifting Sling Assembly,Certified lifting sling assembly 5T rated,23,Valhall PH,Utilities,VAL-PH-23-UT,mechanical-equipment,DNV,MI-8401,Certex,WS-5T,CER-2010-8801,15,15,N/A,N/A,N/A,N/A,N/A,N/A
-23-MI-8402,23-MI-8402,Scaffolding Kit A,Standard scaffolding kit for maintenance,23,Valhall PH,Utilities,VAL-PH-23-UT,mechanical-equipment,DNV,MI-8402,HAKI,Universal,HAK-2011-8901,850,850,N/A,N/A,N/A,N/A,N/A,N/A

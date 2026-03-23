@@ -1,0 +1,14 @@
+externalId: tr_it_telecom_equipment_all_to_it_telecom_equipment
+name: IT and telecom equipment
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: ItAndTelecomEquipment
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

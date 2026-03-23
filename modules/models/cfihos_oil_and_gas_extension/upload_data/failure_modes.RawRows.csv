@@ -1,9 +1,0 @@
-key,name,description,code,mainAssets,facilities,standard,additionalProperties
-FM-001,High Vibration,Excessive vibration exceeding alarm setpoint on rotating machinery,VIB,23-KA-9101;23-KA-9102;23-KA-9103;23-GT-9401;23-GT-9402,Valhall PH,ISO 14224,"{""category"":""Mechanical"",""mechanism"":""Wear""}"
-FM-002,Bearing Failure,Complete bearing failure requiring replacement,BRK,23-KA-9101;23-PA-9201A;23-PA-9201B;23-GT-9401,Valhall PH,ISO 14224,"{""category"":""Mechanical"",""mechanism"":""Fatigue""}"
-FM-003,Valve Slow Operation,Valve stroke time exceeding specified limits,SLO,23-XV-92501;23-XV-92601;23-PCV-92538,Valhall PH,ISO 14224,"{""category"":""Mechanical"",""mechanism"":""Corrosion""}"
-FM-004,External Leakage,External leakage from process equipment or piping,LEK,23-KA-9101;23-EA-9501;23-L-92501;23-PSV-92550,Valhall PH,ISO 14224,"{""category"":""Mechanical"",""mechanism"":""Seal degradation""}"
-FM-005,Fouling,Internal fouling reducing heat transfer or flow capacity,FOU,23-EA-9501;23-EA-9502;23-EA-9503,Valhall PH,ISO 14224,"{""category"":""Process"",""mechanism"":""Deposition""}"
-FM-006,Corrosion Wall Loss,Internal or external corrosion causing wall thickness loss,COR,23-L-92501;23-L-92601;23-L-92701,Valhall PH,NORSOK M-506,"{""category"":""Material"",""mechanism"":""CO2 corrosion""}"
-FM-007,Instrument Drift,Instrument reading drifting outside acceptable calibration tolerance,DRF,23-PT-92501;23-TT-96115-01;23-FT-92537;23-LT-92521;23-PDT-92501,Valhall PH,IEC 61511,"{""category"":""Instrument"",""mechanism"":""Electronic drift""}"
-FM-008,Communication Loss,Loss of communication signal from subsea or remote equipment,COM,48-SU-8501;48-SU-8502;48-SU-8503,Valhall PH,ISO 13628,"{""category"":""Electrical"",""mechanism"":""Cable degradation""}"

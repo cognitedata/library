@@ -2,8 +2,8 @@ externalId: cfihos_og_slm_location_filter
 name: 'CFIHOS Oil and Gas Solution Level Model (SLM)'
 description: 'This is a description of the location CFIHOS Oil and Gas Solution Level Model (SLM), including all views and interfaces.'
 dataModels:
-  - externalId: CFIHOS_OG_SLM
-    space: {{ space }}
+  - externalId: '{{ search_data_model_external_id }}'
+    space: {{ search_space }}
     version: {{ search_dm_version }}
 instanceSpaces:
   - {{ instance_space }}

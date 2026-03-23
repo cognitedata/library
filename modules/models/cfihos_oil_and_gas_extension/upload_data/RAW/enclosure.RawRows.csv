@@ -1,0 +1,3 @@
+key,tagNumber,name,description,area,facility,system,parentTag,labels,approvalAuthority,equipmentIdentifier,manufacturer,modelNumber,serialNumber,weightDry,weightOperating,nominalDiameter,nominalPower,powerConsumption,powerFactorCos,ratedCurrent,ratedVoltage,voltageLevel
+23-EN-8001,23-EN-8001,Electrical Equipment Room,Main electrical equipment room with HVAC cooling,23,Valhall PH,Electrical Distribution,VAL-PH-23-EL,electrical-equipment,DNV,EN-8001,Rittal,TS 8806,RIT-2007-2201,2200,2200,N/A,25,25,0.85,36,400,400
+23-EN-8002,23-EN-8002,Instrument Equipment Room,Instrument equipment room with HVAC cooling,23,Valhall PH,Instrument,VAL-PH-23-GC,instrument-equipment,DNV,EN-8002,Rittal,TS 8804,RIT-2007-2202,1800,1800,N/A,15,15,0.85,22,400,400

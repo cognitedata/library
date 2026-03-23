@@ -1,3 +1,0 @@
-key,tagNumber,name,description,area,facility,system,parentTag,labels,approvalAuthority,equipmentIdentifier,manufacturer,modelNumber,serialNumber,weightDry,weightOperating,lowerLimitDesignTemperature,upperLimitDesignPressure,upperLimitDesignTemperature,explosionProtectionZone
-23-DR-9901,23-DR-9901,Drilling Derrick Assembly,Main drilling derrick structural assembly,23,Valhall PH,Drilling,VAL-PH-23-UT,drilling-equipment,DNV,DR-9901,NOV,DER-2000,NOV-2007-1101,185000,185000,-20,N/A,60,Zone 2
-23-DR-9902,23-DR-9902,Top Drive System,Top drive system for rotary drilling operations,23,Valhall PH,Drilling,VAL-PH-23-UT,drilling-equipment,DNV,DR-9902,NOV,TDS-11SA,NOV-2007-1102,32000,32500,-20,N/A,80,Zone 1

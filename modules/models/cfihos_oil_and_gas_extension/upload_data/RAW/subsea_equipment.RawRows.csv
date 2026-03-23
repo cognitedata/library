@@ -1,0 +1,4 @@
+key,tagNumber,name,description,area,facility,system,parentTag,labels,approvalAuthority,equipmentIdentifier,manufacturer,modelNumber,serialNumber,weightDry,weightOperating,fluidName,fluidPhase,normalOperatingPressure,upperLimitDesignPressure,upperLimitDesignTemperature
+48-SU-8501,48-SU-8501,Subsea Control Module A,Subsea control module wellhead A,48,Valhall PH,Subsea Systems,VAL-PH-48,subsea-equipment,DNV,SU-8501,Aker Solutions,SCM-3000,AKS-2007-9101,8500,8500,Hydraulic Fluid,Liquid,345,690,120
+48-SU-8502,48-SU-8502,Subsea Christmas Tree Well-1,Subsea christmas tree well 1,48,Valhall PH,Subsea Systems,VAL-PH-48,subsea-equipment,DNV,SU-8502,FMC Technologies,Enhanced Vertical XT,FMC-2007-9201,45000,45000,Multiphase,Mixed,250,690,120
+48-SU-8503,48-SU-8503,Subsea Manifold,Subsea production manifold 4-slot,48,Valhall PH,Subsea Systems,VAL-PH-48,subsea-equipment,DNV,SU-8503,Aker Solutions,PM-4S,AKS-2007-9301,85000,85000,Multiphase,Mixed,200,345,100

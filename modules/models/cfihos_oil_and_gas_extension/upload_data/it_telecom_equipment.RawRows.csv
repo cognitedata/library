@@ -1,3 +1,0 @@
-key,tagNumber,name,description,area,facility,system,parentTag,labels,approvalAuthority,equipmentIdentifier,manufacturer,modelNumber,serialNumber,weightDry,weightOperating,loudspeakerTappings
-23-IT-8301,23-IT-8301,Network Switch Cabinet A,Main network switch cabinet area 23,23,Valhall PH,Telecom,VAL-PH-23-UT,telecom-equipment,DNV,IT-8301,Cisco,Catalyst 9300,CIS-2009-7701,45,45,N/A
-23-IT-8302,23-IT-8302,PA/GA System Process Area,Public address and general alarm system area 23,23,Valhall PH,Telecom,VAL-PH-23-UT,telecom-equipment,DNV,IT-8302,Zenitel,ITPA-400,ZEN-2008-7801,120,120,4x 100W
