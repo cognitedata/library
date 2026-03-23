@@ -1,14 +1,21 @@
-import streamlit as st
-import pandas as pd
-import yaml
 import time
-from typing import Optional, Callable, Any
-from data_structures import ViewPropertyConfig, CallerType, AnnotationFrames, ExtractionPipelineConfig, AnnotationStatus
-from constants import FieldNames
+from typing import Any, Callable, Optional
+
+import pandas as pd
+import streamlit as st
+import yaml
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import filters
 from cognite.client.exceptions import CogniteAPIError
+from constants import FieldNames
 from data_processor import DataProcessor
+from data_structures import (
+    AnnotationFrames,
+    AnnotationStatus,
+    CallerType,
+    ExtractionPipelineConfig,
+    ViewPropertyConfig,
+)
 
 
 class DataFetcher:

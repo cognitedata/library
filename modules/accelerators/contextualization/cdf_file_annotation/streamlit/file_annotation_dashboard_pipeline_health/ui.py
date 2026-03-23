@@ -1,10 +1,10 @@
 import streamlit as st
 from cognite.client import CogniteClient
+from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
-from tabs import OverviewTab, FileExplorerTab, RunHistoryTab
 from data_structures import ExtractionPipelineConfig, ViewPropertyConfig
-from constants import FieldNames
+from tabs import FileExplorerTab, OverviewTab, RunHistoryTab
 
 
 class PipelineHealthUI:

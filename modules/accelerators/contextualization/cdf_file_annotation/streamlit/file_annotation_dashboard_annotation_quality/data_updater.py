@@ -1,5 +1,6 @@
+from typing import Any, Dict, List
+
 import streamlit as st
-from typing import Dict, List, Any
 from cognite.client.data_classes import Row
 
 

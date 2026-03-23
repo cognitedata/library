@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, List, Tuple
-from cognite.client.data_classes.data_modeling.ids import ViewId
+from typing import List, Optional, Tuple
+
 import pandas as pd
+from cognite.client.data_classes.data_modeling.ids import ViewId
 from constants import FieldNames
+
 
 @dataclass
 class KPI:

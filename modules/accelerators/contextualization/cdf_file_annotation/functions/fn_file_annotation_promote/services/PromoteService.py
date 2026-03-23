@@ -13,11 +13,9 @@ from cognite.client.data_classes.data_modeling import (
     EdgeList,
     Node,
     NodeOrEdgeData,
-    DirectRelationReference,
 )
+from services.CacheService import CachedEntityInfo, CacheService
 from services.ConfigService import Config, build_filter_from_query, get_limit_from_query
-from services.LoggerService import CogniteFunctionLogger
-from services.CacheService import CacheService, CachedEntityInfo
 from services.EntitySearchService import EntitySearchService
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import DiagramAnnotationStatus, PromoteTracker

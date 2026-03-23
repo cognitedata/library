@@ -1,14 +1,15 @@
 import abc
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Callable, Any
-from utils.DataStructures import CacheMarker
+from typing import Any, Callable
+
 from cognite.client import CogniteClient
 from cognite.client.data_classes.data_modeling import Node, NodeList
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.raw import Row
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
+from utils.DataStructures import CacheMarker
 
 
 @dataclass

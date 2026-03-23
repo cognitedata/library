@@ -1,8 +1,9 @@
-import streamlit as st
-from ui import PipelineHealthUI
 from typing import Any, Optional
-from dotenv import load_dotenv
+
+import streamlit as st
 from client_factory import CogniteClientFactory
+from dotenv import load_dotenv
+from ui import PipelineHealthUI
 
 st.set_page_config(page_title="Pipeline Health", page_icon="🩺", layout="wide")
 

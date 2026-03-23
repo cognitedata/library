@@ -6,22 +6,21 @@ from typing import Any, cast
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import RowWrite
+from cognite.client.data_classes.annotation_types.primitives import BoundingBox
 from cognite.client.data_classes.data_modeling import (
     DirectRelationReference,
-    ViewId,
     EdgeApply,
-    NodeOrEdgeData,
-    Node,
-    NodeId,
-    NodeApply,
     InstancesApplyResult,
+    Node,
+    NodeApply,
+    NodeId,
+    NodeOrEdgeData,
+    ViewId,
 )
 from cognite.client.data_classes.filters import Equals, In
-from cognite.client.data_classes.annotation_types.primitives import BoundingBox
-
 from services.ConfigService import Config
-from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
 from services.LoggerService import CogniteFunctionLogger
+from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
 
 
 class IApplyService(abc.ABC):

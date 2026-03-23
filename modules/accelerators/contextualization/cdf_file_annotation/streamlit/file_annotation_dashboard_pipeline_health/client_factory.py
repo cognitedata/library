@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 
-from cognite.client import CogniteClient, ClientConfig, global_config
+from cognite.client import ClientConfig, CogniteClient, global_config
 from cognite.client.credentials import OAuthClientCredentials
 
 

@@ -1,27 +1,27 @@
-import time
 import abc
-from typing import Literal
-from datetime import datetime, timezone
+import time
 from collections import defaultdict
+from datetime import datetime, timezone
+from typing import Literal
+
 from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
 from cognite.client.data_classes.contextualization import FileReference
 from cognite.client.data_classes.data_modeling import (
     Node,
-    NodeList,
     NodeApply,
+    NodeList,
 )
-
-from services.ConfigService import Config, ViewPropertyConfig
-from services.CacheService import ICacheService
+from cognite.client.exceptions import CogniteAPIError
 from services.AnnotationService import IAnnotationService
+from services.CacheService import ICacheService
+from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger
 from utils.DataStructures import (
-    BatchOfPairedNodes,
     AnnotationStatus,
-    PerformanceTracker,
+    BatchOfPairedNodes,
     FileProcessingBatch,
+    PerformanceTracker,
 )
 
 

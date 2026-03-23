@@ -1,6 +1,12 @@
-import streamlit as st
-from components import KPIsComponent, ThroughputComponent, FileTableComponent, FunctionLogViewerComponent, RunHistoryComponent
 import pandas as pd
+import streamlit as st
+from components import (
+    FileTableComponent,
+    FunctionLogViewerComponent,
+    KPIsComponent,
+    RunHistoryComponent,
+    ThroughputComponent,
+)
 
 
 class OverviewTab:

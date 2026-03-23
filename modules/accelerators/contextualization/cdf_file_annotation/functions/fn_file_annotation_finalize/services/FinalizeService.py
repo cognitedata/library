@@ -1,22 +1,27 @@
-import time
 import abc
-from typing import cast, Literal
+import time
 from datetime import datetime, timezone
+from typing import Literal, cast
+
 from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
 from cognite.client.data_classes.data_modeling import (
     Node,
+    NodeApply,
     NodeId,
     NodeList,
-    NodeApply,
     NodeOrEdgeData,
 )
-
+from cognite.client.exceptions import CogniteAPIError
+from services.ApplyService import IApplyService
 from services.ConfigService import Config, ViewPropertyConfig
 from services.LoggerService import CogniteFunctionLogger
 from services.RetrieveService import IRetrieveService
-from services.ApplyService import IApplyService
-from utils.DataStructures import BatchOfNodes, PerformanceTracker, AnnotationStatus, remove_protected_properties
+from utils.DataStructures import (
+    AnnotationStatus,
+    BatchOfNodes,
+    PerformanceTracker,
+    remove_protected_properties,
+)
 
 
 class AbstractFinalizeService(abc.ABC):

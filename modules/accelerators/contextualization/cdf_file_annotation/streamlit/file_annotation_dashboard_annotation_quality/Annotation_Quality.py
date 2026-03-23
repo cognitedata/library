@@ -1,9 +1,9 @@
-import streamlit as st
-from ui import AnnotationQualityUI
 from typing import Any, Optional
-from dotenv import load_dotenv
-from client_factory import CogniteClientFactory
 
+import streamlit as st
+from client_factory import CogniteClientFactory
+from dotenv import load_dotenv
+from ui import AnnotationQualityUI
 
 st.set_page_config(page_title="Annotation Quality", page_icon="🎯", layout="wide")
 

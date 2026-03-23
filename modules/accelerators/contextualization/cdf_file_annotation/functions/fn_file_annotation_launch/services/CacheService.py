@@ -1,15 +1,16 @@
 import abc
 import re
-from typing import Iterator, Any, Dict, List, Set, cast
 from collections import defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Iterator, List, Set, cast
+
 from cognite.client import CogniteClient
-from cognite.client.data_classes import RowWrite, Row
-from cognite.client.exceptions import CogniteNotFoundError
+from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
     Node,
     NodeList,
 )
+from cognite.client.exceptions import CogniteNotFoundError
 from services.ConfigService import Config, ViewPropertyConfig
 from services.DataModelService import IDataModelService
 from services.LoggerService import CogniteFunctionLogger

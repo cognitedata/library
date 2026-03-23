@@ -1,15 +1,15 @@
+from abc import ABC, abstractmethod
+from typing import Callable, List, Optional, Tuple, Union
+
+import altair as alt
+import pandas as pd
+import streamlit as st
 from config_registries import FunctionRunConfigRegistry
+from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
-import streamlit as st
-import pandas as pd
-import altair as alt
-from factories import FactoryHandler
-from typing import Optional, List, Tuple, Callable, Union
-from constants import FieldNames
-
 from data_structures import KPI
-from abc import ABC, abstractmethod
+from factories import FactoryHandler
 
 
 class Component(ABC):

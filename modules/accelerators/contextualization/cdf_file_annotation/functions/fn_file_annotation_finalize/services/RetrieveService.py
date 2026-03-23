@@ -1,20 +1,19 @@
 import abc
 from typing import cast
+
 from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
 from cognite.client.data_classes.data_modeling import (
     Node,
+    NodeApplyList,
     NodeId,
     NodeList,
-    NodeApplyList,
     instances,
 )
-
 from cognite.client.data_classes.filters import (
-    Filter,
     Equals,
+    Filter,
 )
-
+from cognite.client.exceptions import CogniteAPIError
 from services.ConfigService import (
     Config,
     ViewPropertyConfig,

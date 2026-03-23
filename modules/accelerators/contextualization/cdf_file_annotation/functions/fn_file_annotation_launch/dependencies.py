@@ -1,18 +1,17 @@
 import os
-
 from pathlib import Path
-from dotenv import load_dotenv
 from typing import Any, Tuple
-from cognite.client import CogniteClient, ClientConfig
-from cognite.client.credentials import OAuthClientCredentials
 
-from utils.DataStructures import EnvConfig
-from services.LoggerService import CogniteFunctionLogger
-from services.ConfigService import Config, load_config_parameters
-from services.CacheService import GeneralCacheService
-from services.DataModelService import GeneralDataModelService
+from cognite.client import ClientConfig, CogniteClient
+from cognite.client.credentials import OAuthClientCredentials
+from dotenv import load_dotenv
 from services.AnnotationService import GeneralAnnotationService
+from services.CacheService import GeneralCacheService
+from services.ConfigService import Config, load_config_parameters
+from services.DataModelService import GeneralDataModelService
+from services.LoggerService import CogniteFunctionLogger
 from services.PipelineService import GeneralPipelineService
+from utils.DataStructures import EnvConfig
 
 
 def get_env_variables() -> EnvConfig:

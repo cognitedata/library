@@ -1,8 +1,13 @@
-import pandas as pd
 import re
 
-from data_structures import AnnotationCoverageData, AnnotationFrames, AnnotationStatus, NormalizedStatus
+import pandas as pd
 from constants import FieldNames
+from data_structures import (
+    AnnotationCoverageData,
+    AnnotationFrames,
+    AnnotationStatus,
+    NormalizedStatus,
+)
 
 
 class DataProcessor:

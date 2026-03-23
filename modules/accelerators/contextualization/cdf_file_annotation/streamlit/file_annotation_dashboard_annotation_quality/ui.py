@@ -1,13 +1,14 @@
+import uuid
 from typing import Optional
-import streamlit as st
+
 import pandas as pd
+import streamlit as st
 from cognite.client import CogniteClient
+from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
-from tabs import PerFileTab, OverallTab, PatternManagementTab
 from data_structures import ExtractionPipelineConfig
-from constants import FieldNames
-import uuid
+from tabs import OverallTab, PatternManagementTab, PerFileTab
 
 
 class AnnotationQualityUI:

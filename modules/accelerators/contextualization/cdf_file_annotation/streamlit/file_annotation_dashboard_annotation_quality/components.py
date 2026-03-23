@@ -1,17 +1,19 @@
-import streamlit as st
-import pandas as pd
-import altair as alt
+import uuid
 from abc import ABC, abstractmethod
+from typing import Optional
+
+import altair as alt
+import pandas as pd
+import streamlit as st
 from cognite.client import CogniteClient
+from cognite.client.data_classes.data_modeling import filters
+from constants import FieldNames
 from data_fetcher import DataFetcher
 from data_processor import DataProcessor
-from constants import FieldNames
 from data_structures import AnnotationTag, ExtractionPipelineConfig
 from data_updater import DataUpdater
-from typing import Optional
-from cognite.client.data_classes.data_modeling import filters
 from factories import DataEditorChangeCaptureFactory
-import uuid
+
 
 class Component(ABC):
     @abstractmethod
