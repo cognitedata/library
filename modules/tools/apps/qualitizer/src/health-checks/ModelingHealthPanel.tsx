@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/shared/ApiError";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import type {
   ContainerSummary,
   LoadState,
@@ -48,6 +49,8 @@ export function ModelingHealthPanel({
   renderProgressBar,
 }: ModelingHealthPanelProps) {
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const pc = isPrivateMode ? " private-mask" : "";
 
   return (
     <>
@@ -75,7 +78,7 @@ export function ModelingHealthPanel({
                 <div className="font-medium">
                   {t("healthChecks.modeling.unusedViews.count", { count: unusedViews.length })}
                 </div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                <ul className={`mt-2 list-disc space-y-1 pl-5 text-amber-900${pc}`}>
                   {unusedViews.map((view) => (
                     <li key={`${view.space}:${view.externalId}:${view.version ?? "latest"}`}>
                       {view.name ?? view.externalId} · {view.space}
@@ -123,7 +126,7 @@ export function ModelingHealthPanel({
                     count: viewsWithoutContainers.length,
                   })}
                 </div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                <ul className={`mt-2 list-disc space-y-1 pl-5 text-amber-900${pc}`}>
                   {viewsWithoutContainers.map((view) => (
                     <li key={`${view.space}:${view.externalId}:${view.version ?? "latest"}`}>
                       {view.name ?? view.externalId} · {view.space}
@@ -175,7 +178,7 @@ export function ModelingHealthPanel({
                     count: unusedContainers.length,
                   })}
                 </div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                <ul className={`mt-2 list-disc space-y-1 pl-5 text-amber-900${pc}`}>
                   {unusedContainers.map((container) => (
                     <li key={`${container.space}:${container.externalId}`}>
                       {container.name ?? container.externalId} · {container.space}
@@ -237,7 +240,7 @@ export function ModelingHealthPanel({
                 <div className="font-medium">
                   {t("healthChecks.modeling.unusedSpaces.count", { count: unusedSpaces.length })}
                 </div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                <ul className={`mt-2 list-disc space-y-1 pl-5 text-amber-900${pc}`}>
                   {unusedSpaces.map((space) => (
                     <li key={space.space}>{space.name ?? space.space}</li>
                   ))}

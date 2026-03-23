@@ -14,6 +14,8 @@ viewVersion: v1
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
 functionSpace: springfield_functions
+AssetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
+TimeSeriesViewExternalId: YourOrgTimeSeries # use Enterprise_TimeSeries as external Id if using QS datamodel
 targetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
 entityViewExternalId: YourOrgTimeSeries # use Enterprise_TimeSeries as external Id if using QS datamodel
 targetViewSearchProperty: name # use aliases property if using QS deployment pack

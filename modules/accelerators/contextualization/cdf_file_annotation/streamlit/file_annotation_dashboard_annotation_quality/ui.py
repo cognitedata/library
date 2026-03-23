@@ -78,3 +78,4 @@ class AnnotationQualityUI:
             PerFileTab().render(self.client, extraction_pipeline_cfg, actual_df=annotation_frames.actual_df, potential_df=annotation_frames.potential_df)
         elif selected_tab == "Pattern Management":
             PatternManagementTab().render(self.client, extraction_pipeline_cfg)
+

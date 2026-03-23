@@ -1,6 +1,6 @@
 """
-Deep analysis: filter key selection and report building.
-Port of the TypeScript deepAnalysis module.
+Analysis: filter key selection and report building.
+Port of the TypeScript analysis key selection module.
 """
 
 PRIMARY_FILTER_KEYS = {
@@ -87,14 +87,14 @@ def _is_eligible_metadata_key(key: str) -> bool:
     )
 
 
-def select_filter_keys_for_deep_analysis(
+def select_filter_keys_for_analysis(
     metadata_list: list[dict],
     total_count: int,
     resource_type: str,
     coverage_pct: float = 0.6,
 ) -> list[str]:
     """
-    Select filter keys for deep analysis:
+    Select filter keys for analysis:
     1. Primary keys for the resource type.
     2. From metadata keys: sorting-like, non-identifier, top 15 by count or meeting coverage threshold.
     """

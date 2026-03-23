@@ -29,7 +29,7 @@ def _cdf_patch(app_text: str) -> str:
 
 def main():
     analysis_py = (DIR / "analysis.py").read_text(encoding="utf-8")
-    deep_analysis_py = (DIR / "deep_analysis.py").read_text(encoding="utf-8")
+    key_selection_py = (DIR / "key_selection.py").read_text(encoding="utf-8")
     app_py = (DIR / "app.py").read_text(encoding="utf-8")
     app_py = _cdf_patch(app_py)
 
@@ -44,7 +44,7 @@ def main():
         "files": {
             "app.py": {"content": {"text": app_py, "$case": "text"}},
             "analysis.py": {"content": {"text": analysis_py, "$case": "text"}},
-            "deep_analysis.py": {"content": {"text": deep_analysis_py, "$case": "text"}},
+            "key_selection.py": {"content": {"text": key_selection_py, "$case": "text"}},
         },
         "requirements": reqs,
     }
