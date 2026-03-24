@@ -214,18 +214,21 @@ Progress messages are printed to the browser console during processing. Open the
 
 **Configuration reference**
 
-| Variable                | Required | Description |
-|-------------------------|----------|-------------|
-| `COGNITE_PROJECT`       | Yes      | CDF project name |
-| `COGNITE_BASE_URL`      | No       | CDF cluster URL (default: `https://api.cognitedata.com`) |
-| `COGNITE_API_KEY`       | *        | API key authentication |
-| `CDF_TOKEN`             | *        | Bearer-token authentication |
-| `COGNITE_TOKEN`         | *        | Alternative name for bearer token |
-| `COGNITE_CLIENT_ID`     | *        | OAuth2 client ID |
-| `COGNITE_CLIENT_SECRET` | *        | OAuth2 client secret |
-| `COGNITE_TENANT_ID`     | No       | Azure AD tenant ID (default: `organizations`) |
+Both the app's own `COGNITE_*` naming and the [Cognite Toolkit](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/auth#sign-in-flow-environment-variables) `CDF_*` / `IDP_*` naming are supported. The Toolkit name is checked first.
 
-\* Provide either `COGNITE_API_KEY` or `CDF_TOKEN` or both `COGNITE_CLIENT_ID` and `COGNITE_CLIENT_SECRET`.
+| Variable | Toolkit equivalent | Required | Description |
+|----------|--------------------|----------|-------------|
+| `COGNITE_PROJECT` | `CDF_PROJECT` | Yes | CDF project name |
+| `COGNITE_BASE_URL` | `CDF_URL` | No | Full CDF base URL (default: `https://api.cognitedata.com`) |
+| — | `CDF_CLUSTER` | No | Cluster name (e.g. `westeurope-1`); derives base URL if set |
+| `COGNITE_API_KEY` | — | * | API key authentication |
+| `COGNITE_TOKEN` | `CDF_TOKEN` | * | Bearer-token authentication |
+| `COGNITE_CLIENT_ID` | `IDP_CLIENT_ID` | * | OAuth2 client ID |
+| `COGNITE_CLIENT_SECRET` | `IDP_CLIENT_SECRET` | * | OAuth2 client secret |
+| `COGNITE_TENANT_ID` | `IDP_TENANT_ID` | No | Azure AD tenant ID (default: `organizations`) |
+| — | `IDP_TOKEN_URL` | No | Full token URL; overrides the tenant-ID-derived URL |
+
+\* Provide one of: `COGNITE_API_KEY`, `CDF_TOKEN`, or both `IDP_CLIENT_ID`/`IDP_CLIENT_SECRET`.
 
 When deployed to CDF, credentials are handled automatically — no configuration needed.
 
