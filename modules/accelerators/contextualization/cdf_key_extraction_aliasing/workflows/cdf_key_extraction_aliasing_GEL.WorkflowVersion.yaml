@@ -1,9 +1,9 @@
-workflowExternalId: cdf_key_extraction_aliasing_GEL
+workflowExternalId: cdf_key_extraction_aliasing_{{ site_abbreviation }}
 version: 'v1'
 workflowDefinition:
-  description: 'Run Geleen key extraction'
+  description: 'Run {{ site_name }} key extraction'
   tasks:
-    - externalId: 'fn_dm_key_extraction_gel'
+    - externalId: 'fn_dm_key_extraction_{{ site_abbreviation }}'
       type: 'function'
       parameters:
         function:
@@ -11,7 +11,7 @@ workflowDefinition:
           data:
             logLevel: 'INFO'
             config:
-              externalId: ctx_key_extraction_GEL_prod
+              externalId: ctx_key_extraction_{{ site_abbreviation }}_prod
               config:
                 parameters:
                   debug: true
@@ -21,8 +21,8 @@ workflowDefinition:
                   max_files: 50
                   overwrite: true
                   raw_db: db_key_extraction
-                  raw_table_state: key_extraction_state_GEL
-                  raw_table_key: GEL_extracted_keys
+                  raw_table_state: key_extraction_state_{{ site_abbreviation }}
+                  raw_table_key: {{ site_abbreviation }}_extracted_keys
                 data:
                   validation:
                     min_confidence: 0.5
@@ -43,7 +43,7 @@ workflowDefinition:
                     - view_external_id: CogniteFile
                       view_space: cdf_cdm
                       view_version: v1
-                      instance_space: BEN-GEL-ALL-DAT
+                      instance_space: {{ instance_space }}
                       entity_type: file
                       batch_size: 1000
                       filters:
@@ -175,13 +175,13 @@ workflowDefinition:
                           preprocessing:
                             - trim
                       field_selection_strategy: "merge_all"
-      name: 'Geleen Key Extraction'
-      description: 'Extract candidate keys from Geleen files and write to RAW'
+      name: '{{ site_name }} Key Extraction'
+      description: 'Extract candidate keys from {{ site_name }} files and write to RAW'
       retries: 3
       timeout: 7200
       onFailure: 'abortWorkflow'
 
-    - externalId: 'fn_dm_aliasing_gel'
+    - externalId: 'fn_dm_aliasing_{{ site_abbreviation }}'
       type: 'function'
       parameters:
         function:
@@ -191,28 +191,28 @@ workflowDefinition:
             # Key-Extraction writes candidate keys to RAW; Aliasing reads them back from RAW
             # because Workflows don't auto-pass function outputs to the next task.
             source_raw_db: db_key_extraction
-            source_raw_table_key: GEL_extracted_keys
+            source_raw_table_key: {{ site_abbreviation }}_extracted_keys
             source_raw_read_limit: 10000
-            source_instance_space: BEN-GEL-ALL-DAT
+            source_instance_space: {{ instance_space }}
             source_view_space: cdf_cdm
             source_view_external_id: CogniteFile
             source_view_version: v1
             source_entity_type: file
             config:
-              externalId: ctx_aliasing_GEL_prod
+              externalId: ctx_aliasing_{{ site_abbreviation }}_prod
               config:
                 parameters:
                   debug: true
                   run_all: true
                   overwrite: true
                   raw_db: db_tag_aliasing
-                  raw_table_state: tag_aliasing_state_GEL
-                  raw_table_aliases: GEL_aliases
+                  raw_table_state: tag_aliasing_state_{{ site_abbreviation }}
+                  raw_table_aliases: {{ site_abbreviation }}_aliases
                 data:
                   aliasing_rules:
                     - name: geleen_file_rdp_ppg_ocr
                       type: character_substitution
-                      description: "Geleen file OCR substitutions - RDP-PID <-> PPG-SYS, PPG-HAS, PPG-E25, PPG-UTI"
+                      description: "{{ site_name }} file OCR substitutions - RDP-PID <-> PPG-SYS, PPG-HAS, PPG-E25, PPG-UTI"
                       enabled: true
                       priority: 10
                       preserve_original: true
@@ -332,7 +332,7 @@ workflowDefinition:
                         entity_type: [file]
                     - name: geleen_asset_instrument_ocr
                       type: character_substitution
-                      description: "Geleen asset instrument-type OCR substitutions"
+                      description: "{{ site_name }} asset instrument-type OCR substitutions"
                       enabled: true
                       priority: 10
                       preserve_original: true
@@ -532,15 +532,15 @@ workflowDefinition:
                     min_alias_length: 2
                     max_alias_length: 100
                     allowed_characters: "A-Za-z0-9-_/. "
-      name: 'Geleen Aliasing'
+      name: '{{ site_name }} Aliasing'
       description: 'Generate aliases from extracted candidate keys and write aliasing results to RAW'
       retries: 3
       timeout: 7200
       onFailure: 'abortWorkflow'
       dependsOn:
-        - externalId: 'fn_dm_key_extraction_gel'
+        - externalId: 'fn_dm_key_extraction_{{ site_abbreviation }}'
 
-    - externalId: 'fn_dm_alias_persistence_gel'
+    - externalId: 'fn_dm_alias_persistence_{{ site_abbreviation }}'
       type: 'function'
       parameters:
         function:
@@ -549,11 +549,11 @@ workflowDefinition:
             logLevel: 'INFO'
             # Load aliasing results from RAW produced by aliasing task.
             raw_db: db_tag_aliasing
-            raw_table_aliases: GEL_aliases
+            raw_table_aliases: {{ site_abbreviation }}_aliases
             raw_read_limit: 10000
       dependsOn:
-        - externalId: 'fn_dm_aliasing_gel'
-      name: 'Geleen Alias Persistence'
+        - externalId: 'fn_dm_aliasing_{{ site_abbreviation }}'
+      name: '{{ site_name }} Alias Persistence'
       description: 'Persist aliases to cdf_cdm:CogniteDescribable:v1'
       retries: 3
       timeout: 3600

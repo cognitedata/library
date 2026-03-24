@@ -5,6 +5,7 @@ This module provides a CDF-compatible handler function that writes aliases
 back to source entities in the CDF data model.
 """
 
+import os
 from typing import Any, Dict
 
 try:
@@ -80,6 +81,8 @@ def run_locally():
     env_config = get_env_variables()
     client = create_client(env_config, debug=False)
 
+    site_abbreviation = os.getenv("SITE_ABBREVIATION", "SITE")
+
     # Test data
     data = {
         "logLevel": "DEBUG",
@@ -87,7 +90,7 @@ def run_locally():
         # Either provide aliasing_results directly, OR point to RAW to load them.
         "aliasing_results": [],
         "raw_db": "db_tag_aliasing",
-        "raw_table_aliases": "GEL_aliases",
+        "raw_table_aliases": f"{site_abbreviation}_aliases",
         "raw_read_limit": 100,
     }
 

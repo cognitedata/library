@@ -1,5 +1,5 @@
-externalId: cdf_key_extraction_aliasing_GEL-01
-workflowExternalId: cdf_key_extraction_aliasing_GEL
+externalId: cdf_key_extraction_aliasing_{{ site_abbreviation }}-01
+workflowExternalId: cdf_key_extraction_aliasing_{{ site_abbreviation }}
 workflowVersion: 'v1'
 triggerRule:
   # Daily at 03:00 (project timezone as configured in CDF)

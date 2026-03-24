@@ -32,10 +32,10 @@ This function is designed to run in CDF, but you can run it locally by calling `
 
 ### How it runs in the workflow
 
-In `cdf_key_extraction_aliasing_GEL` (v1):
-- task `fn_dm_key_extraction_gel` runs this function and writes to:
-  - `db_key_extraction/GEL_extracted_keys`
-  - `db_key_extraction/key_extraction_state_GEL`
+In `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (v1):
+- task `fn_dm_key_extraction_{{ site_abbreviation }}` runs this function and writes to:
+  - `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
+  - `db_key_extraction/key_extraction_state_{{ site_abbreviation }}`
 
 ### Change history
 

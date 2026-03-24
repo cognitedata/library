@@ -31,13 +31,13 @@ For each entity referenced by `entities_json` in the alias rows:
 
 Run `handler.py:run_locally()` and point it at the RAW table you want to read:
 - `raw_db = db_tag_aliasing`
-- `raw_table_aliases = GEL_aliases`
+- `raw_table_aliases = {{ site_abbreviation }}_aliases`
 
 ### How it runs in the workflow
 
-In `cdf_key_extraction_aliasing_GEL` (v1):
-- task `fn_dm_alias_persistence_gel` reads from:
-  - `db_tag_aliasing/GEL_aliases`
+In `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (v1):
+- task `fn_dm_alias_persistence_{{ site_abbreviation }}` reads from:
+  - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
 - and updates the referenced nodes in their `instance_space`.
 
 ### Change history

@@ -5,24 +5,24 @@ This module ships a 3-step workflow that:
 2) generates alias variants for those keys,
 3) persists the aliases back onto the source nodes.
 
-### Workflow: `cdf_key_extraction_aliasing_GEL` (version `v1`)
+### Workflow: `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (version `v1`)
 
 #### Task 1 — Key extraction
 - **Function**: `fn_dm_key_extraction`
 - **Writes RAW** (configured by the workflow input config):
-  - **Keys table**: `db_key_extraction/GEL_extracted_keys`
+  - **Keys table**: `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
     - Row key: file external id (node external id)
     - Columns: extracted keys grouped by source field (for example `NAME`, `DESCRIPTION`, `METADATA`)
     - Extra provenance column: `RULES_USED_JSON` (JSON list of rule names that produced at least one key for that entity)
-  - **State table**: `db_key_extraction/key_extraction_state_GEL`
+  - **State table**: `db_key_extraction/key_extraction_state_{{ site_abbreviation }}`
     - One row per run with counts, timestamps, run duration, and `rules_used_counts_json`
 
 #### Task 2 — Key aliasing
 - **Function**: `fn_dm_aliasing`
 - **Reads RAW** (key extraction output):
-  - `db_key_extraction/GEL_extracted_keys`
+  - `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
 - **Writes RAW**:
-  - `db_tag_aliasing/GEL_aliases`
+  - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
     - Row key: `original_tag`
     - Columns:
       - `aliases` (list-like)
@@ -33,12 +33,12 @@ This module ships a 3-step workflow that:
 #### Task 3 — Alias persistence
 - **Function**: `fn_dm_alias_persistence`
 - **Reads RAW**:
-  - `db_tag_aliasing/GEL_aliases`
+  - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
 - **Writes back to data model**
   - Updates each referenced node by writing `aliases` to:
     - `cdf_cdm:CogniteDescribable:v1`
 
 ### Interpreting “aliases persisted”
 
-Aliases are aggregated **per entity**. If one entity is referenced by multiple tag rows (for example a `GEL-*` key and a `PP*` key), the entity will receive the union of aliases from those rows.
+Aliases are aggregated **per entity**. If one entity is referenced by multiple tag rows (for example a `{{ site_abbreviation }}-*` key and a `PP*` key), the entity will receive the union of aliases from those rows.
 

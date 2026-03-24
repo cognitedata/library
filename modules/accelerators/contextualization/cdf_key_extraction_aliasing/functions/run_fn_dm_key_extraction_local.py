@@ -3,7 +3,7 @@
 Run fn_dm_key_extraction locally using entities fetched from CDF.
 
 What it does:
-1) Loads extraction config YAML (Geleen config by default)
+1) Loads extraction config YAML
 2) Queries entities from CDF using source_views in the config
 3) Caches queried entities to a local JSON file
 4) Runs fn_dm_key_extraction.handler.handle() in standalone mode

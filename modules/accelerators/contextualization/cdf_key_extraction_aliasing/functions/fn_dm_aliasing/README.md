@@ -30,15 +30,15 @@ Run `handler.py:run_locally()` (requires `.env` + CDF credentials).
 
 ### How it runs in the workflow
 
-In `cdf_key_extraction_aliasing_GEL` (v1):
-- task `fn_dm_aliasing_gel` reads candidate keys back from RAW:
-  - `db_key_extraction/GEL_extracted_keys`
+In `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (v1):
+- task `fn_dm_aliasing_{{ site_abbreviation }}` reads candidate keys back from RAW:
+  - `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
 - generates aliases and writes to RAW:
-  - `db_tag_aliasing/GEL_aliases`
+  - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
 
 ### Notes on “how many aliases get persisted”
 
-Persistence aggregates aliases **per entity**, so if one entity is referenced by multiple alias rows (for example one `GEL-*` key and one `PP*` key), that entity will receive the union of aliases from those rows.
+Persistence aggregates aliases **per entity**, so if one entity is referenced by multiple alias rows (for example one `{{ site_abbreviation }}-*` key and one `PP*` key), that entity will receive the union of aliases from those rows.
 
 ### Change history
 
