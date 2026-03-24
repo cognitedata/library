@@ -1,8 +1,137 @@
-# Classic CDF Analysis — Streamlit
+# Classic CDF Analysis
+
+## Overview
 
 A Streamlit app for **classic CDF model analysis** across **assets**, **time series**, **events**, **sequences**, and **files**. Supports **auto** and **custom** analysis modes with a shared dataset section. Designed to run inside CDF via Stlite/Pyodide, or locally with a `.env` file.
 
-## Features
+---
+
+## Module Components
+
+```
+classic_cdf_analysis/
+├── data_sets/
+│   └── classic_cdf_analysis_apps.DataSet.yaml   # Dataset for Streamlit app
+├── streamlit/
+│   ├── classic_cdf_analysis_dashboard/
+│   │   ├── app.py                               # Main application — UI, session state, CDF client setup
+│   │   ├── analysis.py                          # CDF aggregate/list API calls and analysis logic
+│   │   ├── key_selection.py                     # Filter key selection heuristics for analysis
+│   │   ├── requirements.txt
+│   └── classic_cdf_analysis_dashboard.Streamlit.yaml
+├── module.toml
+└── README.md
+```
+---
+
+## Deployment
+
+### Prerequisites
+
+- A Cognite Toolkit project with a `cdf.toml` file at the project root.
+- Valid authentication to your target CDF environment (API key or OAuth client credentials).
+
+### Step 1: Enable external libraries
+
+Edit your project’s `cdf.toml` and add:
+```toml
+[alpha_flags]
+external-libraries = true
+
+[library.cognite]
+url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
+checksum = "sha256:795a1d303af6994cff10656057238e7634ebbe1cac1a5962a5c654038a88b078"
+```
+
+**Replacing the default library**
+
+New Toolkit projects often have a `[library.toolkit-data]` section pointing at `toolkit-data`. You **cannot** have both. To use this Deployment Pack you must **replace** that section:
+
+| Replace this                         | With this           |
+|--------------------------------------|---------------------|
+| `[library.toolkit-data]`             | `[library.cognite]` |
+| `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` (as in the URL above) |
+
+Delete or comment out the entire `[library.toolkit-data]` block and keep only the `[library.cognite]` block shown above.
+
+**Checksum warning**
+
+When you run `cdf modules add` or `cdf build`, you may see:
+
+```text
+WARNING [HIGH]: The provided checksum sha256:... does not match downloaded file hash sha256:...
+Please verify the checksum with the source and update cdf.toml if needed.
+```
+
+This happens when the library release has been updated and the checksum in this README is outdated. The download still succeeds. To clear the warning: copy the **new** checksum from the warning message and set it in `cdf.toml` under `[library.cognite]`, for example:
+
+```toml
+checksum = "sha256:34d65c5ef7cded58878f838385dc3d39ae261bdd3426bfbd8f55b279ba4c40ed"
+```
+
+(Use the value from your actual warning.)
+
+### Step 2: Add the module
+
+**First try:** Run from your project root:
+```bash
+cdf modules add .
+```
+
+This lists all available deployment packs without changing your existing modules. In the menu, choose **Dashboards**, then **Classic CDF Analysis**.
+
+**If the module is not in the list:** Use init instead:
+
+```bash
+cdf modules init .
+```
+
+Then choose **Dashboards** → **Classic CDF Analysis**.
+
+- **`cdf modules add`** — Adds the selected module(s) and does **not** overwrite modules you already have.
+- **`cdf modules init`** — Replaces your current module set with a new selection. Commit or back up first if you rely on existing modules.
+
+### Step 3: Verify folder structure
+
+After adding the module, confirm your project contains:
+
+```text
+modules/
+    └── dashboards/
+        └── classic_cdf_analysis/
+```
+
+### Step 4: Build and deploy
+
+From the project root:
+```bash
+cdf build
+cdf deploy --dry-run
+cdf deploy
+```
+
+- **`cdf build`** — Builds the module (e.g. Streamlit app bundle).
+- **`cdf deploy --dry-run`** — Shows what would be deployed without applying changes.
+- **`cdf deploy`** — Deploys to your CDF project.
+
+### Where to find the app in CDF
+
+After deployment, open your CDF project and go to:
+
+**Industrial Tools** → **Custom Apps** → **Classic CDF Analysis**
+
+Users need access to the CDF project and to the app (permissions depend on your CDF setup).
+
+---
+
+## App usage
+
+### Opening the app
+
+- **In CDF:** Go to **Industrial Tools** → **Custom Apps** → **Classic CDF Analysis**. The app uses the project and credentials of the current user; no extra configuration is needed.
+- **Locally:** See [Running the app locally](#running-the-app-locally) below.
+
+---
 
 ### All Datasets summary
 
@@ -34,96 +163,76 @@ Only "sorting-like" keys (containing terms like *type*, *category*, *level*, *cl
 
 Progress messages are printed to the browser console during processing. Open the browser dev tools (F12 → Console) and filter on `ANALYSIS` to follow along.
 
-## Project layout
 
-| File | Purpose |
-|------|---------|
-| `app.py` | Main application — UI, session state, CDF client setup |
-| `analysis.py` | CDF aggregate/list API calls and analysis logic |
-| `key_selection.py` | Filter key selection heuristics for analysis |
-| `build_cdf_json.py` | Builds the CDF import JSON from the Python source files |
-| `Classic-Analysis-Complete-CDF-source.json` | Generated — import this into CDF to deploy |
-| `requirements.txt` | Python dependencies for local and CDF deployment |
-| `README.md` | This file |
 
-## Running locally
+## Running the app locally
 
-### 1. Install dependencies
+1. **Install dependencies**
 
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### 2. Configure CDF credentials
+2. **Configure CDF credentials**
 
-Create a `.env` file in this directory:
+	Create a `.env` file in this directory:
 
-```env
-COGNITE_PROJECT=your-cdf-project
-COGNITE_BASE_URL=https://api.cognitedata.com
-```
+	```env
+	COGNITE_PROJECT=your-cdf-project
+	COGNITE_BASE_URL=https://api.cognitedata.com
+	```
 
-Then set **one** of the following authentication methods:
+	Then set **one** of the following authentication methods:
 
-**Bearer token** (simplest for local development):
+    **API key:**
 
-```env
-CDF_TOKEN=your-bearer-token
-```
+    ```env
+    COGNITE_API_KEY=your-api-key
+    ```
 
-**OAuth client credentials:**
+	**Bearer token** (simplest for local development):
 
-```env
-COGNITE_CLIENT_ID=your-client-id
-COGNITE_CLIENT_SECRET=your-client-secret
-COGNITE_TENANT_ID=organizations
-```
+	```env
+	CDF_TOKEN=your-bearer-token
+	```
 
-### 3. Start the app
+	**OAuth client credentials:**
 
-```bash
-python -m streamlit run app.py
-```
+	```env
+	COGNITE_CLIENT_ID=your-client-id
+	COGNITE_CLIENT_SECRET=your-client-secret
+	COGNITE_TENANT_ID=organizations
+	```
 
-Open the URL shown in the terminal (typically `http://localhost:8501`).
+3. **Start the app**
 
-## Building for CDF
+	```bash
+	python -m streamlit run app.py
+	```
 
-The app runs in CDF as a Stlite (Pyodide/WebAssembly) Streamlit app. The build step bundles all Python source files into a single JSON that CDF can import.
+	Open the URL shown in the terminal (typically `http://localhost:8501`).
 
-### 1. Build the JSON
+**Configuration reference**
 
-From this directory:
+| Variable                | Required | Description |
+|-------------------------|----------|-------------|
+| `COGNITE_PROJECT`       | Yes      | CDF project name |
+| `COGNITE_BASE_URL`      | No       | CDF cluster URL (default: `https://api.cognitedata.com`) |
+| `COGNITE_API_KEY`       | *        | API key authentication |
+| `CDF_TOKEN`             | *        | Bearer-token authentication |
+| `COGNITE_TOKEN`         | *        | Alternative name for bearer token |
+| `COGNITE_CLIENT_ID`     | *        | OAuth2 client ID |
+| `COGNITE_CLIENT_SECRET` | *        | OAuth2 client secret |
+| `COGNITE_TENANT_ID`     | No       | Azure AD tenant ID (default: `organizations`) |
 
-```bash
-python build_cdf_json.py
-```
-
-This produces `Classic-Analysis-Complete-CDF-source.json`.
-
-The build script also applies a small patch to `get_client_and_project()` so that in CDF the pre-injected `CogniteClient` is detected automatically (no credentials needed).
-
-### 2. Deploy to CDF
-
-1. Open **CDF Console** → **Build solutions** → **Streamlit apps** (or the equivalent section in your CDF version).
-2. Create a new app or update an existing one.
-3. Import `Classic-Analysis-Complete-CDF-source.json` as the app source.
-4. Save and publish.
-
-The app will be available to users who have access to the CDF project.
-
-## Configuration reference
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `COGNITE_PROJECT` | Yes | CDF project name |
-| `COGNITE_BASE_URL` | No | CDF cluster URL (default: `https://api.cognitedata.com`) |
-| `CDF_TOKEN` | * | Bearer-token authentication |
-| `COGNITE_TOKEN` | * | Alternative name for bearer token |
-| `COGNITE_CLIENT_ID` | * | OAuth2 client ID |
-| `COGNITE_CLIENT_SECRET` | * | OAuth2 client secret |
-| `COGNITE_TENANT_ID` | No | Azure AD tenant ID (default: `organizations`) |
-
-\* Provide either `CDF_TOKEN` or both `COGNITE_CLIENT_ID` and `COGNITE_CLIENT_SECRET`.
+\* Provide either `COGNITE_API_KEY` or `CDF_TOKEN` or both `COGNITE_CLIENT_ID` and `COGNITE_CLIENT_SECRET`.
 
 When deployed to CDF, credentials are handled automatically — no configuration needed.
+
+---
+
+## Support
+
+- [Cognite Documentation](https://docs.cognite.com)
+- Slack: **#topic-deployment-packs**
+
