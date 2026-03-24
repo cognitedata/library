@@ -8,6 +8,7 @@ import { DataCatalogHelpModal } from "./DataCatalogHelpModal";
 import type { FieldNode, Link, LoadState, ModelNode, SelectedNode, ViewNode } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { ApiError } from "@/shared/ApiError";
+import { cachedInstancesList } from "@/shared/instances-cache";
 import { Loader } from "@/shared/Loader";
 
 export function DataCatalog() {
@@ -18,7 +19,7 @@ export function DataCatalog() {
     if (column === "views") return t("dataCatalog.column.views");
     return t("dataCatalog.column.fields");
   };
-  const { dataModels, dataModelsStatus, dataModelsError, loadDataModels } = useAppData();
+  const { dataModels, dataModelsStatus, dataModelsError, loadDataModels, retrieveViews } = useAppData();
   const [status, setStatus] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [models, setModels] = useState<ModelNode[]>([]);
@@ -147,7 +148,7 @@ export function DataCatalog() {
         const usedForByView: Record<string, "node" | "edge" | "all"> = {};
 
         for (const batch of viewBatches) {
-          const response = (await sdk.views.retrieve(
+          const response = (await retrieveViews(
             batch.map((view) => ({
               space: view.space,
               externalId: view.externalId,
@@ -254,7 +255,7 @@ export function DataCatalog() {
         }
         const usedFor = viewUsedForByKey[viewKey] ?? viewMeta.usedFor ?? "node";
         const instanceType = usedFor === "edge" ? "edge" : "node";
-        const response = await sdk.instances.list({
+        const response = await cachedInstancesList(sdk, {
           instanceType,
           sources: [
             {

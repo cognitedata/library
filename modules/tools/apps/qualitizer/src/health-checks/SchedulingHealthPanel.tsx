@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/shared/ApiError";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import type { LoadState, ScheduleEntry } from "./types";
 
 type ScheduleOverlap = {
@@ -23,6 +24,8 @@ export function SchedulingHealthPanel({
   overlaps,
 }: SchedulingHealthPanelProps) {
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const pc = isPrivateMode ? " private-mask" : "";
 
   return (
     <Card>
@@ -79,7 +82,7 @@ export function SchedulingHealthPanel({
                       <div className="text-xs font-semibold text-amber-900">
                         {t("healthChecks.scheduling.overlaps.cron", { cron: overlap.key })}
                       </div>
-                      <ul className="mt-2 list-disc space-y-1 pl-4">
+                      <ul className={`mt-2 list-disc space-y-1 pl-4${pc}`}>
                         {overlap.schedules.map((schedule) => (
                           <li key={`${schedule.type}-${schedule.id}`}>
                             {t(`healthChecks.scheduling.types.${schedule.type}`)} · {schedule.name}{" "}

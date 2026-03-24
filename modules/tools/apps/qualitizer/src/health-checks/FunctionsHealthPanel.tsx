@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/shared/ApiError";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import type { FunctionSummary, LoadState } from "./types";
 
 type FunctionsHealthPanelProps = {
@@ -19,6 +20,8 @@ export function FunctionsHealthPanel({
   lowPythonFunctions,
 }: FunctionsHealthPanelProps) {
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const pc = isPrivateMode ? " private-mask" : "";
 
   return (
     <>
@@ -40,7 +43,7 @@ export function FunctionsHealthPanel({
                 <div className="font-medium">
                   {t("healthChecks.functions.runtime.count", { count: runtimeList.length })}
                 </div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                <ul className={`mt-2 list-disc space-y-1 pl-5 text-amber-900${pc}`}>
                   {runtimeList.map((runtime) => (
                     <li key={runtime}>
                       {runtime}: {functionsByRuntime.get(runtime)?.length ?? 0}{" "}
@@ -102,7 +105,7 @@ export function FunctionsHealthPanel({
                     count: lowPythonFunctions.length,
                   })}
                 </div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                <ul className={`mt-2 list-disc space-y-1 pl-5 text-amber-900${pc}`}>
                   {lowPythonFunctions.map((fn) => (
                     <li key={fn.id}>
                       {fn.name ?? fn.id} ·{" "}
