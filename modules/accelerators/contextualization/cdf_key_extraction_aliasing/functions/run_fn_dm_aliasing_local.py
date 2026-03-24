@@ -15,7 +15,7 @@ Usage (from library_fresh):
 Custom input/output:
   poetry run python modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/run_fn_dm_aliasing_local.py \
     --key-results-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/local_run_results/<file>.json \
-    --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/extraction_pipelines/ctx_aliasing_site_prod.config.yaml
+    --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/extraction_pipelines/ctx_aliasing_default.config.yaml
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def main() -> int:
     module_dir = Path(__file__).resolve().parent.parent
     default_results_dir = module_dir / "local_run_results"
     default_aliasing_config = (
-        module_dir / "extraction_pipelines" / "ctx_aliasing_site_prod.config.yaml"
+        module_dir / "extraction_pipelines" / "ctx_aliasing_default.config.yaml"
     )
 
     parser = argparse.ArgumentParser(
