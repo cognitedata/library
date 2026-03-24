@@ -80,34 +80,92 @@ def _is_pyodide() -> bool:
     return False
 
 
+def _secret(*keys: str) -> str | None:
+    """Return the first non-empty value found across the given env-var / Streamlit-secret names."""
+    for key in keys:
+        val = os.environ.get(key)
+        if val:
+            return val
+        try:
+            val = st.secrets.get(key) if hasattr(st, "secrets") else None
+            if val:
+                return val
+        except Exception:
+            pass
+    return None
+
+
+def _resolve_base_url() -> str:
+    """Resolve CDF base URL from CDF_URL / COGNITE_BASE_URL, or derive from CDF_CLUSTER."""
+    explicit = _secret("CDF_URL", "COGNITE_BASE_URL")
+    if explicit:
+        return explicit
+    cluster = _secret("CDF_CLUSTER")
+    if cluster:
+        return f"https://{cluster}.cognitedata.com"
+    return "https://api.cognitedata.com"
+
+
 def get_client_and_project() -> tuple[Any, str] | None:
     """Build CogniteClient and project from env/secrets. Returns (client, project) or None."""
     try:
         from cognite.client import CogniteClient, ClientConfig
-        from cognite.client.credentials import APIKey, OAuthClientCredentials
+        from cognite.client.credentials import OAuthClientCredentials, Token
     except ImportError:
-        st.error("Install cognite-sdk: pip install cognite-sdk")
+        st.error("Install cognite-sdk >= 7: `pip install cognite-sdk`")
         return None
 
-    project = os.environ.get("COGNITE_PROJECT") or (st.secrets.get("COGNITE_PROJECT") if hasattr(st, "secrets") else None)
-    base_url = os.environ.get("COGNITE_BASE_URL") or st.secrets.get("COGNITE_BASE_URL", "https://api.cognitedata.com")
+    # 0) CDF-hosted Stlite environment: CogniteClient() auto-configures from the logged-in session
+    try:
+        _c = CogniteClient()
+        if getattr(_c.config, "project", None):
+            return (_c, _c.config.project)
+    except Exception:
+        pass
 
-    api_key = os.environ.get("COGNITE_API_KEY") or (st.secrets.get("COGNITE_API_KEY") if hasattr(st, "secrets") else None)
-    if api_key and project:
+    # APIKey was removed in cognite-sdk v7; import optionally so it doesn't break other auth flows
+    try:
+        from cognite.client.credentials import APIKey as _APIKey
+    except ImportError:
+        _APIKey = None
+
+    # CDF_PROJECT (Toolkit) or COGNITE_PROJECT (app)
+    project = _secret("CDF_PROJECT", "COGNITE_PROJECT")
+    base_url = _resolve_base_url()
+
+    # 1) API key auth (only available in cognite-sdk <7)
+    api_key = _secret("COGNITE_API_KEY")
+    if api_key and project and _APIKey is not None:
         config = ClientConfig(
             client_name="classic-analysis-complete",
             project=project,
-            credentials=APIKey(api_key),
+            credentials=_APIKey(api_key),
             base_url=base_url,
         )
-        client = CogniteClient(config)
-        return (client, project)
+        return (CogniteClient(config), project)
 
-    client_id = os.environ.get("COGNITE_CLIENT_ID") or (st.secrets.get("COGNITE_CLIENT_ID") if hasattr(st, "secrets") else None)
-    client_secret = os.environ.get("COGNITE_CLIENT_SECRET") or (st.secrets.get("COGNITE_CLIENT_SECRET") if hasattr(st, "secrets") else None)
-    tenant_id = os.environ.get("COGNITE_TENANT_ID") or (st.secrets.get("COGNITE_TENANT_ID") if hasattr(st, "secrets") else None)
-    if client_id and client_secret and project:
+    # 2) Bearer-token auth — CDF_TOKEN (Toolkit) or COGNITE_TOKEN (app)
+    token = _secret("CDF_TOKEN", "COGNITE_TOKEN")
+    if token and project:
+        config = ClientConfig(
+            client_name="classic-analysis-complete",
+            project=project,
+            credentials=Token(token),
+            base_url=base_url,
+        )
+        return (CogniteClient(config), project)
+
+    # 3) OAuth client-credentials auth
+    #    IDP_CLIENT_ID / IDP_CLIENT_SECRET / IDP_TENANT_ID (Toolkit)
+    #    or COGNITE_CLIENT_ID / COGNITE_CLIENT_SECRET / COGNITE_TENANT_ID (app)
+    client_id = _secret("IDP_CLIENT_ID", "COGNITE_CLIENT_ID")
+    client_secret = _secret("IDP_CLIENT_SECRET", "COGNITE_CLIENT_SECRET")
+    # IDP_TOKEN_URL takes precedence; otherwise construct from tenant ID
+    token_url = _secret("IDP_TOKEN_URL")
+    if not token_url:
+        tenant_id = _secret("IDP_TENANT_ID", "COGNITE_TENANT_ID")
         token_url = f"https://login.microsoftonline.com/{tenant_id or 'organizations'}/oauth2/v2.0/token"
+    if client_id and client_secret and project:
         creds = OAuthClientCredentials(
             token_url=token_url,
             client_id=client_id,
@@ -120,8 +178,7 @@ def get_client_and_project() -> tuple[Any, str] | None:
             credentials=creds,
             base_url=base_url,
         )
-        client = CogniteClient(config)
-        return (client, project)
+        return (CogniteClient(config), project)
 
     return None
 
@@ -290,9 +347,12 @@ def main() -> None:
     client_and_project = get_client_and_project()
     if not client_and_project:
         st.warning(
-            "Configure CDF credentials. Set COGNITE_PROJECT and either COGNITE_API_KEY or "
-            "COGNITE_CLIENT_ID + COGNITE_CLIENT_SECRET (and optionally COGNITE_TENANT_ID, COGNITE_BASE_URL) "
-            "in environment or Streamlit secrets."
+            "Configure CDF credentials. Set **CDF_PROJECT** (or `COGNITE_PROJECT`) and one of:\n\n"
+            "- **COGNITE_API_KEY** — API key auth\n"
+            "- **CDF_TOKEN** (or `COGNITE_TOKEN`) — bearer-token auth\n"
+            "- **IDP_CLIENT_ID** + **IDP_CLIENT_SECRET** (or `COGNITE_CLIENT_ID` / `COGNITE_CLIENT_SECRET`) — OAuth client-credentials\n\n"
+            "Set the CDF cluster via **CDF_CLUSTER** (e.g. `westeurope-1`), **CDF_URL**, or `COGNITE_BASE_URL`.\n\n"
+            "Values can be set as environment variables, in a `.env` file, or in Streamlit secrets."
         )
         return
 

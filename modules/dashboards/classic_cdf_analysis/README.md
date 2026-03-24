@@ -2,13 +2,7 @@
 
 ## Overview
 
-The **Classic CDF Analysis** module provides a Streamlit app that analyzes **metadata field distribution** across CDF resources: Assets, Time series, Events, Sequences, and Files. Use it to:
-
-- See project-wide and per-dataset resource counts.
-- **Run analysis** — Pick one resource type and one metadata (or filter) key; get distinct values, counts, and related metadata keys. Results can be downloaded as `.txt`.
-- **Deep analysis** — Select one or more resource types; the app discovers metadata keys, applies a configurable threshold, and produces a full report per resource type with values, counts, and related keys. Reports are downloadable as a single `.txt` file.
-
-The app runs in CDF as a custom Streamlit app (Stlite/Pyodide) or locally with a `.env` file and the Cognite SDK.
+A Streamlit app for **classic CDF model analysis** across **assets**, **time series**, **events**, **sequences**, and **files**. Supports **auto** and **custom** analysis modes with a shared dataset section. Designed to run inside CDF via Stlite/Pyodide, or locally with a `.env` file.
 
 ---
 
@@ -20,18 +14,14 @@ classic_cdf_analysis/
 │   └── classic_cdf_analysis_apps.DataSet.yaml   # Dataset for Streamlit app
 ├── streamlit/
 │   ├── classic_cdf_analysis_dashboard/
-│   │   ├── app.py                               # Streamlit entry point
-│   │   ├── analysis.py                          # CDF aggregate/list API and analysis logic
-│   │   ├── deep_analysis.py                     # Filter key selection for deep analysis
-│   │   ├── build_cdf_json.py                    # Build CDF import JSON (for manual CDF deploy)
-│   │   ├── Classic-Analysis-Complete-CDF-source.json
+│   │   ├── app.py                               # Main application — UI, session state, CDF client setup
+│   │   ├── analysis.py                          # CDF aggregate/list API calls and analysis logic
+│   │   ├── key_selection.py                     # Filter key selection heuristics for analysis
 │   │   ├── requirements.txt
-│   │   └── README.md
 │   └── classic_cdf_analysis_dashboard.Streamlit.yaml
 ├── module.toml
 └── README.md
 ```
-
 ---
 
 ## Deployment
@@ -143,132 +133,104 @@ Users need access to the CDF project and to the app (permissions depend on your 
 
 ---
 
-### All Datasets (summary)
+### All Datasets summary
 
-At the top of the app, **All Datasets** shows project-wide counts for:
-
-- Assets  
-- Time series  
-- Events  
-- Sequences  
-- Files  
-- Transformations  
-- Functions  
-- Workflows  
-- Raw tables  
-
-These load automatically when you open the app. Use this to get a quick overview of resource volume in the project.
-
----
+Project-wide resource counts (assets, time series, events, sequences, files, transformations, functions, workflows, raw tables) and unique metadata property key counts displayed on load.
 
 ### Datasets (optional)
 
-This section lets you **optionally** restrict all analyses below to specific datasets.
+Load the dataset catalogue, view per-dataset counts, and optionally restrict all analysis to selected datasets.
 
-1. Click **Load datasets**. The app fetches the dataset list and starts loading resource counts per dataset.
-2. A table appears with columns: **Select**, **Dataset**, **Assets**, **Timeseries**, **Events**, **Sequences**, **Files**.
-3. Check **Select** for the datasets you want to use. Analyses (Run analysis and Deep analysis) will then use only resources in those datasets.
-4. If you leave nothing selected (or clear selection), analyses use **all datasets** in the project.
-5. Use **Clear selection** to reset and go back to “all datasets”.
+### Analysis
 
-You can enable **Show datasets with no resources (all counts 0)** to include empty datasets in the table. Resource counts load in batches; wait for numbers to appear before relying on them for filtering.
+Select one or more resource types (Assets, Time series, Events, Sequences, Files) and run analysis in one of two modes:
 
----
+- **Auto mode** — the algorithm selects metadata keys based on a configurable instance-count threshold.
+- **Custom mode** — load all available metadata keys per resource type and pick manually.
 
-### Run analysis (single key)
+Results are displayed in-browser and can be downloaded as a text report (filename includes `auto` or `custom` mode label).
 
-Run analysis for **one resource type** and **one metadata or filter key**. You get distinct values, counts per value, and related metadata keys.
+#### Instance count threshold (Auto mode)
 
-1. **Resource type** — Choose: Assets, Time series, Events, Sequences, or Files.
-2. **Filter key** — Either:
-   - Click **Load metadata keys**, then pick a key from the dropdown (keys show instance counts in parentheses), or  
-   - Type the key name manually (e.g. for Time series: `"is step"`, `"is string"`, `"unit"`; for Files: `"type"`, `"labels"`, `"author"`, `"source"`).
-3. Click **Run analysis**. Results appear below: each value, its count, and related metadata keys.
-4. Use **Download .txt** to save the result as a text file.
-5. Use **Clear** to remove the result and run another analysis.
+The **Instance count threshold (%)** controls which metadata keys are included in auto mode. For each resource type the app fetches the total resource count and the per-key instance counts. A metadata key is included if it meets **either** of these conditions:
 
-If you have selected datasets in **Datasets (optional)**, only those datasets are used. Otherwise all datasets are used.
+1. **Top 15** — the key is among the 15 most frequent eligible metadata keys (regardless of threshold), or
+2. **Meets threshold** — the key's instance count is ≥ the threshold percentage of the total resource count.
 
----
+The default is **60 %**. Lowering it includes more keys (longer report, more API calls). Raising it restricts the report to only the most prevalent keys.
 
-### Deep analysis (multi-resource, many keys)
+Only "sorting-like" keys (containing terms like *type*, *category*, *level*, *class*, etc.) are considered. Keys that look like identifiers (containing *name*, *id*, *uuid*, etc.) or datetime fields are automatically excluded.
 
-Deep analysis runs across **one or more resource types**, discovers metadata keys, and produces a **full report per resource type** (values, counts, related keys). It can take a while on large projects.
+Progress messages are printed to the browser console during processing. Open the browser dev tools (F12 → Console) and filter on `ANALYSIS` to follow along.
 
-1. **Resource types** — Check the types you want: Assets, Time series, Events, Sequences, Files (at least one).
-2. **Instance count threshold (%)** — Default **60**. A metadata key is included if either:
-   - It is among the **top 15** most frequent “sorting-like” keys (e.g. type, category, level, class), or  
-   - Its instance count is **≥ this percentage** of the total resource count for that type.  
-   Lower values → more keys and longer reports; higher values → fewer, more dominant keys.
-3. Click **Run deep analysis**. The app runs aggregate counts, discovers keys, filters by the threshold, and analyzes each key. Progress can be seen in the browser console (F12 → Console, filter by `DEEP`).
-4. When finished, a report section appears for each resource type. Use **Download report** to save all sections as one `.txt` file.
-5. Use **Clear** to remove the results.
 
-**Which keys are included**
 
-- Only “sorting-like” keys (e.g. type, category, level, class, kind, group) are considered.  
-- Identifier-like keys (name, id, external_id, uuid, etc.) and datetime-like keys are excluded.  
-
-Dataset selection from **Datasets (optional)** applies: selected datasets restrict deep analysis to those datasets; no selection means all datasets.
-
----
-
-### Running the app locally
-
-To run the app on your machine against a CDF project:
+## Running the app locally
 
 1. **Install dependencies**
 
    ```bash
-   pip install streamlit cognite-sdk pandas python-dotenv
+   pip install -r requirements.txt
    ```
 
-2. **Configure credentials**
+2. **Configure CDF credentials**
 
-   In the app directory (e.g. `streamlit/classic_cdf_analysis_dashboard/`), create a `.env` file:
+	Create a `.env` file in this directory:
 
-   ```env
-   COGNITE_PROJECT=your-cdf-project
-   COGNITE_BASE_URL=https://api.cognitedata.com
-   ```
+	```env
+	COGNITE_PROJECT=your-cdf-project
+	COGNITE_BASE_URL=https://api.cognitedata.com
+	```
 
-   Then use **one** of these:
+	Then set **one** of the following authentication methods:
 
-   **API key:**
+    **API key:**
 
-   ```env
-   COGNITE_API_KEY=your-api-key
-   ```
+    ```env
+    COGNITE_API_KEY=your-api-key
+    ```
 
-   **OAuth client credentials:**
+	**Bearer token** (simplest for local development):
 
-   ```env
-   COGNITE_CLIENT_ID=your-client-id
-   COGNITE_CLIENT_SECRET=your-client-secret
-   COGNITE_TENANT_ID=organizations
-   ```
+	```env
+	CDF_TOKEN=your-bearer-token
+	```
+
+	**OAuth client credentials:**
+
+	```env
+	COGNITE_CLIENT_ID=your-client-id
+	COGNITE_CLIENT_SECRET=your-client-secret
+	COGNITE_TENANT_ID=organizations
+	```
 
 3. **Start the app**
 
-   ```bash
-   cd streamlit/classic_cdf_analysis_dashboard
-   python -m streamlit run app.py
-   ```
+	```bash
+	python -m streamlit run app.py
+	```
 
-   Open the URL shown (typically `http://localhost:8501`).
+	Open the URL shown in the terminal (typically `http://localhost:8501`).
 
 **Configuration reference**
 
-| Variable                 | Required | Description |
-|--------------------------|----------|-------------|
-| `COGNITE_PROJECT`        | Yes      | CDF project name |
-| `COGNITE_BASE_URL`       | No       | CDF cluster URL (default: `https://api.cognitedata.com`) |
-| `COGNITE_API_KEY`        | *        | API key authentication |
-| `COGNITE_CLIENT_ID`      | *        | OAuth2 client ID |
-| `COGNITE_CLIENT_SECRET`  | *        | OAuth2 client secret |
-| `COGNITE_TENANT_ID`      | No       | Azure AD tenant ID (default: `organizations`) |
+Both the app's own `COGNITE_*` naming and the [Cognite Toolkit](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/auth#sign-in-flow-environment-variables) `CDF_*` / `IDP_*` naming are supported. The Toolkit name is checked first.
 
-\* Use either `COGNITE_API_KEY` or both `COGNITE_CLIENT_ID` and `COGNITE_CLIENT_SECRET`. When the app runs inside CDF, credentials are provided by the environment; you do not need to set these.
+| Variable | Toolkit equivalent | Required | Description |
+|----------|--------------------|----------|-------------|
+| `COGNITE_PROJECT` | `CDF_PROJECT` | Yes | CDF project name |
+| `COGNITE_BASE_URL` | `CDF_URL` | No | Full CDF base URL (default: `https://api.cognitedata.com`) |
+| — | `CDF_CLUSTER` | No | Cluster name (e.g. `westeurope-1`); derives base URL if set |
+| `COGNITE_API_KEY` | — | * | API key authentication |
+| `COGNITE_TOKEN` | `CDF_TOKEN` | * | Bearer-token authentication |
+| `COGNITE_CLIENT_ID` | `IDP_CLIENT_ID` | * | OAuth2 client ID |
+| `COGNITE_CLIENT_SECRET` | `IDP_CLIENT_SECRET` | * | OAuth2 client secret |
+| `COGNITE_TENANT_ID` | `IDP_TENANT_ID` | No | Azure AD tenant ID (default: `organizations`) |
+| — | `IDP_TOKEN_URL` | No | Full token URL; overrides the tenant-ID-derived URL |
+
+\* Provide one of: `COGNITE_API_KEY`, `CDF_TOKEN`, or both `IDP_CLIENT_ID`/`IDP_CLIENT_SECRET`.
+
+When deployed to CDF, credentials are handled automatically — no configuration needed.
 
 ---
 
@@ -276,3 +238,4 @@ To run the app on your machine against a CDF project:
 
 - [Cognite Documentation](https://docs.cognite.com)
 - Slack: **#topic-deployment-packs**
+
