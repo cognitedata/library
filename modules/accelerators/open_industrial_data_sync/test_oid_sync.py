@@ -6,6 +6,9 @@ This mirrors the logic from ReadFromOpenIndustrialData.ipynb
 import os
 import sys
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Add function directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "functions", "fn_oid_sync"))
 
@@ -25,9 +28,9 @@ def test_oid_connection():
     # Create config
     config = OIDConfig(
         instance_space="springfield_instances",
-        oid_tenant_id="",
-        oid_client_id="",
-        oid_client_secret="",
+        oid_tenant_id="48d5043c-cf70-4c49-881c-c638f5796997", # OID Azure AD tenant, this is the default tenant for OID
+        oid_client_id="1b90ede3-271e-401b-81a0-a4d52bea3273", # OID client ID, this is the default client ID for OID
+        oid_client_secret=os.environ.get("OPEN_ID_CLIENT_SECRET", ""), # OID client secret (get your secret from the Cognite Hub at https://hub.cognite.com/open-industrial-data-211)
         timeseries_view_space="sp_enterprise_process_industry",
         timeseries_view_external_id="Enterprise_TimeSeries",
         timeseries_view_version="v1",

@@ -1,8 +1,0 @@
-externalId: file_annotation_dashboard
-name: File Annotation Dashboard
-creator: <add your email here>
-description: Dashboard to inspect the health of the File Annotation Pipeline
-published: true
-theme: Light
-dataSetExternalId: {{ annotationDatasetExternalId }}
-entrypoint: Pipeline_Health.py

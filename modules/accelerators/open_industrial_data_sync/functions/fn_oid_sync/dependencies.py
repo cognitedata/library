@@ -99,7 +99,7 @@ def create_config_and_client(
         env_config = get_env_variables()
         client = create_client(env_config)
     
-    oid_secret = _get_oid_secret(client, secrets, env_config)
+    oid_secret = _get_oid_secret(secrets, env_config)
     config = load_config_parameters(client=client, oid_client_secret=oid_secret)
     
     return config, client

@@ -14,10 +14,14 @@ viewVersion: v1
 assetInstanceSpace: springfield_instances
 timeseriesInstanceSpace: springfield_instances
 functionSpace: springfield_functions
-AssetSearchProperty: name
-AssetFilterValues: ["root:WMT"]
-EntitySearchProperty: aliases
-EntityFilterValues: ["site:VAL"]
+AssetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
+TimeSeriesViewExternalId: YourOrgTimeSeries # use Enterprise_TimeSeries as external Id if using QS datamodel
+targetViewExternalId: YourOrgAsset # use Asset as external Id if using QS datamodel
+entityViewExternalId: YourOrgTimeSeries # use Enterprise_TimeSeries as external Id if using QS datamodel
+targetViewSearchProperty: name # use aliases property if using QS deployment pack
+targetViewFilterValues: ["root:WMT"] # use root:ast_VAL as filter value if using QS deployment pack
+entityViewSearchProperty: aliases
+entityViewFilterValues: ["site:VAL"]
 
 workflow: EntityMatching
 ### UPDATE THE FOLLOWING VALUES FOR YOUR IDP CONFIGURATION ###
