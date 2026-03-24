@@ -327,9 +327,6 @@ workflowDefinition:
                         patterns:
                           - {pattern: "(.*)((?:REV|VER|rev|ver)[A-Za-z0-9]{1,2})$$", replacement: "\\1"}
                           - {pattern: "(.*)((?:R|V|r|v)[A-Za-z0-9]{1,2})$$", replacement: "\\1"}
-                      conditions: {}
-                      scope_filters:
-                        entity_type: [file]
                     - name: site_asset_instrument_ocr
                       type: character_substitution
                       description: "{{ site_name }} asset instrument-type OCR substitutions"
