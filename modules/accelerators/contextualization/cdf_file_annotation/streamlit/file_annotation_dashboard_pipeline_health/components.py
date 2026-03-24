@@ -84,7 +84,7 @@ class ThroughputComponent(Component):
             tooltip=[f"{time_bucket_field}:T", "count:Q"],
         ).properties(title=f"Files Finalized {time_agg}").interactive()
 
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(chart, use_container_width=True)
 
 
 class FileTableComponent(Component):
@@ -143,7 +143,7 @@ class FileTableComponent(Component):
             column_config={
                 FieldNames.SELECT_TITLE_CASE: st.column_config.CheckboxColumn(required=True)
             },
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             disabled=df_display.columns.difference([FieldNames.SELECT_TITLE_CASE]),
             on_change=handler,
@@ -321,7 +321,7 @@ class RunChartsComponent(Component):
             cols = st.columns(2)
             for i, ch in enumerate(charts):
                 with cols[i % 2]:
-                    st.altair_chart(ch, width="stretch")
+                    st.altair_chart(ch, use_container_width=True)
 
 
 class DetailedRunHistoryComponent(Component):

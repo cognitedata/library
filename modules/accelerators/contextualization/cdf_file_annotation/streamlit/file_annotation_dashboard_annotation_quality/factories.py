@@ -50,5 +50,4 @@ class DataEditorChangeCaptureFactory:
 
                 if row_key:
                     st.session_state[changed_keys_state_key].add(row_key)
-
         return _handler

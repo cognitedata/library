@@ -1,9 +1,7 @@
 import streamlit as st
 from cognite.client import CogniteClient
-from constants import FieldNames
 from data_fetcher import DataFetcher
-from data_processor import DataProcessor
-from data_structures import ExtractionPipelineConfig, ViewPropertyConfig
+from data_structures import ExtractionPipelineConfig
 from tabs import FileExplorerTab, OverviewTab, RunHistoryTab
 
 
