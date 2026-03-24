@@ -141,7 +141,7 @@ class DataProcessor:
 
 
     @staticmethod
-    def enrich_annotation_frames_with_files_metadata(annotation_frames: AnnotationFrames | None, files_metadata: pd.DataFrame) -> AnnotationFrames | None:
+    def enrich_annotation_frames_with_files_metadata(annotation_frames: AnnotationFrames, files_metadata: pd.DataFrame) -> AnnotationFrames:
         if annotation_frames is None:
             return annotation_frames
         if files_metadata is None or files_metadata.empty:

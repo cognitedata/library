@@ -5,13 +5,16 @@ import pandas as pd
 import streamlit as st
 import yaml
 from cognite.client import CogniteClient
+from cognite.client.data_classes.data_modeling import filters
 from cognite.client.exceptions import CogniteAPIError
 from constants import FieldNames
 from data_processor import DataProcessor
 from data_structures import (
     AnnotationFrames,
     AnnotationStatus,
+    CallerType,
     ExtractionPipelineConfig,
+    ViewPropertyConfig,
 )
 
 
@@ -106,7 +109,7 @@ class DataFetcher:
                 columns=annotation_columns
             )
 
-            if not docs_df.empty:
+            if docs_df is not None and not docs_df.empty:
                 if actual_df is None or actual_df.empty:
                     actual_df = docs_df
                 else:

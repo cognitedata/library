@@ -8,6 +8,7 @@ from cognite.client.data_classes.data_modeling import (
     Node,
     NodeApply,
     NodeId,
+    NodeList,
     NodeOrEdgeData,
 )
 from cognite.client.exceptions import CogniteAPIError
@@ -111,7 +112,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
         except CogniteAPIError as e:
             if e.code == 400 and e.message == "A version conflict caused the ingest to fail.":
                 self.logger.info(
-                    message="Retrieved job that has already been claimed. Grabbing another job.",
+                    message=f"Retrieved job that has already been claimed. Grabbing another job.",
                     section="END",
                 )
                 return
@@ -411,19 +412,28 @@ class GeneralFinalizeService(AbstractFinalizeService):
             else:
                 - annotated_page_count = self.page_range + annotated_page_count b/c there are more pages to annotate
         """
-        current_annotated: int | None = cast(
+        annotated_page_count: int | None = cast(
             int,
             node.properties[self.annotation_state_view.as_view_id()].get("annotatedPageCount"),
         )
 
-        start_page = (current_annotated or 0) + 1
-        new_annotated = min((current_annotated or 0) + self.page_range, page_count)
-        
-        self.logger.info(
-            f"Annotated pages {start_page}-to-{new_annotated} out of {page_count} total pages", "END"
-        )
+        if not annotated_page_count:
+            if self.page_range >= page_count:
+                annotated_page_count = page_count
+            else:
+                annotated_page_count = self.page_range
+            self.logger.info(f"Annotated pages 1-to-{annotated_page_count} out of {page_count} total pages", "END")
+        else:
+            start_page = annotated_page_count + 1
+            if (annotated_page_count + self.page_range) >= page_count:
+                annotated_page_count = page_count
+            else:
+                annotated_page_count += self.page_range
+            self.logger.info(
+                f"Annotated pages {start_page}-to-{annotated_page_count} out of {page_count} total pages", "END"
+            )
 
-        return new_annotated
+        return annotated_page_count
 
     def _update_batch_state(
         self,
@@ -477,14 +487,14 @@ class GeneralFinalizeService(AbstractFinalizeService):
                 view_id=self.annotation_state_view.as_view_id(),
             )
         try:
-            self.apply_service.update_instances(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")
         except Exception as e:
             self.logger.error(
-                "Ran into the following error. Trying again in 30 seconds",
+                f"Ran into the following error. Trying again in 30 seconds",
                 error=e,
                 section="END",
             )
             time.sleep(30)
-            self.apply_service.update_instances(list_node_apply=batch.apply)
+            update_results = self.apply_service.update_instances(list_node_apply=batch.apply)
             self.logger.info(f"- set annotation status to {status}")

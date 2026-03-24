@@ -17,10 +17,10 @@ from cognite.client.data_classes.data_modeling import (
     NodeOrEdgeData,
     ViewId,
 )
-from cognite.client.data_classes.filters import Equals
+from cognite.client.data_classes.filters import Equals, In
 from services.ConfigService import Config
 from services.LoggerService import CogniteFunctionLogger
-from utils.DataStructures import DiagramAnnotationStatus
+from utils.DataStructures import DiagramAnnotationStatus, remove_protected_properties
 
 
 class IApplyService(abc.ABC):
@@ -59,7 +59,10 @@ class GeneralApplyService(IApplyService):
         self.client: CogniteClient = client
         self.config: Config = config
         self.logger: CogniteFunctionLogger = logger
-        self.raw_tables = config.raw_tables
+        self.raw_db: str = self.config.raw_tables.raw_db
+        self.raw_pattern_table: str = self.config.raw_tables.raw_table_doc_pattern
+        self.raw_doc_doc_table: str = self.config.raw_tables.raw_table_doc_doc
+        self.raw_doc_tag_table: str = self.config.raw_tables.raw_table_doc_tag
         self.core_annotation_view_id: ViewId = config.data_model_views.core_annotation_view.as_view_id()
         self.file_view_id: ViewId = config.data_model_views.file_view.as_view_id()
         self.file_annotation_type = config.data_model_views.file_view.annotation_type
@@ -109,9 +112,9 @@ class GeneralApplyService(IApplyService):
             )
 
         # Step 1: Process regular annotations and collect their spatial locations
-        # Set stores (page, bounding_box_yaml) tuples to prevent duplicate annotations
+        # Mapping dict stores tuples [key being (page, (x_min, y_min, x_max, y_max)), value being set of external_ids] to prevent duplicate annotations
         regular_edges, doc_rows, tag_rows = [], [], []
-        processed_bounding_boxes: set[tuple[int, str]] = set()
+        processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]] = {}
         if regular_item and regular_item.get("annotations"):
             for annotation in regular_item["annotations"]:
                 edges = self._detect_annotation_to_edge_applies(
@@ -127,30 +130,34 @@ class GeneralApplyService(IApplyService):
         # Step 2: Process pattern annotations, skipping those with spatial overlap
         pattern_edges, pattern_rows = [], []
         if pattern_item and pattern_item.get("annotations"):
-            pattern_edges, pattern_rows = self._process_pattern_results(
+            pattern_edges, pattern_rows, removed_pattern_external_ids = self._process_pattern_results(
                 pattern_item, file_node, processed_bounding_boxes
             )
+            if removed_pattern_external_ids:
+                regular_edges = [e for e in regular_edges if e.external_id not in removed_pattern_external_ids]
+                doc_rows[:] = [r for r in doc_rows if r.key not in removed_pattern_external_ids]
+                tag_rows[:] = [r for r in tag_rows if r.key not in removed_pattern_external_ids]
 
         # Step 3: Apply all data model and RAW changes
         self.update_instances(list_edge_apply=regular_edges + pattern_edges)
         if doc_rows:
             self.client.raw.rows.insert(
-                db_name=self.raw_tables.raw_db,
-                table_name=self.raw_tables.raw_table_doc_doc,
+                db_name=self.raw_db,
+                table_name=self.raw_doc_doc_table,
                 row=doc_rows,
                 ensure_parent=True,
             )
         if tag_rows:
             self.client.raw.rows.insert(
-                db_name=self.raw_tables.raw_db,
-                table_name=self.raw_tables.raw_table_doc_tag,
+                db_name=self.raw_db,
+                table_name=self.raw_doc_tag_table,
                 row=tag_rows,
                 ensure_parent=True,
             )
         if pattern_rows:
             self.client.raw.rows.insert(
-                db_name=self.raw_tables.raw_db,
-                table_name=self.raw_tables.raw_table_doc_pattern,
+                db_name=self.raw_db,
+                table_name=self.raw_pattern_table,
                 row=pattern_rows,
                 ensure_parent=True,
             )
@@ -207,14 +214,14 @@ class GeneralApplyService(IApplyService):
                 self.client.data_modeling.instances.delete(edges=edge_ids)
             if doc_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.raw_tables.raw_db,
-                    table_name=self.raw_tables.raw_table_doc_doc,
+                    db_name=self.raw_db,
+                    table_name=self.raw_doc_doc_table,
                     key=doc_keys,
                 )
             if tag_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.raw_tables.raw_db,
-                    table_name=self.raw_tables.raw_table_doc_tag,
+                    db_name=self.raw_db,
+                    table_name=self.raw_doc_tag_table,
                     key=tag_keys,
                 )
             counts["doc"], counts["tag"] = len(doc_keys), len(tag_keys)
@@ -229,8 +236,8 @@ class GeneralApplyService(IApplyService):
                 self.client.data_modeling.instances.delete(edges=edge_ids)
             if row_keys:
                 self.client.raw.rows.delete(
-                    db_name=self.raw_tables.raw_db,
-                    table_name=self.raw_tables.raw_table_doc_pattern,
+                    db_name=self.raw_db,
+                    table_name=self.raw_pattern_table,
                     key=row_keys,
                 )
             counts["pattern"] = len(row_keys)
@@ -261,8 +268,11 @@ class GeneralApplyService(IApplyService):
         )
 
     def _process_pattern_results(
-        self, result_item: dict[str, Any], file_node: Node, existing_bounding_boxes: set[tuple[int, str]]
-    ) -> tuple[list[EdgeApply], list[RowWrite]]:
+        self,
+        result_item: dict[str, Any],
+        file_node: Node,
+        existing_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
+    ) -> tuple[list[EdgeApply], list[RowWrite], set[str]]:
         """
         Processes pattern mode detection results into annotation edges and RAW rows.
 
@@ -274,8 +284,8 @@ class GeneralApplyService(IApplyService):
         Args:
             result_item: Dictionary containing pattern mode detection results with 'annotations' key.
             file_node: The file node being annotated.
-            existing_bounding_boxes: Set of (page, bounding_box_yaml) tuples from regular annotations
-                                    that met confidence thresholds. Used to avoid duplicate annotations.
+            existing_bounding_boxes: mapping dict of key being (page, (x_min, y_min, x_max, y_max)), values being sets of external IDs
+                                    produced by regular annotations that met confidence thresholds. Used to avoid duplicate annotations.
 
         Returns:
             A tuple containing:
@@ -285,61 +295,87 @@ class GeneralApplyService(IApplyService):
         file_id = file_node.as_id()
         source_id = cast(str, file_node.properties.get(self.file_view_id, {}).get("sourceId"))
         doc_patterns, edge_applies = [], []
+        removed_external_ids: set[str] = set()
+
         for detect_annotation in result_item.get("annotations", []):
             bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
             page = detect_annotation["region"].get("page")
-            if (page, bounding_box.dump_yaml()) in existing_bounding_boxes:
-                continue  # Skip creating a pattern edge if a regular one already exists for this detection
+
+            if self._is_bounding_box_covered(existing_bounding_boxes, page, bounding_box):
+                continue
+
+            coords = self._bounding_box_to_coords(bounding_box)
+
+            for existing_page, existing_coords in list(existing_bounding_boxes.keys()):
+                if existing_page != page:
+                    continue
+
+                if self._bounding_box_contains(coords, existing_coords):
+                    removed_external_ids.update(existing_bounding_boxes.pop((existing_page, existing_coords), set()))
 
             entities = detect_annotation.get("entities", [])
             if not entities:
                 continue
-            entity = entities[0]
 
-            external_id = self._create_pattern_annotation_id(file_id, detect_annotation, bounding_box)
-            annotation_type = entity.get(
-                "annotation_type",
-                self.config.data_model_views.target_entities_view.annotation_type,
-            )
-            annotation_properties = self._create_annotation_properties_from_detection(
-                file_id=file_id,
-                detect_annotation=detect_annotation,
-                status=DiagramAnnotationStatus.SUGGESTED.value,
-            )
-            # Add pattern-specific property
-            annotation_properties["tags"] = []
-            edge_apply = EdgeApply(
-                space=self.sink_node_ref.space,
-                external_id=external_id,
-                type=DirectRelationReference(
-                    space=self.core_annotation_view_id.space,
-                    external_id=annotation_type,
-                ),
-                start_node=DirectRelationReference(space=file_id.space, external_id=file_id.external_id),
-                end_node=self.sink_node_ref,
-                sources=[
-                    NodeOrEdgeData(
-                        source=self.core_annotation_view_id,
-                        properties=annotation_properties,
-                    )
-                ],
-            )
-            edge_applies.append(edge_apply)
-            row_columns = {
-                "externalId": external_id,
-                "startSourceId": source_id,
-                "startNode": file_id.external_id,
-                "startNodeSpace": file_id.space,
-                "endNode": self.sink_node_ref.external_id,
-                "endNodeSpace": self.sink_node_ref.space,
-                "endNodeResourceType": entity.get("resource_type", "Unknown"),
-                "viewId": self.core_annotation_view_id.external_id,
-                "viewSpace": self.core_annotation_view_id.space,
-                "viewVersion": self.core_annotation_view_id.version,
-                **annotation_properties,
-            }
-            doc_patterns.append(RowWrite(key=external_id, columns=row_columns))
-        return edge_applies, doc_patterns
+            file_entity = next((e for e in entities if e.get("annotation_type") == "diagrams.FileLink"), None)
+            asset_entity = next((e for e in entities if e.get("annotation_type") == "diagrams.AssetLink"), None)
+
+            matches = []
+
+            if file_entity:
+                matches.append(file_entity)
+            if asset_entity and asset_entity is not file_entity:
+                matches.append(asset_entity)
+
+            if not matches:
+                matches.append(entities[0])
+
+            for entity in matches:
+                external_id = self._create_pattern_annotation_id(
+                    file_id, detect_annotation, bounding_box, entity.get("annotation_type")
+                )
+                annotation_type = entity.get(
+                    "annotation_type",
+                    self.config.data_model_views.target_entities_view.annotation_type,
+                )
+                annotation_properties = self._create_annotation_properties_from_detection(
+                    file_id=file_id,
+                    detect_annotation=detect_annotation,
+                    status=DiagramAnnotationStatus.SUGGESTED.value,
+                )
+                annotation_properties["tags"] = []
+                edge_apply = EdgeApply(
+                    space=self.sink_node_ref.space,
+                    external_id=external_id,
+                    type=DirectRelationReference(
+                        space=self.core_annotation_view_id.space,
+                        external_id=annotation_type,
+                    ),
+                    start_node=DirectRelationReference(space=file_id.space, external_id=file_id.external_id),
+                    end_node=self.sink_node_ref,
+                    sources=[
+                        NodeOrEdgeData(
+                            source=self.core_annotation_view_id,
+                            properties=annotation_properties,
+                        )
+                    ],
+                )
+                edge_applies.append(edge_apply)
+                row_columns = {
+                    "externalId": external_id,
+                    "startSourceId": source_id,
+                    "startNode": file_id.external_id,
+                    "startNodeSpace": file_id.space,
+                    "endNode": self.sink_node_ref.external_id,
+                    "endNodeSpace": self.sink_node_ref.space,
+                    "endNodeResourceType": entity.get("resource_type", "Unknown"),
+                    "viewId": self.core_annotation_view_id.external_id,
+                    "viewSpace": self.core_annotation_view_id.space,
+                    "viewVersion": self.core_annotation_view_id.version,
+                    **annotation_properties,
+                }
+                doc_patterns.append(RowWrite(key=external_id, columns=row_columns))
+        return edge_applies, doc_patterns, removed_external_ids
 
     def _detect_annotation_to_edge_applies(
         self,
@@ -348,14 +384,14 @@ class GeneralApplyService(IApplyService):
         doc_doc: list[RowWrite],
         doc_tag: list[RowWrite],
         detect_annotation: dict[str, Any],
-        processed_bounding_boxes: set[tuple[int, str]],
+        processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
     ) -> list[EdgeApply]:
         """
         Converts a single detection annotation into edge applies and RAW row writes.
 
         Creates annotation edges linking the file to detected entities, applying confidence thresholds
         to determine approval/suggestion status. Also creates corresponding RAW table entries.
-        Only annotations meeting confidence thresholds are added to the processed_bounding_boxes set for spatial deduplication with pattern mode results.
+        Only annotations meeting confidence thresholds are added to the processed_bounding_boxes dict for spatial deduplication with pattern mode results.
 
         Args:
             file_instance_id: NodeId of the file being annotated.
@@ -363,7 +399,7 @@ class GeneralApplyService(IApplyService):
             doc_doc: List to append doc-to-doc annotation RAW rows to (modified in place).
             doc_tag: List to append doc-to-tag annotation RAW rows to (modified in place).
             detect_annotation: Dictionary containing a single detection result with 'region', 'entities', 'confidence', and 'text' keys.
-            processed_bounding_boxes: Set of (page, bounding_box_yaml) tuples to track annotations meeting confidence thresholds (modified in place).
+            processed_bounding_boxes: mapping dict [key is (page, (x_min, y_min, x_max, y_max)), value is set of external IDs] for regular annotations (modified in place).
 
         Returns:
             List of EdgeApply objects for each entity in the detection that meets confidence thresholds.
@@ -374,6 +410,9 @@ class GeneralApplyService(IApplyService):
         bounding_box: BoundingBox = self._extract_bounding_box_from_region(detect_annotation["region"])
         page = detect_annotation["region"].get("page")
         for entity in detect_annotation.get("entities", []):
+            # NOTE: Remove self references
+            if file_instance_id.as_tuple() == (entity.get("space"), entity.get("external_id")):
+                continue
             if detect_annotation.get("confidence", 0.0) >= self.approve_threshold:
                 status = DiagramAnnotationStatus.APPROVED.value
             elif detect_annotation.get("confidence", 0.0) >= self.suggest_threshold:
@@ -381,9 +420,9 @@ class GeneralApplyService(IApplyService):
             else:
                 continue
 
-            processed_bounding_boxes.add((page, bounding_box.dump_yaml()))
-
             external_id = self._create_annotation_id(file_instance_id, entity, detect_annotation, bounding_box)
+
+            self._add_processed_bounding_box(processed_bounding_boxes, page, bounding_box, external_id)
 
             # skip when duplicate is present
             if external_id in edge_external_id:
@@ -487,7 +526,11 @@ class GeneralApplyService(IApplyService):
         return f"{prefix}:{hash_}"
 
     def _create_pattern_annotation_id(
-        self, file_id: NodeId, raw_annotation: dict[str, Any], bounding_box: BoundingBox
+        self,
+        file_id: NodeId,
+        raw_annotation: dict[str, Any],
+        bounding_box: BoundingBox,
+        entity_type: str | None = None,
     ) -> str:
         """
         Creates a unique external ID for a pattern annotation edge.
@@ -506,6 +549,9 @@ class GeneralApplyService(IApplyService):
         hash_ = self._create_stable_hash(raw_annotation, bounding_box)
         text = raw_annotation.get("text", "")
         prefix = f"pattern:{file_id.external_id}:{text}"
+        if entity_type:
+            short_type = entity_type.split('.')[-1].lower() if isinstance(entity_type, str) else str(entity_type)
+            prefix = f"{prefix}:{short_type}"
         if len(prefix) > self.EXTERNAL_ID_LIMIT - 11:
             prefix = prefix[: self.EXTERNAL_ID_LIMIT - 11]
         return f"{prefix}:{hash_}"
@@ -528,6 +574,60 @@ class GeneralApplyService(IApplyService):
         y_coords = [v.get("y", 0) for v in vertices]
 
         return BoundingBox(x_min=min(x_coords), x_max=max(x_coords), y_min=min(y_coords), y_max=max(y_coords))
+
+    def _bounding_box_to_coords(self, bounding_box: BoundingBox) -> tuple[float, float, float, float]:
+        return (bounding_box.x_min, bounding_box.y_min, bounding_box.x_max, bounding_box.y_max)
+
+    def _bounding_box_contains(
+        self, outer: tuple[float, float, float, float], inner: tuple[float, float, float, float]
+    ) -> bool:
+        return outer[0] <= inner[0] and outer[1] <= inner[1] and outer[2] >= inner[2] and outer[3] >= inner[3]
+
+    def _add_processed_bounding_box(
+        self,
+        processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
+        page: int,
+        bounding_box: BoundingBox,
+        external_id: str,
+    ) -> None:
+        """
+        Record an annotation external_id for a given page/coords key.
+
+        Args:
+            processed_bounding_boxes: mapping dict [key is (page, (x_min, y_min, x_max, y_max)), value is set of external_ids].
+                Each `external_id` is the unique identification of the annotation edge created for a detection
+                The mapping is used for spatial deduplication and to identify/remove regular annotations
+                when pattern results supersede them.
+            page: Page number where the bounding box is located.
+            bounding_box: BoundingBox object for the detection region.
+            external_id: The external id of the created annotation edge to record.
+        """
+        coords = self._bounding_box_to_coords(bounding_box)
+        existing_external_ids = processed_bounding_boxes.get((page, coords))
+
+        if existing_external_ids is not None:
+            existing_external_ids.add(external_id)
+        else:
+            processed_bounding_boxes[(page, coords)] = {external_id}
+
+        return None
+
+    def _is_bounding_box_covered(
+        self,
+        processed_bounding_boxes: dict[tuple[int, tuple[float, float, float, float]], set[str]],
+        page: int,
+        bounding_box: BoundingBox,
+    ) -> bool:
+        coords = self._bounding_box_to_coords(bounding_box)
+
+        for existing_page, existing_coords in processed_bounding_boxes.keys():
+            if existing_page != page:
+                continue
+
+            if existing_coords == coords or self._bounding_box_contains(existing_coords, coords):
+                return True
+
+        return False
 
     def _create_annotation_properties_from_detection(
         self,

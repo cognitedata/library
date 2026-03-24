@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, List, Tuple
+from typing import List, Optional
+
 from cognite.client.data_classes.data_modeling.ids import ViewId
-import pandas as pd
 from constants import FieldNames
 
 

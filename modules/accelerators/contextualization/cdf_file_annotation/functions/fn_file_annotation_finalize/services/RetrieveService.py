@@ -144,16 +144,23 @@ class GeneralRetrieveService(IRetrieveService):
             return None, None, None
 
         job_node: Node = annotation_state_instance.pop(-1)
-        job_id: int = cast(int, job_node.properties[self.annotation_state_view.as_view_id()]["diagramDetectJobId"])
-        job_token: str = cast(
-            str, job_node.properties[self.annotation_state_view.as_view_id()]["diagramDetectJobToken"]
-        )
-        pattern_mode_job_id: int | None = job_node.properties[self.annotation_state_view.as_view_id()].get(
-            "patternModeJobId"
-        )
-        pattern_mode_job_token: str | None = job_node.properties[self.annotation_state_view.as_view_id()][
-            "patternModeJobToken"
-        ]
+        props = job_node.properties[self.annotation_state_view.as_view_id()]
+
+        job_id: int | None = props.get("diagramDetectJobId")
+        job_token: str | None = props.get("diagramDetectJobToken")
+
+        if job_id is None:
+            return None, None, None
+
+        regular_job = (job_id, job_token)
+
+        pattern_mode_job_id: int | None = props.get("patternModeJobId")
+        pattern_mode_job_token: str | None = props.get("patternModeJobToken")
+
+        if pattern_mode_job_id is None:
+            pattern_mode_job = None
+        else:
+            pattern_mode_job = (pattern_mode_job_id, pattern_mode_job_token)
 
         filter_job_id = Equals(
             property=self.annotation_state_view.as_property_ref("diagramDetectJobId"),
@@ -179,7 +186,7 @@ class GeneralRetrieveService(IRetrieveService):
             file_node_id = NodeId(space=file_reference["space"], external_id=file_reference["externalId"])
             file_to_state_map[file_node_id] = node
 
-        return (job_id, job_token), (pattern_mode_job_id, pattern_mode_job_token), file_to_state_map
+        return regular_job, pattern_mode_job, file_to_state_map
 
     def _attempt_to_claim(self, list_job_nodes_to_claim: NodeApplyList) -> None:
         """
@@ -228,6 +235,6 @@ class GeneralRetrieveService(IRetrieveService):
                 self.logger.debug("Lock bypassed. Caught on the client-side.")
                 raise CogniteAPIError(message="A version conflict caused the ingest to fail.", code=400)
 
-        self.client.data_modeling.instances.apply(nodes=list_job_nodes_to_claim)
+        update_results = self.client.data_modeling.instances.apply(nodes=list_job_nodes_to_claim)
 
         return

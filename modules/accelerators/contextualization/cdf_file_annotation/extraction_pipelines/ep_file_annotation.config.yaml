@@ -31,16 +31,16 @@ config:
     rawTablePromoteCache: {{ rawTablePromoteCache }}
     rawManualPatternsCatalog: {{ rawManualPatternsCatalog }}
   prepareFunction:
-    getFilesForAnnotationResetQuery:
-      targetView:
-        schemaSpace: {{fileSchemaSpace}}
-        externalId: {{fileExternalId}}
-        version: {{fileVersion}}
-      filters:
-        - values: ["AnnotationFailed", "Annotated", "AnnotationInProcess"]
-          negate: False
-          operator: In
-          targetProperty: tags
+    # getFilesForAnnotationResetQuery:
+    #   targetView:
+    #     schemaSpace: {{fileSchemaSpace}}
+    #     externalId: {{fileExternalId}}
+    #     version: {{fileVersion}}
+    #   filters:
+    #     - values: ["AnnotationFailed", "Annotated"]
+    #       negate: False
+    #       operator: In
+    #       targetProperty: tags
     getFilesToAnnotateQuery:
       targetView:
         schemaSpace: {{ fileSchemaSpace }}
@@ -149,6 +149,8 @@ config:
           operator: In
           targetProperty: tags
       limit: 500  # Number of edges to process per batch
+    promoteFileEntities: True # Controls if promote is run on file entities
+    promoteTargetEntities: True # Controls if promote is run on target entities
     deleteRejectedEdges: True
     deleteSuggestedEdges: True
     entitySearchService:
@@ -158,5 +160,4 @@ config:
         removeSpecialCharacters: True  # Remove non-alphanumeric characters (e.g., "V-0912" → "V0912")
         convertToLowercase: False  # Convert to lowercase (e.g., "V0912" → "v0912")
         stripLeadingZeros: True  # Remove leading zeros (e.g., "v0912" → "v912")
-
 

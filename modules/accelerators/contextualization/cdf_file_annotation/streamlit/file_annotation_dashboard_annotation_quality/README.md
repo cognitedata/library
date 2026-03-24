@@ -33,15 +33,15 @@ All Python dependencies for the module are listed in `requirements.txt`. Install
 
 1. From the repository root, create/activate your virtual environment and install dependencies. Example with Poetry:
 
-```powershell
+```bash
 poetry install
 poetry shell
 ```
 
 2. Run the app by changing to this folder and launching Streamlit:
 
-```powershell
-cd mpc-cdf-toolkit/modules/cdf_files_annotation_functions/cdf_refining_files_annotation_setup/streamlit/file_annotation_dashboard_annotation_quality
+```bash
+cd modules/accelerators/contextualization/cdf_file_annotation/streamlit/file_annotation_dashboard_annotation_quality
 streamlit run Annotation_Quality.py
 ```
 

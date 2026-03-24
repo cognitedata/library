@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterator, List, Set, cast
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row, RowWrite
 from cognite.client.data_classes.data_modeling import (
+    Node,
     NodeList,
 )
 from cognite.client.exceptions import CogniteNotFoundError
@@ -96,7 +97,7 @@ class GeneralCacheService(ICacheService):
 
         try:
             row: Row | None = self.client.raw.rows.retrieve(db_name=self.db_name, table_name=self.tbl_name, key=key)
-        except:  # noqa: E722
+        except:
             row = None
 
         # Attempt to retrieve from the cache
@@ -164,7 +165,7 @@ class GeneralCacheService(ICacheService):
             row=row_to_write,
             ensure_parent=True,
         )
-        self.logger.info("Successfully updated RAW cache")
+        self.logger.info(f"Successfully updated RAW cache")
         return
 
     def _validate_cache(self, last_update_datetime_str: str) -> bool:
@@ -218,7 +219,7 @@ class GeneralCacheService(ICacheService):
         for instance in asset_instances:
             instance_properties = instance.properties.get(self.target_entities_view.as_view_id())
             asset_resource_type: str = (
-                instance_properties[target_entities_resource_type]
+                instance_properties.get(target_entities_resource_type)
                 if target_entities_resource_type
                 else self.target_entities_view.external_id
             )
@@ -321,8 +322,13 @@ class GeneralCacheService(ICacheService):
                     continue
                 if is_separator(part):
                     # Hyphen and space are plain literals; other specials must be wrapped in brackets
+                    # Bracket characters coming from aliases should be ignored in the resulting
+                    # template (they can't match literal brackets in the docs).
+                    # We still treat them as separators so token-boundary checks work.
                     if part == "-" or part == " ":
                         full_template_key_parts.append(part)
+                    elif part in ("[", "]"):
+                        pass
                     else:
                         full_template_key_parts.append(f"[{part}]")
                     continue
@@ -344,12 +350,16 @@ class GeneralCacheService(ICacheService):
 
             return "".join(full_template_key_parts), all_variable_parts
 
-        for entity in entities:  # noqa: F402
+        for entity in entities:
             key = entity["resource_type"]
             if pattern_builders[key]["annotation_type"] is None:
                 pattern_builders[key]["annotation_type"] = entity.get("annotation_type")
 
             aliases = entity.get("search_property", [])
+
+            if not aliases:
+                continue
+
             for alias in aliases:
                 if not alias:
                     continue
