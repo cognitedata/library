@@ -32,6 +32,7 @@ jobs:
         cat build_output.txt
         HASH=$(grep "🔐 Hash:" build_output.txt | cut -d' ' -f3)
         echo "hash=$HASH" >> $GITHUB_OUTPUT
+        echo "$HASH" > checksum.txt
         
     
         
@@ -56,6 +57,8 @@ jobs:
           **Checksum:** `${{ steps.build.outputs.hash }}`
           
           This release is automatically updated on every merge to main.
-        files: packages.zip
+        files: |
+          packages.zip
+          checksum.txt
         draft: false
         prerelease: false
