@@ -1,7 +1,6 @@
 import uuid
 from typing import Optional
 
-import pandas as pd
 import streamlit as st
 from cognite.client import CogniteClient
 from constants import FieldNames
