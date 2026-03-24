@@ -94,15 +94,8 @@ def _secret(key: str) -> str | None:
 def get_client_and_project() -> tuple[Any, str] | None:
     """Build CogniteClient and project from env/secrets. Returns (client, project) or None."""
     try:
-        from cognite.client import CogniteClient as _C
-        _c = _C()
-        if getattr(_c.config, "project", None):
-            return (_c, _c.config.project)
-    except Exception:
-        pass
-    try:
         from cognite.client import CogniteClient, ClientConfig
-        from cognite.client.credentials import OAuthClientCredentials, Token
+        from cognite.client.credentials import APIKey, OAuthClientCredentials, Token
     except ImportError:
         st.error("Install cognite-sdk >= 7: `pip install cognite-sdk`")
         return None
@@ -110,7 +103,18 @@ def get_client_and_project() -> tuple[Any, str] | None:
     project = _secret("COGNITE_PROJECT")
     base_url = _secret("COGNITE_BASE_URL") or "https://api.cognitedata.com"
 
-    # 1) Bearer-token auth  (CDF_TOKEN or COGNITE_TOKEN)
+    # 1) API key auth
+    api_key = _secret("COGNITE_API_KEY")
+    if api_key and project:
+        config = ClientConfig(
+            client_name="classic-analysis-complete",
+            project=project,
+            credentials=APIKey(api_key),
+            base_url=base_url,
+        )
+        return (CogniteClient(config), project)
+
+    # 2) Bearer-token auth (CDF_TOKEN or COGNITE_TOKEN)
     token = _secret("CDF_TOKEN") or _secret("COGNITE_TOKEN")
     if token and project:
         config = ClientConfig(
@@ -121,7 +125,7 @@ def get_client_and_project() -> tuple[Any, str] | None:
         )
         return (CogniteClient(config), project)
 
-    # 2) OAuth client-credentials auth
+    # 3) OAuth client-credentials auth
     client_id = _secret("COGNITE_CLIENT_ID")
     client_secret = _secret("COGNITE_CLIENT_SECRET")
     tenant_id = _secret("COGNITE_TENANT_ID")
@@ -142,6 +146,7 @@ def get_client_and_project() -> tuple[Any, str] | None:
         return (CogniteClient(config), project)
 
     return None
+
 
 def _ensure_sync(val: Any) -> Any:
     """If val is a coroutine/awaitable or JS Promise, resolve it synchronously."""
@@ -307,9 +312,11 @@ def main() -> None:
     client_and_project = get_client_and_project()
     if not client_and_project:
         st.warning(
-            "Configure CDF credentials. Set COGNITE_PROJECT and either COGNITE_API_KEY or "
-            "COGNITE_CLIENT_ID + COGNITE_CLIENT_SECRET (and optionally COGNITE_TENANT_ID, COGNITE_BASE_URL) "
-            "in environment or Streamlit secrets."
+            "Configure CDF credentials. Set **COGNITE_PROJECT** and one of:\n\n"
+            "- **CDF_TOKEN** (or COGNITE_TOKEN) — bearer-token auth\n"
+            "- **COGNITE_CLIENT_ID** + **COGNITE_CLIENT_SECRET** (+ COGNITE_TENANT_ID) — OAuth client-credentials\n\n"
+            "Optionally set **COGNITE_BASE_URL** (defaults to `https://api.cognitedata.com`).\n\n"
+            "Values can be set as environment variables, in a `.env` file, or in Streamlit secrets."
         )
         return
 
