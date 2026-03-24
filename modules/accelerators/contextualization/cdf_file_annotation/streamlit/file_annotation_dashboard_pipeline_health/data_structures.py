@@ -132,44 +132,6 @@ class FinalizeFunctionConfig:
 
 
 @dataclass
-class LaunchFunctionConfig:
-    secondary_scope_property: str
-    asset_resource_property: str
-    file_resource_property: str
-    cache_service: CacheServiceConfig
-
-    @classmethod
-    def from_dict(cls, d: dict | None):
-        if not isinstance(d, dict):
-            return cls(cache_service=CacheServiceConfig.from_dict(None))
-
-        cache_service = d.get(FieldNames.CACHE_SERVICE_CAMEL_CASE)
-
-        return cls(
-            secondary_scope_property=d.get(FieldNames.SECONDARY_SCOPE_PROPERTY_CAMEL_CASE),
-            asset_resource_property=d.get(FieldNames.ASSET_RESOURCE_PROPERTY_CAMEL_CASE),
-            file_resource_property=d.get(FieldNames.FILE_RESOURCE_PROPERTY_CAMEL_CASE),
-            cache_service=CacheServiceConfig.from_dict(cache_service),
-        )
-    
-
-@dataclass
-class FinalizeFunctionConfig:
-    apply_service: ApplyServiceConfig
-
-    @classmethod
-    def from_dict(cls, d: dict | None):
-        if not isinstance(d, dict):
-            return cls(
-                apply_service=ApplyServiceConfig.from_dict(None)
-            )
-
-        apply_service = d.get(FieldNames.APPLY_SERVICE_CAMEL_CASE)
-
-        return cls(apply_service=ApplyServiceConfig.from_dict(apply_service))
-
-
-@dataclass
 class ExtractionPipelineConfig:
     launch_function: LaunchFunctionConfig
     finalize_function: FinalizeFunctionConfig
