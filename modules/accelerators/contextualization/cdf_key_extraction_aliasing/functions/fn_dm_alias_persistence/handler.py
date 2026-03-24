@@ -5,10 +5,7 @@ This module provides a CDF-compatible handler function that writes aliases
 back to source entities in the CDF data model.
 """
 
-import sys
-from pathlib import Path
 from typing import Any, Dict
-sys.path.append(str(Path(__file__).parent.parent))
 
 try:
     from cognite.client import CogniteClient
@@ -17,7 +14,7 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .dependencies import create_client, create_logger_service, get_env_variables
+from dependencies import create_client, create_logger_service, get_env_variables
 
 
 def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
@@ -30,10 +27,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
     Args:
         data: Dictionary containing:
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
-            - aliasing_results: Results from aliasing task (required)
-            - entities_keys_extracted: Key extraction results to map aliases to entities
-            - aliasWritebackProperty or alias_writeback_property: Optional DM property
-              name to write the alias list to (default "aliases")
+            - aliasing_results: Optional results from aliasing task (list of dicts)
+            - raw_db/raw_table_aliases: If aliasing_results not provided, load from RAW
         client: CogniteClient instance (required)
 
     Returns:
@@ -51,11 +46,22 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             raise ValueError("CogniteClient is required for alias persistence")
 
         # Call pipeline function
-        from .pipeline import persist_aliases_to_entities
+        from pipeline import persist_aliases_to_entities
 
         persist_aliases_to_entities(client=client, logger=logger, data=data)
 
-        return {"status": "succeeded", "data": data}
+        # Return a JSON-safe, compact summary (workflow-friendly).
+        return {
+            "status": "succeeded",
+            "summary": {
+                "aliasing_results_loaded_from_raw": int(
+                    data.get("aliasing_results_loaded_from_raw", 0)
+                ),
+                "entities_updated": int(data.get("entities_updated", 0)),
+                "entities_failed": int(data.get("entities_failed", 0)),
+                "aliases_persisted": int(data.get("aliases_persisted", 0)),
+            },
+        }
 
     except Exception as e:
         message = f"Alias persistence failed: {e!s}"
@@ -78,20 +84,11 @@ def run_locally():
     data = {
         "logLevel": "DEBUG",
         "verbose": False,
-        "aliasing_results": [
-            {
-                "original_tag": "P-101",
-                "aliases": ["P-101", "P_101", "P101", "PUMP-P-101"],
-                "metadata": {},
-            }
-        ],
-        "entities_keys_extracted": {
-            "ASSET-P-101": {
-                "name": {
-                    "P-101": {"confidence": 0.9, "extraction_type": "candidate_key"}
-                }
-            }
-        },
+        # Either provide aliasing_results directly, OR point to RAW to load them.
+        "aliasing_results": [],
+        "raw_db": "db_tag_aliasing",
+        "raw_table_aliases": "GEL_aliases",
+        "raw_read_limit": 100,
     }
 
     # Run handler

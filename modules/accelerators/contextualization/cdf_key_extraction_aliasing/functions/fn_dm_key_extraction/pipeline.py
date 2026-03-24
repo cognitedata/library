@@ -5,7 +5,9 @@ This module provides the main pipeline function that processes entities
 from CDF data model views and extracts keys using the KeyExtractionEngine.
 """
 
+import json
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from cognite.client import CogniteClient
@@ -39,13 +41,16 @@ def key_extraction(
         engine: Initialized KeyExtractionEngine instance
         cdf_config: Optional CDF Config object (if using CDF format)
     """
-    pipeline_ext_id = data.get("ExtractionPipelineExtId", "unknown")
+    # When running from Workflows we do NOT use Extraction Pipelines.
+    # Keep a name for logging/state derived from workflow config if present.
+    pipeline_name = data.get("workflow_config_external_id") or "unknown"
     status = "failure"
     pipeline_run_id = None
     keys_extracted = 0
+    run_started_at = datetime.now(timezone.utc)
 
     try:
-        logger.info(f"Starting Key Extraction Pipeline: {pipeline_ext_id}")
+        logger.info(f"Starting Key Extraction Pipeline: {pipeline_name}")
 
         # Determine if using CDF format or standalone
         use_cdf_format = cdf_config is not None and client is not None
@@ -85,6 +90,7 @@ def key_extraction(
         rule_source_fields_map = {}
         for rule in getattr(engine, "rules", []):
             rule_source_fields_map[rule.name] = [sf.field_name for sf in rule.source_fields]
+        rules_used_counts: Dict[str, int] = {}
 
         for entity_id, entity_fields in entities_source_fields.items():
             # Convert entity fields to format expected by engine
@@ -93,6 +99,9 @@ def key_extraction(
 
             # Extract keys
             result = engine.extract_keys(entity, entity_type)
+            for k in result.candidate_keys:
+                if getattr(k, "rule_name", None):
+                    rules_used_counts[k.rule_name] = rules_used_counts.get(k.rule_name, 0) + 1
 
             # Store results organized by field_name with extraction type metadata
             keys = {}
@@ -131,28 +140,22 @@ def key_extraction(
             _create_table_if_not_exists(client, raw_db, raw_table_state, logger)
             results_by_rule = {}
             for ext_id, entity_metadata in entities_keys_extracted.items():
-                field_keys = entity_metadata.get("keys", [])
-                for key in field_keys:
-                    rule_id = key.rule_id
-                    if rule_id not in results_by_rule:
-                        results_by_rule[rule_id] = {}
-                    if ext_id not in results_by_rule[rule_id]:
-                        results_by_rule[rule_id][ext_id] = {
-                            "value": [key.value],
-                            "extraction_type": key.extraction_type.value if hasattr(key.extraction_type, "value") else str(key.extraction_type),
-                            "source_field": key.source_field,
-                            "confidence": key.confidence,
-                            "method": key.method.value if hasattr(key.method, "value") else str(key.method),
-                            "metadata": key.metadata,
-                            "resource_property": entity_metadata.get("resource_property"),
-                        }
-                    else:
-                        results_by_rule[rule_id][ext_id]["value"].append(key.value)
-            for rule_id, entities_for_rule in results_by_rule.items():
-                rule_table_name = f"{raw_table_key}_{rule_id}"
-                _create_table_if_not_exists(client, raw_db, rule_table_name, logger)
-                for ext_id, rule_results in entities_for_rule.items():
-                    new_row = Row(key=ext_id, columns=rule_results)
+                field_keys = entity_metadata.get("keys", {})
+                if field_keys:
+                    columns = {}
+                    rules_used = set()
+                    for field_name, keys_dict in field_keys.items():
+                        # Convert dict of {key: {confidence, extraction_type}} to list format expected by RAW
+                        # Column names use field_name (e.g., "NAME", "DESCRIPTION")
+                        columns[field_name.upper()] = list(keys_dict.keys())
+                        for _, meta in (keys_dict or {}).items():
+                            if isinstance(meta, dict) and meta.get("rule_name"):
+                                rules_used.add(str(meta["rule_name"]))
+
+                    # Persist rule provenance as JSON (workflow debugging/audit).
+                    columns["RULES_USED_JSON"] = json.dumps(sorted(rules_used))
+
+                    new_row = Row(key=ext_id, columns=columns)
                     raw_uploader.add_to_upload_queue(
                         database=raw_db,
                         table=rule_table_name,
@@ -166,64 +169,62 @@ def key_extraction(
                 logger.error(f"Failed to upload rows to RAW: {e}")
                 raise
 
-        # Apply keys to nodes if configured
-        if use_cdf_format and cdf_config and cdf_config.parameters.apply:
-            try:
-                apply_service = GeneralApplyService(client, cdf_config, logger)
-                apply_service.run()
-            except Exception as e:
-                logger.error(f"Apply service failed: {e}")
+        # Determine status for workflow/state reporting.
+        if keys_extracted > 0:
+            status = "success"
+            message = f"Successfully extracted {keys_extracted} keys"
+        else:
+            status = "failure"
+            message = "No keys were extracted and no keys were uploaded"
 
-        # Update pipeline run status
+        # Write a lightweight state row to RAW (this is separate from extraction pipeline runs).
+        # This makes it easy to inspect "what was processed" for a given run from RAW.
         if use_cdf_format and client:
-            from cognite.client.data_classes import ExtractionPipelineRun
-            from cognite.client.utils._text import shorten
-
-            if keys_extracted > 0:
-                status = "success"
-                message = f"Successfully extracted {keys_extracted} keys"
-            else:
-                status = "failure"
-                message = "No keys were extracted and no keys were uploaded"
-
+            run_finished_at = datetime.now(timezone.utc)
+            run_duration_s = (run_finished_at - run_started_at).total_seconds()
+            run_duration_ms = int(run_duration_s * 1000)
+            state_key = run_finished_at.strftime("%Y%m%dT%H%M%S.%fZ")
             try:
-                pipeline_run = client.extraction_pipelines.runs.create(
-                    ExtractionPipelineRun(
-                        extpipe_external_id=pipeline_ext_id,
-                        status=status,
-                        message=shorten(message, 1000),
-                    )
+                client.raw.rows.insert(
+                    raw_db,
+                    raw_table_state,
+                    Row(
+                        key=str(state_key),
+                        columns={
+                            "pipeline_name": pipeline_name,
+                            "status": status,
+                            "message": message,
+                            "keys_extracted": keys_extracted,
+                            "entities_processed": len(entities_keys_extracted),
+                            "run_started_at": run_started_at.isoformat(),
+                            "run_finished_at": run_finished_at.isoformat(),
+                            "run_duration_s": run_duration_s,
+                            "run_duration_ms": run_duration_ms,
+                            "raw_db": raw_db,
+                            "raw_table_key": raw_table_key,
+                            "raw_table_state": raw_table_state,
+                            "max_files": getattr(
+                                getattr(cdf_config, "parameters", None), "max_files", None
+                            ),
+                            "rules_used_counts_json": json.dumps(rules_used_counts),
+                        },
+                    ),
                 )
-                pipeline_run_id = pipeline_run.id
-                logger.info(f"Pipeline run ID: {pipeline_run_id}")
+                logger.info(
+                    f"Wrote state row to RAW: db={raw_db} table={raw_table_state} key={state_key}"
+                )
             except Exception as e:
-                logger.warning(f"Failed to create pipeline run: {e}")
+                logger.warning(f"Failed writing RAW state row: {e}")
 
         # Store results in data dict for return
         data["keys_extracted"] = keys_extracted
         data["entities_keys_extracted"] = entities_keys_extracted
         data["status"] = status
-        data["pipeline_run_id"] = pipeline_run_id
+        data["message"] = message
 
     except Exception as e:
         message = f"Pipeline failed: {e!s}"
         logger.error(message)
-
-        # Update pipeline run with failure
-        if use_cdf_format and client and pipeline_ext_id:
-            try:
-                from cognite.client.data_classes import ExtractionPipelineRun
-                from cognite.client.utils._text import shorten
-
-                client.extraction_pipelines.runs.create(
-                    ExtractionPipelineRun(
-                        extpipe_external_id=pipeline_ext_id,
-                        status="failure",
-                        message=shorten(message, 1000),
-                    )
-                )
-            except Exception:
-                pass
 
         raise
 
@@ -260,24 +261,41 @@ def _get_target_entities_cdf(
         excluded_entities = _read_table_keys(client, raw_db, raw_table_key)
         logger.debug(f"Excluding {len(excluded_entities)} existing entities")
 
-    for entity_view_config in source_views:
+    max_files = getattr(getattr(config, "parameters", None), "max_files", None)
+    if isinstance(max_files, bool):  # avoid treating True/False as ints
+        max_files = None
+    if isinstance(max_files, int) and max_files <= 0:
+        max_files = None
+
+    for entity_view_config in config.data.source_views:
         entity_view_id = entity_view_config.as_view_id()
 
         logger.debug(f"Querying view: {entity_view_id}")
 
         # Build filter
         filter_expr = _build_filter(
-            entity_view_config, config.parameters.run_all, excluded_entities, logger
+            entity_view_config,
+            bool(getattr(getattr(config, "parameters", None), "run_all", True)),
+            excluded_entities,
+            logger,
         )
 
         try:
+            remaining = None
+            if isinstance(max_files, int):
+                remaining = max_files - len(entities_source)
+                if remaining <= 0:
+                    break
+
             # Query instances
             instances = client.data_modeling.instances.list(
                 instance_type="node",
                 space=entity_view_config.instance_space,
                 sources=[entity_view_id],
                 filter=filter_expr,
-                limit=entity_view_config.batch_size,
+                limit=min(entity_view_config.batch_size, remaining)
+                if isinstance(remaining, int)
+                else entity_view_config.batch_size,
             )
 
             logger.debug(
@@ -304,27 +322,64 @@ def _get_target_entities_cdf(
                         "instance_space": entity_view_config.instance_space,
                     }
 
-                # Collect source fields from extraction rules
-                for rule in config.data.extraction_rules:
-                    source_fields = rule.source_fields
-                    if not isinstance(source_fields, list):
-                        source_fields = [source_fields] if source_fields else []
-                    for source_field in source_fields:
-                        field_name = getattr(source_field, "field_name", source_field)
-                        field_value = entity_props.get(field_name)
-                        if field_value is not None:
-                            if hasattr(source_field, "preprocessing") and source_field.preprocessing:
-                                field_value = _apply_preprocessing(
-                                    str(field_value), source_field.preprocessing
+                # Determine which fields to extract.
+                # Prefer extraction_rules.source_fields if available; otherwise fall back to include_properties.
+                wanted_fields: list[tuple[str, bool, list[str]]] = []
+                extraction_rules = getattr(getattr(config, "data", None), "extraction_rules", None)
+
+                if isinstance(extraction_rules, list) and extraction_rules:
+                    # Case 1: list of pydantic objects with `.source_fields`
+                    if hasattr(extraction_rules[0], "source_fields"):
+                        for rule in extraction_rules:
+                            source_fields = getattr(rule, "source_fields", None)
+                            if source_fields is None:
+                                continue
+                            if not isinstance(source_fields, list):
+                                source_fields = [source_fields]
+                            for sf in source_fields:
+                                wanted_fields.append(
+                                    (
+                                        str(getattr(sf, "field_name", "") or ""),
+                                        bool(getattr(sf, "required", False)),
+                                        list(getattr(sf, "preprocessing", []) or []),
+                                    )
                                 )
-                            entities_source[entity_external_id][
-                                f"{rule.name}_{field_name}"
-                            ] = field_value
-                        elif getattr(source_field, "required", False):
+                    # Case 2: list of dicts from workflow config
+                    elif isinstance(extraction_rules[0], dict):
+                        for rule in extraction_rules:
+                            for sf in (rule.get("source_fields", []) or []):
+                                if not isinstance(sf, dict):
+                                    continue
+                                wanted_fields.append(
+                                    (
+                                        str(sf.get("field_name") or ""),
+                                        bool(sf.get("required") or False),
+                                        list(sf.get("preprocessing") or []),
+                                    )
+                                )
+
+                if not wanted_fields:
+                    for p in list(getattr(entity_view_config, "include_properties", []) or []):
+                        wanted_fields.append((str(p or ""), False, []))
+
+                for field_name, required, preprocessing in wanted_fields:
+                    if not field_name:
+                        continue
+                    field_value = entity_props.get(field_name)
+                    if field_value is None:
+                        if required:
                             logger.verbose(
                                 "WARNING",
                                 f"Missing required field '{field_name}' in entity: {entity_external_id}",
                             )
+                        continue
+
+                    if preprocessing:
+                        field_value = _apply_preprocessing(field_value, preprocessing)
+                    entities_source[entity_external_id][field_name] = field_value
+
+                if isinstance(max_files, int) and len(entities_source) >= max_files:
+                    break
 
             logger.info(
                 f"Processed {len(entities_source)} entities from view: {entity_view_id}"
@@ -333,6 +388,9 @@ def _get_target_entities_cdf(
         except Exception as e:
             logger.error(f"Error querying view {entity_view_id}: {e}")
             raise
+
+        if isinstance(max_files, int) and len(entities_source) >= max_files:
+            break
 
     return entities_source
 

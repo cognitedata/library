@@ -1,9 +1,0 @@
-externalId: cdf_key_extraction_aliasing_trigger
-triggerRule:
-  triggerType: schedule
-  cronExpression: "0 2 * * *"  # Run daily at 2 AM
-workflowExternalId: cdf_key_extraction_aliasing_GEL
-workflowVersion: v1
-authentication:
-  clientId: '{{functionClientId}}'
-  clientSecret: '{{functionClientSecret}}'

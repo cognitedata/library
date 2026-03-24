@@ -6,11 +6,11 @@ and writes aliases back to source entities in the CDF data model.
 """
 
 import logging
-from typing import Any, Dict, Optional
+import json
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from cognite.client import CogniteClient
-    from cognite.client import data_modeling as dm
     from cognite.client.data_classes.data_modeling.ids import ViewId
     from cognite.client.data_classes.data_modeling.instances import (
         NodeApply,
@@ -20,22 +20,109 @@ try:
     CDF_AVAILABLE = True
 except ImportError:
     CDF_AVAILABLE = False
-    dm = None
     NodeApply = None
     NodeOrEdgeData = None
     ViewId = None
 
-from .common.logger import CogniteFunctionLogger
+from common.logger import CogniteFunctionLogger
 
 logger = None  # Use CogniteFunctionLogger directly
 
 
-def _resolve_alias_writeback_property(data: Dict[str, Any]) -> str:
-    """Target DM property name for alias list (default CogniteDescribable `aliases`)."""
-    name = data.get("aliasWritebackProperty") or data.get("alias_writeback_property")
-    if isinstance(name, str) and name.strip():
-        return name.strip()
-    return "aliases"
+def _load_aliasing_results_from_raw(
+    client: CogniteClient,
+    raw_db: str,
+    raw_table_aliases: str,
+    logger: Any,
+    limit: int = 1000,
+) -> List[Dict[str, Any]]:
+    """
+    Read aliasing results from RAW.
+
+    Expected schema (written by Key-Aliasing):
+      - key: original_tag
+      - columns.aliases: list[str]
+      - columns.metadata_json: json string
+      - columns.entities_json: json string (list of entity mappings) (optional)
+    """
+    try:
+        rows = client.raw.rows.list(raw_db, raw_table_aliases, limit=limit)
+    except Exception as e:
+        logger.error(f"Failed reading RAW rows db={raw_db} table={raw_table_aliases}: {e}")
+        raise
+
+    def _normalize_aliases(value: Any) -> List[str]:
+        """Normalize RAW row `aliases` column into a list of strings."""
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(v) for v in value if v is not None and str(v) != ""]
+        if isinstance(value, str):
+            s = value.strip()
+            if not s:
+                return []
+            # Fusion RAW UI sometimes renders list columns as "List: a,b,c"
+            if s.lower().startswith("list:"):
+                s = s.split(":", 1)[1].strip()
+            # Try JSON first (preferred)
+            try:
+                parsed = json.loads(s)
+                if isinstance(parsed, list):
+                    return [
+                        str(v)
+                        for v in parsed
+                        if v is not None and isinstance(v, (str, int, float, bool))
+                    ]
+            except Exception:
+                pass
+            # Try YAML as a fallback (covers "['a','b']" representations)
+            try:
+                import yaml  # local import to keep deps optional
+
+                parsed = yaml.safe_load(s)
+                if isinstance(parsed, list):
+                    return [str(v) for v in parsed if v is not None and str(v) != ""]
+            except Exception:
+                pass
+            # Comma-separated fallback (covers "a,b,c" and "List: a,b,c")
+            if "," in s:
+                parts = [p.strip() for p in s.split(",")]
+                return [p for p in parts if p]
+            # Last resort: treat whole string as one alias token
+            return [s]
+        # Unexpected type -> best effort stringification
+        return [str(value)]
+
+    results: List[Dict[str, Any]] = []
+    for row in rows:
+        cols = getattr(row, "columns", {}) or {}
+        aliases = _normalize_aliases(cols.get("aliases"))
+        metadata_json = cols.get("metadata_json")
+        entities_json = cols.get("entities_json")
+
+        metadata = {}
+        if isinstance(metadata_json, str) and metadata_json:
+            try:
+                metadata = json.loads(metadata_json)
+            except Exception:
+                metadata = {}
+
+        entities = []
+        if isinstance(entities_json, str) and entities_json:
+            try:
+                entities = json.loads(entities_json)
+            except Exception:
+                entities = []
+
+        results.append(
+            {
+                "original_tag": getattr(row, "key", None),
+                "aliases": aliases,
+                "metadata": metadata,
+                "entities": entities,
+            }
+        )
+    return results
 
 
 def persist_aliases_to_entities(
@@ -68,6 +155,23 @@ def persist_aliases_to_entities(
         # Get aliasing results
         aliasing_results = data.get("aliasing_results", [])
         if not aliasing_results:
+            raw_db = data.get("raw_db")
+            raw_table_aliases = data.get("raw_table_aliases") or data.get("raw_table")
+            if raw_db and raw_table_aliases:
+                raw_limit = int(data.get("raw_read_limit", 1000))
+                logger.info(
+                    f"No aliasing_results provided; loading from RAW db={raw_db} table={raw_table_aliases} limit={raw_limit}"
+                )
+                aliasing_results = _load_aliasing_results_from_raw(
+                    client=client,
+                    raw_db=raw_db,
+                    raw_table_aliases=raw_table_aliases,
+                    logger=logger,
+                    limit=raw_limit,
+                )
+                data["aliasing_results_loaded_from_raw"] = len(aliasing_results)
+
+        if not aliasing_results:
             logger.warning("No aliasing results found to persist")
             data["aliases_persisted"] = 0
             return
@@ -78,9 +182,11 @@ def persist_aliases_to_entities(
             f"(set aliasWritebackProperty or alias_writeback_property to override)"
         )
 
-        # Group aliases by entity using view information from aliasing results
+        # Group aliases by entity using view information from aliasing results.
+        # Note: a single tag's aliases can map to multiple entities, so counts can be > number of
+        # aliasing rows in RAW.
         entity_aliases = {}
-        aliases_persisted_count = 0
+        aliases_planned_count = 0
 
         for aliasing_result in aliasing_results:
             original_tag = aliasing_result.get("original_tag")
@@ -130,11 +236,11 @@ def persist_aliases_to_entities(
                 entity_aliases[entity_key]["aliases"].extend(aliases)
                 entity_aliases[entity_key]["candidate_keys"].append(original_tag)
                 entity_aliases[entity_key]["field_names"].add(field_name)
-                aliases_persisted_count += len(aliases)
+                aliases_planned_count += len(aliases)
 
         logger.info(
             f"Prepared aliases for {len(entity_aliases)} entities "
-            f"({aliases_persisted_count} total aliases)"
+            f"({aliases_planned_count} planned alias writes)"
         )
 
         # Persist aliases to entities using CogniteDescribable view
@@ -161,6 +267,7 @@ def persist_aliases_to_entities(
 
         persisted_count = 0
         failed_count = 0
+        aliases_persisted_count = 0
 
         for entity_key, alias_data in entity_aliases.items():
             try:
@@ -172,55 +279,8 @@ def persist_aliases_to_entities(
                 if not instance_space:
                     instance_space = target_view_space
 
-                # Query the entity instance through CogniteDescribable view
-                # Note: external_id is an instance property, not a view property
-                # We need to query all instances and filter by external_id in Python,
-                # or use a different approach
-                logger.debug(
-                    f"Querying entity {entity_id} from {target_view_id} view in space {instance_space}"
-                )
-
-                # Try to retrieve the instance directly by external_id
-                # If the view doesn't have external_id as a property, we'll need to query differently
-                try:
-                    instances = client.data_modeling.instances.retrieve(
-                        nodes=[entity_id],
-                        space=instance_space,
-                        sources=[target_view_id],
-                    )
-                    if not instances:
-                        instances = []
-                except Exception as retrieve_error:
-                    logger.debug(
-                        f"Direct retrieve failed for {entity_id}, trying list: {retrieve_error}"
-                    )
-                    # Fallback: list and filter by external_id in results
-                    try:
-                        all_instances = client.data_modeling.instances.list(
-                            instance_type="node",
-                            space=instance_space,
-                            sources=[target_view_id],
-                            limit=1000,  # Adjust limit as needed
-                        )
-                        instances = [
-                            inst
-                            for inst in all_instances
-                            if getattr(inst, "external_id", None) == entity_id
-                        ]
-                    except Exception as list_error:
-                        logger.warning(
-                            f"Failed to query entity {entity_id}: {list_error}"
-                        )
-                        instances = []
-
-                if not instances:
-                    logger.warning(
-                        f"Entity {entity_id} not found in {target_view_id} view, skipping"
-                    )
-                    failed_count += 1
-                    continue
-
-                # Prepare property update (property name is configurable; default aliases)
+                # Prepare property update with aliases
+                # Writing to CogniteDescribable view which should have an "aliases" property
                 # Note: Only include properties that exist in the view schema
                 properties_update = {alias_writeback_property: aliases}
 
@@ -246,6 +306,7 @@ def persist_aliases_to_entities(
                 )
 
                 persisted_count += 1
+                aliases_persisted_count += len(aliases)
                 logger.debug(
                     f"Successfully persisted {len(aliases)} aliases for entity {entity_id} "
                     f"in {target_view_id}"
@@ -260,6 +321,7 @@ def persist_aliases_to_entities(
                 continue
 
         # Store persistence results
+        data["aliases_planned"] = aliases_planned_count
         data["aliases_persisted"] = aliases_persisted_count
         data["entities_updated"] = persisted_count
         data["entities_failed"] = failed_count

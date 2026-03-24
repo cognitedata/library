@@ -260,6 +260,7 @@ class TokenReassemblyExtractionHandler(ExtractionMethodHandler):
         method: ExtractionMethod,
         context: Optional[Dict[str, Any]] = None,
     ) -> list[ExtractedKey]:
+        """Assemble candidate keys by combining extracted tokens per an assembly rule."""
         results = []
         # The original way of doing things was that each token_pattern had ONE token mapped to it, now theres many. We have to try all possible combos of token_patterns now...
         # TODO this is super innefficient here, but we have to do

@@ -10,7 +10,7 @@ What it does:
    (config + entities passed directly; no RAW writes)
 5) Writes extraction results to a local JSON file
 
-Usage (from library_fresh):
+Usage (from repo root):
   poetry run python modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/run_fn_dm_key_extraction_local.py
 
 Reuse cached entities (skip CDF fetch):
@@ -29,8 +29,8 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-# Ensure library_fresh is importable as project root.
-REPO_ROOT = Path(__file__).resolve().parents[5]
+# Ensure the function folder is importable as project root for local runs.
+REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from cognite.client import CogniteClient
@@ -39,15 +39,12 @@ from cognite.client.credentials import OAuthClientCredentials
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
-    load_config_from_yaml,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.handler import (
-    handle,
-)
+from fn_dm_key_extraction.cdf_adapter import load_config_from_yaml
+from fn_dm_key_extraction.handler import handle
 
 
 def _build_client_from_env() -> CogniteClient:
+    """Create a `CogniteClient` from standard CDF env vars."""
     load_dotenv()
 
     cdf_project = os.environ["CDF_PROJECT"]
@@ -73,6 +70,7 @@ def _build_client_from_env() -> CogniteClient:
 
 
 def _build_view_filter(view_cfg: Dict[str, Any], view_id: ViewId) -> Any:
+    """Build a DM filter expression from a source_view config."""
     filters_cfg = view_cfg.get("filters", []) or []
     filter_exprs: List[Any] = [dm.filters.HasData(views=[view_id])]
 
@@ -114,6 +112,7 @@ def _build_view_filter(view_cfg: Dict[str, Any], view_id: ViewId) -> Any:
 
 
 def _extract_props(instance: Any, view_id: ViewId) -> Dict[str, Any]:
+    """Extract view-scoped properties from an instance dump."""
     dumped = instance.dump()
     return (
         dumped.get("properties", {})
@@ -129,6 +128,7 @@ def _fetch_entities_from_cdf(
     limit_override: int | None = None,
     total_samples: int | None = None,
 ) -> Dict[str, Dict[str, Any]]:
+    """Fetch entities from CDF instances.list based on engine config source_views."""
     entities: Dict[str, Dict[str, Any]] = {}
     source_views = engine_config.get("source_views", []) or []
 
@@ -193,14 +193,14 @@ def _fetch_entities_from_cdf(
 
 
 def main() -> int:
+    """CLI entrypoint for local key-extraction run."""
     module_dir = Path(__file__).resolve().parent.parent
-    default_config = module_dir / "extraction_pipelines" / "ctx_key_extraction_GEL_prod.config.yaml"
     default_results_dir = module_dir / "local_run_results"
 
     parser = argparse.ArgumentParser(
         description="Fetch CDF entities, cache locally, run fn_dm_key_extraction locally."
     )
-    parser.add_argument("--config-path", default=str(default_config))
+    parser.add_argument("--config-path", required=True)
     parser.add_argument("--total-samples", type=int, default=10)
     parser.add_argument("--limit-per-view", type=int, default=0)
     parser.add_argument("--use-cache", default="")

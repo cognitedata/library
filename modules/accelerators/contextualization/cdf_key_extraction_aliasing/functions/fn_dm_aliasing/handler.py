@@ -20,20 +20,11 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .cdf_adapter import convert_cdf_config_to_aliasing_config
-from .cdf_adapter import _convert_yaml_direct_to_aliasing_config
-from .dependencies import create_client, create_logger_service, get_env_variables
-from .engine.tag_aliasing_engine import AliasingEngine
-
-try:
-    from .config import Config, load_config_parameters
-
-    CDF_CONFIG_AVAILABLE = True
-except ImportError:
-    CDF_CONFIG_AVAILABLE = False
-    load_config_parameters = None
-    Config = None
-
+# CDF Functions loads this file as a top-level module (`handler`), so relative imports
+# like `from .x import y` will fail with "no known parent package".
+from cdf_adapter import _convert_yaml_direct_to_aliasing_config
+from dependencies import create_client, create_logger_service, get_env_variables
+from engine.tag_aliasing_engine import AliasingEngine
 
 def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
     """
@@ -44,14 +35,14 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
     Args:
         data: Dictionary containing:
-            - ExtractionPipelineExtId: Optional external ID of extraction pipeline
+            - config: Workflow-provided config payload
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
-            - tags: List of tags to generate aliases for (required)
+            - tags: Optional list of tags to generate aliases for
             - entities: Optional list of entities with tags to alias
-        client: CogniteClient instance (required if using CDF config loading)
+        client: CogniteClient instance (required for RAW read/write workflow mode)
 
     Returns:
-        Dictionary with}")
+        JSON-serializable dict with status + summary.
     """
     logger = None
 
@@ -65,19 +56,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
         logger.info(f"Starting tag aliasing with loglevel = {loglevel} with verbose set to {verbose}")
 
-        # Load configuration from CDF extraction pipeline or use provided config
-        if CDF_CONFIG_AVAILABLE and client and "ExtractionPipelineExtId" in data:
-            pipeline_ext_id = data["ExtractionPipelineExtId"]
-            logger.info(f"Loading config from extraction pipeline: {pipeline_ext_id}")
-
-            cdf_config = load_config_parameters(client, data)
-
-            # Convert CDF config to aliasing config
-            aliasing_config = convert_cdf_config_to_aliasing_config(cdf_config)
-            data["_cdf_config"] = cdf_config
-            data["_aliasing_config"] = aliasing_config
-
-        elif "config" in data:
+        # Load configuration from workflow payload (required)
+        if "config" in data:
             # Workflow/direct config provided
             provided_config = data["config"]
             if isinstance(provided_config, dict):
@@ -101,6 +81,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                             data.setdefault("raw_db", params["raw_db"])
                         if "raw_table_aliases" in params:
                             data.setdefault("raw_table", params["raw_table_aliases"])
+                        if "raw_table_state" in params:
+                            data.setdefault("raw_table_state", params["raw_table_state"])
                         data.setdefault("upload_to_raw", True)
                 else:
                     # Direct engine-ready config
@@ -200,15 +182,26 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 logger.info("Using minimal default aliasing config")
 
         # Initialize engine with logger
-        engine = AliasingEngine(aliasing_config, logger, client=client)
-        data["_engine"] = engine
+        engine = AliasingEngine(aliasing_config, logger)
 
-        # Call pipeline function
-        from .pipeline import tag_aliasing
+        # Call pipeline function (CDF Functions loads this as top-level module)
+        from pipeline import tag_aliasing
 
         tag_aliasing(client=client, logger=logger, data=data, engine=engine)
 
-        return {"status": "succeeded", "data": data}
+        # CDF Functions requires the returned object to be JSON-serializable.
+        # The pipeline stores rich objects in `data` (engines, mappings, etc),
+        # so only return a compact summary.
+        return {
+            "status": "succeeded",
+            "summary": {
+                "total_tags_processed": int(data.get("total_tags_processed", 0)),
+                "total_aliases_generated": int(data.get("total_aliases_generated", 0)),
+                "raw_written": bool(data.get("upload_to_raw", False)),
+                "raw_db": data.get("raw_db"),
+                "raw_table_aliases": data.get("raw_table"),
+            },
+        }
 
     except Exception as e:
         message = f"Tag aliasing pipeline failed: {e!s}"

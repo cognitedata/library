@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Set
 
 from cognite.client import CogniteClient
 
-from ...common.logger import CogniteFunctionLogger
+from common.logger import CogniteFunctionLogger
 
 
 class AliasTransformerHandler(ABC):
@@ -16,6 +16,7 @@ class AliasTransformerHandler(ABC):
         logger: Optional[CogniteFunctionLogger] = None,
         client: Optional[CogniteClient] = None,
     ):
+        """Create a transformer handler with optional logger and CDF client."""
         self.logger = logger or CogniteFunctionLogger("INFO", False)
         self.client = client
 

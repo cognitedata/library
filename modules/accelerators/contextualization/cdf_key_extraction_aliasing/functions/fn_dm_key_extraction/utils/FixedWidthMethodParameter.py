@@ -30,7 +30,7 @@ class FixedWidthMethodParameter(BaseModel):
     )
 
     line_pattern: Optional[str] = Field(
-        None, description="Regex to identify processable lines (e.g., '^\s*[A-Z0-9]')."
+        None, description="Regex to identify processable lines (e.g., '^\\\\s*[A-Z0-9]')."
     )
 
     skip_lines: int = Field(

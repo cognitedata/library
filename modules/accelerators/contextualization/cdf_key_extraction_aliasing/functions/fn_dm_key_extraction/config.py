@@ -4,11 +4,9 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import yaml
-from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.filters import Filter
-from cognite.client.exceptions import CogniteAPIError
 from pydantic import BaseModel, Field
 
 from .utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
@@ -25,8 +23,10 @@ class Parameters(BaseModel):
     verbose: bool = Field(False, description="Enable verbose output")
     run_all: bool = Field(True, description="Run all extraction rules")
     overwrite: bool = Field(False, description="Overwrite existing results")
-    apply: bool = Field(True, description="Apply results to instances")
-    min_key_length: int = Field(3, description="Minimum key length to apply")
+    max_files: Optional[int] = Field(
+        None,
+        description="Optional limit for how many file entities to process (across all source_views).",
+    )
     raw_db: str = Field(..., description="ID of the raw database")
     raw_table_state: str = Field(..., description="ID of the state table in RAW")
     raw_table_key: str = Field(..., description="ID of the key table in RAW")
@@ -48,11 +48,13 @@ class ViewPropertyConfig(BaseModel):
     search_property: str
 
     def as_view_id(self) -> dm.ViewId:
+        """Convert this config to a `ViewId`."""
         return dm.ViewId(
             space=self.schema_space, external_id=self.external_id, version=self.version
         )
 
     def as_property_ref(self, property) -> list[str]:
+        """Build a data modeling property reference for filters/search."""
         return [self.schema_space, f"{self.external_id}/{self.version}", property]
 
 
@@ -63,6 +65,7 @@ class FilterConfig(BaseModel):
     target_property: str
 
     def as_filter(self, view_properties: ViewPropertyConfig) -> Filter:
+        """Convert this config to a Cognite Data Modeling filter."""
         property_reference = view_properties.as_property_ref(self.target_property)
         if isinstance(self.values, list):
             find_values = [v.value if isinstance(v, Enum) else v for v in self.values]
@@ -152,6 +155,7 @@ class SourceViewConfig(TargetViewConfig):
     )
 
     def as_view_id(self) -> ViewId:
+        """Convert this source view config to a `ViewId`."""
         return ViewId(
             space=self.view_space,
             external_id=self.view_external_id,
@@ -159,6 +163,7 @@ class SourceViewConfig(TargetViewConfig):
         )
 
     def build_filter(self) -> Filter:
+        """Build a combined filter from `filters` (ANDed), or return a single filter."""
         target_view = ViewPropertyConfig(
             schema_space=self.view_space,
             instance_space=self.instance_space,
@@ -284,35 +289,21 @@ class Config(BaseModel):
 
     @classmethod
     def pares_direct_relation(cls, value: Any) -> Any:
+        """Parse direct relation references from dict input."""
         if isinstance(value, dict):
             return dm.DirectRelationReference.load(value)
         return value
 
 
-def load_config_parameters(
-    client: CogniteClient, function_data: dict[str, Any]
-) -> Config:
-    """Retrieves the configuration parameters from the function data and loads the configuration from CDF."""
-    if "ExtractionPipelineExtId" not in function_data:
-        raise ValueError(
-            "Missing key 'ExtractionPipelineExtId' in input data to the function"
-        )
-
-    pipeline_ext_id = function_data["ExtractionPipelineExtId"]
-    try:
-        raw_config = client.extraction_pipelines.config.retrieve(pipeline_ext_id)
-        if raw_config.config is None:
-            raise ValueError(
-                f"No config found for extraction pipeline: {pipeline_ext_id!r}"
-            )
-    except CogniteAPIError as e:
-        raise RuntimeError(
-            f"Not able to retrieve pipeline config for extraction pipeline: {pipeline_ext_id!r} Due to: {e}"
-        )
-
-    parsed = yaml.safe_load(raw_config.config)
-    # Config may be stored as either:
-    # - {"parameters": ..., "data": ...}
-    # - {"externalId": "...", "config": {"parameters": ..., "data": ...}}
-    config_data = parsed.get("config", parsed)
-    return Config.model_validate(config_data)
+__all__ = [
+    "Parameters",
+    "EntityType",
+    "ViewPropertyConfig",
+    "FilterConfig",
+    "SourceViewConfig",
+    "SourceFieldConfig",
+    "ExtractionRuleConfig",
+    "ValidationConfig",
+    "ConfigData",
+    "Config",
+]

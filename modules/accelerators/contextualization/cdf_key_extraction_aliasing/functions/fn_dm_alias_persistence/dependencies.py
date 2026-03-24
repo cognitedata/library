@@ -1,34 +1,27 @@
 import os
-from pathlib import Path
+from dataclasses import dataclass
+
 from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
 
-from .common.logger import CogniteFunctionLogger
+from common.logger import CogniteFunctionLogger
 
-# Import EnvConfig from key extraction utils (shared data structure)
-try:
-    from ..fn_dm_key_extraction.utils.DataStructures import EnvConfig
-except ImportError:
-    # Fallback: define EnvConfig locally if key extraction not available
-    from dataclasses import dataclass
 
-    @dataclass
-    class EnvConfig:
-        """Data structure holding the configs to connect to CDF client locally"""
+@dataclass
+class EnvConfig:
+    """Configs used to connect to a CDF project locally."""
 
-        cdf_project: str
-        cdf_cluster: str
-        tenant_id: str
-        client_id: str
-        client_secret: str
+    cdf_project: str
+    cdf_cluster: str
+    tenant_id: str
+    client_id: str
+    client_secret: str
 
 
 def get_env_variables() -> EnvConfig:
+    """Load required CDF connection environment variables (local runs)."""
     print("Loading environment variables from .env...")
-
-    project_path = (Path(__file__).parent / ".env").resolve()
-    print(f"project_path is set to: {project_path}")
 
     load_dotenv()
 
@@ -54,6 +47,7 @@ def get_env_variables() -> EnvConfig:
 
 
 def create_client(env_config: EnvConfig, debug: bool = False):
+    """Create a `CogniteClient` using OAuth client credentials (local runs)."""
     SCOPES = [f"https://{env_config.cdf_cluster}.cognitedata.com/.default"]
     TOKEN_URL = (
         f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
@@ -76,6 +70,7 @@ def create_client(env_config: EnvConfig, debug: bool = False):
 
 
 def create_logger_service(log_level, verbose):
+    """Create a `CogniteFunctionLogger` with the requested verbosity."""
     if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
         return CogniteFunctionLogger("INFO", verbose)
     else:
@@ -83,27 +78,10 @@ def create_logger_service(log_level, verbose):
 
 
 def create_write_logger_service(log_level, verbose, filepath):
+    """Create a logger service that matches the handler interface (local runs)."""
     # Note: aliasing logger doesn't support write/filepath, so this is a placeholder
     # that matches the interface but uses standard logger
     if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
         return CogniteFunctionLogger("INFO", verbose)
     else:
         return CogniteFunctionLogger(log_level, verbose)
-
-
-try:
-    from ..fn_dm_key_extraction.services.PipelineService import GeneralPipelineService
-
-    def create_general_pipeline_service(
-        client: CogniteClient, pipeline_ext_id: str
-    ) -> GeneralPipelineService:
-        return GeneralPipelineService(pipeline_ext_id, client)
-
-except ImportError:
-    # Pipeline service not available, define a placeholder
-    GeneralPipelineService = None
-
-    def create_general_pipeline_service(client: CogniteClient, pipeline_ext_id: str):
-        raise ImportError(
-            "GeneralPipelineService not available. Install key extraction dependencies."
-        )

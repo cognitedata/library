@@ -6,11 +6,11 @@ from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
 
 from .common.logger import CogniteFunctionLogger
-from .services.PipelineService import GeneralPipelineService
 from .utils.DataStructures import EnvConfig
 
 
 def get_env_variables() -> EnvConfig:
+    """Load required CDF connection environment variables (local runs)."""
     print("Loading environment variables from .env...")
 
     project_path = (Path(__file__).parent / ".env").resolve()
@@ -40,6 +40,7 @@ def get_env_variables() -> EnvConfig:
 
 
 def create_client(env_config: EnvConfig, debug: bool = False):
+    """Create a `CogniteClient` using OAuth client credentials (local runs)."""
     SCOPES = [f"https://{env_config.cdf_cluster}.cognitedata.com/.default"]
     TOKEN_URL = (
         f"https://login.microsoftonline.com/{env_config.tenant_id}/oauth2/v2.0/token"
@@ -62,6 +63,7 @@ def create_client(env_config: EnvConfig, debug: bool = False):
 
 
 def create_logger_service(log_level, verbose):
+    """Create a `CogniteFunctionLogger` with the requested verbosity."""
     if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
         return CogniteFunctionLogger()
     else:
@@ -69,13 +71,8 @@ def create_logger_service(log_level, verbose):
 
 
 def create_write_logger_service(log_level, filepath):
+    """Create a write-enabled logger (local runs)."""
     if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
         return CogniteFunctionLogger()
     else:
         return CogniteFunctionLogger(log_level=log_level, write=True)
-
-
-def create_general_pipeline_service(
-    client: CogniteClient, pipeline_ext_id: str
-) -> GeneralPipelineService:
-    return GeneralPipelineService(pipeline_ext_id, client)

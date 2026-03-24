@@ -5,7 +5,9 @@ This module provides the main pipeline function that processes tags
 and generates aliases using the AliasingEngine.
 """
 
+import json
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 try:
@@ -15,10 +17,64 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .common.logger import CogniteFunctionLogger
-from .engine.tag_aliasing_engine import AliasingEngine, AliasingResult
+from common.logger import CogniteFunctionLogger
+from engine.tag_aliasing_engine import AliasingEngine, AliasingResult
 
 logger = None  # Use CogniteFunctionLogger directly
+
+
+def _load_candidate_keys_from_raw(
+    client: CogniteClient,
+    raw_db: str,
+    raw_table_key: str,
+    *,
+    instance_space: str,
+    view_space: str,
+    view_external_id: str,
+    view_version: str,
+    entity_type: str,
+    logger: Any,
+    limit: int = 10000,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Load candidate keys from key-extraction RAW table and build a tag->entity mapping.
+
+    Expected schema (written by Key-Extraction):
+      - row.key: entity external id
+      - row.columns: { <FIELD_NAME_UPPER>: [<candidate_key_str>, ...], ... }
+    """
+    tag_to_entity_map: Dict[str, List[Dict[str, Any]]] = {}
+    rows = client.raw.rows.list(raw_db, raw_table_key, limit=limit)
+    for row in rows:
+        entity_id = getattr(row, "key", None)
+        if not entity_id:
+            continue
+        columns = getattr(row, "columns", {}) or {}
+        if not isinstance(columns, dict):
+            continue
+
+        for field_name, values in columns.items():
+            if not isinstance(values, list):
+                continue
+            for v in values:
+                if not isinstance(v, str) or not v:
+                    continue
+                tag_to_entity_map.setdefault(v, []).append(
+                    {
+                        "entity_id": entity_id,
+                        "field_name": str(field_name).lower(),
+                        "view_space": view_space,
+                        "view_external_id": view_external_id,
+                        "view_version": view_version,
+                        "instance_space": instance_space,
+                        "entity_type": entity_type,
+                    }
+                )
+
+    logger.info(
+        f"Loaded {len(tag_to_entity_map)} unique tags from RAW db={raw_db} table={raw_table_key}"
+    )
+    return tag_to_entity_map
 
 
 def tag_aliasing(
@@ -41,6 +97,7 @@ def tag_aliasing(
     """
     try:
         logger.info("Starting Tag Aliasing Pipeline")
+        run_started_at = datetime.now(timezone.utc)
 
         # Get tags to process
         tags = data.get("tags", [])
@@ -100,6 +157,48 @@ def tag_aliasing(
                 )
                 # Store tag mapping for alias persistence
                 data["_tag_to_entity_map"] = tag_to_entity_map
+            else:
+                # Workflow-friendly fallback: load tags from key-extraction RAW table.
+                source_raw_db = data.get("source_raw_db")
+                source_raw_table_key = data.get("source_raw_table_key")
+                if client and source_raw_db and source_raw_table_key:
+                    instance_space = data.get("source_instance_space")
+                    view_space = data.get("source_view_space")
+                    view_external_id = data.get("source_view_external_id")
+                    view_version = data.get("source_view_version")
+                    entity_type = data.get("source_entity_type", "file")
+
+                    if not (
+                        instance_space
+                        and view_space
+                        and view_external_id
+                        and view_version
+                        and entity_type
+                    ):
+                        raise ValueError(
+                            "Missing RAW fallback mapping inputs. "
+                            "Expected source_instance_space/source_view_space/source_view_external_id/source_view_version/source_entity_type."
+                        )
+
+                    raw_limit = int(data.get("source_raw_read_limit", 10000))
+                    logger.info(
+                        "No entities_keys_extracted provided; loading tags from RAW "
+                        f"db={source_raw_db} table={source_raw_table_key} limit={raw_limit}"
+                    )
+                    tag_to_entity_map = _load_candidate_keys_from_raw(
+                        client=client,
+                        raw_db=source_raw_db,
+                        raw_table_key=source_raw_table_key,
+                        instance_space=str(instance_space),
+                        view_space=str(view_space),
+                        view_external_id=str(view_external_id),
+                        view_version=str(view_version),
+                        entity_type=str(entity_type),
+                        logger=logger,
+                        limit=raw_limit,
+                    )
+                    data["_tag_to_entity_map"] = tag_to_entity_map
+                    tags = list(tag_to_entity_map.keys())
 
         # If entities are provided, extract tags from them
         if entities and not tags:
@@ -174,8 +273,76 @@ def tag_aliasing(
         if client and data.get("upload_to_raw", False):
             raw_db = data.get("raw_db", "aliasing_db")
             raw_table = data.get("raw_table", "aliases")
+            raw_table_state = data.get("raw_table_state")
 
             _upload_aliases_to_raw(client, raw_db, raw_table, aliasing_results, logger)
+
+            # Write a lightweight state row (parity with key extraction).
+            if raw_table_state:
+                _create_table_if_not_exists(client, raw_db, raw_table_state, logger)
+                run_finished_at = datetime.now(timezone.utc)
+                run_duration_s = (run_finished_at - run_started_at).total_seconds()
+                run_duration_ms = int(run_duration_s * 1000)
+
+                # Aggregate some useful audit metrics.
+                unique_entities = set()
+                rules_applied_counts: Dict[str, int] = {}
+                for r in aliasing_results:
+                    for e in (r.get("entities") or []):
+                        ent = e.get("entity_id")
+                        if ent:
+                            unique_entities.add(str(ent))
+                    meta = r.get("metadata") or {}
+                    applied = meta.get("applied_rules") or []
+                    if isinstance(applied, list):
+                        for rule_name in applied:
+                            rules_applied_counts[str(rule_name)] = (
+                                rules_applied_counts.get(str(rule_name), 0) + 1
+                            )
+
+                status = "success" if tags else "failure"
+                message = (
+                    f"Generated {data['total_aliases_generated']} aliases for {len(tags)} tags"
+                    if tags
+                    else "No tags were processed"
+                )
+                state_key = run_finished_at.strftime("%Y%m%dT%H%M%S.%fZ")
+                try:
+                    from cognite.client.data_classes import Row
+
+                    client.raw.rows.insert(
+                        raw_db,
+                        raw_table_state,
+                        Row(
+                            key=str(state_key),
+                            columns={
+                                "status": status,
+                                "message": message,
+                                "total_tags_processed": int(
+                                    data.get("total_tags_processed", 0)
+                                ),
+                                "total_aliases_generated": int(
+                                    data.get("total_aliases_generated", 0)
+                                ),
+                                "unique_entities_covered": len(unique_entities),
+                                "run_started_at": run_started_at.isoformat(),
+                                "run_finished_at": run_finished_at.isoformat(),
+                                "run_duration_s": run_duration_s,
+                                "run_duration_ms": run_duration_ms,
+                                "raw_db": raw_db,
+                                "raw_table_aliases": raw_table,
+                                "raw_table_state": raw_table_state,
+                                "rules_applied_counts_json": json.dumps(
+                                    rules_applied_counts
+                                ),
+                            },
+                        ),
+                    )
+                    logger.info(
+                        f"Wrote aliasing state row to RAW: db={raw_db} table={raw_table_state} key={state_key}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed writing aliasing state row to RAW: {e}")
 
     except Exception as e:
         message = f"Aliasing pipeline failed: {e!s}"
@@ -205,12 +372,24 @@ def _upload_aliases_to_raw(
 
         # Add rows
         for result in aliasing_results:
+            entities_json = None
+            entities = result.get("entities")
+            if entities is not None:
+                # Ensure we store JSON to make downstream parsing reliable.
+                try:
+                    entities_json = json.dumps(entities)
+                except Exception:
+                    entities_json = json.dumps([])
+
             row = Row(
                 key=result["original_tag"],
                 columns={
                     "aliases": result["aliases"],
                     "total_aliases": len(result["aliases"]),
-                    "metadata": str(result["metadata"]),
+                    # Store metadata + entity mappings as JSON strings so other workflow steps
+                    # can read them back and map tag->entity nodes.
+                    "metadata_json": json.dumps(result.get("metadata", {})),
+                    "entities_json": entities_json,
                 },
             )
             raw_uploader.add_to_upload_queue(
@@ -227,4 +406,4 @@ def _upload_aliases_to_raw(
         raise
 
 
-from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
+from common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists

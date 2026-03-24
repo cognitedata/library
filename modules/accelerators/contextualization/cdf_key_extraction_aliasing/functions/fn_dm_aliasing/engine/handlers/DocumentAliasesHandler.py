@@ -3,7 +3,7 @@
 import re
 from typing import Any, Dict, Set
 
-from .AliasTransformerHandler import AliasTransformerHandler
+from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
 
 
 class DocumentAliasesHandler(AliasTransformerHandler):
@@ -59,6 +59,7 @@ class DocumentAliasesHandler(AliasTransformerHandler):
 
                 # Find numbers and pad them
                 def pad_numbers(match):
+                    """Zero-pad a matched numeric token to `target_length`."""
                     number = match.group(0)
                     return number.zfill(target_length)
 

@@ -3,7 +3,7 @@
 import re
 from typing import Any, Dict, Set
 
-from .AliasTransformerHandler import AliasTransformerHandler
+from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
 
 
 class RegexSubstitutionHandler(AliasTransformerHandler):

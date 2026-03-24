@@ -8,7 +8,12 @@ from ...utils.DataStructures import *
 class ExtractionMethodHandler(ABC):
     """Abstract base class for extraction method handlers."""
 
-    def __init__(self, logger: Optional[CogniteFunctionLogger] = None):
+    def __init__(
+        self,
+        logger: Optional[CogniteFunctionLogger] = None,
+        client: CogniteClient = None,
+    ):
+        """Create a handler with optional logger and CDF client."""
         self.logger = logger or CogniteFunctionLogger("INFO", False)
 
     @abstractmethod

@@ -140,12 +140,11 @@ class StandardTagPatternRegistry(IPatternRegistry):
     """Registry for standard industrial tag patterns loaded from YAML configuration."""
 
     def __init__(self, config_path: Optional[str] = None):
+        """Initialize the registry and load patterns from YAML (or defaults)."""
         self.patterns: Dict[str, TagPattern] = {}
         self.equipment_index: Dict[EquipmentType, List[str]] = {}
         self.instrument_index: Dict[InstrumentType, List[str]] = {}
 
-        # Default config path - points to tag_patterns.yaml in fn_dm_aliasing directory
-        # Go up from engine/ to fn_dm_aliasing/
         if config_path is None:
             config_path = Path(__file__).parent.parent / "tag_patterns.yaml"
 
@@ -356,11 +355,10 @@ class DocumentPatternRegistry:
     """Registry for engineering document naming patterns loaded from YAML configuration."""
 
     def __init__(self, config_path: Optional[str] = None):
+        """Initialize the registry and load document patterns from YAML (or defaults)."""
         self.patterns: Dict[str, DocumentPattern] = {}
         self.document_type_index: Dict[DocumentType, List[str]] = {}
 
-        # Default config path - points to tag_patterns.yaml in fn_dm_aliasing directory
-        # Go up from engine/ to fn_dm_aliasing/
         if config_path is None:
             config_path = Path(__file__).parent.parent / "tag_patterns.yaml"
 
@@ -501,6 +499,7 @@ class PatternValidator:
         tag_registry: StandardTagPatternRegistry,
         doc_registry: DocumentPatternRegistry,
     ):
+        """Create a validator bound to the provided registries."""
         self.tag_registry = tag_registry
         self.doc_registry = doc_registry
 

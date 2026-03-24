@@ -15,7 +15,7 @@ except ImportError:
     CDF_AVAILABLE = False
     CogniteClient = None
 
-from .logger import CogniteFunctionLogger
+from common.logger import CogniteFunctionLogger
 
 
 def create_table_if_not_exists(

@@ -3,8 +3,8 @@
 import re
 from typing import Any, Dict, Set
 
-from ..transformer_utils import extract_equipment_number
-from .AliasTransformerHandler import AliasTransformerHandler
+from engine.transformer_utils import extract_equipment_number
+from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
 
 
 class EquipmentTypeExpansionHandler(AliasTransformerHandler):

@@ -23,13 +23,12 @@ except ImportError:
 
 # Import CDF Config model internally (not exposed to users)
 try:
-    from .config import Config, load_config_parameters
+    from .config import Config
 
     CDF_CONFIG_AVAILABLE = True
 except ImportError:
     CDF_CONFIG_AVAILABLE = False
     Config = None
-    load_config_parameters = None
 
 
 def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
@@ -704,27 +703,7 @@ def load_config_from_yaml(config_path: str, validate: bool = True) -> Dict[str, 
     )
 
 
-def load_config_from_cdf(client: Any, pipeline_ext_id: str) -> Dict[str, Any]:
-    """
-    Load CDF extraction pipeline config from CDF and convert to engine format.
-
-    Args:
-        client: CogniteClient instance
-        pipeline_ext_id: External ID of the extraction pipeline
-
-    Returns:
-        Engine config dictionary compatible with KeyExtractionEngine
-
-    Raises:
-        ImportError: If CDF config models are not available
-        RuntimeError: If config cannot be retrieved from CDF
-    """
-    if not CDF_CONFIG_AVAILABLE:
-        raise ImportError(
-            "CDF Config models not available. "
-            "fn_dm_key_extraction module is required for loading from CDF."
-        )
-
-    function_data = {"ExtractionPipelineExtId": pipeline_ext_id}
-    cdf_config = load_config_parameters(client, function_data)
-    return convert_cdf_config_to_engine_config(cdf_config)
+__all__ = [
+    "convert_cdf_config_to_engine_config",
+    "load_config_from_yaml",
+]

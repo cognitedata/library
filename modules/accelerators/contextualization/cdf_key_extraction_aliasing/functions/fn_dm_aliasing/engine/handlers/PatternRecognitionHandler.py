@@ -2,11 +2,11 @@
 
 from typing import Any, Dict, Set
 
-from ..transformer_utils import PatternMatchMixin
+from engine.transformer_utils import PatternMatchMixin
 
 # Import pattern library components conditionally
 try:
-    from ..tag_pattern_library import (
+    from engine.tag_pattern_library import (
         DocumentPatternRegistry,
         StandardTagPatternRegistry,
     )
@@ -17,13 +17,14 @@ except ImportError:
     StandardTagPatternRegistry = None
     DocumentPatternRegistry = None
 
-from .AliasTransformerHandler import AliasTransformerHandler
+from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
 
 
 class PatternRecognitionHandler(AliasTransformerHandler, PatternMatchMixin):
     """Uses pattern library to identify equipment types and generate context-aware aliases."""
 
     def __init__(self, logger=None, client=None):
+        """Initialize the handler and (optionally) the pattern registries."""
         super().__init__(logger, client)
         if PATTERN_LIBRARY_AVAILABLE:
             self.tag_registry = StandardTagPatternRegistry()

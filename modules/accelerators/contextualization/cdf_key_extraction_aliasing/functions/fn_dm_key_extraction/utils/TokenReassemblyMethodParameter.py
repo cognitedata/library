@@ -93,6 +93,7 @@ class TokenReassemblyMethodParameter(BaseModel):
     """
 
     def __init__(self, **data):
+        """Initialize and sort rules/patterns for deterministic processing."""
         super().__init__(**data)
 
         self.assembly_rules = sorted(self.assembly_rules, key=lambda x: x.priority)

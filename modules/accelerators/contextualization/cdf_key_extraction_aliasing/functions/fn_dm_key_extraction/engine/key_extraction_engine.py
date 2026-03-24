@@ -22,7 +22,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.TokenReassemblyMethodParameter import (
+from fn_dm_key_extraction.utils.TokenReassemblyMethodParameter import (
     AssemblyRule,
     TokenReassemblyMethodParameter,
 )
@@ -203,6 +203,12 @@ class KeyExtractionEngine:
                     extracted_keys = method_handler.extract(
                         processed_value, rule, context
                     )
+
+                    # Attribute extracted keys to the specific field we extracted from.
+                    # Handlers may not know which field produced the match.
+                    for k in extracted_keys:
+                        if getattr(source_field, "field_name", None):
+                            k.source_field = source_field.field_name
 
                     collected_for_rule.extend(extracted_keys)
 

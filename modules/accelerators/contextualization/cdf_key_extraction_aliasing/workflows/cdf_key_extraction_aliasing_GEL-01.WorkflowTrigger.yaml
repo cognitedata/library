@@ -1,0 +1,11 @@
+externalId: cdf_key_extraction_aliasing_GEL-01
+workflowExternalId: cdf_key_extraction_aliasing_GEL
+workflowVersion: 'v1'
+triggerRule:
+  # Daily at 03:00 (project timezone as configured in CDF)
+  cronExpression: 0 3 * * *
+  triggerType: schedule
+authentication:
+  clientId: {{ cicd_clientId }}
+  clientSecret: {{ cicd_clientSecret }}
+

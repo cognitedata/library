@@ -26,8 +26,8 @@ from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
-from ..common.logger import CogniteFunctionLogger
-from .transformer_utils import (
+from common.logger import CogniteFunctionLogger
+from engine.transformer_utils import (
     STANDARD_TAG_PATTERN,
     PatternMatchMixin,
     extract_equipment_number,
@@ -55,7 +55,7 @@ except ImportError:
     )
 
 # Import handlers
-from .handlers import (
+from engine.handlers import (
     AliasTransformerHandler,
     CaseTransformationHandler,
     CharacterSubstitutionHandler,
@@ -440,7 +440,7 @@ class AliasingEngine:
 
 def load_config_from_yaml(file_path: str) -> Dict[str, Any]:
     """Load configuration from YAML file."""
-    from ...common.config_utils import load_config_from_yaml as _load_config_from_yaml
+    from common.config_utils import load_config_from_yaml as _load_config_from_yaml
 
     return _load_config_from_yaml(file_path)
 
