@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _MODULE_DIR = Path(__file__).resolve().parent
-_DEFAULT_CONFIG = _MODULE_DIR / "extraction_pipelines" / "ctx_key_extraction_GEL_prod.config.yaml"
+_DEFAULT_CONFIG = _MODULE_DIR / "extraction_pipelines" / "ctx_key_extraction_site_prod.config.yaml"
 
 
 def main() -> None:
@@ -29,7 +29,10 @@ def main() -> None:
     from cognite.client.data_classes import ExtractionPipelineConfigWrite, ExtractionPipelineWrite
     from cognite.client.exceptions import CogniteNotFoundError
 
-    ext_id = os.getenv("EXTRACTION_PIPELINE_EXT_ID", "ctx_key_extraction_GEL_prod")
+    site_abbreviation = os.getenv("SITE_ABBREVIATION", "SITE")
+    ext_id = os.getenv(
+        "EXTRACTION_PIPELINE_EXT_ID", f"ctx_key_extraction_{site_abbreviation}_prod"
+    )
     config_path = Path(
         os.getenv("EXTRACTION_PIPELINE_CONFIG_PATH", str(_DEFAULT_CONFIG))
     )
