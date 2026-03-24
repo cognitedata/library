@@ -442,13 +442,13 @@ class DetailedRunHistoryComponent(Component):
         total_pages = (len(filtered_runs) + items_per_page - 1) // items_per_page
         if total_pages > 1:
             p_col1, p_col2, p_col3 = st.columns([1, 2, 1])
-            if p_col1.button("Previous", disabled=(st.session_state.page_num == 0), width="stretch"):
+            if p_col1.button("Previous", disabled=(st.session_state.page_num == 0), use_container_width=True):
                 st.session_state.page_num -= 1
                 st.rerun()
             p_col2.markdown(
                 f"<div style='text-align: center; margin-top: 5px;'>Page {st.session_state.page_num + 1} of {total_pages}</div>",
                 unsafe_allow_html=True,
             )
-            if p_col3.button("Next", disabled=(st.session_state.page_num >= total_pages - 1), width="stretch"):
+            if p_col3.button("Next", disabled=(st.session_state.page_num >= total_pages - 1), use_container_width=True):
                 st.session_state.page_num += 1
                 st.rerun()
