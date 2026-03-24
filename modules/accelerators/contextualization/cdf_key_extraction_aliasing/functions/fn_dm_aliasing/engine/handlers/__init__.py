@@ -12,6 +12,7 @@ from .PatternRecognitionHandler import PatternRecognitionHandler
 from .PrefixSuffixHandler import PrefixSuffixHandler
 from .RegexSubstitutionHandler import RegexSubstitutionHandler
 from .RelatedInstrumentsHandler import RelatedInstrumentsHandler
+from .AliasMappingTableHandler import AliasMappingTableHandler
 
 __all__ = [
     "AliasTransformerHandler",
@@ -26,4 +27,5 @@ __all__ = [
     "DocumentAliasesHandler",
     "PatternRecognitionHandler",
     "PatternBasedExpansionHandler",
+    "AliasMappingTableHandler",
 ]

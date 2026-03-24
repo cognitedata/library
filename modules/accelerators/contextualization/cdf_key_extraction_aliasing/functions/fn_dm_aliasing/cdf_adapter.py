@@ -172,6 +172,11 @@ def _convert_aliasing_config(cdf_rule: Any) -> Dict[str, Any]:
         if hasattr(cdf_rule, "drawing_rules"):
             config["drawing_rules"] = dict(cdf_rule.drawing_rules)
 
+    elif rule_type == "alias_mapping_table":
+        nested = getattr(cdf_rule, "config", None)
+        if isinstance(nested, dict):
+            config.update(nested)
+
     # For composite/config-based rules, just pass through the config
     if hasattr(cdf_rule, "config"):
         config.update(dict(cdf_rule.config))

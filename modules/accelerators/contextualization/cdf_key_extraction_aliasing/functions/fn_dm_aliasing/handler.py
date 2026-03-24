@@ -173,7 +173,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 logger.info("Using minimal default aliasing config")
 
         # Initialize engine with logger
-        engine = AliasingEngine(aliasing_config, logger)
+        engine = AliasingEngine(aliasing_config, logger, client=client)
         data["_engine"] = engine
 
         # Call pipeline function

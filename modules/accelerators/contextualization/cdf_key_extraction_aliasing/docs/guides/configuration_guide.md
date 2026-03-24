@@ -793,6 +793,49 @@ Combine multiple transformations (future feature).
         # ... case config
 ```
 
+#### 13. Alias mapping table (RAW catalog)
+
+Adds aliases by looking up extracted tag strings in a **Cognite RAW table** loaded once at engine initialization. The mapping catalog is the **system of record in RAW**; the pipeline YAML only points at the database, table, and column names.
+
+**Rule type:** `alias_mapping_table`.
+
+**Rule `config`:**
+
+| Field | Description |
+| ----- | ----------- |
+| `raw_table` | **Required** (unless using injected `resolved_rows` in tests): `database_name`, `table_name`, `key_column`, `alias_columns` (list), `scope_column`, `scope_value_column`, optional `source_match_column`, optional `columns` for `retrieve_dataframe`. |
+| `trim` | Default `true`: trim strings before matching. |
+| `case_insensitive` | Default `false`: case-insensitive exact/glob; regex uses `re.IGNORECASE` when true. |
+| `source_match` | Default for all rows when the RAW cell is empty: `exact`, `glob`, or `regex`. |
+
+**Per-row semantics (RAW columns):**
+
+- **`scope`:** `global` \| `space` \| `view_external_id` \| `instance`.
+- **`scope_value`:** Required when scope is not `global` — instance space string, source **view** `external_id` (e.g. `CogniteTimeSeries`, not the node `externalId`), or node `entity_id` / `entity_external_id`.
+- **`source_match` (optional column):** Overrides rule default for that row (`exact` / `glob` / `regex`). `regex` uses **`re.fullmatch`** on the candidate tag. Invalid regex patterns are skipped at load with a warning.
+
+**Orchestration (`main.py`):** Passes `instance_space`, `view_external_id`, `entity_type`, `entity_id`, and `entity_external_id` in the aliasing `context` so scoped rows match correctly. A **Cognite client** must be supplied to `AliasingEngine` when any `alias_mapping_table` rule uses `raw_table`.
+
+```yaml
+- name: tag_alias_catalog
+  type: alias_mapping_table
+  enabled: true
+  priority: 25
+  preserve_original: true
+  config:
+    trim: true
+    case_insensitive: false
+    source_match: exact
+    raw_table:
+      database_name: my_db
+      table_name: tag_alias_map
+      key_column: source_tag
+      alias_columns: [alias_primary, alias_secondary]
+      scope_column: scope
+      scope_value_column: scope_value
+      source_match_column: source_match
+```
+
 ---
 
 ## Rule Priority and Ordering

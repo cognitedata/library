@@ -6,7 +6,7 @@ alternative representations of asset tags, equipment identifiers, and document n
 to improve entity matching and contextualization accuracy.
 
 Features:
-- 12 transformation types (character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite)
+- 13+ transformation types (including alias_mapping_table from Cognite RAW, character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite)
 - Support for related instrument tag generation
 - Equipment type expansion for semantic matching
 - Hierarchical tag expansion
@@ -22,7 +22,7 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
@@ -68,6 +68,7 @@ from .handlers import (
     PrefixSuffixHandler,
     RegexSubstitutionHandler,
     RelatedInstrumentsHandler,
+    AliasMappingTableHandler,
 )
 
 
@@ -86,6 +87,7 @@ class TransformationType(Enum):
     COMPOSITE = "composite"
     PATTERN_RECOGNITION = "pattern_recognition"
     PATTERN_BASED_EXPANSION = "pattern_based_expansion"
+    ALIAS_MAPPING_TABLE = "alias_mapping_table"
 
 
 @dataclass
@@ -122,14 +124,70 @@ class AliasingEngine:
     def __init__(
         self,
         config: Dict[str, Any],
-        logger: CogniteFunctionLogger = CogniteFunctionLogger("INFO", True),
+        logger: Optional[CogniteFunctionLogger] = None,
+        client: Optional[Any] = None,
     ):
         """Initialize the aliasing engine with configuration."""
         self.config = config
-        self.logger = logger
+        self.logger = logger or CogniteFunctionLogger("INFO", True)
+        self.client = client
         self.rules = self._load_rules()
+        self._hydrate_alias_mapping_table_rules()
         self.transformers = self._initialize_transformers()
         self.validation_config = config.get("validation", {})
+
+    def _hydrate_alias_mapping_table_rules(self) -> None:
+        """Load RAW mapping rows for alias_mapping_table rules (or use injected resolved_rows)."""
+        from .alias_mapping_table_raw_loader import load_alias_mapping_table_from_client
+
+        for rule in self.rules:
+            if rule.type != TransformationType.ALIAS_MAPPING_TABLE:
+                continue
+            cfg = rule.config
+            default_sm = str(cfg.get("source_match") or "exact").strip().lower()
+            if default_sm not in ("exact", "glob", "regex"):
+                self.logger.error(
+                    f"Rule {rule.name}: invalid source_match default {default_sm!r}; disabling"
+                )
+                rule.enabled = False
+                continue
+
+            injected = cfg.get("resolved_rows")
+            if isinstance(injected, list) and len(injected) > 0:
+                continue
+
+            raw_table = cfg.get("raw_table")
+            if not raw_table or not isinstance(raw_table, dict):
+                self.logger.error(
+                    f"Rule {rule.name}: alias_mapping_table requires non-empty resolved_rows "
+                    f"or raw_table; disabling"
+                )
+                rule.enabled = False
+                continue
+
+            if self.client is None:
+                self.logger.error(
+                    f"Rule {rule.name}: Cognite client required to load alias_mapping_table "
+                    f"from RAW; disabling"
+                )
+                rule.enabled = False
+                continue
+
+            rows, errs = load_alias_mapping_table_from_client(
+                self.client,
+                raw_table,
+                rule_default_source_match=default_sm,
+                case_insensitive=bool(cfg.get("case_insensitive", False)),
+            )
+            for msg in errs:
+                self.logger.warning(msg)
+            if not rows:
+                self.logger.warning(
+                    f"Rule {rule.name}: no mapping rows loaded from RAW; disabling"
+                )
+                rule.enabled = False
+                continue
+            cfg["resolved_rows"] = rows
 
     def _load_rules(self) -> List[AliasRule]:
         """Load and parse aliasing rules from configuration."""
@@ -183,6 +241,9 @@ class AliasingEngine:
                 self.logger
             ),
             TransformationType.DOCUMENT_ALIASES: DocumentAliasesHandler(self.logger),
+            TransformationType.ALIAS_MAPPING_TABLE: AliasMappingTableHandler(
+                self.logger
+            ),
         }
 
         # Add pattern-based transformers if pattern library is available

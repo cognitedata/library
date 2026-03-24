@@ -100,6 +100,9 @@ extraction_config = {
 extraction_engine = KeyExtractionEngine(extraction_config)
 aliasing_engine = AliasingEngine({"rules": [], "validation": {}})
 
+# For `alias_mapping_table` rules that load a catalog from Cognite RAW, pass a Cognite client:
+# AliasingEngine(aliasing_config, client=cognite_client). See configuration_guide.md (Alias mapping table RAW catalog).
+
 sample_data = {"id": "001", "name": "P-10001", "description": "Feed pump"}
 result = extraction_engine.extract_keys(sample_data, "asset")
 for key in result.candidate_keys:

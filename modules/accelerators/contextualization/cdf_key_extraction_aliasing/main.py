@@ -811,7 +811,7 @@ def main():
         )
 
     extraction_engine = KeyExtractionEngine(extraction_config)
-    aliasing_engine = AliasingEngine(aliasing_config)
+    aliasing_engine = AliasingEngine(aliasing_config, client=client)
 
     all_extraction_items: List[Dict[str, Any]] = []
     aliasing_items: List[Dict[str, Any]] = []
@@ -1105,6 +1105,11 @@ def main():
                 "unit": entity.get("unit"),
                 "equipment_type": entity.get("equipmentType")
                 or entity.get("equipment_type"),
+                "instance_space": instance_space,
+                "view_external_id": view_external_id,
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "entity_external_id": entity.get("externalId"),
             }
             for k in item["extraction_result"]["candidate_keys"]:
                 tag = k["value"]
