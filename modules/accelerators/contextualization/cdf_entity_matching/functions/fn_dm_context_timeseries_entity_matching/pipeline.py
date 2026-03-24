@@ -562,13 +562,21 @@ def get_all_targets(
     job_config = config.data
     search_property = job_config.target_view.search_property
 
-    is_selected = get_query_filter(QUERY_FILTER_TYPE_TARGETS, job_config.target_view, config.parameters.run_all, logger)
+    # `instances.list(..., sources=[view])` already scopes to instances with data in the view.
+    # Skipping extra HasData in the filter significantly reduces graph query load.
+    is_selected = get_query_filter(
+        QUERY_FILTER_TYPE_TARGETS,
+        job_config.target_view,
+        config.parameters.run_all,
+        logger,
+        include_has_data=False,
+    )
 
     all_targets = client.data_modeling.instances.list(
         space=job_config.target_view.instance_space,
         sources=[job_config.target_view.as_view_id()],
         filter=is_selected,
-        limit=-1
+        limit=1000
     )
 
     logger.info(f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
@@ -719,17 +727,22 @@ def get_query_filter(
     view_config: ViewPropertyConfig,
     run_all: bool,
     logger: CogniteFunctionLogger,
-) -> dm.filters.Filter:
+    include_has_data: bool = True,
+) -> dm.filters.Filter | None:
+    filters: list[dm.filters.Filter] = []
+    dbg_msg = f"For view: {view_config.as_view_id()}"
 
-    is_view = dm.filters.HasData(views=[view_config.as_view_id()])
-    is_selected = dm.filters.And(is_view)
-    dbg_msg = f"For for view: {view_config.as_view_id()} - Entity filter: HasData = True"
+    if include_has_data:
+        filters.append(dm.filters.HasData(views=[view_config.as_view_id()]))
+        dbg_msg = f"{dbg_msg} - Entity filter: HasData = True"
+    else:
+        dbg_msg = f"{dbg_msg} - Entity filter: HasData skipped (sources already scope instances)"
 
     # Check if the view entity already is matched or not
     if type == QUERY_FILTER_TYPE_ENTITIES and not run_all:
         is_matched = dm.filters.Exists(view_config.as_property_ref(PROP_COL_LINK_NAME))
         not_matched = dm.filters.Not(is_matched)
-        is_selected = dm.filters.And(is_selected, not_matched)
+        filters.append(not_matched)
         dbg_msg = f"{dbg_msg} Entity filtering on: '{PROP_COL_LINK_NAME}' - NOT EXISTS"
 
     if view_config.filter_property and view_config.filter_values:
@@ -738,12 +751,16 @@ def get_query_filter(
                 view_config.filter_property),
                 view_config.filter_values
         )
-        is_selected = dm.filters.And(is_selected, is_filter_param)
+        filters.append(is_filter_param)
         dbg_msg = f"{dbg_msg} Entity filtering on: '{view_config.filter_values}' IN: '{view_config.filter_property}'"
 
     logger.info(dbg_msg)
 
-    return is_selected
+    if not filters:
+        return None
+    if len(filters) == 1:
+        return filters[0]
+    return dm.filters.And(*filters)
 
 
 def get_matches(
