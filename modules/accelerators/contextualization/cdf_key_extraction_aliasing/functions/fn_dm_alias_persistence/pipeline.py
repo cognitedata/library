@@ -30,6 +30,14 @@ from .common.logger import CogniteFunctionLogger
 logger = None  # Use CogniteFunctionLogger directly
 
 
+def _resolve_alias_writeback_property(data: Dict[str, Any]) -> str:
+    """Target DM property name for alias list (default CogniteDescribable `aliases`)."""
+    name = data.get("aliasWritebackProperty") or data.get("alias_writeback_property")
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    return "aliases"
+
+
 def persist_aliases_to_entities(
     client: Optional[CogniteClient],
     logger: Any,
@@ -44,13 +52,18 @@ def persist_aliases_to_entities(
     Args:
         client: CogniteClient instance (required)
         logger: Logger instance (CogniteFunctionLogger or standard logger)
-        data: Dictionary containing aliasing_results and entities_keys_extracted
+        data: Dictionary containing aliasing_results and entities_keys_extracted.
+            Optional: aliasWritebackProperty or alias_writeback_property — DM property
+            to write the alias list to (default "aliases").
     """
     try:
         logger.info("Starting Alias Persistence Pipeline")
 
         if not client:
             raise ValueError("CogniteClient is required for alias persistence")
+
+        alias_writeback_property = _resolve_alias_writeback_property(data)
+        data["alias_writeback_property"] = alias_writeback_property
 
         # Get aliasing results
         aliasing_results = data.get("aliasing_results", [])
@@ -60,6 +73,10 @@ def persist_aliases_to_entities(
             return
 
         logger.info(f"Found {len(aliasing_results)} aliasing results to persist")
+        logger.info(
+            f"Alias write-back property: {alias_writeback_property!r} "
+            f"(set aliasWritebackProperty or alias_writeback_property to override)"
+        )
 
         # Group aliases by entity using view information from aliasing results
         entity_aliases = {}
@@ -203,17 +220,14 @@ def persist_aliases_to_entities(
                     failed_count += 1
                     continue
 
-                # Prepare property update with aliases
-                # Writing to CogniteDescribable view which should have an "aliases" property
+                # Prepare property update (property name is configurable; default aliases)
                 # Note: Only include properties that exist in the view schema
-                properties_update = {
-                    "aliases": aliases,
-                }
+                properties_update = {alias_writeback_property: aliases}
 
                 # Apply update using data modeling API
                 logger.info(
-                    f"Updating entity {entity_id} with {len(aliases)} aliases "
-                    f"in {target_view_id} view"
+                    f"Updating entity {entity_id} with {len(aliases)} values "
+                    f"on property {alias_writeback_property!r} in {target_view_id} view"
                 )
 
                 # Build sources list - NodeOrEdgeData objects
@@ -255,6 +269,7 @@ def persist_aliases_to_entities(
                 "target_view_space": target_view_space,
                 "target_view_external_id": target_view_external_id,
                 "target_view_version": target_view_version,
+                "alias_writeback_property": alias_writeback_property,
                 "source_view_space": alias_data.get("view_space"),
                 "source_view_external_id": alias_data.get("view_external_id"),
                 "source_view_version": alias_data.get("view_version"),

@@ -137,10 +137,12 @@ ExtractionResult(candidate_keys=[], foreign_key_references=[], document_referenc
 
 2. **Review Extraction Rules**
    ```python
-   # Test individual rules
-   from key_extraction import KeyExtractionEngine
-   engine = KeyExtractionEngine([rule])
-   result = engine.extract_keys(sample_data)
+   from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
+       KeyExtractionEngine,
+   )
+
+   engine = KeyExtractionEngine({"extraction_rules": [rule], "validation": {}})
+   result = engine.extract_keys({"name": "P-101", "id": "t"}, "asset")
    ```
 
 3. **Lower Confidence Threshold**
@@ -182,10 +184,13 @@ AliasResult(aliases=[], confidence=0.0)
 #### Solutions:
 1. **Check Aliasing Rules**
    ```python
-   # Test individual aliasing rules
-   from aliasing import AliasingEngine
-   engine = AliasingEngine()
-   aliases = engine.generate_aliases("P-101")
+   from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
+       AliasingEngine,
+   )
+
+   engine = AliasingEngine({"rules": [], "validation": {}})
+   result = engine.generate_aliases("P-101", "asset")
+   print(result.aliases)
    ```
 
 2. **Enable More Rule Types**
@@ -325,24 +330,26 @@ logging.basicConfig(level=logging.DEBUG)
 python env_utils.py --status
 ```
 
-### 3. Validate Configuration
+### 3. Validate configuration
 
-```bash
-python main.py validate
-```
+Load pipeline YAMLs with `load_config_from_yaml` / run `main.py --dry-run` against a small `--limit` to verify CDF connectivity and rules without writing aliases.
 
-### 4. Test Individual Components
+### 4. Test individual components
 
 ```python
-# Test key extraction
-from key_extraction import KeyExtractionEngine
-engine = KeyExtractionEngine(rules)
-result = engine.extract_keys(sample_data)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
+    KeyExtractionEngine,
+)
 
-# Test aliasing
-from aliasing import AliasingEngine
-aliasing_engine = AliasingEngine()
-aliases = aliasing_engine.generate_aliases("test-tag")
+engine = KeyExtractionEngine({"extraction_rules": [], "validation": {}})
+result = engine.extract_keys({"name": "P-101", "id": "x"}, "asset")
+
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
+    AliasingEngine,
+)
+
+aliasing_engine = AliasingEngine({"rules": [], "validation": {}})
+out = aliasing_engine.generate_aliases("test-tag", "asset")
 ```
 
 ### 5. Check CDF Connection

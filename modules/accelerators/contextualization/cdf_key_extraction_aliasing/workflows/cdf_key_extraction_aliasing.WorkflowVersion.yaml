@@ -44,6 +44,8 @@ workflowDefinition:
             logLevel: 'INFO'
             # The alias persistence function reads aliasing_results from the aliasing task
             # and maps them back to source entities using entities_keys_extracted from key extraction
+            # Optional override for DM property name (default aliases); can also set alias_writeback_property on ctx_aliasing pipeline parameters
+            # aliasWritebackProperty: 'aliases'
       name: 'Alias Persistence Function'
       description: 'Persist generated aliases back to source entities in the CDF data model. Reads aliasing results and maps aliases to entities using key extraction results.'
       retries: 3

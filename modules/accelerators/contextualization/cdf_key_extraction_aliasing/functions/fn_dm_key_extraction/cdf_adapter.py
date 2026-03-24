@@ -62,7 +62,7 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
 def _convert_extraction_rule(cdf_rule: Any) -> Dict[str, Any]:
     """Convert a CDF ExtractionRuleConfig to engine format (canonical method and extraction_type)."""
     try:
-        method_canonical = normalize_method(cdf_rule.method).value if normalize_method else (cdf_rule.method or "regex")
+        method_canonical = normalize_method(cdf_rule.method).value if normalize_method else (cdf_rule.method or "passthrough")
         extraction_type_canonical = get_extraction_type_from_rule(cdf_rule).value if get_extraction_type_from_rule else "candidate_key"
         engine_rule = {
             "name": cdf_rule.name,
@@ -143,6 +143,13 @@ def _convert_extraction_rule(cdf_rule: Any) -> Dict[str, Any]:
             # Convert heuristic parameters
             engine_rule["config"] = _convert_heuristic_params(method_params)
             engine_rule["min_confidence"] = method_params.scoring.min_confidence
+
+        elif method_raw == "passthrough" or method_canonical == "passthrough":
+            engine_rule["config"] = {}
+            if hasattr(method_params, "min_confidence"):
+                engine_rule["min_confidence"] = method_params.min_confidence
+            else:
+                engine_rule["min_confidence"] = 1.0
 
         return engine_rule
 
@@ -392,8 +399,8 @@ def _convert_rule_dict_to_engine_format(
 ) -> Optional[Dict[str, Any]]:
     """Convert a rule dictionary to engine format; outputs canonical method and extraction_type."""
     try:
-        method_raw = rule_data.get("method", "regex")
-        method_canonical = normalize_method(method_raw).value if normalize_method else method_raw
+        method_raw = rule_data.get("method")
+        method_canonical = normalize_method(method_raw).value if normalize_method else (method_raw or "passthrough")
         extraction_type = (
             get_extraction_type_from_rule(rule_data).value
             if get_extraction_type_from_rule

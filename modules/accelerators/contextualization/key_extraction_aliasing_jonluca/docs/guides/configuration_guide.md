@@ -28,8 +28,8 @@ The Key Extraction and Aliasing system uses YAML-based pipeline configuration fi
 - **Aliasing Pipelines**: Generate alternative representations (aliases) of extracted keys for improved matching
 
 Configuration files are located in:
-- `modules/contextualization/key_extraction_aliasing/pipelines/ctx_key_extraction_default.config.yaml`
-- `modules/contextualization/key_extraction_aliasing/pipelines/ctx_aliasing_default.config.yaml`
+- `modules/accelerators/contextualization/key_extraction_aliasing_jonluca/pipelines/ctx_key_extraction_default.config.yaml`
+- `modules/accelerators/contextualization/key_extraction_aliasing_jonluca/pipelines/ctx_aliasing_default.config.yaml`
 
 ---
 
@@ -395,10 +395,13 @@ config:
     raw_db: db_tag_aliasing               # RAW database name
     raw_table_state: tag_aliasing_state   # State storage table
     raw_table_aliases: default_aliases    # Aliases storage table
+    alias_writeback_property: aliases     # DM property name for alias persistence (CogniteDescribable)
   data:
     aliasing_rules:                       # Aliasing transformation rules
       # ... aliasing rule configurations
 ```
+
+**Alias persistence (`alias_writeback_property`):** The persistence function writes the generated alias list to **one property** on CogniteDescribable (`cdf_cdm` / `v1`). **Precedence:** (1) `aliasWritebackProperty` or `alias_writeback_property` in the `data` dict passed to the persistence handler (e.g. workflow task `data` for `fn_dm_alias_persistence`); (2) `alias_writeback_property` in `config.parameters` from the first `*aliasing*.config.yaml` that defines it, when using `main.py`; (3) default `aliases`. Empty or whitespace-only values fall back to `aliases`. The chosen name is echoed in logs and in `data["alias_writeback_property"]` / per-entity summaries after a run.
 
 ### Aliasing Rules
 
@@ -1071,10 +1074,10 @@ extraction_rules:
 
 ## Additional Resources
 
-- **Pipeline Configs**: `modules/contextualization/key_extraction_aliasing/pipelines/`
-- **ISA Patterns**: `modules/contextualization/key_extraction_aliasing/functions/fn_dm_aliasing/tag_patterns.yaml`
-- **ISA Patterns Guide**: `modules/contextualization/key_extraction_aliasing/functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md`
-- **Tests**: `modules/contextualization/key_extraction_aliasing/tests/`
+- **Pipeline Configs**: `modules/accelerators/contextualization/key_extraction_aliasing_jonluca/pipelines/`
+- **ISA Patterns**: `modules/accelerators/contextualization/key_extraction_aliasing_jonluca/functions/fn_dm_aliasing/tag_patterns.yaml`
+- **ISA Patterns Guide**: `modules/accelerators/contextualization/key_extraction_aliasing_jonluca/functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md`
+- **Tests**: `modules/accelerators/contextualization/key_extraction_aliasing_jonluca/tests/`
 
 ---
 

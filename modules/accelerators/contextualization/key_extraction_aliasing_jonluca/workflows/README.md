@@ -24,16 +24,15 @@ For the detailed diagram source code and comprehensive flow description, see [wo
 
 ### cdf_key_extraction_aliasing
 
-A production workflow that chains key extraction and aliasing functions to create a complete contextualization pipeline.
+A production workflow that chains key extraction, aliasing, and alias persistence functions to create a complete contextualization pipeline.
 
 #### Description
 
-This workflow extracts candidate keys, foreign key references, and document references from CDF data model entities. The results are then split into separate processing streams:
-- **Candidate Keys** → Sent to the aliasing function to generate alternative representations for improved entity matching
-- **Foreign Key References** → Persisted to the Reference_Catalog for relationship tracking
-- **Document References** → Persisted to the Reference_Catalog for document linkage
+This workflow extracts candidate keys, foreign key references, and document references from CDF data model entities. **What runs in CDF:** key extraction → aliasing (candidate keys only) → alias persistence (writes the alias list to CogniteDescribable). Foreign key and document references are present in `entities_keys_extracted` but **are not** automatically persisted to a Reference_Catalog by this workflow (that is a separate or future process).
 
-After aliasing, the generated aliases are written back to the source entities to enhance searchability and matching capabilities.
+Streams conceptually:
+- **Candidate Keys** → Aliasing → alias persistence on the instance
+- **Foreign Key References** / **Document References** → Available in workflow data for downstream use; not written to Reference_Catalog by these tasks
 
 #### Workflow Tasks
 
@@ -173,7 +172,8 @@ The alias persistence function maps aliases back to entities:
 - Uses `entities_keys_extracted` to identify which entities contain each candidate key
 - Only processes aliases for candidate keys (not foreign keys or document references)
 - Groups aliases by entity for efficient batch updates
-- Updates entity properties with generated aliases in the CDF data model
+- Updates instances through the **CogniteDescribable** view (`cdf_cdm` / `v1`) by setting a **single list property** on that view to the generated aliases
+- **Property name** defaults to `aliases`. Set `alias_writeback_property` under `config.parameters` in `ctx_aliasing_default` (or another `*aliasing*.config.yaml`) for `main.py`-style runs. For the deployed workflow, set `aliasWritebackProperty` (or `alias_writeback_property`) on the `fn_dm_alias_persistence` task `data` to override per environment. Resolution: task `data` wins when present; otherwise pipeline YAML; otherwise `aliases`
 
 ## Prerequisites
 

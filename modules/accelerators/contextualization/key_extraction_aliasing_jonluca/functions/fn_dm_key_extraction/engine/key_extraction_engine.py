@@ -7,7 +7,7 @@ and foreign key references from entity metadata using regex, fixed width parsing
 token reassembly, and heuristic approaches.
 
 Features:
-- 4 extraction methods: regex, fixed width, token reassembly, heuristic
+- 5 extraction methods: regex, fixed width, token reassembly, heuristic, passthrough
 - Support for candidate keys and foreign key references
 - Configurable extraction rules with priority ordering
 - Integration with CDF data model views

@@ -153,16 +153,21 @@ def _create_cognite_client():
     return CogniteClient(config=config)
 
 
-def _load_configs() -> tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]]]:
-    """Load extraction, aliasing configs, and all source view configs.
+def _load_configs() -> tuple[
+    Dict[str, Any], Dict[str, Any], List[Dict[str, Any]], Optional[str]
+]:
+    """Load extraction, aliasing configs, all source view configs, and alias persistence options.
 
     Loads extraction rules and source views from all pipeline configs,
     and aliasing config from aliasing pipeline configs.
+    alias_writeback_property is read from the first *aliasing*.config.yaml whose
+    config.parameters defines alias_writeback_property.
     """
 
     # Load aliasing rules from aliasing pipeline configs
     pipelines_dir = SCRIPT_DIR / "pipelines"
     all_aliasing_rules = []
+    alias_writeback_property: Optional[str] = None
 
     for config_file in sorted(pipelines_dir.glob("*aliasing*.config.yaml")):
         try:
@@ -170,6 +175,19 @@ def _load_configs() -> tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]
                 pipeline_config = yaml.safe_load(f)
 
             config_data = pipeline_config.get("config", {}).get("data", {})
+            parameters = pipeline_config.get("config", {}).get("parameters", {})
+            if (
+                alias_writeback_property is None
+                and isinstance(parameters, dict)
+                and parameters.get("alias_writeback_property") is not None
+            ):
+                raw_prop = parameters.get("alias_writeback_property")
+                if isinstance(raw_prop, str) and raw_prop.strip():
+                    alias_writeback_property = raw_prop.strip()
+                    logger.info(
+                        f"Loaded alias_writeback_property from {config_file.name}: "
+                        f"{alias_writeback_property!r}"
+                    )
 
             # Use adapter to convert aliasing rules to engine format
             aliasing_config = _convert_yaml_direct_to_aliasing_config(
@@ -284,7 +302,7 @@ def _load_configs() -> tuple[Dict[str, Any], Dict[str, Any], List[Dict[str, Any]
     logger.info(f"Total extraction rules loaded: {len(all_extraction_rules)}")
     logger.info(f"Total source views: {len(all_source_views)}")
 
-    return extraction_config, aliasing_config, all_source_views
+    return extraction_config, aliasing_config, all_source_views, alias_writeback_property
 
 
 def _ensure_results_dir() -> Path:
@@ -409,7 +427,7 @@ The following diagram illustrates the complete workflow process from key extract
 1. **Key Extraction** - Extracts candidate keys, foreign key references, and document references from CDF entities
 2. **Result Splitting** - Separates extraction results into distinct streams based on type
 3. **Aliasing** - Generates aliases for candidate keys to improve matching
-4. **Write Aliases** - Persists aliases back to source entities in CDF
+4. **Write Aliases** - Persists the alias list to a property on CogniteDescribable (default `aliases`; configurable via pipeline or workflow `data`)
 5. **Reference Catalog** - Stores foreign key references and document references (future implementation)
 
 ---
@@ -708,7 +726,7 @@ The following table shows examples of entities processed by the extraction pipel
 
 - Results were generated from CDF Data Model views: CogniteAsset, CogniteFile, and CogniteTimeSeries
 - All extracted candidate keys were processed through the aliasing pipeline
-- Aliases have been persisted back to the CogniteDescribable view in CDF
+- Aliases have been written back on the CogniteDescribable view using the configured DM property (default `aliases`; see `alias_writeback_property` in aliasing pipeline parameters or `aliasWritebackProperty` in persistence task `data`)
 """
 
     if confidence_scores:
@@ -766,7 +784,12 @@ def main():
 
     # Load configs
     try:
-        extraction_config, aliasing_config, source_views = _load_configs()
+        (
+            extraction_config,
+            aliasing_config,
+            source_views,
+            alias_writeback_property,
+        ) = _load_configs()
     except Exception as e:
         logger.error(f"Failed to load configs: {e}")
         sys.exit(1)
@@ -1161,6 +1184,8 @@ def main():
                 "entities_keys_extracted": entities_keys_extracted,
                 "logLevel": "INFO",
             }
+            if alias_writeback_property:
+                persistence_data["alias_writeback_property"] = alias_writeback_property
             persist_aliases_to_entities(
                 client=client,
                 logger=logger,

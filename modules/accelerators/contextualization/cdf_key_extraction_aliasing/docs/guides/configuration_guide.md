@@ -28,8 +28,8 @@ The Key Extraction and Aliasing system uses YAML-based pipeline configuration fi
 - **Aliasing Pipelines**: Generate alternative representations (aliases) of extracted keys for improved matching
 
 Configuration files are located in:
-- `modules/contextualization/key_extraction_aliasing/pipelines/ctx_key_extraction_default.config.yaml`
-- `modules/contextualization/key_extraction_aliasing/pipelines/ctx_aliasing_default.config.yaml`
+- `modules/accelerators/contextualization/cdf_key_extraction_aliasing/pipelines/ctx_key_extraction_default.config.yaml`
+- `modules/accelerators/contextualization/cdf_key_extraction_aliasing/pipelines/ctx_aliasing_default.config.yaml`
 
 ---
 
@@ -139,7 +139,7 @@ validation:
 ```yaml
 extraction_rules:
   - name: "rule_name"                     # Unique rule identifier
-    method: "regex"                       # regex|fixed width|token reassembly|heuristic
+    method: "regex"                       # optional; omit → passthrough (default). Or: passthrough|regex|fixed width|token reassembly|heuristic
     extraction_type: "candidate_key"      # candidate_key|foreign_key_reference|document_reference
     description: "Rule description"       # Human-readable description
     enabled: true                         # Enable/disable rule
@@ -175,7 +175,28 @@ extraction_rules:
 
 ### Extraction Methods
 
-#### 1. Regex Method
+**Default:** If `method` is omitted, null, or blank, the rule uses **passthrough** (trimmed whole field value as the key).
+
+#### 1. Passthrough Method
+
+Uses the entire field value as the extracted key with no pattern matching or parsing. Equivalent to omitting `method`.
+
+```yaml
+- name: "name_as_candidate_key"
+  extraction_type: "candidate_key"
+  enabled: true
+  priority: 50
+  parameters:
+    min_confidence: 1.0   # optional; default 1.0
+  source_fields:
+    - field_name: "name"
+      required: true
+  field_selection_strategy: "first_match"
+```
+
+**Use cases:** Field value is already the identifier (e.g. asset `name` = tag); external IDs as candidate keys as-is.
+
+#### 2. Regex Method
 
 Uses regular expressions to match patterns in text fields.
 
@@ -212,7 +233,7 @@ You can use named groups to extract specific components:
 pattern: '\b(?P<type>[A-Z]{2,3})(?P<number>\d{3,4})\b'
 ```
 
-#### 2. Fixed Width Method
+#### 3. Fixed Width Method
 
 Extracts values from fixed-width formatted text using position-based parsing.
 
@@ -261,7 +282,7 @@ P-10002     Discharge Pump         PUMP
 V-2001      Control Valve           VALVE
 ```
 
-#### 3. Token Reassembly Method
+#### 4. Token Reassembly Method
 
 Reassembles hierarchical tags from tokenized components.
 
@@ -321,7 +342,7 @@ Reassembles hierarchical tags from tokenized components.
 **Example:**
 Input: `PLANT-A-100-P-101` → Output: `PLANT-A-100-P-101`, `P-101`
 
-#### 4. Heuristic Method
+#### 5. Heuristic Method
 
 Uses rule-based heuristics for extraction when patterns are inconsistent.
 
@@ -364,28 +385,6 @@ Uses rule-based heuristics for extraction when patterns are inconsistent.
 - Legacy systems with varied formats
 - Fallback for unmatched patterns
 
-#### 5. Passthrough Method
-
-Uses the entire field value as the extracted key with no pattern matching or parsing. The value is trimmed and emitted as a single key. Use when the source field already contains the identifier (e.g. `name`, `externalId`).
-
-```yaml
-- name: "name_as_candidate_key"
-  method: "passthrough"
-  extraction_type: "candidate_key"
-  enabled: true
-  priority: 50
-  parameters:
-    min_confidence: 1.0   # optional; default 1.0
-  source_fields:
-    - field_name: "name"
-      required: true
-  field_selection_strategy: "first_match"
-```
-
-**Use Cases:**
-- Field value is already the identifier (e.g. asset name = tag)
-- Using external IDs or primary keys as candidate keys as-is
-
 ### Field Selection Strategies
 
 When multiple keys are extracted from the same field or entity:
@@ -417,10 +416,13 @@ config:
     raw_db: db_tag_aliasing               # RAW database name
     raw_table_state: tag_aliasing_state   # State storage table
     raw_table_aliases: default_aliases    # Aliases storage table
+    alias_writeback_property: aliases     # DM property name for alias persistence (CogniteDescribable)
   data:
     aliasing_rules:                       # Aliasing transformation rules
       # ... aliasing rule configurations
 ```
+
+**Alias persistence (`alias_writeback_property`):** The persistence function writes the generated alias list to **one property** on CogniteDescribable (`cdf_cdm` / `v1`). **Precedence:** (1) `aliasWritebackProperty` or `alias_writeback_property` in the `data` dict passed to the persistence handler (e.g. workflow task `data` for `fn_dm_alias_persistence`); (2) `alias_writeback_property` in `config.parameters` from the first `*aliasing*.config.yaml` that defines it, when using `main.py`; (3) default `aliases`. Empty or whitespace-only values fall back to `aliases`. The chosen name is echoed in logs and in `data["alias_writeback_property"]` / per-entity summaries after a run.
 
 ### Aliasing Rules
 
@@ -1093,12 +1095,12 @@ extraction_rules:
 
 ## Additional Resources
 
-- **Pipeline Configs**: `modules/contextualization/key_extraction_aliasing/pipelines/`
-- **ISA Patterns**: `modules/contextualization/key_extraction_aliasing/functions/fn_dm_aliasing/tag_patterns.yaml`
-- **ISA Patterns Guide**: `modules/contextualization/key_extraction_aliasing/functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md`
-- **Tests**: `modules/contextualization/key_extraction_aliasing/tests/`
+- **Pipeline Configs**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/pipelines/`
+- **ISA Patterns**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_aliasing/tag_patterns.yaml`
+- **ISA Patterns Guide**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md`
+- **Tests**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/tests/`
 
 ---
 
-**Last Updated**: October 2024
+**Last Updated**: March 2026
 **Version**: 1.0.0

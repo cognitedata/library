@@ -222,7 +222,9 @@ class ExtractionRuleConfig(BaseModel):
     """Configuration for a single extraction rule."""
 
     rule_id: str
-    method: Literal["regex", "fixed width", "token reassembly", "heuristic", "passthrough"]
+    method: Literal[
+        "passthrough", "regex", "fixed width", "token reassembly", "heuristic"
+    ] = "passthrough"
     config: ExtractionMethod = Field(
         ...,
         description="Method-specific configuration parameters.",

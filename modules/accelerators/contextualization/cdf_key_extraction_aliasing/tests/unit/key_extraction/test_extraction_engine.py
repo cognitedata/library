@@ -22,11 +22,17 @@ from tests.fixtures.key_extraction.sample_data import (
     get_simple_asset,
 )
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
+    _convert_rule_dict_to_engine_format,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
     ExtractionMethod,
     ExtractionResult,
     ExtractionType,
     KeyExtractionEngine,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.rule_utils import (
+    normalize_method,
 )
 
 
@@ -522,6 +528,26 @@ class TestCompositeFieldExtraction(unittest.TestCase):
                 break
 
         self.assertTrue(found_cross_field, "No cross-field extraction found")
+
+
+class TestPassthroughDefaultMethod(unittest.TestCase):
+    """Omitted or blank method resolves to passthrough."""
+
+    def test_normalize_method_defaults(self):
+        self.assertEqual(normalize_method(None), ExtractionMethod.PASSTHROUGH)
+        self.assertEqual(normalize_method(""), ExtractionMethod.PASSTHROUGH)
+        self.assertEqual(normalize_method("   "), ExtractionMethod.PASSTHROUGH)
+
+    def test_convert_rule_without_method_key(self):
+        out = _convert_rule_dict_to_engine_format(
+            {
+                "name": "implicit_passthrough",
+                "extraction_type": "candidate_key",
+                "source_fields": [{"field_name": "name", "required": True}],
+            }
+        )
+        self.assertIsNotNone(out)
+        self.assertEqual(out["method"], "passthrough")
 
 
 if __name__ == "__main__":

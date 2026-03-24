@@ -72,19 +72,22 @@ def normalize_extraction_type(extraction_type: Any) -> ExtractionType:
 
 
 def normalize_method(method: Any) -> ExtractionMethod:
-    """Return ExtractionMethod enum. Accepts string or enum."""
+    """Return ExtractionMethod enum. Accepts string or enum. Missing/blank → passthrough."""
     if method is None:
-        return ExtractionMethod.REGEX
+        return ExtractionMethod.PASSTHROUGH
     if isinstance(method, ExtractionMethod):
         return method
     if isinstance(method, str):
-        normalized = method.replace("_", " ").strip()
+        stripped = method.strip()
+        if not stripped:
+            return ExtractionMethod.PASSTHROUGH
+        normalized = stripped.replace("_", " ")
         for e in ExtractionMethod:
-            if e.value == normalized or e.value == method:
+            if e.value == normalized or e.value == stripped:
                 return e
-        if method == "fixed_width":
+        if stripped == "fixed_width":
             return ExtractionMethod.FIXED_WIDTH
-        if method == "token_reassembly":
+        if stripped == "token_reassembly":
             return ExtractionMethod.TOKEN_REASSEMBLY
     return ExtractionMethod.REGEX
 
@@ -101,7 +104,7 @@ def get_extraction_type_from_rule(rule: Any) -> ExtractionType:
 def get_method_from_rule(rule: Any) -> ExtractionMethod:
     """Return rule method as enum. Works with object or dict."""
     if rule is None:
-        return ExtractionMethod.REGEX
+        return ExtractionMethod.PASSTHROUGH
     if isinstance(rule, dict):
         return normalize_method(rule.get("method"))
     return normalize_method(getattr(rule, "method", None))

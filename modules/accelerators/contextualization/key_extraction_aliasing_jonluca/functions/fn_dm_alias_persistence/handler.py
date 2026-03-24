@@ -32,6 +32,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
             - aliasing_results: Results from aliasing task (required)
             - entities_keys_extracted: Key extraction results to map aliases to entities
+            - aliasWritebackProperty or alias_writeback_property: Optional DM property
+              name to write the alias list to (default "aliases")
         client: CogniteClient instance (required)
 
     Returns:

@@ -22,18 +22,17 @@ For the detailed diagram source code and comprehensive flow description, see [wo
 
 ## Available Workflows
 
-### key_extraction_aliasing
+### cdf_key_extraction_aliasing
 
-A production workflow that chains key extraction and aliasing functions to create a complete contextualization pipeline.
+A production workflow that chains key extraction, aliasing, and alias persistence functions to create a complete contextualization pipeline.
 
 #### Description
 
-This workflow extracts candidate keys, foreign key references, and document references from CDF data model entities. The results are then split into separate processing streams:
-- **Candidate Keys** → Sent to the aliasing function to generate alternative representations for improved entity matching
-- **Foreign Key References** → Persisted to the Reference_Catalog for relationship tracking
-- **Document References** → Persisted to the Reference_Catalog for document linkage
+This workflow extracts candidate keys, foreign key references, and document references from CDF data model entities. **What runs in CDF:** key extraction → aliasing (candidate keys only) → alias persistence (writes the alias list to CogniteDescribable). Foreign key and document references are present in `entities_keys_extracted` but **are not** automatically persisted to a Reference_Catalog by this workflow (that is a separate or future process).
 
-After aliasing, the generated aliases are written back to the source entities to enhance searchability and matching capabilities.
+Streams conceptually:
+- **Candidate Keys** → Aliasing → alias persistence on the instance
+- **Foreign Key References** / **Document References** → Available in workflow data for downstream use; not written to Reference_Catalog by these tasks
 
 #### Workflow Tasks
 
@@ -79,16 +78,16 @@ After aliasing, the generated aliases are written back to the source entities to
 
 ## Workflow Files
 
-- **`key_extraction_aliasing.Workflow.yaml`**
+- **`cdf_key_extraction_aliasing.Workflow.yaml`**
   - Base workflow definition
   - Defines workflow external ID and associated data set (`ds_key_extraction`)
 
-- **`key_extraction_aliasing.WorkflowVersion.yaml`**
+- **`cdf_key_extraction_aliasing.WorkflowVersion.yaml`**
   - Workflow version definition (v1)
   - Contains task definitions and dependencies
   - Configures function parameters and execution order
 
-- **`key_extraction_aliasing.WorkflowTrigger.yaml`**
+- **`cdf_key_extraction_aliasing.WorkflowTrigger.yaml`**
   - Scheduled trigger configuration
   - Runs daily at 2:00 AM (UTC)
   - Uses function client credentials for authentication
@@ -173,7 +172,8 @@ The alias persistence function maps aliases back to entities:
 - Uses `entities_keys_extracted` to identify which entities contain each candidate key
 - Only processes aliases for candidate keys (not foreign keys or document references)
 - Groups aliases by entity for efficient batch updates
-- Updates entity properties with generated aliases in the CDF data model
+- Updates instances through the **CogniteDescribable** view (`cdf_cdm` / `v1`) by setting a **single list property** on that view to the generated aliases
+- **Property name** defaults to `aliases`. Set `alias_writeback_property` under `config.parameters` in `ctx_aliasing_default` (or another `*aliasing*.config.yaml`) for `main.py`-style runs. For the deployed workflow, set `aliasWritebackProperty` (or `alias_writeback_property`) on the `fn_dm_alias_persistence` task `data` to override per environment. Resolution: task `data` wins when present; otherwise pipeline YAML; otherwise `aliases`
 
 ## Prerequisites
 
@@ -210,7 +210,7 @@ cdf-tk deploy workflows
 ### Deploy Specific Workflow
 
 ```bash
-cdf-tk deploy workflows --include key_extraction_aliasing
+cdf-tk deploy workflows --include cdf_key_extraction_aliasing
 ```
 
 ### Verify Deployment
@@ -227,7 +227,7 @@ cdf-tk verify workflows
 
 The workflow runs automatically via the scheduled trigger:
 - **Schedule**: Daily at 2:00 AM UTC
-- **Trigger ID**: `key_extraction_aliasing_trigger`
+- **Trigger ID**: `cdf_key_extraction_aliasing_trigger`
 
 ### Manual Execution
 
@@ -238,7 +238,7 @@ from cognite.client import CogniteClient
 
 client = CogniteClient()
 client.workflows.runs.create(
-    workflow_external_id="key_extraction_aliasing",
+    workflow_external_id="cdf_key_extraction_aliasing",
     workflow_version="v1"
 )
 ```
@@ -246,7 +246,7 @@ client.workflows.runs.create(
 ### Monitoring
 
 Monitor workflow execution:
-- **CDF UI**: Navigate to Workflows → `key_extraction_aliasing`
+- **CDF UI**: Navigate to Workflows → `cdf_key_extraction_aliasing`
 - **API**: Query workflow runs using the Cognite SDK
 - **Logs**: Check function logs for detailed execution information
 
@@ -304,9 +304,9 @@ Enable debug logging by setting `logLevel: 'DEBUG'` in workflow task data.
 
 ```
 workflows/
-├── key_extraction_aliasing.Workflow.yaml          # Workflow definition
-├── key_extraction_aliasing.WorkflowVersion.yaml  # Workflow version v1
-├── key_extraction_aliasing.WorkflowTrigger.yaml  # Scheduled trigger
+├── cdf_key_extraction_aliasing.Workflow.yaml          # Workflow definition
+├── cdf_key_extraction_aliasing.WorkflowVersion.yaml  # Workflow version v1
+├── cdf_key_extraction_aliasing.WorkflowTrigger.yaml  # Scheduled trigger
 ├── workflow_diagram.png                          # Workflow visual diagram
 ├── workflow_diagram.md                           # Diagram documentation
 └── README.md                                          # This file

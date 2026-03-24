@@ -96,7 +96,7 @@ class ConfigurationValidator:
         return {
             "extraction_rule": {
                 "type": "object",
-                "required": ["name", "method"],
+                "required": ["name"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
                     "description": {"type": "string"},
@@ -111,9 +111,12 @@ class ConfigurationValidator:
                     "method": {
                         "type": "string",
                         "enum": [
+                            "passthrough",
                             "regex",
                             "fixed_width",
+                            "fixed width",
                             "token_reassembly",
+                            "token reassembly",
                             "heuristic",
                         ],
                     },
@@ -166,6 +169,8 @@ class ConfigurationValidator:
 
         # Additional validation for method-specific requirements
         method = rule_config.get("method")
+        if method in (None, "", "passthrough"):
+            return errors
         if method == "regex" and not rule_config.get("pattern"):
             errors.append("Regex method requires a pattern")
         elif method == "fixed_width" and not rule_config.get("config", {}).get(
@@ -356,7 +361,7 @@ class ConfigurationManager:
                 name=rule_data["name"],
                 description=rule_data.get("description", ""),
                 extraction_type=rule_data.get("extraction_type", "candidate_key"),
-                method=rule_data["method"],
+                method=rule_data.get("method") or "passthrough",
                 pattern=rule_data.get("pattern", ""),
                 priority=rule_data.get("priority", 50),
                 enabled=rule_data.get("enabled", True),
@@ -658,7 +663,11 @@ def main():
     try:
         config_data = {
             "extraction_rules": [
-                {"name": "test_rule", "method": "regex", "pattern": r"\b[A-Z]+\d+\b"}
+                {
+                    "name": "test_rule",
+                    "method": "passthrough",
+                    "source_fields": [{"field_name": "name", "required": True}],
+                }
             ],
         }
 

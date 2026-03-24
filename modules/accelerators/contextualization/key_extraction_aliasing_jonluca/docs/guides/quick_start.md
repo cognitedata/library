@@ -1,168 +1,82 @@
 # Quick Start Guide
 
-This guide will help you get up and running with the Key Extraction and Aliasing Workflow quickly.
+This guide covers running the **key_extraction_aliasing_jonluca** package from the repository root (`library/`) with correct Python import paths.
 
 ## Prerequisites
 
-- Python 3.8 or higher
-- Cognite Data Fusion (CDF) account and API key
-- Basic understanding of Python and YAML configuration
+- Python 3.11+ (see main [README](../../README.md))
+- Cognite Data Fusion (CDF) project and credentials (API key or OAuth), if you call CDF APIs
+- Dependencies installed (`poetry install` or equivalent)
 
-## Installation
+## Layout
 
-1. **Clone or download the project**
-   ```bash
-   git clone <repository-url>
-   cd KeyExtraction
-   ```
+- **Package root**: `modules/accelerators/contextualization/key_extraction_aliasing_jonluca/`
+- **Pipeline configs**: `pipelines/*.config.yaml` (e.g. `ctx_key_extraction_default.config.yaml`, `ctx_aliasing_default.config.yaml`)
+- **Entry point for CDF-backed runs**: `main.py` (loads configs from `pipelines/`, queries views, extracts, aliases, optionally persists aliases)
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Install CDF SDK**
-   ```bash
-   pip install cognite-sdk
-   ```
-
-## Environment Setup
-
-1. **Create environment configuration**
-   ```bash
-   # Copy the template and edit manually
-   cp env.template .env
-   # Edit .env with your CDF credentials
-   ```
-
-2. **Configure CDF connection**
-   ```bash
-   # Edit .env file with your CDF credentials
-   CDF_API_KEY=your_api_key_here
-   CDF_PROJECT=your_project_name
-   ```
-
-3. **Validate configuration**
-   ```bash
-   # Verify .env file exists and contains required variables
-   # Run main.py to test connection
-   poetry run python main.py
-   ```
-
-## Basic Usage
-
-### 1. Using the Key Extraction Engine
+## Using the Key Extraction Engine
 
 ```python
-from modules.contextualization.key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import KeyExtractionEngine
-from modules.contextualization.key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import load_config_from_yaml
+from pathlib import Path
 
-# Load configuration from pipeline config
-config_dict = load_config_from_yaml("modules/contextualization/key_extraction_aliasing/pipelines/ctx_key_extraction_default.config.yaml")
+from modules.accelerators.contextualization.key_extraction_aliasing_jonluca.functions.fn_dm_key_extraction.cdf_adapter import (
+    load_config_from_yaml,
+)
+from modules.accelerators.contextualization.key_extraction_aliasing_jonluca.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
+    KeyExtractionEngine,
+)
 
-# Initialize engine with extraction rules
+# Run with cwd = repository root (the folder that contains `modules/`), or set REPO_ROOT
+repo_root = Path.cwd()
+config_path = (
+    repo_root
+    / "modules/accelerators/contextualization/key_extraction_aliasing_jonluca/pipelines/ctx_key_extraction_default.config.yaml"
+)
+
+config_dict = load_config_from_yaml(str(config_path))
 engine = KeyExtractionEngine(config_dict)
 
-# Sample data
-sample_data = [
-    {"name": "P-101", "description": "Main Process Pump"},
-    {"name": "T-201", "description": "Storage Tank"},
-    {"name": "V-301", "description": "Control Valve"}
-]
+entity = {"name": "P-101", "description": "Main pump", "id": "asset-1"}
+result = engine.extract_keys(entity, "asset")
 
-# Extract keys
-results = engine.extract_keys(sample_data)
-
-print(f"Extracted {len(results.candidate_keys)} candidate keys")
-for key in results.candidate_keys:
-    print(f"  - {key.value} (confidence: {key.confidence})")
+print(f"Candidate keys: {[k.value for k in result.candidate_keys]}")
 ```
 
-### 2. Using the Aliasing Engine
+`extract_keys` takes a single **entity** dict and an **entity_type** string (`asset`, `file`, `timeseries`, etc.), matching `main.py` and the CDF function pipeline.
+
+## Using the Aliasing Engine
 
 ```python
-from aliasing import AliasingEngine
+from modules.accelerators.contextualization.key_extraction_aliasing_jonluca.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
+    AliasingEngine,
+)
 
-# Initialize aliasing engine
-aliasing_engine = AliasingEngine()
-
-# Generate aliases for a tag
-tag = "P-101"
-aliases = aliasing_engine.generate_aliases(tag)
-
-print(f"Aliases for '{tag}':")
-for alias in aliases:
-    print(f"  - {alias}")
+# Minimal config; production uses rules from ctx_aliasing_default.config.yaml via main.py / fn_dm_aliasing
+aliasing_engine = AliasingEngine({"rules": [], "validation": {}})
+out = aliasing_engine.generate_aliases("P-101", "asset")
+print(out.aliases)
 ```
 
-### 3. Running the Complete System
+`generate_aliases` returns an **`AliasingResult`** with `.aliases` (list of strings) and `.metadata`.
 
-```python
-from main import CDFKeyExtractionSystem
-from modules.contextualization.key_extraction_aliasing.config.configuration_manager import load_config_from_env
+## Full CDF pipeline (local)
 
-# Load configuration from environment
-config = load_config_from_env()
+From the **repository root**:
 
-# Initialize system
-system = CDFKeyExtractionSystem(config)
-
-# Deploy the pipeline
-deployment_results = system.deploy_pipeline()
-print("Deployment Results:", deployment_results)
-
-# Run extraction
-results = system.run_extraction()
-print("Extraction Results:", results)
-```
-
-## Command Line Usage
-
-### Deploy Key Extraction Only
 ```bash
-python main.py deploy --key-extraction-only
+poetry run python modules/accelerators/contextualization/key_extraction_aliasing_jonluca/main.py --dry-run
 ```
 
-### Deploy Complete Pipeline
-```bash
-python main.py deploy
-```
+Omit `--dry-run` to persist aliases to CogniteDescribable (see [README](../../README.md) **Alias write-back**).
 
-### Run Extraction
-```bash
-python main.py run
-```
+## Configuration loading utilities
 
-### Validate Configuration
-```bash
-python main.py validate
-```
+- **YAML → engine (key extraction)**: `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_adapter.py`
+- **Environment / structured config**: `config/configuration_manager.py` (`ConfigurationManager`, `load_config_from_env` for typed `KeyExtractionConfig` where used)
 
-## Next Steps
+## More documentation
 
-- Review the [Configuration Guide](configuration.md) for detailed configuration options
-- Check the [API Documentation](../api/) for detailed API references
-- Explore [Examples](../examples/) for more complex usage scenarios
-- Read the [System Architecture](../architecture/system_architecture.md) for understanding the overall design
-
-## Troubleshooting
-
-If you encounter issues:
-
-1. **Import Errors**: Ensure all dependencies are installed
-   ```bash
-   pip install -r requirements.txt
-   pip install cognite-sdk
-   ```
-
-2. **CDF Connection Issues**: Verify your API key and project name in the `.env` file
-
-3. **Configuration Errors**: Use the validation tools
-   ```bash
-   python env_utils.py --validate-env
-   python main.py validate
-   ```
-
-4. **Module Not Found**: Ensure you're running from the project root directory
-
-For more detailed troubleshooting, see the [Troubleshooting Guide](../troubleshooting/common_issues.md).
+- [Configuration guide](configuration_guide.md) — pipeline YAML structure, filters, validation
+- [Key extraction spec](../1.%20key_extraction.md) / [Aliasing spec](../2.%20aliasing.md)
+- [Troubleshooting](../troubleshooting/common_issues.md)
+- [Workflows](../../workflows/README.md) — `cdf_key_extraction_aliasing` workflow and tasks

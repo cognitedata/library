@@ -7,7 +7,7 @@ and foreign key references from entity metadata using regex, fixed width parsing
 token reassembly, and heuristic approaches.
 
 Features:
-- 4 extraction methods: regex, fixed width, token reassembly, heuristic
+- 5 extraction methods: passthrough (default when omitted), regex, fixed width, token reassembly, heuristic
 - Support for candidate keys and foreign key references
 - Configurable extraction rules with priority ordering
 - Integration with CDF data model views
@@ -101,13 +101,13 @@ class KeyExtractionEngine:
     ) -> Dict[ExtractionMethod, ExtractionMethodHandler]:
         """Initialize method handler instances."""
         return {
+            ExtractionMethod.PASSTHROUGH.value: PassthroughExtractionHandler(self.logger),
             ExtractionMethod.REGEX.value: RegexExtractionHandler(self.logger),
             ExtractionMethod.FIXED_WIDTH.value: FixedWidthExtractionHandler(self.logger),
             ExtractionMethod.TOKEN_REASSEMBLY.value: TokenReassemblyExtractionHandler(
                 self.logger
             ),
             ExtractionMethod.HEURISTIC.value: HeuristicExtractionHandler(self.logger),
-            ExtractionMethod.PASSTHROUGH.value: PassthroughExtractionHandler(self.logger),
         }
 
     def extract_keys(

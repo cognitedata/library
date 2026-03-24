@@ -91,13 +91,13 @@ class SourceFieldParameter(BaseModel):
 
 
 class ExtractionMethod(Enum):
-    """Enumeration of available extraction methods."""
+    """Enumeration of available extraction methods (passthrough is the default when omitted)."""
 
+    PASSTHROUGH = "passthrough"  # Use entire field value as key (no regex/parsing)
     REGEX = "regex"
     FIXED_WIDTH = "fixed width"
     TOKEN_REASSEMBLY = "token reassembly"
     HEURISTIC = "heuristic"
-    PASSTHROUGH = "passthrough"  # Use entire field value as key (no regex/parsing)
 
 
 class ExtractionType(Enum):

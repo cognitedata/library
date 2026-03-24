@@ -277,7 +277,7 @@ See `tests/fixtures/sample_data.py` for available fixtures.
 ### Import Errors
 If you see import errors, ensure you're in the project root:
 ```bash
-cd /path/to/key_extraction_aliasing
+cd /path/to/library
 pytest tests/
 ```
 

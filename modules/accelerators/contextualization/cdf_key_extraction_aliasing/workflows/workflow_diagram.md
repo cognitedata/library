@@ -71,13 +71,14 @@ graph TD
 - **Output**: Aliases for each candidate key
 
 ### 4. Write Aliases Phase
-- **Component**: Entity update process
+- **Component**: Entity update process (`fn_dm_alias_persistence`)
 - **Input**: Generated aliases for candidate keys
 - **Process**:
-  - Updates source entities with generated aliases
+  - Applies the alias list to instances via **CogniteDescribable** (`cdf_cdm` / `v1`)
+  - Property name defaults to `aliases`; override with `alias_writeback_property` in aliasing pipeline `config.parameters` or `aliasWritebackProperty` on the persistence task `data`
   - Links aliases to original candidate keys
-  - Stores alias metadata
-- **Output**: Updated entities with aliases persisted
+  - Stores alias metadata in workflow `data`
+- **Output**: Updated entities with the alias list written to the configured property
 
 ### 5. Reference Catalog Phase
 - **Component**: Reference_Catalog persistence
@@ -92,7 +93,7 @@ graph TD
 
 ```
 Entities → Key Extraction → ExtractionResult
-                              ├─ candidate_keys → Aliasing → Aliases → Write to Entity
+                              ├─ candidate_keys → Aliasing → Aliases → Write to Entity (CogniteDescribable property; default aliases)
                               ├─ foreign_key_references → Reference_Catalog
                               └─ document_references → Reference_Catalog
 ```
@@ -100,7 +101,7 @@ Entities → Key Extraction → ExtractionResult
 ## Implementation Notes
 
 ### Current Workflow
-The current `key_extraction_aliasing` workflow implements:
+The current `cdf_key_extraction_aliasing` workflow implements:
 1. Key extraction task → extracts all key types
 2. Aliasing task → automatically processes candidate keys from extraction results
 

@@ -17,7 +17,7 @@ The following diagram illustrates the complete workflow process from key extract
 1. **Key Extraction** - Extracts candidate keys, foreign key references, and document references from CDF entities
 2. **Result Splitting** - Separates extraction results into distinct streams based on type
 3. **Aliasing** - Generates aliases for candidate keys to improve matching
-4. **Write Aliases** - Persists aliases back to source entities in CDF
+4. **Write Aliases** - Persists the alias list to a property on CogniteDescribable (default property `aliases`; configurable)
 5. **Reference Catalog** - Stores foreign key references and document references (future implementation)
 
 ---
@@ -253,7 +253,7 @@ The following table shows examples of entities processed by the extraction pipel
 
 - Results were generated from CDF Data Model views: CogniteAsset, CogniteFile, and CogniteTimeSeries
 - All extracted candidate keys were processed through the aliasing pipeline
-- Aliases have been persisted back to the CogniteDescribable view in CDF
+- Aliases have been written back on the CogniteDescribable view using the configured DM property (default `aliases`; see pipeline `alias_writeback_property` or workflow `aliasWritebackProperty`)
 - Confidence scores for extraction range from 0.795 to 1.000
 
 ---

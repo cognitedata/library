@@ -6,7 +6,7 @@ alternative representations of asset tags, equipment identifiers, and document n
 to improve entity matching and contextualization accuracy.
 
 Features:
-- 10 transformation types (character substitution, prefix/suffix ops, regex, etc.)
+- 12 transformation types (character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite)
 - Support for related instrument tag generation
 - Equipment type expansion for semantic matching
 - Hierarchical tag expansion
