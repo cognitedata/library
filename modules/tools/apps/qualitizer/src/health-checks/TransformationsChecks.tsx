@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader } from "@/shared/Loader";
 import { useAppSdk } from "@/shared/auth";
 import { extractDataModelRefs } from "@/transformations/transformationChecks";
+import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
 import {
   TransformationsHealthPanel,
   type NoopTransformation,
@@ -64,6 +65,10 @@ export function TransformationsChecks({ onBack }: Props) {
           };
         };
         const items = response.data?.items ?? [];
+        const idsMissingQuery = items
+          .filter((tr) => !(tr.query ?? "").trim())
+          .map((tr) => String(tr.id));
+        const queryById = await fetchTransformationsByIds(sdk, sdk.project, idsMissingQuery);
 
         const byModel = new Map<
           string,
@@ -72,17 +77,8 @@ export function TransformationsChecks({ onBack }: Props) {
 
         for (const tr of items) {
           if (cancelled) return;
-          let query = tr.query;
-          if (query == null || query === "") {
-            try {
-              const single = (await sdk.get(
-                `/api/v1/projects/${sdk.project}/transformations/${tr.id}`
-              )) as { data?: { query?: string } };
-              query = single.data?.query ?? "";
-            } catch {
-              query = "";
-            }
-          }
+          let query = tr.query ?? "";
+          if (!String(query).trim()) query = queryById.get(String(tr.id))?.query ?? "";
           if (!query?.trim()) continue;
 
           const refs = extractDataModelRefs(query);

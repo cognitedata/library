@@ -23,10 +23,10 @@ const productionPages = [
 ] as const;
 
 const internalPages = [
+  { id: "healthInternal", label: "Health Checks" },
   { id: "assets", label: "Assets" },
   { id: "models", label: "Data models" },
   { id: "views", label: "Views" },
-  { id: "properties", label: "Properties" },
   { id: "streams", label: "Streams" },
   { id: "edges", label: "Edges" },
   { id: "spaces", label: "Spaces" },
@@ -57,7 +57,17 @@ function AppContent() {
     return new Set<AppMode>([...prod, ...internal] as AppMode[]);
   }, [showInternal]);
   const initialMode = useMemo(() => {
-    const { mode: stored } = loadNavState();
+    const state = loadNavState();
+    let stored = state.mode;
+    if (stored === "versioning") {
+      const sub =
+        state.versioningSubView === "dataModelVersions" ? "dataModelVersions" : "viewVersions";
+      saveNavState({ mode: "meta", dataCatalogSubView: sub });
+      stored = "meta";
+    } else if (stored === "properties") {
+      saveNavState({ mode: "meta", dataCatalogSubView: "propertyExplorer" });
+      stored = "meta";
+    }
     if (stored && validModes.has(stored as AppMode)) return stored as AppMode;
     return productionPages[0].id;
   }, [validModes]);

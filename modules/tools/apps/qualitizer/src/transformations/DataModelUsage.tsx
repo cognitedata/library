@@ -5,6 +5,7 @@ import { ApiError } from "@/shared/ApiError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LoadState } from "@/processing/types";
 import { extractDataModelRefs } from "./transformationChecks";
+import { fetchTransformationsByIds } from "./fetchTransformationsByIds";
 import { TransformationsHelpModal } from "./TransformationsHelpModal";
 
 type TransformationSummary = {
@@ -51,6 +52,10 @@ export function DataModelUsage() {
           { params: { includePublic: "true", limit: "1000" } }
         )) as { data?: { items?: TransformationSummary[] } };
         const items = response.data?.items ?? [];
+        const idsMissingQuery = items
+          .filter((t) => !(t.query ?? "").trim())
+          .map((t) => String(t.id));
+        const queryById = await fetchTransformationsByIds(sdk, sdk.project, idsMissingQuery);
 
         const byModel = new Map<
           string,
@@ -59,17 +64,8 @@ export function DataModelUsage() {
 
         for (const t of items) {
           if (cancelled) return;
-          let query = t.query;
-          if (query == null || query === "") {
-            try {
-              const single = (await sdk.get(
-                `/api/v1/projects/${sdk.project}/transformations/${t.id}`
-              )) as { data?: { query?: string } };
-              query = single.data?.query ?? "";
-            } catch {
-              query = "";
-            }
-          }
+          let query = t.query ?? "";
+          if (!String(query).trim()) query = queryById.get(String(t.id))?.query ?? "";
           if (!query?.trim()) continue;
 
           const refs = extractDataModelRefs(query);

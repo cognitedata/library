@@ -171,7 +171,13 @@ function aggregateJobMetrics(items: JobMetricItem[]): {
   let noops = 0;
   let rateLimit429 = 0;
   for (const [name, { count }] of byName) {
-    if (name.includes(".rows.read")) reads += count;
+    if (
+      name.includes(".rows.read") ||
+      name === "instances.read" ||
+      name.startsWith("instances.read.")
+    ) {
+      reads += count;
+    }
     if (name === "instances.upserted") writes = count;
     if (name === "instances.upsertedNoop") noops = count;
     if (name.includes(".429.")) rateLimit429 += count;
@@ -206,6 +212,9 @@ export function TransformationsList({
   const [metricsById, setMetricsById] = useState<
     Record<string, { reads: number; writes: number; noops: number; rateLimit429: number }>
   >({});
+  /** Latest job id per transformation (from jobs list). Key present after jobs fetch; null = no job. */
+  const [latestJobById, setLatestJobById] = useState<Record<string, string | null>>({});
+  const metricsJobFetchedRef = useRef<Record<string, string>>({});
   const [ctePreviews, setCtePreviews] = useState<
     Record<
       string,
@@ -254,6 +263,9 @@ export function TransformationsList({
           }
           setStatsById({});
           setCountsById({});
+          setLatestJobById({});
+          setMetricsById({});
+          metricsJobFetchedRef.current = {};
           setStatus("success");
         }
       } catch (error) {
@@ -276,13 +288,16 @@ export function TransformationsList({
     const windowEnd = Date.now();
     const windowStart = windowEnd - 24 * 60 * 60 * 1000;
     let cancelled = false;
-    transformations.forEach((transformation) => {
-      const id = String(transformation.id);
-      sdk
-        .get(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
-          params: { limit: "1000", transformationId: id },
-        })
-        .then((jobResponse) => {
+
+    const run = async () => {
+      for (const transformation of transformations) {
+        if (cancelled) return;
+        const id = String(transformation.id);
+        try {
+          const jobResponse = await sdk.get(
+            `/api/v1/projects/${sdk.project}/transformations/jobs`,
+            { params: { limit: "1000", transformationId: id } }
+          );
           if (cancelled) return;
           const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
           const jobs = data?.items ?? [];
@@ -303,14 +318,23 @@ export function TransformationsList({
             if (!start || !end || end < start) return acc;
             return acc + (end - start);
           }, 0);
+          const sorted = [...jobs].sort(
+            (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
+          );
+          const latest = sorted[0];
+          const latestJobId = latest?.id != null ? String(latest.id) : null;
           setStatsById((prev) => ({ ...prev, [id]: { count, lastRun, totalMs } }));
-        })
-        .catch(() => {
+          setLatestJobById((prev) => ({ ...prev, [id]: latestJobId }));
+        } catch {
           if (!cancelled) {
             setStatsById((prev) => ({ ...prev, [id]: { count: 0, totalMs: 0 } }));
+            setLatestJobById((prev) => ({ ...prev, [id]: null }));
           }
-        });
-    });
+        }
+      }
+    };
+
+    void run();
     return () => {
       cancelled = true;
     };
@@ -414,51 +438,57 @@ export function TransformationsList({
       safePage * PAGE_SIZE + PAGE_SIZE
     );
     if (items.length === 0) return;
+    if (items.some((t) => !(String(t.id) in latestJobById))) return;
+
     let cancelled = false;
-    setMetricsById({});
     let index = 0;
+
     const run = async () => {
-      if (cancelled || index >= items.length) return;
-      const t = items[index];
-      const id = String(t.id);
-      try {
-        const jobRes = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations/jobs`,
-          { params: { limit: "10", transformationId: id } }
-        )) as { data?: { items?: TransformationJobSummary[] } };
-        const jobs = jobRes.data?.items ?? [];
-        const sorted = [...jobs].sort(
-          (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
-        );
-        const latest = sorted[0];
-        const jobId = latest?.id;
-        if (!jobId) {
-          setMetricsById((prev) => ({ ...prev, [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 } }));
-        } else {
+      while (index < items.length && !cancelled) {
+        const t = items[index];
+        const id = String(t.id);
+        index += 1;
+
+        const jobId = latestJobById[id];
+        if (jobId == null) {
+          setMetricsById((prev) => ({
+            ...prev,
+            [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 },
+          }));
+          continue;
+        }
+
+        if (metricsJobFetchedRef.current[id] === jobId) {
+          continue;
+        }
+
+        try {
           const metricsRes = (await sdk.get(
             `/api/v1/projects/${sdk.project}/transformations/jobs/${jobId}/metrics`
           )) as { data?: { items?: JobMetricItem[] } };
           const metricItems = metricsRes.data?.items ?? [];
           const agg = aggregateJobMetrics(metricItems);
           if (!cancelled) {
+            metricsJobFetchedRef.current[id] = jobId;
             setMetricsById((prev) => ({ ...prev, [id]: agg }));
           }
+        } catch {
+          if (!cancelled) {
+            metricsJobFetchedRef.current[id] = jobId;
+            setMetricsById((prev) => ({
+              ...prev,
+              [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 },
+            }));
+          }
         }
-      } catch {
-        if (!cancelled) {
-          setMetricsById((prev) => ({ ...prev, [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 } }));
-        }
-      }
-      index += 1;
-      if (index < items.length) {
-        setTimeout(run, 0);
       }
     };
-    setTimeout(run, 0);
+
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [safePage, sortedTransformations, isSdkLoading, sdk]);
+  }, [safePage, sortedTransformations, isSdkLoading, sdk, latestJobById]);
 
   const toggleSort = (nextKey: TableSortKey) => {
     if (sortKey === nextKey) {

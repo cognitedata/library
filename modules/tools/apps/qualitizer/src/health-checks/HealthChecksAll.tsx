@@ -4,6 +4,7 @@ import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
 import { useI18n } from "@/shared/i18n";
 import { extractDataModelRefs } from "@/transformations/transformationChecks";
+import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
 import { ModelingHealthPanel } from "./ModelingHealthPanel";
 import { RawHealthPanel } from "./RawHealthPanel";
 import { FunctionsHealthPanel } from "./FunctionsHealthPanel";
@@ -88,6 +89,7 @@ export function HealthChecksAll({ onBack }: Props) {
   const [noopTransformations, setNoopTransformations] = useState<NoopTransformation[]>([]);
   const [noopTotal, setNoopTotal] = useState(0);
   const [showLoader, setShowLoader] = useState(false);
+
   const [rawLoadAll, setRawLoadAll] = useState(false);
   const consecutiveErrorsRef = useRef(0);
   const [circuitBreakerTripped, setCircuitBreakerTripped] = useState(false);
@@ -296,16 +298,15 @@ export function HealthChecksAll({ onBack }: Props) {
           params: { includePublic: "true", limit: "1000" },
         })) as { data?: { items?: Array<{ id: number | string; name?: string; query?: string }> } };
         const items = response.data?.items ?? [];
+        const idsMissingQuery = items
+          .filter((tr) => !(tr.query ?? "").trim())
+          .map((tr) => String(tr.id));
+        const queryById = await fetchTransformationsByIds(sdk, sdk.project, idsMissingQuery);
         const byModel = new Map<string, { space: string; externalId: string; usages: ModelUsage[] }>();
         for (const tr of items) {
           if (cancelled) return;
-          let query = tr.query;
-          if (query == null || query === "") {
-            try {
-              const single = (await sdk.get(`/api/v1/projects/${sdk.project}/transformations/${tr.id}`)) as { data?: { query?: string } };
-              query = single.data?.query ?? "";
-            } catch { query = ""; }
-          }
+          let query = tr.query ?? "";
+          if (!String(query).trim()) query = queryById.get(String(tr.id))?.query ?? "";
           if (!query?.trim()) continue;
           const refs = extractDataModelRefs(query);
           const id = String(tr.id);

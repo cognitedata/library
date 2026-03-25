@@ -253,7 +253,29 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.table.dataset": "Dataset",
     "permissions.table.status": "Status",
     "dataCatalog.title": "Data Catalog",
+    "dataCatalog.sectionSubtitle":
+      "Browse models and fields, explore properties, and compare published versions.",
+    "dataCatalog.subNavAria": "Data catalog sections",
+    "dataCatalog.overview.title": "Overview",
+    "dataCatalog.subnav.overview": "Overview",
+    "dataCatalog.subnav.propertyExplorer": "Property Explorer",
+    "dataCatalog.propertyExplorer.showAllFilters": "Show all filters",
+    "dataCatalog.propertyExplorer.hideExtraFilters": "Hide extra filters",
+    "dataCatalog.subnav.dataModelVersions": "Data Model Versions",
+    "dataCatalog.subnav.viewVersions": "View Versions",
+    "dataCatalog.versionMatrix.showChecksumVersions":
+      "Show checksum-style version columns",
+    "dataCatalog.versionMatrix.onlyChecksumColumns":
+      "No regular version columns in this scope; only checksum-style identifiers remain. Enable below to show the grid.",
     "dataCatalog.subtitle": "Columns: Data models → Views → Fields.",
+    "dataCatalog.filter.placeholder": "Substring…",
+    "dataCatalog.filter.exclude": "Exclude",
+    "dataCatalog.filter.excludeAria": "Exclude matches for {column}",
+    "dataCatalog.filter.summary":
+      "{mShown} / {mTotal} models · {vShown} / {vTotal} views · {fShown} / {fTotal} fields",
+    "dataCatalog.filter.clear": "Clear filters",
+    "dataCatalog.filter.noMatch":
+      "No nodes match the current filters. Clear or loosen the search text.",
     "dataCatalog.help.title": "Data catalog overview",
     "dataCatalog.help.subtitle": "How to interpret the model/view/field graph.",
     "dataCatalog.help.challenge.title": "Which challenges does this help solve?",
@@ -356,6 +378,9 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.sample.empty": "No rows available.",
     "healthChecks.title": "Health Checks",
     "healthChecks.subtitle": "Snapshot of key CDF data quality signals.",
+    "healthChecks.internal.title": "Internal Health Checks",
+    "healthChecks.internal.description":
+      "Checks not yet production ready. Feedback welcome.",
     "healthChecks.circuitBreaker.title": "Stopped after repeated API errors",
     "healthChecks.circuitBreaker.description":
       "Several API calls failed in a row (e.g. proxy authentication). Refresh the page to retry after fixing the issue.",
@@ -416,6 +441,40 @@ const translations: Record<Language, Record<string, string>> = {
       "{count} data model(s) have version inconsistencies across transformations.",
     "healthChecks.dataModelVersioning.allConsistent":
       "All data models have consistent versioning across transformations.",
+    "healthChecks.versioning.title": "Versioning",
+    "healthChecks.versioning.description":
+      "Data model and view versions not referenced by transformations, and view versions that would become orphaned if unused model versions were removed.",
+    "healthChecks.versioning.error": "Failed to load versioning checks.",
+    "healthChecks.versioning.summary.category": "Category",
+    "healthChecks.versioning.summary.total": "Total",
+    "healthChecks.versioning.summary.used": "Used",
+    "healthChecks.versioning.summary.unused": "Unused",
+    "healthChecks.versioning.summary.coverage": "Coverage",
+    "healthChecks.versioning.summary.coverageValue": "{pct}%",
+    "healthChecks.versioning.summary.dataModelVersions": "Data model versions",
+    "healthChecks.versioning.summary.viewVersions": "View versions",
+    "healthChecks.versioning.summary.totals": "Totals",
+    "healthChecks.versioning.summary.orphanedNote":
+      "{count} view version(s) would be orphaned if unused model versions were removed ({pct}% of unused views).",
+    "healthChecks.versioning.modelVersionsNotInUse.title": "Data model versions not in use",
+    "healthChecks.versioning.modelVersionsNotInUse.description":
+      "Model versions that no transformation references (explicitly or as latest).",
+    "healthChecks.versioning.modelVersionsNotInUse.none":
+      "All data model versions are in use.",
+    "healthChecks.versioning.completelyUnusedHint":
+      "Orange = not referenced by any transformation or data model.",
+    "healthChecks.versioning.viewVersionsNotInUse.title": "View versions not in use",
+    "healthChecks.versioning.viewVersionsNotInUse.description":
+      "View versions not referenced by any in-use data model version.",
+    "healthChecks.versioning.viewVersionsNotInUse.none":
+      "All view versions are in use.",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.title":
+      "View versions that would become unused",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.description":
+      "View versions only referenced by data model versions not in use. Removing those model versions would orphan these view versions.",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.referencedBy": "only in",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.none":
+      "No view versions would become orphaned.",
     "healthChecks.raw.overview.title": "Raw tables overview",
     "healthChecks.raw.overview.description":
       "Database/table scan to identify empty or stale raw tables.",
@@ -740,7 +799,29 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.table.dataset": "データセット",
     "permissions.table.status": "ステータス",
     "dataCatalog.title": "データカタログ",
+    "dataCatalog.sectionSubtitle":
+      "モデルとフィールドの確認、プロパティの探索、公開バージョンの比較。",
+    "dataCatalog.subNavAria": "データカタログのセクション",
+    "dataCatalog.overview.title": "概要",
+    "dataCatalog.subnav.overview": "概要",
+    "dataCatalog.subnav.propertyExplorer": "プロパティエクスプローラー",
+    "dataCatalog.propertyExplorer.showAllFilters": "すべてのフィルターを表示",
+    "dataCatalog.propertyExplorer.hideExtraFilters": "追加フィルターを隠す",
+    "dataCatalog.subnav.dataModelVersions": "データモデルバージョン",
+    "dataCatalog.subnav.viewVersions": "ビューバージョン",
+    "dataCatalog.versionMatrix.showChecksumVersions":
+      "チェックサム形式のバージョン列を表示",
+    "dataCatalog.versionMatrix.onlyChecksumColumns":
+      "この範囲では通常のバージョン列がなく、チェックサム形式の識別子のみです。下で有効にするとグリッドに表示されます。",
     "dataCatalog.subtitle": "列: データモデル → ビュー → フィールド。",
+    "dataCatalog.filter.placeholder": "部分文字列…",
+    "dataCatalog.filter.exclude": "除外",
+    "dataCatalog.filter.excludeAria": "{column}で一致した項目を除外",
+    "dataCatalog.filter.summary":
+      "データモデル {mShown} / {mTotal} · ビュー {vShown} / {vTotal} · フィールド {fShown} / {fTotal}",
+    "dataCatalog.filter.clear": "フィルターをクリア",
+    "dataCatalog.filter.noMatch":
+      "条件に一致するノードがありません。フィルターをクリアするか検索を緩めてください。",
     "dataCatalog.help.title": "データカタログの概要",
     "dataCatalog.help.subtitle": "モデル/ビュー/フィールドグラフの読み方。",
     "dataCatalog.help.challenge.title": "このヘルプで解決できる課題は？",
@@ -843,6 +924,9 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.sample.empty": "行がありません。",
     "healthChecks.title": "ヘルスチェック",
     "healthChecks.subtitle": "CDF の主要なデータ品質シグナルをまとめて表示します。",
+    "healthChecks.internal.title": "内部ヘルスチェック",
+    "healthChecks.internal.description":
+      "本番対応前のチェックです。フィードバック歓迎。",
     "healthChecks.circuitBreaker.title": "API エラーが続いたため停止しました",
     "healthChecks.circuitBreaker.description":
       "複数の API 呼び出しが連続して失敗しました（例：プロキシ認証）。問題を修正してからページを更新して再試行してください。",
@@ -905,6 +989,40 @@ const translations: Record<Language, Record<string, string>> = {
       "{count} 件のデータモデルで、変換間のバージョン不整合があります。",
     "healthChecks.dataModelVersioning.allConsistent":
       "すべてのデータモデルで変換間のバージョンが一貫しています。",
+    "healthChecks.versioning.title": "バージョニング",
+    "healthChecks.versioning.description":
+      "変換で参照されていないデータモデルおよびビューのバージョンと、未使用のモデルバージョンを削除した場合に孤立するビューバージョン。",
+    "healthChecks.versioning.error": "バージョニングチェックの読み込みに失敗しました。",
+    "healthChecks.versioning.summary.category": "カテゴリ",
+    "healthChecks.versioning.summary.total": "合計",
+    "healthChecks.versioning.summary.used": "使用中",
+    "healthChecks.versioning.summary.unused": "未使用",
+    "healthChecks.versioning.summary.coverage": "カバレッジ",
+    "healthChecks.versioning.summary.coverageValue": "{pct}%",
+    "healthChecks.versioning.summary.dataModelVersions": "データモデルバージョン",
+    "healthChecks.versioning.summary.viewVersions": "ビューバージョン",
+    "healthChecks.versioning.summary.totals": "合計",
+    "healthChecks.versioning.summary.orphanedNote":
+      "未使用のモデルバージョンを削除すると、{count} のビューバージョンが孤立します（未使用ビューの{pct}%）。",
+    "healthChecks.versioning.modelVersionsNotInUse.title": "使用されていないデータモデルバージョン",
+    "healthChecks.versioning.modelVersionsNotInUse.description":
+      "変換で参照されていないモデルバージョン（明示的または最新として）。",
+    "healthChecks.versioning.modelVersionsNotInUse.none":
+      "すべてのデータモデルバージョンが使用されています。",
+    "healthChecks.versioning.completelyUnusedHint":
+      "オレンジ = 変換またはデータモデルで参照されていません。",
+    "healthChecks.versioning.viewVersionsNotInUse.title": "使用されていないビューバージョン",
+    "healthChecks.versioning.viewVersionsNotInUse.description":
+      "使用中のデータモデルバージョンで参照されていないビューバージョン。",
+    "healthChecks.versioning.viewVersionsNotInUse.none":
+      "すべてのビューバージョンが使用されています。",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.title":
+      "未使用になるビューバージョン",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.description":
+      "使用されていないデータモデルバージョンのみで参照されているビューバージョン。それらのモデルバージョンを削除すると、これらのビューバージョンが孤立します。",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.referencedBy": "のみで参照",
+    "healthChecks.versioning.viewVersionsWouldBeOrphaned.none":
+      "孤立するビューバージョンはありません。",
     "healthChecks.raw.overview.title": "Raw テーブル概要",
     "healthChecks.raw.overview.description":
       "空の Raw テーブルを特定するためのデータベース/テーブル走査。",
