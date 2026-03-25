@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
@@ -572,12 +573,65 @@ def get_all_targets(
         include_has_data=False,
     )
 
-    all_targets = client.data_modeling.instances.list(
-        space=job_config.target_view.instance_space,
-        sources=[job_config.target_view.as_view_id()],
-        filter=is_selected,
-        limit=1000
-    )
+    batch_size = 100
+    max_page_retries = 4
+    retry_backoff_seconds = 2
+    all_targets = []
+    last_external_id: str | None = None
+
+    while True:
+        page_filters = []
+        if is_selected:
+            page_filters.append(is_selected)
+        if last_external_id:
+            page_filters.append(dm.filters.Range(FILTER_PATH_NODE_EXTERNAL_ID, gt=last_external_id))
+
+        page_filter = None
+        if len(page_filters) == 1:
+            page_filter = page_filters[0]
+        elif len(page_filters) > 1:
+            page_filter = dm.filters.And(*page_filters)
+
+        page = None
+        for retry in range(max_page_retries + 1):
+            try:
+                page = client.data_modeling.instances.list(
+                    space=job_config.target_view.instance_space,
+                    sources=[job_config.target_view.as_view_id()],
+                    filter=page_filter,
+                    sort=dm.InstanceSort(FILTER_PATH_NODE_EXTERNAL_ID, direction="ascending"),
+                    limit=batch_size,
+                )
+                break
+            except Exception as e:
+                if retry >= max_page_retries:
+                    logger.error(
+                        f"Failed to fetch {QUERY_FILTER_TYPE_TARGETS} page after {max_page_retries + 1} attempts. "
+                        f"Last cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                    )
+                    raise
+
+                sleep_seconds = retry_backoff_seconds * (2 ** retry)
+                logger.warning(
+                    f"Retry {retry + 1}/{max_page_retries} for {QUERY_FILTER_TYPE_TARGETS} page failed. "
+                    f"Sleeping {sleep_seconds}s before retry. "
+                    f"Cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                )
+                time.sleep(sleep_seconds)
+
+        if not page:
+            break
+
+        all_targets.extend(page)
+        last_external_id = page[-1].external_id
+
+        logger.debug(
+            f"Fetched {len(page)} {QUERY_FILTER_TYPE_TARGETS} in batch, "
+            f"total so far: {len(all_targets)}, last externalId cursor: {last_external_id}"
+        )
+
+        if len(page) < batch_size:
+            break
 
     logger.info(f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
     for target in all_targets:
