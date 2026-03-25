@@ -17,17 +17,18 @@ variables:
   # RAW table for asset hierarchy CSV before transformation (tr_ctx_3d_*_asset_hierarchy_from_raw)
   raw_table_asset_staging: asset_hierarchy_staging
   # Required when project is DATA_MODELING_ONLY: space for function code (CogniteFile NodeId)
-  function_space: upstream-value-chain
-  "3d_model_name": deployment_pack
-  # CAD model name/type for apply_cad_contextualization script (defaults: 3d_model_name, CAD)
-  cad_model_name: deployment_pack
+  function_space: ${FUNCTION_SPACE}
+  # 3D / CAD model name in CDF — set in .env (see env.template: THREE_D_MODEL_NAME)
+  "3d_model_name": ${THREE_D_MODEL_NAME}
+  # CAD model name for apply_cad_contextualization script — set in .env (CAD_MODEL_NAME)
+  cad_model_name: ${CAD_MODEL_NAME}
   cad_model_type: CAD
-  # DM-only CAD contextualization defaults (used by pipeline config / apply_dm_cad_contextualization)
-  default_cad_space: rmdm
-  default_dm_space: upstream-value-chain
-  # View space for AssetExtension (used in transformation destination)
-  data_model_space: upstream-value-chain
-  default_dm_ext_id: upstream_value_chain
+  # DM-only CAD contextualization — instance spaces and data model (.env)
+  default_cad_space: ${DEFAULT_CAD_SPACE}
+  default_dm_space: ${DEFAULT_DM_SPACE}
+  # View space for AssetExtension (transformation destination)
+  data_model_space: ${DATA_MODEL_SPACE}
+  default_dm_ext_id: ${DEFAULT_DM_EXT_ID}
   default_dm_version: v1
   default_scene_space: scene
   cad_contextualization_batch_size: 100
@@ -56,8 +57,8 @@ variables:
     - { space: scene, external_id: SceneConfiguration, version: v1 }
     - { space: scene, external_id: RevisionProperties, version: v1 }
     - { space: cdf_3d_schema, external_id: Cdf3dModel, version: "1" }
-  asset_instance_space: instance_upstream_value_chain
-  cad_node_instance_space: rmdm
+  asset_instance_space: ${ASSET_INSTANCE_SPACE}
+  cad_node_instance_space: ${CAD_NODE_INSTANCE_SPACE}
   "3d_dataset": ds_3d_clov
   # File extractor: local folder to watch for 3D files (.zip). Change to your path (e.g. /path/to/3d_files).
   file_extractor_watch_path: c:/tmp/files

@@ -79,19 +79,19 @@ The main contextualization function, in normal operation, follows the pipeline d
 
 ## Variables
 
-Set these in your Toolkit config (e.g. `config.dev.yaml`) — see **`default.config.dev.yaml`** for the full list used by this module.
+Set module variables in **`default.config.yaml`** (merged by the Toolkit). Values such as DM spaces, model names, and `function_space` are read from **environment variables** (see **`env.template`**): `FUNCTION_SPACE`, `THREE_D_MODEL_NAME`, `CAD_MODEL_NAME`, `DEFAULT_CAD_SPACE`, `DEFAULT_DM_SPACE`, `DATA_MODEL_SPACE`, `DEFAULT_DM_EXT_ID`, `ASSET_INSTANCE_SPACE`, `CAD_NODE_INSTANCE_SPACE`, plus `CDF_PROJECT`, `CDF_CLUSTER`, IDP and CI/CD vars as already referenced in `default.config.yaml`. Copy `env.template` → `.env` and fill in real values before `cdf build`.
 
 | Variable | Description |
 |----------|-------------|
 | `default_location` | Short location key used in resource names (e.g. `clov`) |
 | `source_name` | Source system key (e.g. `navisworks`) |
-| `3d_model_name` | 3D / CAD model identifier in CDF |
+| `3d_model_name` | 3D / CAD model identifier in CDF (from `.env`: `THREE_D_MODEL_NAME`) |
 | `3d_dataset` | Data set external ID for 3D resources (typically `ds_3d_<location>`) |
 | `raw_db`, `raw_table_manual` | RAW database and manual-input table (for scripts / docs) |
-| `asset_instance_space`, `cad_node_instance_space` | DM instance spaces for assets and CAD nodes |
-| `function_space` | Space for Cognite Function code artifacts (DM-only projects) |
-| `default_dm_space`, `default_dm_ext_id`, `default_dm_version` | Data model reference for CAD contextualization scripts |
-| `default_cad_space`, `default_scene_space` | CAD and scene configuration spaces |
+| `asset_instance_space`, `cad_node_instance_space` | DM instance spaces (from `.env`: `ASSET_INSTANCE_SPACE`, `CAD_NODE_INSTANCE_SPACE`) |
+| `function_space` | Space for Cognite Function code artifacts (from `.env`: `FUNCTION_SPACE`) |
+| `default_dm_space`, `default_dm_ext_id`, `default_dm_version` | Data model reference (spaces / ext id from `.env` where substituted) |
+| `default_cad_space`, `default_scene_space` | CAD and scene configuration spaces (`DEFAULT_CAD_SPACE` in `.env`) |
 | `required_views`, `cad_model_view`, … | View references for DM 3D chain (see dev config) |
 | `file_extractor_watch_path` | Local path for file extractor config (if used) |
 | `3d_location_extractor_group_source_id`, `3d_location_processing_group_source_id`, `3d_location_read_group_source_id` | IdP object IDs for the three auth groups |
