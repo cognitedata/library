@@ -5,9 +5,9 @@ import {
   saveNavState,
   type PersistedDataCatalogSubView,
 } from "@/shared/nav-persistence";
-import { Properties } from "@/internal/properties";
-import { DataModelVersions } from "@/internal/versioning/DataModelVersions";
-import { ViewVersions } from "@/internal/versioning/ViewVersions";
+import { Properties } from "./Properties";
+import { DataModelVersions } from "./versioning/DataModelVersions";
+import { ViewVersions } from "./versioning/ViewVersions";
 import { DataCatalogOverview } from "./DataCatalogOverview";
 
 function isDataCatalogSubView(v: unknown): v is PersistedDataCatalogSubView {
