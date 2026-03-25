@@ -5,7 +5,7 @@ from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
 
-from common.logger import CogniteFunctionLogger
+from .common.logger import CogniteFunctionLogger
 
 @dataclass
 class EnvConfig:

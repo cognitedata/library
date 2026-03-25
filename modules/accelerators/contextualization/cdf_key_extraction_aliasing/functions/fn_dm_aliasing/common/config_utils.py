@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-from common.logger import CogniteFunctionLogger
+from .logger import CogniteFunctionLogger
 
 
 def load_config_from_yaml(

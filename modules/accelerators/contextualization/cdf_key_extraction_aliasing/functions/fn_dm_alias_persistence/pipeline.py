@@ -24,9 +24,17 @@ except ImportError:
     NodeOrEdgeData = None
     ViewId = None
 
-from common.logger import CogniteFunctionLogger
+from .common.logger import CogniteFunctionLogger
 
 logger = None  # Use CogniteFunctionLogger directly
+
+
+def _resolve_alias_writeback_property(data: Dict[str, Any]) -> str:
+    """Target DM property name for alias list (default CogniteDescribable `aliases`)."""
+    name = data.get("aliasWritebackProperty") or data.get("alias_writeback_property")
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    return "aliases"
 
 
 def _load_aliasing_results_from_raw(

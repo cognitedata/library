@@ -15,7 +15,7 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from dependencies import create_client, create_logger_service, get_env_variables
+from .dependencies import create_client, create_logger_service, get_env_variables
 
 
 def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
@@ -30,6 +30,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
             - aliasing_results: Optional results from aliasing task (list of dicts)
             - raw_db/raw_table_aliases: If aliasing_results not provided, load from RAW
+            - aliasWritebackProperty or alias_writeback_property: Optional DM property
+              name for the alias list (default: aliases)
         client: CogniteClient instance (required)
 
     Returns:
@@ -47,7 +49,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             raise ValueError("CogniteClient is required for alias persistence")
 
         # Call pipeline function
-        from pipeline import persist_aliases_to_entities
+        from .pipeline import persist_aliases_to_entities
 
         persist_aliases_to_entities(client=client, logger=logger, data=data)
 

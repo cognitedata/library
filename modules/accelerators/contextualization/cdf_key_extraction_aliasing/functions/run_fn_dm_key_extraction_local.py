@@ -29,8 +29,8 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-# Ensure the function folder is importable as project root for local runs.
-REPO_ROOT = Path(__file__).resolve().parents[1]
+# Repo root (library/) so `modules.*` and sibling imports resolve like other local runners.
+REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(REPO_ROOT))
 
 from cognite.client import CogniteClient
@@ -39,8 +39,12 @@ from cognite.client.credentials import OAuthClientCredentials
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 
-from fn_dm_key_extraction.cdf_adapter import load_config_from_yaml
-from fn_dm_key_extraction.handler import handle
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
+    load_config_from_yaml,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.handler import (
+    handle,
+)
 
 
 def _build_client_from_env() -> CogniteClient:

@@ -399,7 +399,7 @@ def _convert_rule_dict_to_engine_format(
     """Convert a rule dictionary to engine format; outputs canonical method and extraction_type."""
     try:
         method_raw = rule_data.get("method")
-        method_canonical = normalize_method(method_raw).value if normalize_method else (method_raw or "passthrough")
+        method_canonical = normalize_method(method_raw).value
         extraction_type = (
             get_extraction_type_from_rule(rule_data).value
             if get_extraction_type_from_rule
@@ -410,7 +410,7 @@ def _convert_rule_dict_to_engine_format(
             "description": rule_data.get("description", ""),
             "priority": rule_data.get("priority", 100),
             "enabled": rule_data.get("enabled", True),
-            "method": method,
+            "method": method_canonical,
             "scope_filters": rule_data.get("scope_filters", {}),
             "extraction_type": rule_data.get(
                 "extraction_type", "candidate_key"

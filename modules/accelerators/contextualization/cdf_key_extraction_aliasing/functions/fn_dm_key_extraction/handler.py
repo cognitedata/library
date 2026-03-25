@@ -128,11 +128,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         # Initialize engine (do not store in return payload)
         engine = KeyExtractionEngine(engine_config)
 
-        # Call pipeline function (support package and script execution)
-        try:
-            from .pipeline import key_extraction
-        except ImportError:
-            from fn_dm_key_extraction.pipeline import key_extraction
+        from .pipeline import key_extraction
 
         key_extraction(
             client=client,

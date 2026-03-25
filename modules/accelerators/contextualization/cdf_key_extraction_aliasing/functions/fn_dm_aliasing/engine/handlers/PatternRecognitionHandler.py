@@ -2,11 +2,11 @@
 
 from typing import Any, Dict, Set
 
-from engine.transformer_utils import PatternMatchMixin
+from ..transformer_utils import PatternMatchMixin
 
 # Import pattern library components conditionally
 try:
-    from engine.tag_pattern_library import (
+    from ..tag_pattern_library import (
         DocumentPatternRegistry,
         StandardTagPatternRegistry,
     )
@@ -17,7 +17,7 @@ except ImportError:
     StandardTagPatternRegistry = None
     DocumentPatternRegistry = None
 
-from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
+from .AliasTransformerHandler import AliasTransformerHandler
 
 
 class PatternRecognitionHandler(AliasTransformerHandler, PatternMatchMixin):

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Set
 
 # Import pattern library components conditionally
 try:
-    from engine.tag_pattern_library import EquipmentType, StandardTagPatternRegistry
+    from ..tag_pattern_library import EquipmentType, StandardTagPatternRegistry
 
     PATTERN_LIBRARY_AVAILABLE = True
 except ImportError:
@@ -13,7 +13,7 @@ except ImportError:
     StandardTagPatternRegistry = None
     EquipmentType = None
 
-from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
+from .AliasTransformerHandler import AliasTransformerHandler
 
 
 class PatternBasedExpansionHandler(AliasTransformerHandler):

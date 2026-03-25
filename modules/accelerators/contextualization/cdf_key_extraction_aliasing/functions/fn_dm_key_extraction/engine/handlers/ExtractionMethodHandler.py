@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Dict, List, Optional
+
+from cognite.client import CogniteClient
 
 from ...common.logger import CogniteFunctionLogger
 from ...utils.DataStructures import *

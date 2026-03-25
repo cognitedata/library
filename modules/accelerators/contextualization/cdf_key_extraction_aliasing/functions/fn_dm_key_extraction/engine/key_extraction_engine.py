@@ -22,7 +22,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 
-from fn_dm_key_extraction.utils.TokenReassemblyMethodParameter import (
+from ..utils.TokenReassemblyMethodParameter import (
     AssemblyRule,
     TokenReassemblyMethodParameter,
 )

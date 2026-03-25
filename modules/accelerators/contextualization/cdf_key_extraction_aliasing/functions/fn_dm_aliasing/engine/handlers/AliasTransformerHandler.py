@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Set
 
 from cognite.client import CogniteClient
 
-from common.logger import CogniteFunctionLogger
+from ...common.logger import CogniteFunctionLogger
 
 
 class AliasTransformerHandler(ABC):

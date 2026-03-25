@@ -17,8 +17,8 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from common.logger import CogniteFunctionLogger
-from engine.tag_aliasing_engine import AliasingEngine, AliasingResult
+from .common.logger import CogniteFunctionLogger
+from .engine.tag_aliasing_engine import AliasingEngine, AliasingResult
 
 logger = None  # Use CogniteFunctionLogger directly
 
@@ -406,4 +406,4 @@ def _upload_aliases_to_raw(
         raise
 
 
-from common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
+from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists

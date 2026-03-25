@@ -2,8 +2,8 @@
 
 from typing import Any, Dict, Set
 
-from engine.transformer_utils import extract_equipment_number, generate_separator_variants
-from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
+from ..transformer_utils import extract_equipment_number, generate_separator_variants
+from .AliasTransformerHandler import AliasTransformerHandler
 
 
 class RelatedInstrumentsHandler(AliasTransformerHandler):

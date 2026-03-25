@@ -3,7 +3,7 @@
 import re
 from typing import Any, Dict, Set
 
-from engine.handlers.AliasTransformerHandler import AliasTransformerHandler
+from .AliasTransformerHandler import AliasTransformerHandler
 
 
 class HierarchicalExpansionHandler(AliasTransformerHandler):

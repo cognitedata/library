@@ -6,12 +6,8 @@ CDF Functions or called directly, maintaining compatibility with the CDF
 workflow format while using the existing AliasingEngine.
 """
 
-import sys
 from pathlib import Path
 from typing import Any, Dict
-
-# Add parent path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 try:
     from cognite.client import CogniteClient
@@ -20,11 +16,9 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-# CDF Functions loads this file as a top-level module (`handler`), so relative imports
-# like `from .x import y` will fail with "no known parent package".
-from cdf_adapter import _convert_yaml_direct_to_aliasing_config
-from dependencies import create_client, create_logger_service, get_env_variables
-from engine.tag_aliasing_engine import AliasingEngine
+from .cdf_adapter import _convert_yaml_direct_to_aliasing_config
+from .dependencies import create_client, create_logger_service, get_env_variables
+from .engine.tag_aliasing_engine import AliasingEngine
 
 def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
     """
@@ -184,8 +178,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         # Initialize engine with logger
         engine = AliasingEngine(aliasing_config, logger)
 
-        # Call pipeline function (CDF Functions loads this as top-level module)
-        from pipeline import tag_aliasing
+        from .pipeline import tag_aliasing
 
         tag_aliasing(client=client, logger=logger, data=data, engine=engine)
 
