@@ -573,7 +573,7 @@ def get_all_targets(
         include_has_data=False,
     )
 
-    batch_size = 100
+    batch_size = 1000
     max_page_retries = 4
     retry_backoff_seconds = 2
     all_targets = []
