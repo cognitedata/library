@@ -12,6 +12,7 @@ import {
   type IdenticalFragment,
   type NearDuplicateGroup,
 } from "./overlapAnalysis";
+import { fetchTransformationsByIds } from "./fetchTransformationsByIds";
 import { TransformationsHelpModal } from "./TransformationsHelpModal";
 
 type TransformationSummary = {
@@ -115,6 +116,18 @@ export function TransformationOverlap() {
           current: 0,
           total: toAnalyze.length,
         });
+        const project = sdk.project;
+        const idsNeedingQuery = [
+          ...new Set(
+            toAnalyze
+              .filter((t) => t.query == null || t.query === "")
+              .map((t) => String(t.id))
+          ),
+        ];
+        const queryById =
+          idsNeedingQuery.length > 0
+            ? await fetchTransformationsByIds(sdk, project, idsNeedingQuery)
+            : new Map();
         const withQuery: TransformationWithQuery[] = [];
         for (let i = 0; i < toAnalyze.length; i++) {
           if (cancelled) return;
@@ -128,14 +141,7 @@ export function TransformationOverlap() {
           const t = toAnalyze[i];
           let query = t.query;
           if (query == null || query === "") {
-            try {
-              const single = (await sdk.get(
-                `/api/v1/projects/${sdk.project}/transformations/${t.id}`
-              )) as { data?: { query?: string } };
-              query = single.data?.query ?? "";
-            } catch {
-              query = "";
-            }
+            query = queryById.get(String(t.id))?.query ?? "";
           }
           if (!query?.trim()) continue;
           withQuery.push({

@@ -54,6 +54,34 @@ export function getWorkflowEditorUrl(
   return `${CDF_BROWSER_URL}/${project}/flows/${encoded}/editor?cluster=${CDF_CLUSTER}&workspace=data-management`;
 }
 
+export function getDataModelUrl(
+  project: string,
+  space: string,
+  externalId: string,
+  version?: string
+): string {
+  const base = `${CDF_BROWSER_URL}/${project}/data-modeling?cluster=${CDF_CLUSTER}&workspace=data-management`;
+  const params = new URLSearchParams();
+  params.set("space", space);
+  params.set("model", externalId);
+  if (version) params.set("version", version);
+  return `${base}&${params.toString()}`;
+}
+
+export function getViewUrl(
+  project: string,
+  space: string,
+  externalId: string,
+  version?: string
+): string {
+  const base = `${CDF_BROWSER_URL}/${project}/data-modeling?cluster=${CDF_CLUSTER}&workspace=data-management`;
+  const params = new URLSearchParams();
+  params.set("space", space);
+  params.set("view", externalId);
+  if (version) params.set("version", version);
+  return `${base}&${params.toString()}`;
+}
+
 export function warnIfCdfBrowserUrlMissing(): void {
   if (isMissing) {
     console.warn(

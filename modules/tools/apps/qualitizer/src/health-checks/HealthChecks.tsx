@@ -9,7 +9,7 @@ import { HealthChecksAll } from "./HealthChecksAll";
 
 type CheckCategory = "landing" | "all" | "infrastructure" | "transformations" | "dataModels" | "raw" | "permissions";
 
-const categories: Array<{
+const mainCategories: Array<{
   id: Exclude<CheckCategory, "landing" | "all">;
   title: string;
   description: string;
@@ -60,8 +60,6 @@ export function HealthChecks() {
   if (activeCategory === "raw") return <RawChecks onBack={goBack} />;
   if (activeCategory === "permissions") return <PermissionsChecks onBack={goBack} />;
 
-  const visibleCategories = categories;
-
   return (
     <section className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -80,7 +78,7 @@ export function HealthChecks() {
       </button>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {visibleCategories.map((cat) => (
+        {mainCategories.map((cat) => (
           <button
             key={cat.id}
             type="button"
