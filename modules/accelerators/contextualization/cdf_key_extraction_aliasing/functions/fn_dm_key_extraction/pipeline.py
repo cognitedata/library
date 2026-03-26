@@ -8,7 +8,7 @@ from CDF data model views and extracts keys using the KeyExtractionEngine.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -19,6 +19,28 @@ from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
 from .services.ApplyService import GeneralApplyService
 
 logger = None  # Use CogniteFunctionLogger directly
+
+# RAW column written alongside per-field candidate key columns (alias persistence reads this).
+FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
+
+
+def _dedupe_foreign_key_references(result: ExtractionResult) -> List[Dict[str, Any]]:
+    """One entry per distinct FK value; keep the occurrence with highest confidence."""
+    best: Dict[str, Dict[str, Any]] = {}
+    for fk in result.foreign_key_references:
+        v = getattr(fk, "value", None) or ""
+        if not v:
+            continue
+        conf = float(getattr(fk, "confidence", 0.0) or 0.0)
+        entry = {
+            "value": v,
+            "confidence": conf,
+            "source_field": getattr(fk, "source_field", None),
+            "rule_id": getattr(fk, "rule_id", None),
+        }
+        if v not in best or conf > best[v]["confidence"]:
+            best[v] = entry
+    return list(best.values())
 
 
 def key_extraction(
@@ -117,16 +139,26 @@ def key_extraction(
                     "rule_source_fields": rule_source_fields_map.get(key.rule_name, []),
                 }
 
+            fk_refs = _dedupe_foreign_key_references(result)
             # Store entity metadata including view information
+            _src_view = (
+                getattr(getattr(cdf_config, "data", None), "source_view", None)
+                if cdf_config
+                else None
+            )
             entity_metadata = {
-                "keys": result.candidate_keys,
+                "keys": keys,
+                "foreign_key_references": fk_refs,
                 "view_space": entity_fields.get("view_space"),
                 "view_external_id": entity_fields.get("view_external_id"),
                 "view_version": entity_fields.get("view_version"),
                 "instance_space": entity_fields.get("instance_space"),
                 "entity_type": entity_type,
-                "resource_property": cdf_config.data.source_view.resource_property if cdf_config else None,
-                "space": cdf_config.data.source_view.instance_space if cdf_config else entity_fields.get("instance_space"),
+                "resource_property": getattr(_src_view, "resource_property", None),
+                "space": (
+                    getattr(_src_view, "instance_space", None)
+                    or entity_fields.get("instance_space")
+                ),
             }
             entities_keys_extracted[entity_id] = entity_metadata
             keys_extracted += len(result.candidate_keys)
@@ -135,32 +167,38 @@ def key_extraction(
             f"Extracted {keys_extracted} keys from {len(entities_keys_extracted)} entities"
         )
 
-        # Upload to RAW if using CDF format (group by rule_id, one table per rule)
+        # Upload to RAW if using CDF format (one row per entity in raw_table_key)
         if use_cdf_format:
             _create_table_if_not_exists(client, raw_db, raw_table_state, logger)
-            results_by_rule = {}
+            _create_table_if_not_exists(client, raw_db, raw_table_key, logger)
             for ext_id, entity_metadata in entities_keys_extracted.items():
                 field_keys = entity_metadata.get("keys", {})
-                if field_keys:
-                    columns = {}
-                    rules_used = set()
+                fk_refs = entity_metadata.get("foreign_key_references") or []
+                has_candidate_columns = isinstance(field_keys, dict) and bool(field_keys)
+                has_fk = bool(fk_refs)
+                if not has_candidate_columns and not has_fk:
+                    continue
+                columns: Dict[str, Any] = {}
+                rules_used = set()
+                if has_candidate_columns:
                     for field_name, keys_dict in field_keys.items():
-                        # Convert dict of {key: {confidence, extraction_type}} to list format expected by RAW
                         # Column names use field_name (e.g., "NAME", "DESCRIPTION")
                         columns[field_name.upper()] = list(keys_dict.keys())
                         for _, meta in (keys_dict or {}).items():
                             if isinstance(meta, dict) and meta.get("rule_name"):
                                 rules_used.add(str(meta["rule_name"]))
-
-                    # Persist rule provenance as JSON (workflow debugging/audit).
                     columns["RULES_USED_JSON"] = json.dumps(sorted(rules_used))
+                else:
+                    columns["RULES_USED_JSON"] = json.dumps([])
+                if has_fk:
+                    columns[FOREIGN_KEY_REFERENCES_JSON_COLUMN] = json.dumps(fk_refs)
 
-                    new_row = Row(key=ext_id, columns=columns)
-                    raw_uploader.add_to_upload_queue(
-                        database=raw_db,
-                        table=rule_table_name,
-                        raw_row=new_row,
-                    )
+                new_row = Row(key=ext_id, columns=columns)
+                raw_uploader.add_to_upload_queue(
+                    database=raw_db,
+                    table=raw_table_key,
+                    raw_row=new_row,
+                )
             logger.debug(f"Uploading {raw_uploader.upload_queue_size} rows to RAW")
             try:
                 raw_uploader.upload()
@@ -170,9 +208,16 @@ def key_extraction(
                 raise
 
         # Determine status for workflow/state reporting.
-        if keys_extracted > 0:
+        total_fk = sum(
+            len(em.get("foreign_key_references") or [])
+            for em in entities_keys_extracted.values()
+        )
+        if keys_extracted > 0 or total_fk > 0:
             status = "success"
-            message = f"Successfully extracted {keys_extracted} keys"
+            message = (
+                f"Successfully extracted {keys_extracted} candidate keys"
+                + (f", {total_fk} foreign key reference(s)" if total_fk else "")
+            )
         else:
             status = "failure"
             message = "No keys were extracted and no keys were uploaded"

@@ -33,10 +33,11 @@ This module ships a 3-step workflow that:
 #### Task 3 — Alias persistence
 - **Function**: `fn_dm_alias_persistence`
 - **Reads RAW**:
-  - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
+  - `db_tag_aliasing/{{ site_abbreviation }}_aliases` (alias rows)
+  - When **`write_foreign_key_references`** is true: key-extraction RAW (e.g. `db_key_extraction/{{ site_abbreviation }}_extracted_keys`) for `FOREIGN_KEY_REFERENCES_JSON`, via `source_raw_db` / `source_raw_table_key` on the task `data`
 - **Writes back to data model**
-  - Updates each referenced node by writing `aliases` to:
-    - `cdf_cdm:CogniteDescribable:v1`
+  - Updates each referenced node on **`cdf_cdm:CogniteDescribable:v1`** with the configured alias property (default `aliases`)
+  - Optionally writes foreign-key reference strings to **`foreign_key_writeback_property`** (e.g. `references_found`) when enabled — only if that property exists in your data model
 
 ### Interpreting “aliases persisted”
 
@@ -68,6 +69,10 @@ By default, alias persistence writes the alias list to the **`aliases`** propert
 - **`alias_writeback_property`** under `config.parameters` in the first `*aliasing*.config.yaml` consumed by `main.py`
 
 See the module [README](../README.md#alias-write-back) for the full table.
+
+### Foreign key write-back
+
+The workflow version files set **`write_foreign_key_references: false`** by default on `fn_dm_alias_persistence`. Set it to **`true`** and configure **`foreign_key_writeback_property`** (and keep **`source_raw_*`** pointing at the key-extraction table) when your CogniteDescribable view exposes a suitable list property. See [README § Foreign key write-back](../README.md#foreign-key-write-back).
 
 ### `alias_mapping_table` rules
 

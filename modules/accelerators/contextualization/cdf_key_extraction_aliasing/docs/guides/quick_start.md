@@ -67,7 +67,7 @@ From the **repository root**:
 poetry run python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --dry-run
 ```
 
-Omit `--dry-run` to persist aliases to CogniteDescribable (see [README](../../README.md) **Alias write-back**).
+Omit `--dry-run` to persist aliases to CogniteDescribable (see [README](../../README.md) **Alias write-back**). Add `--write-foreign-keys` and `--foreign-key-writeback-property <name>` when you want extracted foreign-key strings written to the same persistence step ([Foreign key write-back](../../README.md#foreign-key-write-back)).
 
 ## Configuration loading utilities
 

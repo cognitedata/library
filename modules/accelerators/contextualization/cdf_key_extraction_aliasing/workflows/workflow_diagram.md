@@ -8,35 +8,30 @@
 
 ```mermaid
 graph TD
-    Start([Start Workflow]) --> KeyExtraction[Key Extraction Function<br/>fn_dm_key_extraction]
+    Start([Start Workflow]) --> KeyExtraction[Key Extraction<br/>fn_dm_key_extraction]
 
-    KeyExtraction --> ExtractResults{Extract Keys from<br/>CDF Entities}
+    KeyExtraction --> RawKeys[RAW: extracted keys<br/>+ FOREIGN_KEY_REFERENCES_JSON]
 
-    ExtractResults --> SplitResults[Split Extraction Results]
+    RawKeys --> Aliasing[Aliasing<br/>fn_dm_aliasing]
 
-    SplitResults --> CandidateKeys[Candidate Keys]
-    SplitResults --> ForeignKeys[Foreign Key References]
-    SplitResults --> DocRefs[Document References]
+    Aliasing --> RawAliases[RAW: alias rows<br/>entities_json]
 
-    CandidateKeys --> Aliasing[Aliasing Function<br/>fn_dm_aliasing]
+    RawAliases --> Persistence[Alias persistence<br/>fn_dm_alias_persistence]
 
-    Aliasing --> GenerateAliases[Generate Aliases<br/>for Candidate Keys]
+    RawKeys -. optional FK write-back .-> Persistence
 
-    GenerateAliases --> WriteAliases[Write Aliases<br/>Back to Source Entity]
+    Persistence --> DM[instances.apply<br/>CogniteDescribable aliases]
 
-    ForeignKeys --> ReferenceCatalog[Persist to<br/>Reference_Catalog]
-    DocRefs --> ReferenceCatalog
+    Persistence -. optional .-> DMFK[Same or other view:<br/>FK reference strings]
 
-    WriteAliases --> End1([End - Aliases Written])
-    ReferenceCatalog --> End2([End - References Cataloged])
+    DM --> End([End])
+    DMFK --> End
 
     style KeyExtraction fill:#e1f5ff,stroke:#01579b,stroke-width:2px
     style Aliasing fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style WriteAliases fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    style ReferenceCatalog fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    style CandidateKeys fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    style ForeignKeys fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    style DocRefs fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    style Persistence fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style RawKeys fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    style RawAliases fill:#fff9c4,stroke:#f57f17,stroke-width:2px
 ```
 
 ## Detailed Flow Description
@@ -53,16 +48,14 @@ graph TD
   - `foreign_key_references`: List of foreign key references
   - `document_references`: List of document references
 
-### 2. Result Splitting Phase
-- **Component**: Workflow orchestration
-- **Process**: Separates extraction results into three streams:
-  - Candidate keys → Aliasing pipeline
-  - Foreign key references → Reference catalog
-  - Document references → Reference catalog
+### 2. RAW handoff (between tasks)
+- **Why**: CDF Workflows do not automatically pass function outputs to the next task.
+- **Key extraction** writes rows to a configured RAW table (candidate keys per field, plus `FOREIGN_KEY_REFERENCES_JSON` when rules produce FKs).
+- **Aliasing** reads that table and writes alias rows to a second RAW table.
 
 ### 3. Aliasing Phase
 - **Component**: `fn_dm_aliasing` CDF Function
-- **Input**: Candidate keys from key extraction
+- **Input**: Candidate keys from key-extraction RAW
 - **Process**:
   - Generates aliases for each candidate key
   - Applies transformation rules (character substitution, prefix/suffix, etc.)
@@ -70,47 +63,34 @@ graph TD
   - Validates generated aliases
 - **Output**: Aliases for each candidate key
 
-### 4. Write Aliases Phase
-- **Component**: Entity update process (`fn_dm_alias_persistence`)
-- **Input**: Generated aliases for candidate keys
+### 4. Alias (and optional FK) persistence
+- **Component**: `fn_dm_alias_persistence`
+- **Input**: Alias rows from RAW (or inline `aliasing_results`); optionally foreign-key JSON from key-extraction RAW when `write_foreign_key_references` is true
 - **Process**:
-  - Applies the alias list to instances via **CogniteDescribable** (`cdf_cdm` / `v1`)
-  - Property name defaults to `aliases`; override with `alias_writeback_property` in aliasing pipeline `config.parameters` or `aliasWritebackProperty` on the persistence task `data`
-  - Links aliases to original candidate keys
-  - Stores alias metadata in workflow `data`
-- **Output**: Updated entities with the alias list written to the configured property
+  - Applies the alias list to instances via **CogniteDescribable** (`cdf_cdm` / `v1`); property defaults to `aliases` — override with `alias_writeback_property` / `aliasWritebackProperty` on the persistence task `data` (see module README)
+  - Optionally writes deduplicated FK reference strings to **`foreign_key_writeback_property`** on the same or another view (task `data`)
+- **Output**: Updated entities; handler summary includes `aliases_persisted`, and when FK write is enabled `foreign_keys_persisted` / `entities_fk_updated`
 
-### 5. Reference Catalog Phase
-- **Component**: Reference_Catalog persistence
-- **Input**: Foreign key references and document references
-- **Process**:
-  - Persists foreign key relationships
-  - Catalogs document references
-  - Creates cross-entity linkages
-- **Output**: Populated Reference_Catalog
+### 5. Reference catalog (roadmap)
+- Foreign-key and document-reference **catalog** persistence (separate from optional Describable FK string lists) is not implemented in this workflow yet; see module README roadmap.
 
 ## Data Flow
 
 ```
-Entities → Key Extraction → ExtractionResult
-                              ├─ candidate_keys → Aliasing → Aliases → Write to Entity (CogniteDescribable property; default aliases)
-                              ├─ foreign_key_references → Reference_Catalog
-                              └─ document_references → Reference_Catalog
+DM entities → fn_dm_key_extraction → RAW (keys + FK JSON)
+                → fn_dm_aliasing (reads RAW) → RAW (aliases + entities_json)
+                → fn_dm_alias_persistence (reads RAW) → DM apply (CogniteDescribable; optional FK property)
 ```
 
 ## Implementation Notes
 
-### Current Workflow
-The current `cdf_key_extraction_aliasing` workflow implements:
-1. Key extraction task → extracts all key types
-2. Aliasing task → automatically processes candidate keys from extraction results
+### Current workflow (`cdf_key_extraction_aliasing` v1)
+1. **Key extraction** — queries source views, writes extraction output to RAW.
+2. **Aliasing** — reads extraction RAW, writes alias rows to RAW.
+3. **Alias persistence** — reads alias RAW, applies aliases to `CogniteDescribable`; optional FK strings from extraction RAW when configured.
 
-### Recommended Enhancement
-To fully implement the diagram:
-1. Add a task to split results after key extraction
-2. Add a task to persist foreign keys to Reference_Catalog
-3. Add a task to persist document references to Reference_Catalog
-4. Modify aliasing task to write aliases back to source entities
+### Possible extensions
+- Dedicated tasks or pipelines for a **reference catalog** (FK / document references) instead of or in addition to Describable FK string lists.
 
 ## Component Details
 
@@ -119,8 +99,8 @@ To fully implement the diagram:
 ExtractionResult(
     entity_id: str,
     candidate_keys: List[ExtractedKey],      # → Aliasing
-    foreign_key_references: List[ExtractedKey],  # → Reference_Catalog
-    document_references: List[ExtractedKey]      # → Reference_Catalog
+    foreign_key_references: List[ExtractedKey],  # → RAW JSON; optional Describable write-back
+    document_references: List[ExtractedKey]      # → extracted; catalog TBD (roadmap)
 )
 ```
 
@@ -135,5 +115,5 @@ AliasingResult(
 
 ---
 
-**Diagram Version**: 1.0
-**Last Updated**: Based on current workflow implementation
+**Diagram Version**: 1.1  
+**Last Updated**: Aligns with RAW handoff and `fn_dm_alias_persistence` (aliases + optional FK write-back)

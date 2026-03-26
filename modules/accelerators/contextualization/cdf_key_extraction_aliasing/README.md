@@ -13,6 +13,7 @@ The module provides:
 - **5 Extraction Methods**: Passthrough (default when `method` is omitted), Regex, Fixed Width, Token Reassembly, and Heuristic
 - **3 Extraction Types**: Candidate keys, Foreign key references, Document references
 - **12 Transformation Types**: Character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite
+- **Alias mapping table (RAW)**: Optional rule type `alias_mapping_table` loads a tag→alias catalog from Cognite **RAW**; matched aliases are merged with outputs from other rules in the same run (see `docs/guides/configuration_guide.md`, **Alias mapping table**)
 - **CDF Integration**: Data model views, functions, and workflows
 - **Configuration**: YAML-based pipeline configs with validation
 - **Testing**: Comprehensive test suite (unit and integration)
@@ -21,7 +22,7 @@ The module provides:
 
 - [ ] Implement the state store for target entities into CDM and avoid RAW
 - [ ] Get functions/pipelines deployable
-- [ ] Write foreign_key/document references to reference catalog (RAW or DM); candidate-key alias write-back to CogniteDescribable is implemented (`fn_dm_alias_persistence`)
+- [ ] Extend foreign-key / document-reference storage beyond optional CogniteDescribable write-back (e.g. reference catalog); alias write-back and optional FK string lists on Describable are implemented (`fn_dm_alias_persistence`)
 - [ ] Refine default rules for more targeted configs per entity_type
 - [ ] Test against non-ISA standard tags
 - [ ] Reverse lookup against reference catalog for missing tags and create relationships/annotations
@@ -58,9 +59,11 @@ poetry run python modules/accelerators/contextualization/cdf_key_extraction_alia
 | `--limit` | Max instances per view; 0 = no limit (fetch all) | 0 |
 | `--verbose` | Verbose logging | False |
 | `--dry-run` | Skip alias persistence to CDF | False |
+| `--write-foreign-keys` | Also persist extracted foreign-key reference strings to the DM (requires a write-back property) | False |
+| `--foreign-key-writeback-property` | DM property name for FK strings (e.g. `references_found`); overrides config / env | None |
 | `--instance-space` | Only process source views with this instance space | All views |
 
-Outputs (timestamped) in `tests/results/`: `YYYYMMDD_HHMMSS_cdf_extraction.json`, `YYYYMMDD_HHMMSS_cdf_aliasing.json`. When not using `--dry-run`, the alias persistence pipeline writes the generated alias list to each instance via the CogniteDescribable view, using the property name from configuration (default `aliases`).
+Outputs (timestamped) in `tests/results/`: `YYYYMMDD_HHMMSS_cdf_extraction.json`, `YYYYMMDD_HHMMSS_cdf_aliasing.json`. When not using `--dry-run`, the alias persistence pipeline writes the generated alias list to each instance via the CogniteDescribable view, using the property name from configuration (default `aliases`). If foreign-key write-back is enabled, deduplicated FK reference values from extraction are written to the configured property on the same node (see **Foreign key write-back**).
 
 Generate report from latest results (writes `docs/key_extraction_aliasing_report.md`):
 
@@ -81,6 +84,23 @@ The alias persistence step applies the generated alias list to a property on **C
 | Default | `aliases` | Used when nothing is configured |
 
 See `docs/guides/configuration_guide.md` (Aliasing Pipeline `parameters`).
+
+Aliases produced by **`alias_mapping_table`** rules are part of the same generated list as aliases from other transformation rules; **`fn_dm_alias_persistence`** and `main.py` write that combined list to the configured Describable property (no separate persistence path). Use a Cognite client with `AliasingEngine` when the mapping table uses `raw_table` (see configuration guide).
+
+### Foreign key write-back
+
+When enabled, `fn_dm_alias_persistence` writes **deduplicated foreign key reference strings** (from key extraction) to a configurable property on the data model instance. Values come from in-memory `entities_keys_extracted` (local `main.py` run) and/or key-extraction **RAW** rows (`FOREIGN_KEY_REFERENCES_JSON`), when `source_raw_db` / `source_raw_table_key` are set (typical in workflows).
+
+| Source | Field | Notes |
+|--------|--------|--------|
+| CDF workflow | `write_foreign_key_references` (or `writeForeignKeyReferences`) and `foreign_key_writeback_property` (or `foreignKeyWritebackProperty`) on `fn_dm_alias_persistence` task `data` | Property name is **required** when FK write is true |
+| `main.py` / pipeline | `write_foreign_key_references: true` and `foreign_key_writeback_property` under `config.parameters` in `*aliasing*.config.yaml` | Any matching file may set the flag; first non-empty `foreign_key_writeback_property` wins |
+| Environment | `WRITE_FOREIGN_KEY_REFERENCES` (`1`/`true`/…) and `FOREIGN_KEY_WRITEBACK_PROPERTY` | Enable / set property |
+| CLI | `--write-foreign-keys`, `--foreign-key-writeback-property` | OR with config for enable; property overrides config/env |
+
+Optional: `foreign_key_writeback_view_space`, `foreign_key_writeback_view_external_id`, `foreign_key_writeback_view_version` (or camelCase equivalents) default to `cdf_cdm` / `CogniteDescribable` / `v1`. If they match the fixed alias target view, aliases and FKs are applied in one `instances.apply` call; otherwise two sources are used on the same node.
+
+Default in `ctx_aliasing_default.config.yaml` is `write_foreign_key_references: false` with placeholder property `references_found`; turn on only when that property exists on your Describable (or override the view tuple).
 
 ### Basic usage (Python)
 
@@ -161,7 +181,7 @@ cdf_key_extraction_aliasing/
 
 - **KeyExtractionEngine** (`functions/fn_dm_key_extraction/engine/key_extraction_engine.py`): Runs extraction rules via handlers (passthrough default, regex, fixed width, token reassembly, heuristic), applies validation and confidence filtering, returns `ExtractionResult`.
 - **AliasingEngine** (`functions/fn_dm_aliasing/engine/tag_aliasing_engine.py`): Applies transformation rules, uses pattern library, returns `AliasingResult`.
-- **Alias persistence** (`functions/fn_dm_alias_persistence/pipeline.py`): Writes the generated alias list to a configurable property on CogniteDescribable (default `aliases`; see **Alias write-back** above). Used by `main.py` unless `--dry-run`.
+- **Alias persistence** (`functions/fn_dm_alias_persistence/pipeline.py`): Writes the generated alias list to a configurable property on `cdf_cdm:CogniteDescribable:v1` (default property `aliases`; see **Alias write-back**). Optionally writes foreign key reference strings to another configurable property/view (see **Foreign key write-back**). Used by `main.py` unless `--dry-run`.
 - **CDF Functions**: `fn_dm_key_extraction`, `fn_dm_aliasing`, `fn_dm_alias_persistence` (handlers + pipelines).
 - **Pipeline configs**: `ctx_key_extraction_default`, `ctx_aliasing_default`.
 
@@ -227,7 +247,7 @@ See the pipeline config files and the docs (e.g. `docs/1. key_extraction.md`, `d
 
 - **fn_dm_key_extraction**: `handle(data, client)` — input e.g. `ExtractionPipelineExtId`, `logLevel`; returns keys and `entities_keys_extracted`.
 - **fn_dm_aliasing**: `handle(data, client)` — uses aliasing pipeline and (optionally) key extraction results to produce `aliasing_results`.
-- **fn_dm_alias_persistence**: `handle(data, client)` — reads `aliasing_results` and writes the alias list back via CogniteDescribable (configurable property; see **Alias write-back**).
+- **fn_dm_alias_persistence**: `handle(data, client)` — reads `aliasing_results` (or RAW alias table) and writes the alias list back via CogniteDescribable; optionally merges FK reference strings when `write_foreign_key_references` is true (see **Foreign key write-back**). Returns a summary including `foreign_keys_persisted` / `entities_fk_updated` when applicable.
 
 ### As CDF Workflow
 
@@ -272,6 +292,7 @@ poetry run python modules/accelerators/contextualization/cdf_key_extraction_alia
 - **No keys extracted**: Check source views, rule patterns, and `min_confidence`
 - **No aliases**: Check aliasing rules are enabled and tag format; check `max_aliases_per_tag`
 - **Workflow fails**: Ensure functions and pipelines are deployed; check function logs
+- **FK persistence errors**: If `write_foreign_key_references` is true, set `foreign_key_writeback_property` and ensure the property exists on the target view; key-extraction RAW handoff requires `source_raw_db` / `source_raw_table_key` in the persistence task when workflows do not pass `entities_keys_extracted`
 - **Import errors**: Repo root on `PYTHONPATH`; Python 3.11+; dependencies installed
 
 Enable debug in pipeline config: `parameters.debug: true`, `logLevel: "DEBUG"`.

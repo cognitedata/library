@@ -43,6 +43,9 @@ try:
     from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
         KeyExtractionEngine,
     )
+    from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
+        _dedupe_foreign_key_references,
+    )
 
     MODULES_AVAILABLE = True
 except ImportError as e:
@@ -154,20 +157,29 @@ def _create_cognite_client():
 
 
 def _load_configs() -> tuple[
-    Dict[str, Any], Dict[str, Any], List[Dict[str, Any]], Optional[str]
+    Dict[str, Any],
+    Dict[str, Any],
+    List[Dict[str, Any]],
+    Optional[str],
+    bool,
+    Optional[str],
 ]:
-    """Load extraction, aliasing configs, all source view configs, and alias persistence options.
+    """Load extraction, aliasing configs, all source view configs, and persistence options.
 
     Loads extraction rules and source views from all pipeline configs,
     and aliasing config from aliasing pipeline configs.
-    alias_writeback_property is read from the first *aliasing*.config.yaml whose
-    config.parameters defines alias_writeback_property.
+    alias_writeback_property, write_foreign_key_references, and
+    foreign_key_writeback_property are read from the first *aliasing*.config.yaml whose
+    config.parameters defines them. Environment overrides: WRITE_FOREIGN_KEY_REFERENCES,
+    FOREIGN_KEY_WRITEBACK_PROPERTY.
     """
 
     # Load aliasing rules from aliasing pipeline configs
     pipelines_dir = SCRIPT_DIR / "pipelines"
     all_aliasing_rules = []
     alias_writeback_property: Optional[str] = None
+    write_foreign_key_references = False
+    foreign_key_writeback_property: Optional[str] = None
 
     for config_file in sorted(pipelines_dir.glob("*aliasing*.config.yaml")):
         try:
@@ -176,6 +188,23 @@ def _load_configs() -> tuple[
 
             config_data = pipeline_config.get("config", {}).get("data", {})
             parameters = pipeline_config.get("config", {}).get("parameters", {})
+            if isinstance(parameters, dict):
+                if parameters.get("write_foreign_key_references") is True:
+                    write_foreign_key_references = True
+                    logger.info(
+                        f"Loaded write_foreign_key_references from {config_file.name}"
+                    )
+                if (
+                    foreign_key_writeback_property is None
+                    and parameters.get("foreign_key_writeback_property") is not None
+                ):
+                    raw_fkp = parameters.get("foreign_key_writeback_property")
+                    if isinstance(raw_fkp, str) and raw_fkp.strip():
+                        foreign_key_writeback_property = raw_fkp.strip()
+                        logger.info(
+                            f"Loaded foreign_key_writeback_property from {config_file.name}: "
+                            f"{foreign_key_writeback_property!r}"
+                        )
             if (
                 alias_writeback_property is None
                 and isinstance(parameters, dict)
@@ -302,7 +331,21 @@ def _load_configs() -> tuple[
     logger.info(f"Total extraction rules loaded: {len(all_extraction_rules)}")
     logger.info(f"Total source views: {len(all_source_views)}")
 
-    return extraction_config, aliasing_config, all_source_views, alias_writeback_property
+    env_wfk = (os.getenv("WRITE_FOREIGN_KEY_REFERENCES") or "").strip().lower()
+    if env_wfk in ("1", "true", "yes", "on"):
+        write_foreign_key_references = True
+    env_fkp = (os.getenv("FOREIGN_KEY_WRITEBACK_PROPERTY") or "").strip()
+    if env_fkp:
+        foreign_key_writeback_property = env_fkp
+
+    return (
+        extraction_config,
+        aliasing_config,
+        all_source_views,
+        alias_writeback_property,
+        write_foreign_key_references,
+        foreign_key_writeback_property,
+    )
 
 
 def _ensure_results_dir() -> Path:
@@ -759,6 +802,17 @@ def main():
         help="Run without persisting aliases to CDF (skip alias persistence step)",
     )
     parser.add_argument(
+        "--write-foreign-keys",
+        action="store_true",
+        help="Persist extracted foreign key references to DM (requires foreign key write-back property)",
+    )
+    parser.add_argument(
+        "--foreign-key-writeback-property",
+        type=str,
+        default=None,
+        help="DM property for FK reference strings (e.g. references_found); overrides config/env",
+    )
+    parser.add_argument(
         "--instance-space",
         type=str,
         default=None,
@@ -789,6 +843,8 @@ def main():
             aliasing_config,
             source_views,
             alias_writeback_property,
+            write_foreign_key_references,
+            foreign_key_writeback_property,
         ) = _load_configs()
     except Exception as e:
         logger.error(f"Failed to load configs: {e}")
@@ -1032,8 +1088,10 @@ def main():
                     "extraction_type": extraction_type_value,
                 }
 
+            fk_refs = _dedupe_foreign_key_references(res)
             entities_keys_extracted[entity_id] = {
                 "keys": keys_by_field,
+                "foreign_key_references": fk_refs,
                 "view_space": view_space,
                 "view_external_id": view_external_id,
                 "view_version": view_version,
@@ -1191,14 +1249,23 @@ def main():
             }
             if alias_writeback_property:
                 persistence_data["alias_writeback_property"] = alias_writeback_property
+            wfk = write_foreign_key_references or args.write_foreign_keys
+            fk_prop = foreign_key_writeback_property
+            if args.foreign_key_writeback_property:
+                fk_prop = args.foreign_key_writeback_property.strip() or fk_prop
+            if wfk:
+                persistence_data["write_foreign_key_references"] = True
+                if fk_prop:
+                    persistence_data["foreign_key_writeback_property"] = fk_prop
             persist_aliases_to_entities(
                 client=client,
                 logger=logger,
                 data=persistence_data,
             )
             logger.info(
-                f"✓ Persisted aliases: {persistence_data.get('entities_updated', 0)} entities updated, "
-                f"{persistence_data.get('aliases_persisted', 0)} aliases persisted"
+                f"✓ Persisted: {persistence_data.get('entities_updated', 0)} entities updated, "
+                f"{persistence_data.get('aliases_persisted', 0)} alias values, "
+                f"{persistence_data.get('foreign_keys_persisted', 0)} FK values"
             )
         except Exception as e:
             logger.error(f"Failed to persist aliases: {e}", exc_info=True)

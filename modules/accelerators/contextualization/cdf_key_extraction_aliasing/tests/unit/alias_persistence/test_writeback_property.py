@@ -113,5 +113,94 @@ class TestPersistAliasesWritebackProperty(unittest.TestCase):
         self.assertEqual(data["alias_writeback_property"], "aliases")
 
 
+class TestForeignKeyWriteback(unittest.TestCase):
+    def test_raises_when_write_fk_enabled_without_property(self):
+        logger = MagicMock()
+        client = MagicMock()
+        data = {
+            "write_foreign_key_references": True,
+            "aliasing_results": [],
+            "entities_keys_extracted": {
+                "E1": {
+                    "foreign_key_references": [{"value": "T-1", "confidence": 0.9}],
+                    "instance_space": "sp",
+                    "view_space": "cdf_cdm",
+                    "view_external_id": "CogniteFile",
+                    "view_version": "v1",
+                }
+            },
+        }
+        with self.assertRaises(ValueError) as ctx:
+            persist_aliases_to_entities(client, logger, data)
+        self.assertIn("foreignKeyWritebackProperty", str(ctx.exception))
+
+    def test_apply_merges_aliases_and_fk_same_view(self):
+        logger = MagicMock()
+        client = MagicMock()
+        data = {
+            "alias_writeback_property": "customAliases",
+            "write_foreign_key_references": True,
+            "foreign_key_writeback_property": "references_found",
+            "aliasing_results": [
+                {
+                    "original_tag": "T1",
+                    "aliases": ["a", "b"],
+                    "entities": [
+                        {
+                            "entity_id": "E1",
+                            "view_space": "cdf_cdm",
+                            "view_external_id": "CogniteFile",
+                            "view_version": "v1",
+                            "instance_space": "sp_x",
+                            "field_name": "name",
+                        }
+                    ],
+                }
+            ],
+            "entities_keys_extracted": {
+                "E1": {
+                    "foreign_key_references": [
+                        {"value": "T-301", "confidence": 0.95},
+                        {"value": "T-302", "confidence": 0.5},
+                    ],
+                }
+            },
+        }
+        persist_aliases_to_entities(client, logger, data)
+        client.data_modeling.instances.apply.assert_called_once()
+        apply_call = client.data_modeling.instances.apply.call_args
+        nodes = apply_call.kwargs.get("nodes") or apply_call[1]["nodes"]
+        props = nodes[0].sources[0].properties
+        self.assertEqual(set(props["customAliases"]), {"a", "b"})
+        self.assertEqual(props["references_found"], ["T-301", "T-302"])
+        self.assertEqual(data.get("foreign_keys_persisted"), 2)
+
+    def test_fk_only_from_entities_keys_extracted(self):
+        logger = MagicMock()
+        client = MagicMock()
+        data = {
+            "aliasing_results": [],
+            "write_foreign_key_references": True,
+            "foreign_key_writeback_property": "references_found",
+            "entities_keys_extracted": {
+                "E1": {
+                    "foreign_key_references": [{"value": "FK1", "confidence": 1.0}],
+                    "instance_space": "sp_x",
+                    "view_space": "cdf_cdm",
+                    "view_external_id": "CogniteFile",
+                    "view_version": "v1",
+                }
+            },
+        }
+        persist_aliases_to_entities(client, logger, data)
+        client.data_modeling.instances.apply.assert_called_once()
+        apply_call = client.data_modeling.instances.apply.call_args
+        nodes = apply_call.kwargs.get("nodes") or apply_call[1]["nodes"]
+        props = nodes[0].sources[0].properties
+        self.assertEqual(props["references_found"], ["FK1"])
+        self.assertEqual(data.get("aliases_persisted"), 0)
+        self.assertEqual(data.get("foreign_keys_persisted"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

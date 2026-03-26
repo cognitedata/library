@@ -1,7 +1,8 @@
 externalId: ctx_aliasing_default
 config:
   parameters: {debug: true, run_all: true, overwrite: true, raw_db: db_tag_aliasing, raw_table_state: tag_aliasing_state,
-    raw_table_aliases: default_aliases, alias_writeback_property: aliases}
+    raw_table_aliases: default_aliases, alias_writeback_property: aliases,
+    write_foreign_key_references: false, foreign_key_writeback_property: references_found}
   data:
     aliasing_rules:
     - name: normalize_separators_to_hyphen

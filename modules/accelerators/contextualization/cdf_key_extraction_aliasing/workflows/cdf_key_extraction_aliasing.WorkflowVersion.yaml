@@ -548,6 +548,16 @@ workflowDefinition:
             raw_db: db_tag_aliasing
             raw_table_aliases: {{ site_abbreviation }}_aliases
             raw_read_limit: 10000
+            # Optional FK write-back (enable when DM exposes e.g. references_found on CogniteDescribable)
+            source_raw_db: db_key_extraction
+            source_raw_table_key: {{ site_abbreviation }}_extracted_keys
+            source_raw_read_limit: 10000
+            source_instance_space: {{ instance_space }}
+            source_view_space: cdf_cdm
+            source_view_external_id: CogniteFile
+            source_view_version: v1
+            write_foreign_key_references: false
+            foreign_key_writeback_property: references_found
       dependsOn:
         - externalId: 'fn_dm_aliasing'
       name: '{{ site_name }} Alias Persistence'

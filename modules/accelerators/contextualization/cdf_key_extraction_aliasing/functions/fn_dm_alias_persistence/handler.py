@@ -32,6 +32,13 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - raw_db/raw_table_aliases: If aliasing_results not provided, load from RAW
             - aliasWritebackProperty or alias_writeback_property: Optional DM property
               name for the alias list (default: aliases)
+            - writeForeignKeyReferences / write_foreign_key_references: Optional bool
+            - foreignKeyWritebackProperty / foreign_key_writeback_property: DM property for
+              FK strings (e.g. references_found) when FK write-back is enabled
+            - source_raw_db, source_raw_table_key, source_raw_read_limit: read FK JSON from
+              key-extraction RAW (optional if entities_keys_extracted carries FKs)
+            - source_instance_space, source_view_space, source_view_external_id,
+              source_view_version: required for FK-only entities when not in entities_keys_extracted
         client: CogniteClient instance (required)
 
     Returns:
@@ -63,6 +70,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 "entities_updated": int(data.get("entities_updated", 0)),
                 "entities_failed": int(data.get("entities_failed", 0)),
                 "aliases_persisted": int(data.get("aliases_persisted", 0)),
+                "foreign_keys_persisted": int(data.get("foreign_keys_persisted", 0)),
+                "entities_fk_updated": int(data.get("entities_fk_updated", 0)),
             },
         }
 

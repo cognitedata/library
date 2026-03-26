@@ -10,7 +10,7 @@ Documentation for **`cdf_key_extraction_aliasing`** (`modules/accelerators/conte
 ## Guides
 
 - [Quick start](guides/quick_start.md) — imports, `KeyExtractionEngine` / `AliasingEngine`, `main.py`
-- [Configuration guide](guides/configuration_guide.md) — YAML pipelines, `source_views`, filters, aliasing parameters (including `alias_writeback_property`)
+- [Configuration guide](guides/configuration_guide.md) — YAML pipelines, `source_views`, filters, aliasing parameters (`alias_writeback_property`, optional `write_foreign_key_references` / `foreign_key_writeback_property`), **`alias_mapping_table`** (RAW catalog rules)
 
 ## Operations
 

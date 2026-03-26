@@ -417,12 +417,16 @@ config:
     raw_table_state: tag_aliasing_state   # State storage table
     raw_table_aliases: default_aliases    # Aliases storage table
     alias_writeback_property: aliases     # DM property name for alias persistence (CogniteDescribable)
+    write_foreign_key_references: false   # When true, persistence also writes FK strings (requires property below)
+    foreign_key_writeback_property: references_found  # DM property for FK reference values (must exist on target view)
   data:
     aliasing_rules:                       # Aliasing transformation rules
       # ... aliasing rule configurations
 ```
 
 **Alias persistence (`alias_writeback_property`):** The persistence function writes the generated alias list to **one property** on CogniteDescribable (`cdf_cdm` / `v1`). **Precedence:** (1) `aliasWritebackProperty` or `alias_writeback_property` in the `data` dict passed to the persistence handler (e.g. workflow task `data` for `fn_dm_alias_persistence`); (2) `alias_writeback_property` in `config.parameters` from the first `*aliasing*.config.yaml` that defines it, when using `main.py`; (3) default `aliases`. Empty or whitespace-only values fall back to `aliases`. The chosen name is echoed in logs and in `data["alias_writeback_property"]` / per-entity summaries after a run.
+
+**Foreign key persistence (`write_foreign_key_references`, `foreign_key_writeback_property`):** When `write_foreign_key_references` is true, `fn_dm_alias_persistence` writes deduplicated foreign-key reference **strings** to the named property. The property must exist on the FK target view (default `cdf_cdm:CogniteDescribable:v1`; overridable via `foreign_key_writeback_view_*` / camelCase on the handler `data`). **Workflows** normally set the flag and property on the **`fn_dm_alias_persistence`** task `data` and supply `source_raw_db` / `source_raw_table_key` so FK JSON from key extraction can be read from RAW. **`main.py`** ORs `write_foreign_key_references` from any `*aliasing*.config.yaml` that sets it to true, takes the first non-empty `foreign_key_writeback_property` from sorted pipeline files, and allows overrides via environment (`WRITE_FOREIGN_KEY_REFERENCES`, `FOREIGN_KEY_WRITEBACK_PROPERTY`) and CLI (`--write-foreign-keys`, `--foreign-key-writeback-property`). Enabling FK write without a non-empty property name fails fast in the persistence pipeline.
 
 ### Aliasing Rules
 
