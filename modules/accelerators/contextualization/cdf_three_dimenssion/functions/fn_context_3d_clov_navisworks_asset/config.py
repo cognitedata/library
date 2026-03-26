@@ -30,6 +30,9 @@ class Parameters(BaseModel, alias_generator=to_camel):
     node_name_max_slashes: Optional[int] = None
     name_replacements: Optional[list[dict[str, str]]] = None
     suffixes_to_strip: Optional[list[str]] = None
+    asset_root_ext_id: Optional[str] = None
+    asset_subtree_external_ids: Optional[list[str]] = None
+    threed_from_quantum: bool = False
     raw_table_rule: Optional[str] = None
     # DM-only: apply via POST /3d/contextualization/cad after writing to RAW
     use_dm_cad_contextualization: bool = True

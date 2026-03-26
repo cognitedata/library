@@ -9,6 +9,7 @@ from typing import Any
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Asset, ContextualizationJob, Row
+from cognite.client.data_classes.data_modeling import NodeApply, NodeOrEdgeData, ViewId
 from cognite.client.data_classes.three_d import ThreeDAssetMapping
 
 sys.path.append(str(Path(__file__).parent))
@@ -41,6 +42,68 @@ def read_manual_mappings(client: CogniteClient, config: ContextConfig) -> list[d
     return manual_entries
 
 
+def build_cad_node_lookup(client: CogniteClient, instance_space: str) -> dict[int, str]:
+    """
+    Build a lookup from node3DId (int) to CogniteCADNode external_id in DM.
+
+    Uses filter-only (no sources) to avoid SDK v7.x sources deserialization issue.
+    node3DId is extracted from the standard externalId pattern cog_3d_cadnode_{node3d_id}.
+    """
+    from cognite.client.data_classes.data_modeling import filters as dm_filters
+
+    cad_node_view = ViewId("cdf_cdm", "CogniteCADNode", "v1")
+    _cv = f"{cad_node_view.external_id}/{cad_node_view.version}"
+
+    nodes = client.data_modeling.instances.list(
+        instance_type="node",
+        space=instance_space,
+        filter=dm_filters.HasData(views=[(cad_node_view.space, cad_node_view.external_id, cad_node_view.version)]),
+        limit=-1,
+    )
+    lookup: dict[int, str] = {}
+    for node in nodes:
+        # Extract node3DId from the standard externalId pattern: cog_3d_cadnode_{node3d_id}
+        if node.external_id.startswith("cog_3d_cadnode_"):
+            try:
+                node3d_id = int(node.external_id.split("cog_3d_cadnode_")[1])
+                lookup[node3d_id] = node.external_id
+            except ValueError:
+                pass
+    log.info(f"Built CogniteCADNode lookup with {len(lookup)} entries from space '{instance_space}'")
+    return lookup
+
+
+def create_cad_node_mappings(
+    client: CogniteClient,
+    cad_node_lookup: dict[int, str],
+    dm_mappings: list[tuple[int, str, str]],
+) -> None:
+    """Update CogniteCADNode.asset direct relation for each (node3d_id, asset_ext_id, space) mapping."""
+    cad_node_view = ViewId("cdf_cdm", "CogniteCADNode", "v1")
+    nodes_to_update: list[NodeApply] = []
+
+    for node3d_id, asset_ext_id, instance_space in dm_mappings:
+        cad_node_ext_id = cad_node_lookup.get(node3d_id)
+        if not cad_node_ext_id:
+            log.warning(f"CogniteCADNode not found for node3DId={node3d_id}, skipping")
+            continue
+        nodes_to_update.append(
+            NodeApply(
+                space=instance_space,
+                external_id=cad_node_ext_id,
+                sources=[NodeOrEdgeData(
+                    source=cad_node_view,
+                    properties={"asset": {"space": instance_space, "externalId": asset_ext_id}},
+                )],
+            )
+        )
+
+    _BATCH = 1000
+    for i in range(0, len(nodes_to_update), _BATCH):
+        client.data_modeling.instances.apply(nodes=nodes_to_update[i : i + _BATCH])
+    log.info(f"Updated {len(nodes_to_update)} CogniteCADNode asset mappings (DM)")
+
+
 def get_asset_id_ext_id_mapping(manual_mappings: list[Row]) -> dict[str, Any]:
     """
     Read assets specified in manual mapping input based on external ID and find the corresponding asset internal ID
@@ -70,25 +133,71 @@ def get_asset_id_ext_id_mapping(manual_mappings: list[Row]) -> dict[str, Any]:
 def get_3d_model_id_and_revision_id(
     client: CogniteClient, config: ContextConfig, three_d_model_name: str
 ) -> tuple[int, int]:
+    """
+    Look up 3D model ID and revision ID from DM only (no classic 3D API).
+
+    Uses DM property filters without `sources` to avoid SDK v7.x deserialization issues.
+    Numeric IDs are extracted from Cognite's standard externalId patterns:
+      model:    cog_3d_model_{model_id}
+      revision: cog_3d_revision_{revision_id}
+    """
     try:
-        model_id_list = [
-            model.id
-            for model in client.three_d.models.list(published=True, limit=1)
-            if model.name == three_d_model_name
-        ]
-        if not model_id_list:
-            raise ValueError(f"3D model with name {three_d_model_name} not found")
-        model_id = model_id_list[0]
+        from cognite.client.data_classes.data_modeling import filters as dm_filters
 
-        revision_list = client.three_d.revisions.list(model_id=model_id, published=True)
-        if not revision_list:
-            raise ValueError(f"3D model with name {three_d_model_name} has no published revisions")
-        revision = revision_list[0]  # get latest revision
+        model_view = ViewId("cdf_cdm", "CogniteCADModel", "v1")
+        revision_view = ViewId("cdf_cdm", "CogniteCADRevision", "v1")
+        _mv = f"{model_view.external_id}/{model_view.version}"
+        _rv = f"{revision_view.external_id}/{revision_view.version}"
 
-        log.info(f"For Model name: {three_d_model_name} using 3D model ID: {model_id} - revision ID: {revision.id}")
-        log.info("If wrong model ID/revision remove other published versions of the model and try again")
+        # 1) Find CogniteCADModel by name — filter only, no sources (avoids SDK v7.x deserialization bug)
+        model_nodes = client.data_modeling.instances.list(
+            instance_type="node",
+            filter=dm_filters.Equals(
+                property=[model_view.space, _mv, "name"],
+                value=three_d_model_name,
+            ),
+            limit=10,
+        )
 
-        return model_id, revision.id
+        model_id: int | None = None
+        model_ext_id: str | None = None
+        model_space: str | None = None
+
+        for node in model_nodes:
+            if node.external_id.startswith("cog_3d_model_"):
+                model_ext_id = node.external_id
+                model_id = int(node.external_id.split("cog_3d_model_")[1])
+                model_space = node.space
+                log.info(f"Found CogniteCADModel '{three_d_model_name}' space='{model_space}' ext_id={model_ext_id} id={model_id}")
+                break
+
+        if model_id is None:
+            raise ValueError(f"No CogniteCADModel with name='{three_d_model_name}' found in DM")
+
+        # 2) Find CogniteCADRevision for this model — filter by model3D direct relation
+        revision_nodes = client.data_modeling.instances.list(
+            instance_type="node",
+            filter=dm_filters.Equals(
+                property=[revision_view.space, _rv, "model3D"],
+                value={"space": model_space, "externalId": model_ext_id},
+            ),
+            limit=10,
+        )
+
+        revision_id: int | None = None
+        for node in revision_nodes:
+            if node.external_id.startswith("cog_3d_revision_"):
+                revision_id = int(node.external_id.split("cog_3d_revision_")[1])
+                log.info(f"Found CogniteCADRevision space='{node.space}' ext_id={node.external_id} revision_id={revision_id}")
+                break
+
+        if revision_id is None:
+            raise ValueError(
+                f"No CogniteCADRevision found for model '{three_d_model_name}' (model externalId={model_ext_id})"
+            )
+
+        log.info(f"Resolved: model='{three_d_model_name}' model_id={model_id} revision_id={revision_id}")
+        return model_id, revision_id
 
     except Exception as e:
         raise Exception(
@@ -222,7 +331,8 @@ def get_3d_nodes(
 
         # prep list of asset filters
         # asset_filter = [asset["name"] for asset in asset_entities]
-        three_d_data_set_id = client.data_sets.retrieve(external_id=config.three_d_data_set_ext_id).id
+        _ds = client.data_sets.retrieve(external_id=config.three_d_data_set_ext_id) if config.three_d_data_set_ext_id else None
+        three_d_data_set_id = _ds.id if _ds else None
 
         model_file_name = f"3D_nodes_{three_d_model_name}_id_{model_id}_rev_id_{revision_id}.json"
         if not config.run_all:
@@ -522,38 +632,68 @@ def get_assets(
     read_limit: int,
 ) -> list[dict[str, Any]]:
     """
-    Get assets used as input to contextualization and build list of entities.
-    Uses config.asset_subtree_external_ids if set, else [config.asset_root_ext_id].
-    Name normalization uses config.name_replacements and config.suffixes_to_strip if set, else generic default.
+    Get assets from DM (DataModelOnly project — classic Assets API not available).
+
+    Queries AssetExtension nodes from config.asset_dm_space. Optionally restricts to
+    nodes whose externalId starts with one of config.asset_subtree_external_ids or
+    config.asset_root_ext_id (treats the IDs as path prefixes, e.g. 'CLV/').
     """
+    from cognite.client.data_classes.data_modeling import filters as dm_filters
+
     entities: list[dict[str, Any]] = []
     try:
-        subtree_ids = getattr(config, "asset_subtree_external_ids", None)
-        if not subtree_ids:
-            subtree_ids = [config.asset_root_ext_id]
-        assets = client.assets.list(asset_subtree_external_ids=subtree_ids, limit=read_limit)
+        instance_space = getattr(config, "asset_dm_space", None) or "sp_enterprise_process_industry"
+        asset_view_space = getattr(config, "asset_view_space", instance_space)
+        asset_view_ext_id = getattr(config, "asset_view_ext_id", "AssetExtension")
+        asset_view_version = getattr(config, "asset_view_version", "v2")
+
+        nodes = client.data_modeling.instances.list(
+            instance_type="node",
+            space=instance_space,
+            filter=dm_filters.HasData(
+                views=[(asset_view_space, asset_view_ext_id, asset_view_version)]
+            ),
+            limit=read_limit if read_limit > 0 else -1,
+        )
+
+        # Optional prefix filtering by asset subtree / root
+        subtree_ids: list[str] = getattr(config, "asset_subtree_external_ids", None) or []
+        root_ext_id: str | None = getattr(config, "asset_root_ext_id", None)
+        if not subtree_ids and root_ext_id:
+            subtree_ids = [root_ext_id]
+
+        def _in_subtree(ext_id: str) -> bool:
+            if not subtree_ids:
+                return True
+            return any(
+                ext_id == prefix or ext_id.startswith(prefix + "/") or ext_id.startswith(prefix + "-")
+                for prefix in subtree_ids
+            )
 
         replacements = getattr(config, "name_replacements", None)
         suffixes_to_strip = getattr(config, "suffixes_to_strip", None)
 
-        for asset in assets:
-            if tag_is_dummy(asset) or tag_is_package(asset):
+        for node in nodes:
+            if not _in_subtree(node.external_id):
                 continue
 
-            name = _normalize_name_generic(asset.name, replacements=replacements, suffixes_to_strip=suffixes_to_strip)
+            # Derive display name from externalId (last path segment)
+            raw_name = node.external_id.split("/")[-1]
+            name = _normalize_name_generic(raw_name, replacements=replacements, suffixes_to_strip=suffixes_to_strip)
+            if not name or len(name) <= 3:
+                continue
 
-            if len(name) > 3:
-                entities.append(
-                    {
-                        "id": asset.id,
-                        "name": name,
-                        "external_id": asset.external_id,
-                        "org_name": asset.name,
-                        "type": "asset",
-                    }
-                )
-        log.info(f"Number of assets found: {len(entities)}")
+            entities.append(
+                {
+                    "id": node.external_id,   # DM: use externalId as id (no numeric id)
+                    "name": name,
+                    "external_id": node.external_id,
+                    "org_name": raw_name,
+                    "type": "asset",
+                }
+            )
 
+        log.info(f"Number of DM assets found: {len(entities)} (space='{instance_space}', subtree={subtree_ids or 'all'})")
         return entities
 
     except Exception as e:

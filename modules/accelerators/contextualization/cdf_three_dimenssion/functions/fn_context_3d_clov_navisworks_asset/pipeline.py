@@ -82,7 +82,8 @@ def annotate_3d_model(client: CogniteClient, config: ContextConfig) -> None:
             raise Exception("WARNING: No assets found for root asset: {config.asset_root_ext_id}")
 
         three_d_entities, tree_d_nodes = get_3d_nodes(
-            client=client, config=config, asset_entities=asset_entities, model_id=model_id, revision_id=revision_id, threed_from_quantum=True)
+            client=client, config=config, asset_entities=asset_entities, model_id=model_id, revision_id=revision_id,
+            threed_from_quantum=getattr(config, "threed_from_quantum", False))
 
         good_matches: list[dict[str, Any]] = []
         matched_node_ids: set[int] = set()
@@ -126,8 +127,13 @@ def annotate_3d_model(client: CogniteClient, config: ContextConfig) -> None:
         if use_dm_cad and len_good_matches > 0 and not config.debug:
             run_apply_dm_cad_contextualization(client, config, model_id, revision_id)
 
+        _asset_ref = (
+            getattr(config, "asset_root_ext_id", None)
+            or getattr(config, "asset_subtree_external_ids", None)
+            or config.three_d_model_name
+        )
         msg = (
-            f"Contextualization of 3D to asset root: {config.asset_root_ext_id}, "
+            f"Contextualization of 3D to asset root: {_asset_ref}, "
             f"num 3D nodes contextualized: {len_good_matches}, num 3D nodes NOT contextualized: {len_bad_matches} "
             f"(score below {config.match_threshold})"
         )
@@ -140,7 +146,12 @@ def annotate_3d_model(client: CogniteClient, config: ContextConfig) -> None:
             )
         )
     except Exception as e:
-        msg = f"Contextualization of 3D to root asset: {config.asset_root_ext_id} failed - Message: {e!s}"
+        _asset_ref = (
+            getattr(config, "asset_root_ext_id", None)
+            or getattr(config, "asset_subtree_external_ids", None)
+            or getattr(config, "three_d_model_name", "unknown")
+        )
+        msg = f"Contextualization of 3D to root asset: {_asset_ref} failed - Message: {e!s}"
         log.error(msg)
         client.extraction_pipelines.runs.create(
             ExtractionPipelineRun(

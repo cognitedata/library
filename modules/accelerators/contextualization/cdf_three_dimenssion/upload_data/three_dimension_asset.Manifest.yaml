@@ -1,53 +1,5 @@
-# Manual upload guide — no scripts required.
-# After deploy, insert rows in CDF Fusion: RAW → database 3d_<location>_<source> → table three_dimension_asset
-# (database/table names match modules/context_3d_clov/raw/three_dimension_asset.Table.yaml after variable substitution).
-
-schemaVersion: 1
-
-raw:
+kind: RawRows
+type: rawTable
+table:
+  dbName: 3d_{{default_location}}_{{source_name}}
   tableName: three_dimension_asset
-  databaseNamePattern: "3d_{default_location}_{source_name}"
-  exampleDatabaseName: "3d_clov_navisworks"
-
-files:
-  - path: three_dimension_asset.RawRows.csv
-    purpose: >
-      Staging data aligned with AssetExtension-style properties (same fields as asset hierarchy upload /
-      asset_hierarchy_staging), plus optional 3D traceability columns. Upload manually in Fusion RAW or via API.
-    rowKeyColumn: externalId
-    columns:
-      - name: externalId
-        required: true
-        description: Asset external id; use as RAW row key when creating rows.
-      - name: name
-        required: true
-        description: Asset display name (maps to AssetExtension.name).
-      - name: description
-        required: false
-        description: Optional description (AssetExtension.description).
-      - name: parentExternalId
-        required: false
-        description: Parent asset external id; becomes parent relation {space, externalId} in DM when instance space is set by pipeline.
-      - name: tags
-        required: false
-        description: Semicolon-separated list (e.g. tag1;tag2) → AssetExtension.tags.
-      - name: aliases
-        required: false
-        description: Semicolon-separated list → AssetExtension.aliases.
-      - name: assetType
-        required: false
-        description: Optional AssetExtension.assetType string.
-      - name: threeDNodeId
-        required: false
-        description: Cognite 3D node id (integer as string in RAW) for linkage / traceability.
-      - name: nodeName
-        required: false
-        description: 3D node label from viewer / manual mapping (not the DM asset name).
-      - name: modelName
-        required: false
-        description: 3D model name in CDF (e.g. aligns with pipeline threeDModelName).
-
-notes:
-  - Replace database name with the value resolved for your deployment (default_location, source_name).
-  - Column names in CSV must match RAW column keys when you paste or import.
-  - three_dimension_asset.RawRows.csv is seeded from scripts/asset_hierarchy_clov.csv; threeDNodeId/nodeName filled where assetExternalId matches contextualization_manual_input.RawRows.csv.

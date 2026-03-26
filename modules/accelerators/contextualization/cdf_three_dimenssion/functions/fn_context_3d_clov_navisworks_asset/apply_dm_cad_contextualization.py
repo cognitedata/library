@@ -159,9 +159,13 @@ def _ensure_dm_views(
     dm_version: str,
     required_views: list[ViewId],
 ) -> None:
-    dm = client.data_modeling.data_models.retrieve(
+    dms = client.data_modeling.data_models.retrieve(
         (dm_space, dm_ext_id, dm_version), inline_views=False
-    )[0]
+    )
+    if not dms:
+        log.warning(f"Data model {dm_space}/{dm_ext_id}/{dm_version} not found — skipping view injection")
+        return
+    dm = dms[0]
     existing = {(v.space, v.external_id, v.version) for v in dm.views}
     added = [v for v in required_views if (v.space, v.external_id, v.version) not in existing]
     if added:
@@ -178,7 +182,12 @@ def _ensure_dm_views(
         )
         log.info(f"Added {len(added)} views to data model {dm_space}/{dm_ext_id}/{dm_version}")
     else:
-        log.info("All required 3D views already present in data model")
+        log.info(f"All required 3D views already present in data model {dm_space}/{dm_ext_id}/{dm_version}")
+
+
+def _get_cluster_token(client: CogniteClient) -> str:
+    """Return the cluster-scoped Bearer token from the SDK credentials."""
+    return client._config.credentials.authorization_header()[1]
 
 
 def _apply_contextualization(
@@ -196,11 +205,15 @@ def _apply_contextualization(
     required_views: list[ViewId],
 ) -> None:
     from cognite.client.data_classes.data_modeling import NodeId
+    from cognite.client.data_classes.data_modeling import filters as dm_filters
 
     cad_view = _get_cad_node_view(required_views)
     for sp in {ctx_space, cad_space}:
         existing = client.data_modeling.instances.list(
-            instance_type="node", space=sp, sources=[cad_view], limit=-1
+            instance_type="node",
+            space=sp,
+            filter=dm_filters.HasData(views=[(cad_view.space, cad_view.external_id, cad_view.version)]),
+            limit=-1,
         )
         api_nodes = [
             NodeId(n.space, n.external_id)
@@ -215,32 +228,40 @@ def _apply_contextualization(
     rows = list(client.raw.rows.list(raw_db, raw_table, limit=-1))
     items = []
     seen = set()
+    skipped_fake = 0
     for r in rows:
-        aid, nid = r.columns.get("assetId"), r.columns.get("3DId")
+        aid = r.columns.get("assetId") or r.columns.get("assetExternalId")
+        nid = r.columns.get("3DId")
         if aid is None or nid is None:
             continue
-        key = (str(aid), int(nid))
+        nid = int(nid)
+        # Skip fake/demo nodeIds — real 3D node IDs in CDF are always large numbers.
+        # Small IDs (< 100_000) are placeholder test data that don't exist in the model.
+        if nid < 100_000:
+            skipped_fake += 1
+            log.warning(f"Skipping item assetId={aid!r} nodeId={nid} — nodeId looks like a demo/fake ID (< 100,000). Update contextualization_manual_input with real 3D node IDs.")
+            continue
+        key = (str(aid), nid)
         if key in seen:
             continue
         seen.add(key)
         items.append(
             {
                 "asset": {"instanceId": {"space": asset_space, "externalId": str(aid)}},
-                "nodeId": int(nid),
+                "nodeId": nid,
             }
         )
 
+    if skipped_fake:
+        log.warning(f"Skipped {skipped_fake} items with fake/demo nodeIds. Populate contextualization_manual_input with real 3D node IDs from the model.")
+
     if not items:
-        log.info("No items to contextualize in RAW table")
+        log.info("No valid items to contextualize (all nodeIds were fake/demo data)")
         return
 
-    log.info(f"Applying contextualization for {len(items)} items from {raw_db}/{raw_table}")
+    log.info(f"Applying contextualization for {len(items)} valid items from {raw_db}/{raw_table} ({skipped_fake} fake nodeIds skipped)")
 
-    base_url = client._config.base_url
     project = client._config.project
-    url = f"{base_url}/api/v1/projects/{project}/3d/contextualization/cad"
-    token = client._config.credentials.authorization_header()[1]
-    headers = {"Authorization": token, "Content-Type": "application/json"}
     api_config = {
         "object3DSpace": asset_space,
         "contextualizationSpace": ctx_space,
@@ -248,6 +269,14 @@ def _apply_contextualization(
             "instanceId": {"space": cad_space, "externalId": revision_ext_id},
         },
     }
+
+    cluster_token = _get_cluster_token(client)
+    # Extract cluster name from base_url: "https://{cluster}.cognitedata.com"
+    cluster = client._config.base_url.rstrip("/").removeprefix("https://").removesuffix(".cognitedata.com")
+    url = f"https://{cluster}.cognitedata.com/api/v1/projects/{project}/3d/contextualization/cad"
+    headers = {"Authorization": cluster_token, "Content-Type": "application/json"}
+
+    log.info(f"Using contextualization URL: {url}")
 
     for i in range(0, len(items), batch_size):
         batch = items[i : i + batch_size]
@@ -259,7 +288,7 @@ def _apply_contextualization(
         )
         if resp.status_code != 200:
             log.error(f"Contextualization API error {resp.status_code}: {resp.text[:500]}")
-            raise RuntimeError(f"Contextualization API failed: {resp.text}")
+            raise RuntimeError(f"Contextualization API failed ({resp.status_code}): {resp.text}")
         log.info(f"Batch {i // batch_size + 1}/{(len(items) + batch_size - 1) // batch_size}: {len(batch)} items OK")
         time.sleep(0.1)
 
@@ -350,11 +379,15 @@ def _cleanup_legacy_cadnodes(
     batch_size: int = 100,
 ) -> None:
     from cognite.client.data_classes.data_modeling import NodeId
+    from cognite.client.data_classes.data_modeling import filters as dm_filters
 
     to_delete = []
     for sp in {cad_space, ctx_space}:
         for n in client.data_modeling.instances.list(
-            instance_type="node", space=sp, sources=[cad_node_view], limit=-1
+            instance_type="node",
+            space=sp,
+            filter=dm_filters.HasData(views=[(cad_node_view.space, cad_node_view.external_id, cad_node_view.version)]),
+            limit=-1,
         ):
             if n.external_id.startswith("cog_3d_node_"):
                 to_delete.append(NodeId(n.space, n.external_id))

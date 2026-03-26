@@ -8,7 +8,14 @@
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'
+    ASSET_INSTANCE_SPACE: '{{asset_instance_space}}'
+    RAW_DB: '{{raw_db}}'
+    RAW_TABLE: three_dimension_asset
+    ASSET_VIEW_SPACE: '{{data_model_space}}'
+    ASSET_VIEW_EXT_ID: '{{asset_view_ext_id}}'
+    ASSET_VIEW_VERSION: '{{asset_view_version}}'
   cpu: 0.25
   runtime: 'py311'
   functionPath: './handler.py'
   dataSetExternalId: 'ds_3d_{{default_location}}'
+  space: '{{function_space}}'
