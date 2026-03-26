@@ -457,6 +457,8 @@ aliasing_rules:
 
 ### Transformation Types
 
+Rule types **`character_substitution`** through **`composite`** below are string/rule transforms. **`alias_mapping_table`** is catalog-driven: tag→alias rows in Cognite RAW (full detail in **[§ Alias mapping table (RAW catalog)](#13-alias-mapping-table-raw-catalog)**).
+
 #### 1. Character Substitution
 
 Replace or transform characters in tags.

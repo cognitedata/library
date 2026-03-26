@@ -12,8 +12,7 @@ The module provides:
 
 - **5 Extraction Methods**: Passthrough (default when `method` is omitted), Regex, Fixed Width, Token Reassembly, and Heuristic
 - **3 Extraction Types**: Candidate keys, Foreign key references, Document references
-- **12 Transformation Types**: Character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite
-- **Alias mapping table (RAW)**: Optional rule type `alias_mapping_table` loads a tag→alias catalog from Cognite **RAW**; matched aliases are merged with outputs from other rules in the same run (see `docs/guides/configuration_guide.md`, **Alias mapping table**)
+- **13 Transformation Types**: Character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite, and **alias mapping table** (`alias_mapping_table` — tag→alias lookups from Cognite RAW; merged with other rules in the same run)
 - **CDF Integration**: Data model views, functions, and workflows
 - **Configuration**: YAML-based pipeline configs with validation
 - **Testing**: Comprehensive test suite (unit and integration)
@@ -21,7 +20,6 @@ The module provides:
 ## Roadmap
 
 - [ ] Implement the state store for target entities into CDM and avoid RAW
-- [ ] Get functions/pipelines deployable
 - [ ] Extend foreign-key / document-reference storage beyond optional CogniteDescribable write-back (e.g. reference catalog); alias write-back and optional FK string lists on Describable are implemented (`fn_dm_alias_persistence`)
 - [ ] Refine default rules for more targeted configs per entity_type
 - [ ] Test against non-ISA standard tags
@@ -197,19 +195,22 @@ cdf_key_extraction_aliasing/
 
 ### Transformation types (aliasing)
 
-| Type | Example |
-|------|---------|
-| Character Substitution | `P-101` → `P_101`, `P101` |
-| Prefix/Suffix | `P-101` → `PA-P-101` |
-| Regex Substitution | `P101A` → `P-101A` |
-| Case Transformation | `p-101` → `P-101` |
-| Equipment Type Expansion | `P-101` → `PUMP-P-101` |
-| Related Instruments | `P-101` → `FIC-101`, `PI-101` |
-| Hierarchical Expansion | `P-101` → `U100-P-101` |
-| Document Aliases | `P&ID-2001` → `PID-2001` |
-| Leading Zero Normalization | `P-001` ↔ `P-1` |
-| Pattern Recognition / Pattern-Based Expansion | ISA/ANSI patterns |
-| Composite | Chain multiple rules |
+`type` values below match pipeline YAML. Aliases from every type, including **`alias_mapping_table`**, are combined by rule priority into one alias list per tag (then persisted to CogniteDescribable when using `main.py` / workflows — see **Alias write-back**).
+
+| Type | Rule `type` | Example / role |
+|------|-------------|------------------|
+| Character Substitution | `character_substitution` | `P-101` → `P_101`, `P101` |
+| Prefix/Suffix | `prefix_suffix` | `P-101` → `PA-P-101` |
+| Regex Substitution | `regex_substitution` | `P101A` → `P-101A` |
+| Case Transformation | `case_transformation` | `p-101` → `P-101` |
+| Equipment Type Expansion | `equipment_type_expansion` | `P-101` → `PUMP-P-101` |
+| Related Instruments | `related_instruments` | `P-101` → `FIC-101`, `PI-101` |
+| Hierarchical Expansion | `hierarchical_expansion` | `P-101` → `U100-P-101` |
+| Document Aliases | `document_aliases` | `P&ID-2001` → `PID-2001` |
+| Leading Zero Normalization | `leading_zero_normalization` | `P-001` ↔ `P-1` |
+| Pattern Recognition / Pattern-Based Expansion | `pattern_recognition`, `pattern_based_expansion` | ISA/ANSI patterns |
+| Composite | `composite` | Chain multiple rules |
+| **Alias mapping table** | **`alias_mapping_table`** | Look up candidate tag in a **Cognite RAW** table (key column + alias columns, optional scope: global / instance / view). Emits catalog aliases when the row matches; requires `AliasingEngine(..., client=...)` when using `raw_table`. See `docs/guides/configuration_guide.md` (**Alias mapping table**). |
 
 ---
 
