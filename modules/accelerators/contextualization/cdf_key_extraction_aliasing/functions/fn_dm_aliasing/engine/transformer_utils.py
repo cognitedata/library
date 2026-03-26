@@ -136,7 +136,7 @@ def extract_hierarchical_structure(tag: str) -> Optional[dict]:
         >>> extract_hierarchical_structure("10-P-10001")
         {'unit': '10', 'equipment': 'P', 'number': '10001'}
         >>> extract_hierarchical_structure("20_V-2001")
-        {'unit': '20', new 'equipment': 'V', 'number': '2001'}
+        {'unit': '20', 'equipment': 'V', 'number': '2001'}
         >>> extract_hierarchical_structure("P-10001")
         None
     """

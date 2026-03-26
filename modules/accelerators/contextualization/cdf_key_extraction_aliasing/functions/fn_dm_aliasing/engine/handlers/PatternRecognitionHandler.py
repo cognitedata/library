@@ -63,7 +63,7 @@ class PatternRecognitionHandler(AliasTransformerHandler, PatternMatchMixin):
 
         for alias in aliases:
             # Try to match against known patterns
-            matched_patterns = self._match_patterns(alias)
+            matched_patterns = self.match_patterns(alias)
 
             if matched_patterns and enhance_context and context is not None:
                 # Update context with recognized equipment type

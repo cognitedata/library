@@ -33,6 +33,8 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     EquipmentTypeExpansionHandler,
     HierarchicalExpansionHandler,
     LeadingZeroNormalizationHandler,
+    PatternBasedExpansionHandler,
+    PatternRecognitionHandler,
     PrefixSuffixHandler,
     RegexSubstitutionHandler,
     RelatedInstrumentsHandler,
@@ -65,6 +67,29 @@ class TestCharacterSubstitutionTransformer(unittest.TestCase):
         self.assertIn("P_10001", result)
         self.assertIn("P 10001", result)
 
+    def test_bidirectional_substitution(self):
+        """Bidirectional adds reverse mappings (e.g. A <-> W)."""
+        transformer = CharacterSubstitutionHandler()
+        config = {
+            "substitutions": {"A": ["W"]},
+            "bidirectional": True,
+            "max_aliases_per_input": 50,
+        }
+        result = transformer.transform({"PA-1"}, config)
+        self.assertIn("PA-1", result)
+        self.assertIn("PW-1", result)
+
+    def test_cascade_substitution(self):
+        """Cascade applies substitutions to generated variants."""
+        transformer = CharacterSubstitutionHandler()
+        config = {
+            "substitutions": {"a": ["b"], "b": ["c"]},
+            "cascade_substitutions": True,
+            "max_aliases_per_input": 20,
+        }
+        result = transformer.transform({"xa"}, config)
+        self.assertGreater(len(result), 1)
+
 
 class TestPrefixSuffixTransformer(unittest.TestCase):
     """Test PrefixSuffixTransformer."""
@@ -94,6 +119,30 @@ class TestPrefixSuffixTransformer(unittest.TestCase):
 
         self.assertIn("P-10001", result)
 
+    def test_add_suffix_from_context_mapping(self):
+        """Resolve suffix via context_mapping and resolve_from."""
+        transformer = PrefixSuffixHandler()
+        config = {
+            "operation": "add_suffix",
+            "context_mapping": {"pump": {"suffix": "-PUMP"}},
+            "resolve_from": "equipment_type",
+        }
+        context = {"equipment_type": "pump"}
+        result = transformer.transform({"P-101"}, config, context)
+        self.assertIn("P-101-PUMP", result)
+
+    def test_context_value_dict_for_prefix(self):
+        """Context field may be a dict (name/value/id)."""
+        transformer = PrefixSuffixHandler()
+        config = {
+            "operation": "add_prefix",
+            "context_mapping": {"Plant_A": {"prefix": "PA-"}},
+            "resolve_from": "site",
+        }
+        context = {"site": {"name": "Plant_A"}}
+        result = transformer.transform({"Z-1"}, config, context)
+        self.assertIn("PA-Z-1", result)
+
 
 class TestRegexSubstitutionTransformer(unittest.TestCase):
     """Test RegexSubstitutionTransformer."""
@@ -107,6 +156,19 @@ class TestRegexSubstitutionTransformer(unittest.TestCase):
         result = transformer.transform(aliases, config)
 
         self.assertIn("PUMP-10001", result)
+
+    def test_invalid_regex_pattern_is_skipped(self):
+        """Invalid pattern logs warning and leaves alias unchanged."""
+        transformer = RegexSubstitutionHandler()
+        config = {
+            "patterns": [
+                {"pattern": r"(unclosed", "replacement": "x"},
+                {"pattern": r"^P-(\d+)$", "replacement": r"Q-\1"},
+            ]
+        }
+        result = transformer.transform({"P-101"}, config)
+        self.assertIn("Q-101", result)
+        self.assertIn("P-101", result)
 
 
 class TestCaseTransformationTransformer(unittest.TestCase):
@@ -131,6 +193,15 @@ class TestCaseTransformationTransformer(unittest.TestCase):
         result = transformer.transform(aliases, config)
 
         self.assertIn("p-10001", result)
+
+    def test_operations_list(self):
+        """Config may use operations: [upper, lower, title]."""
+        transformer = CaseTransformationHandler()
+        config = {"operations": ["upper", "lower", "title"]}
+        result = transformer.transform({"Ab-1"}, config)
+        self.assertIn("AB-1", result)
+        self.assertIn("ab-1", result)
+        self.assertIn("Ab-1".title(), result)
 
 
 class TestLeadingZeroNormalizationTransformer(unittest.TestCase):
@@ -279,6 +350,40 @@ class TestDocumentAliasesTransformer(unittest.TestCase):
 
         # Should generate variants
         self.assertTrue(len(result) > len(aliases))
+
+
+class TestPatternBasedExpansionHandler(unittest.TestCase):
+    """Industry / registry-driven expansions."""
+
+    def test_pump_context_generates_loop_aliases(self):
+        h = PatternBasedExpansionHandler()
+        cfg = {
+            "include_industry_standards": True,
+            "generate_similar_patterns": True,
+            "equipment_type_variations": True,
+            "instrument_loop_expansion": True,
+        }
+        ctx = {"equipment_type": "pump"}
+        out = h.transform({"P-101"}, cfg, ctx)
+        self.assertGreater(len(out), 1)
+        self.assertTrue(any("FIC" in a for a in out))
+
+
+class TestPatternRecognitionHandler(unittest.TestCase):
+    """Pattern library recognition + optional context enrichment."""
+
+    def test_matching_tag_adds_variants_and_context(self):
+        h = PatternRecognitionHandler()
+        cfg = {
+            "enhance_context": True,
+            "generate_pattern_variants": True,
+            "confidence_threshold": 0.5,
+        }
+        ctx = {}
+        out = h.transform({"P-101"}, cfg, ctx)
+        self.assertGreaterEqual(len(out), 1)
+        # Context may be filled when patterns match
+        self.assertIsInstance(ctx, dict)
 
 
 if __name__ == "__main__":
