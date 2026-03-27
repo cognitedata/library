@@ -1,0 +1,4 @@
+[module]
+title = "Admin group for CI/CD"
+id = "cdf_auth_readwrite_all"
+package_id = "dp:common"
