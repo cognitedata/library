@@ -1,0 +1,5 @@
+[module]
+title = "InRobot Common"
+is_selected_by_default = true
+id = "CDF InRobot Common"
+package_id = "dp:inrobot"
