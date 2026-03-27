@@ -1,0 +1,4 @@
+[module]
+title = "Example location filter asset centric"
+id = "CDF Location Filter Asset Centric"
+package_id = "dp:accelerators"
