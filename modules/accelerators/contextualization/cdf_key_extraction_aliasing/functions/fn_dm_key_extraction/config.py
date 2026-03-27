@@ -186,15 +186,15 @@ class SourceTableConfig(BaseModel):
     database_name: str = Field(..., description="Name of the RAW database.")
     join_fields: Dict[str, str] = Field(
         ...,
-        description="Mapping of join fields between view and table.",
+        description="Join keys: view_field (column on the instance dataframe) and table_field (column in RAW).",
     )
     columns: Optional[List[str]] = Field(
         None,
-        description="Comma-separated list of columns to read from the source table.",
+        description="Columns to read from RAW (None = all). Non-join columns are prefixed as {table_id}__{column} after join.",
     )
     table_id: str = Field(
         ...,
-        description="Local identifier for the source table to be used in this function.",
+        description="Stable id for this table; use the same value in extraction rule source_fields.table_id.",
     )
 
 

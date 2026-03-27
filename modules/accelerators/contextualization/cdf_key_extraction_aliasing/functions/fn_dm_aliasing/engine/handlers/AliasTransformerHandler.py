@@ -3,22 +3,22 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Set
 
-from cognite.client import CogniteClient
-
 from ...common.logger import CogniteFunctionLogger
 
 
 class AliasTransformerHandler(ABC):
-    """Abstract base class for alias transformer handlers."""
+    """Abstract base class for alias transformer handlers.
+
+    CDF access for RAW-backed rules is owned by :class:`AliasingEngine` (``engine.client``),
+    not by individual transformer handlers.
+    """
 
     def __init__(
         self,
         logger: Optional[CogniteFunctionLogger] = None,
-        client: Optional[CogniteClient] = None,
     ):
-        """Create a transformer handler with optional logger and CDF client."""
+        """Create a transformer handler with optional logger."""
         self.logger = logger or CogniteFunctionLogger("INFO", False)
-        self.client = client
 
     @abstractmethod
     def transform(

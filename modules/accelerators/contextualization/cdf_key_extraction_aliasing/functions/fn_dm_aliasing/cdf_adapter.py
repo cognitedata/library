@@ -12,6 +12,48 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
+def _pydantic_aliasing_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
+    """
+    Normalize a Pydantic aliasing rule or plain object to the same dict shape as YAML rules
+    before `_convert_aliasing_rule_dict_to_engine_format`.
+
+    Method-specific config always comes from `_convert_aliasing_config(cdf_rule)` so behavior
+    matches the previous getattr-based path. Top-level fields use `model_dump` when available.
+    """
+    if hasattr(cdf_rule, "model_dump"):
+        data = cdf_rule.model_dump(mode="python", by_alias=True)
+        name = data.get("name") or data.get("rule_id") or "unnamed_rule"
+        scope = data.get("scope_filters")
+        if scope is None:
+            scope = getattr(cdf_rule, "scope_filters", None) or {}
+        conditions = data.get("conditions")
+        if conditions is None:
+            conditions = getattr(cdf_rule, "conditions", None) or {}
+        return {
+            "name": name,
+            "type": data.get("type", "character_substitution"),
+            "enabled": data.get("enabled", True),
+            "priority": data.get("priority", 50),
+            "preserve_original": data.get("preserve_original", True),
+            "config": _convert_aliasing_config(cdf_rule),
+            "conditions": conditions if isinstance(conditions, dict) else {},
+            "description": data.get("description", ""),
+            "scope_filters": scope if isinstance(scope, dict) else {},
+        }
+
+    return {
+        "name": getattr(cdf_rule, "name", "unnamed_rule"),
+        "type": getattr(cdf_rule, "type", "character_substitution"),
+        "enabled": getattr(cdf_rule, "enabled", True),
+        "priority": getattr(cdf_rule, "priority", 50),
+        "preserve_original": getattr(cdf_rule, "preserve_original", True),
+        "config": _convert_aliasing_config(cdf_rule),
+        "conditions": getattr(cdf_rule, "conditions", {}) or {},
+        "description": getattr(cdf_rule, "description", ""),
+        "scope_filters": getattr(cdf_rule, "scope_filters", {}) or {},
+    }
+
+
 def convert_cdf_config_to_aliasing_config(cdf_config: Any) -> Dict[str, Any]:
     """
     Convert CDF Config (Pydantic model) to the dict format expected by AliasingEngine.
@@ -60,21 +102,11 @@ def convert_cdf_config_to_aliasing_config(cdf_config: Any) -> Dict[str, Any]:
     return aliasing_config
 
 
-def _convert_aliasing_rule(cdf_rule: Any) -> Dict[str, Any]:
-    """Convert a CDF aliasing rule to engine format."""
+def _convert_aliasing_rule(cdf_rule: Any) -> Optional[Dict[str, Any]]:
+    """Convert a CDF aliasing rule to engine format via the same dict path as YAML."""
     try:
-        engine_rule = {
-            "name": getattr(cdf_rule, "name", "unnamed_rule"),
-            "type": getattr(cdf_rule, "type", "character_substitution"),
-            "enabled": getattr(cdf_rule, "enabled", True),
-            "priority": getattr(cdf_rule, "priority", 50),
-            "preserve_original": getattr(cdf_rule, "preserve_original", True),
-            "config": _convert_aliasing_config(cdf_rule),
-            "conditions": getattr(cdf_rule, "conditions", {}),
-            "description": getattr(cdf_rule, "description", ""),
-        }
-
-        return engine_rule
+        rule_data = _pydantic_aliasing_rule_to_rule_data(cdf_rule)
+        return _convert_aliasing_rule_dict_to_engine_format(rule_data)
 
     except Exception as e:
         logger.error(f"Error converting aliasing rule: {e}")

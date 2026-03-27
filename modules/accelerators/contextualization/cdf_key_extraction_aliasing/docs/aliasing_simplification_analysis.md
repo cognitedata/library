@@ -1,8 +1,12 @@
 # Aliasing Transform Simplification Analysis
 
+**Code locations (current):** The aliasing engine lives under `functions/fn_dm_aliasing/engine/` — e.g. [`tag_aliasing_engine.py`](../functions/fn_dm_aliasing/engine/tag_aliasing_engine.py), handlers under [`engine/handlers/`](../functions/fn_dm_aliasing/engine/handlers/), and shared utilities in [`transformer_utils.py`](../functions/fn_dm_aliasing/engine/transformer_utils.py). Line numbers below refer to an older `src/aliasing/...` layout; treat them as conceptual pointers.
+
+**Already addressed:** **PatternMatchMixin** (shared pattern matching / structure extraction for pattern-based handlers) is implemented in `transformer_utils.py` and used by handlers such as `PatternRecognitionHandler` and `PatternBasedExpansionHandler`. **Phase 3-style** utilities (`generate_separator_variants`, regex constants, etc.) also live in `transformer_utils.py` where noted in recent refactors. Remaining items (e.g. deprecating `SeparatorNormalizationTransformer` in favor of character substitution configs) are optional and require config migration.
+
 ## Executive Summary
 
-Analysis of the aliasing transformers in `src/aliasing/tag_aliasing_engine.py` identified several opportunities for code reduction and simplification through consolidation of duplicate algorithms.
+Analysis of the aliasing transformers identified several opportunities for code reduction and simplification through consolidation of duplicate algorithms.
 
 ## Key Findings
 

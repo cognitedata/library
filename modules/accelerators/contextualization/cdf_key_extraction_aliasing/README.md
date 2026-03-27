@@ -17,6 +17,11 @@ The module provides:
 - **Configuration**: YAML-based pipeline configs with validation
 - **Testing**: Comprehensive test suite (unit and integration)
 
+### Configuration entry points
+
+- **CDF Functions and pipeline YAML**: Production code loads `pipelines/*.config.yaml` (and related assets) through Pydantic models in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the corresponding `cdf_adapter` modules. This is what deployed workflows and CDF Functions use.
+- **`config/configuration_manager.py`**: Dataclasses plus JSON Schema validation (`jsonschema`), aimed at integration tests under `tests/integration/contextualization/` and similar tooling. It is **not** wired into the `fn_dm_*` handlers; for new deployment-facing configuration, use pipeline YAML and the adapters above.
+
 ## Roadmap
 
 - [ ] Implement the state store for target entities into CDM and avoid RAW

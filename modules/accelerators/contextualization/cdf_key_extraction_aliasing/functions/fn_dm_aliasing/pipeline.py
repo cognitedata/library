@@ -8,7 +8,7 @@ and generates aliases using the AliasingEngine.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 try:
     from cognite.client import CogniteClient
@@ -23,6 +23,33 @@ from .engine.tag_aliasing_engine import AliasingEngine, AliasingResult
 logger = None  # Use CogniteFunctionLogger directly
 
 
+def _iter_raw_table_rows(
+    client: CogniteClient,
+    raw_db: str,
+    raw_table_key: str,
+    *,
+    chunk_size: int = 2500,
+    max_rows: Optional[int] = None,
+) -> Iterable[Any]:
+    """
+    Iterate RAW rows using the SDK iterator when available (chunked reads),
+    else fall back to raw.rows.list.
+    """
+    rows_api = client.raw.rows
+    if callable(rows_api):
+        count = 0
+        for row in rows_api(raw_db, raw_table_key, chunk_size=chunk_size):
+            yield row
+            count += 1
+            if max_rows is not None and count >= max_rows:
+                return
+        return
+    limit = max_rows if max_rows is not None else None
+    listed = rows_api.list(raw_db, raw_table_key, limit=limit)
+    for row in listed:
+        yield row
+
+
 def _load_candidate_keys_from_raw(
     client: CogniteClient,
     raw_db: str,
@@ -34,7 +61,8 @@ def _load_candidate_keys_from_raw(
     view_version: str,
     entity_type: str,
     logger: Any,
-    limit: int = 10000,
+    limit: Optional[int] = 10000,
+    chunk_size: int = 2500,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Load candidate keys from key-extraction RAW table and build a tag->entity mapping.
@@ -42,10 +70,21 @@ def _load_candidate_keys_from_raw(
     Expected schema (written by Key-Extraction):
       - row.key: entity external id
       - row.columns: { <FIELD_NAME_UPPER>: [<candidate_key_str>, ...], ... }
+
+    When ``limit`` is set, reads at most that many rows (iterator API) and warns if
+    the table may have more data. Pass ``limit=None`` to read all rows (use with care).
     """
     tag_to_entity_map: Dict[str, List[Dict[str, Any]]] = {}
-    rows = client.raw.rows.list(raw_db, raw_table_key, limit=limit)
-    for row in rows:
+    row_count = 0
+    truncated = False
+    for row in _iter_raw_table_rows(
+        client,
+        raw_db,
+        raw_table_key,
+        chunk_size=chunk_size,
+        max_rows=limit,
+    ):
+        row_count += 1
         entity_id = getattr(row, "key", None)
         if not entity_id:
             continue
@@ -71,8 +110,22 @@ def _load_candidate_keys_from_raw(
                     }
                 )
 
+    if limit is not None and row_count >= limit:
+        truncated = True
+        logger.warning(
+            "RAW read for candidate keys reached row limit=%s (db=%s table=%s). "
+            "Tags may be incomplete; raise limit via source_raw_read_limit or set "
+            "environment variable CDF_RAW_TAG_SOURCE_MAX_ROWS (if supported by caller).",
+            limit,
+            raw_db,
+            raw_table_key,
+        )
+
     logger.info(
-        f"Loaded {len(tag_to_entity_map)} unique tags from RAW db={raw_db} table={raw_table_key}"
+        f"Loaded {len(tag_to_entity_map)} unique tags from {row_count} RAW rows "
+        f"(db={raw_db} table={raw_table_key}"
+        + (", truncated" if truncated else "")
+        + ")"
     )
     return tag_to_entity_map
 
@@ -359,15 +412,23 @@ def _upload_aliases_to_raw(
 ) -> None:
     """Upload aliasing results to CDF RAW."""
     try:
+        import os
+
         from cognite.client.data_classes import Row
-        from cognite.extractorutils.uploader import RawUploadQueue
+
+        from ..cdf_fn_common.raw_upload import create_raw_upload_queue
 
         # Ensure tables exist
         _create_table_if_not_exists(client, raw_db, raw_table, logger)
 
-        # Create upload queue
-        raw_uploader = RawUploadQueue(
-            cdf_client=client, max_queue_size=50000, trigger_log_level="INFO"
+        max_q = int(
+            os.environ.get(
+                "CDF_RAW_UPLOAD_MAX_QUEUE_SIZE_ALIASES",
+                os.environ.get("CDF_RAW_UPLOAD_MAX_QUEUE_SIZE", "50000"),
+            )
+        )
+        raw_uploader = create_raw_upload_queue(
+            client, max_queue_size=max_q, trigger_log_level="INFO"
         )
 
         # Add rows

@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from cognite.client import CogniteClient
-
 from ...common.logger import CogniteFunctionLogger
 from ...utils.DataStructures import *
 
@@ -13,9 +11,8 @@ class ExtractionMethodHandler(ABC):
     def __init__(
         self,
         logger: Optional[CogniteFunctionLogger] = None,
-        client: CogniteClient = None,
     ):
-        """Create a handler with optional logger and CDF client."""
+        """Create a handler with optional logger."""
         self.logger = logger or CogniteFunctionLogger("INFO", False)
 
     @abstractmethod

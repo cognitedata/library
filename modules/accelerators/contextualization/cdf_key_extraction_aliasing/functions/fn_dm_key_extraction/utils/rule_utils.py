@@ -6,9 +6,41 @@ so handlers can access rule_id, config, source_field name, extraction_type, and 
 without duplicating getattr/dict logic.
 """
 
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Tuple
 
 from .DataStructures import ExtractionMethod, ExtractionType
+
+
+def get_rule_attr(rule: Any, key: str, default: Any = None) -> Any:
+    """Read a top-level field from a rule object or dict."""
+    if rule is None:
+        return default
+    if isinstance(rule, dict):
+        return rule.get(key, default)
+    return getattr(rule, key, default)
+
+
+def get_regex_pattern_and_flags(rule: Any) -> Tuple[str, int]:
+    """
+    Pattern string and compile flags for regex extraction.
+    Merges engine rule top-level fields with nested config.
+    """
+    cfg = get_config(rule)
+    pattern_str = (cfg.get("pattern") or get_rule_attr(rule, "pattern")) or ""
+    regex_opts = cfg.get("regex_options") or get_rule_attr(rule, "regex_options")
+    flags = 0
+    if regex_opts is not None and hasattr(regex_opts, "to_regex_flags"):
+        flags = regex_opts.to_regex_flags()
+    else:
+        case_sens = get_rule_attr(rule, "case_sensitive")
+        if case_sens is None:
+            case_sens = cfg.get("case_sensitive", True)
+        if case_sens is None:
+            case_sens = True
+        if not case_sens:
+            flags = re.IGNORECASE
+    return pattern_str, flags
 
 
 def get_rule_id(rule: Any) -> str:

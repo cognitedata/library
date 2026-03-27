@@ -25,7 +25,7 @@ class PatternRecognitionHandler(AliasTransformerHandler, PatternMatchMixin):
 
     def __init__(self, logger=None, client=None):
         """Initialize the handler and (optionally) the pattern registries."""
-        super().__init__(logger, client)
+        super().__init__(logger)
         if PATTERN_LIBRARY_AVAILABLE:
             self.tag_registry = StandardTagPatternRegistry()
             self.doc_registry = DocumentPatternRegistry()

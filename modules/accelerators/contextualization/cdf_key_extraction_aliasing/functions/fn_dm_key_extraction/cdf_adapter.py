@@ -58,296 +58,31 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
     return engine_config
 
 
-def _convert_extraction_rule(cdf_rule: Any) -> Dict[str, Any]:
-    """Convert a CDF ExtractionRuleConfig to engine format (canonical method and extraction_type)."""
+def _pydantic_extraction_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
+    """
+    Serialize ExtractionRuleConfig to the same shape as YAML rule dicts
+    (name, method, parameters, source_fields, ...).
+    """
+    data = cdf_rule.model_dump(mode="python", by_alias=True)
+    data["name"] = getattr(cdf_rule, "name", None) or data.get("rule_id", "unnamed_rule")
+    sf = data.get("source_fields")
+    if sf is not None and not isinstance(sf, list):
+        data["source_fields"] = [sf]
+    return data
+
+
+def _convert_extraction_rule(cdf_rule: Any) -> Optional[Dict[str, Any]]:
+    """Convert a CDF ExtractionRuleConfig to engine format via the single dict path."""
     try:
-        method_canonical = normalize_method(cdf_rule.method).value if normalize_method else (cdf_rule.method or "passthrough")
-        extraction_type_canonical = get_extraction_type_from_rule(cdf_rule).value if get_extraction_type_from_rule else "candidate_key"
-        engine_rule = {
-            "name": cdf_rule.name,
-            "priority": cdf_rule.priority,
-            "enabled": True,  # Default to enabled
-            "method": method_canonical,
-            "extraction_type": extraction_type_canonical,
-            "source_fields": _convert_source_fields(cdf_rule.source_fields),
-            "config": {},
-        }
-
-        # Convert method-specific parameters
-        method_params = cdf_rule.method_parameters
-        method_raw = (cdf_rule.method or "").lower().strip()
-
-        if method_raw == "regex" or method_canonical == "regex":
-            engine_rule["pattern"] = method_params.pattern
-            engine_rule["case_sensitive"] = not method_params.regex_options.ignore_case
-            engine_rule["min_confidence"] = 0.7  # Default
-
-            # Store regex-specific config
-            engine_rule["config"].update(
-                {
-                    "early_termination": getattr(
-                        method_params, "early_termination", False
-                    ),
-                    "max_matches_per_field": getattr(
-                        method_params, "max_matches_per_field", None
-                    ),
-                    "validation_pattern": getattr(
-                        method_params, "validation_pattern", None
-                    ),
-                    "regex_options": {
-                        "multiline": method_params.regex_options.multiline,
-                        "dotall": method_params.regex_options.dotall,
-                        "ignore_case": method_params.regex_options.ignore_case,
-                        "unicode": method_params.regex_options.unicode,
-                    },
-                }
-            )
-
-            # Handle capture groups and reassembly
-            if (
-                hasattr(method_params, "capture_groups")
-                and method_params.capture_groups
-            ):
-                engine_rule["config"]["capture_groups"] = [
-                    {
-                        "name": cg.name
-                        if hasattr(cg, "name")
-                        else (cg.get("name") if isinstance(cg, dict) else str(cg)),
-                        "component_type": getattr(cg, "component_type", None)
-                        if hasattr(cg, "component_type")
-                        else (
-                            cg.get("component_type") if isinstance(cg, dict) else None
-                        ),
-                    }
-                    for cg in method_params.capture_groups
-                ]
-
-            if (
-                hasattr(method_params, "reassemble_format")
-                and method_params.reassemble_format
-            ):
-                engine_rule["config"][
-                    "reassemble_format"
-                ] = method_params.reassemble_format
-
-        elif method_raw in ("fixed width", "fixed_width") or method_canonical == "fixed width":
-            # Convert fixed width parameters
-            engine_rule["config"] = _convert_fixed_width_params(method_params)
-
-        elif method_raw in ("token reassembly", "token_reassembly") or method_canonical == "token reassembly":
-            # Convert token reassembly parameters
-            engine_rule["config"] = _convert_token_reassembly_params(method_params)
-
-        elif method_raw == "heuristic" or method_canonical == "heuristic":
-            # Convert heuristic parameters
-            engine_rule["config"] = _convert_heuristic_params(method_params)
-            engine_rule["min_confidence"] = method_params.scoring.min_confidence
-
-        elif method_raw == "passthrough" or method_canonical == "passthrough":
-            engine_rule["config"] = {}
-            if hasattr(method_params, "min_confidence"):
-                engine_rule["min_confidence"] = method_params.min_confidence
-            else:
-                engine_rule["min_confidence"] = 1.0
-
-        return engine_rule
-
+        rule_data = _pydantic_extraction_rule_to_rule_data(cdf_rule)
+        return _convert_rule_dict_to_engine_format(rule_data)
     except Exception as e:
-        logger.error(f"Error converting extraction rule {cdf_rule.name}: {e}")
+        logger.error(
+            "Error converting extraction rule %s: %s",
+            getattr(cdf_rule, "name", cdf_rule),
+            e,
+        )
         return None
-
-
-def _convert_source_fields(cdf_source_fields: Any) -> List[Dict[str, Any]]:
-    """Convert CDF source fields to engine format."""
-    engine_fields = []
-
-    if cdf_source_fields is None:
-        return engine_fields
-
-    # Handle single field or list
-    fields_list = (
-        cdf_source_fields
-        if isinstance(cdf_source_fields, list)
-        else [cdf_source_fields]
-    )
-
-    for field in fields_list:
-        engine_field = {
-            "field_name": field.field_name,
-            "field_type": field.field_type,
-            "required": field.required,
-            "priority": field.priority if hasattr(field, "priority") else 1,
-            "max_length": field.max_length if hasattr(field, "max_length") else 1000,
-        }
-
-        if hasattr(field, "separator") and field.separator:
-            engine_field["separator"] = field.separator
-
-        if hasattr(field, "role") and field.role:
-            engine_field["role"] = field.role
-
-        if hasattr(field, "preprocessing") and field.preprocessing:
-            engine_field["preprocessing"] = field.preprocessing
-
-        engine_fields.append(engine_field)
-
-    return engine_fields
-
-
-def _convert_fixed_width_params(params: Any) -> Dict[str, Any]:
-    """Convert fixed width method parameters."""
-    config = {}
-
-    if hasattr(params, "encoding") and params.encoding:
-        config["encoding"] = params.encoding
-
-    if hasattr(params, "record_delimiter") and params.record_delimiter:
-        config["record_delimiter"] = params.record_delimiter
-
-    if hasattr(params, "record_length") and params.record_length:
-        config["record_length"] = params.record_length
-
-    if hasattr(params, "line_pattern") and params.line_pattern:
-        config["line_pattern"] = params.line_pattern
-
-    if hasattr(params, "skip_lines") and params.skip_lines:
-        config["skip_lines"] = params.skip_lines
-
-    if hasattr(params, "stop_on_empty") and params.stop_on_empty:
-        config["stop_on_empty"] = params.stop_on_empty
-
-    if hasattr(params, "field_definitions") and params.field_definitions:
-        config["field_definitions"] = [
-            {
-                "name": fd.name,
-                "start_position": fd.start_position,
-                "end_position": fd.end_position,
-                "field_type": fd.field_type if hasattr(fd, "field_type") else "unknown",
-                "required": fd.required,
-                "trim": fd.trim if hasattr(fd, "trim") else True,
-                "line": fd.line if hasattr(fd, "line") else None,
-                "padding": fd.padding if hasattr(fd, "padding") else "none",
-            }
-            for fd in params.field_definitions
-        ]
-
-    return config
-
-
-def _convert_token_reassembly_params(params: Any) -> Dict[str, Any]:
-    """Convert token reassembly method parameters."""
-    config = {}
-
-    if hasattr(params, "tokenization") and params.tokenization:
-        tokenization = {
-            "separator_pattern": params.tokenization.separator_pattern,
-            "token_patterns": [
-                {
-                    "name": tp.name,
-                    "pattern": tp.pattern,
-                    "position": tp.position,
-                    "required": tp.required,
-                    "component_type": getattr(tp, "component_type", "unknown"),
-                }
-                for tp in params.tokenization.token_patterns
-            ],
-        }
-
-        if hasattr(params.tokenization, "min_tokens"):
-            tokenization["min_tokens"] = params.tokenization.min_tokens
-        if hasattr(params.tokenization, "max_tokens"):
-            tokenization["max_tokens"] = params.tokenization.max_tokens
-
-        config["tokenization"] = tokenization
-
-    if hasattr(params, "assembly_rules") and params.assembly_rules:
-        config["assembly_rules"] = [
-            {
-                "name": ar.name,
-                "format": ar.format,
-                "conditions": ar.conditions if hasattr(ar, "conditions") else {},
-            }
-            for ar in params.assembly_rules
-        ]
-
-    if hasattr(params, "validation") and params.validation:
-        config["validation"] = {
-            "validate_assembled": params.validation.validate_assembled,
-            "validation_pattern": params.validation.validation_pattern
-            if hasattr(params.validation, "validation_pattern")
-            else None,
-        }
-
-    return config
-
-
-def _convert_heuristic_params(params: Any) -> Dict[str, Any]:
-    """Convert heuristic method parameters."""
-    config = {}
-
-    if hasattr(params, "heuristic_strategies") and params.heuristic_strategies:
-        config["heuristic_strategies"] = []
-        for strategy in params.heuristic_strategies:
-            strategy_dict = {
-                "name": strategy.strategy_id,
-                "weight": strategy.weight,
-                "method": strategy.method,
-                "rules": [],
-            }
-
-            # Convert strategy rules based on method type
-            for rule in strategy.rules:
-                if strategy.method == "positional_detection":
-                    rule_dict = {
-                        "position": rule.position,
-                        "pattern": rule.pattern,
-                        "confidence_boost": rule.confidence_boost,
-                    }
-                    if hasattr(rule, "keywords"):
-                        rule_dict["keywords"] = rule.keywords
-                    strategy_dict["rules"].append(rule_dict)
-                elif strategy.method == "frequency_analysis":
-                    rule_dict = {
-                        "analyze_corpus": rule.analyze_corpus,
-                        "min_frequency": rule.min_frequency,
-                        "pattern_stability_threshold": rule.pattern_stability_threshold,
-                        "common_prefix_detection": rule.common_prefix_detection,
-                        "common_suffix_detection": rule.common_suffix_detection,
-                    }
-                    strategy_dict["rules"].append(rule_dict)
-                elif strategy.method == "context_inference":
-                    rule_dict = {
-                        "surrounding_keywords": dict(rule.surrounding_keywords)
-                        if hasattr(rule, "surrounding_keywords")
-                        else {"positive": [], "negative": []},
-                        "context_window": rule.context_window,
-                        "keyword_proximity_bonus": rule.keyword_proximity_bonus,
-                    }
-                    if hasattr(rule, "equipment_type_correlation"):
-                        rule_dict["equipment_type_correlation"] = {
-                            "enable": rule.equipment_type_correlation.enabled,
-                            "type_indicators": dict(
-                                rule.equipment_type_correlation.type_indicators
-                            ),
-                        }
-                    strategy_dict["rules"].append(rule_dict)
-
-            config["heuristic_strategies"].append(strategy_dict)
-
-    if hasattr(params, "scoring") and params.scoring:
-        config["scoring"] = {
-            "aggregation_method": params.scoring.aggregation_method,
-            "min_confidence": params.scoring.min_confidence,
-            "normalize_scores": params.scoring.normalize_scores,
-        }
-
-    if hasattr(params, "confidence_modifiers") and params.confidence_modifiers:
-        config["confidence_modifiers"] = params.confidence_modifiers
-
-    if hasattr(params, "validation") and params.validation:
-        config["validation"] = params.validation
-
-    return config
 
 
 def _convert_yaml_direct_to_engine_config(
@@ -412,9 +147,7 @@ def _convert_rule_dict_to_engine_format(
             "enabled": rule_data.get("enabled", True),
             "method": method_canonical,
             "scope_filters": rule_data.get("scope_filters", {}),
-            "extraction_type": rule_data.get(
-                "extraction_type", "candidate_key"
-            ),  # Use rule's extraction_type or default to candidate_key
+            "extraction_type": extraction_type,
             "source_fields": _convert_source_fields_dict(
                 rule_data.get("source_fields", [])
             ),

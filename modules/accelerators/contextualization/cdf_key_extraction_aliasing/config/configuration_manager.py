@@ -1,6 +1,13 @@
 """
 Configuration Management System for Key Extraction
 
+.. note::
+    **Long-term:** Production pipelines and Cognite Functions use YAML plus Pydantic models
+    (see ``functions/fn_dm_key_extraction`` / ``fn_dm_aliasing`` adapters). This module is a
+    parallel, schema-heavy stack kept for legacy integration tests and tooling. Prefer aligning
+    new tests with the Pydantic/YAML path; do not extend ``configuration_manager`` for new
+    production features unless explicitly required.
+
 This module provides comprehensive configuration management for key extraction
 and aliasing operations. It includes YAML-based configuration, validation,
 and environment management.
@@ -501,7 +508,7 @@ class ConfigurationManager:
                             "priority": 2,
                         },
                     ],
-                    "config": {"pattern": "P[-_]?\d{2,4}[A-Z]?"},
+                    "config": {"pattern": r"P[-_]?\d{2,4}[A-Z]?"},
                 },
                 {
                     "name": "flow_instrument_tag",
@@ -522,7 +529,7 @@ class ConfigurationManager:
                             "required": False,
                         }
                     ],
-                    "config": {"pattern": "FIC[-_]?\d{4}[A-Z]?"},
+                    "config": {"pattern": r"FIC[-_]?\d{4}[A-Z]?"},
                 },
             ],
             "aliasing": {

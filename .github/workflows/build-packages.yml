@@ -24,6 +24,10 @@ jobs:
     - name: Validate packages.toml
       run: |
         python validate_packages.py
+
+    - name: Verify cdf_key_extraction_aliasing site workflow matches generator
+      run: |
+        python modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflows/generate_site_workflow_version.py --check
         
     - name: Build packages
       id: build

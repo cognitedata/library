@@ -5,17 +5,14 @@ import logging
 import sys
 from pathlib import Path
 
-# Ensure repo root is on path so main can be imported (whether main.py is at root or in key_extraction_aliasing)
+# Repo root + cdf_key_extraction_aliasing package root (for ``local_runner`` imports)
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+for _p in (_REPO_ROOT, _PACKAGE_ROOT):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
-# Import the report generation function from main
-try:
-    from main import _generate_report
-except ImportError:
-    # main may live under key_extraction_aliasing
-    from modules.accelerators.contextualization.cdf_key_extraction_aliasing.main import _generate_report
+from local_runner.report import generate_report as _generate_report
 
 # Setup logging
 logging.basicConfig(

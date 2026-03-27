@@ -7,7 +7,12 @@ from ...utils.fixed_width_utils import (
     convert_fixed_width_pattern_to_regex,
     validate_field_type,
 )
-from ...utils.rule_utils import common_extracted_key_attrs, get_config, get_rule_id
+from ...utils.rule_utils import (
+    common_extracted_key_attrs,
+    get_config,
+    get_rule_attr,
+    get_rule_id,
+)
 from .ExtractionMethodHandler import ExtractionMethodHandler
 
 
@@ -131,8 +136,9 @@ class FixedWidthExtractionHandler(ExtractionMethodHandler):
         """Extract keys from a single line using field definitions."""
         extracted_keys = []
 
-        # First, try to match the pattern if it exists
-        pattern = getattr(rule, "pattern", None) or (rule.get("pattern") if isinstance(rule, dict) else None)
+        # First, try to match the pattern if it exists (top-level or under config)
+        cfg_line = get_config(rule)
+        pattern = cfg_line.get("pattern") or get_rule_attr(rule, "pattern")
         # Only validate pattern if it exists and field_definitions are provided
         if pattern:
             # Convert pattern to regex for validation

@@ -1,7 +1,7 @@
 """Pattern-based expansion transformer handler."""
 
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Optional, Set
 
 # Import pattern library components conditionally
 try:
@@ -13,19 +13,21 @@ except ImportError:
     StandardTagPatternRegistry = None
     EquipmentType = None
 
+from ..transformer_utils import PatternMatchMixin, extract_equipment_number
 from .AliasTransformerHandler import AliasTransformerHandler
 
 
-class PatternBasedExpansionHandler(AliasTransformerHandler):
+class PatternBasedExpansionHandler(AliasTransformerHandler, PatternMatchMixin):
     """Generate comprehensive aliases based on recognized patterns and industry standards."""
 
     def __init__(self, logger=None, client=None):
         """Initialize the handler and (optionally) the pattern registry."""
-        super().__init__(logger, client)
+        super().__init__(logger)
         if PATTERN_LIBRARY_AVAILABLE:
             self.tag_registry = StandardTagPatternRegistry()
         else:
             self.tag_registry = None
+        PatternMatchMixin.__init__(self, self.tag_registry)
 
     def transform(
         self, aliases: Set[str], config: Dict[str, Any], context: Dict[str, Any] = None
@@ -61,7 +63,7 @@ class PatternBasedExpansionHandler(AliasTransformerHandler):
 
             # If no equipment type in context, try pattern recognition
             if not equipment_type:
-                matched_patterns = self._match_tag_patterns(alias)
+                matched_patterns = self.match_patterns(alias)
                 if matched_patterns:
                     equipment_type = matched_patterns[0].equipment_type
 
@@ -91,20 +93,6 @@ class PatternBasedExpansionHandler(AliasTransformerHandler):
 
         return new_aliases
 
-    def _match_tag_patterns(self, tag: str) -> List:
-        """Match tag against patterns to determine equipment type."""
-        matches = []
-
-        for pattern in self.tag_registry.get_all_patterns():
-            try:
-                compiled_pattern = re.compile(pattern.pattern)
-                if compiled_pattern.search(tag):
-                    matches.append(pattern)
-            except re.error:
-                continue
-
-        return sorted(matches, key=lambda p: p.priority)
-
     def _generate_similar_equipment_aliases(
         self, tag: str, equipment_type: EquipmentType
     ) -> Set[str]:
@@ -130,11 +118,9 @@ class PatternBasedExpansionHandler(AliasTransformerHandler):
         aliases = set()
 
         # Extract number from tag
-        number_match = re.search(r"(\d+)", tag)
-        if not number_match:
+        number = extract_equipment_number(tag)
+        if not number:
             return aliases
-
-        number = number_match.group(1)
 
         # Define instrument prefixes based on equipment type
         instrument_prefixes = {
@@ -164,12 +150,9 @@ class PatternBasedExpansionHandler(AliasTransformerHandler):
 
     def _adapt_format(self, source_tag: str, example_format: str) -> Optional[str]:
         """Adapt an example format to match the source tag structure."""
-        # Extract numeric part from source tag
-        source_match = re.search(r"(\d+)", source_tag)
-        if not source_match:
+        source_number = extract_equipment_number(source_tag)
+        if not source_number:
             return None
-
-        source_number = source_match.group(1)
 
         # Try to extract structure from example format
         # Simple approach: replace numbers in example with source number

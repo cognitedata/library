@@ -8,7 +8,7 @@ from CDF data model views and extracts keys using the KeyExtractionEngine.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
@@ -17,6 +17,14 @@ from cognite.client.data_classes import Row
 from .common.logger import CogniteFunctionLogger
 from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
 from .services.ApplyService import GeneralApplyService
+
+from .raw_join_utils import (
+    entity_props_for_view,
+    merged_join_columns_for_instance,
+    preload_raw_lookups,
+)
+from .utils.rule_utils import get_rule_id
+from ..cdf_fn_common.raw_upload import create_raw_upload_queue
 
 logger = None  # Use CogniteFunctionLogger directly
 
@@ -78,8 +86,6 @@ def key_extraction(
         use_cdf_format = cdf_config is not None and client is not None
 
         if use_cdf_format:
-            from cognite.extractorutils.uploader import RawUploadQueue
-
             # Extract parameters from CDF config
             raw_db = cdf_config.parameters.raw_db
             raw_table_key = cdf_config.parameters.raw_table_key
@@ -90,10 +96,8 @@ def key_extraction(
                 f"Using CDF format: raw_db={raw_db}, raw_table_key={raw_table_key}"
             )
 
-            # Initialize RAW upload queue
-            raw_uploader = RawUploadQueue(
-                cdf_client=client, max_queue_size=500000, trigger_log_level="INFO"
-            )
+            # Initialize RAW upload queue (size from CDF_RAW_UPLOAD_MAX_QUEUE_SIZE or default)
+            raw_uploader = create_raw_upload_queue(client)
 
             # Get entities from source view
             entities_source_fields = _get_target_entities_cdf(
@@ -111,9 +115,20 @@ def key_extraction(
         entities_keys_extracted = {}
         rule_source_fields_map = {}
         for rule in getattr(engine, "rules", []):
-            rule_source_fields_map[rule.name] = [sf.field_name for sf in rule.source_fields]
+            rn = getattr(rule, "name", None) or getattr(rule, "rule_id", None)
+            if rn is None:
+                continue
+            sfs = getattr(rule, "source_fields", None) or []
+            if not isinstance(sfs, list):
+                sfs = [sfs]
+            rule_source_fields_map[str(rn)] = [
+                getattr(sf, "field_name", None)
+                or (sf.get("field_name") if isinstance(sf, dict) else None)
+                for sf in sfs
+            ]
         rules_used_counts: Dict[str, int] = {}
 
+        # Serial extraction per entity; instance listing uses batch_size on the source view upstream.
         for entity_id, entity_fields in entities_source_fields.items():
             # Convert entity fields to format expected by engine
             entity = {"id": entity_id, "externalId": entity_id, **entity_fields}
@@ -274,6 +289,113 @@ def key_extraction(
         raise
 
 
+def _iter_rule_source_fields(rule: Any) -> List[Any]:
+    """Normalize source_fields on a rule to a list."""
+    sf = (
+        rule.get("source_fields", None)
+        if isinstance(rule, dict)
+        else getattr(rule, "source_fields", None)
+    )
+    if sf is None:
+        return []
+    return list(sf) if isinstance(sf, list) else [sf]
+
+
+def _sf_field_name(sf: Any) -> str:
+    if isinstance(sf, dict):
+        return str(sf.get("field_name") or "")
+    return str(getattr(sf, "field_name", "") or "")
+
+
+def _sf_table_id(sf: Any) -> Optional[str]:
+    v = sf.get("table_id") if isinstance(sf, dict) else getattr(sf, "table_id", None)
+    return str(v) if v else None
+
+
+def _sf_required(sf: Any) -> bool:
+    if isinstance(sf, dict):
+        return bool(sf.get("required"))
+    return bool(getattr(sf, "required", False))
+
+
+def _sf_preprocessing(sf: Any) -> List[str]:
+    raw = sf.get("preprocessing") if isinstance(sf, dict) else getattr(sf, "preprocessing", None)
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [raw]
+    return list(raw)
+
+
+def _build_entity_payload_with_rules(
+    *,
+    instance: Any,
+    merged_columns: Optional[Dict[str, Any]],
+    extraction_rules: Any,
+    entity_view_id: Any,
+    entity_view_config: Any,
+    logger: Any,
+) -> Dict[str, Any]:
+    """
+    Build entity dict for KeyExtractionEngine: view properties + optional table_data from RAW joins.
+
+    Populates rule-prefixed keys (ruleId_fieldName) for view fields and table_data keys
+    (ruleId_tableId_fieldName) for RAW-backed fields, matching engine _get_field_value.
+    """
+    entity_props = entity_props_for_view(instance, entity_view_id)
+    out: Dict[str, Any] = {
+        "entity_type": entity_view_config.entity_type.value,
+        "view_space": entity_view_id.space,
+        "view_external_id": entity_view_id.external_id,
+        "view_version": entity_view_id.version,
+        "instance_space": entity_view_config.instance_space,
+        "table_data": {},
+    }
+    if not isinstance(extraction_rules, list) or not extraction_rules:
+        return out
+
+    for rule in extraction_rules:
+        rid = get_rule_id(rule)
+        if not rid or rid == "unknown":
+            continue
+        for sf in _iter_rule_source_fields(rule):
+            fn = _sf_field_name(sf)
+            if not fn:
+                continue
+            tid = _sf_table_id(sf)
+            required = _sf_required(sf)
+            pre = _sf_preprocessing(sf)
+            field_value = None
+            if tid:
+                col = f"{tid}__{fn}"
+                if merged_columns is not None:
+                    field_value = merged_columns.get(col)
+                if field_value is None and required:
+                    logger.verbose(
+                        "WARNING",
+                        f"Missing joined RAW column {col!r} for entity {instance.external_id}",
+                    )
+            else:
+                field_value = entity_props.get(fn)
+                if field_value is None and required:
+                    logger.verbose(
+                        "WARNING",
+                        f"Missing view field {fn!r} for entity {instance.external_id}",
+                    )
+            if field_value is None:
+                continue
+            if not isinstance(field_value, str):
+                field_value = str(field_value)
+            if pre:
+                field_value = _apply_preprocessing(field_value, pre)
+            if tid:
+                tkey = "_".join([rid, tid, fn])
+                out["table_data"][tkey] = field_value
+            else:
+                out["_".join([rid, fn])] = field_value
+    return out
+
+
 def _get_target_entities_cdf(
     client: CogniteClient,
     config: Any,
@@ -282,15 +404,11 @@ def _get_target_entities_cdf(
     """
     Get entities from CDF data model views.
 
-    Args:
-        client: CogniteClient instance
-        config: CDF Config object (with data.source_view or data.source_views)
-        logger: Logger instance
-
-    Returns:
-        Dictionary mapping entity external IDs to their field values
+    When ``config.data.source_tables`` is non-empty, loads each RAW table once (cached),
+    left-joins to instances on configured join keys, and fills ``table_data`` for
+    ``source_field.table_id`` references (see key extraction engine ``_get_field_value``).
     """
-    entities_source = {}
+    entities_source: Dict[str, Dict[str, Any]] = {}
     source_views = getattr(config.data, "source_views", None) or (
         [config.data.source_view] if getattr(config.data, "source_view", None) else []
     )
@@ -301,23 +419,26 @@ def _get_target_entities_cdf(
     raw_db = config.parameters.raw_db
     raw_table_key = config.parameters.raw_table_key
     overwrite = config.parameters.overwrite
-    excluded_entities = []
+    excluded_entities: List[str] = []
     if not overwrite:
         excluded_entities = _read_table_keys(client, raw_db, raw_table_key)
         logger.debug(f"Excluding {len(excluded_entities)} existing entities")
 
     max_files = getattr(getattr(config, "parameters", None), "max_files", None)
-    if isinstance(max_files, bool):  # avoid treating True/False as ints
+    if isinstance(max_files, bool):
         max_files = None
     if isinstance(max_files, int) and max_files <= 0:
         max_files = None
 
-    for entity_view_config in config.data.source_views:
+    source_tables = getattr(config.data, "source_tables", None) or []
+    extraction_rules = getattr(getattr(config, "data", None), "extraction_rules", None)
+    raw_lookups: Dict[Tuple[str, str], Optional[Dict[str, Dict[str, Any]]]] = {}
+    if source_tables:
+        raw_lookups = preload_raw_lookups(client, list(source_tables), logger)
+
+    for entity_view_config in source_views:
         entity_view_id = entity_view_config.as_view_id()
-
         logger.debug(f"Querying view: {entity_view_id}")
-
-        # Build filter
         filter_expr = _build_filter(
             entity_view_config,
             bool(getattr(getattr(config, "parameters", None), "run_all", True)),
@@ -332,7 +453,6 @@ def _get_target_entities_cdf(
                 if remaining <= 0:
                     break
 
-            # Query instances
             instances = client.data_modeling.instances.list(
                 instance_type="node",
                 space=entity_view_config.instance_space,
@@ -347,84 +467,104 @@ def _get_target_entities_cdf(
                 f"Retrieved {len(instances)} instances from view: {entity_view_id}"
             )
 
-            # Extract field values
-            for instance in instances:
-                entity_external_id = instance.external_id
-                entity_props = (
-                    instance.dump()
-                    .get("properties", {})
-                    .get(entity_view_id.space, {})
-                    .get(f"{entity_view_id.external_id}/{entity_view_id.version}", {})
-                )
+            if source_tables:
+                if not len(instances):
+                    logger.info(f"No instances for view {entity_view_id}; skipping joins.")
+                    continue
+                for instance in instances:
+                    entity_external_id = instance.external_id
+                    if entity_external_id in entities_source:
+                        continue
+                    eprops = entity_props_for_view(instance, entity_view_id)
+                    merged_cols = merged_join_columns_for_instance(
+                        eprops, list(source_tables), raw_lookups
+                    )
+                    entities_source[entity_external_id] = _build_entity_payload_with_rules(
+                        instance=instance,
+                        merged_columns=merged_cols,
+                        extraction_rules=extraction_rules,
+                        entity_view_id=entity_view_id,
+                        entity_view_config=entity_view_config,
+                        logger=logger,
+                    )
+                    if isinstance(max_files, int) and len(entities_source) >= max_files:
+                        break
+            else:
+                for instance in instances:
+                    entity_external_id = instance.external_id
+                    entity_props = (
+                        instance.dump()
+                        .get("properties", {})
+                        .get(entity_view_id.space, {})
+                        .get(
+                            f"{entity_view_id.external_id}/{entity_view_id.version}",
+                            {},
+                        )
+                    )
 
-                # Initialize entity fields
-                if entity_external_id not in entities_source:
-                    entities_source[entity_external_id] = {
-                        "entity_type": entity_view_config.entity_type.value,
-                        "view_space": entity_view_id.space,
-                        "view_external_id": entity_view_id.external_id,
-                        "view_version": entity_view_id.version,
-                        "instance_space": entity_view_config.instance_space,
-                    }
+                    if entity_external_id not in entities_source:
+                        entities_source[entity_external_id] = {
+                            "entity_type": entity_view_config.entity_type.value,
+                            "view_space": entity_view_id.space,
+                            "view_external_id": entity_view_id.external_id,
+                            "view_version": entity_view_id.version,
+                            "instance_space": entity_view_config.instance_space,
+                        }
 
-                # Determine which fields to extract.
-                # Prefer extraction_rules.source_fields if available; otherwise fall back to include_properties.
-                wanted_fields: list[tuple[str, bool, list[str]]] = []
-                extraction_rules = getattr(getattr(config, "data", None), "extraction_rules", None)
-
-                if isinstance(extraction_rules, list) and extraction_rules:
-                    # Case 1: list of pydantic objects with `.source_fields`
-                    if hasattr(extraction_rules[0], "source_fields"):
-                        for rule in extraction_rules:
-                            source_fields = getattr(rule, "source_fields", None)
-                            if source_fields is None:
-                                continue
-                            if not isinstance(source_fields, list):
-                                source_fields = [source_fields]
-                            for sf in source_fields:
-                                wanted_fields.append(
-                                    (
-                                        str(getattr(sf, "field_name", "") or ""),
-                                        bool(getattr(sf, "required", False)),
-                                        list(getattr(sf, "preprocessing", []) or []),
-                                    )
-                                )
-                    # Case 2: list of dicts from workflow config
-                    elif isinstance(extraction_rules[0], dict):
-                        for rule in extraction_rules:
-                            for sf in (rule.get("source_fields", []) or []):
-                                if not isinstance(sf, dict):
+                    wanted_fields: List[tuple[str, bool, list[str]]] = []
+                    if isinstance(extraction_rules, list) and extraction_rules:
+                        if hasattr(extraction_rules[0], "source_fields"):
+                            for rule in extraction_rules:
+                                source_fields = getattr(rule, "source_fields", None)
+                                if source_fields is None:
                                     continue
-                                wanted_fields.append(
-                                    (
-                                        str(sf.get("field_name") or ""),
-                                        bool(sf.get("required") or False),
-                                        list(sf.get("preprocessing") or []),
+                                if not isinstance(source_fields, list):
+                                    source_fields = [source_fields]
+                                for sf in source_fields:
+                                    wanted_fields.append(
+                                        (
+                                            str(getattr(sf, "field_name", "") or ""),
+                                            bool(getattr(sf, "required", False)),
+                                            list(getattr(sf, "preprocessing", []) or []),
+                                        )
                                     )
+                        elif isinstance(extraction_rules[0], dict):
+                            for rule in extraction_rules:
+                                for sf in (rule.get("source_fields", []) or []):
+                                    if not isinstance(sf, dict):
+                                        continue
+                                    wanted_fields.append(
+                                        (
+                                            str(sf.get("field_name") or ""),
+                                            bool(sf.get("required") or False),
+                                            list(sf.get("preprocessing") or []),
+                                        )
+                                    )
+
+                    if not wanted_fields:
+                        for p in list(
+                            getattr(entity_view_config, "include_properties", []) or []
+                        ):
+                            wanted_fields.append((str(p or ""), False, []))
+
+                    for field_name, required, preprocessing in wanted_fields:
+                        if not field_name:
+                            continue
+                        field_value = entity_props.get(field_name)
+                        if field_value is None:
+                            if required:
+                                logger.verbose(
+                                    "WARNING",
+                                    f"Missing required field '{field_name}' in entity: {entity_external_id}",
                                 )
+                            continue
 
-                if not wanted_fields:
-                    for p in list(getattr(entity_view_config, "include_properties", []) or []):
-                        wanted_fields.append((str(p or ""), False, []))
+                        if preprocessing:
+                            field_value = _apply_preprocessing(field_value, preprocessing)
+                        entities_source[entity_external_id][field_name] = field_value
 
-                for field_name, required, preprocessing in wanted_fields:
-                    if not field_name:
-                        continue
-                    field_value = entity_props.get(field_name)
-                    if field_value is None:
-                        if required:
-                            logger.verbose(
-                                "WARNING",
-                                f"Missing required field '{field_name}' in entity: {entity_external_id}",
-                            )
-                        continue
-
-                    if preprocessing:
-                        field_value = _apply_preprocessing(field_value, preprocessing)
-                    entities_source[entity_external_id][field_name] = field_value
-
-                if isinstance(max_files, int) and len(entities_source) >= max_files:
-                    break
+                    if isinstance(max_files, int) and len(entities_source) >= max_files:
+                        break
 
             logger.info(
                 f"Processed {len(entities_source)} entities from view: {entity_view_id}"
@@ -438,6 +578,7 @@ def _get_target_entities_cdf(
             break
 
     return entities_source
+
 
 
 def _build_filter(
@@ -483,7 +624,7 @@ from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not
 def _read_table_keys(client: CogniteClient, db: str, tbl: str) -> list[str]:
     """Read existing entity keys from RAW table."""
     try:
-        rows = client.raw.rows.list(db, [tbl]).to_pandas()
-        return rows.index.tolist() if not rows.empty else []
+        rows = client.raw.rows.list(db, [tbl])
+        return [r.key for r in rows]
     except Exception:
         return []

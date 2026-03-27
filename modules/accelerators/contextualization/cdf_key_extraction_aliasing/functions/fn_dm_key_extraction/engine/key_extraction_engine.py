@@ -33,6 +33,7 @@ from ..utils.DataStructures import *
 from ..utils.rule_utils import (
     get_extraction_type_from_rule,
     get_method_from_rule,
+    normalize_extraction_type,
     normalize_method,
 )
 from .handlers import (
@@ -96,6 +97,22 @@ class KeyExtractionEngine:
         self.method_handlers = self._initialize_method_handlers()
         self.field_selection_strategy = self.config.data.field_selection_strategy
 
+    def _categorize_keys_into_result(
+        self,
+        keys: List[ExtractedKey],
+        rule: Any,
+        result: ExtractionResult,
+    ) -> None:
+        """Append keys to candidate_keys / foreign_key_references / document_references by rule type."""
+        rtype = normalize_extraction_type(get_extraction_type_from_rule(rule))
+        for key in keys:
+            if rtype == ExtractionType.CANDIDATE_KEY:
+                result.candidate_keys.append(key)
+            elif rtype == ExtractionType.FOREIGN_KEY_REFERENCE:
+                result.foreign_key_references.append(key)
+            elif rtype == ExtractionType.DOCUMENT_REFERENCE:
+                result.document_references.append(key)
+
     def _initialize_method_handlers(
         self,
     ) -> Dict[ExtractionMethod, ExtractionMethodHandler]:
@@ -142,14 +159,7 @@ class KeyExtractionEngine:
                     entity, rule, context, result
                 )
                 if extracted_keys:
-                    rtype = get_extraction_type_from_rule(rule)
-                    for key in extracted_keys:
-                        if rtype == ExtractionType.CANDIDATE_KEY:
-                            result.candidate_keys.append(key)
-                        elif rtype == ExtractionType.FOREIGN_KEY_REFERENCE:
-                            result.foreign_key_references.append(key)
-                        elif rtype == ExtractionType.DOCUMENT_REFERENCE:
-                            result.document_references.append(key)
+                    self._categorize_keys_into_result(extracted_keys, rule, result)
                 continue
 
             # Check scope filters
@@ -224,16 +234,7 @@ class KeyExtractionEngine:
 
             # Post-process collected keys per strategy
             if collected_for_rule:
-                rtype = get_extraction_type_from_rule(rule)
-                # merge_all: process all fields, deduplication will keep highest confidence for duplicates
-                # Categorize into result
-                for key in collected_for_rule:
-                    if rtype == ExtractionType.CANDIDATE_KEY:
-                        result.candidate_keys.append(key)
-                    elif rtype == ExtractionType.FOREIGN_KEY_REFERENCE:
-                        result.foreign_key_references.append(key)
-                    elif rtype == ExtractionType.DOCUMENT_REFERENCE:
-                        result.document_references.append(key)
+                self._categorize_keys_into_result(collected_for_rule, rule, result)
 
         # Apply validation using last rule's validation config (per-rule would require refactor)
         if self.rules:
@@ -275,11 +276,7 @@ class KeyExtractionEngine:
                 }
             )
 
-        # Pass blacklist from first rule's validation if available
-        blacklist = []
-        if self.rules and getattr(self.rules[0], "validation", None):
-            blacklist = getattr(self.rules[0].validation, "blacklist_keywords", []) or []
-        context["blacklist_keywords"] = blacklist
+        # Blacklist is enforced only in _validate_extraction_result (see _apply_blacklist).
 
         return context
 
@@ -310,8 +307,9 @@ class KeyExtractionEngine:
 
         # Collect field values
         field_values = {}
+        _rnm = getattr(rule, "name", None) or getattr(rule, "rule_id", None)
         for source_field in rule.source_fields:
-            field_value = self._get_field_value(entity, source_field)
+            field_value = self._get_field_value(entity, source_field, _rnm)
             if field_value:
                 # Apply preprocessing
                 processed_value = self._preprocess_field_value(

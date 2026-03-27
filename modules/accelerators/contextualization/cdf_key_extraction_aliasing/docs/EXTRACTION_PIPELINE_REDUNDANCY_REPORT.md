@@ -1,7 +1,18 @@
 # Key Extraction Pipeline – Redundancy and Optimization Report
 
-**Scope:** `modules/accelerators/contextualization/cdf_key_extraction_aliasing` (CDF path), extraction pipeline and extractor functions under `functions/fn_dm_key_extraction/`.  
-**No code changes applied;** recommendations only.
+**Scope:** `modules/accelerators/contextualization/cdf_key_extraction_aliasing` (CDF path), extraction pipeline and extractor functions under `functions/fn_dm_key_extraction/`.
+
+**Superseded / current (2026):** Several items below were written from an earlier codebase review. The following are **already addressed**; do not re-open them as net-new work without re-verifying the code:
+
+- **`functions/cdf_fn_common/`** holds the real implementations of `cdf_utils`, `config_utils`, and `logger`. Per-function `functions/fn_dm_*/common/` modules **re-export** from `cdf_fn_common` (they are not independent triplicated copies).
+- **Blacklist:** Enforced only in `KeyExtractionEngine._validate_extraction_result` via `_apply_blacklist` (not in handlers). See `utils/confidence.py` for the documented policy.
+- **`cdf_adapter`:** Pydantic rules are serialized to dict (`_pydantic_extraction_rule_to_rule_data`) and converted through **`_convert_rule_dict_to_engine_format`** so YAML and Pydantic share one dict path.
+- **§8 `_categorize_keys_into_result`:** Implemented in `key_extraction_engine.py`.
+- **§9 base handler `client`:** Removed from `ExtractionMethodHandler`; handlers use `context` when needed.
+
+Remaining rows in the summary table still describe **optional polish** (e.g. further rule_utils adoption in every handler line, method-string single canonicalization) unless marked resolved above.
+
+**Historical note:** Original report stated “no code changes”; subsequent refactors implemented parts of the recommendations.
 
 ---
 
@@ -49,20 +60,9 @@ Then have each handler call these when constructing `ExtractedKey`, so normaliza
 
 ## 3. Blacklist handling in multiple layers
 
-**Observation:** Blacklist is applied in three places:
+**Current behavior (updated):** **Option A** is in effect. Blacklist keywords are applied only in the engine (`_validate_extraction_result` → `_apply_blacklist`). Handlers do not zero confidence based on blacklist; see `utils/confidence.py`.
 
-1. **Engine (`_validate_extraction_result`):** After extraction, filters `candidate_keys`, `foreign_key_references`, and `document_references` through `_apply_blacklist(..., blacklist_keywords)`.
-2. **RegexExtractionHandler:** Before appending a key, sets `confidence = 0.0` if the extracted value contains any blacklist keyword (using `context["blacklist_keywords"]`).
-3. **HeuristicExtractionHandler:** Same as Regex – sets `adjusted_score = 0.0` if candidate contains a blacklist keyword.
-4. **FixedWidthExtractionHandler** (in `_extract_from_line`): Same – sets `confidence = 0.0` for blacklisted field value.
-5. **TokenReassemblyExtractionHandler:** Same for the assembled key.
-
-So blacklist is both applied per-handler (by zeroing confidence) and again in the engine (by removing keys). Handlers that don’t check blacklist (e.g. Passthrough) rely entirely on the engine.
-
-**Recommendation:** Choose a single policy:
-
-- **Option A (recommended):** Apply blacklist only in the engine (in `_validate_extraction_result`). Remove blacklist checks from all handlers. Handlers only compute confidence; the engine enforces blacklist and min_confidence. Simplifies handlers and avoids double application.
-- **Option B:** If you want early filtering (fewer keys passed around), document that handlers must set confidence to 0 for blacklisted values and keep the engine’s `_apply_blacklist` as a safety net; then ensure every handler that emits keys (including Passthrough) applies the same blacklist logic or delegates to a shared helper (e.g. `utils/confidence.apply_blacklist(value, blacklist_keywords) -> 0.0 or None`).
+**Historical observation (superseded):** An older version of the code applied blacklist in handlers and in the engine. That duplication has been removed.
 
 ---
 
@@ -89,16 +89,9 @@ So only Regex uses the shared confidence module. Fixed width and heuristic use c
 
 ## 5. cdf_adapter: dual conversion paths and duplicated helpers
 
-**Observation:**
+**Current behavior (updated):** Pydantic rules go through `_pydantic_extraction_rule_to_rule_data` → `_convert_rule_dict_to_engine_format`. YAML uses `_convert_yaml_direct_to_engine_config`, which also routes each rule through `_convert_rule_dict_to_engine_format`. Remaining **internal** helpers (`_convert_*_params_dict`, `_convert_source_fields_dict`) are the single implementation for dict-shaped inputs after normalization.
 
-- **Two entry points:** `_convert_extraction_rule(cdf_rule)` for Pydantic/Config rules vs `_convert_rule_dict_to_engine_format(rule_data)` for raw dicts (e.g. from YAML).
-- **Two source-field converters:** `_convert_source_fields(cdf_source_fields)` (Pydantic) and `_convert_source_fields_dict(source_fields_data)` (dict). They do the same conceptual job (list of fields → engine field list) with different input types.
-- **Two param converters per method:** e.g. `_convert_fixed_width_params(params)` vs `_convert_fixed_width_params_dict(params)`; same for token reassembly and heuristic. Logic is duplicated with different access patterns (attribute vs `.get()`).
-
-**Recommendation:**
-
-- Introduce a single internal “engine rule” dict format, and have both Pydantic and dict inputs converted to that format via thin adapters (e.g. “normalize Pydantic rule to dict” then “dict → engine rule”). Then only one set of `_convert_*_params` and one `_convert_source_fields` implementation works on that dict.
-- Alternatively, keep two paths but factor the common structure (field names, types, required, priority, etc.) into shared helpers that both `_convert_source_fields` and `_convert_source_fields_dict` call with a “field like” object or dict, to avoid duplicating the engine field shape in two places.
+**Optional further polish:** Reduce any leftover parallel branches inside `_convert_rule_dict_to_engine_format` if new method types add more duplication.
 
 ---
 
@@ -131,22 +124,15 @@ So extraction_type normalization happens in both the engine and in at least one 
 
 ## 8. Composite vs single-field path duplication
 
-**Observation:** In `extract_keys`, after collecting keys for a rule:
+**Current behavior (updated):** `_categorize_keys_into_result` in `key_extraction_engine.py` centralizes categorization for both composite and single-field paths.
 
-- **Composite path:** Normalizes `rule.extraction_type` to `rtype`, then appends each key to `result.candidate_keys` / `foreign_key_references` / `document_references` based on `rtype`.
-- **Single-field path:** Same normalization and same categorization loop.
-
-The “append by extraction_type” block is duplicated (once for composite, once for non-composite).
-
-**Recommendation:** Extract a small helper, e.g. `_categorize_keys_into_result(extracted_keys, rule, result)`, that (1) normalizes `rule.extraction_type`, (2) iterates keys and appends to the appropriate list on `result`. Call it from both the composite branch and the single-field branch. This keeps one place for categorization logic and any future rule-level overrides (e.g. per-rule extraction_type override).
+**Historical observation:** Previously the same loop appeared twice; that refactor is done.
 
 ---
 
 ## 9. Logger and optional client in base handler
 
-**Observation:** `ExtractionMethodHandler.__init__` accepts `logger` and `client: CogniteClient = None`. No handler in the tree uses `client`; only the logger is used. The base is in `fn_dm_key_extraction` and focuses on extraction, not CDF I/O.
-
-**Recommendation:** Remove the `client` parameter from the base handler constructor unless you have a concrete use (e.g. a handler that will fetch reference data). That simplifies the base API and avoids confusion. If you add a handler that needs a client later, add it back or inject it via a dedicated handler subclass.
+**Current behavior (updated):** `ExtractionMethodHandler` accepts only `logger`; `client` was removed. Handlers that need CDF access use `context` (e.g. Heuristic).
 
 ---
 
@@ -162,15 +148,15 @@ The “append by extraction_type” block is duplicated (once for composite, onc
 
 | Area | Redundancy / issue | Recommendation |
 |------|--------------------|----------------|
-| Rule interface | Dict vs object handled only in Regex/Passthrough; others assume object | Single rule contract or shared rule adapter (get_rule_id, get_config, get_source_field, etc.) |
-| ExtractedKey construction | source_field, rule_id, extraction_type repeated in every handler | Shared helpers: _get_rule_id, _get_source_field_name, _normalize_extraction_type |
-| Blacklist | Applied in engine and in Regex, Heuristic, FixedWidth, TokenReassembly | Apply only in engine, or document and centralize handler blacklist helper |
+| Rule interface | Dict vs object handled only in Regex/Passthrough; others assume object | Largely addressed via `rule_utils` (`get_rule_id`, `get_config`, …); optional further tightening |
+| ExtractedKey construction | source_field, rule_id, extraction_type repeated in every handler | Shared helpers exist in `rule_utils` / `common_extracted_key_attrs`; optional handler cleanup |
+| Blacklist | Was duplicated | **Resolved:** engine-only (`_apply_blacklist`) |
 | Confidence | Only Regex uses utils/confidence; others inline or custom | Consider moving fixed-width (and optional heuristic) scoring into confidence utils; document usage |
-| cdf_adapter | Two conversion paths; _convert_source_fields vs _convert_source_fields_dict; duplicate _convert_*_params | Single engine-rule format and one set of param/source_field converters |
+| cdf_adapter | Two conversion paths | **Largely resolved:** Pydantic → dict → `_convert_rule_dict_to_engine_format` |
 | Method name | Adapter normalizes to underscore; engine normalizes to space | Single place (e.g. engine) for method → handler key |
 | Extraction type | Normalized in engine, Passthrough, and ExtractedKey | One shared normalization helper; use in engine and handlers |
-| Categorize keys | Same “append by extraction_type” in composite and single-field | _categorize_keys_into_result(keys, rule, result) used by both paths |
-| Base handler | Unused `client` parameter | Remove unless a handler will use it |
+| Categorize keys | Same “append by extraction_type” in composite and single-field | **Resolved:** `_categorize_keys_into_result` |
+| Base handler | Unused `client` parameter | **Resolved:** removed from base |
 | FixedWidth | Pattern conversion and validation in handler | Optional: move to utils for testing and clarity |
 
 ---
@@ -240,5 +226,5 @@ Remove the `client` parameter from `ExtractionMethodHandler.__init__`. No handle
 
 ---
 
-**Document version:** 1.0  
-**Date:** 2026-02 (report generated from codebase examination).
+**Document version:** 1.1  
+**Date:** 2026-02 (original); 2026-03 (status refresh for implemented refactors).

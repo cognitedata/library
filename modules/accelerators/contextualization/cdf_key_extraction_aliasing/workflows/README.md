@@ -61,6 +61,18 @@ Optional parallel manifests (per-site workflow **container** id):
 - [`cdf_key_extraction_aliasing_site.WorkflowVersion.yaml`](cdf_key_extraction_aliasing_site.WorkflowVersion.yaml)
 - [`cdf_key_extraction_aliasing_site-01.WorkflowTrigger.yaml`](cdf_key_extraction_aliasing_site-01.WorkflowTrigger.yaml)
 
+**Keeping generic and site workflows in sync:** [`cdf_key_extraction_aliasing_site.WorkflowVersion.yaml`](cdf_key_extraction_aliasing_site.WorkflowVersion.yaml) is generated from [`cdf_key_extraction_aliasing.WorkflowVersion.yaml`](cdf_key_extraction_aliasing.WorkflowVersion.yaml) (only workflow/task `externalId` lines differ). After editing the canonical file, regenerate the site manifest:
+
+```bash
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflows/generate_site_workflow_version.py
+```
+
+The repository’s **Build and Release Packages** workflow runs `--check` on every push and pull request so the committed site file cannot drift from the generator. Locally:
+
+```bash
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflows/generate_site_workflow_version.py --check
+```
+
 ### Alias write-back property
 
 By default, alias persistence writes the alias list to the **`aliases`** property on `cdf_cdm:CogniteDescribable:v1`. Override via:
@@ -90,6 +102,7 @@ workflows/
 ├── cdf_key_extraction_aliasing_site-01.WorkflowTrigger.yaml
 ├── workflow_diagram.md
 ├── workflow_diagram.png
+├── generate_site_workflow_version.py
 └── README.md
 ```
 
