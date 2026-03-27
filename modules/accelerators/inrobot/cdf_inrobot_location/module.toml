@@ -1,5 +1,5 @@
 [module]
 title = "InRobot Location"
 is_selected_by_default = true
-id = "CDF InRobot Location"
+id = "dp:acc:inrobot:cdf_inrobot_location"
 package_id = "dp:inrobot"

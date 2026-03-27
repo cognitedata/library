@@ -35,8 +35,12 @@ modules = [
     "models/rmdm_v1",
     "models/isa_manufacturing_extension",
     "models/cdf_process_industry_extension",
+    "models/cdf_process_industry_extension_full",
     "models/qs_enterprise_dm",
     "models/cfihos_oil_and_gas_extension",
+    "models/cdf_cdm_extension",
+    "models/cdf_cdm_extension_full",
+    "models/cdf_scene",
 ]
 
 [packages.atlas_ai]
@@ -117,6 +121,37 @@ modules = [
     "tools/apps/qualitizer"
 ]
 
+[packages.industrial_tools]
+id = "dp:industrial_tools"
+title = "Industrial Tools"
+description = "Data exploration and analytics tools"
+canCherryPick = true
+modules = [
+    "accelerators/industrial_tools/cdf_search",
+    "accelerators/industrial_tools/cdf_location_filter_datamodel_based",
+    "accelerators/industrial_tools/cdf_location_filter_asset_centric",
+]
+
+[packages.inrobot]
+id = "dp:inrobot"
+title = "InRobot"
+description = "Robotics inspection data integration"
+canCherryPick = true
+modules = [
+    "accelerators/inrobot/cdf_inrobot_common",
+    "accelerators/inrobot/cdf_inrobot_location",
+]
+
+[packages.bootcamp]
+id = "dp:bootcamp"
+title = "Bootcamp"
+description = "Initial configurations for the Cognite Data Fusion Bootcamp"
+canCherryPick = false
+modules = [
+    "bootcamp/ice_cream_api",
+    "bootcamp/use_cases/oee",
+]
+
 [packages.custom]
 id = "dp:emptymodule"
 title = "Empty Module"
@@ -125,3 +160,13 @@ canCherryPick = false
 modules = [
     "custom/my_module",
 ]
+
+[packages.auth_readwrite_all]
+id = "dp:common"
+title = "Admin group for CI/CD with read-write and read-only access"
+description = "Admin group for CI/CD with read-write and read-only access"
+canCherryPick = false
+modules = [
+    "common/cdf_auth_readwrite_all",
+]
+
