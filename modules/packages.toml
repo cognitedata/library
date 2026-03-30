@@ -34,12 +34,9 @@ canCherryPick = true
 modules = [
     "models/rmdm_v1",
     "models/isa_manufacturing_extension",
-    "models/cdf_process_industry_extension",
     "models/cdf_process_industry_extension_full",
     "models/qs_enterprise_dm",
     "models/cfihos_oil_and_gas_extension",
-    "models/cdf_cdm_extension",
-    "models/cdf_cdm_extension_full",
     "models/cdf_scene",
 ]
 
