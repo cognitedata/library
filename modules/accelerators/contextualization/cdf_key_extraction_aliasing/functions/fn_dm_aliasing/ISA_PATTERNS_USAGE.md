@@ -131,7 +131,7 @@ def _load_patterns_from_yaml(self):
 
 ### Pattern-Based Expansion Rules (Enabled)
 
-**Location:** `pipelines/ctx_aliasing_default.config.yaml`
+**Location:** `config/examples/ctx_aliasing_default.config.yaml`
 
 1. **ISA Instrument Expansion** (line 302-320)
    - Rule: `isa_instrument_expansion`
@@ -154,7 +154,7 @@ def _load_patterns_from_yaml(self):
 
 ### Pattern Recognition Rule (Disabled)
 
-**Location:** `pipelines/ctx_aliasing_default.config.yaml` (line 387-399)
+**Location:** `config/examples/ctx_aliasing_default.config.yaml` (line 387-399)
 
 - Rule: `pattern_recognition_aliases`
 - Type: `pattern_recognition`

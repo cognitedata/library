@@ -1,0 +1,38 @@
+# Scope hierarchy → materialize config/scopes/<scope_id>/ via scripts/build_scopes.py
+#
+# Schema:
+#   schemaVersion: 1
+#   scope_hierarchy.levels: ordered labels (site, plant, …); depth must match every leaf path.
+#   locations: tree of nodes; leaf = node with no (or empty) `locations` child list.
+#   Per node:
+#     - id: optional filesystem-safe segment for scope_id (preferred over slugging name).
+#     - name: display string (may contain spaces); required if `id` is omitted.
+#     - description: optional string.
+#   scope_id for a leaf = id/name segments from root to leaf joined with "__" (double underscore).
+#
+# Optional keys (ignored by core; passed through ScopeBuildContext.path[*].node for builders):
+#   access_groups: <mapping or list>
+#   instance_space: <string>
+# Register new artifact builders in scripts/scope_build/registry.py.
+
+schemaVersion: 1
+scope_hierarchy:
+  levels:
+    - site
+    - plant
+    - area
+    - system
+locations:
+  - id: MAIN_SITE
+    name: Main Manufacturing Site
+    description: Main site (display name may contain spaces; id is the stable segment)
+    locations:
+      - id: PLANT_A
+        name: Production Plant A
+        locations:
+          - id: AREA_01
+            name: Production Area 1
+            locations:
+              - id: COOLING_SYS
+                name: Cooling System
+                description: Cooling system scope leaf

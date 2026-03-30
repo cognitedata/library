@@ -1,3 +1,4 @@
+# Repo source for combined scope YAML (align inline config below): config/scopes/default/key_extraction_aliasing.yaml
 workflowExternalId: cdf_key_extraction_aliasing
 version: 'v1'
 workflowDefinition:

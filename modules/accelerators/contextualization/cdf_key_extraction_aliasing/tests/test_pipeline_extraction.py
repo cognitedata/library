@@ -55,12 +55,12 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 if CDF_AVAILABLE:
     load_dotenv()
 
-# Map test types to config file names
+# Map test types to config file names (under config/examples/)
 CONFIG_MAP = {
-    "regex": "ctx_key_extraction_regex.config.yaml",
-    "fixed_width": "ctx_key_extraction_fixed_width_parsing.config.yaml",
-    "heuristic": "ctx_key_extraction_heuristic.config.yaml",
-    "token_reassembly": "ctx_key_extraction_token_reassembly.config.yaml",
+    "regex": "ctx_key_extraction_pump_tag_regex_simple.config.yaml",
+    "fixed_width": "ctx_key_extraction_tag_fixed_width_single.config.yaml",
+    "heuristic": "ctx_key_extraction_tag_heuristic_comprehensive.config.yaml",
+    "token_reassembly": "ctx_key_extraction_tag_token_reassembly.config.yaml",
 }
 
 
@@ -73,11 +73,7 @@ def load_extraction_config(test_type: str = "regex"):
         )
 
     config_filename = CONFIG_MAP[test_type]
-    config_path = (
-        project_root
-        / "modules/contextualization/key_extraction_aliasing/pipelines"
-        / config_filename
-    )
+    config_path = project_root / "config" / "examples" / config_filename
 
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")

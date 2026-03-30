@@ -11,8 +11,9 @@ This guide covers running the **cdf_key_extraction_aliasing** package from the r
 ## Layout
 
 - **Package root**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/`
-- **Pipeline configs**: `pipelines/*.config.yaml` (e.g. `ctx_key_extraction_default.config.yaml`, `ctx_aliasing_default.config.yaml`)
-- **Entry point for CDF-backed runs**: `main.py` (loads configs from `pipelines/`, queries views, extracts, aliases, optionally persists aliases)
+- **Combined scopes**: `config/scopes/<scope>/key_extraction_aliasing.yaml` (default: `config/scopes/default/key_extraction_aliasing.yaml`)
+- **Split example YAML**: `config/examples/*.config.yaml` (reference and legacy merge mode only)
+- **Entry point for CDF-backed runs**: `main.py` (loads combined scope or legacy merge from `config/`; use `--scope` / `--config-path`)
 
 ## Using the Key Extraction Engine
 
@@ -30,7 +31,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 repo_root = Path.cwd()
 config_path = (
     repo_root
-    / "modules/accelerators/contextualization/cdf_key_extraction_aliasing/pipelines/ctx_key_extraction_default.config.yaml"
+    / "modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/examples/ctx_key_extraction_default.config.yaml"
 )
 
 config_dict = load_config_from_yaml(str(config_path))

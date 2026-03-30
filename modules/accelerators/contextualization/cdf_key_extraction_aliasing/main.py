@@ -1,9 +1,13 @@
 """
-Main Entry Point - Fetch CDF instances from data model views, run key extraction and aliasing, write results.
+Main entry point — fetch CDF instances from data model views, run key extraction and aliasing, write results.
+
+Configuration: by default loads ``config/scopes/<scope>/key_extraction_aliasing.yaml`` (``--scope``), or
+``--config-path`` to a combined v1 YAML file. See ``config/README.md`` and ``scope_hierarchy.yaml`` /
+``scripts/build_scopes.py`` for generating per-leaf scope folders.
 
 Reads CDF credentials from environment (.env supported), queries instances from configured views,
-runs the key extraction engine followed by the aliasing engine, and writes
-JSON results into the tests/results/ directory (relative to this package).
+runs the key extraction engine followed by the aliasing engine, and writes JSON results under
+``tests/results/`` (relative to this package).
 """
 
 import argparse
@@ -80,6 +84,18 @@ def main():
         default=None,
         help="Only process source views with this instance_space (e.g. sp_enterprise_schema)",
     )
+    parser.add_argument(
+        "--scope",
+        type=str,
+        default=None,
+        help="Load config/scopes/<scope>/key_extraction_aliasing.yaml. Ignored if --config-path is set.",
+    )
+    parser.add_argument(
+        "--config-path",
+        type=str,
+        default=None,
+        help="Path to a combined v1 scope YAML (overrides --scope).",
+    )
     args = parser.parse_args()
 
     if args.verbose:
@@ -105,7 +121,11 @@ def main():
             alias_writeback_property,
             write_foreign_key_references,
             foreign_key_writeback_property,
-        ) = load_configs(logger)
+        ) = load_configs(
+            logger,
+            scope=args.scope,
+            config_path=args.config_path,
+        )
     except Exception as e:
         logger.error(f"Failed to load configs: {e}")
         sys.exit(1)

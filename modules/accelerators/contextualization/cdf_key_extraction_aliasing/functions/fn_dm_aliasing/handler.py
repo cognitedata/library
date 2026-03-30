@@ -86,37 +86,43 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 aliasing_config = provided_config
                 logger.info("Using provided config directly")
         else:
-            # Load from aliasing pipeline configs
+            # No workflow config: optional reference YAML under config/examples/ (not used in CDF).
             try:
                 import yaml
 
-                # Go up to key_extraction_aliasing root, then to pipelines
-                pipelines_dir = Path(__file__).parent.parent.parent / "pipelines"
+                examples_dir = Path(__file__).parent.parent.parent / "config" / "examples"
                 all_aliasing_rules = []
 
-                for config_file in sorted(pipelines_dir.glob("*aliasing*.config.yaml")):
-                    try:
-                        with open(config_file, "r") as f:
-                            pipeline_config = yaml.safe_load(f)
+                if examples_dir.is_dir():
+                    for config_file in sorted(
+                        examples_dir.glob("*aliasing*.config.yaml")
+                    ):
+                        try:
+                            with open(config_file, "r", encoding="utf-8") as f:
+                                pipeline_config = yaml.safe_load(f)
 
-                        config_data = pipeline_config.get("config", {}).get("data", {})
-
-                        # Use adapter to convert aliasing rules to engine format
-                        pipeline_aliasing_config = (
-                            _convert_yaml_direct_to_aliasing_config(
-                                {"config": {"data": config_data}}
+                            config_data = pipeline_config.get("config", {}).get(
+                                "data", {}
                             )
-                        )
-                        converted_rules = pipeline_aliasing_config.get("rules", [])
-                        all_aliasing_rules.extend(converted_rules)
-                        logger.info(
-                            f"Loaded {len(converted_rules)} aliasing rules from {config_file.name}"
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to load aliasing pipeline config {config_file.name}: {e}"
-                        )
-                        continue
+
+                            pipeline_aliasing_config = (
+                                _convert_yaml_direct_to_aliasing_config(
+                                    {"config": {"data": config_data}}
+                                )
+                            )
+                            converted_rules = pipeline_aliasing_config.get("rules", [])
+                            all_aliasing_rules.extend(converted_rules)
+                            logger.info(
+                                "Loaded %s aliasing rules from examples/%s",
+                                len(converted_rules),
+                                config_file.name,
+                            )
+                        except Exception as ex:
+                            logger.warning(
+                                "Failed to load aliasing example config %s: %s",
+                                config_file.name,
+                                ex,
+                            )
 
                 if all_aliasing_rules:
                     aliasing_config = {
@@ -129,51 +135,35 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                         },
                     }
                     logger.info(
-                        f"Using aliasing pipeline configs: {len(all_aliasing_rules)} rules loaded"
+                        "Using %s aliasing rules from config/examples/",
+                        len(all_aliasing_rules),
                     )
                 else:
-                    # Minimal default config if no pipeline configs found
+                    logger.warning(
+                        "No config in request and no *aliasing*.config.yaml under "
+                        "config/examples/; using identity passthrough (zero rules)."
+                    )
                     aliasing_config = {
-                        "rules": [
-                            {
-                                "name": "normalize_separators",
-                                "type": "character_substitution",
-                                "enabled": True,
-                                "priority": 10,
-                                "preserve_original": True,
-                                "config": {"substitutions": {"_": "-", " ": "-"}},
-                            }
-                        ],
+                        "rules": [],
                         "validation": {
                             "max_aliases_per_tag": 50,
-                            "min_alias_length": 1,
-                            "max_alias_length": 100,
+                            "min_alias_length": 2,
+                            "max_alias_length": 50,
+                            "allowed_characters": r"A-Za-z0-9-_/. ",
                         },
                     }
-                    logger.warning(
-                        "No aliasing pipeline configs found, using minimal default config"
-                    )
             except Exception as e:
-                logger.error(f"Failed to load aliasing pipeline configs: {e}")
-                # Minimal default config
+                logger.error("Failed to load aliasing fallback configs: %s", e)
                 aliasing_config = {
-                    "rules": [
-                        {
-                            "name": "normalize_separators",
-                            "type": "character_substitution",
-                            "enabled": True,
-                            "priority": 10,
-                            "preserve_original": True,
-                            "config": {"substitutions": {"_": "-", " ": "-"}},
-                        }
-                    ],
+                    "rules": [],
                     "validation": {
                         "max_aliases_per_tag": 50,
-                        "min_alias_length": 1,
-                        "max_alias_length": 100,
+                        "min_alias_length": 2,
+                        "max_alias_length": 50,
+                        "allowed_characters": r"A-Za-z0-9-_/. ",
                     },
                 }
-                logger.info("Using minimal default aliasing config")
+                logger.info("Using identity passthrough aliasing config")
 
         # Initialize engine with logger
         engine = AliasingEngine(aliasing_config, logger)

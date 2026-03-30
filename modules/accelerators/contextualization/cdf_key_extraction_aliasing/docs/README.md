@@ -21,7 +21,8 @@ Documentation for **`cdf_key_extraction_aliasing`** (`modules/accelerators/conte
 
 - [Troubleshooting](troubleshooting/common_issues.md)
 - [Sample / generated results summary](key_extraction_aliasing_report.md) — produced by `main.py` / report scripts when runs exist
-- [Pipeline configurations README](../pipelines/PIPELINE_CONFIGURATIONS_README.md)
+- [Pipeline configurations README](../config/examples/PIPELINE_CONFIGURATIONS_README.md)
+- [Config layout (scopes vs examples)](../config/README.md)
 
 ## Other
 
