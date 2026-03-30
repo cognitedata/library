@@ -411,7 +411,14 @@ def load_config_from_yaml(config_path: str, validate: bool = True) -> Dict[str, 
     with open(config_file) as f:
         yaml_data = yaml.safe_load(f)
 
-    # Extract config section
+    if not isinstance(yaml_data, dict):
+        raise ValueError("YAML root must be a mapping")
+    # Combined scope v1: schemaVersion + key_extraction.config
+    ke = yaml_data.get("key_extraction")
+    if isinstance(ke, dict) and isinstance(ke.get("config"), dict):
+        yaml_data = ke
+
+    # Extract config section (split workflow shape or unwrapped key_extraction)
     config_data = yaml_data.get("config", yaml_data)
 
     # Option 1: Validate using Pydantic model (preferred if available)

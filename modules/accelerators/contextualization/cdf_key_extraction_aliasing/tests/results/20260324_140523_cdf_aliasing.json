@@ -878,7 +878,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -925,7 +925,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -966,7 +966,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1013,7 +1013,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1054,7 +1054,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1101,7 +1101,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1142,7 +1142,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1189,7 +1189,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1230,7 +1230,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1277,7 +1277,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1324,7 +1324,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1371,7 +1371,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1418,7 +1418,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1465,7 +1465,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1512,7 +1512,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1559,7 +1559,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1614,7 +1614,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1669,7 +1669,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1724,7 +1724,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1779,7 +1779,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1834,7 +1834,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1889,7 +1889,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1944,7 +1944,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -1999,7 +1999,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2054,7 +2054,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2109,7 +2109,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2164,7 +2164,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2219,7 +2219,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2274,7 +2274,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2329,7 +2329,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2384,7 +2384,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2439,7 +2439,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2494,7 +2494,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2549,7 +2549,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2604,7 +2604,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2659,7 +2659,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2706,7 +2706,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2753,7 +2753,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2800,7 +2800,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2847,7 +2847,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2888,7 +2888,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2935,7 +2935,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -2982,7 +2982,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3029,7 +3029,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3076,7 +3076,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3123,7 +3123,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3170,7 +3170,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3217,7 +3217,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3264,7 +3264,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3311,7 +3311,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3358,7 +3358,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3405,7 +3405,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3452,7 +3452,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3499,7 +3499,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3546,7 +3546,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3593,7 +3593,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3640,7 +3640,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3687,7 +3687,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3734,7 +3734,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3781,7 +3781,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3828,7 +3828,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3875,7 +3875,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3922,7 +3922,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -3969,7 +3969,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4016,7 +4016,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4063,7 +4063,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4110,7 +4110,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4157,7 +4157,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4204,7 +4204,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4251,7 +4251,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4298,7 +4298,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4345,7 +4345,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4392,7 +4392,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4447,7 +4447,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4502,7 +4502,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4557,7 +4557,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4612,7 +4612,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4667,7 +4667,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4722,7 +4722,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4777,7 +4777,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4832,7 +4832,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4879,7 +4879,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4926,7 +4926,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -4973,7 +4973,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5020,7 +5020,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5067,7 +5067,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5114,7 +5114,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5161,7 +5161,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5208,7 +5208,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5255,7 +5255,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5302,7 +5302,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5349,7 +5349,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5396,7 +5396,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5443,7 +5443,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5494,7 +5494,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5541,7 +5541,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5588,7 +5588,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5635,7 +5635,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5682,7 +5682,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5729,7 +5729,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5770,7 +5770,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5817,7 +5817,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5864,7 +5864,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5911,7 +5911,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -5958,7 +5958,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -6005,7 +6005,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"
@@ -6052,7 +6052,7 @@
           "generate_instruments",
           "hierarchical_expansion",
           "isa_instrument_expansion",
-          "equipment_tag_expansion",
+          "semantic_expansion",
           "hierarchical_tag_expansion",
           "case_variants",
           "leading_zero_normalization"

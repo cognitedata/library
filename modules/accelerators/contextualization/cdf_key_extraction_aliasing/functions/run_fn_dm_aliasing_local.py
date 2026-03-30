@@ -15,7 +15,7 @@ Usage (from library_fresh):
 Custom input/output:
   poetry run python modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/run_fn_dm_aliasing_local.py \
     --key-results-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/local_run_results/<file>.json \
-    --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/examples/ctx_aliasing_default.config.yaml
+    --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml
 """
 
 from __future__ import annotations
@@ -44,11 +44,18 @@ def _ensure_workflow_config_shape(raw_cfg: Dict[str, Any], cfg_path: Path) -> Di
 
     Accepts:
     - {externalId, config: {parameters, data}}  -> unchanged
+    - Combined v1 with ``aliasing: {externalId, config: ...}`` -> that branch only
     - {parameters, data}                         -> wrapped
     - any other dict                             -> returned as-is
     """
     if not isinstance(raw_cfg, dict):
         raise ValueError("Config YAML must parse to a dictionary")
+
+    al = raw_cfg.get("aliasing")
+    if isinstance(al, dict):
+        al_cfg = al.get("config")
+        if isinstance(al_cfg, dict) and "data" in al_cfg:
+            return al
 
     if (
         "config" in raw_cfg
@@ -88,7 +95,11 @@ def main() -> int:
     module_dir = Path(__file__).resolve().parent.parent
     default_results_dir = module_dir / "local_run_results"
     default_aliasing_config = (
-        module_dir / "config" / "examples" / "ctx_aliasing_default.config.yaml"
+        module_dir
+        / "config"
+        / "examples"
+        / "aliasing"
+        / "aliasing_default.key_extraction_aliasing.yaml"
     )
 
     parser = argparse.ArgumentParser(

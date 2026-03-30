@@ -110,7 +110,7 @@ workflows/
 
 - RAW is used **between** workflow tasks because CDF Workflows do not automatically pass function outputs to the next task; key extraction writes extracted keys to RAW, aliasing reads them and writes alias rows, persistence reads alias rows.
 - Enable **`logLevel: DEBUG`** in task `data` for verbose function logs.
-- Legacy → new config mapping references live under [`config/examples/`](../config/examples/) (`LEGACY_TO_NEW_*.md`). Combined scopes: [`config/scopes/<scope>/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml).
+- Legacy → new config mapping references live under [`config/examples/reference/`](../config/examples/reference/) (`LEGACY_TO_NEW_*.md`). Combined scopes: [`config/scopes/<scope>/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml).
 
 ### Related documentation
 

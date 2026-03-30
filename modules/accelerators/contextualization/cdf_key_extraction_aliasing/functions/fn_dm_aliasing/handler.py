@@ -6,7 +6,6 @@ CDF Functions or called directly, maintaining compatibility with the CDF
 workflow format while using the existing AliasingEngine.
 """
 
-from pathlib import Path
 from typing import Any, Dict
 
 try:
@@ -86,84 +85,19 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 aliasing_config = provided_config
                 logger.info("Using provided config directly")
         else:
-            # No workflow config: optional reference YAML under config/examples/ (not used in CDF).
-            try:
-                import yaml
-
-                examples_dir = Path(__file__).parent.parent.parent / "config" / "examples"
-                all_aliasing_rules = []
-
-                if examples_dir.is_dir():
-                    for config_file in sorted(
-                        examples_dir.glob("*aliasing*.config.yaml")
-                    ):
-                        try:
-                            with open(config_file, "r", encoding="utf-8") as f:
-                                pipeline_config = yaml.safe_load(f)
-
-                            config_data = pipeline_config.get("config", {}).get(
-                                "data", {}
-                            )
-
-                            pipeline_aliasing_config = (
-                                _convert_yaml_direct_to_aliasing_config(
-                                    {"config": {"data": config_data}}
-                                )
-                            )
-                            converted_rules = pipeline_aliasing_config.get("rules", [])
-                            all_aliasing_rules.extend(converted_rules)
-                            logger.info(
-                                "Loaded %s aliasing rules from examples/%s",
-                                len(converted_rules),
-                                config_file.name,
-                            )
-                        except Exception as ex:
-                            logger.warning(
-                                "Failed to load aliasing example config %s: %s",
-                                config_file.name,
-                                ex,
-                            )
-
-                if all_aliasing_rules:
-                    aliasing_config = {
-                        "rules": all_aliasing_rules,
-                        "validation": {
-                            "max_aliases_per_tag": 50,
-                            "min_alias_length": 2,
-                            "max_alias_length": 50,
-                            "allowed_characters": r"A-Za-z0-9-_/. ",
-                        },
-                    }
-                    logger.info(
-                        "Using %s aliasing rules from config/examples/",
-                        len(all_aliasing_rules),
-                    )
-                else:
-                    logger.warning(
-                        "No config in request and no *aliasing*.config.yaml under "
-                        "config/examples/; using identity passthrough (zero rules)."
-                    )
-                    aliasing_config = {
-                        "rules": [],
-                        "validation": {
-                            "max_aliases_per_tag": 50,
-                            "min_alias_length": 2,
-                            "max_alias_length": 50,
-                            "allowed_characters": r"A-Za-z0-9-_/. ",
-                        },
-                    }
-            except Exception as e:
-                logger.error("Failed to load aliasing fallback configs: %s", e)
-                aliasing_config = {
-                    "rules": [],
-                    "validation": {
-                        "max_aliases_per_tag": 50,
-                        "min_alias_length": 2,
-                        "max_alias_length": 50,
-                        "allowed_characters": r"A-Za-z0-9-_/. ",
-                    },
-                }
-                logger.info("Using identity passthrough aliasing config")
+            logger.warning(
+                "No config in request; using identity passthrough (zero aliasing rules). "
+                "CDF functions must pass aliasing config in the workflow payload."
+            )
+            aliasing_config = {
+                "rules": [],
+                "validation": {
+                    "max_aliases_per_tag": 50,
+                    "min_alias_length": 2,
+                    "max_alias_length": 50,
+                    "allowed_characters": r"A-Za-z0-9-_/. ",
+                },
+            }
 
         # Initialize engine with logger
         engine = AliasingEngine(aliasing_config, logger)

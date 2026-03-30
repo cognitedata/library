@@ -1,8 +1,4 @@
-"""Load combined scope YAML for the local CLI (config/scopes/<scope>/key_extraction_aliasing.yaml).
-
-Falls back to merging split configs under config/examples/ when forced by env or when
-no default combined file exists (see LEGACY_MERGE_ENV).
-"""
+"""Load combined scope YAML for the local CLI (config/scopes/<scope>/key_extraction_aliasing.yaml)."""
 
 from __future__ import annotations
 
@@ -23,7 +19,6 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from .paths import SCRIPT_DIR
 
 DEFAULT_SCOPE = "default"
-LEGACY_MERGE_ENV = "CDF_KEY_EXTRACTION_LOCAL_CONFIG_MODE"
 
 # Combined v1 document (key_extraction + optional aliasing) per scope directory.
 COMBINED_SCOPE_FILENAME = "key_extraction_aliasing.yaml"
@@ -36,21 +31,12 @@ _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
 }
 
 
-def _examples_dir() -> Path:
-    return SCRIPT_DIR / "config" / "examples"
-
-
 def _scope_dir(scope: str) -> Path:
     return SCRIPT_DIR / "config" / "scopes" / scope
 
 
 def _combined_scope_file(scope: str) -> Path:
     return _scope_dir(scope) / COMBINED_SCOPE_FILENAME
-
-
-def _merge_env_active() -> bool:
-    v = (os.getenv(LEGACY_MERGE_ENV) or "").strip().lower()
-    return v in ("merge", "1", "true", "yes", "on")
 
 
 def _default_passthrough_rules_for_views(
@@ -227,173 +213,6 @@ def _load_from_combined_doc(
     )
 
 
-def _load_legacy_merge_examples(
-    logger: logging.Logger,
-    *,
-    forced_by_env: bool = False,
-) -> Tuple[
-    Dict[str, Any],
-    Dict[str, Any],
-    List[Dict[str, Any]],
-    Optional[str],
-    bool,
-    Optional[str],
-]:
-    """Merge *aliasing*.config.yaml and *key_extraction*.config.yaml under config/examples/."""
-    if forced_by_env:
-        logger.warning(
-            "Legacy merge mode (%s): merging split configs under config/examples/.",
-            LEGACY_MERGE_ENV,
-        )
-    else:
-        logger.warning(
-            "No config/scopes/default/key_extraction_aliasing.yaml; "
-            "falling back to legacy merge under config/examples/. "
-            "Add a combined scope file or pass --config-path."
-        )
-    examples = _examples_dir()
-    if not examples.is_dir():
-        raise FileNotFoundError(
-            f"Legacy merge requested but examples directory missing: {examples}"
-        )
-
-    all_aliasing_rules: List[Any] = []
-    alias_writeback_property: Optional[str] = None
-    write_foreign_key_references = False
-    foreign_key_writeback_property: Optional[str] = None
-
-    for config_file in sorted(examples.glob("*aliasing*.config.yaml")):
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                pipeline_config = yaml.safe_load(f)
-            config_data = pipeline_config.get("config", {}).get("data", {})
-            parameters = pipeline_config.get("config", {}).get("parameters", {})
-            if isinstance(parameters, dict):
-                if parameters.get("write_foreign_key_references") is True:
-                    write_foreign_key_references = True
-                if (
-                    foreign_key_writeback_property is None
-                    and parameters.get("foreign_key_writeback_property") is not None
-                ):
-                    raw_fkp = parameters.get("foreign_key_writeback_property")
-                    if isinstance(raw_fkp, str) and raw_fkp.strip():
-                        foreign_key_writeback_property = raw_fkp.strip()
-                if (
-                    alias_writeback_property is None
-                    and parameters.get("alias_writeback_property") is not None
-                ):
-                    raw_prop = parameters.get("alias_writeback_property")
-                    if isinstance(raw_prop, str) and raw_prop.strip():
-                        alias_writeback_property = raw_prop.strip()
-            aliasing_config = _convert_yaml_direct_to_aliasing_config(
-                {"config": {"data": config_data}}
-            )
-            converted_rules = aliasing_config.get("rules", [])
-            all_aliasing_rules.extend(converted_rules)
-            logger.info(
-                "Loaded %s aliasing rules from examples/%s",
-                len(converted_rules),
-                config_file.name,
-            )
-        except Exception as e:
-            logger.warning("Failed to load %s: %s", config_file.name, e)
-
-    if not all_aliasing_rules:
-        logger.info("No aliasing files in examples merge; using identity passthrough")
-        aliasing_config = {
-            "rules": [],
-            "validation": dict(_DEFAULT_ALIASING_VALIDATION),
-        }
-    else:
-        aliasing_config = {
-            "rules": all_aliasing_rules,
-            "validation": dict(_DEFAULT_ALIASING_VALIDATION),
-        }
-
-    all_extraction_rules: List[Any] = []
-    all_source_views: List[Dict[str, Any]] = []
-    seen_source_views = set()
-
-    for config_file in sorted(examples.glob("*key_extraction*.config.yaml")):
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                pipeline_config = yaml.safe_load(f)
-            config_data = pipeline_config.get("config", {}).get("data", {})
-            rules = config_data.get("extraction_rules", [])
-            for rule in rules:
-                converted_rule = _convert_rule_dict_to_engine_format(rule)
-                if converted_rule:
-                    all_extraction_rules.append(converted_rule)
-            for view in config_data.get("source_views", []) or []:
-                view_key = (
-                    view.get("view_space", ""),
-                    view.get("view_external_id", ""),
-                    view.get("view_version", ""),
-                    view.get("instance_space", ""),
-                    view.get("entity_type", ""),
-                )
-                if view_key not in seen_source_views:
-                    seen_source_views.add(view_key)
-                    all_source_views.append(view)
-        except Exception as e:
-            logger.warning("Failed to load %s: %s", config_file.name, e)
-
-    if not all_source_views:
-        logger.warning("No source views from examples merge; using default CogniteAsset")
-        all_source_views = [
-            {
-                "view_external_id": "CogniteAsset",
-                "view_space": "cdf_cdm",
-                "view_version": "v1",
-                "entity_type": "asset",
-            }
-        ]
-
-    if not all_extraction_rules:
-        logger.info(
-            "Merged extraction_rules empty; injecting passthrough-on-name per entity_type"
-        )
-        raw_rules = _default_passthrough_rules_for_views(all_source_views)
-        for rule in raw_rules:
-            converted = _convert_rule_dict_to_engine_format(rule)
-            if converted:
-                all_extraction_rules.append(converted)
-
-    validation_config = {"min_confidence": 0.5, "max_keys_per_type": 1000}
-    for config_file in sorted(examples.glob("*.config.yaml")):
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                pipeline_config = yaml.safe_load(f)
-            config_data = pipeline_config.get("config", {}).get("data", {})
-            pipeline_validation = config_data.get("validation", {})
-            if pipeline_validation:
-                validation_config.update(pipeline_validation)
-                break
-        except Exception:
-            continue
-
-    extraction_config = {
-        "extraction_rules": all_extraction_rules,
-        "validation": validation_config,
-    }
-
-    env_wfk = (os.getenv("WRITE_FOREIGN_KEY_REFERENCES") or "").strip().lower()
-    if env_wfk in ("1", "true", "yes", "on"):
-        write_foreign_key_references = True
-    env_fkp = (os.getenv("FOREIGN_KEY_WRITEBACK_PROPERTY") or "").strip()
-    if env_fkp:
-        foreign_key_writeback_property = env_fkp
-
-    return (
-        extraction_config,
-        aliasing_config,
-        all_source_views,
-        alias_writeback_property,
-        write_foreign_key_references,
-        foreign_key_writeback_property,
-    )
-
-
 def load_configs(
     logger: logging.Logger,
     scope: Optional[str] = None,
@@ -410,11 +229,7 @@ def load_configs(
 
     Resolution:
     - ``--config-path`` → load that file as combined v1 YAML.
-    - Else if ``CDF_KEY_EXTRACTION_LOCAL_CONFIG_MODE`` is merge-like → legacy merge
-      from ``config/examples/*``.
-    - Else if ``--scope`` → ``config/scopes/<scope>/key_extraction_aliasing.yaml``.
-    - Else if default combined file exists → load it.
-    - Else → legacy merge from ``config/examples/*`` (deprecation path).
+    - Else → ``config/scopes/<scope>/key_extraction_aliasing.yaml`` (default scope name ``default``).
     """
     if config_path:
         p = Path(config_path).expanduser()
@@ -429,24 +244,17 @@ def load_configs(
             raise ValueError("Scope YAML root must be a mapping")
         return _load_from_combined_doc(logger, doc)
 
-    if _merge_env_active():
-        return _load_legacy_merge_examples(logger, forced_by_env=True)
-
     sc = (scope or DEFAULT_SCOPE).strip() or DEFAULT_SCOPE
     p = _combined_scope_file(sc)
-    if p.is_file():
-        logger.info("Loading scope %r from %s", sc, p)
-        with open(p, "r", encoding="utf-8") as f:
-            doc = yaml.safe_load(f)
-        if not isinstance(doc, dict):
-            raise ValueError("Scope YAML root must be a mapping")
-        return _load_from_combined_doc(logger, doc)
-
-    if scope is not None and str(scope).strip():
+    if not p.is_file():
         d = _scope_dir(sc)
         raise FileNotFoundError(
             f"No combined scope file in {d}: expected {COMBINED_SCOPE_FILENAME!r}. "
             "Create it or pass --config-path."
         )
-
-    return _load_legacy_merge_examples(logger, forced_by_env=False)
+    logger.info("Loading scope %r from %s", sc, p)
+    with open(p, "r", encoding="utf-8") as f:
+        doc = yaml.safe_load(f)
+    if not isinstance(doc, dict):
+        raise ValueError("Scope YAML root must be a mapping")
+    return _load_from_combined_doc(logger, doc)

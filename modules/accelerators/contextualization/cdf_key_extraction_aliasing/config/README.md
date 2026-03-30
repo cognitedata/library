@@ -7,7 +7,7 @@ Configs for this module are **not** read from disk by CDF at runtime. They are t
 | Path | Purpose |
 |------|---------|
 | **`scopes/<name>/key_extraction_aliasing.yaml`** | One **combined v1** document per scope: `key_extraction` (required) and optional `aliasing`. Default for local runs (`--scope` or `config/scopes/default/key_extraction_aliasing.yaml`). |
-| **`examples/`** | Demos, migrated **split** `*key_extraction*.config.yaml` / `*aliasing*.config.yaml`, paired `.ExtractionPipeline.yaml`, `config_example_complete.yaml`, and **`LEGACY_TO_NEW_*.md`**. Not merged into production scopes by default. |
+| **`examples/`** | **`key_extraction/`** and **`aliasing/`** combined v1 demos (`*.key_extraction_aliasing.yaml`); **`reference/`** for complete YAML + migration notes (`LEGACY_TO_NEW_*.md`). Not used automatically by the local runner or CDF functions. |
 
 Python package code in this folder (`configuration_manager.py`, etc.) lives beside these data directories.
 
@@ -29,9 +29,8 @@ Optional: `schemaVersion: 1`, `scope: { name, description }` (informational).
 |------|----------|
 | **`--config-path <file>`** | Load that file as v1 combined YAML (highest precedence). |
 | **`--scope <name>`** | Load `config/scopes/<name>/key_extraction_aliasing.yaml` (default scope name is `default` when omitted). |
-| Env **`CDF_KEY_EXTRACTION_LOCAL_CONFIG_MODE`** | Values like `merge`, `1`, `true` force **legacy merge**: glob only `config/examples/*key_extraction*.config.yaml` and `config/examples/*aliasing*.config.yaml`. |
 
-If no `--config-path`, merge env is off, and `config/scopes/default/key_extraction_aliasing.yaml` is missing, the runner falls back to the same **legacy merge** under `config/examples/` and logs a warning.
+If `--config-path` is omitted and `config/scopes/<scope>/key_extraction_aliasing.yaml` is missing, **`load_configs` raises `FileNotFoundError`**. Create that file (for example with **`scripts/build_scopes.py`**) or pass **`--config-path`**.
 
 ## Workflows
 
@@ -40,4 +39,4 @@ Workflow YAML still carries **inline** `config` under each function task. Keep i
 ## Reference docs
 
 - Examples and narrative: `examples/PIPELINE_CONFIGURATIONS_README.md`
-- Legacy mapping notes: `examples/LEGACY_TO_NEW_*.md`
+- Legacy mapping notes: `examples/reference/LEGACY_TO_NEW_*.md`

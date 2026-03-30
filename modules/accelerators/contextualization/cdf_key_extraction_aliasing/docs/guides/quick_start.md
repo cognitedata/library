@@ -12,8 +12,8 @@ This guide covers running the **cdf_key_extraction_aliasing** package from the r
 
 - **Package root**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/`
 - **Combined scopes**: `config/scopes/<scope>/key_extraction_aliasing.yaml` (default: `config/scopes/default/key_extraction_aliasing.yaml`)
-- **Split example YAML**: `config/examples/*.config.yaml` (reference and legacy merge mode only)
-- **Entry point for CDF-backed runs**: `main.py` (loads combined scope or legacy merge from `config/`; use `--scope` / `--config-path`)
+- **Example YAML**: `config/examples/key_extraction/` and `config/examples/aliasing/` (`*.key_extraction_aliasing.yaml`). Reference: `config/examples/reference/`.
+- **Entry point for CDF-backed runs**: `main.py` (loads `config/scopes/<scope>/key_extraction_aliasing.yaml` or `--config-path`)
 
 ## Using the Key Extraction Engine
 
@@ -31,7 +31,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 repo_root = Path.cwd()
 config_path = (
     repo_root
-    / "modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/examples/ctx_key_extraction_default.config.yaml"
+    / "modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml"
 )
 
 config_dict = load_config_from_yaml(str(config_path))
@@ -52,7 +52,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     AliasingEngine,
 )
 
-# Minimal config; production uses rules from ctx_aliasing_default.config.yaml via main.py / fn_dm_aliasing
+# Minimal config; production uses rules from config/scopes/.../key_extraction_aliasing.yaml (or examples/aliasing/aliasing_default.key_extraction_aliasing.yaml) via main.py / fn_dm_aliasing
 aliasing_engine = AliasingEngine({"rules": [], "validation": {}})
 out = aliasing_engine.generate_aliases("P-101", "asset")
 print(out.aliases)

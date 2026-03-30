@@ -154,7 +154,7 @@ The key extraction system uses different methods to identify and extract key inf
 | generate_instruments | 8 | 6.7% |
 | hierarchical_expansion | 8 | 6.7% |
 | isa_instrument_expansion | 8 | 6.7% |
-| equipment_tag_expansion | 8 | 6.7% |
+| semantic_expansion | 8 | 6.7% |
 | hierarchical_tag_expansion | 8 | 6.7% |
 | case_variants | 8 | 6.7% |
 | leading_zero_normalization | 8 | 6.7% |

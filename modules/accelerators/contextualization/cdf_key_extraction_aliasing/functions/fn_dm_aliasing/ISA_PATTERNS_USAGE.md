@@ -131,7 +131,7 @@ def _load_patterns_from_yaml(self):
 
 ### Pattern-Based Expansion Rules (Enabled)
 
-**Location:** `config/examples/ctx_aliasing_default.config.yaml`
+**Location:** `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (under `aliasing.config.data.aliasing_rules`)
 
 1. **ISA Instrument Expansion** (line 302-320)
    - Rule: `isa_instrument_expansion`
@@ -140,11 +140,11 @@ def _load_patterns_from_yaml(self):
    - Pattern: `^([A-Z])([A-Z])([A-Z])(-?)(\d{2,4})([A-Z]?)$`
    - Generates ISA-compliant instrument tag variants
 
-2. **Equipment Tag Expansion** (line 323-338)
-   - Rule: `equipment_tag_expansion`
+2. **Semantic expansion** (pattern-based rule block after hierarchical expansion)
+   - Rule: `semantic_expansion`
    - Type: `pattern_based_expansion`
    - Status: ✓ Enabled
-   - Uses ISA patterns to generate equipment tag variants
+   - Uses ISA-oriented patterns to generate structural and format variants for tags
 
 3. **Hierarchical Tag Expansion** (line 341-356)
    - Rule: `hierarchical_tag_expansion`
@@ -154,7 +154,7 @@ def _load_patterns_from_yaml(self):
 
 ### Pattern Recognition Rule (Disabled)
 
-**Location:** `config/examples/ctx_aliasing_default.config.yaml` (line 387-399)
+**Location:** `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` — rule `pattern_recognition_aliases`
 
 - Rule: `pattern_recognition_aliases`
 - Type: `pattern_recognition`
@@ -271,7 +271,7 @@ Path(__file__).parent.parent / "tag_patterns.yaml"
 - ⚠️ Pattern recognition transformer (disabled by default)
 
 **To fully utilize ISA patterns:**
-1. Enable `pattern_recognition_aliases` rule in `ctx_aliasing_default.config.yaml`
+1. Enable `pattern_recognition_aliases` rule in `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`
 2. Patterns will be used for both recognition and expansion
 
 ---

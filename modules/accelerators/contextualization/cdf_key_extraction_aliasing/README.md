@@ -19,7 +19,7 @@ The module provides:
 
 ### Configuration entry points
 
-- **CDF Functions and inline config**: Deployed workflows pass `config` in the function payload. Repo YAML under **`config/scopes/<scope>/key_extraction_aliasing.yaml`** (combined v1) or **`config/examples/*.config.yaml`** (split reference) is the authoring source; handlers validate via Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
+- **CDF Functions and inline config**: Deployed workflows pass `config` in the function payload. Repo YAML under **`config/scopes/<scope>/key_extraction_aliasing.yaml`** (combined v1) and **`config/examples/**`** (demos and reference) is the authoring source; handlers validate via Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
 - **`config/configuration_manager.py`**: Dataclasses plus JSON Schema validation (`jsonschema`), aimed at integration tests under `tests/integration/contextualization/` and similar tooling. It is **not** wired into the `fn_dm_*` handlers; for deployment-facing YAML, use the combined scope layout or split examples and the adapters above.
 
 **Scope hierarchy (multi-site / plant trees):** define **`scope_hierarchy.yaml`** at the module root and run **`scripts/build_scopes.py`** to materialize one `config/scopes/<leaf_id>/key_extraction_aliasing.yaml` per leaf from the default template (existing files are not overwritten). See **`config/README.md`** (section *Scope hierarchy builder*) and **`scripts/scope_build/registry.py`** to plug in additional artifact builders.
@@ -89,7 +89,7 @@ The alias persistence step applies the generated alias list to a property on **C
 | Source | Field | Notes |
 |--------|--------|--------|
 | CDF workflow | `aliasWritebackProperty` (or `alias_writeback_property`) in the `fn_dm_alias_persistence` task `data` | Overrides YAML when set |
-| `main.py` / combined scope | `alias_writeback_property` under `aliasing.config.parameters` in `config/scopes/<scope>/key_extraction_aliasing.yaml`, or merged from `config/examples/*aliasing*.config.yaml` in legacy mode | e.g. `ctx_aliasing_default.config.yaml` in examples |
+| `main.py` / combined scope | `alias_writeback_property` under `aliasing.config.parameters` in the loaded combined scope YAML (`--config-path` or `config/scopes/<scope>/key_extraction_aliasing.yaml`) | e.g. `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` |
 | Default | `aliases` | Used when nothing is configured |
 
 See `docs/guides/configuration_guide.md` (Aliasing Pipeline `parameters`).
@@ -103,13 +103,13 @@ When enabled, `fn_dm_alias_persistence` writes **deduplicated foreign key refere
 | Source | Field | Notes |
 |--------|--------|--------|
 | CDF workflow | `write_foreign_key_references` (or `writeForeignKeyReferences`) and `foreign_key_writeback_property` (or `foreignKeyWritebackProperty`) on `fn_dm_alias_persistence` task `data` | Property name is **required** when FK write is true |
-| `main.py` | Same flags under `aliasing.config.parameters` in the loaded scope, or from merged `config/examples/*aliasing*.config.yaml` | Legacy merge: first non-empty `foreign_key_writeback_property` wins |
+| `main.py` | Same flags under `aliasing.config.parameters` in the loaded combined scope YAML | Single scope file: one value per field |
 | Environment | `WRITE_FOREIGN_KEY_REFERENCES` (`1`/`true`/…) and `FOREIGN_KEY_WRITEBACK_PROPERTY` | Enable / set property |
 | CLI | `--write-foreign-keys`, `--foreign-key-writeback-property` | OR with config for enable; property overrides config/env |
 
 Optional: `foreign_key_writeback_view_space`, `foreign_key_writeback_view_external_id`, `foreign_key_writeback_view_version` (or camelCase equivalents) default to `cdf_cdm` / `CogniteDescribable` / `v1`. If they match the fixed alias target view, aliases and FKs are applied in one `instances.apply` call; otherwise two sources are used on the same node.
 
-Default in `ctx_aliasing_default.config.yaml` is `write_foreign_key_references: false` with placeholder property `references_found`; turn on only when that property exists on your Describable (or override the view tuple).
+Default in `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` is `write_foreign_key_references: false` with placeholder property `references_found`; turn on only when that property exists on your Describable (or override the view tuple).
 
 ### Basic usage (Python)
 
@@ -175,7 +175,7 @@ cdf_key_extraction_aliasing/
 | Path | Purpose |
 |------|---------|
 | `config/scopes/` | Combined v1 YAML per scope (`key_extraction_aliasing.yaml`) |
-| `config/examples/` | Split demo/legacy YAML and mapping docs |
+| `config/examples/` | Combined v1 demo YAML and reference / mapping docs |
 | `pipelines/` | Pointer to `config/` (see `pipelines/README.md`) |
 | `functions/fn_dm_key_extraction/` | Extraction engine + CDF function |
 | `functions/fn_dm_aliasing/` | Aliasing engine + CDF function |
@@ -232,7 +232,7 @@ cdf_key_extraction_aliasing/
 Authoring YAML lives under **`config/`** (see `config/README.md`):
 
 - **Combined scope**: `config/scopes/<scope>/key_extraction_aliasing.yaml` — `key_extraction` and optional `aliasing` branches (same inner shape as the former split files).
-- **Examples**: `config/examples/ctx_key_extraction_default.config.yaml`, `ctx_aliasing_default.config.yaml` — `source_views`, `extraction_rules`, `aliasing_rules`, `validation`. Omit `method` on a rule to use **passthrough** (whole field value as the key).
+- **Examples**: `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml`, `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` — `source_views`, `extraction_rules`, `aliasing_rules`, `validation`. Omit `method` on a rule to use **passthrough** (whole field value as the key).
 
 **Source view filters** (`source_views[].filters` in the key extraction pipeline) limit which instances are queried per view. Supported operators: `EQUALS`, `IN`, `CONTAINSALL`, `CONTAINSANY`, `EXISTS`, `SEARCH`. Example: `CONTAINSANY` on `tags` with values `[asset_tag]` to process only instances whose `tags` array contains `asset_tag`. Per-view `batch_size` (or `limit`) overrides the `--limit` CLI for that view when set to a positive value; when `--limit` is 0 and the view omits `batch_size`/`limit`, all instances are fetched.
 
@@ -248,7 +248,7 @@ Authoring YAML lives under **`config/`** (see `config/README.md`):
 
 ### Loading config
 
-- **From YAML**: `load_config_from_yaml("path/to/ctx_key_extraction_default.config.yaml")`
+- **From YAML**: `load_config_from_yaml("path/to/.../key_extraction_aliasing.yaml")` (unwraps `key_extraction.config` when present)
 - **From CDF**: `load_config_from_cdf(client, "ctx_key_extraction_default")`
 
 See the pipeline config files and the docs (e.g. `docs/1. key_extraction.md`, `docs/guides/configuration_guide.md`) for full structure and recent updates (e.g. timeseries extraction).

@@ -1,9 +1,8 @@
-"""Tests for local_runner.config_loading (v1 combined scope + legacy merge)."""
+"""Tests for local_runner.config_loading (v1 combined scope YAML)."""
 
 from __future__ import annotations
 
 import logging
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -147,31 +146,13 @@ def test_load_configs_from_explicit_path(tmp_path: Path):
     assert alias["rules"] == []
 
 
-def test_legacy_merge_minimal_examples_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    ex = tmp_path / "examples"
-    ex.mkdir()
-    (ex / "test_key_extraction_minimal.config.yaml").write_text(
-        textwrap.dedent(
-            """
-            externalId: ctx_ke_mini
-            config:
-              parameters: {}
-              data:
-                source_views:
-                  - view_external_id: CogniteAsset
-                    view_space: cdf_cdm
-                    view_version: v1
-                    entity_type: asset
-                extraction_rules: []
-            """
-        ).strip(),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(cl, "_examples_dir", lambda: ex)
-    ext, alias, views, *_ = cl._load_legacy_merge_examples(_logger(), forced_by_env=True)
-    assert len(views) >= 1
-    assert len(ext["extraction_rules"]) >= 1
-    assert alias["rules"] == []
+def test_load_configs_missing_combined_scope_raises(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    monkeypatch.setattr(cl, "_scope_dir", lambda scope: tmp_path / scope)
+    (tmp_path / "default").mkdir(parents=True)
+    with pytest.raises(FileNotFoundError, match="key_extraction_aliasing"):
+        cl.load_configs(_logger(), scope="default")
 
 
 def test_load_configs_scope_dir_key_extraction_aliasing_yaml(

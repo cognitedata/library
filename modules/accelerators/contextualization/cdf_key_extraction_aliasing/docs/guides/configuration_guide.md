@@ -29,7 +29,7 @@ The Key Extraction and Aliasing system uses YAML-based pipeline configuration fi
 
 Configuration files are located in:
 - **Combined (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/scopes/<scope>/key_extraction_aliasing.yaml` (default scope: `config/scopes/default/key_extraction_aliasing.yaml`). This file holds the v1 combined document (`key_extraction` + optional `aliasing`).
-- **Split examples (workflow-shaped roots):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/examples/ctx_key_extraction_default.config.yaml` and `.../ctx_aliasing_default.config.yaml`
+- **Example demos (combined v1):** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`
 
 **Multi-leaf scopes:** Author `scope_hierarchy.yaml` at the module root and run `scripts/build_scopes.py` to generate one `config/scopes/<leaf_scope_id>/key_extraction_aliasing.yaml` per leaf (see `config/README.md`, *Scope hierarchy builder*).
 

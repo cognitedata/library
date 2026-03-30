@@ -55,12 +55,12 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 if CDF_AVAILABLE:
     load_dotenv()
 
-# Map test types to config file names (under config/examples/)
+# Map test types to combined v1 scope YAML (under config/examples/)
 CONFIG_MAP = {
-    "regex": "ctx_key_extraction_pump_tag_regex_simple.config.yaml",
-    "fixed_width": "ctx_key_extraction_tag_fixed_width_single.config.yaml",
-    "heuristic": "ctx_key_extraction_tag_heuristic_comprehensive.config.yaml",
-    "token_reassembly": "ctx_key_extraction_tag_token_reassembly.config.yaml",
+    "regex": "key_extraction/regex_pump_tag_simple.key_extraction_aliasing.yaml",
+    "fixed_width": "key_extraction/fixed_width_single.key_extraction_aliasing.yaml",
+    "heuristic": "key_extraction/heuristic_comprehensive.key_extraction_aliasing.yaml",
+    "token_reassembly": "key_extraction/token_reassembly.key_extraction_aliasing.yaml",
 }
 
 
