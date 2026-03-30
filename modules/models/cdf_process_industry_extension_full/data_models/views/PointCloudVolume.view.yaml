@@ -6,7 +6,7 @@ implements:
   externalId: CognitePointCloudVolume
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   object3D:
     container:
@@ -18,7 +18,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}3DObject
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   model3D:
     container:
@@ -30,7 +30,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}CADModel
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   revisions:
     container:
@@ -42,7 +42,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}CADRevision
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

@@ -7,19 +7,19 @@ implements:
   externalId: Cognite3DObject
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   asset:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}Asset
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: object3D
     description: Asset that is tied to this 3D object
@@ -28,13 +28,13 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}CADNode
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}CADNode
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: object3D
     description: List of up to 1000 CADNodes that represents the connected CogniteAsset
@@ -46,7 +46,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}360Image
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     direction: outwards
     description: Edge connection to Cognite360Image annotations that represents the
@@ -61,13 +61,13 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}PointCloudVolume
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}PointCloudVolume
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: object3D
     description: List of up to 1000 PointCloudVolumes that represents the connected

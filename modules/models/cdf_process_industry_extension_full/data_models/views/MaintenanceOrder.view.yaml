@@ -8,7 +8,7 @@ implements:
   externalId: CogniteMaintenanceOrder
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   mainAsset:
     container:
@@ -22,19 +22,19 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   operations:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Operation
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}Operation
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: maintenanceOrder
     name: Operations
@@ -52,7 +52,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   equipment:
     container:
@@ -65,7 +65,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Equipment
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   timeSeries:
     container:
@@ -78,7 +78,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}TimeSeries
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   source:
     container:
@@ -90,7 +90,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}SourceSystem
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

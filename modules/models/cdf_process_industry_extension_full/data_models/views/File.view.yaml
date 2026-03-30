@@ -7,7 +7,7 @@ implements:
   externalId: CogniteFile
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   assets:
     container:
@@ -20,7 +20,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   category:
     container:
@@ -34,19 +34,19 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}FileCategory
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   equipment:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Equipment
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}Equipment
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: files
     name: Equipment
@@ -62,7 +62,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}SourceSystem
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

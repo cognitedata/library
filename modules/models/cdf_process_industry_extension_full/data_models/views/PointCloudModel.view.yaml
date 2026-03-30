@@ -18,19 +18,19 @@ implements:
   externalId: CognitePointCloudModel
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   revisions:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}PointCloudRevision
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}3DRevision
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: model3D
     description: List of revisions for this PointCloud model
@@ -45,7 +45,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

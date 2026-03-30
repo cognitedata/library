@@ -3,9 +3,9 @@ externalId: {{ organization }}Sourceable
 implements:
 - space: cdf_cdm
   externalId: CogniteSourceable
-  version: v1
+  version: {{ datamodelVersion }}
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   source:
     container:
@@ -17,7 +17,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}SourceSystem
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

@@ -8,7 +8,7 @@ implements:
   externalId: CogniteNotification
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   maintenanceOrder:
     container:
@@ -21,7 +21,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}MaintenanceOrder
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   asset:
     container:
@@ -34,7 +34,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   source:
     container:
@@ -46,7 +46,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}SourceSystem
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

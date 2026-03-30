@@ -6,7 +6,7 @@ implements:
   externalId: CogniteUnit
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   UUID:
     container:

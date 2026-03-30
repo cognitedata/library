@@ -8,7 +8,7 @@ implements:
   externalId: CogniteAsset
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   parent:
     container:
@@ -21,7 +21,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   root:
     container:
@@ -35,7 +35,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   path:
     container:
@@ -50,7 +50,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   assetClass:
     container:
@@ -63,7 +63,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}AssetClass
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   type:
     container:
@@ -76,19 +76,19 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}AssetType
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   files:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}File
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: assets
     name: Files
@@ -98,13 +98,13 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}Asset
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: parent
     name: Children
@@ -115,13 +115,13 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Equipment
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}Equipment
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: asset
     name: Equipment
@@ -131,13 +131,13 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Activity
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}Activity
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: assets
     name: Activities
@@ -147,13 +147,13 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}TimeSeries
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}TimeSeries
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: assets
     name: Time series
@@ -169,7 +169,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}SourceSystem
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   object3D:
     container:
@@ -181,7 +181,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}3DObject
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

@@ -7,7 +7,7 @@ implements:
   externalId: CogniteTimeSeries
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   unit:
     container:
@@ -20,7 +20,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Unit
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   assets:
     container:
@@ -33,7 +33,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Asset
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   equipment:
     container:
@@ -46,19 +46,19 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Equipment
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   activities:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}Activity
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
     through:
       source:
         space: {{ schemaSpace }}
         externalId: {{ organization }}Activity
-        version: v1
+        version: {{ datamodelVersion }}
         type: view
       identifier: timeSeries
     name: Activities
@@ -75,7 +75,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}SourceSystem
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

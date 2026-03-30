@@ -1,4 +1,5 @@
 [module]
 title = "Example of CogniteProcessIndustry Extension Model"
-id = "cdf_process_industry_extension_full"
+is_selected_by_default = false
+id = "dp:models:cdf_process_industry_extension_full"
 package_id = "dp:models"

@@ -6,7 +6,7 @@ implements:
   externalId: CogniteDiagramAnnotation
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   source:
     container:
@@ -18,7 +18,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}SourceSystem
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

@@ -7,7 +7,7 @@ implements:
   externalId: Cognite3DModel
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   thumbnail:
     container:
@@ -19,7 +19,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

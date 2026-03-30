@@ -9,7 +9,7 @@ implements:
   externalId: Cognite3DRevision
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   model3D:
     container:
@@ -20,7 +20,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}3DModel
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:

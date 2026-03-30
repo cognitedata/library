@@ -9,7 +9,7 @@ implements:
   externalId: CogniteCubeMap
   version: v1
   type: view
-version: v1
+version: {{ datamodelVersion }}
 properties:
   front:
     container:
@@ -22,7 +22,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   back:
     container:
@@ -35,7 +35,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   left:
     container:
@@ -48,7 +48,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   right:
     container:
@@ -61,7 +61,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   top:
     container:
@@ -74,7 +74,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   bottom:
     container:
@@ -87,7 +87,7 @@ properties:
     source:
       space: {{ schemaSpace }}
       externalId: {{ organization }}File
-      version: v1
+      version: {{ datamodelVersion }}
       type: view
   UUID:
     container:
