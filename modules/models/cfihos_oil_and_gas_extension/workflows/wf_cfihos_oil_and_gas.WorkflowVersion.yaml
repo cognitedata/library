@@ -1,0 +1,448 @@
+workflowExternalId: wf_cfihos_oil_and_gas
+version: {{ workflow_version }}
+workflowDefinition:
+  description: 'Four-wave pipeline: base Tag nodes → overlays in throttled batches (max 8 concurrent) → work-order-dependent entities'
+  tasks:
+    # ── Wave 1: Base tag hierarchy ──────────────────────────────────────
+    - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_tag_all_to_tag'
+          concurrencyPolicy: fail
+      name: 'Build tag hierarchy'
+      description: Create Tag nodes and parent hierarchy from RAW
+      retries: 3
+      timeout: 3600
+      onFailure: 'abortWorkflow'
+
+    # ── Wave 2a: Structural overlays + first equipment classes (8 tasks) ──
+    - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_functional_location_all_to_functional_location'
+          concurrencyPolicy: fail
+      name: 'Functional location overlay'
+      description: Upsert FunctionalLocation view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_equipment_all_to_equipment'
+          concurrencyPolicy: fail
+      name: 'Equipment overlay'
+      description: Upsert Equipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_maintenance_integrity'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_maintenance_integrity_all_to_maintenance_integrity'
+          concurrencyPolicy: fail
+      name: 'Maintenance and integrity overlay'
+      description: Upsert MaintenanceAndIntegrity view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_work_order'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_work_order_all_to_work_order'
+          concurrencyPolicy: fail
+      name: 'Work order'
+      description: Create WorkOrder nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_compressor'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_compressor_all_to_compressor'
+          concurrencyPolicy: fail
+      name: 'Compressor overlay'
+      description: Upsert Compressor view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_valve'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_valve_all_to_valve'
+          concurrencyPolicy: fail
+      name: 'Valve overlay'
+      description: Upsert Valve view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_pump'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_pump_all_to_pump'
+          concurrencyPolicy: fail
+      name: 'Pump overlay'
+      description: Upsert Pump view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_turbine'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_turbine_all_to_turbine'
+          concurrencyPolicy: fail
+      name: 'Turbine overlay'
+      description: Upsert Turbine view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    # ── Wave 2b: More equipment classes (8 tasks, waits for 2a) ──────────
+    - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_heat_exchanger_all_to_heat_exchanger'
+          concurrencyPolicy: fail
+      name: 'Heat exchanger overlay'
+      description: Upsert HeatExchanger view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_piping_pipeline'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_piping_pipeline_all_to_piping_pipeline_equipment'
+          concurrencyPolicy: fail
+      name: 'Piping and pipeline equipment overlay'
+      description: Upsert PipingAndPipelineEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_instrument_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_instrument_equipment_all_to_instrument_equipment'
+          concurrencyPolicy: fail
+      name: 'Instrument equipment overlay'
+      description: Upsert InstrumentEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_electrical_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_electrical_equipment_all_to_electrical_equipment_class'
+          concurrencyPolicy: fail
+      name: 'Electrical equipment class overlay'
+      description: Upsert ElectricalEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_mechanical_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_mechanical_equipment_all_to_mechanical_equipment_class'
+          concurrencyPolicy: fail
+      name: 'Mechanical equipment class overlay'
+      description: Upsert MechanicalEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_drilling_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_drilling_equipment_all_to_drilling_equipment'
+          concurrencyPolicy: fail
+      name: 'Drilling equipment overlay'
+      description: Upsert DrillingEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_enclosure'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_enclosure_all_to_enclosure'
+          concurrencyPolicy: fail
+      name: 'Enclosure overlay'
+      description: Upsert Enclosure view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_hse_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_hse_equipment_all_to_hse_equipment_class'
+          concurrencyPolicy: fail
+      name: 'HSE equipment class overlay'
+      description: Upsert HealthSafetyAndEnvironmentEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    # ── Wave 2c: Remaining equipment + data entities (8 tasks, waits for 2b) ──
+    - externalId: 'wf_cfihos_oil_and_gas_t_infrastructure'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_infrastructure_all_to_infrastructure'
+          concurrencyPolicy: fail
+      name: 'Infrastructure overlay'
+      description: Upsert Infrastructure view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_it_telecom_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_it_telecom_equipment_all_to_it_telecom_equipment'
+          concurrencyPolicy: fail
+      name: 'IT and telecom equipment overlay'
+      description: Upsert ItAndTelecomEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_miscellaneous_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_miscellaneous_equipment_all_to_miscellaneous_equipment'
+          concurrencyPolicy: fail
+      name: 'Miscellaneous equipment overlay'
+      description: Upsert MiscellaneousEquipment view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_subsea_equipment'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_subsea_equipment_all_to_subsea_equipment_class'
+          concurrencyPolicy: fail
+      name: 'Subsea equipment class overlay'
+      description: Upsert SubseaEquipmentClass view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_tool'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_tool_all_to_tool'
+          concurrencyPolicy: fail
+      name: 'Tool overlay'
+      description: Upsert Tool view fields
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_file'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_file_all_to_file'
+          concurrencyPolicy: fail
+      name: 'File'
+      description: Create File nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_timeseries'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_timeseries_all_to_timeseries_data'
+          concurrencyPolicy: fail
+      name: 'Time series data'
+      description: Create TimeSeriesData nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_failure_mode'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_failure_mode_all_to_failure_mode'
+          concurrencyPolicy: fail
+      name: 'Failure mode'
+      description: Create FailureMode nodes with asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_timeseries_equipment_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_timeseries_all_to_timeseries_equipment_connection'
+          concurrencyPolicy: fail
+      name: 'Time series to equipment connection'
+      description: Connect TimeSeriesData to Equipment based on asset external id mapping
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_timeseries'
+        - externalId: 'wf_cfihos_oil_and_gas_t_equipment'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_work_order_timeseries_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_work_order_all_to_work_order_timeseries_connection'
+          concurrencyPolicy: fail
+      name: 'Work order to time series connection'
+      description: Connect WorkOrder to TimeSeriesData based on mainAsset_externalId and asset_externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_work_order'
+        - externalId: 'wf_cfihos_oil_and_gas_t_timeseries'
+
+    # ── Wave 3: Entities that reference WorkOrder nodes (waits for 2c) ───
+    - externalId: 'wf_cfihos_oil_and_gas_t_notification'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_notification_all_to_notification'
+          concurrencyPolicy: fail
+      name: 'Notification'
+      description: Create Notification nodes with work order and asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_infrastructure'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_notification_work_order_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_notification_all_to_notification_work_order_connection'
+          concurrencyPolicy: fail
+      name: 'Notification to work order connection'
+      description: Connect Notification to WorkOrder based on asset_externalId and mainAsset_externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_notification'
+        - externalId: 'wf_cfihos_oil_and_gas_t_work_order'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_work_order_operation'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_work_order_operation_all_to_work_order_operation'
+          concurrencyPolicy: fail
+      name: 'Work order operation'
+      description: Create WorkOrderOperation nodes with work order and asset references
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_infrastructure'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_work_order_operation_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_work_order_operation_all_to_work_order_operation_connection'
+          concurrencyPolicy: fail
+      name: 'Work order operation connection'
+      description: Connect WorkOrderOperation to Equipment, TimeSeriesData, WorkOrder, and FunctionalLocation based on asset_externalId and mainAsset_externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_work_order_operation'
+        - externalId: 'wf_cfihos_oil_and_gas_t_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_timeseries'
+        - externalId: 'wf_cfihos_oil_and_gas_t_work_order'
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'

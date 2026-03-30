@@ -26,5 +26,8 @@ search_data_model_name: "Oil and Gas Domain Model Search"          # Display nam
 data_model_external_id: dm_oil_and_gas_domain_model                # External ID for the domain data model
 data_model_name: "Oil and Gas Domain Model"                        # Display name for the domain data model
 
+# Workflow versioning
+workflow_version: 'v1'                                   # Version of the data workflow definition
+
 # Environment
 environment: dev                                        # Deployment environment (dev, test, prod)
