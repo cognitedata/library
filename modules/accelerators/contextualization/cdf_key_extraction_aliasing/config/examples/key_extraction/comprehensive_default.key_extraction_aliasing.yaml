@@ -4,7 +4,7 @@ key_extraction:
   config:
     parameters:
       debug: true
-      overwrite: true
+      full_rescan: true
       raw_db: db_key_extraction
       raw_table_key: key_extraction_state
     data:

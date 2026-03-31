@@ -23,11 +23,12 @@ SkipEntityPolicy = Literal["successful_only", "none"]
 class Parameters(BaseModel):
     debug: bool = Field(False, description="Enable debug mode")
     verbose: bool = Field(False, description="Enable verbose output")
-    overwrite: bool = Field(
+    full_rescan: bool = Field(
         False,
         description=(
-            "When true, instance listing is not filtered by existing RAW rows. When false, "
-            "see skip_entity_policy for which RAW entity rows exclude instances."
+            "When true, instance listing is not filtered by existing RAW rows; incremental "
+            "detection uses a full scope rescan; apply replaces keys from RAW only. When false, "
+            "see skip_entity_policy for RAW-based exclusion and merge behavior on apply."
         ),
     )
     max_files: Optional[int] = Field(
@@ -46,9 +47,9 @@ class Parameters(BaseModel):
     skip_entity_policy: SkipEntityPolicy = Field(
         "successful_only",
         description=(
-            "When overwrite is false: successful_only excludes instances that have a RAW entity row "
+            "When full_rescan is false: successful_only excludes instances that have a RAW entity row "
             "with EXTRACTION_STATUS success or empty; failed or rows without that column are listed "
-            "again. none matches overwrite true for listing (no RAW-based exclusion)."
+            "again. none matches full_rescan true for listing (no RAW-based exclusion)."
         ),
     )
     write_empty_extraction_rows: bool = Field(

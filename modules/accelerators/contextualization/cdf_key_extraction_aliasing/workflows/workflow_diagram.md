@@ -10,9 +10,13 @@
 graph TD
     Start([Start Workflow]) --> KeyExtraction[Key Extraction<br/>fn_dm_key_extraction]
 
-    KeyExtraction --> RawKeys[RAW: extracted keys<br/>+ FOREIGN_KEY_REFERENCES_JSON]
+    KeyExtraction --> RawKeys[RAW: candidate keys<br/>FOREIGN_KEY_REFERENCES_JSON<br/>DOCUMENT_REFERENCES_JSON]
+
+    RawKeys --> RefIndex[Reference index<br/>fn_dm_reference_index]
 
     RawKeys --> Aliasing[Aliasing<br/>fn_dm_aliasing]
+
+    RefIndex --> RawRefIdx[RAW: inverted index<br/>lookup_token postings]
 
     Aliasing --> RawAliases[RAW: alias rows<br/>entities_json]
 
@@ -28,10 +32,12 @@ graph TD
     DMFK --> End
 
     style KeyExtraction fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style RefIndex fill:#e8eaf6,stroke:#283593,stroke-width:2px
     style Aliasing fill:#fff3e0,stroke:#e65100,stroke-width:2px
     style Persistence fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
     style RawKeys fill:#fff9c4,stroke:#f57f17,stroke-width:2px
     style RawAliases fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    style RawRefIdx fill:#fff9c4,stroke:#f57f17,stroke-width:2px
 ```
 
 ## Detailed Flow Description
@@ -50,8 +56,9 @@ graph TD
 
 ### 2. RAW handoff (between tasks)
 - **Why**: CDF Workflows do not automatically pass function outputs to the next task.
-- **Key extraction** writes rows to a configured RAW table (candidate keys per field, plus `FOREIGN_KEY_REFERENCES_JSON` when rules produce FKs).
-- **Aliasing** reads that table and writes alias rows to a second RAW table.
+- **Key extraction** writes rows to a configured RAW table (candidate keys per field, plus `FOREIGN_KEY_REFERENCES_JSON` / `DOCUMENT_REFERENCES_JSON` when rules produce references).
+- **`fn_dm_reference_index`** (parallel to aliasing) reads only the FK/document JSON columns and maintains an inverted index RAW table; it does **not** consume candidate-key columns.
+- **Aliasing** reads **candidate keys** from that table and writes alias rows to a second RAW table.
 
 ### 3. Aliasing Phase
 - **Component**: `fn_dm_aliasing` CDF Function
@@ -70,26 +77,31 @@ graph TD
   - Optionally writes deduplicated FK reference strings to **`foreign_key_writeback_property`** on the same or another view (task `data`)
 - **Output**: Updated entities; handler summary includes `aliases_persisted`, and when FK write is enabled `foreign_keys_persisted` / `entities_fk_updated`
 
-### 5. Reference catalog (roadmap)
-- Foreign-key and document-reference **catalog** persistence (separate from optional Describable FK string lists) is not implemented in this workflow yet; see module README roadmap.
+### 5. Reference index (RAW inverted catalog)
+- **Component**: `fn_dm_reference_index`
+- **Input**: Key-extraction RAW (`FOREIGN_KEY_REFERENCES_JSON`, `DOCUMENT_REFERENCES_JSON`); inline `AliasingEngine` config for alias tokens of each referenced value (not `fn_dm_aliasing` RAW output).
+- **Output**: Reference index RAW (e.g. `*_reference_index`) plus per-source snapshot rows for removals when refs shrink.
+- **DM projection** (optional): future — see module README roadmap.
 
 ## Data Flow
 
 ```
-DM entities → fn_dm_key_extraction → RAW (keys + FK JSON)
-                → fn_dm_aliasing (reads RAW) → RAW (aliases + entities_json)
+DM entities → fn_dm_key_extraction → RAW (keys + FK/doc JSON)
+                → fn_dm_reference_index → RAW (inverted reference index)
+                → fn_dm_aliasing (candidate keys only) → RAW (aliases + entities_json)
                 → fn_dm_alias_persistence (reads RAW) → DM apply (CogniteDescribable; optional FK property)
 ```
 
 ## Implementation Notes
 
-### Current workflow (`cdf_key_extraction_aliasing` v1)
+### Current workflow (`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` v1)
 1. **Key extraction** — queries source views, writes extraction output to RAW.
-2. **Aliasing** — reads extraction RAW, writes alias rows to RAW.
-3. **Alias persistence** — reads alias RAW, applies aliases to `CogniteDescribable`; optional FK strings from extraction RAW when configured.
+2. **Reference index** — reads FK/document JSON from extraction RAW, updates inverted index table.
+3. **Aliasing** — reads candidate keys from extraction RAW, writes alias rows to RAW.
+4. **Alias persistence** — reads alias RAW, applies aliases to `CogniteDescribable`; optional FK strings from extraction RAW when configured.
 
 ### Possible extensions
-- Dedicated tasks or pipelines for a **reference catalog** (FK / document references) instead of or in addition to Describable FK string lists.
+- **DM sync** for the reference index (RAW remains source of truth today).
 
 ## Component Details
 

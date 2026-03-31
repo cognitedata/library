@@ -129,12 +129,20 @@ def main():
         help="Path to a v1 scope YAML document (overrides --scope).",
     )
     parser.add_argument(
-        "--process-all",
+        "--full-rescan",
         action="store_true",
         help=(
             "When key_extraction.parameters.incremental_change_processing is enabled, "
-            "passes process_all to the local runner (full scope rescan; same semantics as "
-            "workflow input process_all). No effect if incremental mode is off."
+            "passes full_rescan to the local runner (full scope rescan; same semantics as "
+            "workflow input full_rescan). No effect if incremental mode is off."
+        ),
+    )
+    parser.add_argument(
+        "--skip-reference-index",
+        action="store_true",
+        help=(
+            "In incremental/workflow-parity mode, skip fn_dm_reference_index (RAW inverted index for "
+            "FK/document refs). No effect on non-incremental runs (reference index is not available there)."
         ),
     )
     args = parser.parse_args()

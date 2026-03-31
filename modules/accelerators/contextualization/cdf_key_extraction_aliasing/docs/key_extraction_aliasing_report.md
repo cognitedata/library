@@ -18,7 +18,7 @@ This document describes the **current** default configuration and pipeline behav
 4. **Write aliases** — Persists aliases on CogniteDescribable (default property `aliases`; see `alias_writeback_property` in aliasing config).
 5. **Reference catalog / FK write-back** — Optional; default scope sets `write_foreign_key_references: false` for aliasing parameters.
 
-Deployed workflow YAML may add **site-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) header comment.
+Deployed workflow YAML may add **scope-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) header comment.
 
 ---
 

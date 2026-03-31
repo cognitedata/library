@@ -92,7 +92,7 @@ def run_locally():
     env_config = get_env_variables()
     client = create_client(env_config, debug=False)
 
-    site_abbreviation = os.getenv("SITE_ABBREVIATION", "SITE")
+    scope_cdf_suffix = os.getenv("SCOPE_CDF_SUFFIX") or os.getenv("SITE_ABBREVIATION", "SITE")
 
     # Test data
     data = {
@@ -101,7 +101,7 @@ def run_locally():
         # Either provide aliasing_results directly, OR point to RAW to load them.
         "aliasing_results": [],
         "raw_db": "db_tag_aliasing",
-        "raw_table_aliases": f"{site_abbreviation}_aliases",
+        "raw_table_aliases": f"{scope_cdf_suffix}_aliases",
         "raw_read_limit": 100,
     }
 

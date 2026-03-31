@@ -1,3 +1,0 @@
-externalId: cdf_key_extraction_aliasing_{{ site_abbreviation }}
-description: Workflow that runs {{ site_name }} key extraction, aliasing, and alias persistence
-dataSetExternalId: 'ds_key_extraction'

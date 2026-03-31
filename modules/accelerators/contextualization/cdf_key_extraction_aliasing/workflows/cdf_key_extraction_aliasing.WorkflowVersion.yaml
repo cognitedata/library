@@ -1,10 +1,10 @@
 # Repo source for v1 scope document (align inline config below): config/scopes/default/key_extraction_aliasing.yaml
-workflowExternalId: cdf_key_extraction_aliasing
+workflowExternalId: cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}
 version: 'v1'
 workflowDefinition:
-  description: 'Run {{ site_name }} key extraction'
+  description: 'Run {{ scope_leaf_display_name }} key extraction'
   input:
-    process_all: false
+    full_rescan: false
     run_id: ''
   tasks:
     - externalId: 'fn_dm_incremental_state_update'
@@ -14,15 +14,15 @@ workflowDefinition:
           externalId: 'fn_dm_incremental_state_update'
           data:
             logLevel: 'INFO'
-            process_all: ${workflow.input.process_all}
+            full_rescan: ${workflow.input.full_rescan}
             config:
-              externalId: ctx_key_extraction_{{ site_abbreviation }}_prod
+              externalId: ctx_key_extraction_{{ scope_cdf_suffix }}_prod
               config:
                 parameters:
                   debug: true
                   incremental_change_processing: true
                   raw_db: db_key_extraction
-                  raw_table_key: {{ site_abbreviation }}_key_extraction_state
+                  raw_table_key: {{ scope_cdf_suffix }}_key_extraction_state
                 data:
                   source_views:
                     - view_external_id: CogniteFile
@@ -53,7 +53,7 @@ workflowDefinition:
                         - field_name: name
                           required: true
                   field_selection_strategy: first_match
-      name: '{{ site_name }} Incremental state (cohort)'
+      name: '{{ scope_leaf_display_name }} Incremental state (cohort)'
       description: 'Detect changes and write cohort rows to RAW (WORKFLOW_STATUS=detected)'
       retries: 3
       timeout: 7200
@@ -66,8 +66,9 @@ workflowDefinition:
           externalId: 'fn_dm_key_extraction'
           data:
             logLevel: 'INFO'
+            full_rescan: ${workflow.input.full_rescan}
             config:
-              externalId: ctx_key_extraction_{{ site_abbreviation }}_prod
+              externalId: ctx_key_extraction_{{ scope_cdf_suffix }}_prod
               config:
                 parameters:
                   debug: true
@@ -75,9 +76,9 @@ workflowDefinition:
                   # Temporary safety limit while validating the pipeline end-to-end.
                   # Set to null (or remove) to process all matching files.
                   max_files: 50
-                  overwrite: true
+                  full_rescan: false
                   raw_db: db_key_extraction
-                  raw_table_key: {{ site_abbreviation }}_key_extraction_state
+                  raw_table_key: {{ scope_cdf_suffix }}_key_extraction_state
                 data:
                   validation:
                     min_confidence: 0.5
@@ -237,13 +238,51 @@ workflowDefinition:
                           preprocessing:
                             - trim
                       field_selection_strategy: "merge_all"
-      name: '{{ site_name }} Key Extraction'
-      description: 'Extract candidate keys from {{ site_name }} files and write to RAW'
+      name: '{{ scope_leaf_display_name }} Key Extraction'
+      description: 'Extract candidate keys from {{ scope_leaf_display_name }} files and write to RAW'
       retries: 3
       timeout: 7200
       onFailure: 'abortWorkflow'
       dependsOn:
         - externalId: 'fn_dm_incremental_state_update'
+
+    - externalId: 'fn_dm_reference_index'
+      type: 'function'
+      parameters:
+        function:
+          externalId: 'fn_dm_reference_index'
+          data:
+            logLevel: 'INFO'
+            source_raw_db: db_key_extraction
+            source_raw_table_key: {{ scope_cdf_suffix }}_key_extraction_state
+            source_raw_read_limit: 10000
+            incremental_auto_run_id: true
+            reference_index_raw_db: db_key_extraction
+            reference_index_raw_table: {{ scope_cdf_suffix }}_reference_index
+            source_instance_space: {{ instance_space }}
+            source_view_space: cdf_cdm
+            source_view_external_id: CogniteFile
+            source_view_version: v1
+            reference_index_fk_entity_type: asset
+            reference_index_document_entity_type: file
+            config:
+              config:
+                parameters:
+                  debug: true
+                data:
+                  aliasing_rules: []
+                  validation:
+                    max_aliases_per_tag: 50
+                    min_alias_length: 2
+                    max_alias_length: 100
+                    allowed_characters: "A-Za-z0-9-_/. "
+      name: '{{ scope_leaf_display_name }} Reference index'
+      description: 'RAW inverted index for FK and document references (parallel to aliasing)'
+      retries: 3
+      timeout: 7200
+      onFailure: 'abortWorkflow'
+      dependsOn:
+        - externalId: 'fn_dm_key_extraction'
 
     - externalId: 'fn_dm_aliasing'
       type: 'function'
@@ -255,7 +294,7 @@ workflowDefinition:
             # Key-Extraction writes candidate keys to RAW; Aliasing reads them back from RAW
             # because Workflows don't auto-pass function outputs to the next task.
             source_raw_db: db_key_extraction
-            source_raw_table_key: {{ site_abbreviation }}_key_extraction_state
+            source_raw_table_key: {{ scope_cdf_suffix }}_key_extraction_state
             source_raw_read_limit: 10000
             incremental_auto_run_id: true
             incremental_transition: true
@@ -265,19 +304,18 @@ workflowDefinition:
             source_view_version: v1
             source_entity_type: file
             config:
-              externalId: ctx_aliasing_{{ site_abbreviation }}_prod
+              externalId: ctx_aliasing_{{ scope_cdf_suffix }}_prod
               config:
                 parameters:
                   debug: true
-                  overwrite: true
                   raw_db: db_tag_aliasing
-                  raw_table_state: {{ site_abbreviation }}_tag_aliasing_state
-                  raw_table_aliases: {{ site_abbreviation }}_aliases
+                  raw_table_state: {{ scope_cdf_suffix }}_tag_aliasing_state
+                  raw_table_aliases: {{ scope_cdf_suffix }}_aliases
                 data:
                   aliasing_rules:
                     - name: site_file_rdp_ppg_ocr
                       type: character_substitution
-                      description: "{{ site_name }} file OCR substitutions - RDP-PID <-> PPG-SYS, PPG-HAS, PPG-E25, PPG-UTI"
+                      description: "{{ scope_leaf_display_name }} file OCR substitutions - RDP-PID <-> PPG-SYS, PPG-HAS, PPG-E25, PPG-UTI"
                       enabled: true
                       priority: 10
                       preserve_original: true
@@ -394,7 +432,7 @@ workflowDefinition:
                           - {pattern: "(.*)((?:R|V|r|v)[A-Za-z0-9]{1,2})$$", replacement: "\\1"}
                     - name: site_asset_instrument_ocr
                       type: character_substitution
-                      description: "{{ site_name }} asset instrument-type OCR substitutions"
+                      description: "{{ scope_leaf_display_name }} asset instrument-type OCR substitutions"
                       enabled: true
                       priority: 10
                       preserve_original: true
@@ -594,7 +632,7 @@ workflowDefinition:
                     min_alias_length: 2
                     max_alias_length: 100
                     allowed_characters: "A-Za-z0-9-_/. "
-      name: '{{ site_name }} Aliasing'
+      name: '{{ scope_leaf_display_name }} Aliasing'
       description: 'Generate aliases from extracted candidate keys and write aliasing results to RAW'
       retries: 3
       timeout: 7200
@@ -611,11 +649,11 @@ workflowDefinition:
             logLevel: 'INFO'
             # Load aliasing results from RAW produced by aliasing task.
             raw_db: db_tag_aliasing
-            raw_table_aliases: {{ site_abbreviation }}_aliases
+            raw_table_aliases: {{ scope_cdf_suffix }}_aliases
             raw_read_limit: 10000
             # Optional FK write-back (enable when DM exposes e.g. references_found on CogniteDescribable)
             source_raw_db: db_key_extraction
-            source_raw_table_key: {{ site_abbreviation }}_key_extraction_state
+            source_raw_table_key: {{ scope_cdf_suffix }}_key_extraction_state
             source_raw_read_limit: 10000
             incremental_auto_run_id: true
             incremental_transition: true
@@ -627,7 +665,7 @@ workflowDefinition:
             foreign_key_writeback_property: references_found
       dependsOn:
         - externalId: 'fn_dm_aliasing'
-      name: '{{ site_name }} Alias Persistence'
+      name: '{{ scope_leaf_display_name }} Alias Persistence'
       description: 'Persist aliases to cdf_cdm:CogniteDescribable:v1'
       retries: 3
       timeout: 3600

@@ -5,7 +5,7 @@ key_extraction:
     parameters:
       debug: true
       verbose: true
-      overwrite: false
+      full_rescan: false
       raw_db: my_raw_database
       raw_table_key: key_extraction_state
     data:

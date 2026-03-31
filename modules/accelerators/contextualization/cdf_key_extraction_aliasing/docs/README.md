@@ -24,7 +24,7 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 
 | Document | Contents |
 |----------|----------|
-| [Workflows README](../workflows/README.md) | `cdf_key_extraction_aliasing` tasks, RAW handoff, site-templated variants, generator `--check` |
+| [Workflows README](../workflows/README.md) | `cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` tasks, RAW handoff, fusion placeholders (`scope_cdf_suffix`, `scope_leaf_display_name`) |
 | [Workflow diagram source](../workflows/workflow_diagram.md) | Diagram source (and related assets in `workflows/`) |
 | [fn_dm_key_extraction](../functions/fn_dm_key_extraction/README.md) | Key extraction function I/O |
 | [fn_dm_aliasing](../functions/fn_dm_aliasing/README.md) | Aliasing function I/O |

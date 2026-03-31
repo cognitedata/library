@@ -9,7 +9,7 @@ key_extraction:
   config:
     parameters:
       debug: true
-      overwrite: false
+      full_rescan: true
       raw_db: db_key_extraction
       raw_table_key: key_extraction_state
       skip_entity_policy: successful_only
@@ -408,7 +408,6 @@ aliasing:
   config:
     parameters:
       debug: true
-      overwrite: true
       raw_db: db_tag_aliasing
       raw_table_state: tag_aliasing_state
       raw_table_aliases: default_aliases

@@ -12,6 +12,13 @@ files_dataset: ingestion
 schemaSpace: cdf_cdm
 viewVersion: v1
 
+# CogniteFile (data modeling) targets for optional scope YAML upload (Data plugin, upload_data/**/*.Manifest.yaml).
+# Set key_extraction_config_files_instance_space to your DM instance space before cdf data upload.
+key_extraction_config_files_instance_space: your_instance_space
+key_extraction_config_file_view_space: cdf_cdm
+key_extraction_config_file_view_external_id: CogniteFile
+key_extraction_config_file_view_version: v1
+
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 functionVersion: 'v1'

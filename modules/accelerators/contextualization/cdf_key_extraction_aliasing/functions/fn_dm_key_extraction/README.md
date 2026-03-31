@@ -1,6 +1,6 @@
 ## fn_dm_key_extraction
 
-CDF function in **`cdf_key_extraction_aliasing`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+CDF function in **`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
 
 Extracts candidate keys, foreign key references, and document references from **configured `source_views`** (default scope: CogniteAsset, CogniteFile, CogniteTimeSeries — see `config/scopes/default/key_extraction_aliasing.yaml`), writes results to RAW, and writes a per-run state row for auditability.
 
@@ -13,7 +13,7 @@ Extracts candidate keys, foreign key references, and document references from **
 Key config fields used:
 - **`config.parameters.raw_db`**
 - **`config.parameters.raw_table_key`**: RAW table for entity payloads, `EXTRACTION_STATUS`, and run-summary rows (`RECORD_KIND=run`)
-- **`config.parameters.skip_entity_policy`**, **`write_empty_extraction_rows`**, **`raw_skip_scan_chunk_size`**: control instance listing when `overwrite` is false (see configuration guide)
+- **`config.parameters.skip_entity_policy`**, **`write_empty_extraction_rows`**, **`raw_skip_scan_chunk_size`**: control instance listing when `full_rescan` is false (see configuration guide)
 - **`config.parameters.max_files`**: optional limit for testing
 - **`config.data.source_views`**: what view(s) to query; optional per-view **`instance_space`** (API `space` argument), optional **`filters`** including **`property_scope: node`** for `("node", "space")` style filters when `instance_space` is omitted or for extra narrowing
 
@@ -32,8 +32,8 @@ This function is designed to run in CDF, but you can run it locally by calling `
 
 ### How it runs in the workflow
 
-In `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (v1):
-- task `fn_dm_key_extraction_{{ site_abbreviation }}` runs this function and writes entity and run rows to `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`
+In `cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` (v1):
+- task `fn_dm_key_extraction_{{ scope_cdf_suffix }}` runs this function and writes entity and run rows to `db_key_extraction/{{ scope_cdf_suffix }}_key_extraction_state`
 
 ### Change history
 

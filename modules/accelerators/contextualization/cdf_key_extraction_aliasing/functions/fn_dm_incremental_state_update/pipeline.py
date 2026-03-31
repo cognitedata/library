@@ -46,6 +46,7 @@ from ..cdf_fn_common.incremental_scope import (
     scope_watermark_row_key,
 )
 from ..cdf_fn_common.raw_upload import create_raw_upload_queue
+from ..cdf_fn_common.full_rescan import resolve_full_rescan
 from ..fn_dm_key_extraction.common.cdf_utils import create_table_if_not_exists
 
 RAW_COL_UPDATED_AT = "UPDATED_AT"
@@ -72,7 +73,7 @@ def incremental_state_update(
     if not raw_db or not raw_table_key:
         raise ValueError("raw_db and raw_table_key are required")
 
-    process_all = bool(data.get("process_all", False))
+    full_rescan = resolve_full_rescan(params, data)
 
     source_views = getattr(getattr(cdf_config, "data", None), "source_views", None) or []
     if not source_views:
@@ -83,7 +84,7 @@ def incremental_state_update(
 
     skip_unchanged_inputs = bool(
         getattr(params, "incremental_skip_unchanged_source_inputs", True)
-    ) and not process_all
+    ) and not full_rescan
     extraction_rules = getattr(getattr(cdf_config, "data", None), "extraction_rules", None)
     rules_fp: Optional[str] = None
     if skip_unchanged_inputs:
@@ -107,18 +108,18 @@ def incremental_state_update(
         scope_key = scope_key_from_view_dict(view_dict)
         wm_key = scope_watermark_row_key(scope_key)
 
-        if process_all:
+        if full_rescan:
             try:
                 client.raw.rows.delete(raw_db, raw_table_key, wm_key)
             except Exception as ex:
                 logger.warning(f"Could not delete watermark row {wm_key!r}: {ex}")
 
-        high_wm = None if process_all else read_watermark_high_ms(
+        high_wm = None if full_rescan else read_watermark_high_ms(
             client, raw_db, raw_table_key, wm_key
         )
 
         base_filter = entity_view_config.build_filter()
-        if high_wm is not None and not process_all:
+        if high_wm is not None and not full_rescan:
             # Some backends can include the boundary value for `gt` on lastUpdatedTime.
             # Add +1ms to make the bound unambiguously exclusive.
             rng = dm.filters.Range(

@@ -2,7 +2,9 @@
 
 **Documentation index:** [docs/README.md](../docs/README.md) (maps specs, guides, examples, and workflows).
 
-Configs for this module are **not** read from disk by CDF at runtime. They are the **authoring source** for workflow task payloads (`parameters.function.data.config`) and for **`main.py`** / **`local_runner`**.
+Configs for this module are **not** read from disk paths by CDF functions at runtime. They are the **authoring source** for workflow task payloads (`parameters.function.data.config`) and for **`main.py`** / **`local_runner`**.
+
+**Optional upload:** You can push scope YAML to CDF as **CogniteFile** (data modeling) file content using Cognite Toolkit’s Data plugin and manifests under **[`../upload_data/`](../upload_data/)** (`kind: FileContent`, `fileDataModelingTemplate`). That gives an auditable copy in CDF; workflow inline config remains the runtime source unless you build additional loading logic. Use **one manifest per `config/scopes/<scope>/` directory** so `instanceId.externalId` stays unique (every scope uses the same filename `key_extraction_aliasing.yaml`).
 
 ## Directories
 
@@ -38,6 +40,18 @@ If `--config-path` is omitted and `config/scopes/<scope>/key_extraction_aliasing
 ## Workflows
 
 Workflow YAML still carries **inline** `config` under each function task. Keep it aligned with the matching `key_extraction_aliasing.yaml` (copy, script, or comment pointing at the repo path).
+
+**CDF Toolkit placeholders:** Workflow manifests use **`scope_cdf_suffix`** and **`scope_leaf_display_name`** (see [`workflows/README.md`](../workflows/README.md)). **`scope_cdf_suffix`** must equal **`cdf_external_id_suffix(scope_id)`** for the deployed leaf — the same string [`scripts/build_scopes.py`](../scripts/build_scopes.py) uses when materializing pipeline external ids from [`scope_hierarchy.yaml`](../scope_hierarchy.yaml) (implementation: [`scripts/scope_build/naming.py`](../scripts/scope_build/naming.py)). The workflow **container** and **workflow trigger** resource ids in the YAML also include **`{{ scope_cdf_suffix }}`** so each deploy names a distinct workflow and schedule trigger per scope.
+
+## Cognite Toolkit Data plugin (scope YAML as CogniteFile)
+
+Variables for **`upload_data/**/*.Manifest.yaml`** are in **[`../default.config.yaml`](../default.config.yaml)** (`key_extraction_config_files_instance_space`, `key_extraction_config_file_view_*`). In your Fusion / Toolkit project, enable **`[plugins] data = true`** in `cdf.toml`, then run:
+
+```bash
+cdf data upload dir modules/accelerators/contextualization/cdf_key_extraction_aliasing/upload_data
+```
+
+(from repository root; adjust if your module path differs). Add a sibling manifest under **`upload_data/scopes/<scope_id>/`** for each new scope, with a **distinct** `template.instanceId.externalId` (for example `kea_config_<scope_id>`).
 
 ## Reference docs
 

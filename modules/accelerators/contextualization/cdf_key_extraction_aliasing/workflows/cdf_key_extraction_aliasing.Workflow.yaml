@@ -1,3 +1,3 @@
-externalId: cdf_key_extraction_aliasing
-description: Workflow that extracts keys from entities and generates aliases
+externalId: cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}
+description: Workflow that runs {{ scope_leaf_display_name }} key extraction, aliasing, and alias persistence
 dataSetExternalId: 'ds_key_extraction'

@@ -15,6 +15,7 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
 from cognite.client.data_classes.data_modeling.ids import NodeId
 
+from ..cdf_fn_common.full_rescan import resolve_full_rescan
 from ..cdf_fn_common.extraction_input_hash import (
     apply_preprocessing,
     compute_extraction_inputs_hash_from_entity_row,
@@ -413,6 +414,17 @@ def key_extraction(
         use_cdf_format = cdf_config is not None and client is not None
 
         if use_cdf_format:
+            _fr = resolve_full_rescan(cdf_config.parameters, data)
+            if hasattr(cdf_config, "model_copy"):
+                cdf_config = cdf_config.model_copy(
+                    update={
+                        "parameters": cdf_config.parameters.model_copy(
+                            update={"full_rescan": _fr}
+                        )
+                    }
+                )
+            else:
+                cdf_config.parameters.full_rescan = _fr
             # Extract parameters from CDF config
             raw_db = cdf_config.parameters.raw_db
             raw_table_key = cdf_config.parameters.raw_table_key
@@ -525,6 +537,7 @@ def key_extraction(
                     **base_meta,
                     "keys": {},
                     "foreign_key_references": [],
+                    "document_references": [],
                     "_extraction_failed": True,
                     "_extraction_error": str(ex)[:4000],
                 }
@@ -554,10 +567,12 @@ def key_extraction(
                 }
 
             fk_refs = _dedupe_foreign_key_references(result)
+            doc_refs = _dedupe_document_references(result)
             entities_keys_extracted[entity_id] = {
                 **base_meta,
                 "keys": keys,
                 "foreign_key_references": fk_refs,
+                "document_references": doc_refs,
             }
             keys_extracted += len(result.candidate_keys)
 
@@ -591,6 +606,7 @@ def key_extraction(
             for ext_id, entity_metadata in entities_keys_extracted.items():
                 field_keys = entity_metadata.get("keys", {})
                 fk_refs = entity_metadata.get("foreign_key_references") or []
+                doc_refs = entity_metadata.get("document_references") or []
                 failed = bool(entity_metadata.get("_extraction_failed"))
                 err_msg = entity_metadata.get("_extraction_error")
                 cohort_columns = entity_metadata.get("_cohort_columns")
@@ -599,9 +615,10 @@ def key_extraction(
                     field_keys
                 )
                 has_fk = bool(fk_refs)
+                has_doc = bool(doc_refs)
                 if failed:
                     ext_status = EXTRACTION_STATUS_FAILED
-                elif has_candidate_columns or has_fk:
+                elif has_candidate_columns or has_fk or has_doc:
                     ext_status = EXTRACTION_STATUS_SUCCESS
                 else:
                     ext_status = EXTRACTION_STATUS_EMPTY
@@ -610,6 +627,7 @@ def key_extraction(
                     not failed
                     and not has_candidate_columns
                     and not has_fk
+                    and not has_doc
                     and not write_empty_extraction_rows
                 ):
                     continue
@@ -647,6 +665,8 @@ def key_extraction(
                     columns["RULES_USED_JSON"] = json.dumps([])
                 if has_fk:
                     columns[FOREIGN_KEY_REFERENCES_JSON_COLUMN] = json.dumps(fk_refs)
+                if has_doc:
+                    columns[DOCUMENT_REFERENCES_JSON_COLUMN] = json.dumps(doc_refs)
 
                 if incremental_mode and incremental_skip_hash:
                     svc = resolve_source_view_config_for_entity(
@@ -681,14 +701,19 @@ def key_extraction(
             len(em.get("foreign_key_references") or [])
             for em in entities_keys_extracted.values()
         )
+        total_doc = sum(
+            len(em.get("document_references") or [])
+            for em in entities_keys_extracted.values()
+        )
         n_failed = sum(
             1 for em in entities_keys_extracted.values() if em.get("_extraction_failed")
         )
-        if keys_extracted > 0 or total_fk > 0:
+        if keys_extracted > 0 or total_fk > 0 or total_doc > 0:
             status = "success"
             message = (
                 f"Successfully extracted {keys_extracted} candidate keys"
                 + (f", {total_fk} foreign key reference(s)" if total_fk else "")
+                + (f", {total_doc} document reference(s)" if total_doc else "")
                 + (f"; {n_failed} entity failure(s)" if n_failed else "")
             )
         elif n_failed:
@@ -904,9 +929,9 @@ def _get_target_entities_cdf(
 
     raw_db = config.parameters.raw_db
     raw_table_key = config.parameters.raw_table_key
-    overwrite = config.parameters.overwrite
+    full_rescan = resolve_full_rescan(config.parameters, data)
     excluded_entities: List[str] = []
-    if not overwrite:
+    if not full_rescan:
         policy = getattr(config.parameters, "skip_entity_policy", "successful_only")
         chunk = getattr(config.parameters, "raw_skip_scan_chunk_size", 5000)
         if policy == "none":

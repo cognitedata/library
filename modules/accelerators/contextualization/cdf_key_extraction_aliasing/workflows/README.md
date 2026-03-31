@@ -5,16 +5,19 @@
 This module ships a workflow that:
 1) (**incremental / default in WorkflowVersion**) runs **`fn_dm_incremental_state_update`** to detect scoped instance changes, write **scope watermarks** and **cohort** entity rows in the unified key-extraction RAW table with **`WORKFLOW_STATUS=detected`** and a per-run **`RUN_ID`**,
 2) runs **`fn_dm_key_extraction`** on that cohort (reads **`RUN_ID` + `WORKFLOW_STATUS=detected`**, then sets **`extracted`** on success or **`failed`** on row failure),
-3) runs **`fn_dm_aliasing`** reading candidate keys from RAW (optionally filtered by run + status), writes alias rows, then advances **`WORKFLOW_STATUS`** to **`aliased`** for that cohort where applicable,
-4) runs **`fn_dm_alias_persistence`** and advances **`WORKFLOW_STATUS`** to **`persisted`** (or leaves failures for operator review).
+3) runs **`fn_dm_reference_index`** in parallel with aliasing (depends only on key extraction): reads **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** from key-extraction RAW and maintains an inverted **reference index** table (e.g. `{{ scope_cdf_suffix }}_reference_index`) — candidate keys are **not** sent through this task,
+4) runs **`fn_dm_aliasing`** reading **candidate keys** from RAW (optionally filtered by run + status), writes alias rows, then advances **`WORKFLOW_STATUS`** to **`aliased`** for that cohort where applicable,
+5) runs **`fn_dm_alias_persistence`** and advances **`WORKFLOW_STATUS`** to **`persisted`** (or leaves failures for operator review).
 
-For deployments that omit incremental mode, the same pipeline can be described as three user-visible steps: key extraction → aliasing → persistence. The **default scope** in `config/scopes/default/key_extraction_aliasing.yaml` includes CogniteAsset and CogniteTimeSeries; embedded site workflow configs are often CogniteFile-only.
+For deployments that omit incremental mode, the same pipeline can be described as: key extraction → (reference index ∥ aliasing) → alias persistence. The **default scope** in `config/scopes/default/key_extraction_aliasing.yaml` includes CogniteAsset and CogniteTimeSeries; inline workflow configs are often CogniteFile-heavy while the default scope YAML documents the full CDM set.
 
-### Workflow: `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (version `v1`)
+### Workflow: `cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` (version `v1`)
+
+Deploy-time **CDF Toolkit** variables **`scope_cdf_suffix`** and **`scope_leaf_display_name`** replace legacy `site_abbreviation` / `site_name`. For a leaf in [`scope_hierarchy.yaml`](../scope_hierarchy.yaml), **`scope_cdf_suffix`** must match **`cdf_external_id_suffix(scope_id)`** in [`scripts/scope_build/naming.py`](../scripts/scope_build/naming.py) — the same transform used when [`scripts/build_scopes.py`](../scripts/build_scopes.py) materializes pipeline config external ids for that leaf. **`scope_leaf_display_name`** is the leaf node’s display **`name`** (same as `scope.name` in the generated v1 scope document under `config/scopes/<scope_id>/`).
 
 #### Workflow inputs (v1)
 
-- **`process_all`** (bool, default `false`): passed to `fn_dm_incremental_state_update` as `process_all`; when `true`, scope watermarks are cleared and the run lists the full scoped set (no `lastUpdatedTime` range) before re-seeding watermarks.
+- **`full_rescan`** (bool, default `false`): passed to `fn_dm_incremental_state_update` and `fn_dm_key_extraction` as `full_rescan` in function `data`; when `true`, scope watermarks are cleared and the run lists the full scoped set (no `lastUpdatedTime` range) before re-seeding watermarks, and key extraction uses the same run-level flag (see configuration guide).
 - **`run_id`** (string, optional): reserved for operator/trigger use when wiring task outputs; when unset, downstream tasks may use `incremental_auto_run_id` to discover a single active `RUN_ID` in RAW (single-run deployments only).
 
 #### Task 1 — Incremental state (`fn_dm_incremental_state_update`)
@@ -23,16 +26,21 @@ For deployments that omit incremental mode, the same pipeline can be described a
 
 #### Task 2 — Key extraction
 - **Function**: `fn_dm_key_extraction`
-- **Writes RAW** (configured by the workflow input config) to **`db_key_extraction/{{ site_abbreviation }}_key_extraction_state`**:
-  - **Entity rows** (`RECORD_KIND=entity`): with incremental mode, row key is the cohort **`RAW_ROW_KEY`** (stable per run + scope + instance); otherwise row key is typically the node **external id**. Columns include extraction payloads; **`WORKFLOW_STATUS`** moves to **`extracted`** (or **`failed`**); `RULES_USED_JSON`; optional `FOREIGN_KEY_REFERENCES_JSON`; `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`
+- **Writes RAW** (configured by the workflow input config) to **`db_key_extraction/{{ scope_cdf_suffix }}_key_extraction_state`**:
+  - **Entity rows** (`RECORD_KIND=entity`): with incremental mode, row key is the cohort **`RAW_ROW_KEY`** (stable per run + scope + instance); otherwise row key is typically the node **external id**. Columns include extraction payloads; **`WORKFLOW_STATUS`** moves to **`extracted`** (or **`failed`**); `RULES_USED_JSON`; optional `FOREIGN_KEY_REFERENCES_JSON` and **`DOCUMENT_REFERENCES_JSON`**; `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`
   - **Run summary rows** (`RECORD_KIND=run`): timestamp row key; counts, durations, `rules_used_counts_json`, `skip_entity_policy`, etc.
 
-#### Task 3 — Key aliasing
+#### Task 3 — Reference index (optional branch)
+- **Function**: `fn_dm_reference_index`
+- **Reads** key-extraction RAW (`FOREIGN_KEY_REFERENCES_JSON`, `DOCUMENT_REFERENCES_JSON`); **does not** read candidate-key list columns.
+- **Writes** inverted index RAW (e.g. `db_key_extraction/{{ scope_cdf_suffix }}_reference_index`) — see [`functions/fn_dm_reference_index/README.md`](../functions/fn_dm_reference_index/README.md).
+
+#### Task 4 — Key aliasing
 - **Function**: `fn_dm_aliasing`
 - **Reads RAW** (key extraction output):
-  - `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`
+  - `db_key_extraction/{{ scope_cdf_suffix }}_key_extraction_state`
 - **Writes RAW**:
-  - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
+  - `db_tag_aliasing/{{ scope_cdf_suffix }}_aliases`
     - Row key: `original_tag`
     - Columns:
       - `aliases` (list-like)
@@ -40,48 +48,30 @@ For deployments that omit incremental mode, the same pipeline can be described a
       - `metadata_json`
       - `entities_json` (mapping of tag → entity nodes)
 
-#### Task 4 — Alias persistence
+#### Task 5 — Alias persistence
 - **Function**: `fn_dm_alias_persistence`
 - **Reads RAW**:
-  - `db_tag_aliasing/{{ site_abbreviation }}_aliases` (alias rows)
-  - When **`write_foreign_key_references`** is true: key-extraction RAW (e.g. `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`) for `FOREIGN_KEY_REFERENCES_JSON`, via `source_raw_db` / `source_raw_table_key` on the task `data`
+  - `db_tag_aliasing/{{ scope_cdf_suffix }}_aliases` (alias rows)
+  - When **`write_foreign_key_references`** is true: key-extraction RAW (e.g. `db_key_extraction/{{ scope_cdf_suffix }}_key_extraction_state`) for `FOREIGN_KEY_REFERENCES_JSON`, via `source_raw_db` / `source_raw_table_key` on the task `data`
 - **Writes back to data model**
   - Updates each referenced node on **`cdf_cdm:CogniteDescribable:v1`** with the configured alias property (default `aliases`)
   - Optionally writes foreign-key reference strings to **`foreign_key_writeback_property`** (e.g. `references_found`) when enabled — only if that property exists in your data model
 
 ### Interpreting “aliases persisted”
 
-Aliases are aggregated **per entity**. If one entity is referenced by multiple tag rows (for example a `{{ site_abbreviation }}-*` key and a `PP*` key), the entity will receive the union of aliases from those rows.
+Aliases are aggregated **per entity**. If one entity is referenced by multiple tag rows (for example a `{{ scope_cdf_suffix }}-*` key and a `PP*` key), the entity will receive the union of aliases from those rows.
 
-### Generic workflow: `cdf_key_extraction_aliasing` (version `v1`)
+### Workflow manifests (CDF Toolkit)
 
-For deployments that use a **single** workflow external id (no site suffix on the workflow container), use:
+Single set of files; **workflow** and **trigger** resource ids include **`{{ scope_cdf_suffix }}`** so each fusion deploy can target one leaf scope without a second manifest:
 
-- [`cdf_key_extraction_aliasing.Workflow.yaml`](cdf_key_extraction_aliasing.Workflow.yaml) — `externalId: cdf_key_extraction_aliasing`
-- [`cdf_key_extraction_aliasing.WorkflowVersion.yaml`](cdf_key_extraction_aliasing.WorkflowVersion.yaml) — same RAW handoff pattern as the site-templated version; task `externalId` values are `fn_dm_key_extraction`, `fn_dm_aliasing`, and `fn_dm_alias_persistence` (no per-site suffix on task ids)
-- [`cdf_key_extraction_aliasing.WorkflowTrigger.yaml`](cdf_key_extraction_aliasing.WorkflowTrigger.yaml) — schedule trigger for `cdf_key_extraction_aliasing` / `v1`
+| File | Role |
+|------|------|
+| [`cdf_key_extraction_aliasing.Workflow.yaml`](cdf_key_extraction_aliasing.Workflow.yaml) | Workflow container: `externalId: cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`, description uses `{{ scope_leaf_display_name }}`. |
+| [`cdf_key_extraction_aliasing.WorkflowVersion.yaml`](cdf_key_extraction_aliasing.WorkflowVersion.yaml) | `workflowExternalId: cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` (v1). Task `externalId` values are `fn_dm_key_extraction`, `fn_dm_reference_index`, `fn_dm_aliasing`, `fn_dm_alias_persistence` (no per-scope suffix on task node ids). Embedded config uses `{{ scope_cdf_suffix }}`, `{{ scope_leaf_display_name }}`, `{{ instance_space }}`, etc. |
+| [`cdf_key_extraction_aliasing.WorkflowTrigger.yaml`](cdf_key_extraction_aliasing.WorkflowTrigger.yaml) | Schedule trigger: `externalId: cdf_key_extraction_aliasing_trigger_{{ scope_cdf_suffix }}`, `workflowExternalId` matches the workflow above, `workflowVersion: v1`. |
 
-Embedded config in the version file may still use CDF Toolkit placeholders such as `{{ site_abbreviation }}`, `{{ site_name }}`, and `{{ instance_space }}` for RAW table names and pipeline config external ids.
-
-### Site-templated workflow: `cdf_key_extraction_aliasing_{{ site_abbreviation }}`
-
-Optional parallel manifests (per-site workflow **container** id):
-
-- [`cdf_key_extraction_aliasing_site.Workflow.yaml`](cdf_key_extraction_aliasing_site.Workflow.yaml)
-- [`cdf_key_extraction_aliasing_site.WorkflowVersion.yaml`](cdf_key_extraction_aliasing_site.WorkflowVersion.yaml)
-- [`cdf_key_extraction_aliasing_site-01.WorkflowTrigger.yaml`](cdf_key_extraction_aliasing_site-01.WorkflowTrigger.yaml)
-
-**Keeping generic and site workflows in sync:** [`cdf_key_extraction_aliasing_site.WorkflowVersion.yaml`](cdf_key_extraction_aliasing_site.WorkflowVersion.yaml) is generated from [`cdf_key_extraction_aliasing.WorkflowVersion.yaml`](cdf_key_extraction_aliasing.WorkflowVersion.yaml) (only workflow/task `externalId` lines differ). After editing the canonical file, regenerate the site manifest:
-
-```bash
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflows/generate_site_workflow_version.py
-```
-
-The repository’s **Build and Release Packages** workflow runs `--check` on every push and pull request so the committed site file cannot drift from the generator. Locally:
-
-```bash
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflows/generate_site_workflow_version.py --check
-```
+**Migration:** Older deployments that registered a fixed workflow id `cdf_key_extraction_aliasing` (and trigger `cdf_key_extraction_aliasing_trigger`) should redeploy with the suffixed ids and set **`scope_cdf_suffix`** in fusion — for example **`default`** if you align with `config/scopes/default/key_extraction_aliasing.yaml` and matching pipeline external ids.
 
 ### Alias write-back property
 
@@ -111,12 +101,8 @@ workflows/
 ├── cdf_key_extraction_aliasing.Workflow.yaml
 ├── cdf_key_extraction_aliasing.WorkflowVersion.yaml
 ├── cdf_key_extraction_aliasing.WorkflowTrigger.yaml
-├── cdf_key_extraction_aliasing_site.Workflow.yaml
-├── cdf_key_extraction_aliasing_site.WorkflowVersion.yaml
-├── cdf_key_extraction_aliasing_site-01.WorkflowTrigger.yaml
 ├── workflow_diagram.md
 ├── workflow_diagram.png
-├── generate_site_workflow_version.py
 └── README.md
 ```
 

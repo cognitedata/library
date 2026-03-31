@@ -36,10 +36,11 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 ## Roadmap
 
 - [ ] State store for targets in CDM (reduce RAW-only patterns where applicable)
-- [ ] Richer foreign-key / document-reference storage beyond optional Describable write-back
+- [x] RAW inverted **reference index** for FK + document refs (`fn_dm_reference_index`; see [workflows/README.md](workflows/README.md))
+- [ ] DM projection / sync for the reference index (RAW remains source of truth)
 - [ ] Finer default rules per `entity_type`
 - [ ] Broader non-ISA tag testing
-- [ ] Reference-catalog reverse lookup and relationships
+- [ ] Reference-catalog relationships beyond inverted lookup
 
 ## Quick start (`main.py`)
 
@@ -75,7 +76,7 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 
 When `parameters.incremental_change_processing` is true, `fn_dm_incremental_state_update` selects instances whose `node.lastUpdatedTime` is above a per-scope high watermark (stored in `raw_table_key`) and writes cohort entity rows with `WORKFLOW_STATUS=detected` for the downstream key-extraction step.
 
-**`parameters.incremental_skip_unchanged_source_inputs`** (default `true`): when enabled together with incremental processing, detection computes a SHA-256 digest (`EXTRACTION_INPUTS_HASH`) of the same source fields and preprocessing as key extraction, plus a fingerprint of `extraction_rules`. If it matches the latest hash stored on a completed entity row for that node and scope (`WORKFLOW_STATUS` in `extracted`, `aliased`, or `persisted`), no new cohort row is emitted for that instance; **watermarks still advance** from `lastUpdatedTime` so unchanged noise updates do not re-list the same instances forever. `fn_dm_key_extraction` writes `EXTRACTION_INPUTS_HASH` on incremental entity rows when both flags are enabled. The `+1 ms` bound on `lastUpdatedTime` filters is unchanged (boundary semantics). `process_all=true` still emits cohort rows for all matched instances regardless of prior hash/state.
+**`parameters.incremental_skip_unchanged_source_inputs`** (default `true`): when enabled together with incremental processing, detection computes a SHA-256 digest (`EXTRACTION_INPUTS_HASH`) of the same source fields and preprocessing as key extraction, plus a fingerprint of `extraction_rules`. If it matches the latest hash stored on a completed entity row for that node and scope (`WORKFLOW_STATUS` in `extracted`, `aliased`, or `persisted`), no new cohort row is emitted for that instance; **watermarks still advance** from `lastUpdatedTime` so unchanged noise updates do not re-list the same instances forever. `fn_dm_key_extraction` writes `EXTRACTION_INPUTS_HASH` on incremental entity rows when both flags are enabled. The `+1 ms` bound on `lastUpdatedTime` filters is unchanged (boundary semantics). `full_rescan=true` still emits cohort rows for all matched instances regardless of prior hash/state.
 
 ## Alias write-back
 
@@ -130,6 +131,7 @@ cdf_key_extraction_aliasing/
 │   ├── fn_dm_aliasing/
 │   └── fn_dm_alias_persistence/
 ├── workflows/              # CDF Workflow YAML — see workflows/README.md
+├── upload_data/            # optional Data plugin FileContent manifests — see config/README.md
 ├── scripts/
 ├── tests/
 └── docs/                   # see docs/README.md
@@ -139,8 +141,9 @@ cdf_key_extraction_aliasing/
 |------|------|
 | `config/scopes/` | v1 scope document per scope (`key_extraction_aliasing.yaml`) |
 | `config/examples/` | Demos and reference YAML — [config/examples/README.md](config/examples/README.md) |
-| `functions/fn_dm_*` | CDF functions + engines |
+| `functions/fn_dm_*` | CDF functions + engines (`fn_dm_reference_index` = RAW reference catalog) |
 | `workflows/` | Workflow manifests and diagram |
+| `upload_data/` | Cognite Toolkit Data plugin manifests for optional CogniteFile upload of scope YAML |
 | `tests/` | Pytest suite and `tests/results/` for JSON artifacts |
 | `docs/` | Specs, guides, report |
 
@@ -159,7 +162,13 @@ Loading in code: `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_
 
 ## CDF deployment
 
-Workflow **`cdf_key_extraction_aliasing`** chains the three functions. Deploy using your CDF Toolkit / Fusion module layout (workflows, functions, data sets as defined in your package).
+Workflow **`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`** (see [workflows/README.md](workflows/README.md)) chains the pipeline functions. Deploy using your CDF Toolkit / Fusion module layout (workflows, functions, data sets as defined in your package); set **`scope_cdf_suffix`** and **`scope_leaf_display_name`** for the deployed leaf scope.
+
+**Optional — upload scope YAML to CDF as CogniteFile (audit / reference):** The Data plugin can register v1 scope files under [`upload_data/`](upload_data/) using `kind: FileContent` manifests (see [config/README.md](config/README.md)). This does **not** replace inline workflow `config`; functions still read task payloads at runtime unless you add separate integration. Enable the plugin in your project `cdf.toml` (`[plugins] data = true`), set **`key_extraction_config_files_instance_space`** in your environment config from [`default.config.yaml`](default.config.yaml), then from repository root:
+
+```bash
+cdf data upload dir modules/accelerators/contextualization/cdf_key_extraction_aliasing/upload_data
+```
 
 ## Testing
 

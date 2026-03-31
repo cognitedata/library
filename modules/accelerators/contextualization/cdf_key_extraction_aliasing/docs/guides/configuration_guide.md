@@ -31,7 +31,7 @@ Configuration files are located in:
 - **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/scopes/<scope>/key_extraction_aliasing.yaml` (default: `config/scopes/default/key_extraction_aliasing.yaml`). One v1 scope document per file: required `key_extraction`, optional `aliasing` — the single authoring shape for this pipeline, aligned with workflow payloads.
 - **Example demos:** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (same scope shape, `*.key_extraction_aliasing.yaml`).
 
-**Multi-leaf scopes:** Author `scope_hierarchy.yaml` at the module root and run `scripts/build_scopes.py` to generate one `config/scopes/<leaf_scope_id>/key_extraction_aliasing.yaml` per leaf (see `config/README.md`, *Scope hierarchy builder*).
+**Multi-leaf scopes:** Author `scope_hierarchy.yaml` at the module root and run `scripts/build_scopes.py` to generate one `config/scopes/<leaf_scope_id>/key_extraction_aliasing.yaml` per leaf (see `config/README.md`, *Scope hierarchy builder*). For CDF workflow deploy, set fusion variables **`scope_cdf_suffix`** (same as `cdf_external_id_suffix` for that leaf’s `scope_id`; see `scripts/scope_build/naming.py`) and **`scope_leaf_display_name`** (leaf display name in the hierarchy) as described in [`workflows/README.md`](../../workflows/README.md).
 
 See `config/README.md` in the module for layout and CLI behavior (`main.py` `--scope` / `--config-path`). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
 
@@ -58,7 +58,7 @@ Asset, timeseries tag, and FK rules share one YAML anchor **`&alphanumeric_tag`*
 
 **Aliasing (default):** Under `aliasing.config.data.aliasing_rules` — `semantic_expansion` and `strip_numeric_unit_prefix` (priority 10, assets), `leading_zero_normalization` (priority 20, assets), `document_aliases` (priority 30, files). Default **`write_foreign_key_references: false`**. Timeseries candidate keys are **not** processed by the asset-only rules unless you add or widen `scope_filters.entity_type`.
 
-**Workflows:** [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) may embed **site-specific** `source_views` and rules (often file-heavy). Treat the **scope YAML** as the authoring reference for the full three-entity CDM layout; align inline workflow config when behavior should match.
+**Workflows:** [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) may embed **scope-specific** `source_views` and rules (often file-heavy). Treat the **scope YAML** as the authoring reference for the full three-entity CDM layout; align inline workflow config when behavior should match.
 
 Short narrative: [Key extraction / aliasing report](../key_extraction_aliasing_report.md).
 
@@ -73,10 +73,10 @@ externalId: ctx_key_extraction_default  # Unique identifier for the pipeline
 config:
   parameters:
     debug: true                          # Enable debug logging
-    overwrite: true                      # When false, instances may be skipped per skip_entity_policy using RAW
+    full_rescan: true                    # When false, instances may be skipped per skip_entity_policy using RAW
     raw_db: db_key_extraction            # RAW database name
     raw_table_key: key_extraction_state # Entity rows + per-entity status + run summaries (RECORD_KIND)
-    skip_entity_policy: successful_only  # successful_only | none (when overwrite is false)
+    skip_entity_policy: successful_only  # successful_only | none (when full_rescan is false)
     write_empty_extraction_rows: false   # If true, write EXTRACTION_STATUS=empty when no keys/FKs
     raw_skip_scan_chunk_size: 5000       # Chunk size when scanning raw_table_key for skip policy
   data:
@@ -97,7 +97,7 @@ config:
       # ... extraction rule configurations
 ```
 
-**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Downstream FK readers only use rows that contain `FOREIGN_KEY_REFERENCES_JSON`. **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `overwrite: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
+**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Key extraction writes **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** (when rules produce FKs / document refs). **`fn_dm_reference_index`** reads only those JSON columns (not candidate-key list columns) and maintains a separate inverted index RAW table (e.g. `{site}_reference_index`). **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `full_rescan: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
 
 ### Source Views Configuration
 
@@ -535,7 +535,6 @@ externalId: ctx_aliasing_default          # Unique identifier
 config:
   parameters:
     debug: true                           # Enable debug logging
-    overwrite: true                       # Overwrite existing aliases
     raw_db: db_tag_aliasing               # RAW database name
     raw_table_state: tag_aliasing_state   # Per-site workflows: `{site}_tag_aliasing_state`
     raw_table_aliases: default_aliases    # Aliases storage table

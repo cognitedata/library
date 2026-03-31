@@ -1,6 +1,6 @@
 ## fn_dm_alias_persistence
 
-CDF function in **`cdf_key_extraction_aliasing`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+CDF function in **`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
 
 Reads aliasing results (from task input or RAW) and persists generated **aliases** back to data model instances on **`cdf_cdm:CogniteDescribable:v1`**. Optionally persists **foreign key reference strings** from key extraction to a second configurable property (same default view or another view).
 
@@ -44,15 +44,15 @@ The pipeline also writes diagnostic counts onto the mutable **`data`** dict (e.g
 Run `handler.py:run_locally()` and point it at the RAW table you want to read:
 
 - `raw_db = db_tag_aliasing`
-- `raw_table_aliases = {{ site_abbreviation }}_aliases`
+- `raw_table_aliases = {{ scope_cdf_suffix }}_aliases`
 
 Add FK-related keys to `data` if testing FK persistence (and ensure extraction RAW or `entities_keys_extracted` is populated).
 
 ### How it runs in the workflow
 
-In **`cdf_key_extraction_aliasing`** / **`cdf_key_extraction_aliasing_{{ site_abbreviation }}`** (v1):
+In **`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`** (v1):
 
-- Reads alias rows from `db_tag_aliasing/{{ site_abbreviation }}_aliases` (unless `aliasing_results` is passed inline).
+- Reads alias rows from `db_tag_aliasing/{{ scope_cdf_suffix }}_aliases` (unless `aliasing_results` is passed inline).
 - When **`write_foreign_key_references`** is true, reads key-extraction RAW (`source_raw_db` / `source_raw_table_key`) for `FOREIGN_KEY_REFERENCES_JSON` and merges with any inline extraction payload.
 - Updates referenced nodes in their **`instance_space`**.
 

@@ -29,14 +29,30 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     KeyExtractionEngine,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
+    _dedupe_document_references,
     _dedupe_foreign_key_references,
     key_extraction,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline import (
+    persist_reference_index,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
     property_reference_for_filter,
 )
 
 from .report import ensure_results_dir
+
+
+def _reference_index_raw_table_from_key_extraction_table(raw_table_key: str) -> str:
+    """Derive inverted-index RAW table name from key-extraction state table (workflow parity)."""
+    k = (raw_table_key or "").strip()
+    if not k:
+        return "reference_index"
+    if k.endswith("_key_extraction_state"):
+        return k[: -len("_key_extraction_state")] + "_reference_index"
+    if k == "key_extraction_state":
+        return "reference_index"
+    return f"{k}_reference_index"
 
 
 def _build_dm_filter_from_view_dict(
@@ -348,12 +364,13 @@ def _run_workflow_parity(
     )
 
     logger.info(
-        "Incremental mode: running workflow parity (state update → extraction → aliasing → persistence)"
+        "Incremental mode: running workflow parity "
+        "(state update → extraction → reference index → aliasing → persistence)"
     )
 
     state_data: Dict[str, Any] = {
         "logLevel": "INFO",
-        "process_all": bool(getattr(args, "process_all", False)),
+        "full_rescan": bool(getattr(args, "full_rescan", False)),
     }
     incremental_state_update(client, pipe_logger, state_data, cdf_config)
     run_id = state_data.get("run_id")
@@ -363,18 +380,72 @@ def _run_workflow_parity(
     ke_data: Dict[str, Any] = {
         "logLevel": "INFO",
         "run_id": run_id,
+        "full_rescan": bool(getattr(args, "full_rescan", False)),
     }
     engine = KeyExtractionEngine(engine_config)
     key_extraction(client, pipe_logger, ke_data, engine, cdf_config)
 
     entities_keys_extracted = ke_data.get("entities_keys_extracted") or {}
+    raw_db = str(getattr(cdf_config.parameters, "raw_db", "") or "")
+    raw_table_key = str(getattr(cdf_config.parameters, "raw_table_key", "") or "")
     v0 = source_views[0]
     fallback_instance_space = next(
         (str(v.get("instance_space")) for v in source_views if v.get("instance_space")),
         "all_spaces",
     )
-    raw_db = str(getattr(cdf_config.parameters, "raw_db", "") or "")
-    raw_table_key = str(getattr(cdf_config.parameters, "raw_table_key", "") or "")
+
+    if not getattr(args, "skip_reference_index", False):
+        if args.dry_run:
+            logger.info(
+                "Dry-run: skipping reference index RAW writes (same as alias persistence)."
+            )
+        elif not raw_db or not raw_table_key:
+            logger.warning(
+                "Reference index skipped: raw_db or raw_table_key missing in key_extraction parameters."
+            )
+        else:
+            ref_data: Dict[str, Any] = {
+                "logLevel": "INFO",
+                "source_run_id": run_id,
+                "source_raw_db": raw_db,
+                "source_raw_table_key": raw_table_key,
+                "source_raw_read_limit": 10000,
+                "incremental_auto_run_id": True,
+                "reference_index_raw_db": raw_db,
+                "reference_index_raw_table": _reference_index_raw_table_from_key_extraction_table(
+                    raw_table_key
+                ),
+                "source_instance_space": str(
+                    v0.get("instance_space") or fallback_instance_space
+                ),
+                "source_view_space": v0.get("view_space", "cdf_cdm"),
+                "source_view_external_id": v0.get("view_external_id", "CogniteAsset"),
+                "source_view_version": v0.get("view_version", "v1"),
+                "reference_index_fk_entity_type": "asset",
+                "reference_index_document_entity_type": "file",
+                "config": {
+                    "config": {
+                        "parameters": {"debug": True},
+                        "data": {
+                            "aliasing_rules": aliasing_config.get("rules") or [],
+                            "validation": aliasing_config.get("validation") or {},
+                        },
+                    },
+                },
+            }
+            try:
+                persist_reference_index(client, pipe_logger, ref_data)
+                logger.info(
+                    "✓ Reference index: %s entities processed, %s inverted writes, %s postings",
+                    ref_data.get("reference_index_entities_processed", 0),
+                    ref_data.get("reference_index_inverted_writes", 0),
+                    ref_data.get("reference_index_posting_events", 0),
+                )
+            except Exception as e:
+                logger.error("Reference index failed: %s", e, exc_info=True)
+    else:
+        logger.info("Skipping reference index (--skip-reference-index).")
+
     alias_data: Dict[str, Any] = {
         "logLevel": "INFO",
         "entities_keys_extracted": entities_keys_extracted,
@@ -502,9 +573,9 @@ def run_pipeline(
                 "(use default config/scopes/<scope>/key_extraction_aliasing.yaml or --config-path)."
             )
         sp = Path(scope_yaml_path)
-        if getattr(args, "process_all", False):
+        if getattr(args, "full_rescan", False):
             logger.info(
-                "--process-all: full scope rescan (same as workflow input process_all=true)."
+                "--full-rescan: full scope rescan (same as workflow input full_rescan=true)."
             )
         _run_workflow_parity(
             args,
@@ -770,10 +841,12 @@ def run_pipeline(
                 }
 
             fk_refs = _dedupe_foreign_key_references(res)
+            doc_refs = _dedupe_document_references(res)
             row_instance_space = entity.get("space") or instance_space
             entities_keys_extracted[entity_id] = {
                 "keys": keys_by_field,
                 "foreign_key_references": fk_refs,
+                "document_references": doc_refs,
                 "view_space": view_space,
                 "view_external_id": view_external_id,
                 "view_version": view_version,
@@ -895,6 +968,12 @@ def run_pipeline(
                 )
 
         all_extraction_items.extend(view_extraction_items)
+
+    if not getattr(args, "skip_reference_index", False):
+        logger.info(
+            "Reference index step not run: non-incremental CLI path does not write key-extraction RAW; "
+            "enable incremental_change_processing in scope for workflow parity (including RAW reference index)."
+        )
 
     # Write results
     results_dir = ensure_results_dir()

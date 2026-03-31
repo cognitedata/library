@@ -4,24 +4,15 @@ from __future__ import annotations
 
 import copy
 import logging
-import re
 from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
 
 from scope_build.context import ScopeBuildContext
+from scope_build.naming import cdf_external_id_suffix
 
 logger = logging.getLogger(__name__)
-
-_EXTERNAL_ID_SAFE = re.compile(r"[^a-zA-Z0-9_-]+")
-
-
-def _cdf_external_id_suffix(scope_id: str) -> str:
-    s = scope_id.lower().replace("__", "_")
-    s = _EXTERNAL_ID_SAFE.sub("_", s)
-    s = re.sub(r"_+", "_", s).strip("_")
-    return s or "scope"
 
 
 SCOPE_DOCUMENT_FILENAME = "key_extraction_aliasing.yaml"
@@ -52,7 +43,7 @@ class ScopeYamlBuilder:
         if not isinstance(doc, dict):
             raise ValueError("Template root must be a mapping")
         doc = copy.deepcopy(doc)
-        suffix = _cdf_external_id_suffix(ctx.scope_id)
+        suffix = cdf_external_id_suffix(ctx.scope_id)
         _patch_external_ids(doc, suffix)
         _inject_leaf_instance_space_filters(doc, ctx)
         doc["scope"] = _build_scope_block(ctx)
@@ -120,7 +111,7 @@ def _inject_leaf_instance_space_filters(doc: Dict[str, Any], ctx: ScopeBuildCont
     if isinstance(inst, str) and inst.strip():
         space_value = inst.strip()
     else:
-        suffix = _cdf_external_id_suffix(ctx.scope_id)
+        suffix = cdf_external_id_suffix(ctx.scope_id)
         space_value = f"PLACEHOLDER_INSTANCE_SPACE_FOR_SCOPE__{suffix}"
 
     for v in views:
