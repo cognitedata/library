@@ -11,7 +11,7 @@ from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 try:
     from cognite.client import CogniteClient
-    from cognite.client.data_classes.data_modeling.ids import ViewId
+    from cognite.client.data_classes.data_modeling.ids import NodeId, ViewId
     from cognite.client.data_classes.data_modeling.instances import (
         NodeApply,
         NodeOrEdgeData,
@@ -22,6 +22,7 @@ except ImportError:
     CDF_AVAILABLE = False
     NodeApply = None
     NodeOrEdgeData = None
+    NodeId = None
     ViewId = None
 
 from .common.logger import CogniteFunctionLogger
@@ -85,6 +86,19 @@ class _AliasApplyWorkItem(NamedTuple):
     node: Any
     aliases: List[str]
     fk_vals: List[str]
+
+
+def _normalize_str_list(value: Any) -> List[str]:
+    """Normalize scalar/list/raw value to sorted unique non-empty strings."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        vals = [str(v).strip() for v in value if v is not None and str(v).strip()]
+        return sorted(set(vals))
+    s = str(value).strip()
+    if not s:
+        return []
+    return [s]
 
 
 def _metrics_for_successful_apply(items: List[_AliasApplyWorkItem]) -> Tuple[int, int, int, int]:
@@ -609,7 +623,58 @@ def persist_aliases_to_entities(
         apply_batch_size = _resolve_persistence_apply_batch_size(data)
         data["persistence_apply_batch_size"] = apply_batch_size
 
+        # Read current values so we can avoid no-op writes (which otherwise bump
+        # lastUpdatedTime and keep incremental cohorts non-empty forever).
+        current_values: Dict[Tuple[str, str], Dict[str, List[str]]] = {}
+        try:
+            if NodeId is not None:
+                node_ids: List[Any] = []
+                for _entity_key, alias_data in entity_aliases.items():
+                    instance_space = alias_data.get("instance_space") or target_view_space
+                    entity_id = alias_data["entity_id"]
+                    node_ids.append(
+                        NodeId(space=str(instance_space), external_id=str(entity_id))
+                    )
+                if node_ids:
+                    srcs = [target_view_id]
+                    if write_fk and fk_writeback_property and fk_view_id != target_view_id:
+                        srcs.append(fk_view_id)
+                    existing_nodes = client.data_modeling.instances.retrieve_nodes(
+                        nodes=node_ids,
+                        sources=srcs,
+                    )
+                    for n in existing_nodes or []:
+                        nd = n.dump() if hasattr(n, "dump") else {}
+                        props = nd.get("properties", {}) if isinstance(nd, dict) else {}
+                        t_props = (
+                            props.get(target_view_space, {}).get(
+                                f"{target_view_external_id}/{target_view_version}", {}
+                            )
+                            if isinstance(props, dict)
+                            else {}
+                        )
+                        f_props = (
+                            props.get(fk_vs, {}).get(f"{fk_ext}/{fk_ver}", {})
+                            if isinstance(props, dict)
+                            else {}
+                        )
+                        current_values[(str(getattr(n, "space", "")), str(getattr(n, "external_id", "")))] = {
+                            "aliases": _normalize_str_list(
+                                (t_props or {}).get(alias_writeback_property)
+                            ),
+                            "fk_vals": _normalize_str_list(
+                                (f_props or {}).get(fk_writeback_property)
+                                if fk_writeback_property
+                                else None
+                            ),
+                        }
+        except Exception as ex:
+            logger.warning(
+                f"Could not pre-read current alias/FK values for no-op filtering: {ex}"
+            )
+
         work_items: List[_AliasApplyWorkItem] = []
+        skipped_unchanged = 0
 
         for _entity_key, alias_data in entity_aliases.items():
             entity_id = alias_data["entity_id"]
@@ -619,6 +684,19 @@ def persist_aliases_to_entities(
 
             aliases = sorted(set(alias_data["aliases"]))
             fk_vals = list(fk_map.get(entity_id, [])) if write_fk else []
+            fk_vals = sorted(set(fk_vals))
+
+            cur = current_values.get((str(instance_space), str(entity_id)))
+            if cur is not None:
+                aliases_changed = aliases != cur.get("aliases", [])
+                fk_changed = (
+                    write_fk
+                    and bool(fk_writeback_property)
+                    and fk_vals != cur.get("fk_vals", [])
+                )
+                if not aliases_changed and not fk_changed:
+                    skipped_unchanged += 1
+                    continue
 
             sources: List[Any] = []
             if aliases and write_fk and fk_writeback_property and fk_vals:
@@ -680,6 +758,11 @@ def persist_aliases_to_entities(
                 )
             )
 
+        if skipped_unchanged:
+            logger.info(
+                f"Skipping {skipped_unchanged} entity update(s): aliases/FKs unchanged"
+            )
+
         (
             persisted_count,
             failed_count,
@@ -723,6 +806,57 @@ def persist_aliases_to_entities(
             f"{foreign_keys_persisted_count} FK values persisted "
             f"({entities_fk_updated} entities with FK write)"
         )
+
+        sr_persist = data.get("source_run_id")
+        if (
+            not sr_persist
+            and data.get("incremental_auto_run_id")
+            and client
+            and data.get("source_raw_db")
+            and data.get("source_raw_table_key")
+        ):
+            from ..cdf_fn_common.incremental_scope import (
+                WORKFLOW_STATUS_ALIASED,
+                discover_single_run_id_for_status,
+            )
+
+            sr_persist = discover_single_run_id_for_status(
+                client,
+                str(data["source_raw_db"]),
+                str(data["source_raw_table_key"]),
+                WORKFLOW_STATUS_ALIASED,
+            )
+            if sr_persist:
+                data["source_run_id"] = sr_persist
+
+        if (
+            client
+            and failed_count == 0
+            and persisted_count > 0
+            and data.get("incremental_transition", True)
+            and data.get("source_run_id")
+            and data.get("source_raw_db")
+            and data.get("source_raw_table_key")
+        ):
+            from ..cdf_fn_common.incremental_scope import (
+                WORKFLOW_STATUS_ALIASED,
+                WORKFLOW_STATUS_PERSISTED,
+                transition_workflow_status_for_run,
+            )
+
+            n = transition_workflow_status_for_run(
+                client,
+                str(data["source_raw_db"]),
+                str(data["source_raw_table_key"]),
+                str(data["source_run_id"]),
+                WORKFLOW_STATUS_ALIASED,
+                WORKFLOW_STATUS_PERSISTED,
+            )
+            data["key_extraction_workflow_rows_persisted"] = n
+            logger.info(
+                f"Key-extraction RAW WORKFLOW_STATUS: {n} row(s) aliased -> persisted "
+                f"(run_id={data['source_run_id']})"
+            )
 
     except Exception as e:
         message = f"Alias persistence pipeline failed: {e!s}"

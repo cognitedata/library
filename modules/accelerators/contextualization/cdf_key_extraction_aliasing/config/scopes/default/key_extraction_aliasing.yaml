@@ -15,6 +15,7 @@ key_extraction:
       skip_entity_policy: successful_only
       write_empty_extraction_rows: false
       raw_skip_scan_chunk_size: 5000
+      incremental_change_processing: true
       # Drop FK strings that duplicate a candidate key on the same instance (default true).
       # Per-source_view exclude_self_referencing_keys overrides this (CogniteAsset: true; CogniteTimeSeries: false).
       exclude_self_referencing_keys: true
@@ -482,6 +483,40 @@ aliasing:
         scope_filters:
           entity_type:
           - file
+      - name: cogniteasset_explicit_aliases_from_raw
+        type: alias_mapping_table
+        description: Apply explicit alias mappings for CogniteAsset from RAW lookup rows.
+        enabled: true
+        priority: 5
+        preserve_original: true
+        config:
+          source_match: exact
+          case_insensitive: false
+          raw_table:
+            database_name: db_tag_aliasing
+            table_name: explicit_asset_aliases
+            # Expected RAW columns:
+            #   source_tag, aliases, scope, scope_value, source_match
+            # where aliases is a comma-delimited list in one field.
+            key_column: source_tag
+            alias_columns:
+            - aliases
+            alias_delimiter: ","
+            scope_column: scope
+            scope_value_column: scope_value
+            source_match_column: source_match
+            columns:
+            - source_tag
+            - aliases
+            - scope
+            - scope_value
+            - source_match
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
+          view_external_id:
+          - CogniteAsset
       validation:
         max_aliases_per_tag: 100
         min_alias_length: 2

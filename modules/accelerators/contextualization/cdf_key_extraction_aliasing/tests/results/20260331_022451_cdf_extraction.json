@@ -1,0 +1,70 @@
+{
+  "results": [
+    {
+      "entity": {
+        "id": "pi:160245"
+      },
+      "view_external_id": "CogniteTimeSeries",
+      "extraction_result": {
+        "entity_id": "pi:160245",
+        "entity_type": "timeseries",
+        "candidate_keys": [
+          {
+            "value": "23-KA-9101",
+            "confidence": 0.6,
+            "source_field": "name",
+            "method": "cdf_pipeline",
+            "rule_id": "timeseries_instrument_tag_candidate"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {}
+      }
+    },
+    {
+      "entity": {
+        "id": "asset_tag_BLO_PID_BAY_2_SEC_2600_PO_PUR_Unclassified_X_142"
+      },
+      "view_external_id": "CogniteAsset",
+      "extraction_result": {
+        "entity_id": "asset_tag_BLO_PID_BAY_2_SEC_2600_PO_PUR_Unclassified_X_142",
+        "entity_type": "asset",
+        "candidate_keys": [
+          {
+            "value": "X-142",
+            "confidence": 0.8,
+            "source_field": "name",
+            "method": "cdf_pipeline",
+            "rule_id": "asset_equipment_tag_candidate"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {}
+      }
+    },
+    {
+      "entity": {
+        "id": "cognitefile_E-208-M-003.dwg_20251110_234711"
+      },
+      "view_external_id": "CogniteFile",
+      "extraction_result": {
+        "entity_id": "cognitefile_E-208-M-003.dwg_20251110_234711",
+        "entity_type": "file",
+        "candidate_keys": [
+          {
+            "value": "E-208-M-003.dwg.pdf",
+            "confidence": 1.0,
+            "source_field": "name",
+            "method": "cdf_pipeline",
+            "rule_id": "file_basename_candidate"
+          }
+        ],
+        "foreign_key_references": [],
+        "document_references": [],
+        "metadata": {}
+      }
+    }
+  ]
+}

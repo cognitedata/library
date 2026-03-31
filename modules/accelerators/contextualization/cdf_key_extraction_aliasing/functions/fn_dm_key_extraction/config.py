@@ -65,6 +65,14 @@ class Parameters(BaseModel):
         le=10000,
         description="Chunk size when scanning raw_table_key for skip_entity_policy (RAW rows iterator).",
     )
+    incremental_change_processing: bool = Field(
+        False,
+        description=(
+            "When true, use WORKFLOW_STATUS-driven RAW cohort handoff: run "
+            "fn_dm_incremental_state_update first, then key extraction reads cohort rows "
+            "(RUN_ID + WORKFLOW_STATUS) instead of listing the full view."
+        ),
+    )
     exclude_self_referencing_keys: Union[bool, Dict[str, Any]] = Field(
         True,
         description=(

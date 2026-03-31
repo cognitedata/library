@@ -2,20 +2,32 @@
 
 **Documentation index:** [docs/README.md](../docs/README.md).
 
-This module ships a 3-step workflow that:
-1) runs key extraction against configured **source views** (often CogniteFile-only in embedded site configs; the **default scope** in `config/scopes/default/key_extraction_aliasing.yaml` also includes CogniteAsset and CogniteTimeSeries),
-2) generates alias variants for extracted **candidate** keys,
-3) persists aliases onto **CogniteDescribable** instances referenced by the extraction/aliasing handoff (not necessarily every source node type).
+This module ships a workflow that:
+1) (**incremental / default in WorkflowVersion**) runs **`fn_dm_incremental_state_update`** to detect scoped instance changes, write **scope watermarks** and **cohort** entity rows in the unified key-extraction RAW table with **`WORKFLOW_STATUS=detected`** and a per-run **`RUN_ID`**,
+2) runs **`fn_dm_key_extraction`** on that cohort (reads **`RUN_ID` + `WORKFLOW_STATUS=detected`**, then sets **`extracted`** on success or **`failed`** on row failure),
+3) runs **`fn_dm_aliasing`** reading candidate keys from RAW (optionally filtered by run + status), writes alias rows, then advances **`WORKFLOW_STATUS`** to **`aliased`** for that cohort where applicable,
+4) runs **`fn_dm_alias_persistence`** and advances **`WORKFLOW_STATUS`** to **`persisted`** (or leaves failures for operator review).
+
+For deployments that omit incremental mode, the same pipeline can be described as three user-visible steps: key extraction → aliasing → persistence. The **default scope** in `config/scopes/default/key_extraction_aliasing.yaml` includes CogniteAsset and CogniteTimeSeries; embedded site workflow configs are often CogniteFile-only.
 
 ### Workflow: `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (version `v1`)
 
-#### Task 1 — Key extraction
+#### Workflow inputs (v1)
+
+- **`process_all`** (bool, default `false`): passed to `fn_dm_incremental_state_update` as `process_all`; when `true`, scope watermarks are cleared and the run lists the full scoped set (no `lastUpdatedTime` range) before re-seeding watermarks.
+- **`run_id`** (string, optional): reserved for operator/trigger use when wiring task outputs; when unset, downstream tasks may use `incremental_auto_run_id` to discover a single active `RUN_ID` in RAW (single-run deployments only).
+
+#### Task 1 — Incremental state (`fn_dm_incremental_state_update`)
+
+- **Writes** per-scope watermark rows and per-instance cohort rows with **`WORKFLOW_STATUS=detected`**, **`RUN_ID`**, **`SCOPE_KEY`**, **`NODE_INSTANCE_ID`**, and **`RAW_ROW_KEY`** (row key `RUN_ID:SCOPE_KEY:instance_id`).
+
+#### Task 2 — Key extraction
 - **Function**: `fn_dm_key_extraction`
 - **Writes RAW** (configured by the workflow input config) to **`db_key_extraction/{{ site_abbreviation }}_key_extraction_state`**:
-  - **Entity rows** (`RECORD_KIND=entity`): row key = node external id; field columns; `RULES_USED_JSON`; optional `FOREIGN_KEY_REFERENCES_JSON`; `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`
+  - **Entity rows** (`RECORD_KIND=entity`): with incremental mode, row key is the cohort **`RAW_ROW_KEY`** (stable per run + scope + instance); otherwise row key is typically the node **external id**. Columns include extraction payloads; **`WORKFLOW_STATUS`** moves to **`extracted`** (or **`failed`**); `RULES_USED_JSON`; optional `FOREIGN_KEY_REFERENCES_JSON`; `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`
   - **Run summary rows** (`RECORD_KIND=run`): timestamp row key; counts, durations, `rules_used_counts_json`, `skip_entity_policy`, etc.
 
-#### Task 2 — Key aliasing
+#### Task 3 — Key aliasing
 - **Function**: `fn_dm_aliasing`
 - **Reads RAW** (key extraction output):
   - `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`
@@ -28,7 +40,7 @@ This module ships a 3-step workflow that:
       - `metadata_json`
       - `entities_json` (mapping of tag → entity nodes)
 
-#### Task 3 — Alias persistence
+#### Task 4 — Alias persistence
 - **Function**: `fn_dm_alias_persistence`
 - **Reads RAW**:
   - `db_tag_aliasing/{{ site_abbreviation }}_aliases` (alias rows)
@@ -87,6 +99,10 @@ The workflow version files set **`write_foreign_key_references: false`** by defa
 ### `alias_mapping_table` rules
 
 Aliasing configs may include rules with `type: alias_mapping_table` that load rows from a Cognite **RAW** table (see [configuration guide](../docs/guides/configuration_guide.md)). The engine hydrates these rules at startup when a Cognite client is available.
+
+- RAW mapping format supports either:
+  - multiple alias columns via `alias_columns: [alias_1, alias_2, ...]`, or
+  - a single alias column (e.g. `alias_columns: [aliases]`) parsed with `alias_delimiter` (for example `","` for comma-separated aliases).
 
 ### Workflow file layout
 

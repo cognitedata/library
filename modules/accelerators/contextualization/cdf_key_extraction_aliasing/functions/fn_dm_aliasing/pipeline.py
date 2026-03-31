@@ -18,6 +18,22 @@ except ImportError:
     CDF_AVAILABLE = False
 
 from .common.logger import CogniteFunctionLogger
+from ..cdf_fn_common.incremental_scope import (
+    EXTERNAL_ID_COLUMN,
+    RAW_ROW_KEY_COLUMN,
+    RECORD_KIND_COLUMN,
+    RECORD_KIND_ENTITY,
+    RECORD_KIND_RUN,
+    RECORD_KIND_WATERMARK,
+    RUN_ID_COLUMN,
+    WORKFLOW_STATUS_COLUMN,
+    WORKFLOW_STATUS_EXTRACTED,
+    WORKFLOW_STATUS_ALIASED,
+    discover_single_run_id_for_status,
+    norm_workflow_status,
+    raw_row_columns,
+    transition_workflow_status_for_run,
+)
 from .engine.tag_aliasing_engine import AliasingEngine, AliasingResult
 
 logger = None  # Use CogniteFunctionLogger directly
@@ -63,6 +79,8 @@ def _load_candidate_keys_from_raw(
     logger: Any,
     limit: Optional[int] = 10000,
     chunk_size: int = 2500,
+    run_id: Optional[str] = None,
+    workflow_status: Optional[str] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Load candidate keys from key-extraction RAW table and build a tag->entity mapping.
@@ -77,6 +95,9 @@ def _load_candidate_keys_from_raw(
     tag_to_entity_map: Dict[str, List[Dict[str, Any]]] = {}
     row_count = 0
     truncated = False
+    wf_filter = (
+        norm_workflow_status(workflow_status) if workflow_status else None
+    )
     for row in _iter_raw_table_rows(
         client,
         raw_db,
@@ -85,15 +106,42 @@ def _load_candidate_keys_from_raw(
         max_rows=limit,
     ):
         row_count += 1
-        entity_id = getattr(row, "key", None)
+        columns = raw_row_columns(row)
+        rkind = columns.get(RECORD_KIND_COLUMN)
+        if rkind in (RECORD_KIND_WATERMARK, RECORD_KIND_RUN):
+            continue
+        if run_id:
+            if rkind == RECORD_KIND_ENTITY:
+                if str(columns.get(RUN_ID_COLUMN) or "") != str(run_id):
+                    continue
+            elif rkind is None:
+                continue
+            if wf_filter:
+                st = norm_workflow_status(columns.get(WORKFLOW_STATUS_COLUMN))
+                if st and st != wf_filter:
+                    continue
+                if not st and wf_filter != WORKFLOW_STATUS_EXTRACTED:
+                    continue
+        elif wf_filter:
+            st = norm_workflow_status(columns.get(WORKFLOW_STATUS_COLUMN))
+            if rkind == RECORD_KIND_ENTITY and st and st != wf_filter:
+                continue
+        entity_id = columns.get(EXTERNAL_ID_COLUMN) or getattr(row, "key", None)
         if not entity_id:
             continue
-        columns = getattr(row, "columns", {}) or {}
         if not isinstance(columns, dict):
             continue
 
         for field_name, values in columns.items():
             if not isinstance(values, list):
+                continue
+            if str(field_name).upper() in (
+                RECORD_KIND_COLUMN,
+                RUN_ID_COLUMN,
+                WORKFLOW_STATUS_COLUMN,
+                EXTERNAL_ID_COLUMN,
+                RAW_ROW_KEY_COLUMN,
+            ):
                 continue
             for v in values:
                 if not isinstance(v, str) or not v:
@@ -107,6 +155,7 @@ def _load_candidate_keys_from_raw(
                         "view_version": view_version,
                         "instance_space": instance_space,
                         "entity_type": entity_type,
+                        "raw_row_key": str(columns.get(RAW_ROW_KEY_COLUMN) or getattr(row, "key", "") or ""),
                     }
                 )
 
@@ -234,9 +283,23 @@ def tag_aliasing(
                         )
 
                     raw_limit = int(data.get("source_raw_read_limit", 10000))
+                    src_run = data.get("source_run_id")
+                    if not src_run and data.get("incremental_auto_run_id"):
+                        src_run = discover_single_run_id_for_status(
+                            client,
+                            source_raw_db,
+                            source_raw_table_key,
+                            WORKFLOW_STATUS_EXTRACTED,
+                        )
+                        if src_run:
+                            data["source_run_id"] = src_run
+                    wf_src = data.get("source_workflow_status") or (
+                        WORKFLOW_STATUS_EXTRACTED if src_run else None
+                    )
                     logger.info(
                         "No entities_keys_extracted provided; loading tags from RAW "
                         f"db={source_raw_db} table={source_raw_table_key} limit={raw_limit}"
+                        + (f" run_id={src_run}" if src_run else "")
                     )
                     tag_to_entity_map = _load_candidate_keys_from_raw(
                         client=client,
@@ -249,6 +312,8 @@ def tag_aliasing(
                         entity_type=str(entity_type),
                         logger=logger,
                         limit=raw_limit,
+                        run_id=str(src_run) if src_run else None,
+                        workflow_status=str(wf_src) if wf_src else None,
                     )
                     data["_tag_to_entity_map"] = tag_to_entity_map
                     tags = list(tag_to_entity_map.keys())
@@ -321,6 +386,27 @@ def tag_aliasing(
             f"Completed aliasing: {len(tags)} tags processed, "
             f"{data['total_aliases_generated']} total aliases generated"
         )
+
+        if (
+            client
+            and data.get("incremental_transition", True)
+            and data.get("source_run_id")
+            and data.get("source_raw_db")
+            and data.get("source_raw_table_key")
+        ):
+            n = transition_workflow_status_for_run(
+                client,
+                str(data["source_raw_db"]),
+                str(data["source_raw_table_key"]),
+                str(data["source_run_id"]),
+                WORKFLOW_STATUS_EXTRACTED,
+                WORKFLOW_STATUS_ALIASED,
+            )
+            logger.info(
+                f"Key-extraction RAW WORKFLOW_STATUS: {n} row(s) extracted -> aliased "
+                f"(run_id={data['source_run_id']})"
+            )
+            data["key_extraction_workflow_rows_updated"] = n
 
         # Optionally upload to CDF RAW if client is provided
         if client and data.get("upload_to_raw", False):

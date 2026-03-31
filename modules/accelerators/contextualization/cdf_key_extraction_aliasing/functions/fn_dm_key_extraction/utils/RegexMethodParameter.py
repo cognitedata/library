@@ -42,7 +42,9 @@ class RegexMethodParameter(BaseModel):
         """
         Ensures that if capture groups are provided, a reassembly method is provided as well
         """
-        if not self.capture_groups is None and self.reassemble_format is None:
+        cg = getattr(self, "capture_groups", None)
+        rf = getattr(self, "reassemble_format", None)
+        if cg is not None and rf is None:
             raise ValidationError(
                 "Capture groups must have reassemble format configured"
             )

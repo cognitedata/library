@@ -49,6 +49,8 @@ def parse_dataframe_to_rows(
         return [], ["raw_table requires key_column"]
 
     alias_columns: List[str] = list(raw_table.get("alias_columns") or [])
+    alias_delimiter = raw_table.get("alias_delimiter")
+    alias_strip_quotes = bool(raw_table.get("alias_strip_quotes", True))
     scope_column = raw_table.get("scope_column", "scope")
     scope_value_column = raw_table.get("scope_value_column", "scope_value")
     source_match_column = raw_table.get("source_match_column")
@@ -69,7 +71,15 @@ def parse_dataframe_to_rows(
                 continue
             v = _cell_str(row.get(col))
             if v:
-                aliases.append(v)
+                if isinstance(alias_delimiter, str) and alias_delimiter:
+                    for token in v.split(alias_delimiter):
+                        t = token.strip()
+                        if alias_strip_quotes:
+                            t = t.strip("\"'")
+                        if t:
+                            aliases.append(t)
+                else:
+                    aliases.append(v)
 
         scope_raw = _cell_str(row.get(scope_column)) if scope_column in df.columns else None
         scope = _normalize_scope(scope_raw)

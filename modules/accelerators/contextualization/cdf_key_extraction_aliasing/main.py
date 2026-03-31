@@ -14,7 +14,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # Bootstrap ``sys.path`` so ``local_runner`` imports work when not run as ``python -m ...``.
 _PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -128,6 +128,15 @@ def main():
         default=None,
         help="Path to a v1 scope YAML document (overrides --scope).",
     )
+    parser.add_argument(
+        "--process-all",
+        action="store_true",
+        help=(
+            "When key_extraction.parameters.incremental_change_processing is enabled, "
+            "passes process_all to the local runner (full scope rescan; same semantics as "
+            "workflow input process_all). No effect if incremental mode is off."
+        ),
+    )
     args = parser.parse_args()
 
     if args.verbose:
@@ -178,6 +187,15 @@ def main():
             f"Filtered to {len(source_views)} view(s) with instance_space={args.instance_space!r}"
         )
 
+    scope_yaml_path: Optional[Path] = None
+    if args.config_path:
+        scope_yaml_path = Path(args.config_path).expanduser().resolve()
+    else:
+        sc = (args.scope or "default").strip() or "default"
+        scope_yaml_path = (
+            _PACKAGE_ROOT / "config" / "scopes" / sc / "key_extraction_aliasing.yaml"
+        ).resolve()
+
     run_pipeline(
         args,
         logger,
@@ -188,6 +206,7 @@ def main():
         alias_writeback_property,
         write_foreign_key_references,
         foreign_key_writeback_property,
+        scope_yaml_path=scope_yaml_path,
     )
 
 

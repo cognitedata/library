@@ -186,6 +186,53 @@ class TestParseDataframeToRows(unittest.TestCase):
         self.assertEqual(rows, [])
         self.assertTrue(any("Invalid regex" in e for e in errs))
 
+    def test_single_alias_column_comma_delimited(self):
+        df = pd.DataFrame(
+            [
+                {
+                    "source_tag": "P-101",
+                    "aliases": 'P101, P_101, "P 101"',
+                    "scope": "global",
+                    "scope_value": "",
+                }
+            ]
+        )
+        raw_table = {
+            "key_column": "source_tag",
+            "alias_columns": ["aliases"],
+            "alias_delimiter": ",",
+            "scope_column": "scope",
+            "scope_value_column": "scope_value",
+        }
+        rows, errs = parse_dataframe_to_rows(df, raw_table, "exact")
+        self.assertEqual(errs, [])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["aliases"], ["P101", "P_101", "P 101"])
+
+    def test_single_alias_column_without_quote_stripping(self):
+        df = pd.DataFrame(
+            [
+                {
+                    "source_tag": "P-101",
+                    "aliases": '"P101","P_101"',
+                    "scope": "global",
+                    "scope_value": "",
+                }
+            ]
+        )
+        raw_table = {
+            "key_column": "source_tag",
+            "alias_columns": ["aliases"],
+            "alias_delimiter": ",",
+            "alias_strip_quotes": False,
+            "scope_column": "scope",
+            "scope_value_column": "scope_value",
+        }
+        rows, errs = parse_dataframe_to_rows(df, raw_table, "exact")
+        self.assertEqual(errs, [])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["aliases"], ['"P101"', '"P_101"'])
+
 
 class TestAliasingEngineAliasMappingTable(unittest.TestCase):
     def test_resolved_rows_without_client(self):

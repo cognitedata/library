@@ -13,7 +13,25 @@ from typing import Any, Dict, List, Optional, Tuple
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
+from cognite.client.data_classes.data_modeling.ids import NodeId
 
+from ..cdf_fn_common.incremental_scope import (
+    EXTERNAL_ID_COLUMN,
+    NODE_INSTANCE_ID_COLUMN,
+    RAW_ROW_KEY_COLUMN,
+    RECORD_KIND_COLUMN,
+    RECORD_KIND_ENTITY,
+    RUN_ID_COLUMN,
+    WORKFLOW_STATUS_COLUMN,
+    WORKFLOW_STATUS_DETECTED,
+    WORKFLOW_STATUS_EXTRACTED,
+    WORKFLOW_STATUS_FAILED,
+    WORKFLOW_STATUS_UPDATED_AT_COLUMN,
+    discover_single_run_id_for_status,
+    iter_cohort_entity_rows,
+    norm_workflow_status,
+    raw_row_columns,
+)
 from .common.logger import CogniteFunctionLogger
 from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
 from .services.ApplyService import GeneralApplyService
@@ -99,7 +117,12 @@ def _read_entity_keys_to_exclude(
 
 
 def _strip_extraction_internal_fields(em: Dict[str, Any]) -> Dict[str, Any]:
-    return {k: v for k, v in em.items() if not str(k).startswith("_extraction")}
+    return {
+        k: v
+        for k, v in em.items()
+        if not str(k).startswith("_extraction")
+        and k not in ("_cohort_columns", "_raw_row_key")
+    }
 
 
 def _dedupe_foreign_key_references(result: ExtractionResult) -> List[Dict[str, Any]]:
@@ -119,6 +142,242 @@ def _dedupe_foreign_key_references(result: ExtractionResult) -> List[Dict[str, A
         if v not in best or conf > best[v]["confidence"]:
             best[v] = entry
     return list(best.values())
+
+
+def _resolve_incremental_run_id(
+    client: CogniteClient,
+    raw_db: str,
+    raw_table_key: str,
+    data: Dict[str, Any],
+) -> Optional[str]:
+    rid = data.get("run_id")
+    if rid:
+        return str(rid)
+    return discover_single_run_id_for_status(
+        client, raw_db, raw_table_key, WORKFLOW_STATUS_DETECTED
+    )
+
+
+def _find_view_config_for_row(
+    source_views: List[Any], cols: Dict[str, Any]
+) -> Optional[Any]:
+    vs = cols.get("view_space")
+    ve = cols.get("view_external_id")
+    vv = cols.get("view_version")
+    if not vs or not ve or not vv:
+        return None
+    for svc in source_views:
+        if (
+            getattr(svc, "view_space", None) == vs
+            and getattr(svc, "view_external_id", None) == ve
+            and getattr(svc, "view_version", None) == vv
+        ):
+            return svc
+    return None
+
+
+def _load_incremental_cohort_entities(
+    client: CogniteClient,
+    config: Any,
+    logger: Any,
+    run_id: str,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Load instances for RAW cohort rows (RUN_ID + WORKFLOW_STATUS=detected).
+    Attaches ``_cohort_columns`` and ``_raw_row_key`` for downstream RAW merges.
+    """
+    raw_db = config.parameters.raw_db
+    raw_table_key = config.parameters.raw_table_key
+    rows = iter_cohort_entity_rows(
+        client,
+        raw_db,
+        raw_table_key,
+        run_id,
+        WORKFLOW_STATUS_DETECTED,
+    )
+    if not rows:
+        logger.info("No cohort rows with WORKFLOW_STATUS=detected for this run_id")
+        return {}
+
+    source_views = getattr(config.data, "source_views", None) or (
+        [config.data.source_view] if getattr(config.data, "source_view", None) else []
+    )
+    if not source_views:
+        raise ValueError("No source_views configured")
+
+    entities_source: Dict[str, Dict[str, Any]] = {}
+    extraction_rules = getattr(getattr(config, "data", None), "extraction_rules", None)
+    source_tables = getattr(config.data, "source_tables", None) or []
+
+    # Retrieve instances in batches grouped by view
+    batch: List[Any] = []
+    batch_meta: List[Dict[str, Any]] = []
+
+    def flush_batch() -> None:
+        nonlocal batch, batch_meta
+        if not batch:
+            return
+        # Group consecutive batches by view for retrieve_nodes (one view per API call).
+        def _view_tuple(vc: Any) -> tuple:
+            return (
+                getattr(vc, "view_space", None),
+                getattr(vc, "view_external_id", None),
+                getattr(vc, "view_version", None),
+            )
+
+        i = 0
+        while i < len(batch):
+            meta_i = batch_meta[i]
+            evc = meta_i["view_config"]
+            vid = evc.as_view_id()
+            vt = _view_tuple(evc)
+            sub_nodes: List[NodeId] = []
+            sub_meta: List[Dict[str, Any]] = []
+            j = i
+            while j < len(batch) and _view_tuple(batch_meta[j]["view_config"]) == vt:
+                sub_nodes.append(batch[j])
+                sub_meta.append(batch_meta[j])
+                j += 1
+            i = j
+            try:
+                retrieved = client.data_modeling.instances.retrieve_nodes(
+                    nodes=sub_nodes,
+                    sources=[vid],
+                )
+            except Exception as ex:
+                logger.error(f"retrieve_nodes failed: {ex}")
+                retrieved = []
+
+            by_key = {
+                (getattr(n, "space", None), getattr(n, "external_id", None)): n
+                for n in (retrieved or [])
+            }
+            for node_id, meta in zip(sub_nodes, sub_meta):
+                inst = by_key.get((node_id.space, node_id.external_id))
+                if inst is None:
+                    logger.warning(
+                        f"Instance not found for cohort row key={meta.get('raw_row_key')!r}"
+                    )
+                    continue
+                entity_external_id = inst.external_id
+                entity_props = (
+                    inst.dump()
+                    .get("properties", {})
+                    .get(vid.space, {})
+                    .get(f"{vid.external_id}/{vid.version}", {})
+                )
+                evc = meta["view_config"]
+                if entity_external_id not in entities_source:
+                    entities_source[entity_external_id] = {
+                        "entity_type": evc.entity_type.value,
+                        "view_space": vid.space,
+                        "view_external_id": vid.external_id,
+                        "view_version": vid.version,
+                        "instance_space": getattr(evc, "instance_space", None)
+                        or getattr(inst, "space", None),
+                        "_cohort_columns": dict(meta["cohort_columns"]),
+                        "_raw_row_key": meta["raw_row_key"],
+                    }
+                    kex_iso = getattr(evc, "exclude_self_referencing_keys", None)
+                    if kex_iso is not None:
+                        entities_source[entity_external_id][
+                            "_kex_exclude_self_referencing_keys"
+                        ] = kex_iso
+                wanted_fields: List[tuple[str, bool, list[str]]] = []
+                if isinstance(extraction_rules, list) and extraction_rules:
+                    if hasattr(extraction_rules[0], "source_fields"):
+                        for rule in extraction_rules:
+                            source_fields = getattr(rule, "source_fields", None)
+                            if source_fields is None:
+                                continue
+                            if not isinstance(source_fields, list):
+                                source_fields = [source_fields]
+                            for sf in source_fields:
+                                wanted_fields.append(
+                                    (
+                                        str(getattr(sf, "field_name", "") or ""),
+                                        bool(getattr(sf, "required", False)),
+                                        list(getattr(sf, "preprocessing", []) or []),
+                                    )
+                                )
+                    elif isinstance(extraction_rules[0], dict):
+                        for rule in extraction_rules:
+                            for sf in (rule.get("source_fields", []) or []):
+                                if not isinstance(sf, dict):
+                                    continue
+                                wanted_fields.append(
+                                    (
+                                        str(sf.get("field_name") or ""),
+                                        bool(sf.get("required") or False),
+                                        list(sf.get("preprocessing") or []),
+                                    )
+                                )
+
+                if not wanted_fields:
+                    for p in list(getattr(evc, "include_properties", []) or []):
+                        wanted_fields.append((str(p or ""), False, []))
+
+                tgt = entities_source[entity_external_id]
+                for field_name, required, preprocessing in wanted_fields:
+                    if not field_name:
+                        continue
+                    field_value = entity_props.get(field_name)
+                    if field_value is None:
+                        if required:
+                            logger.verbose(
+                                "WARNING",
+                                f"Missing required field '{field_name}' in entity: {entity_external_id}",
+                            )
+                        continue
+                    if preprocessing:
+                        field_value = _apply_preprocessing(field_value, preprocessing)
+                    tgt[field_name] = field_value
+
+        batch = []
+        batch_meta = []
+
+    for row in rows:
+        cols = raw_row_columns(row)
+        if cols.get(RECORD_KIND_COLUMN) != RECORD_KIND_ENTITY:
+            continue
+        if str(cols.get(RUN_ID_COLUMN) or "") != run_id:
+            continue
+        st = norm_workflow_status(cols.get(WORKFLOW_STATUS_COLUMN))
+        if st and st != WORKFLOW_STATUS_DETECTED:
+            continue
+        evc = _find_view_config_for_row(source_views, cols)
+        if evc is None:
+            logger.warning("Skipping cohort row with unknown view metadata")
+            continue
+        ext = cols.get(EXTERNAL_ID_COLUMN) or getattr(row, "key", None)
+        isp = cols.get("instance_space") or getattr(evc, "instance_space", None)
+        if not ext or not isp:
+            logger.warning("Cohort row missing external_id or instance_space; skipping")
+            continue
+        nid = NodeId(space=str(isp), external_id=str(ext))
+        rk = cols.get(RAW_ROW_KEY_COLUMN) or getattr(row, "key", None)
+        batch.append(nid)
+        batch_meta.append(
+            {
+                "view_config": evc,
+                "cohort_columns": cols,
+                "raw_row_key": str(rk) if rk else "",
+            }
+        )
+        if len(batch) >= 100:
+            flush_batch()
+    flush_batch()
+
+    if source_tables:
+        logger.warning(
+            "incremental cohort mode with source_tables: RAW joins not applied; "
+            "use non-incremental run or extend cohort loader."
+        )
+
+    logger.info(
+        f"Incremental cohort loaded {len(entities_source)} entities for run_id={run_id}"
+    )
+    return entities_source
 
 
 def key_extraction(
@@ -145,7 +404,7 @@ def key_extraction(
     # Keep a name for logging/state derived from workflow config if present.
     pipeline_name = data.get("workflow_config_external_id") or "unknown"
     status = "failure"
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    run_id = ""
     keys_extracted = 0
     run_started_at = datetime.now(timezone.utc)
     raw_db = ""
@@ -170,17 +429,36 @@ def key_extraction(
                 f"Using CDF format: raw_db={raw_db}, raw_table_key={raw_table_key}"
             )
 
+            incremental = bool(
+                getattr(cdf_config.parameters, "incremental_change_processing", False)
+            )
+            if incremental:
+                rid = _resolve_incremental_run_id(client, raw_db, raw_table_key, data)
+                if not rid:
+                    raise ValueError(
+                        "incremental key extraction requires run_id in function data "
+                        "or exactly one RUN_ID cohort with WORKFLOW_STATUS=detected in RAW"
+                    )
+                run_id = rid
+                data["run_id"] = run_id
+            else:
+                run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+                data["run_id"] = run_id
+
             # Initialize RAW upload queue (size from CDF_RAW_UPLOAD_MAX_QUEUE_SIZE or default)
             raw_uploader = create_raw_upload_queue(client)
 
-            # Get entities from source view
+            # Get entities from source view (or incremental RAW cohort)
             entities_source_fields = _get_target_entities_cdf(
-                client, cdf_config, logger
+                client, cdf_config, logger, data
             )
 
         else:
             # Standalone mode - entities should be provided in data
             entities_source_fields = data.get("entities", {})
+            if not run_id:
+                run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+                data["run_id"] = run_id
             logger.info(
                 f"Using standalone mode with {len(entities_source_fields)} entities"
             )
@@ -202,10 +480,21 @@ def key_extraction(
             ]
         rules_used_counts: Dict[str, int] = {}
 
+        incremental_mode = bool(
+            cdf_config
+            and getattr(
+                getattr(cdf_config, "parameters", None),
+                "incremental_change_processing",
+                False,
+            )
+        )
+
         # Serial extraction per entity; instance listing uses batch_size on the source view upstream.
         for entity_id, entity_fields in entities_source_fields.items():
             ef = dict(entity_fields)
             kex_iso = ef.pop("_kex_exclude_self_referencing_keys", None)
+            cohort_columns = ef.pop("_cohort_columns", None)
+            raw_row_key = ef.pop("_raw_row_key", None)
             entity = {"id": entity_id, "externalId": entity_id, **ef}
             entity_type = entity_fields.get("entity_type", "asset")
             _src_view = (
@@ -224,6 +513,8 @@ def key_extraction(
                     getattr(_src_view, "instance_space", None)
                     or entity_fields.get("instance_space")
                 ),
+                "_cohort_columns": cohort_columns,
+                "_raw_row_key": raw_row_key,
             }
             try:
                 result = engine.extract_keys(
@@ -245,9 +536,10 @@ def key_extraction(
                 continue
 
             for k in result.candidate_keys:
-                if getattr(k, "rule_name", None):
-                    rules_used_counts[k.rule_name] = rules_used_counts.get(
-                        k.rule_name, 0
+                rule_name = getattr(k, "rule_name", None) or getattr(k, "rule_id", None)
+                if rule_name:
+                    rules_used_counts[str(rule_name)] = rules_used_counts.get(
+                        str(rule_name), 0
                     ) + 1
 
             keys = {}
@@ -255,12 +547,15 @@ def key_extraction(
                 field_name = key.source_field
                 if field_name not in keys:
                     keys[field_name] = {}
+                key_rule_name = getattr(key, "rule_name", None) or getattr(
+                    key, "rule_id", None
+                )
                 keys[field_name][key.value] = {
                     "confidence": key.confidence,
                     "extraction_type": key.extraction_type.value,
-                    "rule_name": key.rule_name,
+                    "rule_name": key_rule_name,
                     "matched_source_field": key.source_field,
-                    "rule_source_fields": rule_source_fields_map.get(key.rule_name, []),
+                    "rule_source_fields": rule_source_fields_map.get(key_rule_name, []),
                 }
 
             fk_refs = _dedupe_foreign_key_references(result)
@@ -285,6 +580,8 @@ def key_extraction(
                 fk_refs = entity_metadata.get("foreign_key_references") or []
                 failed = bool(entity_metadata.get("_extraction_failed"))
                 err_msg = entity_metadata.get("_extraction_error")
+                cohort_columns = entity_metadata.get("_cohort_columns")
+                raw_row_key = entity_metadata.get("_raw_row_key")
                 has_candidate_columns = isinstance(field_keys, dict) and bool(
                     field_keys
                 )
@@ -304,12 +601,24 @@ def key_extraction(
                 ):
                     continue
 
-                columns: Dict[str, Any] = {
+                columns: Dict[str, Any] = {}
+                if isinstance(cohort_columns, dict) and cohort_columns:
+                    columns.update(dict(cohort_columns))
+                columns.update(
+                    {
                     RECORD_KIND_COLUMN: RECORD_KIND_ENTITY,
                     EXTRACTION_STATUS_COLUMN: ext_status,
                     RAW_COL_UPDATED_AT: batch_updated_at.isoformat(),
                     RAW_COL_RUN_ID: run_id,
-                }
+                    }
+                )
+                if incremental_mode:
+                    columns[WORKFLOW_STATUS_COLUMN] = (
+                        WORKFLOW_STATUS_FAILED if failed else WORKFLOW_STATUS_EXTRACTED
+                    )
+                    columns[WORKFLOW_STATUS_UPDATED_AT_COLUMN] = (
+                        batch_updated_at.isoformat()
+                    )
                 if failed and err_msg:
                     columns[RAW_COL_LAST_ERROR] = str(err_msg)[:8000]
 
@@ -326,10 +635,11 @@ def key_extraction(
                 if has_fk:
                     columns[FOREIGN_KEY_REFERENCES_JSON_COLUMN] = json.dumps(fk_refs)
 
+                raw_key = str(raw_row_key) if raw_row_key else str(ext_id)
                 raw_uploader.add_to_upload_queue(
                     database=raw_db,
                     table=raw_table_key,
-                    raw_row=Row(key=ext_id, columns=columns),
+                    raw_row=Row(key=raw_key, columns=columns),
                 )
             logger.debug(f"Uploading {raw_uploader.upload_queue_size} rows to RAW")
             try:
@@ -537,6 +847,7 @@ def _get_target_entities_cdf(
     client: CogniteClient,
     config: Any,
     logger: Any,
+    data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Get entities from CDF data model views.
@@ -544,7 +855,18 @@ def _get_target_entities_cdf(
     When ``config.data.source_tables`` is non-empty, loads each RAW table once (cached),
     left-joins to instances on configured join keys, and fills ``table_data`` for
     ``source_field.table_id`` references (see key extraction engine ``_get_field_value``).
+
+    When ``incremental_change_processing`` is true, loads instances for the RAW cohort
+    (``data["run_id"]`` + ``WORKFLOW_STATUS=detected``) instead of listing views.
     """
+    data = data or {}
+    if bool(getattr(config.parameters, "incremental_change_processing", False)):
+        run_id = data.get("run_id")
+        if not run_id:
+            logger.error("incremental mode requires data['run_id']")
+            return {}
+        return _load_incremental_cohort_entities(client, config, logger, str(run_id))
+
     entities_source: Dict[str, Dict[str, Any]] = {}
     source_views = getattr(config.data, "source_views", None) or (
         [config.data.source_view] if getattr(config.data, "source_view", None) else []

@@ -14,6 +14,16 @@ Generates alias variants for tags/candidate keys (OCR variants, separator varian
   - **`source_instance_space`**
   - **`source_view_space`** / **`source_view_external_id`** / **`source_view_version`**
   - **`source_entity_type`**
+  - Note: these are only required when aliasing falls back to reading candidate keys from RAW (no `entities_keys_extracted` payload).
+
+### `alias_mapping_table` RAW format
+
+For rules with `type: alias_mapping_table`, RAW mapping rows can provide aliases as:
+
+- multiple columns listed in `alias_columns` (for example `alias_1`, `alias_2`), or
+- one column (for example `aliases`) with delimiter splitting via `alias_delimiter` (for example `","`).
+
+Optional `alias_strip_quotes` (default `true`) removes surrounding single/double quotes on split tokens.
 
 ### Outputs
 
