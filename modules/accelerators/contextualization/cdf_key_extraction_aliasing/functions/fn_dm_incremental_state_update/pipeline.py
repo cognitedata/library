@@ -7,11 +7,17 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
 
+from ..cdf_fn_common.extraction_input_hash import (
+    build_field_map_for_hash,
+    extraction_inputs_hash,
+    iter_wanted_fields,
+    rules_fingerprint,
+)
 from ..cdf_fn_common.incremental_scope import (
     CHANGE_KIND_COLUMN,
     CHANGE_KIND_ADD,
@@ -31,6 +37,7 @@ from ..cdf_fn_common.incremental_scope import (
     WORKFLOW_STATUS_UPDATED_AT_COLUMN,
     cohort_row_key,
     list_all_instances,
+    load_latest_hash_by_node_for_scope,
     load_prior_node_ids_for_scope,
     node_instance_id_str,
     node_last_updated_time_ms,
@@ -74,11 +81,20 @@ def incremental_state_update(
     if not source_views:
         raise ValueError("source_views (or source_view) is required")
 
+    skip_unchanged_inputs = bool(
+        getattr(params, "incremental_skip_unchanged_source_inputs", True)
+    ) and not process_all
+    extraction_rules = getattr(getattr(cdf_config, "data", None), "extraction_rules", None)
+    rules_fp: Optional[str] = None
+    if skip_unchanged_inputs:
+        rules_fp = rules_fingerprint(extraction_rules)
+
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     create_table_if_not_exists(client, raw_db, raw_table_key, logger)
     raw_uploader = create_raw_upload_queue(client)
 
     cohort_rows = 0
+    cohort_rows_skipped_unchanged_hash = 0
     batch_updated_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
     for entity_view_config in source_views:
@@ -103,9 +119,11 @@ def incremental_state_update(
 
         base_filter = entity_view_config.build_filter()
         if high_wm is not None and not process_all:
+            # Some backends can include the boundary value for `gt` on lastUpdatedTime.
+            # Add +1ms to make the bound unambiguously exclusive.
             rng = dm.filters.Range(
                 ("node", "lastUpdatedTime"),
-                gt=int(high_wm),
+                gt=int(high_wm) + 1,
             )
             filt: dm.filters.Filter = dm.filters.And(base_filter, rng)
         else:
@@ -114,6 +132,20 @@ def incremental_state_update(
         prior_ids = load_prior_node_ids_for_scope(
             client, raw_db, raw_table_key, scope_key
         )
+
+        hash_by_node: Dict[str, str] = {}
+        wanted_fields: Optional[List[Tuple[str, bool, List[str]]]] = None
+        if skip_unchanged_inputs and rules_fp is not None:
+            hash_by_node = load_latest_hash_by_node_for_scope(
+                client,
+                raw_db,
+                raw_table_key,
+                scope_key,
+                chunk_size=int(
+                    getattr(params, "raw_skip_scan_chunk_size", 2500) or 2500
+                ),
+            )
+            wanted_fields = iter_wanted_fields(extraction_rules, entity_view_config)
 
         max_ts: Optional[int] = None
         space = getattr(entity_view_config, "instance_space", None)
@@ -135,6 +167,34 @@ def incremental_state_update(
             ts = node_last_updated_time_ms(instance)
             if ts is not None:
                 max_ts = ts if max_ts is None else max(max_ts, ts)
+
+            if (
+                skip_unchanged_inputs
+                and rules_fp is not None
+                and wanted_fields is not None
+            ):
+                inst_dump = instance.dump() if hasattr(instance, "dump") else {}
+                props = (
+                    inst_dump.get("properties", {})
+                    if isinstance(inst_dump, dict)
+                    else {}
+                )
+                entity_props = (
+                    props.get(view_id.space, {}).get(
+                        f"{view_id.external_id}/{view_id.version}", {}
+                    )
+                    if isinstance(props, dict)
+                    else {}
+                )
+                field_map = build_field_map_for_hash(
+                    entity_props, wanted_fields, logger=logger
+                )
+                # With no fields to hash, every instance would share the same digest; never skip.
+                if field_map:
+                    new_hash = extraction_inputs_hash(scope_key, rules_fp, field_map)
+                    if new_hash == hash_by_node.get(nid):
+                        cohort_rows_skipped_unchanged_hash += 1
+                        continue
 
             rk = cohort_row_key(run_id, nid, scope_key)
             columns: Dict[str, Any] = {
@@ -189,10 +249,17 @@ def incremental_state_update(
     data["message"] = json.dumps(
         {
             "cohort_rows_written": cohort_rows,
+            "cohort_rows_skipped_unchanged_hash": cohort_rows_skipped_unchanged_hash,
             "raw_db": raw_db,
             "raw_table_key": raw_table_key,
         }
     )
     logger.info(
-        f"Incremental state update wrote {cohort_rows} cohort row(s); run_id={run_id}"
+        f"Incremental state update wrote {cohort_rows} cohort row(s)"
+        + (
+            f", skipped {cohort_rows_skipped_unchanged_hash} unchanged input hash(es)"
+            if cohort_rows_skipped_unchanged_hash
+            else ""
+        )
+        + f"; run_id={run_id}"
     )

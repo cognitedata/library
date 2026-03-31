@@ -15,7 +15,14 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
 from cognite.client.data_classes.data_modeling.ids import NodeId
 
+from ..cdf_fn_common.extraction_input_hash import (
+    apply_preprocessing,
+    compute_extraction_inputs_hash_from_entity_row,
+    iter_wanted_fields,
+    resolve_source_view_config_for_entity,
+)
 from ..cdf_fn_common.incremental_scope import (
+    EXTRACTION_INPUTS_HASH_COLUMN,
     EXTERNAL_ID_COLUMN,
     NODE_INSTANCE_ID_COLUMN,
     RAW_ROW_KEY_COLUMN,
@@ -48,6 +55,7 @@ logger = None  # Use CogniteFunctionLogger directly
 
 # RAW column written alongside per-field candidate key columns (alias persistence reads this).
 FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
+DOCUMENT_REFERENCES_JSON_COLUMN = "DOCUMENT_REFERENCES_JSON"
 
 # Unified extraction store: entity rows vs run audit rows (same physical table as raw_table_key).
 RECORD_KIND_COLUMN = "RECORD_KIND"
@@ -138,6 +146,25 @@ def _dedupe_foreign_key_references(result: ExtractionResult) -> List[Dict[str, A
             "confidence": conf,
             "source_field": getattr(fk, "source_field", None),
             "rule_id": getattr(fk, "rule_id", None),
+        }
+        if v not in best or conf > best[v]["confidence"]:
+            best[v] = entry
+    return list(best.values())
+
+
+def _dedupe_document_references(result: ExtractionResult) -> List[Dict[str, Any]]:
+    """One entry per distinct document reference value; keep highest confidence."""
+    best: Dict[str, Dict[str, Any]] = {}
+    for doc in result.document_references:
+        v = getattr(doc, "value", None) or ""
+        if not v:
+            continue
+        conf = float(getattr(doc, "confidence", 0.0) or 0.0)
+        entry = {
+            "value": v,
+            "confidence": conf,
+            "source_field": getattr(doc, "source_field", None),
+            "rule_id": getattr(doc, "rule_id", None),
         }
         if v not in best or conf > best[v]["confidence"]:
             best[v] = entry
@@ -283,39 +310,7 @@ def _load_incremental_cohort_entities(
                         entities_source[entity_external_id][
                             "_kex_exclude_self_referencing_keys"
                         ] = kex_iso
-                wanted_fields: List[tuple[str, bool, list[str]]] = []
-                if isinstance(extraction_rules, list) and extraction_rules:
-                    if hasattr(extraction_rules[0], "source_fields"):
-                        for rule in extraction_rules:
-                            source_fields = getattr(rule, "source_fields", None)
-                            if source_fields is None:
-                                continue
-                            if not isinstance(source_fields, list):
-                                source_fields = [source_fields]
-                            for sf in source_fields:
-                                wanted_fields.append(
-                                    (
-                                        str(getattr(sf, "field_name", "") or ""),
-                                        bool(getattr(sf, "required", False)),
-                                        list(getattr(sf, "preprocessing", []) or []),
-                                    )
-                                )
-                    elif isinstance(extraction_rules[0], dict):
-                        for rule in extraction_rules:
-                            for sf in (rule.get("source_fields", []) or []):
-                                if not isinstance(sf, dict):
-                                    continue
-                                wanted_fields.append(
-                                    (
-                                        str(sf.get("field_name") or ""),
-                                        bool(sf.get("required") or False),
-                                        list(sf.get("preprocessing") or []),
-                                    )
-                                )
-
-                if not wanted_fields:
-                    for p in list(getattr(evc, "include_properties", []) or []):
-                        wanted_fields.append((str(p or ""), False, []))
+                wanted_fields = iter_wanted_fields(extraction_rules, evc)
 
                 tgt = entities_source[entity_external_id]
                 for field_name, required, preprocessing in wanted_fields:
@@ -330,7 +325,7 @@ def _load_incremental_cohort_entities(
                             )
                         continue
                     if preprocessing:
-                        field_value = _apply_preprocessing(field_value, preprocessing)
+                        field_value = apply_preprocessing(str(field_value), preprocessing)
                     tgt[field_name] = field_value
 
         batch = []
@@ -574,6 +569,24 @@ def key_extraction(
         if use_cdf_format:
             _create_table_if_not_exists(client, raw_db, raw_table_key, logger)
             batch_updated_at = datetime.now(timezone.utc)
+            incremental_skip_hash = bool(
+                getattr(
+                    getattr(cdf_config, "parameters", None),
+                    "incremental_skip_unchanged_source_inputs",
+                    False,
+                )
+            )
+            source_views_for_hash = (
+                getattr(cdf_config.data, "source_views", None)
+                or (
+                    [cdf_config.data.source_view]
+                    if getattr(cdf_config.data, "source_view", None)
+                    else []
+                )
+            )
+            extraction_rules_for_hash = getattr(
+                cdf_config.data, "extraction_rules", None
+            )
 
             for ext_id, entity_metadata in entities_keys_extracted.items():
                 field_keys = entity_metadata.get("keys", {})
@@ -634,6 +647,20 @@ def key_extraction(
                     columns["RULES_USED_JSON"] = json.dumps([])
                 if has_fk:
                     columns[FOREIGN_KEY_REFERENCES_JSON_COLUMN] = json.dumps(fk_refs)
+
+                if incremental_mode and incremental_skip_hash:
+                    svc = resolve_source_view_config_for_entity(
+                        source_views_for_hash, entity_metadata
+                    )
+                    if svc is not None:
+                        columns[EXTRACTION_INPUTS_HASH_COLUMN] = (
+                            compute_extraction_inputs_hash_from_entity_row(
+                                entity_metadata,
+                                extraction_rules_for_hash,
+                                svc,
+                                logger=logger,
+                            )
+                        )
 
                 raw_key = str(raw_row_key) if raw_row_key else str(ext_id)
                 raw_uploader.add_to_upload_queue(
@@ -834,7 +861,7 @@ def _build_entity_payload_with_rules(
             if not isinstance(field_value, str):
                 field_value = str(field_value)
             if pre:
-                field_value = _apply_preprocessing(field_value, pre)
+                field_value = apply_preprocessing(field_value, pre)
             if tid:
                 tkey = "_".join([rid, tid, fn])
                 out["table_data"][tkey] = field_value
@@ -989,41 +1016,9 @@ def _get_target_entities_cdf(
                             row["_kex_exclude_self_referencing_keys"] = kex_iso
                         entities_source[entity_external_id] = row
 
-                    wanted_fields: List[tuple[str, bool, list[str]]] = []
-                    if isinstance(extraction_rules, list) and extraction_rules:
-                        if hasattr(extraction_rules[0], "source_fields"):
-                            for rule in extraction_rules:
-                                source_fields = getattr(rule, "source_fields", None)
-                                if source_fields is None:
-                                    continue
-                                if not isinstance(source_fields, list):
-                                    source_fields = [source_fields]
-                                for sf in source_fields:
-                                    wanted_fields.append(
-                                        (
-                                            str(getattr(sf, "field_name", "") or ""),
-                                            bool(getattr(sf, "required", False)),
-                                            list(getattr(sf, "preprocessing", []) or []),
-                                        )
-                                    )
-                        elif isinstance(extraction_rules[0], dict):
-                            for rule in extraction_rules:
-                                for sf in (rule.get("source_fields", []) or []):
-                                    if not isinstance(sf, dict):
-                                        continue
-                                    wanted_fields.append(
-                                        (
-                                            str(sf.get("field_name") or ""),
-                                            bool(sf.get("required") or False),
-                                            list(sf.get("preprocessing") or []),
-                                        )
-                                    )
-
-                    if not wanted_fields:
-                        for p in list(
-                            getattr(entity_view_config, "include_properties", []) or []
-                        ):
-                            wanted_fields.append((str(p or ""), False, []))
+                    wanted_fields = iter_wanted_fields(
+                        extraction_rules, entity_view_config
+                    )
 
                     for field_name, required, preprocessing in wanted_fields:
                         if not field_name:
@@ -1038,7 +1033,9 @@ def _get_target_entities_cdf(
                             continue
 
                         if preprocessing:
-                            field_value = _apply_preprocessing(field_value, preprocessing)
+                            field_value = apply_preprocessing(
+                                str(field_value), preprocessing
+                            )
                         entities_source[entity_external_id][field_name] = field_value
 
                     if isinstance(max_files, int) and len(entities_source) >= max_files:
@@ -1081,19 +1078,6 @@ def _build_filter(
         is_selected = dm.filters.And(is_selected, entity_config.build_filter())
 
     return is_selected
-
-
-def _apply_preprocessing(field_value: str, preprocessing: list[str]) -> str:
-    """Apply preprocessing steps to field value."""
-    for task in preprocessing:
-        if task.lower() == "trim":
-            field_value = field_value.strip()
-        elif task.lower() == "lowercase":
-            field_value = field_value.lower()
-        elif task.lower() == "uppercase" or task.lower() == "upper":
-            field_value = field_value.upper()
-
-    return field_value
 
 
 from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists

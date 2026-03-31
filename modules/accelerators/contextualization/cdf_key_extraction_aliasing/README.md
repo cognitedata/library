@@ -71,6 +71,12 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 
 **Write-back details:** [Configuration guide — Aliasing parameters](docs/guides/configuration_guide.md) and [workflows README](workflows/README.md).
 
+## Incremental cohort processing (RAW)
+
+When `parameters.incremental_change_processing` is true, `fn_dm_incremental_state_update` selects instances whose `node.lastUpdatedTime` is above a per-scope high watermark (stored in `raw_table_key`) and writes cohort entity rows with `WORKFLOW_STATUS=detected` for the downstream key-extraction step.
+
+**`parameters.incremental_skip_unchanged_source_inputs`** (default `true`): when enabled together with incremental processing, detection computes a SHA-256 digest (`EXTRACTION_INPUTS_HASH`) of the same source fields and preprocessing as key extraction, plus a fingerprint of `extraction_rules`. If it matches the latest hash stored on a completed entity row for that node and scope (`WORKFLOW_STATUS` in `extracted`, `aliased`, or `persisted`), no new cohort row is emitted for that instance; **watermarks still advance** from `lastUpdatedTime` so unchanged noise updates do not re-list the same instances forever. `fn_dm_key_extraction` writes `EXTRACTION_INPUTS_HASH` on incremental entity rows when both flags are enabled. The `+1 ms` bound on `lastUpdatedTime` filters is unchanged (boundary semantics). `process_all=true` still emits cohort rows for all matched instances regardless of prior hash/state.
+
 ## Alias write-back
 
 - **Workflow:** `aliasWritebackProperty` / `alias_writeback_property` on `fn_dm_alias_persistence` task `data`.

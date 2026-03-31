@@ -16,6 +16,8 @@ key_extraction:
       write_empty_extraction_rows: false
       raw_skip_scan_chunk_size: 5000
       incremental_change_processing: true
+      # Optional: set false to disable default hash-gated cohort skipping in incremental mode.
+      # incremental_skip_unchanged_source_inputs: false
       # Drop FK strings that duplicate a candidate key on the same instance (default true).
       # Per-source_view exclude_self_referencing_keys overrides this (CogniteAsset: true; CogniteTimeSeries: false).
       exclude_self_referencing_keys: true

@@ -11,7 +11,7 @@ import hashlib
 import json
 from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterator, List, Optional, Set
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 # Column names (stable contract)
 WORKFLOW_STATUS_COLUMN = "WORKFLOW_STATUS"
@@ -40,6 +40,9 @@ RECORD_KIND_RUN = "run"
 
 HIGH_WATERMARK_MS_COLUMN = "HIGH_WATERMARK_MS"
 RUN_ID_COLUMN = "RUN_ID"
+
+# Per-entity SHA-256 of extraction source inputs (see cdf_fn_common.extraction_input_hash).
+EXTRACTION_INPUTS_HASH_COLUMN = "EXTRACTION_INPUTS_HASH"
 
 
 def scope_key_from_view_dict(view: Dict[str, Any]) -> str:
@@ -186,6 +189,77 @@ def load_prior_node_ids_for_scope(
     except Exception:
         return seen
     return seen
+
+
+def load_latest_hash_by_node_for_scope(
+    client: Any,
+    raw_db: str,
+    raw_table: str,
+    scope_key: str,
+    *,
+    chunk_size: int = 2500,
+) -> Dict[str, str]:
+    """
+    Latest EXTRACTION_INPUTS_HASH per NODE_INSTANCE_ID for this scope.
+
+    Uses entity rows with WORKFLOW_STATUS in extracted / aliased / persisted and a
+    non-empty EXTRACTION_INPUTS_HASH. Picks the row with greatest UPDATED_AT /
+    WORKFLOW_STATUS_UPDATED_AT (epoch ms); tie-break by RUN_ID lexicographic order.
+    """
+    completed = {
+        WORKFLOW_STATUS_EXTRACTED,
+        WORKFLOW_STATUS_ALIASED,
+        WORKFLOW_STATUS_PERSISTED,
+    }
+    best: Dict[str, Tuple[str, float, str]] = {}
+
+    def _ts_ms(cols: Dict[str, Any]) -> float:
+        for key in (WORKFLOW_STATUS_UPDATED_AT_COLUMN, "UPDATED_AT"):
+            raw = cols.get(key)
+            if raw is None:
+                continue
+            if isinstance(raw, (int, float)):
+                return float(raw)
+            s = str(raw).strip()
+            if not s:
+                continue
+            try:
+                if s.endswith("Z"):
+                    s = s[:-1] + "+00:00"
+                dt = datetime.fromisoformat(s)
+                return dt.timestamp() * 1000.0
+            except Exception:
+                continue
+        return 0.0
+
+    try:
+        for row in iter_raw_table_rows_chunked(
+            client, raw_db, raw_table, chunk_size=chunk_size
+        ):
+            cols = raw_row_columns(row)
+            if cols.get(RECORD_KIND_COLUMN) != RECORD_KIND_ENTITY:
+                continue
+            if str(cols.get(SCOPE_KEY_COLUMN) or "") != scope_key:
+                continue
+            nid = cols.get(NODE_INSTANCE_ID_COLUMN)
+            if not nid:
+                continue
+            h = cols.get(EXTRACTION_INPUTS_HASH_COLUMN)
+            if not h or not str(h).strip():
+                continue
+            st = norm_workflow_status(cols.get(WORKFLOW_STATUS_COLUMN))
+            if st not in completed:
+                continue
+            ts = _ts_ms(cols)
+            rid = str(cols.get(RUN_ID_COLUMN) or "")
+            nid_s = str(nid)
+            prev = best.get(nid_s)
+            if prev is None or (ts, rid) > (prev[1], prev[2]):
+                best[nid_s] = (str(h).strip(), ts, rid)
+    except Exception:
+        return {}
+
+    return {k: v[0] for k, v in best.items()}
 
 
 def read_watermark_high_ms(

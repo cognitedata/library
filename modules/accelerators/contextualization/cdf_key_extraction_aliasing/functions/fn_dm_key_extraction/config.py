@@ -73,6 +73,15 @@ class Parameters(BaseModel):
             "(RUN_ID + WORKFLOW_STATUS) instead of listing the full view."
         ),
     )
+    incremental_skip_unchanged_source_inputs: bool = Field(
+        True,
+        description=(
+            "When true (default) together with incremental_change_processing: fn_dm_incremental_state_update "
+            "skips emitting cohort rows when EXTRACTION_INPUTS_HASH matches the last completed "
+            "entity row for that node in RAW (lastUpdatedTime watermarks still advance). "
+            "fn_dm_key_extraction writes EXTRACTION_INPUTS_HASH on incremental entity rows."
+        ),
+    )
     exclude_self_referencing_keys: Union[bool, Dict[str, Any]] = Field(
         True,
         description=(
