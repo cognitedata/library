@@ -34,7 +34,7 @@ Run `handler.py:run_locally()` (requires `.env` + CDF credentials).
 
 In `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (v1):
 - task `fn_dm_aliasing_{{ site_abbreviation }}` reads candidate keys back from RAW:
-  - `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
+  - `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`
 - generates aliases and writes to RAW:
   - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
 

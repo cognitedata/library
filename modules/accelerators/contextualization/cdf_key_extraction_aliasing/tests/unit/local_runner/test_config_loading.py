@@ -74,6 +74,7 @@ def test_scope_doc_omitted_aliasing_identity_passthrough():
     )
     ext, alias, views, *_ = cl._load_from_scope_document(_logger(), doc)
     assert len(views) == 1
+    assert ext.get("source_views") == views
     assert len(ext["extraction_rules"]) == 1
     assert ext["parameters"].get("debug") is True
     assert alias["rules"] == []

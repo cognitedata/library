@@ -18,10 +18,9 @@ tests/
 │   ├── local_runner/         # scope YAML loading for main.py
 │   └── scope_build/
 ├── integration/
-│   ├── key_extraction/
-│   ├── aliasing/
+│   ├── key_extraction/       # scenarios (regex, fixed-width, heuristics, …)
+│   ├── aliasing/             # handlers, tag_pattern_library
 │   ├── contextualization/    # configuration_manager, full workflow, edge cases
-│   ├── test_workflow.py
 │   ├── test_pipelines.py
 │   └── ...
 ├── test_pipeline_extraction.py

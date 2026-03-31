@@ -31,6 +31,76 @@ logger = None  # Use CogniteFunctionLogger directly
 # RAW column written alongside per-field candidate key columns (alias persistence reads this).
 FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
 
+# Unified extraction store: entity rows vs run audit rows (same physical table as raw_table_key).
+RECORD_KIND_COLUMN = "RECORD_KIND"
+RECORD_KIND_RUN = "run"
+RECORD_KIND_ENTITY = "entity"
+EXTRACTION_STATUS_COLUMN = "EXTRACTION_STATUS"
+EXTRACTION_STATUS_SUCCESS = "success"
+EXTRACTION_STATUS_FAILED = "failed"
+EXTRACTION_STATUS_EMPTY = "empty"
+RAW_COL_UPDATED_AT = "UPDATED_AT"
+RAW_COL_RUN_ID = "RUN_ID"
+RAW_COL_LAST_ERROR = "LAST_ERROR"
+
+
+def _raw_row_columns(row: Any) -> Dict[str, Any]:
+    cols = getattr(row, "columns", None) or {}
+    return dict(cols) if isinstance(cols, dict) else {}
+
+
+def _norm_status_value(raw: Any) -> str:
+    if raw is None:
+        return ""
+    if isinstance(raw, list) and raw:
+        raw = raw[0]
+    return str(raw).strip().lower()
+
+
+def _is_run_summary_row(columns: Dict[str, Any]) -> bool:
+    return _norm_status_value(columns.get(RECORD_KIND_COLUMN)) == RECORD_KIND_RUN
+
+
+def _entity_row_should_skip_listing(policy: str, columns: Dict[str, Any]) -> bool:
+    """Whether this RAW entity row causes its instance external_id to be excluded from DM list."""
+    if _is_run_summary_row(columns):
+        return False
+    st = _norm_status_value(columns.get(EXTRACTION_STATUS_COLUMN))
+    if policy == "successful_only":
+        return st in (EXTRACTION_STATUS_SUCCESS, EXTRACTION_STATUS_EMPTY)
+    return False
+
+
+def _read_entity_keys_to_exclude(
+    client: CogniteClient,
+    db: str,
+    tbl: str,
+    policy: str,
+    chunk_size: int,
+) -> List[str]:
+    """Collect instance external ids to exclude from listing per skip_entity_policy."""
+    excluded: List[str] = []
+    if policy != "successful_only":
+        return excluded
+    try:
+        for batch in client.raw.rows(db, tbl, chunk_size=chunk_size):
+            for row in batch:
+                key = getattr(row, "key", None)
+                if not key:
+                    continue
+                cols = _raw_row_columns(row)
+                if _is_run_summary_row(cols):
+                    continue
+                if _entity_row_should_skip_listing(policy, cols):
+                    excluded.append(str(key))
+    except Exception:
+        return []
+    return excluded
+
+
+def _strip_extraction_internal_fields(em: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: v for k, v in em.items() if not str(k).startswith("_extraction")}
+
 
 def _dedupe_foreign_key_references(result: ExtractionResult) -> List[Dict[str, Any]]:
     """One entry per distinct FK value; keep the occurrence with highest confidence."""
@@ -75,9 +145,12 @@ def key_extraction(
     # Keep a name for logging/state derived from workflow config if present.
     pipeline_name = data.get("workflow_config_external_id") or "unknown"
     status = "failure"
-    pipeline_run_id = None
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     keys_extracted = 0
     run_started_at = datetime.now(timezone.utc)
+    raw_db = ""
+    raw_table_key = ""
+    write_empty_extraction_rows = False
 
     try:
         logger.info(f"Starting Key Extraction Pipeline: {pipeline_name}")
@@ -89,8 +162,9 @@ def key_extraction(
             # Extract parameters from CDF config
             raw_db = cdf_config.parameters.raw_db
             raw_table_key = cdf_config.parameters.raw_table_key
-            raw_table_state = cdf_config.parameters.raw_table_state
-            overwrite = cdf_config.parameters.overwrite
+            write_empty_extraction_rows = bool(
+                cdf_config.parameters.write_empty_extraction_rows
+            )
 
             logger.debug(
                 f"Using CDF format: raw_db={raw_db}, raw_table_key={raw_table_key}"
@@ -130,23 +204,52 @@ def key_extraction(
 
         # Serial extraction per entity; instance listing uses batch_size on the source view upstream.
         for entity_id, entity_fields in entities_source_fields.items():
-            # Convert entity fields to format expected by engine
             ef = dict(entity_fields)
-            kex_iso = ef.pop("_kex_ignore_self_referencing_keys", None)
+            kex_iso = ef.pop("_kex_exclude_self_referencing_keys", None)
             entity = {"id": entity_id, "externalId": entity_id, **ef}
             entity_type = entity_fields.get("entity_type", "asset")
-
-            # Extract keys
-            result = engine.extract_keys(
-                entity,
-                entity_type,
-                ignore_self_referencing_keys=kex_iso,
+            _src_view = (
+                getattr(getattr(cdf_config, "data", None), "source_view", None)
+                if cdf_config
+                else None
             )
+            base_meta = {
+                "view_space": entity_fields.get("view_space"),
+                "view_external_id": entity_fields.get("view_external_id"),
+                "view_version": entity_fields.get("view_version"),
+                "instance_space": entity_fields.get("instance_space"),
+                "entity_type": entity_type,
+                "resource_property": getattr(_src_view, "resource_property", None),
+                "space": (
+                    getattr(_src_view, "instance_space", None)
+                    or entity_fields.get("instance_space")
+                ),
+            }
+            try:
+                result = engine.extract_keys(
+                    entity,
+                    entity_type,
+                    exclude_self_referencing_keys=kex_iso,
+                )
+            except Exception as ex:
+                logger.warning(
+                    f"Extraction failed for entity {entity_id!r}: {ex!s}"
+                )
+                entities_keys_extracted[entity_id] = {
+                    **base_meta,
+                    "keys": {},
+                    "foreign_key_references": [],
+                    "_extraction_failed": True,
+                    "_extraction_error": str(ex)[:4000],
+                }
+                continue
+
             for k in result.candidate_keys:
                 if getattr(k, "rule_name", None):
-                    rules_used_counts[k.rule_name] = rules_used_counts.get(k.rule_name, 0) + 1
+                    rules_used_counts[k.rule_name] = rules_used_counts.get(
+                        k.rule_name, 0
+                    ) + 1
 
-            # Store results organized by field_name with extraction type metadata
             keys = {}
             for key in result.candidate_keys:
                 field_name = key.source_field
@@ -161,49 +264,58 @@ def key_extraction(
                 }
 
             fk_refs = _dedupe_foreign_key_references(result)
-            # Store entity metadata including view information
-            _src_view = (
-                getattr(getattr(cdf_config, "data", None), "source_view", None)
-                if cdf_config
-                else None
-            )
-            entity_metadata = {
+            entities_keys_extracted[entity_id] = {
+                **base_meta,
                 "keys": keys,
                 "foreign_key_references": fk_refs,
-                "view_space": entity_fields.get("view_space"),
-                "view_external_id": entity_fields.get("view_external_id"),
-                "view_version": entity_fields.get("view_version"),
-                "instance_space": entity_fields.get("instance_space"),
-                "entity_type": entity_type,
-                "resource_property": getattr(_src_view, "resource_property", None),
-                "space": (
-                    getattr(_src_view, "instance_space", None)
-                    or entity_fields.get("instance_space")
-                ),
             }
-            entities_keys_extracted[entity_id] = entity_metadata
             keys_extracted += len(result.candidate_keys)
 
         logger.info(
             f"Extracted {keys_extracted} keys from {len(entities_keys_extracted)} entities"
         )
 
-        # Upload to RAW if using CDF format (one row per entity in raw_table_key)
+        # Upload to RAW: entity rows + run summary in raw_table_key.
         if use_cdf_format:
-            _create_table_if_not_exists(client, raw_db, raw_table_state, logger)
             _create_table_if_not_exists(client, raw_db, raw_table_key, logger)
+            batch_updated_at = datetime.now(timezone.utc)
+
             for ext_id, entity_metadata in entities_keys_extracted.items():
                 field_keys = entity_metadata.get("keys", {})
                 fk_refs = entity_metadata.get("foreign_key_references") or []
-                has_candidate_columns = isinstance(field_keys, dict) and bool(field_keys)
+                failed = bool(entity_metadata.get("_extraction_failed"))
+                err_msg = entity_metadata.get("_extraction_error")
+                has_candidate_columns = isinstance(field_keys, dict) and bool(
+                    field_keys
+                )
                 has_fk = bool(fk_refs)
-                if not has_candidate_columns and not has_fk:
+                if failed:
+                    ext_status = EXTRACTION_STATUS_FAILED
+                elif has_candidate_columns or has_fk:
+                    ext_status = EXTRACTION_STATUS_SUCCESS
+                else:
+                    ext_status = EXTRACTION_STATUS_EMPTY
+
+                if (
+                    not failed
+                    and not has_candidate_columns
+                    and not has_fk
+                    and not write_empty_extraction_rows
+                ):
                     continue
-                columns: Dict[str, Any] = {}
+
+                columns: Dict[str, Any] = {
+                    RECORD_KIND_COLUMN: RECORD_KIND_ENTITY,
+                    EXTRACTION_STATUS_COLUMN: ext_status,
+                    RAW_COL_UPDATED_AT: batch_updated_at.isoformat(),
+                    RAW_COL_RUN_ID: run_id,
+                }
+                if failed and err_msg:
+                    columns[RAW_COL_LAST_ERROR] = str(err_msg)[:8000]
+
                 rules_used = set()
                 if has_candidate_columns:
                     for field_name, keys_dict in field_keys.items():
-                        # Column names use field_name (e.g., "NAME", "DESCRIPTION")
                         columns[field_name.upper()] = list(keys_dict.keys())
                         for _, meta in (keys_dict or {}).items():
                             if isinstance(meta, dict) and meta.get("rule_name"):
@@ -214,11 +326,10 @@ def key_extraction(
                 if has_fk:
                     columns[FOREIGN_KEY_REFERENCES_JSON_COLUMN] = json.dumps(fk_refs)
 
-                new_row = Row(key=ext_id, columns=columns)
                 raw_uploader.add_to_upload_queue(
                     database=raw_db,
                     table=raw_table_key,
-                    raw_row=new_row,
+                    raw_row=Row(key=ext_id, columns=columns),
                 )
             logger.debug(f"Uploading {raw_uploader.upload_queue_size} rows to RAW")
             try:
@@ -233,58 +344,72 @@ def key_extraction(
             len(em.get("foreign_key_references") or [])
             for em in entities_keys_extracted.values()
         )
+        n_failed = sum(
+            1 for em in entities_keys_extracted.values() if em.get("_extraction_failed")
+        )
         if keys_extracted > 0 or total_fk > 0:
             status = "success"
             message = (
                 f"Successfully extracted {keys_extracted} candidate keys"
                 + (f", {total_fk} foreign key reference(s)" if total_fk else "")
+                + (f"; {n_failed} entity failure(s)" if n_failed else "")
             )
+        elif n_failed:
+            status = "failure"
+            message = f"No keys extracted; {n_failed} entity failure(s)"
         else:
             status = "failure"
             message = "No keys were extracted and no keys were uploaded"
 
-        # Write a lightweight state row to RAW (this is separate from extraction pipeline runs).
-        # This makes it easy to inspect "what was processed" for a given run from RAW.
         if use_cdf_format and client:
             run_finished_at = datetime.now(timezone.utc)
             run_duration_s = (run_finished_at - run_started_at).total_seconds()
             run_duration_ms = int(run_duration_s * 1000)
             state_key = run_finished_at.strftime("%Y%m%dT%H%M%S.%fZ")
+            run_columns = {
+                RECORD_KIND_COLUMN: RECORD_KIND_RUN,
+                "pipeline_name": pipeline_name,
+                "status": status,
+                "message": message,
+                "keys_extracted": keys_extracted,
+                "entities_processed": len(entities_keys_extracted),
+                "entities_failed": n_failed,
+                "run_started_at": run_started_at.isoformat(),
+                "run_finished_at": run_finished_at.isoformat(),
+                "run_duration_s": run_duration_s,
+                "run_duration_ms": run_duration_ms,
+                "raw_db": raw_db,
+                "raw_table_key": raw_table_key,
+                "skip_entity_policy": getattr(
+                    getattr(cdf_config, "parameters", None),
+                    "skip_entity_policy",
+                    "successful_only",
+                ),
+                "run_id": run_id,
+                "max_files": getattr(
+                    getattr(cdf_config, "parameters", None), "max_files", None
+                ),
+                "rules_used_counts_json": json.dumps(rules_used_counts),
+            }
             try:
                 client.raw.rows.insert(
                     raw_db,
-                    raw_table_state,
-                    Row(
-                        key=str(state_key),
-                        columns={
-                            "pipeline_name": pipeline_name,
-                            "status": status,
-                            "message": message,
-                            "keys_extracted": keys_extracted,
-                            "entities_processed": len(entities_keys_extracted),
-                            "run_started_at": run_started_at.isoformat(),
-                            "run_finished_at": run_finished_at.isoformat(),
-                            "run_duration_s": run_duration_s,
-                            "run_duration_ms": run_duration_ms,
-                            "raw_db": raw_db,
-                            "raw_table_key": raw_table_key,
-                            "raw_table_state": raw_table_state,
-                            "max_files": getattr(
-                                getattr(cdf_config, "parameters", None), "max_files", None
-                            ),
-                            "rules_used_counts_json": json.dumps(rules_used_counts),
-                        },
-                    ),
+                    raw_table_key,
+                    Row(key=str(state_key), columns=run_columns),
                 )
                 logger.info(
-                    f"Wrote state row to RAW: db={raw_db} table={raw_table_state} key={state_key}"
+                    f"Wrote run summary to RAW: db={raw_db} table={raw_table_key} key={state_key}"
                 )
             except Exception as e:
-                logger.warning(f"Failed writing RAW state row: {e}")
+                logger.warning(f"Failed writing RAW run summary row to keys table: {e}")
 
         # Store results in data dict for return
         data["keys_extracted"] = keys_extracted
-        data["entities_keys_extracted"] = entities_keys_extracted
+        data["entities_keys_extracted"] = {
+            eid: _strip_extraction_internal_fields(em)
+            for eid, em in entities_keys_extracted.items()
+        }
+        data["run_id"] = run_id
         data["status"] = status
         data["message"] = message
 
@@ -360,9 +485,9 @@ def _build_entity_payload_with_rules(
         ),
         "table_data": {},
     }
-    kex_iso = getattr(entity_view_config, "ignore_self_referencing_keys", None)
+    kex_iso = getattr(entity_view_config, "exclude_self_referencing_keys", None)
     if kex_iso is not None:
-        out["_kex_ignore_self_referencing_keys"] = kex_iso
+        out["_kex_exclude_self_referencing_keys"] = kex_iso
     if not isinstance(extraction_rules, list) or not extraction_rules:
         return out
 
@@ -433,8 +558,19 @@ def _get_target_entities_cdf(
     overwrite = config.parameters.overwrite
     excluded_entities: List[str] = []
     if not overwrite:
-        excluded_entities = _read_table_keys(client, raw_db, raw_table_key)
-        logger.debug(f"Excluding {len(excluded_entities)} existing entities")
+        policy = getattr(config.parameters, "skip_entity_policy", "successful_only")
+        chunk = getattr(config.parameters, "raw_skip_scan_chunk_size", 5000)
+        if policy == "none":
+            excluded_entities = []
+        else:
+            excluded_entities = list(
+                dict.fromkeys(
+                    _read_entity_keys_to_exclude(
+                        client, raw_db, raw_table_key, policy, chunk
+                    )
+                )
+            )
+        logger.debug(f"Excluding {len(excluded_entities)} existing entities (policy={policy!r})")
 
     max_files = getattr(getattr(config, "parameters", None), "max_files", None)
     if isinstance(max_files, bool):
@@ -453,7 +589,6 @@ def _get_target_entities_cdf(
         logger.debug(f"Querying view: {entity_view_id}")
         filter_expr = _build_filter(
             entity_view_config,
-            bool(getattr(getattr(config, "parameters", None), "run_all", True)),
             excluded_entities,
             logger,
         )
@@ -526,10 +661,10 @@ def _get_target_entities_cdf(
                             ),
                         }
                         kex_iso = getattr(
-                            entity_view_config, "ignore_self_referencing_keys", None
+                            entity_view_config, "exclude_self_referencing_keys", None
                         )
                         if kex_iso is not None:
-                            row["_kex_ignore_self_referencing_keys"] = kex_iso
+                            row["_kex_exclude_self_referencing_keys"] = kex_iso
                         entities_source[entity_external_id] = row
 
                     wanted_fields: List[tuple[str, bool, list[str]]] = []
@@ -603,7 +738,7 @@ def _get_target_entities_cdf(
 
 
 def _build_filter(
-    entity_config: Any, run_all: bool, excluded_entities: list[str], logger: Any
+    entity_config: Any, excluded_entities: list[str], logger: Any
 ) -> dm.filters.Filter:
     """Build filter expression for querying entities."""
     entity_view_id = entity_config.as_view_id()
@@ -642,10 +777,3 @@ def _apply_preprocessing(field_value: str, preprocessing: list[str]) -> str:
 from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
 
 
-def _read_table_keys(client: CogniteClient, db: str, tbl: str) -> list[str]:
-    """Read existing entity keys from RAW table."""
-    try:
-        rows = client.raw.rows.list(db, [tbl])
-        return [r.key for r in rows]
-    except Exception:
-        return []

@@ -6,7 +6,8 @@ This module provides integration tests for the Configuration Manager
 used across key extraction and aliasing workflows.
 """
 
-import os
+import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -33,8 +34,6 @@ class TestConfigurationManager(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test fixtures."""
-        import shutil
-
         shutil.rmtree(self.temp_dir)
 
     def test_yaml_file_loading(self):
@@ -52,11 +51,23 @@ class TestConfigurationManager(unittest.TestCase):
         self.assertIn("extraction_rules", loaded_config)
         self.assertIn("validation", loaded_config)
 
-    def test_environment_variable_loading(self):
-        """Test loading configuration from environment variables."""
-        # This test would require mocking environment variables
-        # Implementation depends on the specific environment variable handling
-        pass
+    def test_json_file_loading(self):
+        """Test loading configuration from JSON file."""
+        json_file = Path(self.temp_dir) / "test_config.json"
+        test_config = {"test_key": "test_value", "nested": {"key": "value"}}
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(test_config, f)
+
+        loaded_config = self.config_manager.load_json_file(json_file)
+
+        self.assertEqual(loaded_config["test_key"], "test_value")
+        self.assertEqual(loaded_config["nested"]["key"], "value")
+
+    def test_missing_file_handling(self):
+        """Missing YAML path raises FileNotFoundError."""
+        missing_file = Path(self.temp_dir) / "missing.yaml"
+        with self.assertRaises(FileNotFoundError):
+            self.config_manager.load_yaml_file(missing_file)
 
 
 if __name__ == "__main__":

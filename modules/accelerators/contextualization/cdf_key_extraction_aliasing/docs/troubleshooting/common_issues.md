@@ -276,7 +276,7 @@ Extraction took 300 seconds for 1000 records
 1. **Reduce Batch Size**
    ```yaml
    cdf:
-     batch_size: 50  # Reduce from 100
+     batch_size: 50  # Reduce from default (1000) or your current value
    ```
 
 2. **Limit Concurrent Requests**

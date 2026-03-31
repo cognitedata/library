@@ -285,7 +285,7 @@ def create_test_entities(test_type: str = "regex"):
     """Create test entities based on the specified test type."""
 
     if test_type == "regex":
-        # Based on test samples from test_extraction_handlers.py and test_key_extraction_engine.py:
+        # Based on test samples from test_extraction_handlers.py and test_extraction_engine.py:
         # Rule 1: pattern '\bP[-_]?\d{1,6}[A-Z]?\b' - pump tags (P-10001, P-10002, P-101, P101A)
         # Rule 2: pattern '\bT[-_]?\d{1,6}[A-Z]?\b' - tank references (T-301, T-201)
         # Rule 3: pattern '\b[A-Z]{2,3}[-_]?\d{1,6}[A-Z]?\b' - instrument tags (FIC-2001, FIC-1001, TIC-4001, PIC-4002)

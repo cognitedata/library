@@ -9,11 +9,12 @@
 parameters:
   debug: true
   verbose: true
-  run_all: true
   overwrite: false
   raw_db: "my_raw_database"
-  raw_table_state: "extraction_state_table"
-  raw_table_key: "extracted_keys_table"
+  raw_table_key: "key_extraction_state"
+  skip_entity_policy: "successful_only"
+  write_empty_extraction_rows: false
+  raw_skip_scan_chunk_size: 5000
 
 # ====================
 # DATA SECTION
@@ -32,7 +33,6 @@ data:
       view_version: "v1"
       instance_space: "sp_my_instance_space"
       entity_type: "asset"  # Options: asset, file, timeseries
-      batch_size: 100
       include_properties:
         - "name"
         - "description"
@@ -83,7 +83,6 @@ data:
       view_version: "v1"
       instance_space: "sp_my_instance_space"
       entity_type: "asset"
-      batch_size: 100
       include_properties:
         - "name"
         - "labels"

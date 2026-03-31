@@ -1,7 +1,7 @@
 # Key Extraction and Aliasing — Module Summary
 
 **Last reviewed:** 2026-03-30  
-**Canonical default scope:** [`config/scopes/default/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml) — `parameters.ignore_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`ignore_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
+**Canonical default scope:** [`config/scopes/default/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml) — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
 **Shared tag pattern library:** [`config/tag_patterns.yaml`](../config/tag_patterns.yaml) (aligned field `alphanumeric_tag`)
 
 This document describes the **current** default configuration and pipeline behavior for `cdf_key_extraction_aliasing`. For numbers from a specific CDF or local test run, use the latest JSON under [`tests/results/`](../tests/results/) or your own exported extraction output.
@@ -90,7 +90,7 @@ Rules are ordered by **priority**; at equal priority, **YAML order** applies. On
 With the shared regex above, a timeseries **name** such as `VAL_45-TT-92506:X.Value` should produce:
 
 - **Candidate key:** `45-TT-92506` (from `timeseries_instrument_tag_candidate`).
-- **Foreign key reference (name field):** `45-TT-92506` (from `timeseries_name_asset_fk`) — retained because the default scope sets **`ignore_self_referencing_keys: false`** on the **CogniteTimeSeries** source view (asset/file views inherit **`true`** and would drop a duplicate FK equal to the candidate).
+- **Foreign key reference (name field):** `45-TT-92506` (from `timeseries_name_asset_fk`) — retained because the default scope sets **`exclude_self_referencing_keys: false`** on the **CogniteTimeSeries** source view (asset/file views inherit **`true`** and would drop a duplicate FK equal to the candidate).
 
 | Entity type | Example name | Typical candidate keys | Typical FK from text fields |
 |-------------|--------------|-------------------------|------------------------------|

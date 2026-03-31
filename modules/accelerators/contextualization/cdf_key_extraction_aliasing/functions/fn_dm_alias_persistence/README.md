@@ -18,13 +18,15 @@ Reads aliasing results (from task input or RAW) and persists generated **aliases
   - **`entities_keys_extracted`**: optional in-memory map with per-entity `foreign_key_references` (local `main.py` passes this)
   - **`source_instance_space`**, **`source_view_space`**, **`source_view_external_id`**, **`source_view_version`**: used when resolving entities that appear only in FK data
 - **FK target view** (optional; defaults match CogniteDescribable): **`foreignKeyWritebackViewSpace`** / **`foreign_key_writeback_view_space`**, **`foreignKeyWritebackViewExternalId`** / **`foreign_key_writeback_view_external_id`**, **`foreignKeyWritebackViewVersion`** / **`foreign_key_writeback_view_version`**
+- **Bulk apply** (optional): **`persistenceApplyBatchSize`** / **`persistence_apply_batch_size`** — maximum number of nodes sent per `instances.apply` call (default **1000**, minimum **1**). Failed batches are retried in smaller sub-batches (roughly quarters) until single-node applies, so one bad instance does not fail an entire large batch without a retry path.
 
 ### What it updates
 
 For each entity referenced by alias rows (`entities_json` / normalized entity list):
 
-- Applies `instances.apply()` with `sources` pointing at **`cdf_cdm:CogniteDescribable:v1`** for the alias list (property name as configured).
+- Builds `NodeApply` payloads with `sources` pointing at **`cdf_cdm:CogniteDescribable:v1`** for the alias list (property name as configured).
 - If FK write-back is enabled and values exist for that entity, the FK property is set on the same apply when the FK target view matches the alias view; otherwise a second `NodeOrEdgeData` source is used for the FK view.
+- Calls **`instances.apply(nodes=...)`** in chunks of up to **`persistence_apply_batch_size`** (after the run, the mutable `data` dict includes the resolved `persistence_apply_batch_size` for observability).
 
 ### Outputs
 

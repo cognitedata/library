@@ -7,7 +7,7 @@ and writes aliases back to source entities in the CDF data model.
 
 import logging
 import json
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 try:
     from cognite.client import CogniteClient
@@ -64,6 +64,119 @@ def _resolve_foreign_key_writeback_property(data: Dict[str, Any]) -> Optional[st
     if isinstance(name, str) and name.strip():
         return name.strip()
     return None
+
+
+def _resolve_persistence_apply_batch_size(data: Dict[str, Any]) -> int:
+    """Max nodes per `instances.apply` call (camel or snake in task data). Default 1000, minimum 1."""
+    raw = data.get("persistenceApplyBatchSize") or data.get(
+        "persistence_apply_batch_size"
+    )
+    if raw is None:
+        return 1000
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return 1000
+    return max(1, n)
+
+
+class _AliasApplyWorkItem(NamedTuple):
+    entity_id: str
+    node: Any
+    aliases: List[str]
+    fk_vals: List[str]
+
+
+def _metrics_for_successful_apply(items: List[_AliasApplyWorkItem]) -> Tuple[int, int, int, int]:
+    """Returns persisted_entities, aliases_persisted, foreign_keys_persisted, entities_fk_updated."""
+    aliases_n = 0
+    fk_n = 0
+    entities_with_fk = 0
+    for it in items:
+        aliases_n += len(it.aliases)
+        if it.fk_vals:
+            entities_with_fk += 1
+            fk_n += len(it.fk_vals)
+    return (len(items), aliases_n, fk_n, entities_with_fk)
+
+
+def _apply_alias_work_recursive(
+    client: CogniteClient,
+    logger: Any,
+    items: List[_AliasApplyWorkItem],
+) -> Tuple[int, int, int, int, int]:
+    """
+    Apply a list of nodes; on failure split into ~quarters until single-node applies.
+    Returns (persisted_count, failed_count, aliases_persisted, foreign_keys_persisted, entities_fk_updated).
+    """
+    if not items:
+        return (0, 0, 0, 0, 0)
+    try:
+        client.data_modeling.instances.apply(nodes=[it.node for it in items])
+        pe, an, fn, ef = _metrics_for_successful_apply(items)
+        logger.debug(f"Applied {len(items)} instance(s) in one request")
+        return (pe, 0, an, fn, ef)
+    except Exception as e:
+        if len(items) == 1:
+            eid = items[0].entity_id
+            logger.error(
+                f"Failed to persist updates for entity {eid}: {e}",
+                exc_info=True,
+            )
+            return (0, 1, 0, 0, 0)
+        sub = max(1, len(items) // 4)
+        logger.warning(
+            f"Apply batch of {len(items)} instance(s) failed ({e!s}); "
+            f"retrying in sub-batches of up to {sub}"
+        )
+        persisted = failed = 0
+        aliases_persisted = foreign_keys_persisted = 0
+        entities_fk_updated = 0
+        for j in range(0, len(items), sub):
+            chunk = items[j : j + sub]
+            p, f, a, fk, ef = _apply_alias_work_recursive(client, logger, chunk)
+            persisted += p
+            failed += f
+            aliases_persisted += a
+            foreign_keys_persisted += fk
+            entities_fk_updated += ef
+        return (
+            persisted,
+            failed,
+            aliases_persisted,
+            foreign_keys_persisted,
+            entities_fk_updated,
+        )
+
+
+def _apply_alias_work_batched(
+    client: CogniteClient,
+    logger: Any,
+    work_items: List[_AliasApplyWorkItem],
+    batch_size: int,
+) -> Tuple[int, int, int, int, int]:
+    """Chunk work_items by batch_size, then apply each chunk with recursive shrink on failure."""
+    persisted = failed = 0
+    aliases_persisted = foreign_keys_persisted = 0
+    entities_fk_updated = 0
+    for i in range(0, len(work_items), batch_size):
+        batch = work_items[i : i + batch_size]
+        logger.info(
+            f"Applying instance updates: batch starting at offset {i}, size {len(batch)}"
+        )
+        p, f, a, fk, ef = _apply_alias_work_recursive(client, logger, batch)
+        persisted += p
+        failed += f
+        aliases_persisted += a
+        foreign_keys_persisted += fk
+        entities_fk_updated += ef
+    return (
+        persisted,
+        failed,
+        aliases_persisted,
+        foreign_keys_persisted,
+        entities_fk_updated,
+    )
 
 
 def _resolve_foreign_key_writeback_view_tuple(
@@ -283,6 +396,8 @@ def persist_aliases_to_entities(
             source_instance_space, source_view_space, source_view_external_id, source_view_version
             when persisting FK-only entities (not present in aliasing results).
             entities_keys_extracted: optional in-memory FK map (`foreign_key_references` per entity).
+            Optional: persistenceApplyBatchSize / persistence_apply_batch_size (default 1000) —
+            max nodes per `instances.apply` before splitting; failed batches retry in smaller chunks.
     """
     try:
         logger.info("Starting Alias Persistence Pipeline")
@@ -491,93 +606,89 @@ def persist_aliases_to_entities(
 
         logger.info(f"Targeting {target_view_id} view for alias persistence")
 
-        persisted_count = 0
-        failed_count = 0
-        aliases_persisted_count = 0
-        foreign_keys_persisted_count = 0
-        entities_fk_updated = 0
+        apply_batch_size = _resolve_persistence_apply_batch_size(data)
+        data["persistence_apply_batch_size"] = apply_batch_size
 
-        for entity_key, alias_data in entity_aliases.items():
+        work_items: List[_AliasApplyWorkItem] = []
+
+        for _entity_key, alias_data in entity_aliases.items():
             entity_id = alias_data["entity_id"]
-            try:
-                instance_space = alias_data.get("instance_space")
-                if not instance_space:
-                    instance_space = target_view_space
+            instance_space = alias_data.get("instance_space")
+            if not instance_space:
+                instance_space = target_view_space
 
-                aliases = sorted(set(alias_data["aliases"]))
-                fk_vals = list(fk_map.get(entity_id, [])) if write_fk else []
+            aliases = sorted(set(alias_data["aliases"]))
+            fk_vals = list(fk_map.get(entity_id, [])) if write_fk else []
 
-                sources: List[Any] = []
-                if aliases and write_fk and fk_writeback_property and fk_vals:
-                    if target_view_id == fk_view_id:
-                        props = {
-                            alias_writeback_property: aliases,
-                            fk_writeback_property: fk_vals,
-                        }
-                        sources = [NodeOrEdgeData(source=target_view_id, properties=props)]
-                    else:
-                        sources = [
-                            NodeOrEdgeData(
-                                source=target_view_id,
-                                properties={alias_writeback_property: aliases},
-                            ),
-                            NodeOrEdgeData(
-                                source=fk_view_id,
-                                properties={fk_writeback_property: fk_vals},
-                            ),
-                        ]
-                elif aliases:
+            sources: List[Any] = []
+            if aliases and write_fk and fk_writeback_property and fk_vals:
+                if target_view_id == fk_view_id:
+                    props = {
+                        alias_writeback_property: aliases,
+                        fk_writeback_property: fk_vals,
+                    }
+                    sources = [NodeOrEdgeData(source=target_view_id, properties=props)]
+                else:
                     sources = [
                         NodeOrEdgeData(
                             source=target_view_id,
                             properties={alias_writeback_property: aliases},
-                        )
-                    ]
-                elif write_fk and fk_writeback_property and fk_vals:
-                    sources = [
+                        ),
                         NodeOrEdgeData(
                             source=fk_view_id,
                             properties={fk_writeback_property: fk_vals},
-                        )
+                        ),
                     ]
-                else:
-                    continue
-
-                log_parts = []
-                if aliases:
-                    log_parts.append(
-                        f"{len(aliases)} alias value(s) on {alias_writeback_property!r}"
+            elif aliases:
+                sources = [
+                    NodeOrEdgeData(
+                        source=target_view_id,
+                        properties={alias_writeback_property: aliases},
                     )
-                if fk_vals:
-                    log_parts.append(
-                        f"{len(fk_vals)} FK reference(s) on {fk_writeback_property!r}"
+                ]
+            elif write_fk and fk_writeback_property and fk_vals:
+                sources = [
+                    NodeOrEdgeData(
+                        source=fk_view_id,
+                        properties={fk_writeback_property: fk_vals},
                     )
-                logger.info(f"Updating entity {entity_id}: " + "; ".join(log_parts))
-
-                client.data_modeling.instances.apply(
-                    nodes=[
-                        NodeApply(
-                            space=instance_space,
-                            external_id=entity_id,
-                            sources=sources,
-                        )
-                    ]
-                )
-
-                persisted_count += 1
-                aliases_persisted_count += len(aliases)
-                if fk_vals:
-                    entities_fk_updated += 1
-                    foreign_keys_persisted_count += len(fk_vals)
-                logger.debug(f"Successfully applied instance updates for entity {entity_id}")
-
-            except Exception as e:
-                logger.error(
-                    f"Failed to persist updates for entity {entity_id}: {e}",
-                    exc_info=True,
-                )
-                failed_count += 1
+                ]
+            else:
                 continue
+
+            log_parts = []
+            if aliases:
+                log_parts.append(
+                    f"{len(aliases)} alias value(s) on {alias_writeback_property!r}"
+                )
+            if fk_vals:
+                log_parts.append(
+                    f"{len(fk_vals)} FK reference(s) on {fk_writeback_property!r}"
+                )
+            logger.debug(f"Queued update for entity {entity_id}: " + "; ".join(log_parts))
+
+            work_items.append(
+                _AliasApplyWorkItem(
+                    entity_id=entity_id,
+                    node=NodeApply(
+                        space=instance_space,
+                        external_id=entity_id,
+                        sources=sources,
+                    ),
+                    aliases=aliases,
+                    fk_vals=fk_vals,
+                )
+            )
+
+        (
+            persisted_count,
+            failed_count,
+            aliases_persisted_count,
+            foreign_keys_persisted_count,
+            entities_fk_updated,
+        ) = _apply_alias_work_batched(
+            client, logger, work_items, apply_batch_size
+        )
 
         data["aliases_planned"] = aliases_planned_count
         data["aliases_persisted"] = aliases_persisted_count

@@ -16,30 +16,35 @@ workflowDefinition:
               config:
                 parameters:
                   debug: true
-                  run_all: true
                   # Temporary safety limit while validating the pipeline end-to-end.
                   # Set to null (or remove) to process all matching files.
                   max_files: 50
                   overwrite: true
                   raw_db: db_key_extraction
-                  raw_table_state: key_extraction_state_{{ site_abbreviation }}
-                  raw_table_key: {{ site_abbreviation }}_extracted_keys
+                  raw_table_key: {{ site_abbreviation }}_key_extraction_state
                 data:
                   validation:
                     min_confidence: 0.5
                     max_keys_per_type: 1000
-                    blacklist_keywords:
-                      - "test"
-                      - "example"
-                      - "sample"
-                      - "dummy"
-                      - "temp"
-                      - "temporary"
-                      - "null"
-                      - "none"
-                      - "n/a"
-                      - "na"
-                      - "unknown"
+                    confidence_match_rules:
+                    - name: blacklist
+                      priority: 10
+                      match:
+                        keywords:
+                        - test
+                        - example
+                        - sample
+                        - dummy
+                        - temp
+                        - temporary
+                        - 'null'
+                        - none
+                        - n/a
+                        - na
+                        - unknown
+                      confidence_modifier:
+                        mode: explicit
+                        value: 0.0
                   source_views:
                     - view_external_id: CogniteFile
                       view_space: cdf_cdm
@@ -192,7 +197,7 @@ workflowDefinition:
             # Key-Extraction writes candidate keys to RAW; Aliasing reads them back from RAW
             # because Workflows don't auto-pass function outputs to the next task.
             source_raw_db: db_key_extraction
-            source_raw_table_key: {{ site_abbreviation }}_extracted_keys
+            source_raw_table_key: {{ site_abbreviation }}_key_extraction_state
             source_raw_read_limit: 10000
             source_instance_space: {{ instance_space }}
             source_view_space: cdf_cdm
@@ -204,10 +209,9 @@ workflowDefinition:
               config:
                 parameters:
                   debug: true
-                  run_all: true
                   overwrite: true
                   raw_db: db_tag_aliasing
-                  raw_table_state: tag_aliasing_state_{{ site_abbreviation }}
+                  raw_table_state: {{ site_abbreviation }}_tag_aliasing_state
                   raw_table_aliases: {{ site_abbreviation }}_aliases
                 data:
                   aliasing_rules:
@@ -551,7 +555,7 @@ workflowDefinition:
             raw_read_limit: 10000
             # Optional FK write-back (enable when DM exposes e.g. references_found on CogniteDescribable)
             source_raw_db: db_key_extraction
-            source_raw_table_key: {{ site_abbreviation }}_extracted_keys
+            source_raw_table_key: {{ site_abbreviation }}_key_extraction_state
             source_raw_read_limit: 10000
             source_instance_space: {{ instance_space }}
             source_view_space: cdf_cdm

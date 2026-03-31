@@ -155,7 +155,7 @@ def _fetch_entities_from_cdf(
         instance_space = view_cfg.get("instance_space")
         entity_type = view_cfg.get("entity_type", "asset")
         include_properties = view_cfg.get("include_properties", []) or []
-        batch_size = int(view_cfg.get("batch_size", 100))
+        batch_size = int(view_cfg.get("batch_size", 1000))
 
         if not view_external_id:
             continue

@@ -11,18 +11,14 @@ This module ships a 3-step workflow that:
 
 #### Task 1 — Key extraction
 - **Function**: `fn_dm_key_extraction`
-- **Writes RAW** (configured by the workflow input config):
-  - **Keys table**: `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
-    - Row key: file external id (node external id)
-    - Columns: extracted keys grouped by source field (for example `NAME`, `DESCRIPTION`, `METADATA`)
-    - Extra provenance column: `RULES_USED_JSON` (JSON list of rule names that produced at least one key for that entity)
-  - **State table**: `db_key_extraction/key_extraction_state_{{ site_abbreviation }}`
-    - One row per run with counts, timestamps, run duration, and `rules_used_counts_json`
+- **Writes RAW** (configured by the workflow input config) to **`db_key_extraction/{{ site_abbreviation }}_key_extraction_state`**:
+  - **Entity rows** (`RECORD_KIND=entity`): row key = node external id; field columns; `RULES_USED_JSON`; optional `FOREIGN_KEY_REFERENCES_JSON`; `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`
+  - **Run summary rows** (`RECORD_KIND=run`): timestamp row key; counts, durations, `rules_used_counts_json`, `skip_entity_policy`, etc.
 
 #### Task 2 — Key aliasing
 - **Function**: `fn_dm_aliasing`
 - **Reads RAW** (key extraction output):
-  - `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
+  - `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`
 - **Writes RAW**:
   - `db_tag_aliasing/{{ site_abbreviation }}_aliases`
     - Row key: `original_tag`
@@ -36,7 +32,7 @@ This module ships a 3-step workflow that:
 - **Function**: `fn_dm_alias_persistence`
 - **Reads RAW**:
   - `db_tag_aliasing/{{ site_abbreviation }}_aliases` (alias rows)
-  - When **`write_foreign_key_references`** is true: key-extraction RAW (e.g. `db_key_extraction/{{ site_abbreviation }}_extracted_keys`) for `FOREIGN_KEY_REFERENCES_JSON`, via `source_raw_db` / `source_raw_table_key` on the task `data`
+  - When **`write_foreign_key_references`** is true: key-extraction RAW (e.g. `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`) for `FOREIGN_KEY_REFERENCES_JSON`, via `source_raw_db` / `source_raw_table_key` on the task `data`
 - **Writes back to data model**
   - Updates each referenced node on **`cdf_cdm:CogniteDescribable:v1`** with the configured alias property (default `aliases`)
   - Optionally writes foreign-key reference strings to **`foreign_key_writeback_property`** (e.g. `references_found`) when enabled — only if that property exists in your data model

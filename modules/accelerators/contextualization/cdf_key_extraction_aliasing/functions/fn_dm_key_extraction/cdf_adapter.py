@@ -46,7 +46,7 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
         "validation": {"min_confidence": 0.5, "max_keys_per_type": 1000},
     }
 
-    # Pipeline parameters (min_key_length, ignore_self_referencing_keys, etc.)
+    # Pipeline parameters (min_key_length, exclude_self_referencing_keys, etc.)
     try:
         engine_config["parameters"] = cdf_config.parameters.model_dump(
             mode="python", exclude_none=False
@@ -62,6 +62,22 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
 
     # Add field_selection_strategy to config if needed
     engine_config["field_selection_strategy"] = cdf_config.data.field_selection_strategy
+
+    global_validation = getattr(cdf_config.data, "validation", None)
+    if global_validation is not None:
+        engine_config["validation"].update(
+            global_validation.model_dump(mode="python", exclude_none=False)
+        )
+
+    source_views = getattr(cdf_config.data, "source_views", None)
+    if source_views:
+        engine_config["source_views"] = [
+            v.model_dump(mode="python", exclude_none=False) for v in source_views
+        ]
+    elif getattr(cdf_config.data, "source_view", None) is not None:
+        engine_config["source_views"] = [
+            cdf_config.data.source_view.model_dump(mode="python", exclude_none=False)
+        ]
 
     return engine_config
 
@@ -123,7 +139,7 @@ def _convert_yaml_direct_to_engine_config(
         "field_selection_strategy", "merge_all"
     )
 
-    # Add validation config (including blacklist_keywords)
+    # Add validation config (min_confidence, regexp_match, confidence_match_rules, …)
     validation_config = data_section.get("validation", {})
     if validation_config:
         engine_config["validation"].update(validation_config)
@@ -133,7 +149,7 @@ def _convert_yaml_direct_to_engine_config(
     if source_views:
         engine_config["source_views"] = source_views
 
-    # key_extraction.config.parameters → engine (min_key_length, ignore_self_referencing_keys, …)
+    # key_extraction.config.parameters → engine (min_key_length, exclude_self_referencing_keys, …)
     top_params = config_data.get("parameters")
     if isinstance(top_params, dict) and top_params:
         engine_config["parameters"] = dict(top_params)

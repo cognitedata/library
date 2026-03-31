@@ -12,19 +12,17 @@ Extracts candidate keys, foreign key references, and document references from **
 
 Key config fields used:
 - **`config.parameters.raw_db`**
-- **`config.parameters.raw_table_key`**
-- **`config.parameters.raw_table_state`**
+- **`config.parameters.raw_table_key`**: RAW table for entity payloads, `EXTRACTION_STATUS`, and run-summary rows (`RECORD_KIND=run`)
+- **`config.parameters.skip_entity_policy`**, **`write_empty_extraction_rows`**, **`raw_skip_scan_chunk_size`**: control instance listing when `overwrite` is false (see configuration guide)
 - **`config.parameters.max_files`**: optional limit for testing
 - **`config.data.source_views`**: what view(s) to query; optional per-view **`instance_space`** (API `space` argument), optional **`filters`** including **`property_scope: node`** for `("node", "space")` style filters when `instance_space` is omitted or for extra narrowing
 
 ### Outputs
 
-- **RAW keys table** (`raw_db` / `raw_table_key`)
-  - one row per entity (row key = entity external id)
-  - columns contain extracted keys grouped by field (for example `NAME`, `DESCRIPTION`, `METADATA`)
-- **RAW state table** (`raw_db` / `raw_table_state`)
-  - one row per run with counts, timestamps, and `run_duration_s/ms`
-- **Function return**: JSON-safe summary only (`entities_processed`, `workflow_config_external_id`)
+- **RAW extraction table** (`raw_db` / `raw_table_key`)
+  - **Entity rows:** row key = instance external id; field columns, `RULES_USED_JSON`, optional `FOREIGN_KEY_REFERENCES_JSON`, plus `RECORD_KIND=entity`, `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`, and `LAST_ERROR` on failures
+  - **Run rows:** timestamp key; `RECORD_KIND=run` and run-level metrics (counts, durations, `skip_entity_policy`, `run_id`, etc.)
+- **Function return**: JSON-safe summary (`keys_extracted`, `status`, `message`, `run_id`, …) plus in-memory `entities_keys_extracted` for callers that need it
 
 ### How to run locally
 
@@ -35,9 +33,7 @@ This function is designed to run in CDF, but you can run it locally by calling `
 ### How it runs in the workflow
 
 In `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (v1):
-- task `fn_dm_key_extraction_{{ site_abbreviation }}` runs this function and writes to:
-  - `db_key_extraction/{{ site_abbreviation }}_extracted_keys`
-  - `db_key_extraction/key_extraction_state_{{ site_abbreviation }}`
+- task `fn_dm_key_extraction_{{ site_abbreviation }}` runs this function and writes entity and run rows to `db_key_extraction/{{ site_abbreviation }}_key_extraction_state`
 
 ### Change history
 

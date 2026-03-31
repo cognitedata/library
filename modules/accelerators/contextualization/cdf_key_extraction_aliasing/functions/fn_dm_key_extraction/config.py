@@ -7,7 +7,7 @@ import yaml
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.filters import Filter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
 from .utils.FixedWidthMethodParameter import FixedWidthMethodParameter
@@ -16,21 +16,56 @@ from .utils.PassthroughMethodParameter import PassthroughMethodParameter
 from .utils.RegexMethodParameter import RegexMethodParameter
 from .utils.TokenReassemblyMethodParameter import TokenReassemblyMethodParameter
 
+SkipEntityPolicy = Literal["successful_only", "none"]
+
 
 # Configuration classes
 class Parameters(BaseModel):
     debug: bool = Field(False, description="Enable debug mode")
     verbose: bool = Field(False, description="Enable verbose output")
-    run_all: bool = Field(True, description="Run all extraction rules")
-    overwrite: bool = Field(False, description="Overwrite existing results")
+    overwrite: bool = Field(
+        False,
+        description=(
+            "When true, instance listing is not filtered by existing RAW rows. When false, "
+            "see skip_entity_policy for which RAW entity rows exclude instances."
+        ),
+    )
     max_files: Optional[int] = Field(
         None,
         description="Optional limit for how many file entities to process (across all source_views).",
     )
     raw_db: str = Field(..., description="ID of the raw database")
-    raw_table_state: str = Field(..., description="ID of the state table in RAW")
-    raw_table_key: str = Field(..., description="ID of the key table in RAW")
-    ignore_self_referencing_keys: Union[bool, Dict[str, Any]] = Field(
+    raw_table_key: str = Field(
+        ...,
+        description=(
+            "RAW table for extraction payloads, per-entity processing state (RECORD_KIND=entity, "
+            "EXTRACTION_STATUS), and run-summary rows (RECORD_KIND=run). "
+            "Convention: `key_extraction_state` (default scope) or `{site}_key_extraction_state` (workflows)."
+        ),
+    )
+    skip_entity_policy: SkipEntityPolicy = Field(
+        "successful_only",
+        description=(
+            "When overwrite is false: successful_only excludes instances that have a RAW entity row "
+            "with EXTRACTION_STATUS success or empty; failed or rows without that column are listed "
+            "again. none matches overwrite true for listing (no RAW-based exclusion)."
+        ),
+    )
+    write_empty_extraction_rows: bool = Field(
+        False,
+        description=(
+            "If true, write a RAW entity row with EXTRACTION_STATUS=empty when extraction yields "
+            "no candidate keys and no FK refs (stops re-querying those instances when using "
+            "successful_only)."
+        ),
+    )
+    raw_skip_scan_chunk_size: int = Field(
+        5000,
+        ge=100,
+        le=10000,
+        description="Chunk size when scanning raw_table_key for skip_entity_policy (RAW rows iterator).",
+    )
+    exclude_self_referencing_keys: Union[bool, Dict[str, Any]] = Field(
         True,
         description=(
             "If True, drop foreign_key_reference values that match a candidate_key on the same "
@@ -159,7 +194,8 @@ class SourceViewConfig(TargetViewConfig):
     """Configuration and scope for querying data views."""
 
     batch_size: int = Field(
-        ..., description="Number of entities to process per batch (e.g., 100)."
+        1000,
+        description="Number of entities to process per batch (default 1000).",
     )
     filters: Optional[List[FilterConfig]] = Field(
         None,
@@ -173,11 +209,18 @@ class SourceViewConfig(TargetViewConfig):
         ...,
         description="The resource property that adds granularity to the instances.",
     )
-    ignore_self_referencing_keys: Optional[bool] = Field(
+    exclude_self_referencing_keys: Optional[bool] = Field(
         None,
         description=(
-            "If set, overrides parameters.ignore_self_referencing_keys for entities listed "
+            "If set, overrides parameters.exclude_self_referencing_keys for entities listed "
             "from this source view. None inherits global parameters (bool or per-entity_type map)."
+        ),
+    )
+    validation: Optional[ValidationConfig] = Field(
+        None,
+        description=(
+            "Optional validation overlay merged with global data.validation for entities "
+            "from this view (scalar overrides; confidence_match_rules concatenated then sorted)."
         ),
     )
 
@@ -235,18 +278,74 @@ ExtractionMethod = Union[
 ]
 
 
+class ConfidenceModifier(BaseModel):
+    mode: Literal["explicit", "offset"] = Field(
+        ...,
+        description="explicit: set confidence to value (clamped). offset: add value to current confidence (clamped).",
+    )
+    value: float = Field(..., description="Target confidence (explicit) or delta (offset).")
+
+
+class ConfidenceMatchExpression(BaseModel):
+    pattern: str = Field(..., description="Regex pattern; match if re.search succeeds on the key value.")
+    description: Optional[str] = Field(
+        None,
+        description="Human-readable label for authors (ignored by the engine).",
+    )
+
+
+class ConfidenceMatchSpec(BaseModel):
+    expressions: List[Union[str, ConfidenceMatchExpression]] = Field(
+        default_factory=list,
+        description=(
+            "Regex patterns as plain strings, or {pattern, description} objects; "
+            "match if any re.search succeeds on the key value."
+        ),
+    )
+    keywords: List[str] = Field(
+        default_factory=list,
+        description="Substrings; match if any keyword is contained in the key value (case-insensitive).",
+    )
+
+    @model_validator(mode="after")
+    def at_least_one_matcher(self) -> ConfidenceMatchSpec:
+        def _expr_nonempty(item: Union[str, ConfidenceMatchExpression]) -> bool:
+            if isinstance(item, str):
+                return bool(str(item).strip())
+            return bool(str(item.pattern).strip())
+
+        ex_ok = any(_expr_nonempty(x) for x in self.expressions)
+        kw_ok = any(str(x).strip() for x in self.keywords)
+        if not ex_ok and not kw_ok:
+            raise ValueError("match requires at least one non-empty expression or keyword")
+        return self
+
+
+class ConfidenceMatchRule(BaseModel):
+    name: Optional[str] = Field(None, description="Optional label for logs.")
+    enabled: bool = True
+    priority: Optional[int] = Field(
+        None,
+        description="Lower runs first. If omitted, order is list_index * 10.",
+    )
+    match: ConfidenceMatchSpec
+    confidence_modifier: ConfidenceModifier
+
+
 class ValidationConfig(BaseModel):
     min_confidence: float = Field(
         0.1,
         description="Minimum confidence for validated keys.",
     )
-    blacklist_keywords: List[str] = Field(
-        default_factory=[],
-        description="List of keywords that, if present in the extracted key, invalidate it.",
-    )
     regexp_match: Union[str, List[str], None] = Field(
         default=None,
         description="Regular expression(s) that the extracted key must match to be considered valid.",
+    )
+    confidence_match_rules: List[ConfidenceMatchRule] = Field(
+        default_factory=list,
+        description=(
+            "Ordered confidence adjustments per key: first matching rule wins (by priority, then list order)."
+        ),
     )
 
 
@@ -304,10 +403,29 @@ class ExtractionRuleConfig(BaseModel):
 
 
 class ConfigData(BaseModel):
-    source_view: SourceViewConfig
+    source_view: Optional[SourceViewConfig] = Field(
+        None,
+        description="Single source view (legacy). Prefer source_views for multi-view scopes.",
+    )
+    source_views: Optional[List[SourceViewConfig]] = Field(
+        None,
+        description="Source views to query. When set, used by pipeline and engine (with source_view as fallback).",
+    )
     source_tables: Optional[List[SourceTableConfig]] = None
     extraction_rules: List[ExtractionRuleConfig]
     field_selection_strategy: Literal["first_match", "merge_all"]
+    validation: Optional[ValidationConfig] = Field(
+        None,
+        description="Global validation (min_confidence, regexp_match, confidence_match_rules) merged in engine.",
+    )
+
+    @model_validator(mode="after")
+    def _require_source_view_or_views(self) -> "ConfigData":
+        if self.source_view is None and not self.source_views:
+            raise ValueError(
+                "data must include source_view or a non-empty source_views list"
+            )
+        return self
 
 
 class Config(BaseModel):
@@ -330,6 +448,10 @@ __all__ = [
     "SourceViewConfig",
     "SourceFieldConfig",
     "ExtractionRuleConfig",
+    "ConfidenceModifier",
+    "ConfidenceMatchExpression",
+    "ConfidenceMatchSpec",
+    "ConfidenceMatchRule",
     "ValidationConfig",
     "ConfigData",
     "Config",

@@ -1,0 +1,24 @@
+# Global validation — copy under key_extraction.config.data as key "validation".
+# Blacklist below applies to all entities. ISA-style rules (isa_compliant, not_isa_penalty)
+# belong on CogniteAsset / CogniteTimeSeries `source_views[].validation` only; see default scope YAML.
+min_confidence: 0.5
+max_keys_per_type: 1000
+confidence_match_rules:
+- name: blacklist
+  priority: 10
+  match:
+    keywords:
+    - test
+    - example
+    - sample
+    - dummy
+    - temp
+    - temporary
+    - 'null'
+    - none
+    - n/a
+    - na
+    - unknown
+  confidence_modifier:
+    mode: explicit
+    value: 0.0

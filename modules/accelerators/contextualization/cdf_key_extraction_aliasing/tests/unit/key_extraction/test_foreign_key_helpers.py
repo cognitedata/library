@@ -58,7 +58,7 @@ class TestDedupeForeignKeyReferences(unittest.TestCase):
         self.assertEqual(out[0]["confidence"], 0.9)
 
 
-class TestIgnoreSelfReferencingKeys(unittest.TestCase):
+class TestExcludeSelfReferencingKeys(unittest.TestCase):
     """Foreign keys equal to a candidate value on the same instance are dropped."""
 
     def setUp(self):
@@ -66,7 +66,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
             {
                 "extraction_rules": [],
                 "validation": {},
-                "parameters": {"ignore_self_referencing_keys": True},
+                "parameters": {"exclude_self_referencing_keys": True},
             }
         )
 
@@ -104,7 +104,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 ),
             ],
         )
-        self.engine._ignore_self_referencing_keys(r)
+        self.engine._exclude_self_referencing_keys(r)
         self.assertEqual(len(r.foreign_key_references), 1)
         self.assertEqual(r.foreign_key_references[0].value, "P-101")
 
@@ -124,7 +124,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 ),
             ],
         )
-        self.engine._ignore_self_referencing_keys(r)
+        self.engine._exclude_self_referencing_keys(r)
         self.assertEqual(len(r.foreign_key_references), 1)
 
     def test_dedupe_pipeline_sees_filtered_fks(self):
@@ -161,7 +161,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 ),
             ],
         )
-        self.engine._ignore_self_referencing_keys(r)
+        self.engine._exclude_self_referencing_keys(r)
         out = _dedupe_foreign_key_references(r)
         self.assertEqual(out, [])
 
@@ -171,7 +171,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 "extraction_rules": [],
                 "validation": {},
                 "parameters": {
-                    "ignore_self_referencing_keys": {
+                    "exclude_self_referencing_keys": {
                         "default": True,
                         "timeseries": False,
                     },
@@ -203,7 +203,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 ),
             ],
         )
-        engine._ignore_self_referencing_keys(r)
+        engine._exclude_self_referencing_keys(r)
         self.assertEqual(len(r.foreign_key_references), 1)
         self.assertEqual(r.foreign_key_references[0].value, tag)
 
@@ -233,7 +233,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 ),
             ],
         )
-        self.engine._ignore_self_referencing_keys(r, source_override=False)
+        self.engine._exclude_self_referencing_keys(r, source_override=False)
         self.assertEqual(len(r.foreign_key_references), 1)
         self.assertEqual(r.foreign_key_references[0].value, tag)
 
@@ -243,7 +243,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 "extraction_rules": [],
                 "validation": {},
                 "parameters": {
-                    "ignore_self_referencing_keys": {
+                    "exclude_self_referencing_keys": {
                         "default": True,
                         "timeseries": False,
                     },
@@ -275,7 +275,7 @@ class TestIgnoreSelfReferencingKeys(unittest.TestCase):
                 ),
             ],
         )
-        engine._ignore_self_referencing_keys(r, source_override=True)
+        engine._exclude_self_referencing_keys(r, source_override=True)
         self.assertEqual(r.foreign_key_references, [])
 
 

@@ -118,6 +118,41 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         # No extraction should occur
         self.assertEqual(len(result.candidate_keys), 0)
 
+    def test_passthrough_extraction(self):
+        """Passthrough method uses entire field value as candidate key."""
+        passthrough_config = {
+            "extraction_rules": [
+                {
+                    "name": "name_as_key",
+                    "description": "Use name as-is",
+                    "extraction_type": "candidate_key",
+                    "method": "passthrough",
+                    "priority": 50,
+                    "enabled": True,
+                    "min_confidence": 0.95,
+                    "source_fields": [{"field_name": "name", "required": True}],
+                    "config": {},
+                }
+            ],
+            "validation": {
+                "min_confidence": 0.5,
+                "max_keys_per_type": 10,
+            },
+        }
+        engine = KeyExtractionEngine(passthrough_config)
+        asset = {"id": "a1", "name": "P-10001-A", "description": "Main pump"}
+        result = engine.extract_keys(asset, "asset")
+
+        self.assertIsInstance(result, ExtractionResult)
+        self.assertEqual(len(result.candidate_keys), 1)
+        key = result.candidate_keys[0]
+        self.assertEqual(key.value, "P-10001-A")
+        self.assertEqual(key.source_field, "name")
+        self.assertEqual(key.method, ExtractionMethod.PASSTHROUGH)
+        self.assertEqual(key.rule_id, "name_as_key")
+        self.assertEqual(key.confidence, 0.95)
+        self.assertEqual(len(result.foreign_key_references), 0)
+
     def test_extraction_with_instrument_tags(self):
         """Test extraction of ISA standard instrument tags."""
         config = {
@@ -556,7 +591,7 @@ class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
     def test_engine_drops_fk_when_same_string_as_candidate(self):
         # Force filtering for timeseries (default CDM scope sets timeseries: false).
         config = {
-            "parameters": {"ignore_self_referencing_keys": True},
+            "parameters": {"exclude_self_referencing_keys": True},
             "extraction_rules": [
                 {
                     "name": "cand",

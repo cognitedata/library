@@ -13,8 +13,32 @@ sys.path.insert(0, str(_LIB_ROOT))
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_alias_persistence.pipeline import (  # noqa: E402
     _resolve_alias_writeback_property,
+    _resolve_persistence_apply_batch_size,
     persist_aliases_to_entities,
 )
+
+
+class TestResolvePersistenceApplyBatchSize(unittest.TestCase):
+    def test_defaults_to_1000(self):
+        self.assertEqual(_resolve_persistence_apply_batch_size({}), 1000)
+
+    def test_snake_case(self):
+        self.assertEqual(
+            _resolve_persistence_apply_batch_size({"persistence_apply_batch_size": 50}),
+            50,
+        )
+
+    def test_camel_case(self):
+        self.assertEqual(
+            _resolve_persistence_apply_batch_size({"persistenceApplyBatchSize": 3}),
+            3,
+        )
+
+    def test_minimum_one(self):
+        self.assertEqual(
+            _resolve_persistence_apply_batch_size({"persistence_apply_batch_size": 0}),
+            1,
+        )
 
 
 class TestResolveAliasWritebackProperty(unittest.TestCase):
@@ -111,6 +135,91 @@ class TestPersistAliasesWritebackProperty(unittest.TestCase):
         props = nodes[0].sources[0].properties
         self.assertIn("aliases", props)
         self.assertEqual(data["alias_writeback_property"], "aliases")
+
+    def test_two_entities_single_apply(self):
+        logger = MagicMock()
+        client = MagicMock()
+        data = {
+            "aliasing_results": [
+                {
+                    "original_tag": "T1",
+                    "aliases": ["a"],
+                    "entities": [
+                        {
+                            "entity_id": "E1",
+                            "view_space": "cdf_cdm",
+                            "view_external_id": "CogniteDescribable",
+                            "view_version": "v1",
+                            "instance_space": "cdf_cdm",
+                            "field_name": "name",
+                        }
+                    ],
+                },
+                {
+                    "original_tag": "T2",
+                    "aliases": ["b"],
+                    "entities": [
+                        {
+                            "entity_id": "E2",
+                            "view_space": "cdf_cdm",
+                            "view_external_id": "CogniteDescribable",
+                            "view_version": "v1",
+                            "instance_space": "cdf_cdm",
+                            "field_name": "name",
+                        }
+                    ],
+                },
+            ],
+        }
+        persist_aliases_to_entities(client, logger, data)
+
+        self.assertEqual(client.data_modeling.instances.apply.call_count, 1)
+        apply_call = client.data_modeling.instances.apply.call_args
+        nodes = apply_call.kwargs.get("nodes") or apply_call[1]["nodes"]
+        self.assertEqual(len(nodes), 2)
+        ext_ids = {n.external_id for n in nodes}
+        self.assertEqual(ext_ids, {"E1", "E2"})
+
+    def test_batch_size_one_two_applies(self):
+        logger = MagicMock()
+        client = MagicMock()
+        data = {
+            "persistence_apply_batch_size": 1,
+            "aliasing_results": [
+                {
+                    "original_tag": "T1",
+                    "aliases": ["a"],
+                    "entities": [
+                        {
+                            "entity_id": "E1",
+                            "view_space": "cdf_cdm",
+                            "view_external_id": "CogniteDescribable",
+                            "view_version": "v1",
+                            "instance_space": "cdf_cdm",
+                            "field_name": "name",
+                        }
+                    ],
+                },
+                {
+                    "original_tag": "T2",
+                    "aliases": ["b"],
+                    "entities": [
+                        {
+                            "entity_id": "E2",
+                            "view_space": "cdf_cdm",
+                            "view_external_id": "CogniteDescribable",
+                            "view_version": "v1",
+                            "instance_space": "cdf_cdm",
+                            "field_name": "name",
+                        }
+                    ],
+                },
+            ],
+        }
+        persist_aliases_to_entities(client, logger, data)
+
+        self.assertEqual(client.data_modeling.instances.apply.call_count, 2)
+        self.assertEqual(data.get("persistence_apply_batch_size"), 1)
 
 
 class TestForeignKeyWriteback(unittest.TestCase):

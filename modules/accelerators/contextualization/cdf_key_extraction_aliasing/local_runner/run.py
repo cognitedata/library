@@ -257,12 +257,12 @@ def run_pipeline(
 
         # Run extraction for this view
         view_extraction_items: List[Dict[str, Any]] = []
-        view_iso = view_config.get("ignore_self_referencing_keys")
+        view_iso = view_config.get("exclude_self_referencing_keys")
         for entity in instances_dicts:
             res = extraction_engine.extract_keys(
                 entity,
                 entity_type=entity_type,
-                ignore_self_referencing_keys=view_iso,
+                exclude_self_referencing_keys=view_iso,
             )
             entity_id = res.entity_id
 
@@ -430,12 +430,36 @@ def run_pipeline(
     logger.info(f"✓ Wrote extraction results: {extraction_path}")
     logger.info(f"✓ Wrote aliasing results:   {aliasing_path}")
 
+    extracted_fk_count = sum(
+        len(item.get("extraction_result", {}).get("foreign_key_references") or [])
+        for item in all_extraction_items
+    )
+    entities_with_fk = sum(
+        1
+        for item in all_extraction_items
+        if item.get("extraction_result", {}).get("foreign_key_references")
+    )
+    logger.info(
+        f"Extraction: {extracted_fk_count} foreign key reference(s) in JSON across "
+        f"{entities_with_fk} entities (extracted, not yet written to the data model)."
+    )
+
+    wfk = write_foreign_key_references or args.write_foreign_keys
+    fk_prop = foreign_key_writeback_property
+    if args.foreign_key_writeback_property:
+        fk_prop = args.foreign_key_writeback_property.strip() or fk_prop
+
     # Persist aliases to CogniteDescribable view (unless dry-run)
     if args.dry_run:
         logger.info(
             "Dry-run mode: Skipping alias persistence to CDF. "
             f"Would persist {len(aliasing_results)} aliasing results to {len(entities_keys_extracted)} entities"
         )
+        if extracted_fk_count and not wfk:
+            logger.info(
+                "FK write-back to DM is off (set write_foreign_key_references in scope YAML, "
+                "env WRITE_FOREIGN_KEY_REFERENCES, or run with --write-foreign-keys)."
+            )
     else:
         logger.info("Persisting aliases to CogniteDescribable view...")
         try:
@@ -446,10 +470,6 @@ def run_pipeline(
             }
             if alias_writeback_property:
                 persistence_data["alias_writeback_property"] = alias_writeback_property
-            wfk = write_foreign_key_references or args.write_foreign_keys
-            fk_prop = foreign_key_writeback_property
-            if args.foreign_key_writeback_property:
-                fk_prop = args.foreign_key_writeback_property.strip() or fk_prop
             if wfk:
                 persistence_data["write_foreign_key_references"] = True
                 if fk_prop:
@@ -459,10 +479,19 @@ def run_pipeline(
                 logger=logger,
                 data=persistence_data,
             )
-            logger.info(
-                f"✓ Persisted: {persistence_data.get('entities_updated', 0)} entities updated, "
-                f"{persistence_data.get('aliases_persisted', 0)} alias values, "
-                f"{persistence_data.get('foreign_keys_persisted', 0)} FK values"
+            fk_written = int(persistence_data.get("foreign_keys_persisted", 0))
+            persist_msg = (
+                f"✓ Persisted to data model: {persistence_data.get('entities_updated', 0)} entities updated, "
+                f"{persistence_data.get('aliases_persisted', 0)} alias value(s) written, "
+                f"{fk_written} foreign key value(s) written"
             )
+            if not wfk and extracted_fk_count:
+                persist_msg += (
+                    f" (extraction had {extracted_fk_count} FK ref(s) in JSON; "
+                    "enable FK write-back to persist them to DM)"
+                )
+            elif not wfk:
+                persist_msg += " (FK write-back disabled for this run)"
+            logger.info(persist_msg)
         except Exception as e:
             logger.error(f"Failed to persist aliases: {e}", exc_info=True)

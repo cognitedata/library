@@ -8,7 +8,9 @@ Handler usage:
 - TokenReassemblyExtractionHandler: uses assembly rule priority for confidence.
 - PassthroughExtractionHandler: uses rule min_confidence only (no content-based scoring).
 
-Blacklist: applied only in the engine (_validate_extraction_result / _apply_blacklist).
+Post-extraction confidence: ``validation.confidence_match_rules`` in the engine
+(``_validate_extraction_result``) may set or offset confidence per key before
+``min_confidence`` filtering.
 
 Pipeline note: instance retrieval respects ``source_view.batch_size``; per-entity
 ``extract_keys`` runs serially in ``pipeline.py`` (see loop comment there).

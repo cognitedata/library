@@ -138,6 +138,7 @@ def _load_from_scope_document(
     extraction_config = {
         "extraction_rules": all_extraction_rules,
         "validation": validation_config,
+        "source_views": source_views,
     }
     ke_params = ke_config.get("parameters")
     if isinstance(ke_params, dict) and ke_params:

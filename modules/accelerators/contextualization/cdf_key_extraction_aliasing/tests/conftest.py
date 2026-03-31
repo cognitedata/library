@@ -21,7 +21,7 @@ def sample_config() -> Dict[str, Any]:
             "base_url": "https://api.cognite.com",
             "timeout": 30,
             "max_retries": 3,
-            "batch_size": 100,
+            "batch_size": 1000,
             "max_concurrent_requests": 10,
             "data_model_space": "sp_enterprise_process_industry",
             "data_model_version": "v1",
@@ -32,7 +32,6 @@ def sample_config() -> Dict[str, Any]:
                 "view_space": "sp_enterprise_process_industry",
                 "view_version": "v1",
                 "entity_type": "asset",
-                "batch_size": 100,
                 "include_properties": ["name", "description", "equipmentType"],
                 "filter": {
                     "equals": {"property": ["node", "type"], "value": "Equipment"}

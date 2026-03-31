@@ -54,7 +54,7 @@ The committed **default** scope is a slim **CDM template** (CogniteAsset, Cognit
 
 Asset, timeseries tag, and FK rules share one YAML anchor **`&alphanumeric_tag`**, kept in sync with **`alphanumeric_tag`** in [`config/tag_patterns.yaml`](../../config/tag_patterns.yaml). Opening anchor **`(?:\b|(?<=_))`** is required so names like `VAL_45-TT-92506:…` match the numeric unit segment: in Python regex, `_` is a word character, so plain `\b` does not separate `_` from a following digit.
 
-**Parameters:** `ignore_self_referencing_keys` (default `true`, or a legacy map with `default` / per-`entity_type`) controls dropping FK strings that equal a candidate on the same instance. **`source_views[].ignore_self_referencing_keys`** (optional boolean) overrides parameters for entities listed from that view; default scope sets **`false`** on **`CogniteTimeSeries`** only so overlapping FK values are kept there while asset/file views inherit **`true`**.
+**Parameters:** `exclude_self_referencing_keys` (default `true`, or a legacy map with `default` / per-`entity_type`) controls dropping FK strings that equal a candidate on the same instance. **`source_views[].exclude_self_referencing_keys`** (optional boolean) overrides parameters for entities listed from that view; default scope sets **`false`** on **`CogniteTimeSeries`** only so overlapping FK values are kept there while asset/file views inherit **`true`** (CogniteAsset sets **`true`** explicitly).
 
 **Aliasing (default):** Under `aliasing.config.data.aliasing_rules` — `semantic_expansion` and `strip_numeric_unit_prefix` (priority 10, assets), `leading_zero_normalization` (priority 20, assets), `document_aliases` (priority 30, files). Default **`write_foreign_key_references: false`**. Timeseries candidate keys are **not** processed by the asset-only rules unless you add or widen `scope_filters.entity_type`.
 
@@ -73,24 +73,31 @@ externalId: ctx_key_extraction_default  # Unique identifier for the pipeline
 config:
   parameters:
     debug: true                          # Enable debug logging
-    run_all: true                        # Process all rules regardless of enabled status
-    overwrite: true                      # Overwrite existing extraction results
-    raw_db: db_key_extraction            # RAW database name for state storage
-    raw_table_state: key_extraction_state # RAW table for pipeline state
-    raw_table_key: default_extracted_keys # RAW table for extracted keys
+    overwrite: true                      # When false, instances may be skipped per skip_entity_policy using RAW
+    raw_db: db_key_extraction            # RAW database name
+    raw_table_key: key_extraction_state # Entity rows + per-entity status + run summaries (RECORD_KIND)
+    skip_entity_policy: successful_only  # successful_only | none (when overwrite is false)
+    write_empty_extraction_rows: false   # If true, write EXTRACTION_STATUS=empty when no keys/FKs
+    raw_skip_scan_chunk_size: 5000       # Chunk size when scanning raw_table_key for skip policy
   data:
     validation:                          # Global validation settings
       min_confidence: 0.5                # Minimum confidence score (0.0-1.0)
       max_keys_per_type: 1000            # Maximum keys per extraction type
-      blacklist_keywords:                # Keywords to exclude from extraction
-        - "test"
-        - "example"
-        - "dummy"
+      confidence_match_rules:            # Optional: first matching rule wins per key (see below)
+        - name: blacklist
+          priority: 10
+          match:
+            keywords: ["test", "example", "dummy"]
+          confidence_modifier:
+            mode: explicit
+            value: 0.0
     source_views:                        # CDF views to query from
       # ... source view configurations
     extraction_rules:                     # Extraction rules
       # ... extraction rule configurations
 ```
+
+**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Downstream FK readers only use rows that contain `FOREIGN_KEY_REFERENCES_JSON`. **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `overwrite: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
 
 ### Source Views Configuration
 
@@ -105,7 +112,7 @@ source_views:
     # When omitted, listing uses space=None (all spaces) — narrow with filters (see below).
     instance_space: sp_enterprise_schema
     entity_type: asset                     # Entity type: asset|file|timeseries
-    batch_size: 100                        # Number of instances per batch
+    batch_size: 1000                       # Number of instances per batch (schema default)
 
     # Optional: Filter instances (view properties and/or node metadata)
     filters:
@@ -136,6 +143,11 @@ source_views:
       - tagIds
       - equipmentType
       - tags
+
+    # Optional: merge with data.validation for entities from this view only (see “Global vs per–source-view validation”)
+    # validation:
+    #   min_confidence: 0.6
+    #   confidence_match_rules: []
 ```
 
 **`instance_space` (optional):**
@@ -170,24 +182,73 @@ source_views:
 validation:
   min_confidence: 0.5                    # Minimum confidence (0.0-1.0)
   max_keys_per_type: 1000                # Max keys per extraction type
-  blacklist_keywords:                    # Exclude keys containing these
-    - "test"
-    - "example"
-    - "dummy"
-    - "temp"
-    - "null"
-    - "n/a"
+  regexp_match: null                     # Optional: key value must match this regex (or any of a list)
+  confidence_match_rules: []             # Optional ordered list; see “Confidence match rules” below
 ```
+
+**Global vs per–source-view validation**
+
+- **`data.validation`** applies to every extraction. The engine loads it as the baseline (together with the last rule’s optional `validation`, if present). The default scope keeps the shared keyword **blacklist** rule here so it applies to **CogniteFile** as well as asset/timeseries rows; ISA-style **confidence_match_rules** remain on **CogniteAsset** / **CogniteTimeSeries** `source_views[]` only.
+- **`source_views[].validation`** is optional. Omit it (or use an empty object) for views that should rely on the global block only.
+- When the pipeline stamps an entity with **`view_space`**, **`view_external_id`**, **`view_version`**, and **`entity_type`**, the engine picks the **first** matching `source_views[]` row (same fields as in config) and, if that row defines **`validation`**, merges it into the effective validation for **`_validate_extraction_result`**:
+  - **`min_confidence`**, **`regexp_match`**, **`max_keys_per_type`**, and other scalar-like keys: the view value overrides the baseline when set on the view’s `validation` object.
+  - **`confidence_match_rules`**: if the view **omits** the key or sets **`[]`**, only the baseline list is used. If the view lists one or more rules, the engine uses **`baseline_rules + view_rules`**, then sorts by **`priority`** then list index (same ordering as today).
+- If **`source_views`** is missing on the engine config, or no row matches the entity (including programmatic **`extract_keys`** calls without view metadata), only the global (and per-rule) validation applies.
 
 **Confidence Scoring:**
 - `0.0-1.0`: Extraction confidence score
 - Each rule can set its own `min_confidence`; the global `validation.min_confidence` is also applied to the final result
 - Keys below `min_confidence` are discarded
 
-**Blacklist:**
-- Case-insensitive keyword matching
-- Keys containing any blacklisted keyword are excluded
-- Applied before confidence filtering
+### Confidence match rules
+
+After deduplication, the engine walks **`confidence_match_rules`** for **each** extracted key (candidate, foreign key, and document reference). Rules are sorted by **`priority`** (ascending), then by list order. The **first** rule whose **`match`** applies updates that key’s confidence via **`confidence_modifier`**, then no further rules run for that key.
+
+**`match`:**
+- **`expressions`**: list of regex strings, and/or objects `{ pattern: "<regex>", description: "<optional doc for authors>" }`. Descriptions are not used by the engine. A match if `re.search` succeeds for **any** pattern.
+- **`keywords`**: list of substrings. A match if **any** keyword appears in the key value (case-insensitive).
+- If both are set, a match if **either** a keyword matches **or** any expression matches.
+
+**`confidence_modifier`:**
+- **`mode: explicit`** — set confidence to **`value`** (clamped to `[0.0, 1.0]`). Use e.g. `value: 0.0` to emulate a keyword “blacklist” (key is then dropped by `min_confidence` if `min_confidence > 0`).
+- **`mode: offset`** — add **`value`** to the current confidence (clamped). Use a negative offset for a penalty, positive for a bonus.
+
+**`enabled`:** default `true`; set `false` to skip a rule.
+
+**`priority`:** lower numbers run first. If omitted, the engine uses **`list_index * 10`** so list order is stable.
+
+**Catch-all row:** there is no separate `match_all` flag. To penalize “everything else”, add a **last** rule with a broad regex in **`expressions`**, e.g. `(?s).*`, and a higher **`priority`** than your specific rules so it only wins when earlier rules did not match.
+
+**Example (keyword wall + ISA-shaped bonus + default penalty):**
+
+```yaml
+confidence_match_rules:
+  - name: blacklist
+    priority: 10
+    match:
+      keywords: [dummy, test]
+      expressions: ['\\bBLACKLISTED-\\d+\\b']
+    confidence_modifier:
+      mode: explicit
+      value: 0.0
+  - name: isa_compliant
+    priority: 50
+    match:
+      expressions:
+        - '\bP[-_]?\d{1,6}[A-Z]?\b'
+    confidence_modifier:
+      mode: offset
+      value: 0.05
+  - name: not_isa_penalty
+    priority: 1000
+    match:
+      expressions: ['(?s).*']
+    confidence_modifier:
+      mode: offset
+      value: -0.2
+```
+
+Pipeline order: **length filter** → **dedupe** → **`confidence_match_rules`** → **`min_confidence`** → **`regexp_match`** → self-referencing FK filter.
 
 ### Extraction Rules
 
@@ -218,7 +279,7 @@ extraction_rules:
 
 **Extraction Types:**
 - `candidate_key`: Primary identifiers for entities (e.g., equipment tags)
-- `foreign_key_reference`: References to other entities (e.g., "Connected to P-101"). After validation, the engine can drop FKs whose `value` **exactly matches** any candidate key on the same instance — controlled by **`parameters.ignore_self_referencing_keys`** (default `true`, or legacy per-`entity_type` map), with optional **`source_views[].ignore_self_referencing_keys`** overriding for that view’s entities; see default scope YAML (`CogniteTimeSeries` uses `false`).
+- `foreign_key_reference`: References to other entities (e.g., "Connected to P-101"). After validation, the engine can drop FKs whose `value` **exactly matches** any candidate key on the same instance — controlled by **`parameters.exclude_self_referencing_keys`** (default `true`, or legacy per-`entity_type` map), with optional **`source_views[].exclude_self_referencing_keys`** overriding for that view’s entities; see default scope YAML (`CogniteTimeSeries` uses `false`).
 - `document_reference`: References to documents (e.g., "See PID-2001")
 
 **Priority:**
@@ -474,10 +535,9 @@ externalId: ctx_aliasing_default          # Unique identifier
 config:
   parameters:
     debug: true                           # Enable debug logging
-    run_all: true                         # Process all rules
     overwrite: true                       # Overwrite existing aliases
     raw_db: db_tag_aliasing               # RAW database name
-    raw_table_state: tag_aliasing_state   # State storage table
+    raw_table_state: tag_aliasing_state   # Per-site workflows: `{site}_tag_aliasing_state`
     raw_table_aliases: default_aliases    # Aliases storage table
     alias_writeback_property: aliases     # DM property name for alias persistence (CogniteDescribable)
     write_foreign_key_references: false   # When true, persistence also writes FK strings (requires property below)
@@ -1179,14 +1239,14 @@ extraction_rules:
 **No keys extracted:**
 - Check pattern syntax
 - Verify source fields exist
-- Review blacklist keywords
+- Review `confidence_match_rules` (e.g. keyword rules with `explicit` 0.0)
 - Check confidence thresholds
 
 **Too many keys extracted:**
 - Tighten regex patterns
 - Increase `min_confidence`
 - Reduce `max_keys_per_type`
-- Add to blacklist
+- Add a `confidence_match_rules` entry (e.g. `keywords` + `explicit` 0.0)
 
 **Wrong keys extracted:**
 - Refine patterns to be more specific
