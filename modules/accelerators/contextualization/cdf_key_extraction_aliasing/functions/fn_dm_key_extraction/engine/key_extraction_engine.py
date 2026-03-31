@@ -128,7 +128,11 @@ class KeyExtractionEngine:
         }
 
     def extract_keys(
-        self, entity: Dict[str, Any], entity_type: str = "asset"
+        self,
+        entity: Dict[str, Any],
+        entity_type: str = "asset",
+        *,
+        ignore_self_referencing_keys: Optional[bool] = None,
     ) -> ExtractionResult:
         """
         Extract keys from entity metadata.
@@ -136,6 +140,8 @@ class KeyExtractionEngine:
         Args:
             entity: Entity data with metadata fields
             entity_type: Type of entity (asset, file, timeseries, etc.)
+            ignore_self_referencing_keys: If set, overrides parameters.ignore_self_referencing_keys
+                for this extraction (e.g. from source_views config).
 
         Returns:
             ExtractionResult with extracted keys and metadata
@@ -238,9 +244,17 @@ class KeyExtractionEngine:
 
         # Apply validation using last rule's validation config (per-rule would require refactor)
         if self.rules:
-            result = self._validate_extraction_result(self.rules[-1], result)
+            result = self._validate_extraction_result(
+                self.rules[-1],
+                result,
+                ignore_self_referencing_keys=ignore_self_referencing_keys,
+            )
         else:
-            result = self._validate_extraction_result(None, result)
+            result = self._validate_extraction_result(
+                None,
+                result,
+                ignore_self_referencing_keys=ignore_self_referencing_keys,
+            )
 
         return result
 
@@ -603,10 +617,47 @@ class KeyExtractionEngine:
             processed = processed[:max_len]
         return processed
 
+    def _should_ignore_self_referencing_keys(
+        self,
+        entity_type: str,
+        source_override: Optional[bool] = None,
+    ) -> bool:
+        """Whether to drop FKs whose value matches a candidate on the same instance."""
+        if source_override is not None:
+            return bool(source_override)
+        raw = getattr(
+            self.config.parameters, "ignore_self_referencing_keys", True
+        )
+        if isinstance(raw, dict):
+            if entity_type in raw:
+                return bool(raw[entity_type])
+            return bool(raw.get("default", True))
+        return bool(raw)
+
+    def _ignore_self_referencing_keys(
+        self,
+        result: ExtractionResult,
+        *,
+        source_override: Optional[bool] = None,
+    ) -> None:
+        """Drop foreign keys whose value matches any candidate key on the same instance."""
+        if not self._should_ignore_self_referencing_keys(
+            result.entity_type, source_override=source_override
+        ):
+            return
+        candidate_values = {k.value for k in result.candidate_keys}
+        if not candidate_values:
+            return
+        result.foreign_key_references = [
+            k for k in result.foreign_key_references if k.value not in candidate_values
+        ]
+
     def _validate_extraction_result(
         self,
         rule: Optional[ExtractionRuleConfig],
         result: ExtractionResult,
+        *,
+        ignore_self_referencing_keys: Optional[bool] = None,
     ) -> ExtractionResult:
         """Apply validation to extraction result (uses rule.validation and config.parameters)."""
         min_key_length = getattr(
@@ -628,6 +679,9 @@ class KeyExtractionEngine:
             )
             result.document_references = self._remove_duplicate_keys(
                 result.document_references
+            )
+            self._ignore_self_referencing_keys(
+                result, source_override=ignore_self_referencing_keys
             )
             result.metadata = {
                 "extraction_timestamp": datetime.now().isoformat(),
@@ -683,6 +737,9 @@ class KeyExtractionEngine:
                 k for k in result.document_references
                 if any(re.search(p, k.value) for p in rgx_patterns)
             ]
+        self._ignore_self_referencing_keys(
+            result, source_override=ignore_self_referencing_keys
+        )
         validation_config_dict = (
             rule.validation.model_dump()
             if hasattr(rule.validation, "model_dump")

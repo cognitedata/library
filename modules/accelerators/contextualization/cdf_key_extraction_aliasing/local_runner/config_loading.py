@@ -1,4 +1,4 @@
-"""Load combined scope YAML for the local CLI (config/scopes/<scope>/key_extraction_aliasing.yaml)."""
+"""Load v1 scope YAML for the local CLI (config/scopes/<scope>/key_extraction_aliasing.yaml)."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from .paths import SCRIPT_DIR
 
 DEFAULT_SCOPE = "default"
 
-# Combined v1 document (key_extraction + optional aliasing) per scope directory.
-COMBINED_SCOPE_FILENAME = "key_extraction_aliasing.yaml"
+# v1 scope document: required key_extraction, optional aliasing (single pipeline authoring shape).
+SCOPE_DOCUMENT_FILENAME = "key_extraction_aliasing.yaml"
 
 _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
     "max_aliases_per_tag": 50,
@@ -35,8 +35,8 @@ def _scope_dir(scope: str) -> Path:
     return SCRIPT_DIR / "config" / "scopes" / scope
 
 
-def _combined_scope_file(scope: str) -> Path:
-    return _scope_dir(scope) / COMBINED_SCOPE_FILENAME
+def _scope_document_path(scope: str) -> Path:
+    return _scope_dir(scope) / SCOPE_DOCUMENT_FILENAME
 
 
 def _default_passthrough_rules_for_views(
@@ -78,7 +78,7 @@ def _default_passthrough_rules_for_views(
     return rules
 
 
-def _load_from_combined_doc(
+def _load_from_scope_document(
     logger: logging.Logger,
     doc: Dict[str, Any],
 ) -> Tuple[
@@ -139,6 +139,9 @@ def _load_from_combined_doc(
         "extraction_rules": all_extraction_rules,
         "validation": validation_config,
     }
+    ke_params = ke_config.get("parameters")
+    if isinstance(ke_params, dict) and ke_params:
+        extraction_config["parameters"] = dict(ke_params)
 
     alias_writeback_property: Optional[str] = None
     write_foreign_key_references = False
@@ -228,7 +231,7 @@ def load_configs(
     """Load extraction and aliasing config for local runs.
 
     Resolution:
-    - ``--config-path`` → load that file as combined v1 YAML.
+    - ``--config-path`` → load that file as a v1 scope document.
     - Else → ``config/scopes/<scope>/key_extraction_aliasing.yaml`` (default scope name ``default``).
     """
     if config_path:
@@ -242,14 +245,14 @@ def load_configs(
             doc = yaml.safe_load(f)
         if not isinstance(doc, dict):
             raise ValueError("Scope YAML root must be a mapping")
-        return _load_from_combined_doc(logger, doc)
+        return _load_from_scope_document(logger, doc)
 
     sc = (scope or DEFAULT_SCOPE).strip() or DEFAULT_SCOPE
-    p = _combined_scope_file(sc)
+    p = _scope_document_path(sc)
     if not p.is_file():
         d = _scope_dir(sc)
         raise FileNotFoundError(
-            f"No combined scope file in {d}: expected {COMBINED_SCOPE_FILENAME!r}. "
+            f"No scope document in {d}: expected {SCOPE_DOCUMENT_FILENAME!r}. "
             "Create it or pass --config-path."
         )
     logger.info("Loading scope %r from %s", sc, p)
@@ -257,4 +260,4 @@ def load_configs(
         doc = yaml.safe_load(f)
     if not isinstance(doc, dict):
         raise ValueError("Scope YAML root must be a mapping")
-    return _load_from_combined_doc(logger, doc)
+    return _load_from_scope_document(logger, doc)

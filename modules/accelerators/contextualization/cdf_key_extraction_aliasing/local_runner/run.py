@@ -17,6 +17,9 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
     _dedupe_foreign_key_references,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
+    property_reference_for_filter,
+)
 
 from .report import ensure_results_dir
 
@@ -46,7 +49,7 @@ def run_pipeline(
         view_space = view_config.get("view_space", "cdf_cdm")
         view_external_id = view_config.get("view_external_id", "CogniteAsset")
         view_version = view_config.get("view_version", "v1")
-        instance_space = view_config.get("instance_space", view_space)
+        instance_space = view_config.get("instance_space")
         entity_type = view_config.get("entity_type", "asset")
         batch_size = (
             view_config.get("batch_size") or view_config.get("limit") or args.limit
@@ -56,9 +59,10 @@ def run_pipeline(
         filters = view_config.get("filters", [])
         include_properties = view_config.get("include_properties", [])
 
+        _isp = instance_space if instance_space else "(not set; list space=None or use filters)"
         logger.info(
             f"Processing view {view_space}/{view_external_id}/{view_version} "
-            f"(instance_space: {instance_space}, entity_type: {entity_type}, limit: {batch_size if batch_size else 'all'})..."
+            f"(instance_space: {_isp}, entity_type: {entity_type}, limit: {batch_size if batch_size else 'all'})..."
         )
 
         # Query data modeling instances
@@ -79,36 +83,47 @@ def run_pipeline(
             # Add custom filters from configuration
             if filters:
                 for filter_config in filters:
-                    operator = filter_config.get("operator", "").upper()
+                    operator = str(filter_config.get("operator", "")).upper()
                     target_property = filter_config.get("target_property")
                     values = filter_config.get("values", [])
+                    property_scope = str(
+                        filter_config.get("property_scope", "view")
+                    ).lower()
 
                     if not target_property:
                         continue
 
-                    # Create property reference
-                    property_ref = view_id.as_property_ref(target_property)
+                    property_ref = property_reference_for_filter(
+                        view_id, target_property, property_scope
+                    )
 
                     if operator == "EQUALS":
-                        # EQUALS with multiple values should be OR-ed
-                        if len(values) == 1:
+                        if isinstance(values, str):
+                            eq_vals = [values]
+                        elif isinstance(values, list):
+                            eq_vals = values
+                        elif values is None:
+                            eq_vals = []
+                        else:
+                            eq_vals = [values]
+                        if len(eq_vals) == 1:
                             filter_expressions.append(
-                                dm.filters.Equals(property_ref, values[0])
+                                dm.filters.Equals(property_ref, eq_vals[0])
                             )
-                        elif len(values) > 1:
-                            # Multiple EQUALS values - OR them together
+                        elif len(eq_vals) > 1:
                             equals_filters = [
-                                dm.filters.Equals(property_ref, val) for val in values
+                                dm.filters.Equals(property_ref, val) for val in eq_vals
                             ]
                             filter_expressions.append(dm.filters.Or(*equals_filters))
 
                     elif operator == "IN":
-                        # IN operator - check if value is in list
-                        filter_expressions.append(dm.filters.In(property_ref, values))
+                        if isinstance(values, list):
+                            filter_expressions.append(
+                                dm.filters.In(property_ref, values)
+                            )
 
                     elif operator == "CONTAINSALL":
-                        # CONTAINSALL - check if array property contains all values
-                        if values:
+                        if values and isinstance(values, list):
                             filter_expressions.append(
                                 dm.filters.ContainsAll(
                                     property=property_ref, values=values
@@ -116,8 +131,7 @@ def run_pipeline(
                             )
 
                     elif operator == "CONTAINSANY":
-                        # CONTAINSANY - check if array property contains any of the values
-                        if values:
+                        if values and isinstance(values, list):
                             filter_expressions.append(
                                 dm.filters.ContainsAny(
                                     property=property_ref, values=values
@@ -125,23 +139,30 @@ def run_pipeline(
                             )
 
                     elif operator == "EXISTS":
-                        # EXISTS - check if property exists (not null)
-                        filter_expressions.append(
-                            dm.filters.HasData(
-                                views=[view_id], properties=[target_property]
+                        if property_scope == "node":
+                            filter_expressions.append(
+                                dm.filters.Exists(property=property_ref)
                             )
-                        )
+                        else:
+                            filter_expressions.append(
+                                dm.filters.HasData(
+                                    views=[view_id], properties=[target_property]
+                                )
+                            )
 
                     elif operator == "SEARCH":
-                        # SEARCH - full text search (requires search query string)
                         if values:
-                            # Use first value as search query
                             logger.warning(
                                 f"SEARCH operator not fully supported, using IN for property {target_property}"
                             )
-                            filter_expressions.append(
-                                dm.filters.In(property_ref, values)
-                            )
+                            if isinstance(values, list):
+                                filter_expressions.append(
+                                    dm.filters.In(property_ref, values)
+                                )
+                            else:
+                                filter_expressions.append(
+                                    dm.filters.In(property_ref, [values])
+                                )
 
             # Combine all filters with AND
             final_filter = (
@@ -159,7 +180,7 @@ def run_pipeline(
                 try:
                     instances = client.data_modeling.instances.list(
                         instance_type="node",
-                        space=instance_space,
+                        space=instance_space if instance_space else None,
                         sources=[view_id],
                         filter=final_filter,
                         limit=effective_limit,
@@ -172,7 +193,7 @@ def run_pipeline(
                     # Fall back to query without filters
                     instances = client.data_modeling.instances.list(
                         instance_type="node",
-                        space=instance_space,
+                        space=instance_space if instance_space else None,
                         sources=[view_id],
                         limit=effective_limit,
                     )
@@ -180,7 +201,7 @@ def run_pipeline(
                 # No filters configured, query without filters
                 instances = client.data_modeling.instances.list(
                     instance_type="node",
-                    space=instance_space,
+                    space=instance_space if instance_space else None,
                     sources=[view_id],
                     limit=effective_limit,
                 )
@@ -209,6 +230,7 @@ def run_pipeline(
 
             # Build entity dict with flattened properties
             # If include_properties is specified, only include those properties
+            node_space = getattr(instance, "space", None)
             if include_properties:
                 filtered_props = {
                     prop: entity_props.get(prop)
@@ -218,6 +240,7 @@ def run_pipeline(
                 entity_dict = {
                     "id": instance_id,
                     "externalId": instance_external_id,
+                    "space": node_space,
                     **filtered_props,
                 }
             else:
@@ -225,6 +248,7 @@ def run_pipeline(
                 entity_dict = {
                     "id": instance_id,
                     "externalId": instance_external_id,
+                    "space": node_space,
                     **entity_props,  # Spread extracted properties at top level
                 }
             instances_dicts.append(entity_dict)
@@ -233,8 +257,13 @@ def run_pipeline(
 
         # Run extraction for this view
         view_extraction_items: List[Dict[str, Any]] = []
+        view_iso = view_config.get("ignore_self_referencing_keys")
         for entity in instances_dicts:
-            res = extraction_engine.extract_keys(entity, entity_type=entity_type)
+            res = extraction_engine.extract_keys(
+                entity,
+                entity_type=entity_type,
+                ignore_self_referencing_keys=view_iso,
+            )
             entity_id = res.entity_id
 
             # Build entities_keys_extracted structure for persistence (workflow format)
@@ -255,13 +284,14 @@ def run_pipeline(
                 }
 
             fk_refs = _dedupe_foreign_key_references(res)
+            row_instance_space = entity.get("space") or instance_space
             entities_keys_extracted[entity_id] = {
                 "keys": keys_by_field,
                 "foreign_key_references": fk_refs,
                 "view_space": view_space,
                 "view_external_id": view_external_id,
                 "view_version": view_version,
-                "instance_space": instance_space,
+                "instance_space": row_instance_space,
                 "entity_type": entity_type,
             }
 
@@ -324,12 +354,13 @@ def run_pipeline(
         for item in view_extraction_items:
             entity = item["entity"]
             entity_id = entity.get("id")
+            row_instance_space = entity.get("space") or instance_space
             context = {
                 "site": entity.get("site"),
                 "unit": entity.get("unit"),
                 "equipment_type": entity.get("equipmentType")
                 or entity.get("equipment_type"),
-                "instance_space": instance_space,
+                "instance_space": row_instance_space,
                 "view_external_id": view_external_id,
                 "entity_type": entity_type,
                 "entity_id": entity_id,
@@ -370,7 +401,7 @@ def run_pipeline(
                                 "view_space": view_space,
                                 "view_external_id": view_external_id,
                                 "view_version": view_version,
-                                "instance_space": instance_space,
+                                "instance_space": row_instance_space,
                                 "entity_type": entity_type,
                             }
                         ],

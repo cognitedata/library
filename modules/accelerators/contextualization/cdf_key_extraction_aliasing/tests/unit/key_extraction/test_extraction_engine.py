@@ -550,5 +550,58 @@ class TestPassthroughDefaultMethod(unittest.TestCase):
         self.assertEqual(out["method"], "passthrough")
 
 
+class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
+    """FK values that duplicate a candidate key on the same entity are removed after validation."""
+
+    def test_engine_drops_fk_when_same_string_as_candidate(self):
+        # Force filtering for timeseries (default CDM scope sets timeseries: false).
+        config = {
+            "parameters": {"ignore_self_referencing_keys": True},
+            "extraction_rules": [
+                {
+                    "name": "cand",
+                    "extraction_type": "candidate_key",
+                    "method": "regex",
+                    "priority": 10,
+                    "enabled": True,
+                    "source_fields": [{"field_name": "name", "required": True}],
+                    "config": {"pattern": r"45-TT-92506"},
+                },
+                {
+                    "name": "fk_same",
+                    "extraction_type": "foreign_key_reference",
+                    "method": "regex",
+                    "priority": 20,
+                    "enabled": True,
+                    "source_fields": [{"field_name": "name", "required": True}],
+                    "config": {"pattern": r"45-TT-92506"},
+                },
+                {
+                    "name": "fk_other",
+                    "extraction_type": "foreign_key_reference",
+                    "method": "regex",
+                    "priority": 30,
+                    "enabled": True,
+                    "source_fields": [{"field_name": "description", "required": False}],
+                    "config": {"pattern": r"P-\d+"},
+                },
+            ],
+            "validation": {"min_confidence": 0.1, "max_keys_per_type": 10},
+        }
+        engine = KeyExtractionEngine(config)
+        result = engine.extract_keys(
+            {
+                "externalId": "TS-1",
+                "name": "VAL_45-TT-92506:X.Value",
+                "description": "See P-101",
+            },
+            "timeseries",
+        )
+        self.assertIn("45-TT-92506", [k.value for k in result.candidate_keys])
+        fk_vals = [k.value for k in result.foreign_key_references]
+        self.assertNotIn("45-TT-92506", fk_vals)
+        self.assertIn("P-101", fk_vals)
+
+
 if __name__ == "__main__":
     unittest.main()

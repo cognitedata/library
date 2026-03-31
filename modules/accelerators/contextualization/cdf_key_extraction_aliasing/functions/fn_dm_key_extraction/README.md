@@ -1,6 +1,8 @@
 ## fn_dm_key_extraction
 
-Extracts candidate keys from `cdf_cdm:CogniteFile:v1` (or other configured views), writes results to RAW, and writes a per-run state row for auditability.
+CDF function in **`cdf_key_extraction_aliasing`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+
+Extracts candidate keys, foreign key references, and document references from **configured `source_views`** (default scope: CogniteAsset, CogniteFile, CogniteTimeSeries — see `config/scopes/default/key_extraction_aliasing.yaml`), writes results to RAW, and writes a per-run state row for auditability.
 
 ### Inputs (workflow task `data`)
 
@@ -13,7 +15,7 @@ Key config fields used:
 - **`config.parameters.raw_table_key`**
 - **`config.parameters.raw_table_state`**
 - **`config.parameters.max_files`**: optional limit for testing
-- **`config.data.source_views`**: what view(s)/space(s) to query
+- **`config.data.source_views`**: what view(s) to query; optional per-view **`instance_space`** (API `space` argument), optional **`filters`** including **`property_scope: node`** for `("node", "space")` style filters when `instance_space` is omitted or for extra narrowing
 
 ### Outputs
 

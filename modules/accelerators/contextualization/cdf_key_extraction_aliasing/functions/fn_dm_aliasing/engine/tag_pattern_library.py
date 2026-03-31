@@ -29,6 +29,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.tag_patterns_paths import (
+    TAG_PATTERNS_YAML,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -146,7 +150,7 @@ class StandardTagPatternRegistry(IPatternRegistry):
         self.instrument_index: Dict[InstrumentType, List[str]] = {}
 
         if config_path is None:
-            config_path = Path(__file__).parent.parent / "tag_patterns.yaml"
+            config_path = TAG_PATTERNS_YAML
 
         self.config_path = Path(config_path)
         self._load_patterns_from_yaml()
@@ -162,7 +166,7 @@ class StandardTagPatternRegistry(IPatternRegistry):
                 self._initialize_default_patterns()
                 return
 
-            with open(self.config_path, "r") as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config_data = yaml.safe_load(f)
 
             logger.info(f"Loading patterns from: {self.config_path}")
@@ -360,7 +364,7 @@ class DocumentPatternRegistry:
         self.document_type_index: Dict[DocumentType, List[str]] = {}
 
         if config_path is None:
-            config_path = Path(__file__).parent.parent / "tag_patterns.yaml"
+            config_path = TAG_PATTERNS_YAML
 
         self.config_path = Path(config_path)
         self._load_patterns_from_yaml()
@@ -376,7 +380,7 @@ class DocumentPatternRegistry:
                 self._initialize_default_patterns()
                 return
 
-            with open(self.config_path, "r") as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config_data = yaml.safe_load(f)
 
             logger.info(f"Loading document patterns from: {self.config_path}")

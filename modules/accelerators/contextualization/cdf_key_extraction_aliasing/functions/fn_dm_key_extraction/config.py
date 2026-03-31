@@ -30,6 +30,14 @@ class Parameters(BaseModel):
     raw_db: str = Field(..., description="ID of the raw database")
     raw_table_state: str = Field(..., description="ID of the state table in RAW")
     raw_table_key: str = Field(..., description="ID of the key table in RAW")
+    ignore_self_referencing_keys: Union[bool, Dict[str, Any]] = Field(
+        True,
+        description=(
+            "If True, drop foreign_key_reference values that match a candidate_key on the same "
+            "instance. If a dict, keys are entity_type (e.g. timeseries) and optional 'default'; "
+            "per-type value overrides default."
+        ),
+    )
 
 
 class EntityType(Enum):
@@ -42,7 +50,7 @@ class EntityType(Enum):
 
 class ViewPropertyConfig(BaseModel):
     schema_space: str
-    instance_space: str
+    instance_space: Optional[str] = None
     external_id: str
     version: str
     search_property: str
@@ -63,10 +71,17 @@ class FilterConfig(BaseModel):
     negate: bool = False
     operator: FilterOperator
     target_property: str
+    property_scope: Literal["view", "node"] = Field(
+        "view",
+        description='Use "view" for view properties (default) or "node" for node metadata (e.g. space, externalId).',
+    )
 
     def as_filter(self, view_properties: ViewPropertyConfig) -> Filter:
         """Convert this config to a Cognite Data Modeling filter."""
-        property_reference = view_properties.as_property_ref(self.target_property)
+        if self.property_scope == "node":
+            property_reference = ("node", self.target_property)
+        else:
+            property_reference = view_properties.as_property_ref(self.target_property)
         if isinstance(self.values, list):
             find_values = [v.value if isinstance(v, Enum) else v for v in self.values]
         elif isinstance(self.values, Enum):
@@ -113,8 +128,13 @@ class ViewConfig(BaseModel):
     view_version: str = Field(
         ..., description="Version of the view schema (e.g., 'v1')."
     )
-    instance_space: str = Field(
-        ..., description="The instance space that holds the target instances."
+    instance_space: Optional[str] = Field(
+        None,
+        description=(
+            "Optional instance space passed to instances.list(space=...). "
+            "Omit to query across spaces (combine with filters, e.g. property_scope: node "
+            "and target_property: space)."
+        ),
     )
     entity_type: EntityType = Field(
         ..., description="Type of entity for processing context (e.g., DataType.ASSET)."
@@ -152,6 +172,13 @@ class SourceViewConfig(TargetViewConfig):
     resource_property: str = Field(
         ...,
         description="The resource property that adds granularity to the instances.",
+    )
+    ignore_self_referencing_keys: Optional[bool] = Field(
+        None,
+        description=(
+            "If set, overrides parameters.ignore_self_referencing_keys for entities listed "
+            "from this source view. None inherits global parameters (bool or per-entity_type map)."
+        ),
     )
 
     def as_view_id(self) -> ViewId:

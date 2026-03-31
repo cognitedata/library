@@ -2,7 +2,7 @@
 Main entry point — fetch CDF instances from data model views, run key extraction and aliasing, write results.
 
 Configuration: by default loads ``config/scopes/<scope>/key_extraction_aliasing.yaml`` (``--scope``), or
-``--config-path`` to a combined v1 YAML file. See ``config/README.md`` and ``scope_hierarchy.yaml`` /
+``--config-path`` to a v1 scope document. See ``config/README.md`` and ``scope_hierarchy.yaml`` /
 ``scripts/build_scopes.py`` for generating per-leaf scope folders.
 
 Reads CDF credentials from environment (.env supported), queries instances from configured views,
@@ -14,6 +14,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import Any, Dict, List
 
 # Bootstrap ``sys.path`` so ``local_runner`` imports work when not run as ``python -m ...``.
 _PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -50,6 +51,34 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _source_view_matches_instance_space(view: Dict[str, Any], wanted: str) -> bool:
+    """Match ``instance_space`` field or a node ``space`` filter (EQUALS / IN)."""
+    wanted_s = wanted.strip()
+    if (view.get("instance_space") or "").strip() == wanted_s:
+        return True
+    for f in view.get("filters") or []:
+        if str(f.get("property_scope", "view")).lower() != "node":
+            continue
+        if f.get("target_property") != "space":
+            continue
+        op = str(f.get("operator", "")).upper()
+        vals = f.get("values")
+        if op == "EQUALS":
+            vs: List[Any]
+            if isinstance(vals, list):
+                vs = vals
+            elif vals is None:
+                continue
+            else:
+                vs = [vals]
+            if any(str(x).strip() == wanted_s for x in vs if x is not None):
+                return True
+        elif op == "IN" and isinstance(vals, list):
+            if wanted_s in {str(x).strip() for x in vals}:
+                return True
+    return False
+
+
 def main():
     """Fetch instances from CDF views, run extraction & aliasing, write results to tests/results/."""
     parser = argparse.ArgumentParser(
@@ -82,7 +111,10 @@ def main():
         "--instance-space",
         type=str,
         default=None,
-        help="Only process source views with this instance_space (e.g. sp_enterprise_schema)",
+        help=(
+            "Only process source views whose instance_space matches, or whose filters "
+            "include property_scope: node / target_property: space (EQUALS or IN) for this space"
+        ),
     )
     parser.add_argument(
         "--scope",
@@ -94,7 +126,7 @@ def main():
         "--config-path",
         type=str,
         default=None,
-        help="Path to a combined v1 scope YAML (overrides --scope).",
+        help="Path to a v1 scope YAML document (overrides --scope).",
     )
     args = parser.parse_args()
 
@@ -134,12 +166,12 @@ def main():
         source_views = [
             v
             for v in source_views
-            if v.get("instance_space", "").strip() == args.instance_space.strip()
+            if _source_view_matches_instance_space(v, args.instance_space)
         ]
         if not source_views:
             logger.error(
-                f"No source views found with instance_space={args.instance_space!r}. "
-                "Check pipeline configs for matching instance_space."
+                f"No source views found matching instance_space={args.instance_space!r} "
+                "(field or node space filter). Check pipeline configs."
             )
             sys.exit(1)
         logger.info(

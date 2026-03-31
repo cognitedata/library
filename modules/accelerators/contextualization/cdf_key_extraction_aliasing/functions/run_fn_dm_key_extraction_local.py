@@ -45,6 +45,9 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.handler import (
     handle,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
+    property_reference_for_filter,
+)
 
 
 def _build_client_from_env() -> CogniteClient:
@@ -82,9 +85,10 @@ def _build_view_filter(view_cfg: Dict[str, Any], view_id: ViewId) -> Any:
         op = str(f.get("operator", "")).upper()
         prop = f.get("target_property")
         values = f.get("values")
+        scope = str(f.get("property_scope", "view")).lower()
         if not prop:
             continue
-        prop_ref = view_id.as_property_ref(prop)
+        prop_ref = property_reference_for_filter(view_id, prop, scope)
 
         if op == "IN" and isinstance(values, list):
             filter_exprs.append(dm.filters.In(property=prop_ref, values=values))
@@ -108,7 +112,12 @@ def _build_view_filter(view_cfg: Dict[str, Any], view_id: ViewId) -> Any:
             elif isinstance(values, str) and values:
                 filter_exprs.append(dm.filters.Search(property=prop_ref, value=values))
         elif op == "EXISTS":
-            filter_exprs.append(dm.filters.Exists(property=prop_ref))
+            if scope == "node":
+                filter_exprs.append(dm.filters.Exists(property=prop_ref))
+            else:
+                filter_exprs.append(
+                    dm.filters.HasData(views=[view_id], properties=[prop])
+                )
 
     if len(filter_exprs) == 1:
         return filter_exprs[0]
@@ -148,7 +157,7 @@ def _fetch_entities_from_cdf(
         include_properties = view_cfg.get("include_properties", []) or []
         batch_size = int(view_cfg.get("batch_size", 100))
 
-        if not view_external_id or not instance_space:
+        if not view_external_id:
             continue
 
         view_id = ViewId(space=view_space, external_id=view_external_id, version=view_version)
@@ -164,7 +173,7 @@ def _fetch_entities_from_cdf(
 
         rows = client.data_modeling.instances.list(
             instance_type="node",
-            space=instance_space,
+            space=instance_space if instance_space else None,
             sources=[view_id],
             filter=filter_expr,
             limit=limit,
@@ -176,6 +185,7 @@ def _fetch_entities_from_cdf(
                 continue
             props = _extract_props(inst, view_id)
 
+            inst_sp = getattr(inst, "space", None) or instance_space
             entity_data = entities.setdefault(
                 ext_id,
                 {
@@ -183,7 +193,7 @@ def _fetch_entities_from_cdf(
                     "view_space": view_space,
                     "view_external_id": view_external_id,
                     "view_version": view_version,
-                    "instance_space": instance_space,
+                    "instance_space": inst_sp,
                 },
             )
             for p in include_properties:

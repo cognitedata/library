@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-1. [Overview](#overview)
+1. [Overview](#overview) (includes [Default CDM scope](#default-cdm-scope))
 2. [Key Extraction Pipeline Configuration](#key-extraction-pipeline-configuration)
    - [Pipeline Structure](#pipeline-structure)
    - [Source Views Configuration](#source-views-configuration)
@@ -28,12 +28,39 @@ The Key Extraction and Aliasing system uses YAML-based pipeline configuration fi
 - **Aliasing Pipelines**: Generate alternative representations (aliases) of extracted keys for improved matching
 
 Configuration files are located in:
-- **Combined (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/scopes/<scope>/key_extraction_aliasing.yaml` (default scope: `config/scopes/default/key_extraction_aliasing.yaml`). This file holds the v1 combined document (`key_extraction` + optional `aliasing`).
-- **Example demos (combined v1):** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`
+- **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/scopes/<scope>/key_extraction_aliasing.yaml` (default: `config/scopes/default/key_extraction_aliasing.yaml`). One v1 scope document per file: required `key_extraction`, optional `aliasing` — the single authoring shape for this pipeline, aligned with workflow payloads.
+- **Example demos:** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (same scope shape, `*.key_extraction_aliasing.yaml`).
 
 **Multi-leaf scopes:** Author `scope_hierarchy.yaml` at the module root and run `scripts/build_scopes.py` to generate one `config/scopes/<leaf_scope_id>/key_extraction_aliasing.yaml` per leaf (see `config/README.md`, *Scope hierarchy builder*).
 
-See `config/README.md` in the module for layout and CLI behavior (`main.py` `--scope` / `--config-path`).
+See `config/README.md` in the module for layout and CLI behavior (`main.py` `--scope` / `--config-path`). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
+
+### Default CDM scope
+
+**Authoring file:** `config/scopes/default/key_extraction_aliasing.yaml`.
+
+The committed **default** scope is a slim **CDM template** (CogniteAsset, CogniteFile, CogniteTimeSeries). It differs from richer **examples** under `config/examples/` (which demonstrate fixed width, heuristics, many aliasing transforms, etc.).
+
+**Key extraction (regex only):**
+
+| Rule name | `extraction_type` | Entity types | Source fields (summary) |
+|-----------|-------------------|--------------|-------------------------|
+| `asset_equipment_tag_candidate` | candidate_key | asset | `name` |
+| `file_basename_candidate` | candidate_key | file | `name` (path basename) |
+| `timeseries_instrument_tag_candidate` | candidate_key | timeseries | `name` |
+| `file_description_asset_fk` | foreign_key_reference | file | `description` |
+| `timeseries_name_asset_fk` | foreign_key_reference | timeseries | `name` |
+| `timeseries_description_asset_fk` | foreign_key_reference | timeseries | `description` |
+
+Asset, timeseries tag, and FK rules share one YAML anchor **`&alphanumeric_tag`**, kept in sync with **`alphanumeric_tag`** in [`config/tag_patterns.yaml`](../../config/tag_patterns.yaml). Opening anchor **`(?:\b|(?<=_))`** is required so names like `VAL_45-TT-92506:…` match the numeric unit segment: in Python regex, `_` is a word character, so plain `\b` does not separate `_` from a following digit.
+
+**Parameters:** `ignore_self_referencing_keys` (default `true`, or a legacy map with `default` / per-`entity_type`) controls dropping FK strings that equal a candidate on the same instance. **`source_views[].ignore_self_referencing_keys`** (optional boolean) overrides parameters for entities listed from that view; default scope sets **`false`** on **`CogniteTimeSeries`** only so overlapping FK values are kept there while asset/file views inherit **`true`**.
+
+**Aliasing (default):** Under `aliasing.config.data.aliasing_rules` — `semantic_expansion` and `strip_numeric_unit_prefix` (priority 10, assets), `leading_zero_normalization` (priority 20, assets), `document_aliases` (priority 30, files). Default **`write_foreign_key_references: false`**. Timeseries candidate keys are **not** processed by the asset-only rules unless you add or widen `scope_filters.entity_type`.
+
+**Workflows:** [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) may embed **site-specific** `source_views` and rules (often file-heavy). Treat the **scope YAML** as the authoring reference for the full three-entity CDM layout; align inline workflow config when behavior should match.
+
+Short narrative: [Key extraction / aliasing report](../key_extraction_aliasing_report.md).
 
 ---
 
@@ -74,23 +101,33 @@ source_views:
   - view_external_id: CogniteAsset        # CDF view external ID
     view_space: cdf_cdm                   # Data model space
     view_version: v1                       # View version
-    instance_space: sp_enterprise_schema   # Instance space to query
+    # instance_space: optional. When set, passed to instances.list(space=...).
+    # When omitted, listing uses space=None (all spaces) — narrow with filters (see below).
+    instance_space: sp_enterprise_schema
     entity_type: asset                     # Entity type: asset|file|timeseries
     batch_size: 100                        # Number of instances per batch
 
-    # Optional: Filter instances
+    # Optional: Filter instances (view properties and/or node metadata)
     filters:
-      - operator: EQUALS                   # EQUALS|IN|NOT_EQUALS|NOT_IN|EXISTS
+      # View property (default): property_scope defaults to "view"
+      - operator: EQUALS                   # EQUALS|IN|EXISTS|CONTAINSALL|CONTAINSANY|SEARCH (runner-dependent)
         target_property: equipmentType
         values:
           - pump
           - valve
           - tank
+      # Node instance space via DM filter ("node", "space") — use when instance_space is omitted or extra narrowing
       - operator: IN
+        property_scope: node                # "view" (default) | "node"
+        target_property: space              # e.g. space, externalId (node metadata)
+        values:
+          - sp_enterprise_schema
+          - sp_other_schema
+      # Default scope uses CONTAINSANY on tags, e.g. asset_tag (see scopes/default/key_extraction_aliasing.yaml)
+      - operator: CONTAINSANY
         target_property: tags
         values:
-          - equipment_tag
-          - instrument_tag
+          - asset_tag
 
     # Optional: Include only specific properties
     include_properties:
@@ -101,12 +138,26 @@ source_views:
       - tags
 ```
 
+**`instance_space` (optional):**
+
+- **Set:** CDF `instances.list` receives `space=<instance_space>` (single instance space at the API level).
+- **Unset:** `space=None` — instances are not pre-filtered by API space; use **`filters`** with **`property_scope: node`** and **`target_property: space`** (and `EQUALS` or `IN`) to restrict which spaces are returned, or accept broader queries (higher volume; use `batch_size` and filters carefully).
+- **Both:** API `space` and node `space` filters apply together (intersection).
+- **Downstream metadata:** When `instance_space` is omitted, each row’s instance space is taken from the node (`.space`) so aliasing and persistence still receive `instance_space` per entity.
+- **Apply / write-back:** The key-extraction **apply** path (`GeneralApplyService`) still requires **`instance_space`** on `data.source_view` when applying updates to nodes — omit it only for read/extract flows that do not run apply.
+
+**`property_scope` on filters:**
+
+- **`view`** (default): `target_property` is a property on the view (same as `ViewId.as_property_ref(...)`).
+- **`node`:** `target_property` is node metadata, e.g. `space`, `externalId`, `createdTime`, `lastUpdatedTime` — implemented as `("node", "<target_property>")` in Cognite DM filters.
+
 **Filter Operators:**
-- `EQUALS`: Property equals one of the specified values
+- `EQUALS`: Property equals one of the specified values (multiple values are OR-ed in the local runner)
 - `NOT_EQUALS`: Property does not equal any of the specified values
 - `IN`: Property value is in the specified list
 - `NOT_IN`: Property value is not in the specified list
-- `EXISTS`: Property exists (not null)
+- `EXISTS`: View scope: instance has the view property (local runner uses `HasData` with `properties`). Node scope: `Exists` on `("node", target_property)`.
+- `CONTAINSANY`: Collection/array property contains any of the listed values (used in default asset view on `tags`; view properties only)
 
 **Supported Entity Types:**
 - `asset`: CogniteAsset entities
@@ -167,7 +218,7 @@ extraction_rules:
 
 **Extraction Types:**
 - `candidate_key`: Primary identifiers for entities (e.g., equipment tags)
-- `foreign_key_reference`: References to other entities (e.g., "Connected to P-101")
+- `foreign_key_reference`: References to other entities (e.g., "Connected to P-101"). After validation, the engine can drop FKs whose `value` **exactly matches** any candidate key on the same instance — controlled by **`parameters.ignore_self_referencing_keys`** (default `true`, or legacy per-`entity_type` map), with optional **`source_views[].ignore_self_referencing_keys`** overriding for that view’s entities; see default scope YAML (`CogniteTimeSeries` uses `false`).
 - `document_reference`: References to documents (e.g., "See PID-2001")
 
 **Priority:**
@@ -203,6 +254,14 @@ Uses the entire field value as the extracted key with no pattern matching or par
 #### 2. Regex Method
 
 Uses regular expressions to match patterns in text fields.
+
+**Default shared equipment tag (CDM scope)** — use the same pattern for candidates and FKs via a YAML anchor, or copy from `config/tag_patterns.yaml` → `alphanumeric_tag`:
+
+```text
+(?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+```
+
+**Narrow example (pump-only):**
 
 ```yaml
 - name: "pump_tag_extraction"
@@ -444,9 +503,13 @@ aliasing_rules:
     preserve_original: true               # Include original tag in results
     config:                               # Type-specific configuration
       # ... transformation-specific config
-    conditions:                           # Optional conditions
-      entity_type: ["asset", "equipment"] # Apply only to these entity types
+    scope_filters:                        # Preferred in v1 scope documents
+      entity_type:
+        - asset
+    conditions: {}                       # Optional; additional rule conditions
 ```
+
+**Entity scoping:** Prefer **`scope_filters.entity_type`** (as in `config/scopes/default/key_extraction_aliasing.yaml`). Older examples may show **`conditions.entity_type`**; use the same idea but match your loader/engine expectations.
 
 **Priority:**
 - Lower priority rules execute first
@@ -460,6 +523,8 @@ aliasing_rules:
 - Other condition types may be added in future versions
 
 ### Transformation Types
+
+The sections below document **all** transformation types the engine supports. The **default CDM scope** uses only a small subset (`pattern_based_expansion` as `semantic_expansion`, `regex_substitution`, `leading_zero_normalization`, `document_aliases`); see [Default CDM scope](#default-cdm-scope) above. Example YAML for heavier stacks (character substitution, related instruments, etc.) applies to **`config/examples/`** or custom scopes.
 
 Rule types **`character_substitution`** through **`composite`** below are string/rule transforms. **`alias_mapping_table`** is catalog-driven: tag→alias rows in Cognite RAW (full detail in **[§ Alias mapping table (RAW catalog)](#13-alias-mapping-table-raw-catalog)**).
 
@@ -777,7 +842,7 @@ Generate aliases based on ISA tag patterns.
 ```
 
 **Uses ISA Pattern Library:**
-- Loads patterns from `functions/fn_dm_aliasing/tag_patterns.yaml`
+- Loads patterns from `config/tag_patterns.yaml` (shared; `config/tag_patterns_paths.TAG_PATTERNS_YAML`)
 - Generates ISA-compliant variants
 - Creates instrument loop aliases
 
@@ -824,7 +889,7 @@ Adds aliases by looking up extracted tag strings in a **Cognite RAW table** load
 - **`scope_value`:** Required when scope is not `global` — instance space string, source **view** `external_id` (e.g. `CogniteTimeSeries`, not the node `externalId`), or node `entity_id` / `entity_external_id`.
 - **`source_match` (optional column):** Overrides rule default for that row (`exact` / `glob` / `regex`). `regex` uses **`re.fullmatch`** on the candidate tag. Invalid regex patterns are skipped at load with a warning.
 
-**Orchestration (`main.py`):** Passes `instance_space`, `view_external_id`, `entity_type`, `entity_id`, and `entity_external_id` in the aliasing `context` so scoped rows match correctly. A **Cognite client** must be supplied to `AliasingEngine` when any `alias_mapping_table` rule uses `raw_table`.
+**Orchestration (`main.py`):** Passes `instance_space` (from the view config or, when omitted there, from each node’s `space`), `view_external_id`, `entity_type`, `entity_id`, and `entity_external_id` in the aliasing `context` so scoped rows match correctly. A **Cognite client** must be supplied to `AliasingEngine` when any `alias_mapping_table` rule uses `raw_table`.
 
 ```yaml
 - name: tag_alias_catalog
@@ -963,6 +1028,8 @@ priority: 70-100
 ---
 
 ## Common Use Cases
+
+The following YAML snippets are **illustrative** (narrow rules or large aliasing stacks). For the **repository default**, prefer copying rule blocks from `config/scopes/default/key_extraction_aliasing.yaml` and the shared pattern from `config/tag_patterns.yaml`.
 
 ### Use Case 1: Extract Pump Tags
 
@@ -1149,7 +1216,7 @@ extraction_rules:
 ## Additional Resources
 
 - **Config tree**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/` (`scopes/`, `examples/`)
-- **ISA Patterns**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_aliasing/tag_patterns.yaml`
+- **ISA / tag patterns**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/tag_patterns.yaml`
 - **ISA Patterns Guide**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md`
 - **Tests**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/tests/`
 

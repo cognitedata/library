@@ -1,5 +1,7 @@
 ## fn_dm_aliasing
 
+CDF function in **`cdf_key_extraction_aliasing`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+
 Generates alias variants for tags/candidate keys (OCR variants, separator variants, regex-based transforms, etc.), writes aliases to RAW, and includes an `entities_json` mapping so downstream steps can update the correct nodes.
 
 ### Inputs (workflow task `data`)

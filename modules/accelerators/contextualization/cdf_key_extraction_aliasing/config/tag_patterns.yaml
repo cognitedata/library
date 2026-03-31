@@ -1,6 +1,8 @@
-# ISA Tag Patterns Configuration
-# This file contains industry-standard tag patterns used by the aliasing engine
-# for pattern recognition and alias generation.
+# Tag + document pattern library (shared)
+#
+# Single YAML for **key extraction** (authoring alignment; e.g. ``alphanumeric_tag`` in scope
+# templates) and **aliasing** (``StandardTagPatternRegistry`` / ``DocumentPatternRegistry``).
+# Path: ``cdf_key_extraction_aliasing/config/tag_patterns.yaml`` (see ``tag_patterns_paths.py``).
 
 tag_patterns:
     # Pump patterns
@@ -196,10 +198,19 @@ tag_patterns:
     # Generic patterns
     generic_patterns:
       - name: "alphanumeric_tag"
-        pattern: '\\b[A-Z]{1,4}[-_]?\\\d{1,6}[A-Z0-9]?\\b'
-        description: "Generic alphanumeric tag pattern"
+        # Double-quoted: YAML single-quoted entries in this file over-escape. Keep in sync with
+        # ``&alphanumeric_tag`` in ``config/scopes/default/key_extraction_aliasing.yaml``.
+        pattern: "(?<![\\d-])(?:\\b|(?<=_))(?:\\d{1,8}-?)?[A-Z]{1,8}-?\\d{1,10}(?:-\\d{1,6})*[A-Z]?\\b"
+        description: "Generic industrial tag — same as default scope; opening anchor (?:\\b|(?<=_)) so VAL_45-TT-… matches (Python \\b does not separate _ from digits)"
         equipment_type: "GENERIC"
-        examples: ["ABC-1234", "XY-567A", "ABCD_9999", "ABC-10001"]
+        examples:
+          - "P-1234"
+          - "P1234"
+          - "10-P-1234"
+          - "10P1234"
+          - "23-LT-92529-02"
+          - "VAL_45-TT-92506:X.Value"
+          - "EQ12A"
         priority: 200
         industry_standard: "Generic"
         validation_rules: []

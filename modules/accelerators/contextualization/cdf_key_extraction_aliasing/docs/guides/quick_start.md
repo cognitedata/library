@@ -1,21 +1,21 @@
-# Quick Start Guide
+# Quick start (developers)
 
-This guide covers running the **cdf_key_extraction_aliasing** package from the repository root (`library/`) with correct Python import paths.
+Run and import **`cdf_key_extraction_aliasing`** with the **repository root** (the folder that contains `modules/`) on **`PYTHONPATH`**, or execute scripts with `PYTHONPATH=.` from that root.
 
 ## Prerequisites
 
-- Python 3.11+ (see main [README](../../README.md))
-- Cognite Data Fusion (CDF) project and credentials (API key or OAuth), if you call CDF APIs
-- Dependencies installed (`poetry install` or equivalent)
+- Python 3.11+
+- Dependencies installed in your environment (this repository may not ship a root `pyproject.toml`; use your team’s env or install required packages manually)
+- CDF credentials in `.env` or the environment when calling CDF APIs or `main.py` without `--dry-run`
 
-## Layout
+## Layout (paths in-repo)
 
-- **Package root**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/`
-- **Combined scopes**: `config/scopes/<scope>/key_extraction_aliasing.yaml` (default: `config/scopes/default/key_extraction_aliasing.yaml`)
-- **Example YAML**: `config/examples/key_extraction/` and `config/examples/aliasing/` (`*.key_extraction_aliasing.yaml`). Reference: `config/examples/reference/`.
-- **Entry point for CDF-backed runs**: `main.py` (loads `config/scopes/<scope>/key_extraction_aliasing.yaml` or `--config-path`)
+- **Module root:** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/`
+- **Default scope document:** `config/scopes/default/key_extraction_aliasing.yaml`
+- **Examples:** `config/examples/key_extraction/`, `config/examples/aliasing/`, `config/examples/reference/` — see [config/examples/README.md](../../config/examples/README.md)
+- **Entry point for full local pipeline:** `main.py` (loads scope YAML or `--config-path`)
 
-## Using the Key Extraction Engine
+## Key extraction engine
 
 ```python
 from pathlib import Path
@@ -27,7 +27,6 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     KeyExtractionEngine,
 )
 
-# Run with cwd = repository root (the folder that contains `modules/`), or set REPO_ROOT
 repo_root = Path.cwd()
 config_path = (
     repo_root
@@ -43,41 +42,41 @@ result = engine.extract_keys(entity, "asset")
 print(f"Candidate keys: {[k.value for k in result.candidate_keys]}")
 ```
 
-`extract_keys` takes a single **entity** dict and an **entity_type** string (`asset`, `file`, `timeseries`, etc.), matching `main.py` and the CDF function pipeline.
+`extract_keys(entity_dict, entity_type)` matches the shape used by `main.py` and the CDF function (`asset`, `file`, `timeseries`, etc.).
 
-## Using the Aliasing Engine
+## Aliasing engine
 
 ```python
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
     AliasingEngine,
 )
 
-# Minimal config; production uses rules from config/scopes/.../key_extraction_aliasing.yaml (or examples/aliasing/aliasing_default.key_extraction_aliasing.yaml) via main.py / fn_dm_aliasing
 aliasing_engine = AliasingEngine({"rules": [], "validation": {}})
 out = aliasing_engine.generate_aliases("P-101", "asset")
 print(out.aliases)
 ```
 
-`generate_aliases` returns an **`AliasingResult`** with `.aliases` (list of strings) and `.metadata`.
+Production rules come from a scope file under `config/scopes/` or an example `*.key_extraction_aliasing.yaml` (e.g. `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`). For **`alias_mapping_table`** rules that load **RAW**, construct `AliasingEngine(..., client=cognite_client)`.
 
-## Full CDF pipeline (local)
+## Full pipeline locally (`main.py`)
 
-From the **repository root**:
+From repository root:
 
 ```bash
-poetry run python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --dry-run
+PYTHONPATH=. python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --dry-run
 ```
 
-Omit `--dry-run` to persist aliases to CogniteDescribable (see [README](../../README.md) **Alias write-back**). Add `--write-foreign-keys` and `--foreign-key-writeback-property <name>` when you want extracted foreign-key strings written to the same persistence step ([Foreign key write-back](../../README.md#foreign-key-write-back)).
+Omit `--dry-run` to persist aliases (see module [README](../../README.md) — **Alias write-back**). Optional FK persistence: `--write-foreign-keys` and `--foreign-key-writeback-property`. **`--instance-space`:** keep only `source_views` whose `instance_space` matches, or whose `filters` include a node `space` filter (`property_scope: node`, `EQUALS` or `IN`) for that space — see [Configuration guide](configuration_guide.md#source-views-configuration).
 
-## Configuration loading utilities
+## Config utilities
 
-- **YAML → engine (key extraction)**: `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_adapter.py`
-- **Environment / structured config**: `config/configuration_manager.py` (`ConfigurationManager`, `load_config_from_env` for typed `KeyExtractionConfig` where used)
+- **YAML → key-extraction engine dict:** `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_adapter.py`
+- **Typed / schema config (tests, tooling):** `config/configuration_manager.py`
 
-## More documentation
+## Where to read next
 
-- [Configuration guide](configuration_guide.md) — pipeline YAML structure, filters, validation
-- [Key extraction spec](../1.%20key_extraction.md) / [Aliasing spec](../2.%20aliasing.md)
+- [Documentation map](../README.md)
+- [Configuration guide](configuration_guide.md)
+- [Key extraction spec](../specifications/1.%20key_extraction.md) / [Aliasing spec](../specifications/2.%20aliasing.md)
 - [Troubleshooting](../troubleshooting/common_issues.md)
-- [Workflows](../../workflows/README.md) — `cdf_key_extraction_aliasing` workflow and tasks
+- [Workflows](../../workflows/README.md)

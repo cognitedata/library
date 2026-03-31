@@ -4,9 +4,11 @@
 
 ISA (Instrument Society of America) patterns are utilized in the tag aliasing system to enable industry-standard pattern recognition and generate ISA-compliant aliases. This document explains where and how ISA patterns are used.
 
+**Default CDM scope:** The committed **`config/scopes/default/key_extraction_aliasing.yaml`** does **not** run a large ISA expansion stack; it uses **`semantic_expansion`** (`pattern_based_expansion`) plus a few other rules. ISA rows in **`config/tag_patterns.yaml`** are consumed when you configure **pattern recognition / pattern-based expansion** rules (see examples under `config/examples/aliasing/`). Key **extraction** in the default scope uses the shared **`alphanumeric_tag`** regex, not per-equipment ISA patterns.
+
 ## Pattern Definition
 
-**Location:** `functions/fn_dm_aliasing/tag_patterns.yaml`
+**Location:** `config/tag_patterns.yaml` (module root: `cdf_key_extraction_aliasing/config/`)
 
 **Section:** `tag_patterns`
 
@@ -56,7 +58,7 @@ ISA patterns are organized by equipment type:
 **Class:** `StandardTagPatternRegistry`
 
 **Loading Process:**
-1. Loads patterns from `tag_patterns.yaml` in the aliasing function directory at initialization
+1. Loads patterns from shared `config/tag_patterns.yaml` at initialization (`TAG_PATTERNS_YAML` in `config/tag_patterns_paths.py`)
 2. Parses `tag_patterns` section
 3. Creates `TagPattern` objects with ISA metadata
 4. Indexes by equipment type and instrument type
@@ -66,7 +68,7 @@ ISA patterns are organized by equipment type:
 ```python
 # tag_pattern_library.py, lines 159-195
 def _load_patterns_from_yaml(self):
-    # Loads patterns from tag_patterns.yaml (relative to fn_dm_aliasing/)
+    # Loads patterns from cdf_key_extraction_aliasing/config/tag_patterns.yaml
     # Filters patterns with industry_standard: "ISA"
 ```
 
@@ -176,7 +178,7 @@ def _load_patterns_from_yaml(self):
    AliasingEngine.__init__()
    └─> PatternBasedExpansionTransformer.__init__()
        └─> StandardTagPatternRegistry()
-           └─> Loads from tag_patterns.yaml (fn_dm_aliasing/)
+           └─> Loads from config/tag_patterns.yaml
                └─> 19 ISA patterns loaded
    ```
 
@@ -250,13 +252,14 @@ aliases = [
 ## Configuration
 
 ISA patterns are loaded from:
-- **Primary:** `functions/fn_dm_aliasing/tag_patterns.yaml` → `tag_patterns` section
+- **Primary:** `config/tag_patterns.yaml` → `tag_patterns` section (shared with key-extraction authoring; see `TAG_PATTERNS_YAML`)
 - **Fallback:** Default patterns if YAML not found
 
-Pattern library path calculation:
+Pattern library path:
 ```python
-Path(__file__).parent.parent / "tag_patterns.yaml"
-# Where __file__ is in engine/tag_pattern_library.py
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.tag_patterns_paths import (
+    TAG_PATTERNS_YAML,
+)
 ```
 
 ## Summary

@@ -131,11 +131,17 @@ def key_extraction(
         # Serial extraction per entity; instance listing uses batch_size on the source view upstream.
         for entity_id, entity_fields in entities_source_fields.items():
             # Convert entity fields to format expected by engine
-            entity = {"id": entity_id, "externalId": entity_id, **entity_fields}
+            ef = dict(entity_fields)
+            kex_iso = ef.pop("_kex_ignore_self_referencing_keys", None)
+            entity = {"id": entity_id, "externalId": entity_id, **ef}
             entity_type = entity_fields.get("entity_type", "asset")
 
             # Extract keys
-            result = engine.extract_keys(entity, entity_type)
+            result = engine.extract_keys(
+                entity,
+                entity_type,
+                ignore_self_referencing_keys=kex_iso,
+            )
             for k in result.candidate_keys:
                 if getattr(k, "rule_name", None):
                     rules_used_counts[k.rule_name] = rules_used_counts.get(k.rule_name, 0) + 1
@@ -348,9 +354,15 @@ def _build_entity_payload_with_rules(
         "view_space": entity_view_id.space,
         "view_external_id": entity_view_id.external_id,
         "view_version": entity_view_id.version,
-        "instance_space": entity_view_config.instance_space,
+        "instance_space": (
+            getattr(entity_view_config, "instance_space", None)
+            or getattr(instance, "space", None)
+        ),
         "table_data": {},
     }
+    kex_iso = getattr(entity_view_config, "ignore_self_referencing_keys", None)
+    if kex_iso is not None:
+        out["_kex_ignore_self_referencing_keys"] = kex_iso
     if not isinstance(extraction_rules, list) or not extraction_rules:
         return out
 
@@ -455,7 +467,7 @@ def _get_target_entities_cdf(
 
             instances = client.data_modeling.instances.list(
                 instance_type="node",
-                space=entity_view_config.instance_space,
+                space=getattr(entity_view_config, "instance_space", None),
                 sources=[entity_view_id],
                 filter=filter_expr,
                 limit=min(entity_view_config.batch_size, remaining)
@@ -503,13 +515,22 @@ def _get_target_entities_cdf(
                     )
 
                     if entity_external_id not in entities_source:
-                        entities_source[entity_external_id] = {
+                        row: Dict[str, Any] = {
                             "entity_type": entity_view_config.entity_type.value,
                             "view_space": entity_view_id.space,
                             "view_external_id": entity_view_id.external_id,
                             "view_version": entity_view_id.version,
-                            "instance_space": entity_view_config.instance_space,
+                            "instance_space": (
+                                getattr(entity_view_config, "instance_space", None)
+                                or getattr(instance, "space", None)
+                            ),
                         }
+                        kex_iso = getattr(
+                            entity_view_config, "ignore_self_referencing_keys", None
+                        )
+                        if kex_iso is not None:
+                            row["_kex_ignore_self_referencing_keys"] = kex_iso
+                        entities_source[entity_external_id] = row
 
                     wanted_fields: List[tuple[str, bool, list[str]]] = []
                     if isinstance(extraction_rules, list) and extraction_rules:

@@ -1,9 +1,11 @@
 ## Contextualization workflows
 
+**Documentation index:** [docs/README.md](../docs/README.md).
+
 This module ships a 3-step workflow that:
-1) extracts candidate keys from files,
-2) generates alias variants for those keys,
-3) persists the aliases back onto the source nodes.
+1) runs key extraction against configured **source views** (often CogniteFile-only in embedded site configs; the **default scope** in `config/scopes/default/key_extraction_aliasing.yaml` also includes CogniteAsset and CogniteTimeSeries),
+2) generates alias variants for extracted **candidate** keys,
+3) persists aliases onto **CogniteDescribable** instances referenced by the extraction/aliasing handoff (not necessarily every source node type).
 
 ### Workflow: `cdf_key_extraction_aliasing_{{ site_abbreviation }}` (version `v1`)
 
@@ -78,13 +80,13 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/workfl
 By default, alias persistence writes the alias list to the **`aliases`** property on `cdf_cdm:CogniteDescribable:v1`. Override via:
 
 - **`aliasWritebackProperty`** or **`alias_writeback_property`** in the `fn_dm_alias_persistence` task `data` (workflow), or
-- **`alias_writeback_property`** under `config.parameters` in the first `*aliasing*.config.yaml` consumed by `main.py`
+- **`alias_writeback_property`** under `aliasing.config.parameters` in the v1 scope document used by `main.py` (`config/scopes/.../key_extraction_aliasing.yaml` or `--config-path`)
 
 See the module [README](../README.md#alias-write-back) for the full table.
 
 ### Foreign key write-back
 
-The workflow version files set **`write_foreign_key_references: false`** by default on `fn_dm_alias_persistence`. Set it to **`true`** and configure **`foreign_key_writeback_property`** (and keep **`source_raw_*`** pointing at the key-extraction table) when your CogniteDescribable view exposes a suitable list property. See [README § Foreign key write-back](../README.md#foreign-key-write-back).
+The workflow version files set **`write_foreign_key_references: false`** by default on `fn_dm_alias_persistence`. Set it to **`true`** and configure **`foreign_key_writeback_property`** (and keep **`source_raw_*`** pointing at the key-extraction table) when your CogniteDescribable view exposes a suitable list property. See [module README — Foreign key write-back](../README.md#foreign-key-write-back).
 
 ### `alias_mapping_table` rules
 
@@ -110,10 +112,11 @@ workflows/
 
 - RAW is used **between** workflow tasks because CDF Workflows do not automatically pass function outputs to the next task; key extraction writes extracted keys to RAW, aliasing reads them and writes alias rows, persistence reads alias rows.
 - Enable **`logLevel: DEBUG`** in task `data` for verbose function logs.
-- Legacy → new config mapping references live under [`config/examples/reference/`](../config/examples/reference/) (`LEGACY_TO_NEW_*.md`). Combined scopes: [`config/scopes/<scope>/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml).
+- Legacy → new config mapping references live under [`config/examples/reference/`](../config/examples/reference/) (`LEGACY_TO_NEW_*.md`). Authoring scope files: [`config/scopes/<scope>/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml).
 
 ### Related documentation
 
+- [Documentation map](../docs/README.md)
 - [Module README](../README.md)
 - [Configuration guide](../docs/guides/configuration_guide.md)
 - [CDF Toolkit](https://github.com/cognitedata/cdf-toolkit)

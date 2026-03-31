@@ -17,6 +17,11 @@ key_extraction:
         instance_space: sp_enterprise_schema
         entity_type: asset
         batch_size: 100
+        filters:
+        - operator: CONTAINSANY
+          target_property: tags
+          values:
+          - asset_tag
         include_properties:
         - externalId
         - name

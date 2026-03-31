@@ -55,7 +55,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 if CDF_AVAILABLE:
     load_dotenv()
 
-# Map test types to combined v1 scope YAML (under config/examples/)
+# Map test types to example scope YAML under config/examples/
 CONFIG_MAP = {
     "regex": "key_extraction/regex_pump_tag_simple.key_extraction_aliasing.yaml",
     "fixed_width": "key_extraction/fixed_width_single.key_extraction_aliasing.yaml",
@@ -220,7 +220,7 @@ def query_entities_from_cdf(
         view_external_id = view_config.get("view_external_id")
         view_space = view_config.get("view_space", "cdf_cdm")
         view_version = view_config.get("view_version", "v1")
-        instance_space = view_config.get("instance_space", view_space)
+        instance_space = view_config.get("instance_space")
         entity_type = view_config.get("entity_type", "asset")
         include_properties = view_config.get("include_properties", [])
 
@@ -237,7 +237,7 @@ def query_entities_from_cdf(
             # Query instances (simplified - filters not fully implemented here)
             instances = client.data_modeling.instances.list(
                 instance_type="node",
-                space=instance_space,
+                space=instance_space if instance_space else None,
                 sources=[view_id],
                 limit=limit,
             )
@@ -256,6 +256,7 @@ def query_entities_from_cdf(
                 entity = {
                     "id": instance.external_id,
                     "externalId": instance.external_id,
+                    "space": getattr(instance, "space", None),
                     "entity_type": entity_type,  # Store entity type for later use
                 }
 

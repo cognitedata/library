@@ -42,6 +42,12 @@ class GeneralApplyService(IApplyService):
         if not target_view_config:
             self.logger.warning("No target view configured. Skipping apply service.")
             return None
+        if not target_view_config.instance_space:
+            self.logger.error(
+                "Apply service requires data.source_view.instance_space when writing nodes. "
+                "Set instance_space in config or disable apply."
+            )
+            return None
         try:
             self.logger.info("Applying extracted keys to instances in CDF")
             raw_db = self.config.parameters.raw_db

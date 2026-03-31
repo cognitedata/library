@@ -1,4 +1,4 @@
-"""Materialize combined v1 config as ``key_extraction_aliasing.yaml``."""
+"""Materialize v1 scope document ``key_extraction_aliasing.yaml`` per scope directory."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import copy
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import yaml
 
@@ -24,7 +24,7 @@ def _cdf_external_id_suffix(scope_id: str) -> str:
     return s or "scope"
 
 
-COMBINED_SCOPE_FILENAME = "key_extraction_aliasing.yaml"
+SCOPE_DOCUMENT_FILENAME = "key_extraction_aliasing.yaml"
 
 
 class ScopeYamlBuilder:
@@ -36,7 +36,7 @@ class ScopeYamlBuilder:
     def run(self, ctx: ScopeBuildContext) -> None:
         scopes_dir = ctx.module_root / "config" / "scopes"
         out_dir = scopes_dir / ctx.scope_id
-        out_file = out_dir / COMBINED_SCOPE_FILENAME
+        out_file = out_dir / SCOPE_DOCUMENT_FILENAME
         if out_file.is_file():
             logger.info("Skip existing %s", out_file)
             return
@@ -54,6 +54,7 @@ class ScopeYamlBuilder:
         doc = copy.deepcopy(doc)
         suffix = _cdf_external_id_suffix(ctx.scope_id)
         _patch_external_ids(doc, suffix)
+        _inject_leaf_instance_space_filters(doc, ctx)
         doc["scope"] = _build_scope_block(ctx)
         with open(out_file, "w", encoding="utf-8") as f:
             f.write(
@@ -86,6 +87,61 @@ def _build_scope_block(ctx: ScopeBuildContext) -> Dict[str, Any]:
             for step in ctx.path
         ],
     }
+
+
+def _filter_is_node_space(f: Any) -> bool:
+    if not isinstance(f, dict):
+        return False
+    scope = str(f.get("property_scope", "view")).lower()
+    return scope == "node" and f.get("target_property") == "space"
+
+
+def _inject_leaf_instance_space_filters(doc: Dict[str, Any], ctx: ScopeBuildContext) -> None:
+    """Prepend a node `space` filter on each template source_view (unless one already exists).
+
+    Uses the leaf hierarchy node's ``instance_space`` when set; otherwise a placeholder
+    string embedding the scope id so authors can find and replace it.
+    """
+    ke = doc.get("key_extraction")
+    if not isinstance(ke, dict):
+        return
+    cfg = ke.get("config")
+    if not isinstance(cfg, dict):
+        return
+    data = cfg.get("data")
+    if not isinstance(data, dict):
+        return
+    views = data.get("source_views")
+    if not isinstance(views, list) or not views:
+        return
+
+    leaf_node: Dict[str, Any] = ctx.path[-1].node if ctx.path else {}
+    inst = leaf_node.get("instance_space") if isinstance(leaf_node, dict) else None
+    if isinstance(inst, str) and inst.strip():
+        space_value = inst.strip()
+    else:
+        suffix = _cdf_external_id_suffix(ctx.scope_id)
+        space_value = f"PLACEHOLDER_INSTANCE_SPACE_FOR_SCOPE__{suffix}"
+
+    for v in views:
+        if not isinstance(v, dict):
+            continue
+        raw_filters = v.get("filters")
+        if raw_filters is None:
+            flist: List[Any] = []
+        elif isinstance(raw_filters, list):
+            flist = list(raw_filters)
+        else:
+            flist = []
+        if any(_filter_is_node_space(f) for f in flist):
+            continue
+        node_filter: Dict[str, Any] = {
+            "operator": "EQUALS",
+            "property_scope": "node",
+            "target_property": "space",
+            "values": [space_value],
+        }
+        v["filters"] = [node_filter] + flist
 
 
 def _patch_external_ids(doc: Dict[str, Any], suffix: str) -> None:

@@ -1,5 +1,7 @@
 ## fn_dm_alias_persistence
 
+CDF function in **`cdf_key_extraction_aliasing`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+
 Reads aliasing results (from task input or RAW) and persists generated **aliases** back to data model instances on **`cdf_cdm:CogniteDescribable:v1`**. Optionally persists **foreign key reference strings** from key extraction to a second configurable property (same default view or another view).
 
 ### Inputs (workflow task `data` or local `handle` `data`)

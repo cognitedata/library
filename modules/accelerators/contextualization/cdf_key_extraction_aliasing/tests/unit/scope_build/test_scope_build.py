@@ -1,6 +1,6 @@
 """Tests for scope_hierarchy parsing and pluggable scope artifact builders.
 
-The built-in builder emits ``config/scopes/<id>/key_extraction_aliasing.yaml`` (combined v1).
+The built-in builder emits ``config/scopes/<id>/key_extraction_aliasing.yaml`` (v1 scope document).
 """
 
 from __future__ import annotations
@@ -130,6 +130,141 @@ aliasing:
       validation: {}
 """
 
+MULTIVIEW_TEMPLATE = """
+schemaVersion: 1
+key_extraction:
+  externalId: ctx_key_extraction_default
+  config:
+    parameters: {}
+    data:
+      validation: { min_confidence: 0.5 }
+      source_views:
+        - view_external_id: CogniteAsset
+          view_space: cdf_cdm
+          view_version: v1
+          entity_type: asset
+          filters:
+            - operator: CONTAINSANY
+              target_property: tags
+              values: [asset_tag]
+        - view_external_id: CogniteFile
+          view_space: cdf_cdm
+          view_version: v1
+          entity_type: file
+      extraction_rules: []
+aliasing:
+  externalId: ctx_aliasing_default
+  config:
+    parameters: {}
+    data:
+      aliasing_rules: []
+      validation: {}
+"""
+
+
+def test_scope_yaml_builder_injects_node_space_all_views_prepends(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_mv"
+    (mod / "config/scopes/default").mkdir(parents=True)
+    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
+    tpl.write_text(MULTIVIEW_TEMPLATE, encoding="utf-8")
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site]
+        locations:
+          - id: SITE_A
+            name: Site A
+        """
+    )
+    ctx = build_contexts(module_root=mod, doc=doc, dry_run=False)[0]
+    ScopeYamlBuilder(tpl).run(ctx)
+    out = mod / "config/scopes/SITE_A/key_extraction_aliasing.yaml"
+    data = yaml.safe_load(out.read_text(encoding="utf-8"))
+    views = data["key_extraction"]["config"]["data"]["source_views"]
+    assert len(views) == 2
+    for v in views:
+        assert v["filters"][0]["property_scope"] == "node"
+        assert v["filters"][0]["target_property"] == "space"
+    assert views[0]["filters"][1]["operator"] == "CONTAINSANY"
+    assert views[0]["filters"][1]["target_property"] == "tags"
+
+
+def test_scope_yaml_builder_uses_leaf_instance_space_when_set(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_inst"
+    (mod / "config/scopes/default").mkdir(parents=True)
+    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
+    tpl.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site, plant]
+        locations:
+          - id: S
+            locations:
+              - id: P
+                name: P
+                instance_space: sp_acme_prod
+        """
+    )
+    ctx = build_contexts(module_root=mod, doc=doc, dry_run=False)[0]
+    ScopeYamlBuilder(tpl).run(ctx)
+    out = mod / "config/scopes/S__P/key_extraction_aliasing.yaml"
+    data = yaml.safe_load(out.read_text(encoding="utf-8"))
+    v0 = data["key_extraction"]["config"]["data"]["source_views"][0]
+    assert v0["filters"][0]["values"] == ["sp_acme_prod"]
+
+
+def test_scope_yaml_builder_skips_inject_when_node_space_filter_exists(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_idem"
+    (mod / "config/scopes/default").mkdir(parents=True)
+    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
+    tpl.write_text(
+        """
+schemaVersion: 1
+key_extraction:
+  externalId: ctx_key_extraction_default
+  config:
+    parameters: {}
+    data:
+      validation: { min_confidence: 0.5 }
+      source_views:
+        - view_external_id: CogniteAsset
+          view_space: cdf_cdm
+          view_version: v1
+          entity_type: asset
+          filters:
+            - operator: IN
+              property_scope: node
+              target_property: space
+              values: [sp_already_set]
+      extraction_rules: []
+aliasing:
+  externalId: ctx_aliasing_default
+  config:
+    parameters: {}
+    data:
+      aliasing_rules: []
+      validation: {}
+""",
+        encoding="utf-8",
+    )
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site]
+        locations:
+          - id: Z1
+            name: Z
+        """
+    )
+    ctx = build_contexts(module_root=mod, doc=doc, dry_run=False)[0]
+    ScopeYamlBuilder(tpl).run(ctx)
+    out = mod / "config/scopes/Z1/key_extraction_aliasing.yaml"
+    data = yaml.safe_load(out.read_text(encoding="utf-8"))
+    fl = data["key_extraction"]["config"]["data"]["source_views"][0]["filters"]
+    assert len(fl) == 1
+    assert fl[0]["values"] == ["sp_already_set"]
+
 
 def test_scope_yaml_builder_writes_and_skips(tmp_path: Path) -> None:
     mod = tmp_path / "mod"
@@ -155,6 +290,13 @@ def test_scope_yaml_builder_writes_and_skips(tmp_path: Path) -> None:
     assert data["scope"]["name"] == "Leaf One"
     assert data["key_extraction"]["externalId"] == "ctx_key_extraction_leaf1"
     assert data["aliasing"]["externalId"] == "ctx_aliasing_leaf1"
+    views = data["key_extraction"]["config"]["data"]["source_views"]
+    assert len(views) == 1
+    flt = views[0]["filters"][0]
+    assert flt["property_scope"] == "node"
+    assert flt["target_property"] == "space"
+    assert flt["operator"] == "EQUALS"
+    assert flt["values"] == ["PLACEHOLDER_INSTANCE_SPACE_FOR_SCOPE__leaf1"]
 
     ScopeYamlBuilder(tpl).run(ctx)
     assert out.read_text(encoding="utf-8").count("Leaf One") >= 1

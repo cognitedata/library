@@ -128,14 +128,16 @@ ExtractionResult(candidate_keys=[], foreign_key_references=[], document_referenc
 ```
 
 #### Solutions:
-1. **Check Input Data**
+1. **Timeseries names like `VAL_45-TT-92506:…`** — The default shared regex uses **`(?:\b|(?<=_))`** so a tag can start after `VAL_`; plain `\b` alone does not fire between `_` and a digit in Python. Ensure your config uses the current **`alphanumeric_tag`** from `config/tag_patterns.yaml` / default scope anchor **`&alphanumeric_tag`**.
+
+2. **Check Input Data**
    ```python
    # Verify input data format
    print("Sample data:", sample_data)
    print("Data types:", [type(item) for item in sample_data])
    ```
 
-2. **Review Extraction Rules**
+3. **Review Extraction Rules**
    ```python
    from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
        KeyExtractionEngine,
@@ -145,7 +147,7 @@ ExtractionResult(candidate_keys=[], foreign_key_references=[], document_referenc
    result = engine.extract_keys({"name": "P-101", "id": "t"}, "asset")
    ```
 
-3. **Lower Confidence Threshold**
+4. **Lower Confidence Threshold**
    ```yaml
    validation:
      min_confidence: 0.3  # Lower from default 0.5
@@ -193,17 +195,17 @@ AliasResult(aliases=[], confidence=0.0)
    print(result.aliases)
    ```
 
-2. **Enable More Rule Types**
+2. **Enable more rules in `aliasing.config.data.aliasing_rules`**
    ```yaml
    aliasing:
-     rules:
-       - name: "character_substitution"
-         type: "character_substitution"
-         enabled: true
-       - name: "case_transformation"
-         type: "case_transformation"
-         enabled: true
+     config:
+       data:
+         aliasing_rules:
+           - name: "character_substitution"
+             type: "character_substitution"
+             enabled: true
    ```
+   The **default CDM scope** only ships a few rules for assets/files; copy patterns from `config/examples/aliasing/` if you need a larger stack.
 
 #### Problem: Too many aliases
 ```
@@ -211,10 +213,7 @@ Generated 150 aliases (limit: 50)
 ```
 
 #### Solution:
-```yaml
-aliasing:
-  max_aliases_per_key: 25  # Reduce limit
-```
+Tune **`aliasing.config.data.validation`** (e.g. `max_aliases_per_tag`) or per-rule `max_aliases_per_input` in the aliasing config loaded by your scope.
 
 ### 6. CDF Deployment Issues
 
@@ -372,9 +371,9 @@ python main.py run
 
 ### 2. Review Documentation
 
-- [API Documentation](../api/)
-- [Configuration Guide](configuration.md)
-- [System Architecture](../architecture/system_architecture.md)
+- [Documentation map](../README.md)
+- [Configuration guide](../guides/configuration_guide.md)
+- [Key extraction / aliasing report](../key_extraction_aliasing_report.md)
 
 ### 3. Test with Sample Data
 

@@ -40,7 +40,7 @@ graph TD
 - **Component**: `fn_dm_key_extraction` CDF Function
 - **Input**: CDF data model entities from configured source views
 - **Process**:
-  - Applies extraction rules (regex, fixed width, token reassembly, heuristic)
+  - Applies extraction rules from config (**regex**, fixed width, token reassembly, heuristic — the **default CDM scope** uses **regex only**)
   - Extracts candidate keys, foreign key references, and document references
   - Validates and filters results by confidence
 - **Output**: `ExtractionResult` containing:
@@ -58,8 +58,7 @@ graph TD
 - **Input**: Candidate keys from key-extraction RAW
 - **Process**:
   - Generates aliases for each candidate key
-  - Applies transformation rules (character substitution, prefix/suffix, etc.)
-  - Uses ISA patterns for pattern-based expansion
+  - Applies transformation rules from config (default scope: semantic expansion, unit-prefix strip, leading-zero normalization, document aliases — larger example scopes add character substitution, ISA-style expansion, etc.)
   - Validates generated aliases
 - **Output**: Aliases for each candidate key
 
@@ -115,5 +114,5 @@ AliasingResult(
 
 ---
 
-**Diagram Version**: 1.1  
-**Last Updated**: Aligns with RAW handoff and `fn_dm_alias_persistence` (aliases + optional FK write-back)
+**Diagram Version**: 1.2  
+**Last Updated**: RAW handoff, optional FK write-back; default CDM scope is regex-only extraction with a slim aliasing stack (see `config/scopes/default/key_extraction_aliasing.yaml`)

@@ -44,7 +44,7 @@ def _ensure_workflow_config_shape(raw_cfg: Dict[str, Any], cfg_path: Path) -> Di
 
     Accepts:
     - {externalId, config: {parameters, data}}  -> unchanged
-    - Combined v1 with ``aliasing: {externalId, config: ...}`` -> that branch only
+    - v1 scope YAML with ``aliasing: {externalId, config: ...}`` -> that branch only
     - {parameters, data}                         -> wrapped
     - any other dict                             -> returned as-is
     """

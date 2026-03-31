@@ -1,261 +1,116 @@
-# Key Extraction and Aliasing Results Summary
+# Key Extraction and Aliasing — Module Summary
 
-**Generated:** 2025-10-31 15:24:37
-**Results Source:** 20251031_152317
+**Last reviewed:** 2026-03-30  
+**Canonical default scope:** [`config/scopes/default/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml) — `parameters.ignore_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`ignore_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
+**Shared tag pattern library:** [`config/tag_patterns.yaml`](../config/tag_patterns.yaml) (aligned field `alphanumeric_tag`)
 
-## Executive Summary
-
-This document provides a comprehensive analysis of the key extraction and aliasing pipeline execution results, covering processing statistics, entity type breakdowns, extraction methods, and aliasing transformations.
-
-### Workflow Overview
-
-The following diagram illustrates the complete workflow process from key extraction through aliasing to persistence:
-
-![Workflow Diagram](../workflows/workflow_diagram.png)
-
-**Workflow Steps:**
-1. **Key Extraction** - Extracts candidate keys, foreign key references, and document references from CDF entities
-2. **Result Splitting** - Separates extraction results into distinct streams based on type
-3. **Aliasing** - Generates aliases for candidate keys to improve matching
-4. **Write Aliases** - Persists the alias list to a property on CogniteDescribable (default property `aliases`; configurable)
-5. **Reference Catalog** - Stores foreign key references and document references (future implementation)
+This document describes the **current** default configuration and pipeline behavior for `cdf_key_extraction_aliasing`. For numbers from a specific CDF or local test run, use the latest JSON under [`tests/results/`](../tests/results/) or your own exported extraction output.
 
 ---
 
-## 📊 Key Extraction Results
+## Workflow overview
 
-### Overall Statistics
+![Workflow diagram](../workflows/workflow_diagram.png)
 
-- **Total Entities Processed:** 218
-- **Total Candidate Keys Extracted:** 638
-- **Total Foreign Key References:** 2
-- **Total Document References:** 0
+1. **Key extraction** — Candidate keys, foreign key references, and document references (when configured) from DM views.
+2. **Result splitting** — Routes results by extraction type / downstream consumer.
+3. **Aliasing** — Expands candidate keys with format variants and normalizations (scoped by entity type).
+4. **Write aliases** — Persists aliases on CogniteDescribable (default property `aliases`; see `alias_writeback_property` in aliasing config).
+5. **Reference catalog / FK write-back** — Optional; default scope sets `write_foreign_key_references: false` for aliasing parameters.
 
-### Entity Type Breakdown
-
-| Entity Type | Count | Candidate Keys | Foreign Keys | Document Refs |
-|------------|-------|---------------|--------------|---------------|
-| Asset | 7 | 8 | 2 | 0 |
-| File | 11 | 19 | 0 | 0 |
-| Timeseries | 200 | 611 | 0 | 0 |
-
-### Source View Statistics
-
-| View | Entity Count |
-|------|--------------|
-| CogniteAsset | 7 |
-| CogniteFile | 11 |
-| CogniteTimeSeries | 200 |
-
-### Extraction Methods
-
-| Method | Count | Percentage |
-|--------|-------|------------|
-| Regex | 322 | 50.5% |
-| Fixed_width | 200 | 31.3% |
-| Heuristic | 116 | 18.2% |
-
-### Top Extraction Rules
-
-| Rule Name | Count | Percentage |
-|-----------|-------|------------|
-| file_name_extraction | 218 | 34.2% |
-| timeseries_tag_pattern_fixed_width | 200 | 31.3% |
-| heuristic_tag_extraction | 116 | 18.2% |
-| timeseries_tag_pattern_extraction | 59 | 9.2% |
-| instrument_tag_extraction | 37 | 5.8% |
-| pump_tag_extraction | 8 | 1.3% |
-
-### Confidence Score Statistics
-
-- **Average Confidence:** 0.950
-- **Minimum Confidence:** 0.795
-- **Maximum Confidence:** 1.000
-
-
-### Extraction Methods Description
-
-The key extraction system uses different methods to identify and extract key information from entity data:
-
-#### 1. Regex Extraction (50.5% of extractions)
-
-**What it does:** Identifies structured patterns in text, such as equipment tags like `P-101` or `FCV-2001A`.
-
-**How it works:**
-- Looks for specific patterns and formats in entity names and descriptions
-- Works best with consistent, well-formatted identifiers
-- Commonly used for equipment tags, instrument identifiers, and file names
-
-**Best for:** Structured data with consistent naming conventions
-
-#### 2. Heuristic Extraction (18.2% of extractions)
-
-**What it does:** Identifies keys in data that doesn't follow strict patterns, using statistical analysis and context clues.
-
-**How it works:**
-- Uses multiple strategies to find identifiers even when formats vary
-- Analyzes text position, character patterns, and surrounding context
-- Learns from examples to identify similar patterns
-
-**Best for:** Inconsistent or legacy data where formats vary across systems
-
-#### 3. Fixed Width Extraction
-
-**What it does:** Extracts information from structured text where data appears in fixed positions (like columns in a table).
-
-**Best for:** Tabular data or fixed-format records from legacy systems
-
-#### 4. Token Reassembly Extraction
-
-**What it does:** Builds complete identifiers by combining pieces of information from multiple fields (like combining site, unit, and equipment codes).
-
-**Best for:** Hierarchical naming systems where tags are constructed from multiple components
-
+Deployed workflow YAML may add **site-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) header comment.
 
 ---
 
-## 🔄 Aliasing Results
+## Key extraction (default scope)
 
-### Overall Statistics
+### Source views
 
-- **Total Tags Processed:** 638
-- **Total Aliases Generated:** 3095
-- **Average Aliases per Tag:** 4.85
-- **Unique Transformation Rules Applied:** 16
+| View | `entity_type` | Notes |
+|------|----------------|--------|
+| `CogniteAsset` | asset | Filter example: `tags` CONTAINSANY `asset_tag` |
+| `CogniteFile` | file | `mimeType` IN `application/pdf` (PDF only) |
+| `CogniteTimeSeries` | timeseries | No tag filter in default; `name`, `description`, `tags`, `unit` |
 
-### Alias Distribution
+Spaces, versions, and batch sizes are as in the YAML; adjust per environment.
 
-- **Minimum Aliases per Tag:** 0
-- **Maximum Aliases per Tag:** 16
-- **Median Aliases per Tag:** 8
+### Shared equipment tag token (`alphanumeric_tag`)
 
-### Entity Type Aliasing Statistics
+Asset equipment candidates, timeseries instrument candidates, and **all** foreign-key reference rules that target embedded equipment tags share one YAML anchor: **`*alphanumeric_tag`**.
 
-| Entity Type | Tags Processed | Total Aliases | Avg Aliases/Tag |
-|------------|---------------|---------------|-----------------|
-| Asset | 8 | 96 | 12.00 |
-| File | 19 | 73 | 3.84 |
-| Timeseries | 611 | 2926 | 4.79 |
+Pattern (same string in `tag_patterns.yaml` as `alphanumeric_tag`):
 
-### Top Applied Transformation Rules by Entity Type
+```text
+(?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+```
 
-#### Asset Entity Type
+**Behavior (short):**
 
-| Rule Name | Application Count | Percentage |
-|-----------|------------------|------------|
-| normalize_separators_to_hyphen | 8 | 6.7% |
-| separator_variants_bidirectional | 8 | 6.7% |
-| generate_separator_variants | 8 | 6.7% |
-| add_site_prefix | 8 | 6.7% |
-| add_unit_prefix | 8 | 6.7% |
-| add_equipment_type_suffix | 8 | 6.7% |
-| pattern_based_replacement | 8 | 6.7% |
-| equipment_type_expansion | 8 | 6.7% |
-| generate_instruments | 8 | 6.7% |
-| hierarchical_expansion | 8 | 6.7% |
-| isa_instrument_expansion | 8 | 6.7% |
-| semantic_expansion | 8 | 6.7% |
-| hierarchical_tag_expansion | 8 | 6.7% |
-| case_variants | 8 | 6.7% |
-| leading_zero_normalization | 8 | 6.7% |
+- Optional numeric **unit** prefix and hyphen (for example `10-P-1234`, `45-TT-92506`).
+- **Type** letters and **id** digits with optional hyphens and optional `-NN` numeric tails; optional trailing letter.
+- **`(?<![\d-])`** reduces spurious inner matches (for example avoids starting a second match at `P` inside `10-P-1234`).
+- **`(?:\b|(?<=_))`** fixes **VAL_**-style names: in Python, `_` is a word character, so `\b` does **not** appear between `_` and a digit. After `VAL_`, the tag must still start with `(?<=_)` so names like `VAL_45-TT-92506:X.Value` yield **`45-TT-92506`**.
 
-**Note:** Asset entities receive the most comprehensive transformation coverage, with 15 transformation rules applied across 8 asset tags processed.
+Files use a **separate** candidate rule: basename from path (`file_basename_candidate`), not `alphanumeric_tag`.
 
-#### File Entity Type
+### Extraction rules (default scope)
 
-| Rule Name | Application Count | Percentage |
-|-----------|------------------|------------|
-| document_aliases | 19 | 100.0% |
+| Rule name | Method | Type | Entity | Source fields (summary) |
+|-----------|--------|------|--------|-------------------------|
+| `asset_equipment_tag_candidate` | regex | candidate_key | asset | `name` |
+| `file_basename_candidate` | regex | candidate_key | file | `name` (basename with extension) |
+| `timeseries_instrument_tag_candidate` | regex | candidate_key | timeseries | `name` |
+| `file_description_asset_fk` | regex | foreign_key_reference | file | `description` |
+| `timeseries_name_asset_fk` | regex | foreign_key_reference | timeseries | `name` |
+| `timeseries_description_asset_fk` | regex | foreign_key_reference | timeseries | `description` |
 
-**Note:** File entities receive specialized document-specific transformations, focusing on document naming variants and revision number handling.
+All tag-shaped rules above use **`*alphanumeric_tag`** except the file basename rule.
 
-#### Timeseries Entity Type
-
-| Rule Name | Application Count | Percentage |
-|-----------|------------------|------------|
-| generate_separator_variants | 611 | 25.0% |
-| isa_instrument_expansion | 611 | 25.0% |
-| case_variants | 611 | 25.0% |
-| leading_zero_normalization | 611 | 25.0% |
-
-**Note:** Timeseries entities receive streamlined transformations focusing on separator variants, instrument expansion, case variations, and zero normalization - the most commonly needed transformations for data stream identifiers.
-
-
-### Aliasing Transformation Types Description
-
-The aliasing system generates alternative names (aliases) for extracted keys to improve matching across different systems. This is important because the same equipment might be referred to differently in various systems (e.g., `P-101`, `P_101`, `P101` all refer to the same pump).
-
-**12 transformation types are available:**
-
-1. **Character Substitution** - Creates variations by changing separators (hyphens, underscores, spaces)
-2. **Prefix/Suffix Operations** - Adds site, unit, or equipment type prefixes/suffixes based on context
-3. **Regex Substitution** - Normalizes tag formats to standard conventions
-4. **Case Transformation** - Creates uppercase, lowercase, and title case variants
-5. **Equipment Type Expansion** - Expands abbreviations (P → PUMP, PMP) to generate full names
-6. **Related Instruments** - Generates related instrument tags (FIC, PIC, TIC, LIC) for equipment
-7. **Hierarchical Expansion** - Creates full hierarchical paths (site-unit-equipment) when context is available
-8. **Document Aliases** - Handles document naming variants, removes revision numbers from file names
-9. **Leading Zero Normalization** - Normalizes numeric formatting (P-001, P-01, P-1)
-10. **Pattern Recognition** - Recognizes industry-standard patterns (ISA/ANSI) and identifies equipment types
-11. **Pattern-Based Expansion** - Generates ISA-compliant aliases following industry standards
-12. **Composite Transformations** - Chains multiple transformations together for complex alias generation
-
-**Why this matters:** Different systems may use different formats for the same identifier. By generating aliases, the system can match entities even when they're named differently, improving data integration and search capabilities.
-
+**Methods in this scope:** regex only (no fixed-width or heuristic rules in the default CDM template).
 
 ---
 
-## 📈 Key Insights
+## Aliasing (default scope)
 
-### Extraction Insights
+Rules are ordered by **priority**; at equal priority, **YAML order** applies. Only **assets** and **files** have rules in the current default; timeseries candidate keys are not passed through the asset-only semantic/unit/leading-zero rules unless you extend the scope.
 
-1. **Method Distribution:** Regex extraction method is the most commonly used (322 occurrences).
-2. **Entity Type Coverage:** The pipeline processed 3 different entity types, with timeseries representing the largest processing volume (200 entities).
-3. **Rule Effectiveness:** The top extraction rule (file_name_extraction) was applied 218 times.
+| Priority | Rule | Type | Entity scope | Role |
+|----------|------|------|--------------|------|
+| 10 | `semantic_expansion` | pattern_based_expansion | asset | Format variants (type / separator / number / suffix) aligned with extraction-style tags |
+| 10 | `strip_numeric_unit_prefix` | regex_substitution | asset | Leading `^\d+-` stripped (for example `10-P-1234` → `P-1234`) |
+| 20 | `leading_zero_normalization` | leading_zero_normalization | asset | Normalize long numeric tokens (configurable min length, etc.) |
+| 30 | `document_aliases` | document_aliases | file | P&ID / drawing / file-name variants (revision handling, padding, etc.) |
 
-### Aliasing Insights
-
-1. **Transformation Coverage:** 16 unique transformation rules were applied across all processed tags.
-2. **Alias Generation:** On average, each tag generated 4.85 aliases, demonstrating effective variant generation.
-3. **Most Common Transformations:** The top 3 transformation rules (generate_separator_variants, isa_instrument_expansion, case_variants) account for 71.9% of all rule applications.
-
+**Validation (default):** `max_aliases_per_tag: 100`, `min_alias_length: 2`, `max_alias_length: 80`, allowed characters as in YAML.
 
 ---
 
-## 🔍 Sample Results
+## Example outcomes (illustrative)
 
-### Sample Extraction Results
+With the shared regex above, a timeseries **name** such as `VAL_45-TT-92506:X.Value` should produce:
 
-The following table shows examples of entities processed by the extraction pipeline, organized by entity type:
+- **Candidate key:** `45-TT-92506` (from `timeseries_instrument_tag_candidate`).
+- **Foreign key reference (name field):** `45-TT-92506` (from `timeseries_name_asset_fk`) — retained because the default scope sets **`ignore_self_referencing_keys: false`** on the **CogniteTimeSeries** source view (asset/file views inherit **`true`** and would drop a duplicate FK equal to the candidate).
 
-| Entity Type | Entity ID | Entity Name | Candidate Keys | Foreign Key References | Document References |
-|-------------|-----------|-------------|----------------|----------------------|---------------------|
-| Asset | ASSET-P-101 | P-101 | P-101 | T-301 | None |
-| Asset | ASSET-FCV-2001 | FCV-2001 | FCV-2001 | None | None |
-| Asset | ASSET-T-301 | T-301 | T-301 | None | None |
-| File | VAL_PH-25578-P-4110006-001.pdf | PH-25578-P-4110006-001.pdf | PH-25578-P-4110006-001.pdf | None | None |
-| File | VAL_PH-25578-P-4110010-001.pdf | PH-25578-P-4110010-001.pdf | PH-25578-P-4110010-001.pdf | None | None |
-| File | VAL_PH-25578-P-4110119-001.pdf | PH-25578-P-4110119-001.pdf | PH-25578-P-4110119-001.pdf | None | None |
-| Timeseries | pi:160554 | VAL_23-LY-92529_DensityBands_06sandUL:VA | VAL_23-LY-92529_DensityBands_06sandUL:VALUE, 23-LY-92529 | None | None |
-| Timeseries | pi:160238 | VAL_23-KA-9101-M01_E_stop_active:VALUE | VAL_23-KA-9101-, VAL_23-KA-9101-M01_E_stop_active:VALUE | None | None |
-| Timeseries | pi:163655 | VAL_45-TT-92506:X.Value | VAL_45-TT-92506, VAL_45-TT-92506:X.Value | None | None |
+| Entity type | Example name | Typical candidate keys | Typical FK from text fields |
+|-------------|--------------|-------------------------|------------------------------|
+| Asset | `P-101` | `P-101` | — |
+| File | `VAL_PH-25578-P-4110006-001.pdf` | `VAL_PH-25578-P-4110006-001.pdf` (basename) | Tags in `description` via `alphanumeric_tag` if present |
+| Timeseries | `VAL_45-TT-92506:X.Value` | `45-TT-92506` | `45-TT-92506` from `name`; plus any matches in `description` |
 
-**What this shows:**
-
-- **Candidate Keys** are the primary identifiers extracted from entity names (e.g., equipment tags like `P-101`, file names like `PH-25578-P-4110006-001.pdf`)
-- **Foreign Key References** are references to other entities found in descriptions (e.g., pump P-101 references tank T-301)
-- **Document References** are references to engineering drawings or documents (none found in these examples)
-- **Entity Types** indicate the type of entity: Assets (equipment), Files (documents), or Timeseries (data streams)
+Exact counts and confidence scores depend on data and run parameters (`min_confidence`, view filters, etc.).
 
 ---
 
-## 📝 Notes
+## Where to get run-specific metrics
 
-- Results were generated from CDF Data Model views: CogniteAsset, CogniteFile, and CogniteTimeSeries
-- All extracted candidate keys were processed through the aliasing pipeline
-- Aliases have been written back on the CogniteDescribable view using the configured DM property (default `aliases`; see pipeline `alias_writeback_property` or workflow `aliasWritebackProperty`)
-- Confidence scores for extraction range from 0.795 to 1.000
+- Local pipeline / CDF test output: see [`tests/results/`](../tests/results/) (`*_cdf_extraction.json` and related artifacts).
+- Regenerate or customize tables for a **specific** run by post-processing those exports (rule names, method counts, entity breakdowns).
 
 ---
 
-*This summary was automatically generated from the latest pipeline execution results.*
+## Related docs
+
+- [Documentation map (README)](README.md) — links to configuration guide, specs, and function READMEs.
+- [Workflows README](../workflows/README.md) — deployment and task graph.
+- [Configuration guide](guides/configuration_guide.md) — pipeline parameters and RAW tables.

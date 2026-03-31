@@ -1,4 +1,4 @@
-"""Tests for local_runner.config_loading (v1 combined scope YAML)."""
+"""Tests for local_runner.config_loading (v1 scope YAML)."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def _minimal_key_extraction_data(
     }
 
 
-def test_combined_doc_omitted_aliasing_identity_passthrough():
+def test_scope_doc_omitted_aliasing_identity_passthrough():
     doc = _minimal_key_extraction_data(
         source_views=[
             {
@@ -72,13 +72,14 @@ def test_combined_doc_omitted_aliasing_identity_passthrough():
             }
         ],
     )
-    ext, alias, views, *_ = cl._load_from_combined_doc(_logger(), doc)
+    ext, alias, views, *_ = cl._load_from_scope_document(_logger(), doc)
     assert len(views) == 1
     assert len(ext["extraction_rules"]) == 1
+    assert ext["parameters"].get("debug") is True
     assert alias["rules"] == []
 
 
-def test_combined_doc_empty_aliasing_rules():
+def test_scope_doc_empty_aliasing_rules():
     doc = _minimal_key_extraction_data(
         source_views=[
             {
@@ -97,12 +98,12 @@ def test_combined_doc_empty_aliasing_rules():
             "data": {"aliasing_rules": [], "validation": {}},
         },
     }
-    ext, alias, *_ = cl._load_from_combined_doc(_logger(), doc)
+    ext, alias, *_ = cl._load_from_scope_document(_logger(), doc)
     assert len(ext["extraction_rules"]) >= 1
     assert alias["rules"] == []
 
 
-def test_combined_doc_empty_extraction_injects_per_entity_type():
+def test_scope_doc_empty_extraction_injects_per_entity_type():
     doc = _minimal_key_extraction_data(
         source_views=[
             {
@@ -120,7 +121,7 @@ def test_combined_doc_empty_extraction_injects_per_entity_type():
         ],
         extraction_rules=[],
     )
-    ext, _, views, *_ = cl._load_from_combined_doc(_logger(), doc)
+    ext, _, views, *_ = cl._load_from_scope_document(_logger(), doc)
     assert {v["entity_type"] for v in views} == {"asset", "timeseries"}
     assert len(ext["extraction_rules"]) == 2
     for r in ext["extraction_rules"]:
@@ -146,12 +147,12 @@ def test_load_configs_from_explicit_path(tmp_path: Path):
     assert alias["rules"] == []
 
 
-def test_load_configs_missing_combined_scope_raises(
+def test_load_configs_missing_scope_document_raises(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     monkeypatch.setattr(cl, "_scope_dir", lambda scope: tmp_path / scope)
     (tmp_path / "default").mkdir(parents=True)
-    with pytest.raises(FileNotFoundError, match="key_extraction_aliasing"):
+    with pytest.raises(FileNotFoundError, match="scope document"):
         cl.load_configs(_logger(), scope="default")
 
 
@@ -199,5 +200,5 @@ def test_load_configs_scope_dir_rejects_wrong_filename_only_scope_yaml(
         extraction_rules=[],
     )
     (d / "scope.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
-    with pytest.raises(FileNotFoundError, match="key_extraction_aliasing"):
+    with pytest.raises(FileNotFoundError, match="scope document"):
         cl.load_configs(_logger(), scope="default")

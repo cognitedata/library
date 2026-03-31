@@ -46,6 +46,14 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
         "validation": {"min_confidence": 0.5, "max_keys_per_type": 1000},
     }
 
+    # Pipeline parameters (min_key_length, ignore_self_referencing_keys, etc.)
+    try:
+        engine_config["parameters"] = cdf_config.parameters.model_dump(
+            mode="python", exclude_none=False
+        )
+    except Exception:
+        engine_config["parameters"] = {}
+
     # Convert extraction rules
     for cdf_rule in cdf_config.data.extraction_rules:
         engine_rule = _convert_extraction_rule(cdf_rule)
@@ -124,6 +132,11 @@ def _convert_yaml_direct_to_engine_config(
     source_views = data_section.get("source_views", [])
     if source_views:
         engine_config["source_views"] = source_views
+
+    # key_extraction.config.parameters → engine (min_key_length, ignore_self_referencing_keys, …)
+    top_params = config_data.get("parameters")
+    if isinstance(top_params, dict) and top_params:
+        engine_config["parameters"] = dict(top_params)
 
     return engine_config
 
@@ -413,7 +426,7 @@ def load_config_from_yaml(config_path: str, validate: bool = True) -> Dict[str, 
 
     if not isinstance(yaml_data, dict):
         raise ValueError("YAML root must be a mapping")
-    # Combined scope v1: schemaVersion + key_extraction.config
+    # v1 scope document: unwrap key_extraction.config when root has key_extraction
     ke = yaml_data.get("key_extraction")
     if isinstance(ke, dict) and isinstance(ke.get("config"), dict):
         yaml_data = ke
