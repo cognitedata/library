@@ -327,6 +327,51 @@ workflowDefinition:
       dependsOn:
         - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
 
+    - externalId: 'wf_cfihos_oil_and_gas_t_diagram_annotation'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_diagram_annotation_all_to_cognite_diagram_annotation'
+          concurrencyPolicy: fail
+      name: 'Diagram annotation'
+      description: Create CogniteDiagramAnnotation edges from RAW diagram annotation rows
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_file'
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_file_tag_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_diagram_annotation_all_to_file_tag_connection'
+          concurrencyPolicy: fail
+      name: 'File to tag connection from diagram annotation'
+      description: Connect Files.assets to Tag using diagram annotation AssetLink rows
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_file'
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_file_equipment_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_diagram_annotation_all_to_file_equipment_connection'
+          concurrencyPolicy: fail
+      name: 'File to equipment connection via tags'
+      description: Connect Equipment.files by matching Equipment.asset against Files.assets
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_file_tag_connection'
+        - externalId: 'wf_cfihos_oil_and_gas_t_equipment'
+
     - externalId: 'wf_cfihos_oil_and_gas_t_timeseries'
       type: 'transformation'
       parameters:

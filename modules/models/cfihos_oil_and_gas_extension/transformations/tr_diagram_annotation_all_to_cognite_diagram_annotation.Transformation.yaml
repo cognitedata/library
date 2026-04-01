@@ -1,0 +1,14 @@
+externalId: tr_diagram_annotation_all_to_cognite_diagram_annotation
+name: Diagram annotation to CogniteDiagramAnnotation
+destination:
+  dataModel:
+    space: cdf_cdm
+    externalId: CogniteCore
+    version: v1
+    destinationType: CogniteDiagramAnnotation
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
