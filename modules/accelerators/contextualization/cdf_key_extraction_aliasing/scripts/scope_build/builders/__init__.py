@@ -1,3 +1,3 @@
-from scope_build.builders.scope_yaml import ScopeYamlBuilder
+from scope_build.builders.workflow_triggers import WorkflowTriggersBuilder
 
-__all__ = ["ScopeYamlBuilder"]
+__all__ = ["WorkflowTriggersBuilder"]

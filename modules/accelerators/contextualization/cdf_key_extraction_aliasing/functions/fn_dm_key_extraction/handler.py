@@ -9,7 +9,7 @@ workflow format while using the existing KeyExtractionEngine.
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 try:
     from cognite.client import CogniteClient
@@ -18,6 +18,8 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
+from ..cdf_fn_common.function_logging import resolve_function_logger
+from ..cdf_fn_common.scope_document_dm import ensure_key_extraction_config_from_scope_dm
 from .cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
 from .engine.key_extraction_engine import KeyExtractionEngine
 
@@ -31,7 +33,11 @@ except ImportError:
     Config = None
 
 
-def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
+def handle(
+    data: Dict[str, Any],
+    client: CogniteClient = None,
+    logger: Optional[Any] = None,
+) -> Dict[str, Any]:
     """
     CDF-compatible handler function for key extraction.
 
@@ -43,25 +49,28 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - config: Workflow-provided config payload
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
         client: CogniteClient instance (required for CDF querying/writing mode)
+        logger: Optional pre-built logger (must support ``.verbose`` for engines); default from ``data``.
 
     Returns:
         Dictionary with status and result information
     """
-    logger = None
+    log: Any = None
     cdf_config = None
 
     try:
-        # Initialize logging
         loglevel = data.get("logLevel", "INFO")
         verbose = data.get("verbose", False)
-
-        # Use CDF logger from common module
-        from .common.logger import CogniteFunctionLogger
-
-        logger = CogniteFunctionLogger(loglevel, verbose=verbose)
+        log = resolve_function_logger(data, logger, strict_level_names=True)
         verbose_label = "ON" if verbose else "OFF"
-        logger.info(
+        log.info(
             f"Starting key extraction with loglevel = {loglevel} and verbose {verbose_label}"
+        )
+
+        if not client:
+            raise ValueError("CogniteClient is required for CDF key extraction")
+
+        ensure_key_extraction_config_from_scope_dm(
+            data, client, incremental_change_processing=True
         )
 
         # Load config from workflow payload
@@ -82,12 +91,12 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 try:
                     cdf_config = Config.model_validate(unwrapped)
                     engine_config = convert_cdf_config_to_engine_config(cdf_config)
-                    logger.info("Using workflow-provided config")
+                    log.info("Using workflow-provided config")
                 except Exception as e:
                     # Fall back to dict-based workflow config parsing (no pydantic dependency on the
                     # exact schema of extraction rules). This is the common case for workflow-provided
                     # YAML payloads.
-                    logger.warning(
+                    log.warning(
                         "Failed to parse workflow config with pydantic; "
                         f"falling back to dict-based parsing: {e!s}"
                     )
@@ -114,12 +123,12 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                         ),
                     )
 
-                    logger.info("Using workflow-provided config (dict-based)")
+                    log.info("Using workflow-provided config (dict-based)")
             else:
                 # Direct config provided (for standalone usage)
                 engine_config = provided_config
                 cdf_config = None
-                logger.info("Using provided config directly")
+                log.info("Using provided config directly")
         else:
             raise ValueError(
                 "Missing required key 'config' in input data"
@@ -132,7 +141,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
 
         key_extraction(
             client=client,
-            logger=logger,
+            logger=log,
             data=data,
             engine=engine,
             cdf_config=cdf_config if (CDF_CONFIG_AVAILABLE and client) else None,
@@ -155,8 +164,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
     except Exception as eoti:
         message = f"Key extraction pipeline failed: {eoti!s}"
 
-        if logger:
-            logger.error(message)
+        if log:
+            log.error(message)
         else:
             print(f"[ERROR] {message}")
 

@@ -5,7 +5,7 @@ from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
 
-from .common.logger import CogniteFunctionLogger
+from ..cdf_fn_common.function_logging import cognite_function_logger
 from .utils.DataStructures import EnvConfig
 
 
@@ -63,15 +63,14 @@ def create_client(env_config: EnvConfig, debug: bool = False):
 
 
 def create_logger_service(log_level, verbose):
-    """Create a `CogniteFunctionLogger` with the requested verbosity."""
-    if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
-        return CogniteFunctionLogger()
-    else:
-        return CogniteFunctionLogger(log_level=log_level, verbose=verbose)
+    """Create a `CogniteFunctionLogger` with the requested verbosity (legacy level rules)."""
+    return cognite_function_logger(str(log_level), bool(verbose), strict_level_names=True)
 
 
 def create_write_logger_service(log_level, filepath):
     """Create a write-enabled logger (local runs)."""
+    from .common.logger import CogniteFunctionLogger
+
     if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
         return CogniteFunctionLogger()
     else:

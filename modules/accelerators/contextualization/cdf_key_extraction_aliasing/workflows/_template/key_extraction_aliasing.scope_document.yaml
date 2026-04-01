@@ -1,0 +1,534 @@
+# -----------------------------------------------------------------------------
+# Embedded scope template for schedule triggers (v4). Copied into each trigger's
+# input.scope_document by scripts/build_scopes.py (patched per hierarchy leaf).
+# Keep key_extraction.externalId / aliasing.externalId ending with _default so
+# patches apply _<scope_cdf_suffix>. Do not add top-level scope: here; build_scopes
+# injects it. For local CLI default, edit key_extraction_aliasing.yaml at module root.
+# -----------------------------------------------------------------------------
+#
+# Representative CDM default: CogniteAsset / CogniteFile / CogniteTimeSeries.
+# Shared tag token (asset candidate + FK + timeseries general): optional unit, TYPE, optional -, id digits, optional -NN suffixes, optional letter.
+#   Examples: 10-P-1234, P1234, 23-LT-92529-02. (?<![\d-]) avoids inner type-id inside 10P1234 / 10-P-1234.
+#   After VAL_… use (?:\b|(?<=_)) not \b alone: in Python \w includes _, so there is no word boundary between _ and a digit.
+# Timeseries VAL_/embedded triple: after ^ or _/space; -NN tails before : . or space (e.g. VAL_23-LT-92529-02:X...).
+schemaVersion: 1
+key_extraction:
+  externalId: ctx_key_extraction_default
+  config:
+    parameters:
+      debug: true
+      full_rescan: false
+      raw_db: db_key_extraction
+      raw_table_key: key_extraction_state
+      skip_entity_policy: successful_only
+      write_empty_extraction_rows: false
+      raw_skip_scan_chunk_size: 5000
+      incremental_change_processing: true
+      # When true, run fn_dm_reference_index (RAW inverted index for FK + document refs).
+      # Must match enable_reference_index on the workflow task payload for deployed runs.
+      enable_reference_index: false
+      # Optional: set false to disable default hash-gated cohort skipping in incremental mode.
+      # incremental_skip_unchanged_source_inputs: false
+      # Drop FK strings that duplicate a candidate key on the same instance (default true).
+      # Per-source_view exclude_self_referencing_keys overrides this (CogniteAsset: true; CogniteTimeSeries: false).
+      exclude_self_referencing_keys: true
+    data:
+      source_views:
+      - view_external_id: CogniteAsset
+        view_space: cdf_cdm
+        view_version: v1
+        entity_type: asset
+        filters:
+        - operator: CONTAINSANY
+          target_property: tags
+          values:
+          - asset_tag
+        include_properties:
+        - externalId
+        - name
+        - description
+        - tags
+        validation:
+          confidence_match_rules:
+          # ISA: descriptions align with config/tag_patterns.yaml; global scalars in fragments/pipeline_validation.default.yaml
+          - name: isa_compliant
+            priority: 50
+            match:
+              expressions:
+              - pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
+                description: Standard pump tags (P-101, P101A, P-2001)
+              - pattern: '\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b'
+                description: Pump with service designation (FWP-101, CWP-201)
+              - pattern: '\bCP[-_]?\d{1,6}[A-Z]?\b'
+                description: Centrifugal pump tags
+              - pattern: '\bC[-_]?\d{1,6}[A-Z]?\b'
+                description: Standard compressor tags (C-101, C101A)
+              - pattern: '\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b'
+                description: Compressor with type designation (AC-101, RC-201)
+              - pattern: '\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b'
+                description: Control valve tags (FCV-101, PCV-201, TCV-301)
+              - pattern: '\bV[-_]?\d{1,6}[A-Z]?\b'
+                description: Manual valve and vessel tags (V-101, V101A)
+              - pattern: '\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b'
+                description: Safety valve tags (PSV-101, TSV-201)
+              - pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
+                description: Standard tank tags (T-101, T101A)
+              - pattern: '\bR[-_]?\d{1,6}[A-Z]?\b'
+                description: Reactor tags (R-101, R101A)
+              - pattern: '\bE[-_]?\d{1,6}[A-Z]?\b'
+                description: Heat exchanger tags (E-101, E101A)
+              - pattern: '\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b'
+                description: Heat exchanger with type (HE-101, CE-201)
+              - pattern: '\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Flow instruments (FIC-101, FIT-201, FCV-301)
+              - pattern: '\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+              - pattern: '\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+              - pattern: '\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Level instruments (LIC-101, LIT-201, LCV-301)
+              - pattern: '\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+              - pattern: '\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b'
+                description: Distillation column tags (C-101, DC-201)
+            confidence_modifier:
+              mode: explicit
+              value: 1.0
+          - name: not_isa_penalty
+            priority: 1000
+            match:
+              expressions:
+              - pattern: '(?s).*'
+                description: Catch-all when no higher-priority rule matched; applies non-ISA penalty
+            confidence_modifier:
+              mode: offset
+              value: -0.2
+      - view_external_id: CogniteFile
+        view_space: cdf_cdm
+        view_version: v1
+        entity_type: file
+        batch_size: 50
+        # PDF documents only (CogniteFile.mimeType).
+        filters:
+        - operator: IN
+          target_property: mimeType
+          values:
+          - application/pdf
+        include_properties:
+        - externalId
+        - name
+        - description
+        - tags
+        - documentType
+        - drawingNumber
+      - view_external_id: CogniteTimeSeries
+        view_space: cdf_cdm
+        view_version: v1
+        entity_type: timeseries
+        batch_size: 200
+        # Keep FK strings that match a candidate on the same instance (e.g. name vs tag).
+        include_properties:
+        - externalId
+        - name
+        - description
+        - tags
+        - unit
+        validation:
+          confidence_match_rules:
+          # ISA: descriptions align with config/tag_patterns.yaml; global scalars in fragments/pipeline_validation.default.yaml
+          - name: isa_compliant
+            priority: 50
+            match:
+              expressions:
+              - pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
+                description: Standard pump tags (P-101, P101A, P-2001)
+              - pattern: '\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b'
+                description: Pump with service designation (FWP-101, CWP-201)
+              - pattern: '\bCP[-_]?\d{1,6}[A-Z]?\b'
+                description: Centrifugal pump tags
+              - pattern: '\bC[-_]?\d{1,6}[A-Z]?\b'
+                description: Standard compressor tags (C-101, C101A)
+              - pattern: '\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b'
+                description: Compressor with type designation (AC-101, RC-201)
+              - pattern: '\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b'
+                description: Control valve tags (FCV-101, PCV-201, TCV-301)
+              - pattern: '\bV[-_]?\d{1,6}[A-Z]?\b'
+                description: Manual valve and vessel tags (V-101, V101A)
+              - pattern: '\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b'
+                description: Safety valve tags (PSV-101, TSV-201)
+              - pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
+                description: Standard tank tags (T-101, T101A)
+              - pattern: '\bR[-_]?\d{1,6}[A-Z]?\b'
+                description: Reactor tags (R-101, R101A)
+              - pattern: '\bE[-_]?\d{1,6}[A-Z]?\b'
+                description: Heat exchanger tags (E-101, E101A)
+              - pattern: '\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b'
+                description: Heat exchanger with type (HE-101, CE-201)
+              - pattern: '\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Flow instruments (FIC-101, FIT-201, FCV-301)
+              - pattern: '\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+              - pattern: '\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+              - pattern: '\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Level instruments (LIC-101, LIT-201, LCV-301)
+              - pattern: '\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+                description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+              - pattern: '\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b'
+                description: Distillation column tags (C-101, DC-201)
+            confidence_modifier:
+              mode: explicit
+              value: 1.0
+          - name: not_isa_penalty
+            priority: 1000
+            match:
+              expressions:
+              - pattern: '(?s).*'
+                description: Catch-all when no higher-priority rule matched; applies non-ISA penalty
+            confidence_modifier:
+              mode: offset
+              value: -0.2
+      extraction_rules:
+      # Shared tag regex: &alphanumeric_tag (alphanumeric_tag in config/tag_patterns.yaml).
+      # Asset/timeseries tag candidate_key and foreign_key_reference rules use *alphanumeric_tag.
+      # File candidate_key uses basename regex only (not an equipment tag).
+      # --- Candidate keys ---
+      - name: asset_equipment_tag_candidate
+        method: regex
+        extraction_type: candidate_key
+        description: Equipment tags — optional hyphens; optional numeric tail segments (e.g. ...-92529-02).
+        enabled: true
+        priority: 10
+        scope_filters:
+          entity_type:
+          - asset
+        parameters:
+          pattern: &alphanumeric_tag (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          early_termination: false
+        source_fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          field_type: string
+          priority: 1
+          role: target
+          preprocessing:
+          - trim
+        field_selection_strategy: first_match
+      - name: asset_description_asset_fk
+        method: regex
+        extraction_type: foreign_key_reference
+        description: Equipment tag references in asset description (values matching candidate keys removed when exclude_self_referencing_keys is true for the view).
+        enabled: true
+        priority: 15
+        scope_filters:
+          entity_type:
+          - asset
+        parameters:
+          pattern: *alphanumeric_tag
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          early_termination: false
+        source_fields:
+        - field_name: description
+          required: false
+          max_length: 1000
+          field_type: string
+          priority: 1
+          role: target
+          preprocessing:
+          - trim
+        field_selection_strategy: merge_all
+      - name: file_basename_candidate
+        method: regex
+        extraction_type: candidate_key
+        description: Basename (with extension) as candidate key for files.
+        enabled: true
+        priority: 20
+        scope_filters:
+          entity_type:
+          - file
+        parameters:
+          pattern: (?:^|[/\\])([^/\\]+)$
+          max_matches_per_field: 1
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          early_termination: true
+        source_fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          field_type: string
+          priority: 1
+          role: target
+          preprocessing:
+          - trim
+        field_selection_strategy: first_match
+      - name: timeseries_instrument_tag_candidate
+        method: regex
+        extraction_type: candidate_key
+        description: Same *alphanumeric_tag as timeseries FK rules on name/description (and asset candidate).
+        enabled: true
+        priority: 30
+        scope_filters:
+          entity_type:
+          - timeseries
+        parameters:
+          pattern: *alphanumeric_tag
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          early_termination: false
+        source_fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          field_type: string
+          priority: 1
+          role: target
+          preprocessing:
+          - trim
+        field_selection_strategy: first_match
+      # --- Foreign key references (*alphanumeric_tag, same as asset/timeseries tag candidates) ---
+      - name: file_description_asset_fk
+        method: regex
+        extraction_type: foreign_key_reference
+        description: Extract asset-tag references from file description for linking to assets.
+        enabled: true
+        priority: 40
+        scope_filters:
+          entity_type:
+          - file
+        parameters:
+          pattern: *alphanumeric_tag
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          early_termination: false
+        source_fields:
+        - field_name: description
+          required: false
+          max_length: 1000
+          field_type: string
+          priority: 1
+          role: target
+          preprocessing:
+          - trim
+        field_selection_strategy: merge_all
+      - name: timeseries_name_asset_fk
+        method: regex
+        extraction_type: foreign_key_reference
+        description: Extract asset-tag references embedded in timeseries name.
+        enabled: true
+        priority: 50
+        scope_filters:
+          entity_type:
+          - timeseries
+        parameters:
+          pattern: *alphanumeric_tag
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          early_termination: false
+        source_fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          field_type: string
+          priority: 1
+          role: target
+          preprocessing:
+          - trim
+        field_selection_strategy: merge_all
+      - name: timeseries_description_asset_fk
+        method: regex
+        extraction_type: foreign_key_reference
+        description: Extract asset-tag references from timeseries description.
+        enabled: true
+        priority: 60
+        scope_filters:
+          entity_type:
+          - timeseries
+        parameters:
+          pattern: *alphanumeric_tag
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          early_termination: false
+        source_fields:
+        - field_name: description
+          required: false
+          max_length: 1000
+          field_type: string
+          priority: 1
+          role: target
+          preprocessing:
+          - trim
+        field_selection_strategy: merge_all
+      validation:
+        min_confidence: 0.5
+        max_keys_per_type: 1000
+        confidence_match_rules:
+        - name: blacklist
+          priority: 10
+          match:
+            keywords:
+            - test
+            - example
+            - sample
+            - dummy
+            - temp
+            - temporary
+            - 'null'
+            - none
+            - n/a
+            - na
+            - unknown
+          confidence_modifier:
+            mode: explicit
+            value: 0.0
+aliasing:
+  externalId: ctx_aliasing_default
+  config:
+    parameters:
+      debug: true
+      raw_db: db_tag_aliasing
+      raw_table_state: tag_aliasing_state
+      raw_table_aliases: default_aliases
+      alias_writeback_property: aliases
+      write_foreign_key_references: false
+      foreign_key_writeback_property: references_found
+    data:
+      aliasing_rules:
+      # priority 10 tier: same priority, YAML order — semantic first, then unit-prefix strip on expanded set.
+      - name: semantic_expansion
+        type: pattern_based_expansion
+        description: Semantic expansion of tag patterns (format variants); align pattern with asset extraction regex.
+        enabled: true
+        priority: 10
+        preserve_original: true
+        config:
+          patterns:
+          - pattern: ^([A-Z]{1,2})([-_]?)(\d{2,6})([A-Z]?)$
+            example_formats:
+            - '{type}{separator}{number}{suffix}'
+            - '{type}{number}{suffix}'
+            - '{type}{separator}{number}'
+          format_adaptation: true
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
+      - name: strip_numeric_unit_prefix
+        type: regex_substitution
+        description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match tags already starting with type (P-1234).'
+        enabled: true
+        priority: 10
+        preserve_original: true
+        config:
+          patterns:
+          - pattern: ^\d+-
+            replacement: ''
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
+      - name: leading_zero_normalization
+        type: leading_zero_normalization
+        description: Normalize leading zeros in numeric tokens within tags (assets only).
+        enabled: true
+        priority: 20
+        preserve_original: true
+        config:
+          preserve_single_zero: true
+          min_length: 4
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
+      - name: document_aliases
+        type: document_aliases
+        description: P&ID / drawing / file-name variants for file candidate keys.
+        enabled: true
+        priority: 30
+        preserve_original: true
+        config:
+          pid_rules:
+            remove_ampersand: true
+            add_spaces: true
+            revision_variants: true
+          drawing_rules:
+            zero_padding:
+              enabled: true
+              target_length: 6
+            sheet_variants: true
+          file_rules:
+            remove_revision_numbers: true
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - file
+      - name: cogniteasset_explicit_aliases_from_raw
+        type: alias_mapping_table
+        description: Apply explicit alias mappings for CogniteAsset from RAW lookup rows.
+        enabled: true
+        priority: 5
+        preserve_original: true
+        config:
+          source_match: exact
+          case_insensitive: false
+          raw_table:
+            database_name: db_tag_aliasing
+            table_name: explicit_asset_aliases
+            # Expected RAW columns:
+            #   source_tag, aliases, scope, scope_value, source_match
+            # where aliases is a comma-delimited list in one field.
+            key_column: source_tag
+            alias_columns:
+            - aliases
+            alias_delimiter: ","
+            scope_column: scope
+            scope_value_column: scope_value
+            source_match_column: source_match
+            columns:
+            - source_tag
+            - aliases
+            - scope
+            - scope_value
+            - source_match
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
+          view_external_id:
+          - CogniteAsset
+      validation:
+        max_aliases_per_tag: 100
+        min_alias_length: 2
+        max_alias_length: 80
+        allowed_characters: r"A-Za-z0-9-_/. "

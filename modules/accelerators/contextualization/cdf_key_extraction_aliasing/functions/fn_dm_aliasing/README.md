@@ -1,6 +1,6 @@
 ## fn_dm_aliasing
 
-CDF function in **`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+CDF function in workflow **`cdf_key_extraction_aliasing`** (v4). Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
 
 Generates alias variants for tags/candidate keys (OCR variants, separator variants, regex-based transforms, etc.), writes aliases to RAW, and includes an `entities_json` mapping so downstream steps can update the correct nodes.
 
@@ -42,15 +42,15 @@ Run `handler.py:run_locally()` (requires `.env` + CDF credentials).
 
 ### How it runs in the workflow
 
-In `cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` (v1):
-- task `fn_dm_aliasing_{{ scope_cdf_suffix }}` reads candidate keys back from RAW:
-  - `db_key_extraction/{{ scope_cdf_suffix }}_key_extraction_state`
+In `cdf_key_extraction_aliasing` (v4):
+- task `fn_dm_aliasing` reads candidate keys back from RAW:
+  - `db_key_extraction/<raw_table_key>` (scope **`key_extraction.config.parameters.raw_table_key`**)
 - generates aliases and writes to RAW:
-  - `db_tag_aliasing/{{ scope_cdf_suffix }}_aliases`
+  - `db_tag_aliasing/<raw_table_aliases>` (scope **`aliasing.config.parameters.raw_table_aliases`**)
 
 ### Notes on “how many aliases get persisted”
 
-Persistence aggregates aliases **per entity**, so if one entity is referenced by multiple alias rows (for example one `{{ scope_cdf_suffix }}-*` key and one `PP*` key), that entity will receive the union of aliases from those rows.
+Persistence aggregates aliases **per entity**, so if one entity is referenced by multiple alias rows (for example one scope-specific key and one `PP*` key), that entity will receive the union of aliases from those rows.
 
 ### Change history
 

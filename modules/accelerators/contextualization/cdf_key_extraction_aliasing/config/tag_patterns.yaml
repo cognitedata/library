@@ -199,7 +199,7 @@ tag_patterns:
     generic_patterns:
       - name: "alphanumeric_tag"
         # Double-quoted: YAML single-quoted entries in this file over-escape. Keep in sync with
-        # ``&alphanumeric_tag`` in ``config/scopes/default/key_extraction_aliasing.yaml``.
+        # ``&alphanumeric_tag`` in ``key_extraction_aliasing.yaml`` (module root).
         pattern: "(?<![\\d-])(?:\\b|(?<=_))(?:\\d{1,8}-?)?[A-Z]{1,8}-?\\d{1,10}(?:-\\d{1,6})*[A-Z]?\\b"
         description: "Generic industrial tag — same as default scope; opening anchor (?:\\b|(?<=_)) so VAL_45-TT-… matches (Python \\b does not separate _ from digits)"
         equipment_type: "GENERIC"

@@ -1,4 +1,4 @@
-"""Load v1 scope YAML for the local CLI (config/scopes/<scope>/key_extraction_aliasing.yaml)."""
+"""Load v1 scope YAML for the local CLI (module-root default or ``--config-path``)."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from .paths import SCRIPT_DIR
 
 DEFAULT_SCOPE = "default"
 
-# v1 scope document: required key_extraction, optional aliasing (single pipeline authoring shape).
-SCOPE_DOCUMENT_FILENAME = "key_extraction_aliasing.yaml"
+# v1 scope document at module root (local runs only; CDF uses trigger-embedded scope_document).
+DEFAULT_SCOPE_DOCUMENT_PATH = SCRIPT_DIR / "key_extraction_aliasing.yaml"
 
 _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
     "max_aliases_per_tag": 50,
@@ -31,12 +31,25 @@ _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
 }
 
 
-def _scope_dir(scope: str) -> Path:
-    return SCRIPT_DIR / "config" / "scopes" / scope
+def resolve_scope_document_path(scope: Optional[str] = None) -> Path:
+    """Resolve the default v1 scope YAML at the module root.
 
-
-def _scope_document_path(scope: str) -> Path:
-    return _scope_dir(scope) / SCOPE_DOCUMENT_FILENAME
+    Only ``scope='default'`` (or omitted) is supported without ``--config-path``.
+    Other scope names raise: use ``--config-path`` to point at a v1 scope file.
+    """
+    sc = (scope or DEFAULT_SCOPE).strip() or DEFAULT_SCOPE
+    if sc != DEFAULT_SCOPE:
+        raise FileNotFoundError(
+            f"Per-scope directory layout was removed. For scope {sc!r} pass --config-path "
+            f"to a v1 scope YAML file, or use scope {DEFAULT_SCOPE!r} to load "
+            f"{DEFAULT_SCOPE_DOCUMENT_PATH.name} at the module root."
+        )
+    if not DEFAULT_SCOPE_DOCUMENT_PATH.is_file():
+        raise FileNotFoundError(
+            f"Missing default scope document {DEFAULT_SCOPE_DOCUMENT_PATH}. "
+            "Add key_extraction_aliasing.yaml at the module root or pass --config-path."
+        )
+    return DEFAULT_SCOPE_DOCUMENT_PATH
 
 
 def _default_passthrough_rules_for_views(
@@ -233,7 +246,7 @@ def load_configs(
 
     Resolution:
     - ``--config-path`` → load that file as a v1 scope document.
-    - Else → ``config/scopes/<scope>/key_extraction_aliasing.yaml`` (default scope name ``default``).
+    - Else → ``key_extraction_aliasing.yaml`` at module root when ``scope`` is ``default``.
     """
     if config_path:
         p = Path(config_path).expanduser()
@@ -249,13 +262,7 @@ def load_configs(
         return _load_from_scope_document(logger, doc)
 
     sc = (scope or DEFAULT_SCOPE).strip() or DEFAULT_SCOPE
-    p = _scope_document_path(sc)
-    if not p.is_file():
-        d = _scope_dir(sc)
-        raise FileNotFoundError(
-            f"No scope document in {d}: expected {SCOPE_DOCUMENT_FILENAME!r}. "
-            "Create it or pass --config-path."
-        )
+    p = resolve_scope_document_path(sc)
     logger.info("Loading scope %r from %s", sc, p)
     with open(p, "r", encoding="utf-8") as f:
         doc = yaml.safe_load(f)

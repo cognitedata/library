@@ -1,14 +1,14 @@
 ## fn_dm_key_extraction
 
-CDF function in **`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`**. Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+CDF function in workflow **`cdf_key_extraction_aliasing`** (v4). Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
 
-Extracts candidate keys, foreign key references, and document references from **configured `source_views`** (default scope: CogniteAsset, CogniteFile, CogniteTimeSeries — see `config/scopes/default/key_extraction_aliasing.yaml`), writes results to RAW, and writes a per-run state row for auditability.
+Extracts candidate keys, foreign key references, and document references from **configured `source_views`** (default scope: CogniteAsset, CogniteFile, CogniteTimeSeries — see `key_extraction_aliasing.yaml` at module root), writes results to RAW, and writes a per-run state row for auditability.
 
 ### Inputs (workflow task `data`)
 
 - **`logLevel`**: `DEBUG|INFO|WARNING|ERROR`
 - **`verbose`**: `true|false`
-- **`config`**: workflow-shaped config payload (the content embedded in `WorkflowVersion.yaml` under `data.config`)
+- **`config`**: workflow-shaped config payload **or** omit when **`scope_document`** is set (v4: v1 scope mapping on task payload; **`raw_table_key`** must be set under **`key_extraction.config.parameters`** in that document). **`instance_space`** is optional on task **`data`** when it can be derived from **`source_views`** (`instance_space` field or single-value node **`space`** filter).
 
 Key config fields used:
 - **`config.parameters.raw_db`**
@@ -32,8 +32,8 @@ This function is designed to run in CDF, but you can run it locally by calling `
 
 ### How it runs in the workflow
 
-In `cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` (v1):
-- task `fn_dm_key_extraction_{{ scope_cdf_suffix }}` runs this function and writes entity and run rows to `db_key_extraction/{{ scope_cdf_suffix }}_key_extraction_state`
+In `cdf_key_extraction_aliasing` (v4):
+- task `fn_dm_key_extraction` runs this function and writes entity and run rows to `db_key_extraction/<raw_table_key>` (from the scope YAML **`key_extraction.config.parameters.raw_table_key`**)
 
 ### Change history
 

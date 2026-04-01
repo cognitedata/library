@@ -28,16 +28,16 @@ The Key Extraction and Aliasing system uses YAML-based pipeline configuration fi
 - **Aliasing Pipelines**: Generate alternative representations (aliases) of extracted keys for improved matching
 
 Configuration files are located in:
-- **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/scopes/<scope>/key_extraction_aliasing.yaml` (default: `config/scopes/default/key_extraction_aliasing.yaml`). One v1 scope document per file: required `key_extraction`, optional `aliasing` — the single authoring shape for this pipeline, aligned with workflow payloads.
+- **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/key_extraction_aliasing.yaml` at module root when using `--scope default`, or any path via `--config-path`. One v1 scope document per file: required `key_extraction`, optional `aliasing` — the single authoring shape for this pipeline, aligned with **`workflow.input.scope_document`** (v4).
 - **Example demos:** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (same scope shape, `*.key_extraction_aliasing.yaml`).
 
-**Multi-leaf scopes:** Author `scope_hierarchy.yaml` at the module root and run `scripts/build_scopes.py` to generate one `config/scopes/<leaf_scope_id>/key_extraction_aliasing.yaml` per leaf (see `config/README.md`, *Scope hierarchy builder*). For CDF workflow deploy, set fusion variables **`scope_cdf_suffix`** (same as `cdf_external_id_suffix` for that leaf’s `scope_id`; see `scripts/scope_build/naming.py`) and **`scope_leaf_display_name`** (leaf display name in the hierarchy) as described in [`workflows/README.md`](../../workflows/README.md).
+**Multi-leaf scopes:** Author `scope_hierarchy` and `locations` in `default.config.yaml` at the module root and run `scripts/build_scopes.py` (or `main.py --build`) to regenerate **`workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one schedule trigger per leaf) with **`input.scope_document`** patched from **`workflows/_template/key_extraction_aliasing.scope_document.yaml`** (see `config/README.md`). **`--build`** only writes triggers for leaves in the current tree; it does **not** delete other `cdf_key_extraction_aliasing.*.WorkflowTrigger.yaml` files. Use **`main.py --build --check-workflow-triggers`** in CI to ensure every required trigger exists and matches the templates (extra files on disk do not fail the check). CDF deploy uses workflow **`cdf_key_extraction_aliasing`** (v4); each trigger embeds the full v1 scope mapping, with deploy **`instance_space`** substituted into **`scope_document`** (for example **`source_views`**). RAW table keys live in **`scope_document.key_extraction.config.parameters`** / **`aliasing.config.parameters`**. See [`workflows/README.md`](../../workflows/README.md).
 
 See `config/README.md` in the module for layout and CLI behavior (`main.py` `--scope` / `--config-path`). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
 
 ### Default CDM scope
 
-**Authoring file:** `config/scopes/default/key_extraction_aliasing.yaml`.
+**Authoring file (local default):** `key_extraction_aliasing.yaml` at module root; **CDF template:** `workflows/_template/key_extraction_aliasing.scope_document.yaml`.
 
 The committed **default** scope is a slim **CDM template** (CogniteAsset, CogniteFile, CogniteTimeSeries). It differs from richer **examples** under `config/examples/` (which demonstrate fixed width, heuristics, many aliasing transforms, etc.).
 
@@ -568,7 +568,7 @@ aliasing_rules:
     conditions: {}                       # Optional; additional rule conditions
 ```
 
-**Entity scoping:** Prefer **`scope_filters.entity_type`** (as in `config/scopes/default/key_extraction_aliasing.yaml`). Older examples may show **`conditions.entity_type`**; use the same idea but match your loader/engine expectations.
+**Entity scoping:** Prefer **`scope_filters.entity_type`** (as in `key_extraction_aliasing.yaml` at module root). Older examples may show **`conditions.entity_type`**; use the same idea but match your loader/engine expectations.
 
 **Priority:**
 - Lower priority rules execute first
@@ -1088,7 +1088,7 @@ priority: 70-100
 
 ## Common Use Cases
 
-The following YAML snippets are **illustrative** (narrow rules or large aliasing stacks). For the **repository default**, prefer copying rule blocks from `config/scopes/default/key_extraction_aliasing.yaml` and the shared pattern from `config/tag_patterns.yaml`.
+The following YAML snippets are **illustrative** (narrow rules or large aliasing stacks). For the **repository default**, prefer copying rule blocks from `key_extraction_aliasing.yaml` (module root) and the shared pattern from `config/tag_patterns.yaml`.
 
 ### Use Case 1: Extract Pump Tags
 

@@ -2,7 +2,7 @@
 CDF handler: build/update RAW reference index from key-extraction FK + document JSON.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 try:
     from cognite.client import CogniteClient
@@ -11,33 +11,71 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .dependencies import create_client, create_logger_service, get_env_variables
+from ..cdf_fn_common.function_logging import resolve_function_logger
+from ..cdf_fn_common.scope_document_dm import apply_reference_index_scope_document
+from .dependencies import create_client, get_env_variables
 from .pipeline import persist_reference_index
 
 
-def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
+def handle(
+    data: Dict[str, Any],
+    client: CogniteClient = None,
+    logger: Optional[Any] = None,
+) -> Dict[str, Any]:
     """
-    Workflow payload (data) should include:
-      - source_raw_db, source_raw_table_key: key-extraction state table
-      - reference_index_raw_table: target RAW table for inverted index (same or other db)
-      - reference_index_raw_db: optional (defaults to source_raw_db)
-      - config: same shape as fn_dm_aliasing (aliasing_rules for inline AliasingEngine)
-      - source_instance_space, source_view_space, source_view_external_id, source_view_version:
-        fallbacks when cohort columns are absent
-      - reference_index_fk_entity_type / reference_index_document_entity_type: optional
-      - incremental_auto_run_id, source_run_id, source_workflow_status: optional filters
+    Workflow payload (``data``) should include:
+
+    - ``source_raw_db``, ``source_raw_table_key``: key-extraction state table
+    - ``reference_index_raw_table``: target RAW table for inverted index (same or other db)
+    - ``reference_index_raw_db``: optional (defaults to ``source_raw_db``)
+    - ``config``: same shape as fn_dm_aliasing (``aliasing_rules`` for inline AliasingEngine)
+    - ``source_instance_space``, ``source_view_space``, ``source_view_external_id``,
+      ``source_view_version``: fallbacks when cohort columns are absent
+    - ``reference_index_fk_entity_type`` / ``reference_index_document_entity_type``: optional
+    - ``incremental_auto_run_id``, ``source_run_id``, ``source_workflow_status``: optional filters
+    - ``source_raw_list_page_size``: RAW list chunk size for source table (default 10000)
+    - ``source_raw_read_limit`` / ``raw_read_limit``: max source rows (default 10000); ``0`` = unlimited
+    - ``reference_index_prefetch_table``: if true, list entire index RAW table once (fewer retrieves)
+    - ``reference_index_retrieve_concurrency``: parallel ``retrieve`` for cold keys (default 1)
+    - ``skip_reference_index_ddl``: skip ``create_table_if_not_exists`` when tables exist
+    - ``enable_reference_index``: when false or omitted, no-op (return success without RAW writes)
+
+    Args:
+        logger: Optional injected logger; default built from ``data`` (``logLevel`` / ``verbose``).
     """
-    logger = None
+    log: Any = None
     try:
-        loglevel = data.get("logLevel", "INFO")
-        verbose = bool(data.get("verbose", False))
-        logger = create_logger_service(loglevel, verbose)
-        logger.info("Starting reference index persistence")
+        log = resolve_function_logger(data, logger)
+        log.info("Starting reference index persistence")
 
         if not client:
             raise ValueError("CogniteClient is required")
 
-        persist_reference_index(client=client, logger=logger, data=data)
+        apply_reference_index_scope_document(data, client)
+
+        if not data.get("enable_reference_index"):
+            log.info(
+                "Reference index skipped: enable_reference_index is false or omitted "
+                "(set true in workflow task data to persist)"
+            )
+            return {
+                "status": "succeeded",
+                "summary": {
+                    "reference_index_skipped": True,
+                    "reference_index_skip_reason": "enable_reference_index_false",
+                    "reference_index_entities_processed": 0,
+                    "reference_index_inverted_writes": 0,
+                    "reference_index_posting_events": 0,
+                    "reference_index_fk_posting_events": 0,
+                    "reference_index_document_posting_events": 0,
+                    "reference_index_raw_db": data.get("reference_index_raw_db"),
+                    "reference_index_raw_table": data.get("reference_index_raw_table"),
+                    "reference_index_insert_batches": 0,
+                    "reference_index_source_list_chunks": 0,
+                },
+            }
+
+        persist_reference_index(client=client, logger=log, data=data)
 
         return {
             "status": "succeeded",
@@ -51,14 +89,26 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 "reference_index_posting_events": int(
                     data.get("reference_index_posting_events", 0)
                 ),
+                "reference_index_fk_posting_events": int(
+                    data.get("reference_index_fk_posting_events", 0)
+                ),
+                "reference_index_document_posting_events": int(
+                    data.get("reference_index_document_posting_events", 0)
+                ),
                 "reference_index_raw_db": data.get("reference_index_raw_db"),
                 "reference_index_raw_table": data.get("reference_index_raw_table"),
+                "reference_index_insert_batches": int(
+                    data.get("reference_index_insert_batches", 0)
+                ),
+                "reference_index_source_list_chunks": int(
+                    data.get("reference_index_source_list_chunks", 0)
+                ),
             },
         }
     except Exception as e:
         msg = f"Reference index failed: {e!s}"
-        if logger:
-            logger.error(msg)
+        if log:
+            log.error(msg)
         else:
             print(f"[ERROR] {msg}")
         return {"status": "failure", "message": msg}
@@ -72,6 +122,7 @@ def run_locally() -> Dict[str, Any]:
     site = os.getenv("SITE_ABBREVIATION", "SITE")
     data = {
         "logLevel": "DEBUG",
+        "enable_reference_index": True,
         "source_raw_db": "db_key_extraction",
         "source_raw_table_key": f"{site}_key_extraction_state",
         "reference_index_raw_db": "db_key_extraction",

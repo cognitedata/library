@@ -11,7 +11,7 @@ Run and import **`cdf_key_extraction_aliasing`** with the **repository root** (t
 ## Layout (paths in-repo)
 
 - **Module root:** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/`
-- **Default scope document:** `config/scopes/default/key_extraction_aliasing.yaml`
+- **Default scope document:** `key_extraction_aliasing.yaml` at module root
 - **Examples:** `config/examples/key_extraction/`, `config/examples/aliasing/`, `config/examples/reference/` — see [config/examples/README.md](../../config/examples/README.md)
 - **Entry point for full local pipeline:** `main.py` (loads scope YAML or `--config-path`)
 
@@ -56,7 +56,7 @@ out = aliasing_engine.generate_aliases("P-101", "asset")
 print(out.aliases)
 ```
 
-Production rules come from a scope file under `config/scopes/` or an example `*.key_extraction_aliasing.yaml` (e.g. `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`). For **`alias_mapping_table`** rules that load **RAW**, construct `AliasingEngine(..., client=cognite_client)`.
+Production rules come from `key_extraction_aliasing.yaml`, `--config-path`, or an example `*.key_extraction_aliasing.yaml` (e.g. `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`). For **`alias_mapping_table`** rules that load **RAW**, construct `AliasingEngine(..., client=cognite_client)`.
 
 ## Full pipeline locally (`main.py`)
 

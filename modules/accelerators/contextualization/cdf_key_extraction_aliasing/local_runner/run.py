@@ -36,23 +36,21 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline import (
     persist_reference_index,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.reference_index_naming import (
+    reference_index_raw_table_from_key_extraction_table,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
     property_reference_for_filter,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.function_logging import (
+    StdlibLoggerAdapter,
+)
 
 from .report import ensure_results_dir
-
-
-def _reference_index_raw_table_from_key_extraction_table(raw_table_key: str) -> str:
-    """Derive inverted-index RAW table name from key-extraction state table (workflow parity)."""
-    k = (raw_table_key or "").strip()
-    if not k:
-        return "reference_index"
-    if k.endswith("_key_extraction_state"):
-        return k[: -len("_key_extraction_state")] + "_reference_index"
-    if k == "key_extraction_state":
-        return "reference_index"
-    return f"{k}_reference_index"
+from .workflow_payload import (
+    merged_scope_document_for_local_run,
+    workflow_instance_space_for_local,
+)
 
 
 def _build_dm_filter_from_view_dict(
@@ -181,29 +179,6 @@ class _ViewConfigAdapter:
 
     def build_filter(self) -> Any:
         return _build_dm_filter_from_view_dict(self._raw, self._logger)
-
-
-class _PipelineVerboseLogger:
-    """Maps CogniteFunctionLogger-style ``verbose(level, msg)`` to stdlib logging."""
-
-    def __init__(self, base: logging.Logger) -> None:
-        self._base = base
-
-    def debug(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self._base.debug(message, *args, **kwargs)
-
-    def info(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self._base.info(message, *args, **kwargs)
-
-    def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self._base.warning(message, *args, **kwargs)
-
-    def error(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self._base.error(message, *args, **kwargs)
-
-    def verbose(self, log_level: str, message: str) -> None:
-        lvl = getattr(logging, str(log_level).upper(), logging.INFO)
-        self._base.log(lvl, "[VERBOSE] %s", message)
 
 
 def _load_cdf_config_and_engine(
@@ -343,6 +318,144 @@ def _aliasing_json_items_from_results(
     return rows
 
 
+def _rollup_extraction_from_entities(
+    entities_keys_extracted: Dict[str, Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Aggregate counts from pipeline ``entities_keys_extracted`` for CLI logging."""
+    entity_count = len(entities_keys_extracted)
+    candidate_key_count = 0
+    candidate_key_entities = 0
+    fk_ref_count = 0
+    entities_with_fk = 0
+    doc_ref_count = 0
+    entities_with_doc = 0
+    extraction_failed_count = 0
+
+    for _eid, meta in entities_keys_extracted.items():
+        if not isinstance(meta, dict):
+            continue
+        if meta.get("_extraction_failed"):
+            extraction_failed_count += 1
+        keys_by_field = meta.get("keys") or {}
+        has_ck = False
+        if isinstance(keys_by_field, dict):
+            for _fn, kvs in keys_by_field.items():
+                if isinstance(kvs, dict):
+                    n = len(kvs)
+                    candidate_key_count += n
+                    if n:
+                        has_ck = True
+        if has_ck:
+            candidate_key_entities += 1
+        fk_raw = meta.get("foreign_key_references") or []
+        if isinstance(fk_raw, list) and fk_raw:
+            fk_ref_count += len(fk_raw)
+            entities_with_fk += 1
+        doc_raw = meta.get("document_references") or []
+        if isinstance(doc_raw, list) and doc_raw:
+            doc_ref_count += len(doc_raw)
+            entities_with_doc += 1
+
+    return {
+        "entity_count": entity_count,
+        "candidate_key_count": candidate_key_count,
+        "candidate_key_entities": candidate_key_entities,
+        "fk_ref_count": fk_ref_count,
+        "entities_with_fk": entities_with_fk,
+        "doc_ref_count": doc_ref_count,
+        "entities_with_doc": entities_with_doc,
+        "extraction_failed_count": extraction_failed_count,
+    }
+
+
+def _log_cli_run_summary(logger: logging.Logger, payload: Dict[str, Any]) -> None:
+    """Single end-of-run summary block (incremental and non-incremental CLI)."""
+    lines = ["--- Run summary ---"]
+    rid = payload.get("run_id")
+    if rid:
+        lines.append(f"run_id: {rid}")
+    if payload.get("incremental") and payload.get("cohort_rows") is not None:
+        csk = payload.get("cohort_skipped_hash")
+        lines.append(
+            f"State update: cohort_rows={payload['cohort_rows']}"
+            + (
+                f", skipped_unchanged_hash={csk}"
+                if csk is not None and csk > 0
+                else ""
+            )
+        )
+    rollup = payload.get("rollup") or {}
+    ks = payload.get("keys_extracted")
+    if ks is not None:
+        lines.append(
+            f"Key extraction: keys_extracted={ks}, entities={rollup.get('entity_count', 0)}, "
+            f"candidate_key_values={rollup.get('candidate_key_count', 0)}, "
+            f"fk_refs={rollup.get('fk_ref_count', 0)} (entities_with_fk={rollup.get('entities_with_fk', 0)}), "
+            f"doc_refs={rollup.get('doc_ref_count', 0)}, "
+            f"extraction_failed={rollup.get('extraction_failed_count', 0)}"
+        )
+    else:
+        lines.append(
+            f"Key extraction: entities={rollup.get('entity_count', 0)}, "
+            f"candidate_key_values={rollup.get('candidate_key_count', 0)}, "
+            f"fk_refs={rollup.get('fk_ref_count', 0)}, doc_refs={rollup.get('doc_ref_count', 0)}, "
+            f"extraction_failed={rollup.get('extraction_failed_count', 0)}"
+        )
+
+    ref = payload.get("reference_index")
+    if ref is None or (isinstance(ref, dict) and ref.get("status") == "n_a"):
+        lines.append(
+            "Reference index: n/a (non-incremental path or not configured for RAW index)"
+        )
+    elif isinstance(ref, dict):
+        st = ref.get("status")
+        if st == "ok":
+            lines.append(
+                f"Reference index: entities={ref.get('entities', 0)}, "
+                f"inverted_writes={ref.get('inverted_writes', 0)}, "
+                f"postings={ref.get('postings', 0)} "
+                f"(fk={ref.get('fk_postings', 0)}, document={ref.get('doc_postings', 0)})"
+            )
+        elif st == "skipped":
+            lines.append(
+                f"Reference index: skipped ({ref.get('reason', 'unknown')})"
+            )
+        elif st == "failed":
+            lines.append(f"Reference index: failed ({ref.get('error', 'unknown')})")
+
+    if "aliasing" in payload:
+        al = payload.get("aliasing") or {}
+        wr = al.get("workflow_rows_updated")
+        wr_s = str(wr) if wr is not None else "n/a"
+        lines.append(
+            f"Aliasing: tags={al.get('tags', 0)}, aliases_generated={al.get('aliases', 0)}, "
+            f"raw_workflow_rows_updated={wr_s}"
+        )
+
+    pers = payload.get("persistence") or {}
+    if pers.get("dry_run"):
+        lines.append(
+            f"Persistence: dry-run (would update {pers.get('entities', 0)} entities, "
+            f"{pers.get('aliasing_results', 0)} aliasing results)"
+        )
+    elif pers.get("error"):
+        lines.append(f"Persistence: failed ({pers['error']})")
+    elif pers.get("completed"):
+        lines.append(
+            f"Persistence: entities_updated={pers.get('entities_updated', 0)}, "
+            f"aliases_persisted={pers.get('aliases_persisted', 0)}, "
+            f"fk_values_persisted={pers.get('fk_persisted', 0)}"
+        )
+
+    paths = payload.get("paths") or {}
+    if paths.get("extraction"):
+        lines.append(f"Output: extraction_json={paths['extraction']}")
+    if paths.get("aliasing"):
+        lines.append(f"Output: aliasing_json={paths['aliasing']}")
+
+    logger.info("\n".join(lines))
+
+
 def _run_workflow_parity(
     args: argparse.Namespace,
     logger: logging.Logger,
@@ -358,34 +471,87 @@ def _run_workflow_parity(
     Same order as deployed workflow: incremental state update → key extraction →
     aliasing → persist (when not dry-run).
     """
-    pipe_logger: Any = _PipelineVerboseLogger(logger)
+    pipe_logger: Any = StdlibLoggerAdapter(logger)
     cdf_config, engine_config = _load_cdf_config_and_engine(
         scope_yaml_path, source_views, logger
+    )
+
+    scope_document = merged_scope_document_for_local_run(
+        scope_yaml_path, source_views
+    )
+    wf_instance_space = workflow_instance_space_for_local(
+        source_views, getattr(args, "instance_space", None)
     )
 
     logger.info(
         "Incremental mode: running workflow parity "
         "(state update → extraction → reference index → aliasing → persistence)"
     )
+    progress_every = max(0, int(getattr(args, "progress_every", 0) or 0))
 
     state_data: Dict[str, Any] = {
         "logLevel": "INFO",
         "full_rescan": bool(getattr(args, "full_rescan", False)),
+        "scope_document": scope_document,
+        "instance_space": wf_instance_space,
     }
     incremental_state_update(client, pipe_logger, state_data, cdf_config)
     run_id = state_data.get("run_id")
     if not run_id:
         raise RuntimeError("incremental_state_update did not set run_id")
 
+    cohort_rows: Optional[int] = None
+    cohort_skipped_hash: Optional[int] = None
+    if str(state_data.get("status") or "") == "success":
+        try:
+            msg_raw = state_data.get("message")
+            if isinstance(msg_raw, str) and msg_raw.strip():
+                st_msg = json.loads(msg_raw)
+                if isinstance(st_msg, dict):
+                    cohort_rows = int(st_msg.get("cohort_rows_written", 0) or 0)
+                    cohort_skipped_hash = int(
+                        st_msg.get("cohort_rows_skipped_unchanged_hash", 0) or 0
+                    )
+        except Exception:
+            pass
+    if cohort_rows is not None:
+        logger.info(
+            "✓ State update: run_id=%s, cohort_rows=%s%s",
+            run_id,
+            cohort_rows,
+            (
+                f", skipped_unchanged_hash={cohort_skipped_hash}"
+                if cohort_skipped_hash
+                else ""
+            ),
+        )
+    else:
+        logger.info("✓ State update: run_id=%s", run_id)
+
     ke_data: Dict[str, Any] = {
         "logLevel": "INFO",
         "run_id": run_id,
         "full_rescan": bool(getattr(args, "full_rescan", False)),
+        "scope_document": scope_document,
+        "instance_space": wf_instance_space,
     }
     engine = KeyExtractionEngine(engine_config)
     key_extraction(client, pipe_logger, ke_data, engine, cdf_config)
 
     entities_keys_extracted = ke_data.get("entities_keys_extracted") or {}
+    rollup = _rollup_extraction_from_entities(entities_keys_extracted)
+    keys_extracted = int(ke_data.get("keys_extracted") or 0)
+    logger.info(
+        "✓ Key extraction: run_id=%s, keys_extracted=%s, entities=%s, "
+        "candidate_key_values=%s, fk_refs=%s, doc_refs=%s, extraction_failed=%s",
+        run_id,
+        keys_extracted,
+        rollup["entity_count"],
+        rollup["candidate_key_count"],
+        rollup["fk_ref_count"],
+        rollup["doc_ref_count"],
+        rollup["extraction_failed_count"],
+    )
     raw_db = str(getattr(cdf_config.parameters, "raw_db", "") or "")
     raw_table_key = str(getattr(cdf_config.parameters, "raw_table_key", "") or "")
     v0 = source_views[0]
@@ -394,25 +560,41 @@ def _run_workflow_parity(
         "all_spaces",
     )
 
-    if not getattr(args, "skip_reference_index", False):
+    ref_summary: Optional[Dict[str, Any]] = None
+    ref_from_scope = bool(getattr(cdf_config.parameters, "enable_reference_index", False))
+    if getattr(args, "skip_reference_index", False):
+        logger.info("Skipping reference index (--skip-reference-index).")
+        ref_summary = {"status": "skipped", "reason": "skip_reference_index"}
+    elif not ref_from_scope:
+        logger.info(
+            "Skipping reference index: enable_reference_index is false in scope "
+            "(set key_extraction.config.parameters.enable_reference_index: true)."
+        )
+        ref_summary = {"status": "skipped", "reason": "enable_reference_index_false"}
+    else:
         if args.dry_run:
             logger.info(
                 "Dry-run: skipping reference index RAW writes (same as alias persistence)."
             )
+            ref_summary = {"status": "skipped", "reason": "dry_run"}
         elif not raw_db or not raw_table_key:
             logger.warning(
                 "Reference index skipped: raw_db or raw_table_key missing in key_extraction parameters."
             )
+            ref_summary = {"status": "skipped", "reason": "missing_raw_db_or_table"}
         else:
             ref_data: Dict[str, Any] = {
                 "logLevel": "INFO",
+                "scope_document": scope_document,
+                "instance_space": wf_instance_space,
+                "progress_every": progress_every,
                 "source_run_id": run_id,
                 "source_raw_db": raw_db,
                 "source_raw_table_key": raw_table_key,
                 "source_raw_read_limit": 10000,
                 "incremental_auto_run_id": True,
                 "reference_index_raw_db": raw_db,
-                "reference_index_raw_table": _reference_index_raw_table_from_key_extraction_table(
+                "reference_index_raw_table": reference_index_raw_table_from_key_extraction_table(
                     raw_table_key
                 ),
                 "source_instance_space": str(
@@ -436,18 +618,37 @@ def _run_workflow_parity(
             try:
                 persist_reference_index(client, pipe_logger, ref_data)
                 logger.info(
-                    "✓ Reference index: %s entities processed, %s inverted writes, %s postings",
+                    "✓ Reference index: %s entities processed, %s inverted writes, %s postings "
+                    "(%s foreign_key, %s document)",
                     ref_data.get("reference_index_entities_processed", 0),
                     ref_data.get("reference_index_inverted_writes", 0),
                     ref_data.get("reference_index_posting_events", 0),
+                    ref_data.get("reference_index_fk_posting_events", 0),
+                    ref_data.get("reference_index_document_posting_events", 0),
                 )
+                ref_summary = {
+                    "status": "ok",
+                    "entities": int(ref_data.get("reference_index_entities_processed", 0) or 0),
+                    "inverted_writes": int(
+                        ref_data.get("reference_index_inverted_writes", 0) or 0
+                    ),
+                    "postings": int(ref_data.get("reference_index_posting_events", 0) or 0),
+                    "fk_postings": int(
+                        ref_data.get("reference_index_fk_posting_events", 0) or 0
+                    ),
+                    "doc_postings": int(
+                        ref_data.get("reference_index_document_posting_events", 0) or 0
+                    ),
+                }
             except Exception as e:
                 logger.error("Reference index failed: %s", e, exc_info=True)
-    else:
-        logger.info("Skipping reference index (--skip-reference-index).")
+                ref_summary = {"status": "failed", "error": str(e)[:500]}
 
     alias_data: Dict[str, Any] = {
         "logLevel": "INFO",
+        "scope_document": scope_document,
+        "instance_space": wf_instance_space,
+        "progress_every": progress_every,
         "entities_keys_extracted": entities_keys_extracted,
         "source_run_id": ke_data.get("run_id"),
         "source_raw_db": raw_db,
@@ -463,6 +664,12 @@ def _run_workflow_parity(
     }
     aliasing_engine = AliasingEngine(aliasing_config, client=client)
     tag_aliasing(client, pipe_logger, alias_data, aliasing_engine)
+    logger.info(
+        "✓ Aliasing: tags=%s, aliases_generated=%s, raw_workflow_rows_updated=%s",
+        alias_data.get("total_tags_processed", 0),
+        alias_data.get("total_aliases_generated", 0),
+        alias_data.get("key_extraction_workflow_rows_updated", "n/a"),
+    )
 
     aliasing_results = alias_data.get("aliasing_results") or []
     all_extraction_items = _extraction_json_items_from_entities(entities_keys_extracted)
@@ -515,6 +722,35 @@ def _run_workflow_parity(
                 "FK write-back to DM is off (set write_foreign_key_references in scope YAML, "
                 "env WRITE_FOREIGN_KEY_REFERENCES, or run with --write-foreign-keys)."
             )
+        logger.info("✓ Persistence: skipped (dry-run)")
+        _log_cli_run_summary(
+            logger,
+            {
+                "run_id": run_id,
+                "incremental": True,
+                "cohort_rows": cohort_rows,
+                "cohort_skipped_hash": cohort_skipped_hash,
+                "keys_extracted": keys_extracted,
+                "rollup": rollup,
+                "reference_index": ref_summary,
+                "aliasing": {
+                    "tags": alias_data.get("total_tags_processed", 0),
+                    "aliases": alias_data.get("total_aliases_generated", 0),
+                    "workflow_rows_updated": alias_data.get(
+                        "key_extraction_workflow_rows_updated"
+                    ),
+                },
+                "persistence": {
+                    "dry_run": True,
+                    "entities": len(entities_keys_extracted),
+                    "aliasing_results": len(aliasing_results),
+                },
+                "paths": {
+                    "extraction": str(extraction_path),
+                    "aliasing": str(aliasing_path),
+                },
+            },
+        )
         return
 
     logger.info("Persisting aliases to CogniteDescribable view...")
@@ -523,6 +759,8 @@ def _run_workflow_parity(
             "aliasing_results": aliasing_results,
             "entities_keys_extracted": entities_keys_extracted,
             "logLevel": "INFO",
+            "scope_document": scope_document,
+            "instance_space": wf_instance_space,
         }
         if alias_writeback_property:
             persistence_data["alias_writeback_property"] = alias_writeback_property
@@ -549,8 +787,69 @@ def _run_workflow_parity(
         elif not wfk:
             persist_msg += " (FK write-back disabled for this run)"
         logger.info(persist_msg)
+        logger.info(
+            "✓ Persistence: entities_updated=%s, aliases_persisted=%s, fk_values_persisted=%s",
+            persistence_data.get("entities_updated", 0),
+            persistence_data.get("aliases_persisted", 0),
+            fk_written,
+        )
+        _log_cli_run_summary(
+            logger,
+            {
+                "run_id": run_id,
+                "incremental": True,
+                "cohort_rows": cohort_rows,
+                "cohort_skipped_hash": cohort_skipped_hash,
+                "keys_extracted": keys_extracted,
+                "rollup": rollup,
+                "reference_index": ref_summary,
+                "aliasing": {
+                    "tags": alias_data.get("total_tags_processed", 0),
+                    "aliases": alias_data.get("total_aliases_generated", 0),
+                    "workflow_rows_updated": alias_data.get(
+                        "key_extraction_workflow_rows_updated"
+                    ),
+                },
+                "persistence": {
+                    "completed": True,
+                    "entities_updated": int(persistence_data.get("entities_updated", 0) or 0),
+                    "aliases_persisted": int(
+                        persistence_data.get("aliases_persisted", 0) or 0
+                    ),
+                    "fk_persisted": fk_written,
+                },
+                "paths": {
+                    "extraction": str(extraction_path),
+                    "aliasing": str(aliasing_path),
+                },
+            },
+        )
     except Exception as e:
         logger.error(f"Failed to persist aliases: {e}", exc_info=True)
+        _log_cli_run_summary(
+            logger,
+            {
+                "run_id": run_id,
+                "incremental": True,
+                "cohort_rows": cohort_rows,
+                "cohort_skipped_hash": cohort_skipped_hash,
+                "keys_extracted": keys_extracted,
+                "rollup": rollup,
+                "reference_index": ref_summary,
+                "aliasing": {
+                    "tags": alias_data.get("total_tags_processed", 0),
+                    "aliases": alias_data.get("total_aliases_generated", 0),
+                    "workflow_rows_updated": alias_data.get(
+                        "key_extraction_workflow_rows_updated"
+                    ),
+                },
+                "persistence": {"error": str(e)[:500]},
+                "paths": {
+                    "extraction": str(extraction_path),
+                    "aliasing": str(aliasing_path),
+                },
+            },
+        )
 
 
 def run_pipeline(
@@ -570,7 +869,7 @@ def run_pipeline(
         if not scope_yaml_path:
             raise ValueError(
                 "incremental_change_processing requires a scope YAML path "
-                "(use default config/scopes/<scope>/key_extraction_aliasing.yaml or --config-path)."
+                "(module-root key_extraction_aliasing.yaml with --scope default, or --config-path)."
             )
         sp = Path(scope_yaml_path)
         if getattr(args, "full_rescan", False):
@@ -592,8 +891,12 @@ def run_pipeline(
     if scope_yaml_path:
         logger.debug("Scope YAML path: %s", scope_yaml_path)
 
-    extraction_engine = KeyExtractionEngine(extraction_config)
-    aliasing_engine = AliasingEngine(aliasing_config, client=client)
+    progress_every = max(0, int(getattr(args, "progress_every", 0) or 0))
+    pipe_logger = StdlibLoggerAdapter(logger)
+    extraction_engine = KeyExtractionEngine(extraction_config, logger=pipe_logger)
+    aliasing_engine = AliasingEngine(
+        aliasing_config, logger=pipe_logger, client=client
+    )
 
     all_extraction_items: List[Dict[str, Any]] = []
     aliasing_items: List[Dict[str, Any]] = []
@@ -732,6 +1035,12 @@ def run_pipeline(
 
             # Query instances using list method (supports filters)
             # Try with filters first, fall back to no filters if filter fails
+            logger.info(
+                "  Querying data model instances for view %s/%s/%s ...",
+                view_space,
+                view_external_id,
+                view_version,
+            )
             instances = None
             if final_filter is not None:
                 try:
@@ -815,13 +1124,24 @@ def run_pipeline(
         # Run extraction for this view
         view_extraction_items: List[Dict[str, Any]] = []
         view_iso = view_config.get("exclude_self_referencing_keys")
-        for entity in instances_dicts:
+        n_entities = len(instances_dicts)
+        for ent_i, entity in enumerate(instances_dicts, start=1):
             res = extraction_engine.extract_keys(
                 entity,
                 entity_type=entity_type,
                 exclude_self_referencing_keys=view_iso,
             )
             entity_id = res.entity_id
+            if progress_every > 0 and ent_i % progress_every == 0:
+                eid_preview = (str(entity_id)[:120] if entity_id else "")
+                logger.info(
+                    "  Extraction progress %s/%s (view %s/%s) entity_id=%s",
+                    ent_i,
+                    n_entities,
+                    view_external_id,
+                    view_version,
+                    eid_preview,
+                )
 
             # Build entities_keys_extracted structure for persistence (workflow format)
             keys_by_field = {}
@@ -909,6 +1229,11 @@ def run_pipeline(
             )
 
         # Run aliasing for each candidate key from this view
+        total_tags = sum(
+            len(item["extraction_result"]["candidate_keys"])
+            for item in view_extraction_items
+        )
+        tag_i = 0
         logger.info(f"  Running aliasing on extracted candidate keys...")
         for item in view_extraction_items:
             entity = item["entity"]
@@ -926,8 +1251,18 @@ def run_pipeline(
                 "entity_external_id": entity.get("externalId"),
             }
             for k in item["extraction_result"]["candidate_keys"]:
+                tag_i += 1
                 tag = k["value"]
                 source_field = k.get("source_field")
+                if progress_every > 0 and tag_i % progress_every == 0:
+                    logger.info(
+                        "  Aliasing progress %s/%s (view %s/%s) tag=%s",
+                        tag_i,
+                        total_tags,
+                        view_external_id,
+                        view_version,
+                        (str(tag)[:80]),
+                    )
                 aliases_result = aliasing_engine.generate_aliases(
                     tag=tag, entity_type=entity_type, context=context
                 )
@@ -968,6 +1303,25 @@ def run_pipeline(
                 )
 
         all_extraction_items.extend(view_extraction_items)
+
+    rollup_noninc = _rollup_extraction_from_entities(entities_keys_extracted)
+    total_aliases_noninc = sum(
+        len(r.get("aliases") or []) for r in aliasing_results
+    )
+    logger.info(
+        "✓ Key extraction (non-incremental): entities=%s, candidate_key_values=%s, "
+        "fk_refs=%s, doc_refs=%s, extraction_failed=%s",
+        rollup_noninc["entity_count"],
+        rollup_noninc["candidate_key_count"],
+        rollup_noninc["fk_ref_count"],
+        rollup_noninc["doc_ref_count"],
+        rollup_noninc["extraction_failed_count"],
+    )
+    logger.info(
+        "✓ Aliasing (non-incremental): aliasing_results=%s, aliases_generated=%s",
+        len(aliasing_results),
+        total_aliases_noninc,
+    )
 
     if not getattr(args, "skip_reference_index", False):
         logger.info(
@@ -1014,6 +1368,28 @@ def run_pipeline(
     if args.foreign_key_writeback_property:
         fk_prop = args.foreign_key_writeback_property.strip() or fk_prop
 
+    def _noninc_summary_paths(
+        persistence: Dict[str, Any],
+    ) -> None:
+        _log_cli_run_summary(
+            logger,
+            {
+                "incremental": False,
+                "rollup": rollup_noninc,
+                "reference_index": {"status": "n_a"},
+                "aliasing": {
+                    "tags": len(aliasing_results),
+                    "aliases": total_aliases_noninc,
+                    "workflow_rows_updated": None,
+                },
+                "persistence": persistence,
+                "paths": {
+                    "extraction": str(extraction_path),
+                    "aliasing": str(aliasing_path),
+                },
+            },
+        )
+
     # Persist aliases to CogniteDescribable view (unless dry-run)
     if args.dry_run:
         logger.info(
@@ -1025,6 +1401,14 @@ def run_pipeline(
                 "FK write-back to DM is off (set write_foreign_key_references in scope YAML, "
                 "env WRITE_FOREIGN_KEY_REFERENCES, or run with --write-foreign-keys)."
             )
+        logger.info("✓ Persistence: skipped (dry-run)")
+        _noninc_summary_paths(
+            {
+                "dry_run": True,
+                "entities": len(entities_keys_extracted),
+                "aliasing_results": len(aliasing_results),
+            }
+        )
     else:
         logger.info("Persisting aliases to CogniteDescribable view...")
         try:
@@ -1058,5 +1442,24 @@ def run_pipeline(
             elif not wfk:
                 persist_msg += " (FK write-back disabled for this run)"
             logger.info(persist_msg)
+            logger.info(
+                "✓ Persistence: entities_updated=%s, aliases_persisted=%s, fk_values_persisted=%s",
+                persistence_data.get("entities_updated", 0),
+                persistence_data.get("aliases_persisted", 0),
+                fk_written,
+            )
+            _noninc_summary_paths(
+                {
+                    "completed": True,
+                    "entities_updated": int(
+                        persistence_data.get("entities_updated", 0) or 0
+                    ),
+                    "aliases_persisted": int(
+                        persistence_data.get("aliases_persisted", 0) or 0
+                    ),
+                    "fk_persisted": fk_written,
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to persist aliases: {e}", exc_info=True)
+            _noninc_summary_paths({"error": str(e)[:500]})

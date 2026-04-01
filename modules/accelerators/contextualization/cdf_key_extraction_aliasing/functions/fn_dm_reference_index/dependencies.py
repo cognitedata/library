@@ -5,7 +5,7 @@ from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
 
-from .common.logger import CogniteFunctionLogger
+from ..cdf_fn_common.function_logging import cognite_function_logger
 
 
 @dataclass
@@ -60,7 +60,5 @@ def create_client(env_config: EnvConfig, debug: bool = False) -> CogniteClient:
 
 
 def create_logger_service(log_level: str, verbose: bool):
-    if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR"]:
-        return CogniteFunctionLogger("INFO", verbose)
-    return CogniteFunctionLogger(log_level, verbose)
+    return cognite_function_logger(str(log_level), bool(verbose))
 

@@ -19,19 +19,19 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 - **Extraction methods:** passthrough (default when `method` is omitted), regex, fixed width, token reassembly, heuristic
 - **Extraction types:** candidate keys, foreign key references, document references
 - **Aliasing transformation types:** character substitution, prefix/suffix, regex, case, equipment type expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite, **`alias_mapping_table`** (RAW-backed tag→alias catalog when configured)
-- **Config:** v1 scope documents under `config/scopes/` and examples under `config/examples/` (see [config/README.md](config/README.md))
+- **Config:** v1 scope document at module root (`key_extraction_aliasing.yaml`) and examples under `config/examples/` (see [config/README.md](config/README.md))
 - **Tests:** `tests/` — see [tests/README.md](tests/README.md)
 
 **Reference tables** for each extraction method and aliasing `type` value: [Key extraction spec](docs/specifications/1.%20key_extraction.md), [Aliasing spec](docs/specifications/2.%20aliasing.md).
 
-**Default CDM scope** (asset + file + timeseries, shared `alphanumeric_tag`): [`config/scopes/default/key_extraction_aliasing.yaml`](config/scopes/default/key_extraction_aliasing.yaml). Narrative summary: [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md). Deployed workflow YAML may inline different rules; keep it aligned with that scope when you intend the same behavior.
+**Default CDM scope** (asset + file + timeseries, shared `alphanumeric_tag`): [`key_extraction_aliasing.yaml`](key_extraction_aliasing.yaml) at module root. Narrative summary: [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md). Deployed triggers embed the patched template from [`workflows/_template/key_extraction_aliasing.scope_document.yaml`](workflows/_template/key_extraction_aliasing.scope_document.yaml).
 
 ### Configuration entry points
 
-- **Deployed workflows** pass `config` in each function’s task payload. Authoring source in-repo: **`config/scopes/<scope>/key_extraction_aliasing.yaml`** and **`config/examples/**`**. Validation: Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
+- **Deployed workflows** pass **`scope_document`** on **`workflow.input`** (v4); functions derive `config` from it. Authoring source in-repo: **`key_extraction_aliasing.yaml`**, **`workflows/_template/key_extraction_aliasing.scope_document.yaml`**, and **`config/examples/**`**. Validation: Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
 - **`config/configuration_manager.py`:** dataclasses + JSON Schema for integration-style tests (`tests/integration/contextualization/`). **Not** used by `fn_dm_*` handlers at runtime.
 
-**Multi-site scopes:** define [scope_hierarchy.yaml](scope_hierarchy.yaml) and run **`scripts/build_scopes.py`**. Details: [config/README.md](config/README.md) (*Scope hierarchy builder*), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
+**Multi-site scopes:** define `scope_hierarchy` and `locations` in [default.config.yaml](default.config.yaml) and run **`scripts/build_scopes.py`**. Details: [config/README.md](config/README.md) (*Scope hierarchy builder*), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
 
 ## Roadmap
 
@@ -52,7 +52,7 @@ From **repository root** (the directory that contains `modules/`):
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --dry-run
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --limit 50 --verbose
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --scope default
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/scopes/default/key_extraction_aliasing.yaml
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/key_extraction_aliasing.yaml
 ```
 
 If your project uses Poetry at repo root, prefix with `poetry run` as usual.
@@ -65,8 +65,12 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 | `--write-foreign-keys` | Persist FK reference strings (needs write-back property) | false |
 | `--foreign-key-writeback-property` | DM property for FK strings | none |
 | `--instance-space` | Keep `source_views` whose `instance_space` matches **or** whose `filters` constrain node `space` (`property_scope: node`, `EQUALS`/`IN`) | all |
-| `--scope` | Load `config/scopes/<scope>/key_extraction_aliasing.yaml` | `default` |
+| `--scope` | Only `default` supported without `--config-path` (loads module-root `key_extraction_aliasing.yaml`) | `default` |
 | `--config-path` | v1 scope document (overrides `--scope`) | none |
+| `--clean-state` | Drop incremental RAW tables from the scope (key extraction state, reference index, aliasing RAW), then run the pipeline | false |
+| `--clean-state-only` | Same RAW drops as `--clean-state`, then exit (no pipeline) | false |
+
+**RAW clean does not** remove alias or FK values already written on data-model instances. For incremental runs, a typical full reprocess is `--clean-state --full-rescan`.
 
 **Outputs:** timestamped JSON under `tests/results/` (`*_cdf_extraction.json`, `*_cdf_aliasing.json`). Without `--dry-run`, aliases are written to **`cdf_cdm:CogniteDescribable:v1`** (property configurable; default `aliases`). Optional FK strings use the configured FK write-back property.
 
@@ -124,14 +128,14 @@ More examples: [docs/guides/quick_start.md](docs/guides/quick_start.md).
 ```
 cdf_key_extraction_aliasing/
 ├── main.py
-├── scope_hierarchy.yaml
-├── config/                 # scopes, tag_patterns.yaml, examples, configuration_manager — see config/README.md
+├── key_extraction_aliasing.yaml   # default v1 scope document (local CLI)
+├── default.config.yaml     # module defaults + scope hierarchy for build_scopes.py
+├── config/                 # tag_patterns.yaml, examples, configuration_manager — see config/README.md
 ├── functions/
 │   ├── fn_dm_key_extraction/
 │   ├── fn_dm_aliasing/
 │   └── fn_dm_alias_persistence/
 ├── workflows/              # CDF Workflow YAML — see workflows/README.md
-├── upload_data/            # optional Data plugin FileContent manifests — see config/README.md
 ├── scripts/
 ├── tests/
 └── docs/                   # see docs/README.md
@@ -139,11 +143,10 @@ cdf_key_extraction_aliasing/
 
 | Path | Role |
 |------|------|
-| `config/scopes/` | v1 scope document per scope (`key_extraction_aliasing.yaml`) |
+| `key_extraction_aliasing.yaml` | Default v1 scope document at module root (local CLI) |
 | `config/examples/` | Demos and reference YAML — [config/examples/README.md](config/examples/README.md) |
 | `functions/fn_dm_*` | CDF functions + engines (`fn_dm_reference_index` = RAW reference catalog) |
 | `workflows/` | Workflow manifests and diagram |
-| `upload_data/` | Cognite Toolkit Data plugin manifests for optional CogniteFile upload of scope YAML |
 | `tests/` | Pytest suite and `tests/results/` for JSON artifacts |
 | `docs/` | Specs, guides, report |
 
@@ -162,13 +165,7 @@ Loading in code: `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_
 
 ## CDF deployment
 
-Workflow **`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}`** (see [workflows/README.md](workflows/README.md)) chains the pipeline functions. Deploy using your CDF Toolkit / Fusion module layout (workflows, functions, data sets as defined in your package); set **`scope_cdf_suffix`** and **`scope_leaf_display_name`** for the deployed leaf scope.
-
-**Optional — upload scope YAML to CDF as CogniteFile (audit / reference):** The Data plugin can register v1 scope files under [`upload_data/`](upload_data/) using `kind: FileContent` manifests (see [config/README.md](config/README.md)). This does **not** replace inline workflow `config`; functions still read task payloads at runtime unless you add separate integration. Enable the plugin in your project `cdf.toml` (`[plugins] data = true`), set **`key_extraction_config_files_instance_space`** in your environment config from [`default.config.yaml`](default.config.yaml), then from repository root:
-
-```bash
-cdf data upload dir modules/accelerators/contextualization/cdf_key_extraction_aliasing/upload_data
-```
+Workflow **`cdf_key_extraction_aliasing`** (v4; see [workflows/README.md](workflows/README.md)) chains the pipeline functions. Deploy the workflow once and use the generated per-scope files **`workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (embedded **`scope_document`**); run **`python main.py --build`** or **`scripts/build_scopes.py`** after changing **`default.config.yaml`** `locations` or scope templates.
 
 ## Testing
 

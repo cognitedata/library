@@ -6,7 +6,7 @@ back to source entities in the CDF data model.
 """
 
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 try:
     from cognite.client import CogniteClient
@@ -15,10 +15,16 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .dependencies import create_client, create_logger_service, get_env_variables
+from ..cdf_fn_common.function_logging import resolve_function_logger
+from ..cdf_fn_common.scope_document_dm import ensure_alias_persistence_from_scope_dm
+from .dependencies import create_client, get_env_variables
 
 
-def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
+def handle(
+    data: Dict[str, Any],
+    client: CogniteClient = None,
+    logger: Optional[Any] = None,
+) -> Dict[str, Any]:
     """
     CDF-compatible handler function for alias persistence.
 
@@ -40,25 +46,28 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - source_instance_space, source_view_space, source_view_external_id,
               source_view_version: required for FK-only entities when not in entities_keys_extracted
         client: CogniteClient instance (required)
+        logger: Optional logger; default from ``data``.
 
     Returns:
         Dictionary with status and results
     """
-    logger = None
+    log: Any = None
 
     try:
         loglevel = data.get("logLevel", "INFO")
-        verbose = data.get("verbose", False)
-        logger = create_logger_service(loglevel, verbose)
-        logger.info(f"Starting alias persistence with loglevel = {loglevel}")
+        log = resolve_function_logger(data, logger)
+        log.info(f"Starting alias persistence with loglevel = {loglevel}")
 
         if not client:
             raise ValueError("CogniteClient is required for alias persistence")
 
+        if data.get("scope_document"):
+            ensure_alias_persistence_from_scope_dm(data, client)
+
         # Call pipeline function
         from .pipeline import persist_aliases_to_entities
 
-        persist_aliases_to_entities(client=client, logger=logger, data=data)
+        persist_aliases_to_entities(client=client, logger=log, data=data)
 
         # Return a JSON-safe, compact summary (workflow-friendly).
         return {
@@ -78,8 +87,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
     except Exception as e:
         message = f"Alias persistence failed: {e!s}"
 
-        if logger:
-            logger.error(message)
+        if log:
+            log.error(message)
         else:
             print(f"[ERROR] {message}")
 

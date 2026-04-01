@@ -2,23 +2,26 @@
 
 **Documentation index:** [docs/README.md](../docs/README.md) (maps specs, guides, examples, and workflows).
 
-Configs for this module are **not** read from disk paths by CDF functions at runtime. They are the **authoring source** for workflow task payloads (`parameters.function.data.config`) and for **`main.py`** / **`local_runner`**.
-
-**Optional upload:** You can push scope YAML to CDF as **CogniteFile** (data modeling) file content using Cognite Toolkit’s Data plugin and manifests under **[`../upload_data/`](../upload_data/)** (`kind: FileContent`, `fileDataModelingTemplate`). That gives an auditable copy in CDF; workflow inline config remains the runtime source unless you build additional loading logic. Use **one manifest per `config/scopes/<scope>/` directory** so `instanceId.externalId` stays unique (every scope uses the same filename `key_extraction_aliasing.yaml`).
+Configs for this module are the **authoring source** for **`main.py`** / **`local_runner`** and for **CDF workflow** payloads. CDF functions receive **`workflow.input.scope_document`** (v1 scope mapping) from schedule triggers built by **`scripts/build_scopes.py`** — scope YAML is **not** uploaded as Cognite File for this pipeline.
 
 ## Directories
 
 | Path | Purpose |
 |------|---------|
-| **`scopes/<name>/key_extraction_aliasing.yaml`** | **v1 scope document** per scope: required `key_extraction`, optional `aliasing` — single authoring shape aligned with `main.py` and workflows (not two independent configs). Default for local runs (`--scope` or `config/scopes/default/key_extraction_aliasing.yaml`). |
-| **`tag_patterns.yaml`** | **Shared** tag + document regex library for **aliasing** (`tag_pattern_library`) and **authoring alignment** for key-extraction rules (e.g. `alphanumeric_tag` ↔ default scope `&alphanumeric_tag`). Loaded via [`tag_patterns_paths.py`](tag_patterns_paths.py). |
+| **`tag_patterns.yaml`** | **Shared** tag + document regex library for **aliasing** (`tag_pattern_library`) and **authoring alignment** for key-extraction rules. Loaded via [`tag_patterns_paths.py`](tag_patterns_paths.py). |
 | **`examples/`** | **`key_extraction/`** and **`aliasing/`** example scope YAML (`*.key_extraction_aliasing.yaml`); **`reference/`** for complete YAML + migration notes (`LEGACY_TO_NEW_*.md`). Not used automatically by the local runner or CDF functions. |
+
+**Local default v1 scope file:** [`../key_extraction_aliasing.yaml`](../key_extraction_aliasing.yaml) at the **module root** (used when `--scope default` and no `--config-path`).
+
+**Local incremental (workflow parity):** When `key_extraction.config.parameters.incremental_change_processing` is true, `local_runner/run.py` merges the filtered `source_views` into a v1 dict and passes **`scope_document`** plus **`instance_space`** on each step’s task payload, matching workflow v4 task inputs (see [`local_runner/workflow_payload.py`](../local_runner/workflow_payload.py)).
+
+**Trigger-embedded template:** [`../workflows/_template/key_extraction_aliasing.scope_document.yaml`](../workflows/_template/key_extraction_aliasing.scope_document.yaml) — copied into each generated trigger’s **`input.scope_document`**, patched per hierarchy leaf (external ids, node `space` filters, `scope` block).
 
 Python package code in this folder (`configuration_manager.py`, etc.) lives beside these data directories.
 
 ## Scope hierarchy builder
 
-Authoring file **[`scope_hierarchy.yaml`](../scope_hierarchy.yaml)** (module root) declares `scope_hierarchy.levels` and a nested `locations` tree. Run **`scripts/build_scopes.py`** to validate the tree and create `config/scopes/<leaf_scope_id>/key_extraction_aliasing.yaml` from the default template for each leaf (skipped if that file already exists). The **`key_extraction_aliasing`** builder prepends a default **node `space`** filter (`property_scope: node`, `target_property: space`, `EQUALS`) on **each** `source_views` row copied from the template, unless that view already has such a filter. The filter value is the leaf node's **`instance_space`** when set in the hierarchy; otherwise a placeholder `PLACEHOLDER_INSTANCE_SPACE_FOR_SCOPE__<suffix>` derived from the scope id (replace with your CDF instance space). Use `--dry-run`, `--list-builders`, `--only <name>`, and `--template` / `-f` as needed. Additional artifact types are added by implementing a builder and registering it in **`scripts/scope_build/registry.py`**.
+**[`default.config.yaml`](../default.config.yaml)** (module root) includes `scope_hierarchy.levels` and a nested `locations` tree. **Leaves may be at any depth** — you do not need a full path for every declared level name; `levels` labels the first segments only, and tiers beyond that list get synthetic names (`level_3`, …) in build metadata. Run **`python main.py --build`** or **`scripts/build_scopes.py`** to validate the tree and regenerate **`workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one file per leaf; override with **`--scope-document`** / **`--workflow-trigger-template`**). Each file is one schedule trigger with **`input.scope_document`** built from **`workflows/_template/key_extraction_aliasing.scope_document.yaml`**. The **`workflow_triggers`** builder prepends a **node `space`** filter on each `source_views` row unless one exists; filter value is the leaf **`instance_space`** when set, else the toolkit placeholder **`{{instance_space}}`** (substituted at deploy from **`default.config.yaml`**). Use **`--check-workflow-triggers`** to fail CI if any trigger required by the current hierarchy is missing or out of date (extra **`cdf_key_extraction_aliasing.*.WorkflowTrigger.yaml`** files on disk are ignored; **`--build`** does not delete them). **`--workflow-trigger-template`** overrides the trigger shell. Use `--dry-run`, `--list-builders`, `--only workflow_triggers`, and `--hierarchy` as needed.
 
 ## Scope YAML (v1)
 
@@ -26,32 +29,18 @@ Authoring file **[`scope_hierarchy.yaml`](../scope_hierarchy.yaml)** (module roo
 - **`aliasing`** (optional): same for aliasing. If omitted, or `aliasing_rules` is missing or empty, the local loader uses **identity passthrough** (zero rules).
 - **`extraction_rules`**: If omitted or `[]`, the loader injects **passthrough-on-`name`** rules, one per distinct `entity_type` in `source_views` (after defaulting empty `source_views` to CogniteAsset).
 
-Optional: `schemaVersion: 1`, `scope: { name, description }` (informational).
+Optional: `schemaVersion: 1`, `scope: { name, description }` (informational; **`scope`** is injected into trigger payloads by `build_scopes`).
 
 ## Local CLI (`main.py`)
 
 | Flag | Behavior |
 |------|----------|
 | **`--config-path <file>`** | Load that file as a v1 scope document (highest precedence). |
-| **`--scope <name>`** | Load `config/scopes/<name>/key_extraction_aliasing.yaml` (default scope name is `default` when omitted). |
-
-If `--config-path` is omitted and `config/scopes/<scope>/key_extraction_aliasing.yaml` is missing, **`load_configs` raises `FileNotFoundError`**. Create that file (for example with **`scripts/build_scopes.py`**) or pass **`--config-path`**.
+| **`--scope <name>`** | Only **`default`** (or omitted) loads **`key_extraction_aliasing.yaml`** at module root; other names require **`--config-path`**. |
 
 ## Workflows
 
-Workflow YAML still carries **inline** `config` under each function task. Keep it aligned with the matching `key_extraction_aliasing.yaml` (copy, script, or comment pointing at the repo path).
-
-**CDF Toolkit placeholders:** Workflow manifests use **`scope_cdf_suffix`** and **`scope_leaf_display_name`** (see [`workflows/README.md`](../workflows/README.md)). **`scope_cdf_suffix`** must equal **`cdf_external_id_suffix(scope_id)`** for the deployed leaf — the same string [`scripts/build_scopes.py`](../scripts/build_scopes.py) uses when materializing pipeline external ids from [`scope_hierarchy.yaml`](../scope_hierarchy.yaml) (implementation: [`scripts/scope_build/naming.py`](../scripts/scope_build/naming.py)). The workflow **container** and **workflow trigger** resource ids in the YAML also include **`{{ scope_cdf_suffix }}`** so each deploy names a distinct workflow and schedule trigger per scope.
-
-## Cognite Toolkit Data plugin (scope YAML as CogniteFile)
-
-Variables for **`upload_data/**/*.Manifest.yaml`** are in **[`../default.config.yaml`](../default.config.yaml)** (`key_extraction_config_files_instance_space`, `key_extraction_config_file_view_*`). In your Fusion / Toolkit project, enable **`[plugins] data = true`** in `cdf.toml`, then run:
-
-```bash
-cdf data upload dir modules/accelerators/contextualization/cdf_key_extraction_aliasing/upload_data
-```
-
-(from repository root; adjust if your module path differs). Add a sibling manifest under **`upload_data/scopes/<scope_id>/`** for each new scope, with a **distinct** `template.instanceId.externalId` (for example `kea_config_<scope_id>`).
+Workflow **v4** ([`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml)) passes **`scope_document`** on **`workflow.input`** into each function task. RAW table keys remain in **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside that object. See [`workflows/README.md`](../workflows/README.md).
 
 ## Reference docs
 

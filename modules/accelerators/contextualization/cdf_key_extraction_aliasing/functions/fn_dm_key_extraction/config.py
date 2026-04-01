@@ -74,6 +74,14 @@ class Parameters(BaseModel):
             "(RUN_ID + WORKFLOW_STATUS) instead of listing the full view."
         ),
     )
+    enable_reference_index: bool = Field(
+        False,
+        description=(
+            "When true, workflow/local parity should run fn_dm_reference_index (RAW inverted index "
+            "for FK and document references). Align with the same flag in the workflow task payload "
+            "for fn_dm_reference_index."
+        ),
+    )
     incremental_skip_unchanged_source_inputs: bool = Field(
         True,
         description=(

@@ -1,7 +1,7 @@
 # Key Extraction and Aliasing — Module Summary
 
 **Last reviewed:** 2026-03-30  
-**Canonical default scope:** [`config/scopes/default/key_extraction_aliasing.yaml`](../config/scopes/default/key_extraction_aliasing.yaml) — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
+**Canonical default scope:** [`key_extraction_aliasing.yaml`](../key_extraction_aliasing.yaml) at module root — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
 **Shared tag pattern library:** [`config/tag_patterns.yaml`](../config/tag_patterns.yaml) (aligned field `alphanumeric_tag`)
 
 This document describes the **current** default configuration and pipeline behavior for `cdf_key_extraction_aliasing`. For numbers from a specific CDF or local test run, use the latest JSON under [`tests/results/`](../tests/results/) or your own exported extraction output.

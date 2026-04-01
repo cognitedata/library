@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Protocol, Sequence
 
-from scope_build.builders import ScopeYamlBuilder
+from scope_build.builders.workflow_triggers import WorkflowTriggersBuilder
 from scope_build.context import ScopeBuildContext
 
 
@@ -15,8 +15,17 @@ class ScopeArtifactBuilder(Protocol):
     def run(self, ctx: ScopeBuildContext) -> None: ...
 
 
-def default_builders(*, template_path: Path) -> List[ScopeArtifactBuilder]:
-    return [ScopeYamlBuilder(template_path)]
+def default_builders(
+    *,
+    scope_document_path: Path,
+    workflow_trigger_template_path: Path | None = None,
+) -> List[ScopeArtifactBuilder]:
+    return [
+        WorkflowTriggersBuilder(
+            template_path=workflow_trigger_template_path,
+            scope_document_path=scope_document_path,
+        ),
+    ]
 
 
 def filter_builders(

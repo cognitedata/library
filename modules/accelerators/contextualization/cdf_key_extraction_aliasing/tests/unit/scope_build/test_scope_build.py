@@ -1,7 +1,4 @@
-"""Tests for scope_hierarchy parsing and pluggable scope artifact builders.
-
-The built-in builder emits ``config/scopes/<id>/key_extraction_aliasing.yaml`` (v1 scope document).
-"""
+"""Tests for scope_hierarchy parsing, scope document patching, and workflow trigger builder."""
 
 from __future__ import annotations
 
@@ -18,15 +15,23 @@ for _p in (_PKG, _SCRIPTS):
     if s not in sys.path:
         sys.path.insert(0, s)
 
-from scope_build.builders.scope_yaml import ScopeYamlBuilder
+from scope_build.builders.workflow_triggers import (
+    DEFAULT_TRIGGER_TEMPLATE_REL,
+    WorkflowTriggersBuilder,
+    minified_json_utf8_length,
+    verify_triggers_file,
+    workflow_trigger_filename,
+)
 from scope_build.context import ScopeBuildContext
 from scope_build.hierarchy import (
     build_contexts,
     collect_leaves,
+    path_step_level_name,
     slugify_display_name,
 )
 from scope_build.orchestrate import main as build_scopes_main, run_build
 from scope_build.registry import default_builders, filter_builders
+from scope_build.scope_document_patch import prepare_scope_document_for_context
 
 
 def test_slugify_display_name_spaces() -> None:
@@ -92,19 +97,49 @@ def test_duplicate_scope_id_errors() -> None:
         collect_leaves(doc)
 
 
-def test_depth_mismatch_errors() -> None:
+def test_collect_leaves_allows_shallow_leaf_when_more_levels_declared() -> None:
+    """A leaf under the root is valid even when ``levels`` lists more tier names (optional depth)."""
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site, plant, area, system]
+        locations:
+          - id: DEFAULT_SITE
+            name: Main Site
+            locations: []
+        """
+    )
+    leaves = collect_leaves(doc)
+    assert len(leaves) == 1
+    assert leaves[0][0] == "DEFAULT_SITE"
+
+
+def test_collect_leaves_deeper_tree_uses_synthetic_level_labels(tmp_path: Path) -> None:
     doc = yaml.safe_load(
         """
         scope_hierarchy:
           levels: [site, plant]
         locations:
           - id: S
-            name: S
-            locations: []
+            locations:
+              - id: P
+                locations:
+                  - id: AREA
+                    name: Deep area
         """
     )
-    with pytest.raises(ValueError, match="leaf at depth"):
-        collect_leaves(doc)
+    leaves = collect_leaves(doc)
+    assert len(leaves) == 1
+    assert leaves[0][0] == "S__P__AREA"
+    ctx = build_contexts(module_root=tmp_path, doc=doc, dry_run=True)[0]
+    assert [s.level for s in ctx.path] == ["site", "plant", "level_3"]
+
+
+def test_path_step_level_name() -> None:
+    lv = ["site", "plant"]
+    assert path_step_level_name(lv, 0) == "site"
+    assert path_step_level_name(lv, 1) == "plant"
+    assert path_step_level_name(lv, 2) == "level_3"
 
 
 MINIMAL_TEMPLATE = """
@@ -129,6 +164,36 @@ aliasing:
       aliasing_rules: []
       validation: {}
 """
+
+MINIMAL_WORKFLOW_TRIGGER_TEMPLATE = """
+externalId: cdf_key_extraction_aliasing.__KEA_CDF_SUFFIX__
+triggerRule:
+  triggerType: schedule
+  cronExpression: '{{ key_extraction_aliasing_schedule }}'
+workflowExternalId: cdf_key_extraction_aliasing
+workflowVersion: v4
+authentication:
+  clientId: '{{functionClientId}}'
+  clientSecret: '{{functionClientSecret}}'
+input:
+  full_rescan: false
+  run_id: ''
+"""
+
+
+def _install_minimal_workflow_trigger_template(module_root: Path) -> Path:
+    path = module_root / DEFAULT_TRIGGER_TEMPLATE_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(MINIMAL_WORKFLOW_TRIGGER_TEMPLATE, encoding="utf-8")
+    return path
+
+
+def _install_minimal_scope_document(module_root: Path) -> Path:
+    path = module_root / "workflows" / "_template" / "key_extraction_aliasing.scope_document.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
+    return path
+
 
 MULTIVIEW_TEMPLATE = """
 schemaVersion: 1
@@ -162,12 +227,10 @@ aliasing:
 """
 
 
-def test_scope_yaml_builder_injects_node_space_all_views_prepends(tmp_path: Path) -> None:
+def test_prepare_scope_document_injects_node_space_all_views_prepends(tmp_path: Path) -> None:
     mod = tmp_path / "mod_mv"
-    (mod / "config/scopes/default").mkdir(parents=True)
-    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
-    tpl.write_text(MULTIVIEW_TEMPLATE, encoding="utf-8")
-    doc = yaml.safe_load(
+    doc = yaml.safe_load(MULTIVIEW_TEMPLATE)
+    hdoc = yaml.safe_load(
         """
         scope_hierarchy:
           levels: [site]
@@ -176,10 +239,8 @@ def test_scope_yaml_builder_injects_node_space_all_views_prepends(tmp_path: Path
             name: Site A
         """
     )
-    ctx = build_contexts(module_root=mod, doc=doc, dry_run=False)[0]
-    ScopeYamlBuilder(tpl).run(ctx)
-    out = mod / "config/scopes/SITE_A/key_extraction_aliasing.yaml"
-    data = yaml.safe_load(out.read_text(encoding="utf-8"))
+    ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
+    data = prepare_scope_document_for_context(doc, ctx)
     views = data["key_extraction"]["config"]["data"]["source_views"]
     assert len(views) == 2
     for v in views:
@@ -189,12 +250,10 @@ def test_scope_yaml_builder_injects_node_space_all_views_prepends(tmp_path: Path
     assert views[0]["filters"][1]["target_property"] == "tags"
 
 
-def test_scope_yaml_builder_uses_leaf_instance_space_when_set(tmp_path: Path) -> None:
+def test_prepare_scope_document_uses_leaf_instance_space_when_set(tmp_path: Path) -> None:
     mod = tmp_path / "mod_inst"
-    (mod / "config/scopes/default").mkdir(parents=True)
-    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
-    tpl.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
-    doc = yaml.safe_load(
+    doc = yaml.safe_load(MINIMAL_TEMPLATE)
+    hdoc = yaml.safe_load(
         """
         scope_hierarchy:
           levels: [site, plant]
@@ -206,19 +265,15 @@ def test_scope_yaml_builder_uses_leaf_instance_space_when_set(tmp_path: Path) ->
                 instance_space: sp_acme_prod
         """
     )
-    ctx = build_contexts(module_root=mod, doc=doc, dry_run=False)[0]
-    ScopeYamlBuilder(tpl).run(ctx)
-    out = mod / "config/scopes/S__P/key_extraction_aliasing.yaml"
-    data = yaml.safe_load(out.read_text(encoding="utf-8"))
+    ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
+    data = prepare_scope_document_for_context(doc, ctx)
     v0 = data["key_extraction"]["config"]["data"]["source_views"][0]
     assert v0["filters"][0]["values"] == ["sp_acme_prod"]
 
 
-def test_scope_yaml_builder_skips_inject_when_node_space_filter_exists(tmp_path: Path) -> None:
+def test_prepare_scope_document_skips_inject_when_node_space_filter_exists(tmp_path: Path) -> None:
     mod = tmp_path / "mod_idem"
-    (mod / "config/scopes/default").mkdir(parents=True)
-    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
-    tpl.write_text(
+    doc = yaml.safe_load(
         """
 schemaVersion: 1
 key_extraction:
@@ -245,10 +300,9 @@ aliasing:
     data:
       aliasing_rules: []
       validation: {}
-""",
-        encoding="utf-8",
+"""
     )
-    doc = yaml.safe_load(
+    hdoc = yaml.safe_load(
         """
         scope_hierarchy:
           levels: [site]
@@ -257,22 +311,17 @@ aliasing:
             name: Z
         """
     )
-    ctx = build_contexts(module_root=mod, doc=doc, dry_run=False)[0]
-    ScopeYamlBuilder(tpl).run(ctx)
-    out = mod / "config/scopes/Z1/key_extraction_aliasing.yaml"
-    data = yaml.safe_load(out.read_text(encoding="utf-8"))
+    ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
+    data = prepare_scope_document_for_context(doc, ctx)
     fl = data["key_extraction"]["config"]["data"]["source_views"][0]["filters"]
     assert len(fl) == 1
     assert fl[0]["values"] == ["sp_already_set"]
 
 
-def test_scope_yaml_builder_writes_and_skips(tmp_path: Path) -> None:
+def test_prepare_scope_document_external_ids_and_scope_block(tmp_path: Path) -> None:
     mod = tmp_path / "mod"
-    (mod / "config/scopes/default").mkdir(parents=True)
-    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
-    tpl.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
-
-    doc = yaml.safe_load(
+    doc = yaml.safe_load(MINIMAL_TEMPLATE)
+    hdoc = yaml.safe_load(
         """
         scope_hierarchy:
           levels: [site]
@@ -281,11 +330,8 @@ def test_scope_yaml_builder_writes_and_skips(tmp_path: Path) -> None:
             name: Leaf One
         """
     )
-    ctx = build_contexts(module_root=mod, doc=doc, dry_run=False)[0]
-    ScopeYamlBuilder(tpl).run(ctx)
-    out = mod / "config/scopes/LEAF1/key_extraction_aliasing.yaml"
-    assert out.is_file()
-    data = yaml.safe_load(out.read_text(encoding="utf-8"))
+    ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
+    data = prepare_scope_document_for_context(doc, ctx)
     assert data["scope"]["id"] == "LEAF1"
     assert data["scope"]["name"] == "Leaf One"
     assert data["key_extraction"]["externalId"] == "ctx_key_extraction_leaf1"
@@ -296,28 +342,7 @@ def test_scope_yaml_builder_writes_and_skips(tmp_path: Path) -> None:
     assert flt["property_scope"] == "node"
     assert flt["target_property"] == "space"
     assert flt["operator"] == "EQUALS"
-    assert flt["values"] == ["PLACEHOLDER_INSTANCE_SPACE_FOR_SCOPE__leaf1"]
-
-    ScopeYamlBuilder(tpl).run(ctx)
-    assert out.read_text(encoding="utf-8").count("Leaf One") >= 1
-
-
-def test_scope_yaml_builder_dry_run_no_file(tmp_path: Path) -> None:
-    mod = tmp_path / "mod2"
-    (mod / "config/scopes/default").mkdir(parents=True)
-    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
-    tpl.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
-    doc = yaml.safe_load(
-        """
-        scope_hierarchy:
-          levels: [site]
-        locations:
-          - name: "Only Name"
-        """
-    )
-    ctx = build_contexts(module_root=mod, doc=doc, dry_run=True)[0]
-    ScopeYamlBuilder(tpl).run(ctx)
-    assert not (mod / "config/scopes/Only_Name/key_extraction_aliasing.yaml").exists()
+    assert flt["values"] == ["{{instance_space}}"]
 
 
 class _RecordingBuilder:
@@ -331,35 +356,35 @@ class _RecordingBuilder:
 
 
 def test_filter_builders_subset_and_dedupe(tmp_path: Path) -> None:
-    tpl = tmp_path / "t.yaml"
-    tpl.write_text("x: 1\n", encoding="utf-8")
-    builders = default_builders(template_path=tpl)
-    assert [b.name for b in filter_builders(builders, ["key_extraction_aliasing"])] == [
-        "key_extraction_aliasing"
+    sd = tmp_path / "scope.yaml"
+    sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
+    builders = default_builders(scope_document_path=sd)
+    assert [b.name for b in builders] == ["workflow_triggers"]
+    assert [b.name for b in filter_builders(builders, ["workflow_triggers"])] == [
+        "workflow_triggers"
     ]
-    assert [b.name for b in filter_builders(builders, ["key_extraction_aliasing"] * 2)] == [
-        "key_extraction_aliasing"
+    assert [b.name for b in filter_builders(builders, ["workflow_triggers"] * 2)] == [
+        "workflow_triggers"
     ]
 
 
 def test_filter_builders_unknown_raises(tmp_path: Path) -> None:
-    tpl = tmp_path / "t.yaml"
-    tpl.write_text("x: 1\n", encoding="utf-8")
-    builders = default_builders(template_path=tpl)
+    sd = tmp_path / "s.yaml"
+    sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
+    builders = default_builders(scope_document_path=sd)
     with pytest.raises(ValueError, match="Unknown builder"):
         filter_builders(builders, ["no_such_builder"])
 
 
 def test_run_build_missing_hierarchy_raises(tmp_path: Path) -> None:
     missing = tmp_path / "missing.yaml"
-    tpl = tmp_path / "tpl.yaml"
-    tpl.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
+    sd = tmp_path / "s.yaml"
+    sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
     with pytest.raises(FileNotFoundError):
         run_build(
             module_root=tmp_path,
             hierarchy_path=missing,
-            template_path=tpl,
-            builders=default_builders(template_path=tpl),
+            builders=default_builders(scope_document_path=sd),
             dry_run=True,
         )
 
@@ -368,7 +393,197 @@ def test_build_scopes_main_unknown_only_exits_nonzero() -> None:
     assert build_scopes_main(["--only", "not_a_registered_builder"]) == 1
 
 
-def test_run_build_invokes_all_builders(tmp_path: Path) -> None:
+def test_workflow_triggers_builder_two_leaves(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_wt"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    _install_minimal_scope_document(mod)
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site, plant]
+        locations:
+          - id: S1
+            locations:
+              - id: P1
+                name: Plant 1
+          - id: S2
+            locations:
+              - id: P2
+                name: Plant 2
+        """
+    )
+    contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
+    WorkflowTriggersBuilder().write_all(contexts, dry_run=False, module_root=mod)
+    p1 = mod / "workflows" / workflow_trigger_filename("s1_p1")
+    p2 = mod / "workflows" / workflow_trigger_filename("s2_p2")
+    assert p1.is_file()
+    assert p2.is_file()
+    data0 = yaml.safe_load(p1.read_text(encoding="utf-8"))
+    data1 = yaml.safe_load(p2.read_text(encoding="utf-8"))
+    assert isinstance(data0, dict) and isinstance(data1, dict)
+    assert data0["externalId"] == "cdf_key_extraction_aliasing.s1_p1"
+    assert data0["workflowExternalId"] == "cdf_key_extraction_aliasing"
+    assert data0["workflowVersion"] == "v4"
+    assert "scope_document" in data0["input"]
+    assert data0["input"]["scope_document"]["key_extraction"]["externalId"] == "ctx_key_extraction_s1_p1"
+    assert "scope_config_file_external_id" not in data0["input"]
+    assert data1["input"]["scope_document"]["key_extraction"]["externalId"] == "ctx_key_extraction_s2_p2"
+
+
+def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Path) -> None:
+    """Rebuilding with fewer leaves must not delete existing cdf_key_extraction_aliasing.* triggers."""
+    mod = tmp_path / "mod_wt_orphan"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    _install_minimal_scope_document(mod)
+    doc_two = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site, plant]
+        locations:
+          - id: S1
+            locations:
+              - id: P1
+                name: Plant 1
+          - id: S2
+            locations:
+              - id: P2
+                name: Plant 2
+        """
+    )
+    contexts_two = build_contexts(module_root=mod, doc=doc_two, dry_run=False)
+    WorkflowTriggersBuilder().write_all(contexts_two, dry_run=False, module_root=mod)
+    p2 = mod / "workflows" / workflow_trigger_filename("s2_p2")
+    assert p2.is_file()
+    marker = "orphan-preservation-marker"
+    p2.write_text(p2.read_text(encoding="utf-8") + f"\n# {marker}\n", encoding="utf-8")
+
+    doc_one = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site, plant]
+        locations:
+          - id: S1
+            locations:
+              - id: P1
+                name: Plant 1
+        """
+    )
+    contexts_one = build_contexts(module_root=mod, doc=doc_one, dry_run=False)
+    WorkflowTriggersBuilder().write_all(contexts_one, dry_run=False, module_root=mod)
+
+    assert p2.is_file()
+    assert marker in p2.read_text(encoding="utf-8")
+
+
+def test_verify_triggers_file_ignores_extra_dot_form_triggers(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_verify_extra"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    sd = _install_minimal_scope_document(mod)
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site]
+        locations:
+          - id: Only
+            name: Only
+        """
+    )
+    contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
+    WorkflowTriggersBuilder(scope_document_path=sd).write_all(contexts, dry_run=False, module_root=mod)
+    orphan = mod / "workflows" / "cdf_key_extraction_aliasing.not_in_hierarchy.WorkflowTrigger.yaml"
+    orphan.write_text(
+        "externalId: cdf_key_extraction_aliasing.not_in_hierarchy\n"
+        "workflowExternalId: cdf_key_extraction_aliasing\n"
+        "workflowVersion: v4\n"
+        "input: {}\n",
+        encoding="utf-8",
+    )
+    verify_triggers_file(mod, list(contexts), scope_document_path=sd)
+
+
+def test_verify_triggers_file_fails_when_required_file_missing(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_verify_missing"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    sd = _install_minimal_scope_document(mod)
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site, plant]
+        locations:
+          - id: S1
+            locations:
+              - id: P1
+                name: Plant 1
+          - id: S2
+            locations:
+              - id: P2
+                name: Plant 2
+        """
+    )
+    contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
+    WorkflowTriggersBuilder(scope_document_path=sd).write_all(contexts, dry_run=False, module_root=mod)
+    (mod / "workflows" / workflow_trigger_filename("s2_p2")).unlink()
+    with pytest.raises(SystemExit, match="Missing workflow trigger"):
+        verify_triggers_file(mod, list(contexts), scope_document_path=sd)
+
+
+def test_verify_triggers_file_fails_when_content_out_of_date(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_verify_stale"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    sd = _install_minimal_scope_document(mod)
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site]
+        locations:
+          - id: A
+            name: A
+        """
+    )
+    contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
+    WorkflowTriggersBuilder(scope_document_path=sd).write_all(contexts, dry_run=False, module_root=mod)
+    path = mod / "workflows" / workflow_trigger_filename("a")
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace("ctx_key_extraction_a", "ctx_key_extraction_TAMPERED"), encoding="utf-8")
+    with pytest.raises(SystemExit, match="out of date"):
+        verify_triggers_file(mod, list(contexts), scope_document_path=sd)
+
+
+def test_workflow_trigger_template_without_placeholder_raises(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_wt_bad"
+    mod.mkdir()
+    bad = mod / "bad_trigger.template.yaml"
+    bad.write_text("externalId: only\n", encoding="utf-8")
+    sd = mod / "scope.yaml"
+    sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels: [site]
+        locations:
+          - id: A
+            name: A
+        """
+    )
+    contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
+    with pytest.raises(ValueError, match="__KEA_CDF_SUFFIX__"):
+        WorkflowTriggersBuilder(
+            template_path=bad,
+            scope_document_path=sd,
+        ).write_all(contexts, dry_run=True)
+
+
+def test_minified_json_utf8_length_no_whitespace() -> None:
+    n = minified_json_utf8_length({"a": 1, "b": "x"})
+    assert n == len('{"a":1,"b":"x"}'.encode("utf-8"))
+
+
+def test_run_build_invokes_recording_and_triggers(tmp_path: Path) -> None:
     hier = tmp_path / "h.yaml"
     hier.write_text(
         """
@@ -382,15 +597,14 @@ locations:
         encoding="utf-8",
     )
     mod = tmp_path / "mod3"
-    (mod / "config/scopes/default").mkdir(parents=True)
-    tpl = mod / "config/scopes/default/key_extraction_aliasing.yaml"
-    tpl.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    sd = _install_minimal_scope_document(mod)
     rec = _RecordingBuilder()
     run_build(
         module_root=mod,
         hierarchy_path=hier,
-        template_path=tpl,
-        builders=[rec, ScopeYamlBuilder(tpl)],
+        builders=[rec, WorkflowTriggersBuilder(scope_document_path=sd)],
         dry_run=True,
     )
     assert rec.seen == ["X__Y"]

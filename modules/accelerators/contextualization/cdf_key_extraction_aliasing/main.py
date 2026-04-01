@@ -1,13 +1,17 @@
 """
 Main entry point — fetch CDF instances from data model views, run key extraction and aliasing, write results.
 
-Configuration: by default loads ``config/scopes/<scope>/key_extraction_aliasing.yaml`` (``--scope``), or
-``--config-path`` to a v1 scope document. See ``config/README.md`` and ``scope_hierarchy.yaml`` /
-``scripts/build_scopes.py`` for generating per-leaf scope folders.
+Configuration: by default loads the v1 scope document ``key_extraction_aliasing.yaml`` at the
+module root when ``--scope default`` (the default); other scope names require ``--config-path``.
+CDF workflows use the same v1 shape via ``workflow.input.scope_document`` on each task (built by
+``scripts/build_scopes.py`` from ``workflows/_template/``). Regenerate triggers with
+``python main.py --build`` (same CLI as ``scripts/build_scopes.py``; pass ``--dry-run``,
+``--check-workflow-triggers``, etc.). See ``config/README.md`` and ``default.config.yaml``.
 
-Reads CDF credentials from environment (.env supported), queries instances from configured views,
+Reads CDF credentials from environment (.env supported) when not using ``--build``, queries instances from configured views,
 runs the key extraction engine followed by the aliasing engine, and writes JSON results under
-``tests/results/`` (relative to this package).
+``tests/results/`` (relative to this package). Use ``--clean-state`` / ``--clean-state-only`` to drop
+incremental RAW state tables from the scope YAML (not data-model alias/FK properties).
 """
 
 import argparse
@@ -29,7 +33,7 @@ ensure_repo_on_path()
 
 try:
     from local_runner.client import create_cognite_client
-    from local_runner.config_loading import load_configs
+    from local_runner.config_loading import load_configs, resolve_scope_document_path
     from local_runner.env import load_env
     from local_runner.report import generate_report as _generate_report
     from local_runner.run import run_pipeline
@@ -40,6 +44,7 @@ except ImportError as e:
     MODULES_AVAILABLE = False
     create_cognite_client = None  # type: ignore
     load_configs = None  # type: ignore
+    resolve_scope_document_path = None  # type: ignore
     load_env = None  # type: ignore
     _generate_report = None  # type: ignore
     run_pipeline = None  # type: ignore
@@ -79,10 +84,36 @@ def _source_view_matches_instance_space(view: Dict[str, Any], wanted: str) -> bo
     return False
 
 
+def _run_scope_build(build_argv: List[str]) -> int:
+    """Run ``scripts/scope_build`` orchestrator (same CLI as ``scripts/build_scopes.py``)."""
+    scripts_dir = _PACKAGE_ROOT / "scripts"
+    sd = str(scripts_dir)
+    if sd not in sys.path:
+        sys.path.insert(0, sd)
+    from scope_build.orchestrate import main as scope_build_main
+
+    return int(scope_build_main(build_argv))
+
+
 def main():
     """Fetch instances from CDF views, run extraction & aliasing, write results to tests/results/."""
+    argv = sys.argv[1:]
+    if "--build" in argv:
+        build_argv = [a for a in argv if a != "--build"]
+        raise SystemExit(_run_scope_build(build_argv))
+
     parser = argparse.ArgumentParser(
         description="Run key extraction + aliasing on CDF data model instances"
+    )
+    parser.add_argument(
+        "--build",
+        action="store_true",
+        help=(
+            "Only regenerate workflow scope triggers from default.config.yaml (embeds scope_document per leaf). "
+            "Forwards other flags to the scope builder: --hierarchy, --scope-document, --dry-run, "
+            "--list-builders, --only, --check-workflow-triggers, --workflow-trigger-template, -v/--verbose. "
+            "Does not connect to CDF."
+        ),
     )
     parser.add_argument(
         "--limit",
@@ -91,6 +122,17 @@ def main():
         help="Max instances per view (0 = no limit, fetch all). Default 0.",
     )
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "Log long-running steps every N items (0 = off). Non-incremental: extraction/aliasing "
+            "per view. Incremental (workflow parity): reference-index entities with refs + tag "
+            "aliasing. Example: --progress-every 100"
+        ),
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -120,7 +162,11 @@ def main():
         "--scope",
         type=str,
         default=None,
-        help="Load config/scopes/<scope>/key_extraction_aliasing.yaml. Ignored if --config-path is set.",
+        help=(
+            "Scope label for resolving the v1 scope YAML. Only 'default' is supported without "
+            "--config-path (loads module-root key_extraction_aliasing.yaml). "
+            "Ignored if --config-path is set."
+        ),
     )
     parser.add_argument(
         "--config-path",
@@ -141,8 +187,26 @@ def main():
         "--skip-reference-index",
         action="store_true",
         help=(
-            "In incremental/workflow-parity mode, skip fn_dm_reference_index (RAW inverted index for "
-            "FK/document refs). No effect on non-incremental runs (reference index is not available there)."
+            "In incremental/workflow-parity mode, skip fn_dm_reference_index even when "
+            "key_extraction.config.parameters.enable_reference_index is true. "
+            "When the scope flag is false (default), the reference index step is skipped regardless. "
+            "No effect on non-incremental runs (reference index is not available there)."
+        ),
+    )
+    clean_group = parser.add_mutually_exclusive_group()
+    clean_group.add_argument(
+        "--clean-state",
+        action="store_true",
+        help=(
+            "Delete RAW state tables for this scope (key extraction, reference index, aliasing state/aliases) "
+            "then run the pipeline. With incremental mode, combine with --full-rescan for a full reprocess."
+        ),
+    )
+    clean_group.add_argument(
+        "--clean-state-only",
+        action="store_true",
+        help=(
+            "Delete RAW state tables for this scope only; exit without running extraction/aliasing."
         ),
     )
     args = parser.parse_args()
@@ -200,9 +264,19 @@ def main():
         scope_yaml_path = Path(args.config_path).expanduser().resolve()
     else:
         sc = (args.scope or "default").strip() or "default"
-        scope_yaml_path = (
-            _PACKAGE_ROOT / "config" / "scopes" / sc / "key_extraction_aliasing.yaml"
-        ).resolve()
+        scope_yaml_path = resolve_scope_document_path(sc).resolve()
+
+    if args.clean_state or args.clean_state_only:
+        from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.clean_state_tables import (
+            clean_state_tables_from_scope_yaml,
+        )
+
+        cleaned = clean_state_tables_from_scope_yaml(client, logger, scope_yaml_path)
+        if cleaned:
+            logger.info("Cleaned %s RAW table(s).", len(cleaned))
+        if args.clean_state_only:
+            logger.info("Exiting after --clean-state-only (no pipeline run).")
+            sys.exit(0)
 
     run_pipeline(
         args,

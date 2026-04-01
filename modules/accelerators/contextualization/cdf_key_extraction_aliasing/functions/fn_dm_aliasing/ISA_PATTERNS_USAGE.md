@@ -4,7 +4,7 @@
 
 ISA (Instrument Society of America) patterns are utilized in the tag aliasing system to enable industry-standard pattern recognition and generate ISA-compliant aliases. This document explains where and how ISA patterns are used.
 
-**Default CDM scope:** The committed **`config/scopes/default/key_extraction_aliasing.yaml`** does **not** run a large ISA expansion stack; it uses **`semantic_expansion`** (`pattern_based_expansion`) plus a few other rules. ISA rows in **`config/tag_patterns.yaml`** are consumed when you configure **pattern recognition / pattern-based expansion** rules (see examples under `config/examples/aliasing/`). Key **extraction** in the default scope uses the shared **`alphanumeric_tag`** regex, not per-equipment ISA patterns.
+**Default CDM scope:** The committed **`key_extraction_aliasing.yaml`** at module root does **not** run a large ISA expansion stack; it uses **`semantic_expansion`** (`pattern_based_expansion`) plus a few other rules. ISA rows in **`config/tag_patterns.yaml`** are consumed when you configure **pattern recognition / pattern-based expansion** rules (see examples under `config/examples/aliasing/`). Key **extraction** in the default scope uses the shared **`alphanumeric_tag`** regex, not per-equipment ISA patterns.
 
 ## Pattern Definition
 

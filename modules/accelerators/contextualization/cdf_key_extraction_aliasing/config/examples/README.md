@@ -10,11 +10,11 @@ Examples are grouped by **category** (not one folder per file):
 | **`aliasing/`** | Aliasing-focused example scope YAML (minimal `key_extraction` stub + `aliasing`). |
 | **`reference/`** | Field-by-field reference (`config_example_complete.yaml`), wrapped `reference_key_extraction_aliasing.yaml`, and **`LEGACY_TO_NEW_*.md`**. |
 
-Each example file uses the same v1 scope shape as `config/scopes/<scope>/key_extraction_aliasing.yaml`: optional `schemaVersion: 1`, `key_extraction`, optional `aliasing`.
+Each example file uses the same v1 scope shape as `key_extraction_aliasing.yaml` at module root: optional `schemaVersion: 1`, `key_extraction`, optional `aliasing`.
 
-**Not the same as the default scope:** `config/scopes/default/key_extraction_aliasing.yaml` is the slim **CDM** template (shared `alphanumeric_tag`, six extraction rules, small aliasing stack). Files under **`examples/`** are often **richer** (extra methods, more aliasing rules) for learning and tests.
+**Not the same as the default scope:** `key_extraction_aliasing.yaml` is the slim **CDM** template (shared `alphanumeric_tag`, six extraction rules, small aliasing stack). Files under **`examples/`** are often **richer** (extra methods, more aliasing rules) for learning and tests.
 
-The local CLI loads **`--config-path`** or **`config/scopes/<scope>/key_extraction_aliasing.yaml`** only; it does not merge or auto-discover files under **`examples/`**.
+The local CLI loads **`--config-path`** or the module-root default for **`--scope default`** only; it does not merge or auto-discover files under **`examples/`**.
 
 ## Usage
 

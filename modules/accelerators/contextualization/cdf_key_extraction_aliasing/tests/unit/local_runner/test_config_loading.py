@@ -148,21 +148,19 @@ def test_load_configs_from_explicit_path(tmp_path: Path):
     assert alias["rules"] == []
 
 
-def test_load_configs_missing_scope_document_raises(
+def test_load_configs_missing_default_file_raises(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    monkeypatch.setattr(cl, "_scope_dir", lambda scope: tmp_path / scope)
-    (tmp_path / "default").mkdir(parents=True)
-    with pytest.raises(FileNotFoundError, match="scope document"):
+) -> None:
+    missing = tmp_path / "key_extraction_aliasing.yaml"
+    monkeypatch.setattr(cl, "DEFAULT_SCOPE_DOCUMENT_PATH", missing)
+    with pytest.raises(FileNotFoundError, match="Missing default scope document"):
         cl.load_configs(_logger(), scope="default")
 
 
-def test_load_configs_scope_dir_key_extraction_aliasing_yaml(
+def test_load_configs_default_uses_module_root_file(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    monkeypatch.setattr(cl, "_scope_dir", lambda scope: tmp_path / scope)
-    d = tmp_path / "default"
-    d.mkdir(parents=True)
+) -> None:
+    p = tmp_path / "key_extraction_aliasing.yaml"
     doc = _minimal_key_extraction_data(
         source_views=[
             {
@@ -175,31 +173,22 @@ def test_load_configs_scope_dir_key_extraction_aliasing_yaml(
         ],
         extraction_rules=[],
     )
-    (d / "key_extraction_aliasing.yaml").write_text(
-        yaml.safe_dump(doc), encoding="utf-8"
-    )
+    p.write_text(yaml.safe_dump(doc), encoding="utf-8")
+    monkeypatch.setattr(cl, "DEFAULT_SCOPE_DOCUMENT_PATH", p)
     _, _, views, *_ = cl.load_configs(_logger(), scope="default")
     assert views[0].get("batch_size") == 42
 
 
-def test_load_configs_scope_dir_rejects_wrong_filename_only_scope_yaml(
+def test_resolve_scope_document_path_non_default_requires_config_path() -> None:
+    with pytest.raises(FileNotFoundError, match="Per-scope directory layout was removed"):
+        cl.resolve_scope_document_path("leaf_scope")
+
+
+def test_resolve_scope_document_path_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    """Only ``key_extraction_aliasing.yaml`` is loaded for ``--scope``; ``scope.yaml`` alone is ignored."""
-    monkeypatch.setattr(cl, "_scope_dir", lambda scope: tmp_path / scope)
-    d = tmp_path / "default"
-    d.mkdir(parents=True)
-    doc = _minimal_key_extraction_data(
-        source_views=[
-            {
-                "view_external_id": "CogniteAsset",
-                "view_space": "cdf_cdm",
-                "view_version": "v1",
-                "entity_type": "asset",
-            }
-        ],
-        extraction_rules=[],
-    )
-    (d / "scope.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
-    with pytest.raises(FileNotFoundError, match="scope document"):
-        cl.load_configs(_logger(), scope="default")
+) -> None:
+    p = tmp_path / "key_extraction_aliasing.yaml"
+    p.write_text("schemaVersion: 1\nkey_extraction:\n  externalId: x\n  config:\n    parameters: {raw_table_key: t}\n    data: {source_views: [], extraction_rules: []}\n", encoding="utf-8")
+    monkeypatch.setattr(cl, "DEFAULT_SCOPE_DOCUMENT_PATH", p)
+    assert cl.resolve_scope_document_path("default") == p
+    assert cl.resolve_scope_document_path() == p

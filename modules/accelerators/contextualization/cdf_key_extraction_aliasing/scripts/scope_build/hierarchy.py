@@ -1,4 +1,9 @@
-"""Load and validate ``scope_hierarchy.yaml``; enumerate leaves and scope ids."""
+"""Load and validate hierarchy YAML (``scope_hierarchy`` + ``locations``); enumerate leaves and scope ids.
+
+``scope_hierarchy.levels`` names the first path segments (site, plant, …). Leaves may appear at any
+depth; a shorter tree does not need to use every declared level name, and a deeper tree uses
+synthetic labels ``level_{n}`` past the end of ``levels``.
+"""
 
 from __future__ import annotations
 
@@ -85,15 +90,21 @@ def parse_levels(doc: Dict[str, Any]) -> List[str]:
     return out
 
 
+def path_step_level_name(levels: List[str], depth: int) -> str:
+    """Human-readable level tag for ``depth`` (0 = root). Extra tree depth uses ``level_{n}``."""
+    if depth < len(levels):
+        return levels[depth]
+    return f"level_{depth + 1}"
+
+
 def _walk(
     nodes: Any,
     *,
-    levels: List[str],
     depth: int,
     ancestors: List[Dict[str, Any]],
     ancestor_segments: List[str],
 ) -> List[Tuple[str, List[Dict[str, Any]], List[str]]]:
-    """Return list of (scope_id, node_chain, segment_ids)."""
+    """Return list of (scope_id, node_chain, segment_ids). Leaves may appear at any depth."""
     if not isinstance(nodes, list):
         raise ValueError("locations must be a list")
     leaves: List[Tuple[str, List[Dict[str, Any]], List[str]]] = []
@@ -110,23 +121,12 @@ def _walk(
         if not isinstance(children, list):
             raise ValueError(f"{where}: locations must be a list when present")
         if len(children) == 0:
-            if depth != len(levels) - 1:
-                raise ValueError(
-                    f"{where}: leaf at depth {depth + 1} but hierarchy has "
-                    f"{len(levels)} levels (expected leaf depth {len(levels)})"
-                )
             scope_id = "__".join(segments)
             leaves.append((scope_id, chain, segments))
         else:
-            if depth >= len(levels) - 1:
-                raise ValueError(
-                    f"{where}: nested locations exceed scope_hierarchy.levels "
-                    f"depth ({len(levels)})"
-                )
             leaves.extend(
                 _walk(
                     children,
-                    levels=levels,
                     depth=depth + 1,
                     ancestors=chain,
                     ancestor_segments=segments,
@@ -136,11 +136,11 @@ def _walk(
 
 
 def collect_leaves(doc: Dict[str, Any]) -> List[Tuple[str, List[Dict[str, Any]], List[str]]]:
-    levels = parse_levels(doc)
+    parse_levels(doc)  # validate scope_hierarchy.levels exists
     loc = doc.get("locations")
     if loc is None:
         return []
-    raw = _walk(loc, levels=levels, depth=0, ancestors=[], ancestor_segments=[])
+    raw = _walk(loc, depth=0, ancestors=[], ancestor_segments=[])
     seen: Dict[str, int] = {}
     for scope_id, _, _ in raw:
         seen[scope_id] = seen.get(scope_id, 0) + 1
@@ -165,7 +165,7 @@ def build_contexts(
             desc_str = desc if isinstance(desc, str) else None
             path_steps.append(
                 PathStep(
-                    level=levels[depth],
+                    level=path_step_level_name(levels, depth),
                     name=display_name(node),
                     description=desc_str,
                     segment_id=segments[depth],

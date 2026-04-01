@@ -333,6 +333,14 @@ def tag_aliasing(
 
         logger.info(f"Processing {len(tags)} tags for aliasing")
 
+        progress_every = max(0, int(data.get("progress_every", 0) or 0))
+        if progress_every > 0:
+            logger.info(
+                "Aliasing: progress log every %s tag(s) (%s total)",
+                progress_every,
+                len(tags),
+            )
+
         # Process each tag
         aliasing_results = []
         tag_to_entity_map = data.get("_tag_to_entity_map", {})
@@ -374,6 +382,16 @@ def tag_aliasing(
             aliasing_results.append(aliasing_result)
 
             logger.debug(f"Generated {len(result.aliases)} aliases for tag '{tag}'")
+
+            tag_n = i + 1
+            if progress_every > 0 and tag_n % progress_every == 0:
+                acc_aliases = sum(len(r.get("aliases") or []) for r in aliasing_results)
+                logger.info(
+                    "Aliasing progress: %s/%s tags, %s aliases accumulated",
+                    tag_n,
+                    len(tags),
+                    acc_aliases,
+                )
 
         # Store results
         data["aliasing_results"] = aliasing_results

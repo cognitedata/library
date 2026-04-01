@@ -6,7 +6,7 @@ CDF Functions or called directly, maintaining compatibility with the CDF
 workflow format while using the existing AliasingEngine.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 try:
     from cognite.client import CogniteClient
@@ -15,11 +15,18 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
+from ..cdf_fn_common.function_logging import resolve_function_logger
+from ..cdf_fn_common.scope_document_dm import ensure_aliasing_config_from_scope_dm
 from .cdf_adapter import _convert_yaml_direct_to_aliasing_config
-from .dependencies import create_client, create_logger_service, get_env_variables
+from .dependencies import create_client, get_env_variables
 from .engine.tag_aliasing_engine import AliasingEngine
 
-def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
+
+def handle(
+    data: Dict[str, Any],
+    client: CogniteClient = None,
+    logger: Optional[Any] = None,
+) -> Dict[str, Any]:
     """
     CDF-compatible handler function for tag aliasing.
 
@@ -33,21 +40,25 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             - tags: Optional list of tags to generate aliases for
             - entities: Optional list of entities with tags to alias
         client: CogniteClient instance (required for RAW read/write workflow mode)
+        logger: Optional logger (must support ``.verbose``); default from ``data``.
 
     Returns:
         JSON-serializable dict with status + summary.
     """
-    logger = None
+    log: Any = None
 
     try:
-        # Initialize logging
         loglevel = data.get("logLevel", "INFO")
         verbose = data.get("verbose", False)
+        log = resolve_function_logger(data, logger)
 
-        # Use dependencies helper to create logger
-        logger = create_logger_service(loglevel, verbose)
+        log.info(f"Starting tag aliasing with loglevel = {loglevel} with verbose set to {verbose}")
 
-        logger.info(f"Starting tag aliasing with loglevel = {loglevel} with verbose set to {verbose}")
+        if not client:
+            raise ValueError("CogniteClient is required for tag aliasing in CDF")
+
+        if data.get("scope_document"):
+            ensure_aliasing_config_from_scope_dm(data, client)
 
         # Load configuration from workflow payload (required)
         if "config" in data:
@@ -65,7 +76,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                     aliasing_config = _convert_yaml_direct_to_aliasing_config(
                         {"config": unwrapped}
                     )
-                    logger.info("Using workflow-provided aliasing config")
+                    log.info("Using workflow-provided aliasing config")
 
                     # Enable RAW upload from config parameters unless explicitly overridden
                     params = unwrapped.get("parameters", {})
@@ -80,12 +91,12 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
                 else:
                     # Direct engine-ready config
                     aliasing_config = provided_config
-                    logger.info("Using provided config directly")
+                    log.info("Using provided config directly")
             else:
                 aliasing_config = provided_config
-                logger.info("Using provided config directly")
+                log.info("Using provided config directly")
         else:
-            logger.warning(
+            log.warning(
                 "No config in request; using identity passthrough (zero aliasing rules). "
                 "CDF functions must pass aliasing config in the workflow payload."
             )
@@ -100,11 +111,11 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
             }
 
         # Initialize engine with logger
-        engine = AliasingEngine(aliasing_config, logger)
+        engine = AliasingEngine(aliasing_config, log)
 
         from .pipeline import tag_aliasing
 
-        tag_aliasing(client=client, logger=logger, data=data, engine=engine)
+        tag_aliasing(client=client, logger=log, data=data, engine=engine)
 
         # CDF Functions requires the returned object to be JSON-serializable.
         # The pipeline stores rich objects in `data` (engines, mappings, etc),
@@ -123,8 +134,8 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
     except Exception as e:
         message = f"Tag aliasing pipeline failed: {e!s}"
 
-        if logger:
-            logger.error(message)
+        if log:
+            log.error(message)
         else:
             print(f"[ERROR] {message}")
 

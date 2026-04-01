@@ -94,7 +94,7 @@ DM entities → fn_dm_key_extraction → RAW (keys + FK/doc JSON)
 
 ## Implementation Notes
 
-### Current workflow (`cdf_key_extraction_aliasing_{{ scope_cdf_suffix }}` v1)
+### Current workflow (`cdf_key_extraction_aliasing` v4)
 1. **Key extraction** — queries source views, writes extraction output to RAW.
 2. **Reference index** — reads FK/document JSON from extraction RAW, updates inverted index table.
 3. **Aliasing** — reads candidate keys from extraction RAW, writes alias rows to RAW.
@@ -127,4 +127,4 @@ AliasingResult(
 ---
 
 **Diagram Version**: 1.2  
-**Last Updated**: RAW handoff, optional FK write-back; default CDM scope is regex-only extraction with a slim aliasing stack (see `config/scopes/default/key_extraction_aliasing.yaml`)
+**Last Updated**: RAW handoff, optional FK write-back; default CDM scope is regex-only extraction with a slim aliasing stack (see `key_extraction_aliasing.yaml` at module root)
