@@ -1,4 +1,4 @@
-"""Emit one ``workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`` per leaf scope."""
+"""Emit one schedule ``*.WorkflowTrigger.yaml`` per leaf scope (flat or under workflows/<suffix>/)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,9 @@ from typing import Any, List, Sequence
 import yaml
 
 from scope_build.context import ScopeBuildContext
+from scope_build.paths import WORKFLOW_ARTIFACTS_REL, WORKFLOW_TEMPLATE_REL
+from scope_build.io_util import strip_leading_comments_and_blanks
+from scope_build.mode import ScopeBuildMode, scoped_workflow_external_id
 from scope_build.naming import cdf_external_id_suffix
 from scope_build.scope_document_patch import prepare_scope_document_for_context
 
@@ -17,36 +20,50 @@ logger = logging.getLogger(__name__)
 
 # Legacy monolithic output (removed when running build).
 LEGACY_MONOLITHIC_NAME = "key_extraction_aliasing_scope_triggers.WorkflowTrigger.yaml"
-# Generated per leaf: key_extraction_aliasing.<suffix>.WorkflowTrigger.yaml
-GENERATED_TRIGGER_GLOB = "key_extraction_aliasing.*.WorkflowTrigger.yaml"
 
 PLACEHOLDER = "__KEA_CDF_SUFFIX__"
 # Safe margin under Cognite task I/O 0.2 MiB (minified JSON byte length).
 MAX_SCOPE_DOCUMENT_JSON_BYTES = 200_000
 DEFAULT_TRIGGER_TEMPLATE_REL = (
-    Path("workflows")
-    / "_template"
-    / "workflow.template.WorkflowTrigger.yaml.template"
+    WORKFLOW_TEMPLATE_REL / "workflow.template.WorkflowTrigger.yaml"
 )
-DEFAULT_SCOPE_DOCUMENT_REL = Path("workflows") / "_template" / "workflow.template.config.yaml"
+DEFAULT_SCOPE_DOCUMENT_REL = WORKFLOW_TEMPLATE_REL / "workflow.template.config.yaml"
 
 
-def workflow_trigger_filename(suffix: str) -> str:
-    """Toolkit filename for one schedule trigger (suffix from ``cdf_external_id_suffix``)."""
-    return f"key_extraction_aliasing.{suffix}.WorkflowTrigger.yaml"
+def generated_trigger_glob(workflow_base: str) -> str:
+    """Glob pattern for flat triggers at ``workflows/`` root (trigger_only layout)."""
+    return f"{workflow_base}.*.WorkflowTrigger.yaml"
+
+
+def workflow_trigger_filename(workflow_base: str, suffix: str) -> str:
+    """Basename for one schedule trigger (suffix from ``cdf_external_id_suffix``)."""
+    return f"{workflow_base}.{suffix}.WorkflowTrigger.yaml"
+
+
+def trigger_output_path(
+    *,
+    workflows_dir: Path,
+    mode: ScopeBuildMode,
+    workflow_base: str,
+    suffix: str,
+) -> Path:
+    """Directory + basename for a leaf trigger."""
+    name = workflow_trigger_filename(workflow_base, suffix)
+    if mode == "full":
+        return workflows_dir / suffix / name
+    return workflows_dir / name
 
 
 def _cleanup_legacy_trigger_layout(workflows_dir: Path) -> None:
     """Remove superseded trigger layouts only (does not delete current dot-form per-scope files).
 
-    Per-scope files ``key_extraction_aliasing.<suffix>.WorkflowTrigger.yaml`` are always
+    Per-scope files ``<workflow_base>.<suffix>.WorkflowTrigger.yaml`` are always
     left on disk even when no longer in the configured ``scope_hierarchy.locations`` tree — remove those by hand if needed.
     """
     legacy = workflows_dir / LEGACY_MONOLITHIC_NAME
     if legacy.is_file():
         legacy.unlink()
         logger.info("Removed legacy monolithic triggers file %s", legacy)
-    # Previous layout: <prefix>_<suffix>.WorkflowTrigger.yaml (underscore before scope)
     for pattern in (
         "key_extraction_aliasing_*.WorkflowTrigger.yaml",
         "cdf_key_extraction_aliasing_*.WorkflowTrigger.yaml",
@@ -71,7 +88,7 @@ def _assert_scope_document_within_limit(scope_document: dict, *, scope_id: str) 
     n = minified_json_utf8_length(scope_document)
     if n > MAX_SCOPE_DOCUMENT_JSON_BYTES:
         raise ValueError(
-            f"scope_document for scope_id={scope_id!r} minified JSON is {n} bytes "
+            f"configuration for scope_id={scope_id!r} minified JSON is {n} bytes "
             f"(limit {MAX_SCOPE_DOCUMENT_JSON_BYTES}); shrink config or split scopes."
         )
 
@@ -84,9 +101,15 @@ class WorkflowTriggersBuilder:
         *,
         template_path: Path | None = None,
         scope_document_path: Path | None = None,
+        mode: ScopeBuildMode = "trigger_only",
+        workflow_base: str = "key_extraction_aliasing",
+        overwrite: bool = False,
     ) -> None:
         self._template_path_override = template_path
         self._scope_document_path_override = scope_document_path
+        self._mode: ScopeBuildMode = mode
+        self._workflow_base = workflow_base
+        self._overwrite = overwrite
 
     def run(self, ctx: ScopeBuildContext) -> None:
         """Per-scope no-op; triggers are created if missing in ``write_all``."""
@@ -97,12 +120,12 @@ class WorkflowTriggersBuilder:
         *,
         dry_run: bool,
         module_root: Path | None = None,
-        workflow_external_id: str = "key_extraction_aliasing",
     ) -> list[Path] | None:
-        """Create missing ``key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`` under ``workflows/``.
+        """Create missing trigger YAML per leaf. Layout depends on ``scope_build_mode`` (see default.config.yaml).
 
-        Existing files are not overwritten. Returns paths that were written (or would be written in
-        dry-run); returns ``None`` when there are no leaf contexts.
+        Existing files are skipped unless ``overwrite`` was set on the builder (``--force``).
+        Returns paths that were written or overwritten (or would be in dry-run); returns ``None``
+        when there are no leaf contexts.
         """
         root = module_root if module_root is not None else (
             contexts[0].module_root if contexts else None
@@ -110,45 +133,65 @@ class WorkflowTriggersBuilder:
         if not contexts:
             logger.info("No leaf scopes; skip workflow triggers")
             if not dry_run and root is not None:
-                _cleanup_legacy_trigger_layout(root / "workflows")
+                _cleanup_legacy_trigger_layout(root / WORKFLOW_ARTIFACTS_REL)
             return None
         module_root = contexts[0].module_root
-        workflows_dir = module_root / "workflows"
+        workflows_dir = module_root / WORKFLOW_ARTIFACTS_REL
+        if self._mode == "full":
+            flat_triggers = sorted(workflows_dir.glob(generated_trigger_glob(self._workflow_base)))
+            if flat_triggers:
+                logger.warning(
+                    "scope_build_mode=full but flat trigger(s) exist under workflows/: %s — "
+                    "remove them if you intend scoped-only deploys.",
+                    ", ".join(p.name for p in flat_triggers),
+                )
         template_text = _read_trigger_template(module_root, self._template_path_override)
         scope_tpl = _read_scope_document_template(module_root, self._scope_document_path_override)
         triggers = _render_triggers(
             template_text,
             scope_tpl,
             contexts,
-            workflow_external_id=workflow_external_id,
+            mode=self._mode,
+            workflow_base=self._workflow_base,
         )
         created: list[Path] = []
         skipped_existing = 0
         header = (
             "# Generated by scripts/build_scopes.py (workflow_triggers builder). "
-            "# --build creates this file only if it is missing; delete it to recreate from templates, "
-            "or use --check-workflow-triggers in CI to catch drift.\n"
-            "# Trigger shell: workflows/_template/workflow.template.WorkflowTrigger.yaml.template\n"
-            "# Scope body: workflows/_template/workflow.template.config.yaml\n"
+            "# --build creates this file only if it is missing (--force overwrites from templates); "
+            "delete it to recreate, or use --check-workflow-triggers in CI to catch drift.\n"
+            "# Trigger shell: workflow_template/workflow.template.WorkflowTrigger.yaml\n"
+            "# Scope body: workflow_template/workflow.template.config.yaml\n"
             "# Toolkit substitutes {{ key_extraction_aliasing_schedule }}, {{functionClientId}}, "
-            "{{functionClientSecret}}, and {{instance_space}} inside scope_document at deploy time.\n"
+            "{{functionClientSecret}}, and {{instance_space}} inside configuration at deploy time.\n"
         )
         for ctx, trig in zip(contexts, triggers, strict=True):
             suffix = cdf_external_id_suffix(ctx.scope_id)
-            out_path = workflows_dir / workflow_trigger_filename(suffix)
+            out_path = trigger_output_path(
+                workflows_dir=workflows_dir,
+                mode=self._mode,
+                workflow_base=self._workflow_base,
+                suffix=suffix,
+            )
             if dry_run:
                 if out_path.is_file():
-                    skipped_existing += 1
-                    logger.info("[dry-run] would skip existing %s", out_path)
+                    if self._overwrite:
+                        created.append(out_path)
+                        logger.info("[dry-run] would overwrite %s", out_path)
+                    else:
+                        skipped_existing += 1
+                        logger.info("[dry-run] would skip existing %s", out_path)
                 else:
                     created.append(out_path)
                     logger.info("[dry-run] would write %s", out_path)
                 continue
-            workflows_dir.mkdir(parents=True, exist_ok=True)
-            if out_path.is_file():
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            if out_path.is_file() and not self._overwrite:
                 skipped_existing += 1
                 logger.info("Skipping existing workflow trigger %s", out_path.name)
                 continue
+            if out_path.is_file() and self._overwrite:
+                logger.info("Overwriting workflow trigger %s", out_path.name)
             with open(out_path, "w", encoding="utf-8") as f:
                 f.write(header)
                 yaml.safe_dump(
@@ -165,7 +208,7 @@ class WorkflowTriggersBuilder:
             _cleanup_legacy_trigger_layout(workflows_dir)
 
         logger.info(
-            "Workflow triggers: created %d, skipped %d existing (under workflows/)",
+            "Workflow triggers: wrote %d, skipped %d existing",
             len(created),
             skipped_existing,
         )
@@ -189,12 +232,24 @@ def _read_scope_document_template(module_root: Path, override: Path | None) -> d
     return doc
 
 
+def _workflow_external_id_for_trigger(
+    *,
+    mode: ScopeBuildMode,
+    workflow_base: str,
+    suffix: str,
+) -> str:
+    if mode == "trigger_only":
+        return workflow_base
+    return scoped_workflow_external_id(workflow_base, suffix)
+
+
 def _render_triggers(
     template_text: str,
     scope_template: dict,
     contexts: Sequence[ScopeBuildContext],
     *,
-    workflow_external_id: str = "key_extraction_aliasing",
+    mode: ScopeBuildMode,
+    workflow_base: str,
 ) -> list[dict]:
     if PLACEHOLDER not in template_text:
         raise ValueError(
@@ -205,24 +260,19 @@ def _render_triggers(
     for ctx in contexts:
         suffix = cdf_external_id_suffix(ctx.scope_id)
         chunk = template_text.replace(PLACEHOLDER, suffix)
-        # Bare `{{ workflow }}` is invalid YAML; substitute before parse (see default.config.yaml `workflow:`).
-        chunk = chunk.replace("{{ workflow }}", workflow_external_id)
+        wf_ext = _workflow_external_id_for_trigger(
+            mode=mode, workflow_base=workflow_base, suffix=suffix
+        )
+        chunk = chunk.replace("{{ workflow }}", wf_ext)
         trig = yaml.safe_load(chunk)
         if not isinstance(trig, dict):
             raise ValueError("Workflow trigger template must be a single YAML mapping (one trigger)")
         inp = trig.setdefault("input", {})
         scope_document = prepare_scope_document_for_context(scope_template, ctx)
         _assert_scope_document_within_limit(scope_document, scope_id=ctx.scope_id)
-        inp["scope_document"] = scope_document
+        inp["configuration"] = scope_document
         out.append(trig)
     return out
-
-
-def _strip_leading_comments_and_blanks(text: str) -> str:
-    lines = text.splitlines()
-    while lines and (lines[0].startswith("#") or lines[0].strip() == ""):
-        lines.pop(0)
-    return "\n".join(lines).lstrip()
 
 
 def verify_triggers_file(
@@ -231,51 +281,54 @@ def verify_triggers_file(
     *,
     template_path: Path | None = None,
     scope_document_path: Path | None = None,
-    workflow_external_id: str = "key_extraction_aliasing",
+    mode: ScopeBuildMode = "trigger_only",
+    workflow_base: str = "key_extraction_aliasing",
 ) -> None:
     """Raise SystemExit(1) if a required trigger is missing, invalid YAML, or out of date.
 
-    Extra ``key_extraction_aliasing.*.WorkflowTrigger.yaml`` files on disk are ignored
+    Extra flat ``<workflow_base>.*.WorkflowTrigger.yaml`` files on disk are ignored in trigger_only
     (``--build`` does not remove them).
     """
-    workflows_dir = module_root / "workflows"
+    workflows_dir = module_root / WORKFLOW_ARTIFACTS_REL
     legacy = workflows_dir / LEGACY_MONOLITHIC_NAME
     if legacy.is_file():
         raise SystemExit(
             f"Legacy {LEGACY_MONOLITHIC_NAME} is present; run:\n"
             f"  python {module_root / 'scripts' / 'build_scopes.py'}\n"
-            "to generate per-scope key_extraction_aliasing.<scope>.WorkflowTrigger.yaml files."
+            "to generate per-scope WorkflowTrigger.yaml files."
         )
     template_text = _read_trigger_template(module_root, template_path)
     scope_tpl = _read_scope_document_template(module_root, scope_document_path)
-    expected_by_name: dict[str, dict] = {}
+    expected_by_relpath: dict[str, dict] = {}
     for ctx in contexts:
-        name = workflow_trigger_filename(cdf_external_id_suffix(ctx.scope_id))
+        suffix = cdf_external_id_suffix(ctx.scope_id)
+        name = workflow_trigger_filename(workflow_base, suffix)
+        if mode == "full":
+            rel = str(WORKFLOW_ARTIFACTS_REL / suffix / name)
+        else:
+            rel = str(WORKFLOW_ARTIFACTS_REL / name)
         exp = _render_triggers(
             template_text,
             scope_tpl,
             [ctx],
-            workflow_external_id=workflow_external_id,
+            mode=mode,
+            workflow_base=workflow_base,
         )[0]
-        expected_by_name[name] = exp
+        expected_by_relpath[rel] = exp
 
-    on_disk = {p.name for p in workflows_dir.glob(GENERATED_TRIGGER_GLOB)}
-    expected_names = set(expected_by_name.keys())
-    missing = expected_names - on_disk
-    if missing:
-        raise SystemExit(
-            f"Missing workflow trigger file(s) for current hierarchy: {sorted(missing)!r}. "
-            f"On disk: {sorted(on_disk)!r}. Run:\n  python {module_root / 'scripts' / 'build_scopes.py'}"
-        )
-
-    for name, exp in expected_by_name.items():
-        path = workflows_dir / name
-        body = _strip_leading_comments_and_blanks(path.read_text(encoding="utf-8"))
+    for rel, exp in expected_by_relpath.items():
+        path = module_root / rel
+        if not path.is_file():
+            raise SystemExit(
+                f"Missing workflow trigger file for current hierarchy: {rel}. "
+                f"Run:\n  python {module_root / 'scripts' / 'build_scopes.py'}"
+            )
+        body = strip_leading_comments_and_blanks(path.read_text(encoding="utf-8"))
         try:
             existing = yaml.safe_load(body)
         except yaml.YAMLError as e:
             raise SystemExit(f"Invalid YAML in {path}: {e}") from e
         if existing != exp:
             raise SystemExit(
-                f"{name} is out of date. Run:\n  python {module_root / 'scripts' / 'build_scopes.py'}"
+                f"{rel} is out of date. Run:\n  python {module_root / 'scripts' / 'build_scopes.py'} --force"
             )

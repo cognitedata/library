@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Embedded scope template for schedule triggers (v4). Copied into each trigger's
-# input.scope_document by scripts/build_scopes.py (patched per hierarchy leaf).
+# input.configuration by scripts/build_scopes.py (patched per hierarchy leaf).
 # Keep key_extraction.externalId / aliasing.externalId ending with _default so
 # patches apply _<scope_cdf_suffix>. Do not add top-level scope: here; build_scopes
 # injects it. For local CLI default, edit workflow.local.config.yaml at module root.
@@ -26,7 +26,7 @@ key_extraction:
       incremental_change_processing: true
       # When true, run fn_dm_reference_index (RAW inverted index for FK + document refs).
       # Must match enable_reference_index on the workflow task payload for deployed runs.
-      enable_reference_index: false
+      enable_reference_index: true
       # Optional: set false to disable default hash-gated cohort skipping in incremental mode.
       # incremental_skip_unchanged_source_inputs: false
       # Drop FK strings that duplicate a candidate key on the same instance (default true).

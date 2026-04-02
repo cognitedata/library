@@ -15,7 +15,7 @@ def merged_scope_document_for_local_run(
 ) -> Dict[str, Any]:
     """Load v1 scope YAML and set ``key_extraction.config.data.source_views`` to ``source_views``.
 
-    Deployed workflows pass ``workflow.input.scope_document`` with the leaf-filtered view list.
+    Deployed workflows pass ``workflow.input.configuration`` with the leaf-filtered view list.
     The local runner filters views (e.g. ``--instance-space``) before calling this so task dicts
     match CDF function inputs.
     """

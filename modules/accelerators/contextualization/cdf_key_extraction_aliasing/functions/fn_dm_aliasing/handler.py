@@ -57,7 +57,7 @@ def handle(
         if not client:
             raise ValueError("CogniteClient is required for tag aliasing in CDF")
 
-        if data.get("scope_document"):
+        if data.get("configuration") or data.get("scope_document"):
             ensure_aliasing_config_from_scope_dm(data, client)
 
         # Load configuration from workflow payload (required)

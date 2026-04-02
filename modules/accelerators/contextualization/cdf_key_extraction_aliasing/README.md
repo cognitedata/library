@@ -33,14 +33,14 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 
 **Reference tables** for each extraction method and aliasing `type` value: [Key extraction spec](<docs/specifications/1. key_extraction.md>), [Aliasing spec](<docs/specifications/2. aliasing.md>).
 
-**Default CDM scope** (asset + file + timeseries, shared `alphanumeric_tag`): [`workflow.local.config.yaml`](workflow.local.config.yaml) at module root. Narrative: [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md). Authoring detail: [Configuration guide — Default CDM scope](docs/guides/configuration_guide.md#default-cdm-scope). Deployed triggers embed the patched template from [`workflows/_template/workflow.template.config.yaml`](workflows/_template/workflow.template.config.yaml).
+**Default CDM scope** (asset + file + timeseries, shared `alphanumeric_tag`): [`workflow.local.config.yaml`](workflow.local.config.yaml) at module root. Narrative: [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md). Authoring detail: [Configuration guide — Default CDM scope](docs/guides/configuration_guide.md#default-cdm-scope). Deployed triggers embed the patched template from [`workflow_template/workflow.template.config.yaml`](workflow_template/workflow.template.config.yaml).
 
 ### Configuration entry points
 
-- **Deployed workflows** pass **`scope_document`** on **`workflow.input`** (v4); functions derive `config` from it. Authoring source in-repo: **`workflow.local.config.yaml`** (local default), **`workflows/_template/workflow.template.config.yaml`**, and **`config/examples/**`**. Validation: Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
+- **Deployed workflows** pass **`configuration`** on **`workflow.input`** (v4); functions derive `config` from it. Authoring source in-repo: **`workflow.local.config.yaml`** (local default), **`workflow_template/workflow.template.config.yaml`**, and **`config/examples/**`**. Validation: Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
 - **`config/configuration_manager.py`:** dataclasses + JSON Schema for integration-style tests (`tests/integration/contextualization/`). **Not** used by `fn_dm_*` handlers at runtime.
 
-**Multi-site scopes:** edit **`scope_hierarchy`** in [default.config.yaml](default.config.yaml), then **`main.py --build`** as in [Local runs (main.py)](#local-runs-mainpy). Deep dive: [config/README.md](config/README.md) (*Scope hierarchy builder*), [workflows/README.md](workflows/README.md), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
+**Multi-site scopes:** edit **`scope_hierarchy`** in [default.config.yaml](default.config.yaml), then **`main.py --build`** as in [Local runs (main.py)](#local-runs-mainpy). Deep dive: [config/README.md](config/README.md) (*Scope hierarchy builder*), [workflows/README.md](workflows/README.md) (generated manifests), [workflow_template/README.md](workflow_template/README.md) (templates), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
 
 ## Roadmap
 
@@ -60,13 +60,13 @@ Run **`main.py`** from **repository root** with **`PYTHONPATH=.`** (see [Prerequ
 Before **`--build`**, configure **`scope_hierarchy`** in [default.config.yaml](default.config.yaml) at the module root (or pass another file via **`--hierarchy`** to `scripts/build_scopes.py`):
 
 - **`scope_hierarchy.levels`** — Ordered labels for path tiers (for example site → plant → area → system). You do not have to reach every tier; shallow trees are valid, and deeper paths use synthetic names such as `level_3` when you run past the end of `levels`.
-- **`scope_hierarchy.locations`** — Root list of scope nodes. Each node should have a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`) and optional **`name`** / **`description`**. **Children** of a node are listed under another **`locations`** key on that node (same key name as the root list). A **leaf** is a node with no child list or an empty **`locations: []`**; leaves get one **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** each.
+- **`scope_hierarchy.locations`** — Root list of scope nodes. Each node should have a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`) and optional **`name`** / **`description`**. **Children** of a node are listed under another **`locations`** key on that node (same key name as the root list). A **leaf** is a node with no child list or an empty **`locations: []`**; leaves get one **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** each (or under **`workflows/<suffix>/`** when **`scope_build_mode: full`**).
 
 See the commented example under **`scope_hierarchy.locations`** in `default.config.yaml` for a deeper tree.
 
 ### Create missing workflow triggers (`--build`)
 
-**`--build`** creates **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** only when that file does not exist (embedded **`scope_document`** per leaf). It does **not** overwrite existing triggers; delete a file first if you need to recreate it from templates. **No CDF connection.**
+**`--build`** creates **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (flat **`trigger_only`** layout) only when that file does not exist (embedded **`configuration`** per leaf). It does **not** overwrite existing triggers; delete a file first if you need to recreate it from templates. **No CDF connection.**
 
 ```bash
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --build
@@ -88,7 +88,7 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--build` | Only run the scope builder: **create missing** `key_extraction_aliasing.*.WorkflowTrigger.yaml` from `default.config.yaml` (does not overwrite existing). Forwards `--check-workflow-triggers`, `--dry-run`, `--hierarchy`, etc. Does **not** run the pipeline. | off |
+| `--build` | Only run the scope builder: **create missing** `workflows/.../key_extraction_aliasing.*.WorkflowTrigger.yaml` (and Workflow/WorkflowVersion per `scope_build_mode`) from `default.config.yaml` (does not overwrite existing). Forwards `--check-workflow-triggers`, `--dry-run`, `--hierarchy`, etc. Does **not** run the pipeline. | off |
 | `--limit` | Max instances per view; `0` = all | `0` |
 | `--verbose` | Verbose logging | false |
 | `--dry-run` | Skip alias persistence to CDF | false |
@@ -211,7 +211,8 @@ cdf_key_extraction_aliasing/
 │   ├── fn_dm_key_extraction/
 │   ├── fn_dm_aliasing/
 │   └── fn_dm_alias_persistence/
-├── workflows/              # CDF Workflow YAML — see workflows/README.md
+├── workflow_template/      # Authoring templates + diagram — see workflow_template/README.md
+├── workflows/              # Generated Workflow YAML (--build) — see workflows/README.md
 ├── scripts/
 ├── tests/
 └── docs/                   # see docs/README.md
@@ -222,7 +223,8 @@ cdf_key_extraction_aliasing/
 | `workflow.local.config.yaml` | Default v1 scope document at module root (local CLI) |
 | `config/examples/` | Demos and reference YAML — [config/examples/README.md](config/examples/README.md) |
 | `functions/fn_dm_*` | CDF functions + engines (`fn_dm_reference_index` = RAW reference index) |
-| `workflows/` | Workflow manifests and diagram |
+| `workflow_template/` | `workflow.template.Workflow*.yaml`, `workflow.template.WorkflowTrigger.yaml`, `workflow.template.config.yaml`, diagram |
+| `workflows/` | Generated Workflow / WorkflowVersion / WorkflowTrigger YAML |
 | `tests/` | Pytest suite and `tests/results/` for JSON artifacts |
 | `docs/` | Specs, guides, report |
 
@@ -241,7 +243,7 @@ Loading in code: `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_
 
 ## CDF deployment
 
-Deploy workflow **`key_extraction_aliasing`** (v4) once; use per-scope **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (embedded **`scope_document`**). Creating or refreshing triggers: [Local runs (main.py)](#local-runs-mainpy) and [workflows/README.md](workflows/README.md).
+Deploy workflow **`key_extraction_aliasing`** (v4) once; use per-scope **`workflows/.../key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (embedded **`configuration`**). Creating or refreshing triggers: [Local runs (main.py)](#local-runs-mainpy) and [workflows/README.md](workflows/README.md).
 
 ## Testing
 

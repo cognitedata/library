@@ -120,7 +120,7 @@ This document provides a comprehensive analysis of the key extraction and aliasi
 
 ### Workflow Overview
 
-Diagram (Mermaid): [workflows/workflow_diagram.md](../workflows/workflow_diagram.md).
+Diagram (Mermaid): [workflow_template/workflow_diagram.md](../workflow_template/workflow_diagram.md).
 
 **Workflow Steps:**
 1. **Key Extraction** - Extracts candidate keys, foreign key references, and document references from CDF entities

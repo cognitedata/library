@@ -61,7 +61,7 @@ def handle(
         if not client:
             raise ValueError("CogniteClient is required for alias persistence")
 
-        if data.get("scope_document"):
+        if data.get("configuration") or data.get("scope_document"):
             ensure_alias_persistence_from_scope_dm(data, client)
 
         # Call pipeline function

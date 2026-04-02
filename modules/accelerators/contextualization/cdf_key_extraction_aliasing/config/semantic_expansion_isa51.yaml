@@ -1,6 +1,6 @@
 # ISA 5.1–inspired semantic expansion preset (standalone; not tag_patterns.yaml).
 #
-# The same type_mappings are embedded in workflows/_template/workflow.template.config.yaml,
+# The same type_mappings are embedded in workflow_template/workflow.template.config.yaml,
 # workflow.local.config.yaml, and workflows/key_extraction_aliasing.default.WorkflowTrigger.yaml
 # so scope_document / local runs are self-contained. Edit here first, then sync those files.
 #

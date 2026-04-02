@@ -9,9 +9,17 @@ from typing import List, Sequence
 
 import yaml
 
-from scope_build.builders.workflow_triggers import WorkflowTriggersBuilder
+from scope_build.builders.workflow_definitions import (
+    RootWorkflowDefinitionsBuilder,
+    ScopedWorkflowDefinitionsBuilder,
+    verify_all_scoped_workflow_bundles,
+    verify_root_workflow_bundle,
+)
+from scope_build.builders.workflow_triggers import WorkflowTriggersBuilder, verify_triggers_file
 from scope_build.context import ScopeBuildContext
 from scope_build.hierarchy import build_contexts, load_hierarchy_doc
+from scope_build.mode import scope_build_mode_from_doc
+from scope_build.paths import WORKFLOW_ARTIFACTS_REL, WORKFLOW_TEMPLATE_REL
 from scope_build.registry import (
     ScopeArtifactBuilder,
     default_builders,
@@ -25,13 +33,14 @@ DEFAULT_WORKFLOW_EXTERNAL_ID = "key_extraction_aliasing"
 
 
 def workflow_external_id_from_hierarchy(doc: dict) -> str:
-    """Resolve workflow external id for trigger YAML (``default.config.yaml`` key ``workflow``)."""
+    """Resolve workflow external id base (``default.config.yaml`` key ``workflow``)."""
     w = doc.get("workflow")
     if w is not None and str(w).strip():
         return str(w).strip()
     return DEFAULT_WORKFLOW_EXTERNAL_ID
 
-DEFAULT_SCOPE_DOCUMENT = Path("workflows") / "_template" / "workflow.template.config.yaml"
+
+DEFAULT_SCOPE_DOCUMENT = WORKFLOW_TEMPLATE_REL / "workflow.template.config.yaml"
 
 
 def module_root_from_package() -> Path:
@@ -49,19 +58,24 @@ def run_build(
     doc = load_hierarchy_doc(hierarchy_path)
     contexts = build_contexts(module_root=module_root, doc=doc, dry_run=dry_run)
     logger.info("Found %d leaf scope(s)", len(contexts))
-    per_scope_builders = [b for b in builders if not isinstance(b, WorkflowTriggersBuilder)]
-    triggers_builder = next((b for b in builders if isinstance(b, WorkflowTriggersBuilder)), None)
+
+    for b in builders:
+        if isinstance(b, RootWorkflowDefinitionsBuilder):
+            b.write_once(module_root, dry_run=dry_run)
+
     for ctx in contexts:
-        for b in per_scope_builders:
+        for b in builders:
+            if isinstance(b, (RootWorkflowDefinitionsBuilder, WorkflowTriggersBuilder)):
+                continue
             logger.debug("Builder %r → scope_id=%s", b.name, ctx.scope_id)
             b.run(ctx)
+
+    triggers_builder = next((b for b in builders if isinstance(b, WorkflowTriggersBuilder)), None)
     if triggers_builder is not None:
-        wf_id = workflow_external_id_from_hierarchy(doc)
         triggers_builder.write_all(
             contexts,
             dry_run=dry_run,
             module_root=module_root,
-            workflow_external_id=wf_id,
         )
     return contexts
 
@@ -69,10 +83,19 @@ def run_build(
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
-            "Create missing workflow schedule triggers from default.config.yaml (scope_hierarchy.levels + scope_hierarchy.locations). "
-            "Does not overwrite existing key_extraction_aliasing.*.WorkflowTrigger.yaml files. "
-            "Embeds patched scope documents from workflows/_template/workflow.template.config.yaml."
+            "Create missing workflow artifacts from default.config.yaml (scope_hierarchy + scope_build_mode). "
+            "trigger_only: root Workflow/WorkflowVersion if missing, flat *.WorkflowTrigger.yaml under workflows/. "
+            "full: scoped trio under workflows/<suffix>/. "
+            "Templates are read from workflow_template/. Use --force to overwrite existing generated files."
         )
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Overwrite existing Workflow, WorkflowVersion, and WorkflowTrigger YAML when they "
+            "already exist (refresh from templates). Does not apply to --check-workflow-triggers."
+        ),
     )
     p.add_argument(
         "--hierarchy",
@@ -115,9 +138,9 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--check-workflow-triggers",
         action="store_true",
         help=(
-            "Exit 1 if any trigger required by the current hierarchy is missing, invalid, or out of "
-            "date vs templates (no writes). Extra key_extraction_aliasing.*.WorkflowTrigger.yaml "
-            "files on disk are allowed."
+            "Exit 1 if workflow triggers or Workflow/WorkflowVersion artifacts required by "
+            "scope_build_mode and the current hierarchy are missing, invalid, or out of date "
+            "vs templates (no writes)."
         ),
     )
     p.add_argument(
@@ -126,7 +149,25 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         default=None,
         help=(
             "YAML template for each schedule trigger (default: "
-            "workflows/_template/workflow.template.WorkflowTrigger.yaml.template)"
+            "workflow_template/workflow.template.WorkflowTrigger.yaml)"
+        ),
+    )
+    p.add_argument(
+        "--workflow-template",
+        type=Path,
+        default=None,
+        help=(
+            "Workflow container template (default: "
+            "workflow_template/workflow.template.Workflow.yaml)"
+        ),
+    )
+    p.add_argument(
+        "--workflow-version-template",
+        type=Path,
+        default=None,
+        help=(
+            "WorkflowVersion template (default: "
+            "workflow_template/workflow.template.WorkflowVersion.yaml)"
         ),
     )
     return p.parse_args(list(argv) if argv is not None else None)
@@ -141,23 +182,49 @@ def main(argv: Sequence[str] | None = None) -> int:
     module_root = module_root_from_package()
     hierarchy = args.hierarchy or (module_root / DEFAULT_HIERARCHY)
     scope_document = args.scope_document or (module_root / DEFAULT_SCOPE_DOCUMENT)
-    builders = default_builders(
-        scope_document_path=scope_document,
-        workflow_trigger_template_path=args.workflow_trigger_template,
-    )
+    workflow_template = args.workflow_template
+    workflow_version_template = args.workflow_version_template
     if args.list_builders:
+        try:
+            doc = load_hierarchy_doc(hierarchy)
+        except (OSError, ValueError, yaml.YAMLError):
+            doc = {}
+        mode = scope_build_mode_from_doc(doc)
+        wf_base = workflow_external_id_from_hierarchy(doc)
+        builders = default_builders(
+            scope_build_mode=mode,
+            workflow_base=wf_base,
+            scope_document_path=scope_document,
+            workflow_trigger_template_path=args.workflow_trigger_template,
+            workflow_template_path=workflow_template,
+            workflow_version_template_path=workflow_version_template,
+            overwrite=bool(args.force),
+        )
         for b in builders:
             print(b.name)
         return 0
+    try:
+        doc = load_hierarchy_doc(hierarchy)
+        mode = scope_build_mode_from_doc(doc)
+        wf_base = workflow_external_id_from_hierarchy(doc)
+    except (OSError, ValueError, yaml.YAMLError) as e:
+        logging.getLogger(__name__).error("%s", e)
+        return 1
+    builders = default_builders(
+        scope_build_mode=mode,
+        workflow_base=wf_base,
+        scope_document_path=scope_document,
+        workflow_trigger_template_path=args.workflow_trigger_template,
+        workflow_template_path=workflow_template,
+        workflow_version_template_path=workflow_version_template,
+        overwrite=bool(args.force),
+    )
     try:
         builders = filter_builders(builders, args.only_builders)
     except ValueError as e:
         logger.error("%s", e)
         return 1
     if args.check_workflow_triggers:
-        from scope_build.builders.workflow_triggers import verify_triggers_file
-
-        doc = load_hierarchy_doc(hierarchy)
         contexts = build_contexts(module_root=module_root, doc=doc, dry_run=True)
         try:
             verify_triggers_file(
@@ -165,13 +232,29 @@ def main(argv: Sequence[str] | None = None) -> int:
                 list(contexts),
                 template_path=args.workflow_trigger_template,
                 scope_document_path=scope_document,
-                workflow_external_id=workflow_external_id_from_hierarchy(doc),
+                mode=mode,
+                workflow_base=wf_base,
             )
+            if mode == "trigger_only":
+                verify_root_workflow_bundle(
+                    module_root,
+                    wf_base,
+                    workflow_template_path=workflow_template,
+                    workflow_version_template_path=workflow_version_template,
+                )
+            else:
+                verify_all_scoped_workflow_bundles(
+                    module_root,
+                    contexts,
+                    wf_base,
+                    workflow_template_path=workflow_template,
+                    workflow_version_template_path=workflow_version_template,
+                )
         except SystemExit as e:
             logger.error("%s", e)
             code = getattr(e, "code", 1)
             return int(code) if isinstance(code, int) else 1
-        logger.info("Workflow trigger files OK for current hierarchy")
+        logger.info("Workflow artifacts OK for scope_build_mode=%s", mode)
         return 0
     try:
         run_build(

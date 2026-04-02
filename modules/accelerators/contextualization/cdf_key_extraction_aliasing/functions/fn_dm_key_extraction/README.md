@@ -8,7 +8,7 @@ Extracts candidate keys, foreign key references, and document references from **
 
 - **`logLevel`**: `DEBUG|INFO|WARNING|ERROR`
 - **`verbose`**: `true|false`
-- **`config`**: workflow-shaped config payload **or** omit when **`scope_document`** is set (v4: v1 scope mapping on task payload; **`raw_table_key`** must be set under **`key_extraction.config.parameters`** in that document). **`instance_space`** is optional on task **`data`** when it can be derived from **`source_views`** (`instance_space` field or single-value node **`space`** filter).
+- **`config`**: workflow-shaped config payload **or** omit when **`configuration`** is set (v4: v1 scope mapping on task payload; **`raw_table_key`** must be set under **`key_extraction.config.parameters`** in that document). **`instance_space`** is optional on task **`data`** when it can be derived from **`source_views`** (`instance_space` field or single-value node **`space`** filter).
 
 Key config fields used:
 - **`config.parameters.raw_db`**

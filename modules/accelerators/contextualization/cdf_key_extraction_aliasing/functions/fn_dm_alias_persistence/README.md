@@ -44,7 +44,7 @@ The pipeline also writes diagnostic counts onto the mutable **`data`** dict (e.g
 Run `handler.py:run_locally()` and point it at the RAW table you want to read:
 
 - `raw_db = db_tag_aliasing`
-- `raw_table_aliases` = aliases RAW table key (from workflow `data`, or resolved from **`scope_document`** when set; **`instance_space`** derived from **`scope_document`** when omitted)
+- `raw_table_aliases` = aliases RAW table key (from workflow `data`, or resolved from **`configuration`** when set; **`instance_space`** derived from **`configuration`** when omitted)
 
 Add FK-related keys to `data` if testing FK persistence (and ensure extraction RAW or `entities_keys_extracted` is populated).
 

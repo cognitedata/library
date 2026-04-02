@@ -15,9 +15,9 @@ CDF function that maintains a **RAW inverted index** of foreign-key and document
 | `source_raw_db`, `source_raw_table_key` | Key-extraction state table |
 | `reference_index_raw_table` | Target table (required), e.g. `{site}_reference_index` |
 | `reference_index_raw_db` | Optional; defaults to `source_raw_db` |
-| `config` | Aliasing config (`aliasing_rules`, `validation`) — same as `fn_dm_aliasing` (filled from `scope_document` when reference index is enabled) |
-| `scope_document` | v4: v1 scope mapping; sets `enable_reference_index` from `key_extraction.config.parameters`, fills `config` from `aliasing` when enabled |
-| `instance_space` | Required with `scope_document` for merging into resolved config |
+| `config` | Aliasing config (`aliasing_rules`, `validation`) — same as `fn_dm_aliasing` (filled from `configuration` when reference index is enabled) |
+| `configuration` | v4: v1 scope mapping; sets `enable_reference_index` from `key_extraction.config.parameters`, fills `config` from `aliasing` when enabled |
+| `instance_space` | Required with `configuration` for merging into resolved config |
 | `source_instance_space`, `source_view_*` | Fallbacks if cohort columns are missing on rows |
 | `reference_index_fk_entity_type` | Default `asset` — passed to `generate_aliases` for FK refs |
 | `reference_index_document_entity_type` | Default `file` — for document refs |

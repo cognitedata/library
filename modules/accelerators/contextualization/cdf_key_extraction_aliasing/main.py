@@ -3,10 +3,11 @@ Main entry point — fetch CDF instances from data model views, run key extracti
 
 Configuration: by default loads the v1 scope document ``workflow.local.config.yaml`` at the
 module root when ``--scope default`` (the default); other scope names require ``--config-path``.
-CDF workflows use the same v1 shape via ``workflow.input.scope_document`` on each task (built by
-``scripts/build_scopes.py`` from ``workflows/_template/``). Create **missing** workflow triggers with
-``python main.py --build`` (same CLI as ``scripts/build_scopes.py``; does not overwrite existing files;
-pass ``--dry-run``, ``--check-workflow-triggers``, etc.). See ``config/README.md`` and ``default.config.yaml``.
+CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each task (built by
+``scripts/build_scopes.py`` into ``workflows/`` from templates in ``workflow_template/``). Create **missing** workflow artifacts with
+``python main.py --build`` (same CLI as ``scripts/build_scopes.py``; respects ``scope_build_mode``;
+does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc.). See
+``config/README.md`` and ``default.config.yaml``.
 
 Reads CDF credentials from environment (.env supported) when not using ``--build``, queries instances from configured views,
 runs the key extraction engine followed by the aliasing engine, and writes JSON results under
@@ -109,11 +110,11 @@ def main():
         "--build",
         action="store_true",
         help=(
-            "Only run scope builder: create missing key_extraction_aliasing.*.WorkflowTrigger.yaml "
-            "from default.config.yaml (embeds scope_document per leaf); does not overwrite existing triggers. "
-            "Forwards other flags to the scope builder: --hierarchy, --scope-document, --dry-run, "
-            "--list-builders, --only, --check-workflow-triggers, --workflow-trigger-template, -v/--verbose. "
-            "Does not connect to CDF."
+            "Only run scope builder from default.config.yaml (scope_build_mode: trigger_only vs full). "
+            "Creates missing Workflow/WorkflowVersion/trigger files; use --force to overwrite from templates. "
+            "Forwards flags to build_scopes: --hierarchy, --scope-document, --dry-run, --force, --list-builders, "
+            "--only, --check-workflow-triggers, --workflow-trigger-template, --workflow-template, "
+            "--workflow-version-template, -v/--verbose. Does not connect to CDF."
         ),
     )
     parser.add_argument(

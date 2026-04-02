@@ -1,4 +1,4 @@
-"""Resolve v1 scope document from workflow payload (trigger-embedded ``scope_document``)."""
+"""Resolve v1 scope mapping from workflow payload (``configuration`` on task data; legacy ``scope_document``)."""
 
 from __future__ import annotations
 
@@ -8,14 +8,17 @@ from typing import Any, Dict, Mapping, MutableMapping, Optional
 from .reference_index_naming import reference_index_raw_table_from_key_extraction_table
 
 
-def _scope_document_from_data(data: Mapping[str, Any]) -> Dict[str, Any]:
-    raw = data.get("scope_document")
-    if not isinstance(raw, dict) or not raw:
-        raise ValueError(
-            "Missing non-empty 'scope_document' in function data (v4 workflow input); "
-            "CDF functions expect the v1 scope mapping from workflow.input.scope_document."
-        )
-    return copy.deepcopy(raw)
+def _workflow_v1_from_task_data(data: Mapping[str, Any]) -> Dict[str, Any]:
+    """Read v1 scope mapping from task ``data`` (``configuration`` preferred; ``scope_document`` legacy)."""
+    for key in ("configuration", "scope_document"):
+        raw = data.get(key)
+        if isinstance(raw, dict) and raw:
+            return copy.deepcopy(raw)
+    raise ValueError(
+        "Missing non-empty 'configuration' in function data (v4 workflow input); "
+        "CDF functions expect the v1 scope mapping from workflow.input.configuration "
+        "(legacy key 'scope_document' is still accepted)."
+    )
 
 
 def _space_from_filter_values(vals: Any) -> Optional[str]:
@@ -66,7 +69,7 @@ def resolve_instance_space_from_scope_document(doc: Dict[str, Any]) -> str:
                 if s:
                     return s
     raise ValueError(
-        "Cannot derive instance_space from scope_document: set "
+        "Cannot derive instance_space from configuration: set "
         "key_extraction.config.data.source_views[].instance_space or add a node "
         "space filter (EQUALS with one value, or IN with one value)"
     )
@@ -76,14 +79,14 @@ def ensure_instance_space_from_scope_document(
     data: MutableMapping[str, Any],
     doc: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Use ``data['instance_space']`` if set; otherwise resolve from ``scope_document`` and set on ``data``."""
+    """Use ``data['instance_space']`` if set; otherwise resolve from v1 configuration and set on ``data``."""
     raw = data.get("instance_space")
     if raw is not None and str(raw).strip():
         space = str(raw).strip()
         data["instance_space"] = space
         return space
     if doc is None:
-        doc = _scope_document_from_data(data)
+        doc = _workflow_v1_from_task_data(data)
     space = resolve_instance_space_from_scope_document(doc)
     data["instance_space"] = space
     return space
@@ -207,12 +210,12 @@ def ensure_key_extraction_config_from_scope_dm(
     *,
     incremental_change_processing: bool,
 ) -> None:
-    """Mutate ``data`` with ``config`` from ``scope_document`` when ``config`` not already set."""
+    """Mutate ``data`` with ``config`` from v1 ``configuration`` when ``config`` not already set."""
     del client  # unused; kept for handler signature compatibility
     existing = data.get("config")
     if isinstance(existing, dict) and existing:
         return
-    doc = _scope_document_from_data(data)
+    doc = _workflow_v1_from_task_data(data)
     space = ensure_instance_space_from_scope_document(data, doc)
     fr_override: Optional[bool] = bool(data["full_rescan"]) if "full_rescan" in data else None
     data["config"] = build_key_extraction_workflow_config(
@@ -234,7 +237,7 @@ def ensure_aliasing_config_from_scope_dm(data: MutableMapping[str, Any], client:
     existing = data.get("config")
     if isinstance(existing, dict) and existing:
         return
-    doc = _scope_document_from_data(data)
+    doc = _workflow_v1_from_task_data(data)
     space = ensure_instance_space_from_scope_document(data, doc)
     data["config"] = build_aliasing_workflow_config(doc, instance_space=str(space))
     ke = doc.get("key_extraction")
@@ -254,12 +257,12 @@ def apply_reference_index_scope_document(
     data: MutableMapping[str, Any],
     client: Any,
 ) -> None:
-    """Load reference-index settings from ``scope_document`` when present."""
+    """Load reference-index settings from v1 ``configuration`` when present."""
     del client
     if data.get("enable_reference_index") is False:
         return
     try:
-        doc = _scope_document_from_data(data)
+        doc = _workflow_v1_from_task_data(data)
     except ValueError:
         return
     if "enable_reference_index" not in data:
@@ -291,14 +294,14 @@ def apply_reference_index_scope_document(
 
 
 def ensure_alias_persistence_from_scope_dm(data: MutableMapping[str, Any], client: Any) -> None:
-    """Set RAW / source table keys on ``data`` from ``scope_document`` when not already provided."""
+    """Set RAW / source table keys on ``data`` from v1 ``configuration`` when not already provided."""
     del client
     if (
         data.get("raw_table_aliases") or data.get("raw_table")
     ) and data.get("source_raw_table_key"):
         return
     try:
-        doc = _scope_document_from_data(data)
+        doc = _workflow_v1_from_task_data(data)
     except ValueError:
         return
     space = ensure_instance_space_from_scope_document(data, doc)

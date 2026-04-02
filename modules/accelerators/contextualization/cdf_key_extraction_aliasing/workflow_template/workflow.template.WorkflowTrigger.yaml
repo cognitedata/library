@@ -1,7 +1,7 @@
 # One schedule trigger per leaf: build_scopes replaces __KEA_CDF_SUFFIX__ with cdf_external_id_suffix(scope_id).
-# Scope rules are under input.scope_document (from workflow.template.config.yaml, patched per leaf).
+# Scope rules are under input.configuration (from workflow.template.config.yaml, patched per leaf).
 # Toolkit substitutes {{ key_extraction_aliasing_schedule }}, {{functionClientId}}, {{functionClientSecret}},
-# and {{instance_space}} inside scope_document (source_views) at deploy time (see default.config.yaml).
+# and {{instance_space}} inside configuration (source_views) at deploy time (see default.config.yaml).
 externalId: key_extraction_aliasing.__KEA_CDF_SUFFIX__
 triggerRule:
   triggerType: schedule

@@ -10,7 +10,7 @@ This document describes the **current** default configuration and pipeline behav
 
 ## Workflow overview
 
-Diagram (Mermaid): [workflows/workflow_diagram.md](../workflows/workflow_diagram.md).
+Diagram (Mermaid): [workflow_template/workflow_diagram.md](../workflow_template/workflow_diagram.md).
 
 1. **Key extraction** — Candidate keys, foreign key references, and document references (when configured) from DM views.
 2. **Result splitting** — Routes results by extraction type / downstream consumer.
@@ -18,7 +18,7 @@ Diagram (Mermaid): [workflows/workflow_diagram.md](../workflows/workflow_diagram
 4. **Write aliases** — Persists aliases on CogniteDescribable (default property `aliases`; see `alias_writeback_property` in aliasing config).
 5. **Reference index / FK write-back** — Optional; default scope sets `write_foreign_key_references: false` for aliasing parameters.
 
-Deployed workflow YAML may add **scope-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per [`workflows/key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/key_extraction_aliasing.WorkflowVersion.yaml) header comment.
+Deployed workflow YAML may add **scope-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per generated **`workflows/.../key_extraction_aliasing*.WorkflowVersion.yaml`** (see [workflows/README.md](../workflows/README.md)) header comment.
 
 ---
 

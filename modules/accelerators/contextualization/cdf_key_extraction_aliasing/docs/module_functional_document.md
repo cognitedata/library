@@ -20,7 +20,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 | In scope | Out of scope (by design) |
 | -------- | ------------------------ |
 | Rule-driven extraction and aliasing from YAML config | Automatic DM relationship edges or graph sync (see module README roadmap) |
-| CDF Functions + Workflow orchestration (v4) | Replacing trigger-embedded `scope_document` without updating workflow task wiring |
+| CDF Functions + Workflow orchestration (v4) | Replacing trigger-embedded `configuration` without updating workflow task wiring |
 | RAW as inter-task buffer and incremental state | Removing values already written to DM instances (`--clean-state` clears RAW only) |
 | Local runner (`main.py`) for dev / parity testing | General-purpose ETL outside contextualization |
 
@@ -30,7 +30,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 
 | Actor | Role |
 | ----- | ---- |
-| **Config author** | Maintains v1 scope YAML at module root / trigger template (`workflows/_template/workflow.template.config.yaml`) and runs `build_scopes` for multi-site triggers. |
+| **Config author** | Maintains v1 scope YAML at module root / trigger template (`workflow_template/workflow.template.config.yaml`) and runs `build_scopes` for multi-site triggers. |
 | **CDF operator** | Deploys Toolkit manifests, monitors workflow runs and RAW/DM outcomes. |
 | **Application / search** | Consumes **`aliases`** (and optional FK list properties) on describable instances. |
 | **Downstream jobs** | May read **reference index** RAW for “who references tag X” style queries. |
@@ -187,13 +187,13 @@ Validation: Pydantic models in `fn_dm_key_extraction/config.py`, `fn_dm_aliasing
 
 ### 5.2 Workflow v4 runtime config
 
-Workflow YAML does **not** embed full rule sets inline. Each function task receives **`scope_document`** (v1 mapping) from **`workflow.input`**, optional **`full_rescan`** / **`run_id`**, and RAW wiring. **`instance_space`** for DM handlers is taken from **`scope_document`** (`source_views`) when not set on task **`data`**. Functions resolve **`config`** from **`scope_document`** in memory.
+Workflow YAML does **not** embed full rule sets inline. Each function task receives **`configuration`** (v1 mapping) from **`workflow.input`**, optional **`full_rescan`** / **`run_id`**, and RAW wiring. **`instance_space`** for DM handlers is taken from **`configuration`** (`source_views`) when not set on task **`data`**. Functions resolve **`config`** from **`configuration`** in memory.
 
-Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflows/_template/workflow.template.config.yaml`** (template embedded into triggers by **`build_scopes`**).
+Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflow_template/workflow.template.config.yaml`** (template embedded into triggers by **`build_scopes`**).
 
 ### 5.3 Multi-site generation
 
-**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`main.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.scope_document`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored).
+**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`main.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored).
 
 ---
 
@@ -232,8 +232,7 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 
 | Field | Role |
 | ----- | ---- |
-| `instance_space` | Merged into source view resolution where applicable. |
-| `scope_document` | Full v1 scope mapping (`key_extraction`, `aliasing`, optional `scope`). |
+| `configuration` | Full v1 scope mapping (`key_extraction`, `aliasing`, optional `scope`). |
 | `full_rescan` | Bool override for incremental behavior. |
 | `run_id` | Optional operator/run correlation; auto-discovery paths exist for single-run setups. |
 

@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
-"""CLI: build ``workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`` per leaf from default.config.yaml.
+"""CLI: build workflow artifacts from default.config.yaml (same as ``python main.py --build``).
 
-Same entry point as ``python main.py --build`` from the module root.
+Uses top-level ``scope_build_mode``:
 
-Embeds each leaf's v1 scope document under trigger input.scope_document, patched from
-workflows/_template/workflow.template.config.yaml.
-Trigger shell: workflows/_template/workflow.template.WorkflowTrigger.yaml.template
-(override with --workflow-trigger-template).
+- **trigger_only** — create missing ``workflows/{workflow}.Workflow.yaml`` and
+  ``{workflow}.WorkflowVersion.yaml``, plus flat
+  ``workflows/{workflow}.<scope>.WorkflowTrigger.yaml`` per leaf.
+- **full** — create missing scoped trio under ``workflows/<scope>/`` (Workflow, WorkflowVersion,
+  WorkflowTrigger) with ``workflowExternalId`` = ``{workflow}.{scope}``.
 
---build creates missing key_extraction_aliasing.*.WorkflowTrigger.yaml for current leaves only;
-it does not overwrite existing files and does not delete other such files. Use
---check-workflow-triggers to assert required files exist and match templates (extra files on disk
-are ignored).
+Scope body: ``workflow_template/workflow.template.config.yaml`` (``--scope-document``).
+Trigger shell: ``workflow_template/workflow.template.WorkflowTrigger.yaml``
+(``--workflow-trigger-template``). Workflow templates: ``workflow_template/workflow.template.Workflow.yaml`` and
+``workflow_template/workflow.template.WorkflowVersion.yaml``
+(``--workflow-template``, ``--workflow-version-template``).
+
+``--build`` only creates missing files by default; ``--force`` overwrites existing generated YAML from
+templates. ``--check-workflow-triggers`` validates triggers and Workflow/WorkflowVersion vs templates (no writes).
 """
 
 from __future__ import annotations

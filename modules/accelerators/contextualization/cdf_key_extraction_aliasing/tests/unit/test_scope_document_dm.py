@@ -167,13 +167,21 @@ def test_ensure_instance_space_prefers_data_then_doc() -> None:
     doc = _doc_with_source_views(
         [{"view_external_id": "CogniteFile", "instance_space": "from-doc"}]
     )
-    data: dict = {"scope_document": doc, "instance_space": "  explicit  "}
+    data: dict = {"configuration": doc, "instance_space": "  explicit  "}
     assert ensure_instance_space_from_scope_document(data) == "explicit"
     assert data["instance_space"] == "explicit"
 
-    data2: dict = {"scope_document": doc}
+    data2: dict = {"configuration": doc}
     assert ensure_instance_space_from_scope_document(data2) == "from-doc"
     assert data2["instance_space"] == "from-doc"
+
+
+def test_ensure_instance_space_accepts_legacy_scope_document_key() -> None:
+    doc = _doc_with_source_views(
+        [{"view_external_id": "CogniteFile", "instance_space": "legacy-sp"}]
+    )
+    data: dict = {"scope_document": doc}
+    assert ensure_instance_space_from_scope_document(data) == "legacy-sp"
 
 
 def test_build_reference_index_config_block() -> None:

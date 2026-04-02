@@ -30,8 +30,8 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 
 | Document                                                                     | Contents                                                                                                               |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [Workflows README](../workflows/README.md)                                   | Single workflow `key_extraction_aliasing` (v4), per-scope triggers, `workflow.input.scope_document` |
-| [Workflow diagram source](../workflows/workflow_diagram.md)                  | Mermaid diagram source (no committed PNG in `workflows/`)                                                            |
+| [Workflows README](../workflows/README.md)                                   | Single workflow `key_extraction_aliasing` (v4), generated YAML under `workflows/`, `workflow.input.configuration` |
+| [Workflow diagram source](../workflow_template/workflow_diagram.md)                  | Mermaid diagram source (no committed PNG; lives in `workflow_template/`)                                                            |
 | [fn_dm_key_extraction](../functions/fn_dm_key_extraction/README.md)          | Key extraction function I/O                                                                                            |
 | [fn_dm_aliasing](../functions/fn_dm_aliasing/README.md)                      | Aliasing function I/O                                                                                                  |
 | [fn_dm_reference_index](../functions/fn_dm_reference_index/README.md)      | RAW inverted index for FK + document reference strings                                                                 |

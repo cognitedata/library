@@ -492,7 +492,7 @@ def _run_workflow_parity(
     state_data: Dict[str, Any] = {
         "logLevel": "INFO",
         "full_rescan": bool(getattr(args, "full_rescan", False)),
-        "scope_document": scope_document,
+        "configuration": scope_document,
         "instance_space": wf_instance_space,
     }
     incremental_state_update(client, pipe_logger, state_data, cdf_config)
@@ -532,7 +532,7 @@ def _run_workflow_parity(
         "logLevel": "INFO",
         "run_id": run_id,
         "full_rescan": bool(getattr(args, "full_rescan", False)),
-        "scope_document": scope_document,
+        "configuration": scope_document,
         "instance_space": wf_instance_space,
     }
     engine = KeyExtractionEngine(engine_config)
@@ -585,7 +585,7 @@ def _run_workflow_parity(
         else:
             ref_data: Dict[str, Any] = {
                 "logLevel": "INFO",
-                "scope_document": scope_document,
+                "configuration": scope_document,
                 "instance_space": wf_instance_space,
                 "progress_every": progress_every,
                 "source_run_id": run_id,
@@ -646,7 +646,7 @@ def _run_workflow_parity(
 
     alias_data: Dict[str, Any] = {
         "logLevel": "INFO",
-        "scope_document": scope_document,
+        "configuration": scope_document,
         "instance_space": wf_instance_space,
         "progress_every": progress_every,
         "entities_keys_extracted": entities_keys_extracted,
@@ -759,7 +759,7 @@ def _run_workflow_parity(
             "aliasing_results": aliasing_results,
             "entities_keys_extracted": entities_keys_extracted,
             "logLevel": "INFO",
-            "scope_document": scope_document,
+            "configuration": scope_document,
             "instance_space": wf_instance_space,
         }
         if alias_writeback_property:

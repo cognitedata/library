@@ -20,7 +20,7 @@ from .paths import SCRIPT_DIR
 
 DEFAULT_SCOPE = "default"
 
-# v1 scope document at module root (local runs only; CDF uses trigger-embedded scope_document).
+# v1 scope document at module root (local runs only; CDF uses trigger-embedded configuration).
 WORKFLOW_LOCAL_CONFIG_FILENAME = "workflow.local.config.yaml"
 DEFAULT_SCOPE_DOCUMENT_PATH = SCRIPT_DIR / WORKFLOW_LOCAL_CONFIG_FILENAME
 
