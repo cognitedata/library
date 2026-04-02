@@ -510,19 +510,35 @@ _TRACKER_VERSION = "1"
 
 def _report_usage(client: CogniteClient) -> None:
     try:
+        import re
+        import json
+        import base64
         import threading
-        from mixpanel import Consumer, Mixpanel
-        mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
-        distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
-        def _send() -> None:
-            mp.track(distinct_id, "fn-handle", {
+        import requests
+        cluster = getattr(client.config, "cdf_cluster", None)
+        if not cluster:
+            m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(client.config, "base_url", "") or "")
+            cluster = m.group(1) if m else "unknown"
+        distinct_id = f"{client.config.project}:{cluster}"
+        payload = base64.b64encode(json.dumps([{
+            "event": "fn-handle",
+            "properties": {
+                "token": "8f28374a6614237dd49877a0d27daa78",
+                "distinct_id": distinct_id,
                 "source": _SOURCE,
                 "tracker_version": _TRACKER_VERSION,
                 "dp_version": _DP_VERSION,
                 "type": "py-function",
-                "cdf_cluster": client.config.cdf_cluster,
+                "cdf_cluster": cluster,
                 "cdf_project": client.config.project,
-            })
+            },
+        }]).encode()).decode()
+        def _send() -> None:
+            requests.post(
+                "https://api-eu.mixpanel.com/track",
+                data={"data": payload, "verbose": 1, "ip": 1},
+                timeout=5,
+            )
         threading.Thread(target=_send, daemon=False).start()
     except Exception:
         pass

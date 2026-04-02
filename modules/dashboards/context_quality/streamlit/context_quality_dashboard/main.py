@@ -20,6 +20,12 @@ import json
 import streamlit as st
 from cognite.client import CogniteClient
 
+try:
+    import pyodide_http  # type: ignore[import-untyped]
+    pyodide_http.patch_all()
+except ImportError:
+    pass
+
 # Import dashboard modules
 from dashboards import (
     render_asset_hierarchy_dashboard,
