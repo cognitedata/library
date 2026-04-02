@@ -1,13 +1,65 @@
 """Semantic expansion transformer handler (equipment letter codes to full words)."""
 
 import re
-from typing import Any, Dict, Set
+from pathlib import Path
+from typing import Any, Dict, List, Set
+
+import yaml
+
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.semantic_expansion_paths import (
+    SEMANTIC_EXPANSION_ISA51_PRESET_YAML,
+)
 
 from .AliasTransformerHandler import AliasTransformerHandler
 
 
+def _sorted_prefixes(type_mappings: Dict[str, Any]) -> List[str]:
+    """Longest prefix first, then alphabetical (stable disambiguation)."""
+    keys = [str(k) for k in type_mappings.keys()]
+    return sorted(keys, key=lambda x: (-len(x), x))
+
+
 class SemanticExpansionHandler(AliasTransformerHandler):
     """Handles semantic expansion for equipment-type-aware matching."""
+
+    @staticmethod
+    def _load_type_mappings_from_yaml(path: Path) -> Dict[str, List[str]]:
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        raw = data.get("type_mappings") or {}
+        return {str(k): list(v) for k, v in raw.items()}
+
+    def _resolve_type_mappings(self, config: Dict[str, Any]) -> Dict[str, List[str]]:
+        user = dict(config.get("type_mappings") or {})
+        use_preset = bool(
+            config.get("include_isa_semantic_preset") or config.get("isa_preset")
+        )
+        if not use_preset:
+            return user
+
+        path_raw = config.get("isa_preset_path")
+        if path_raw:
+            preset_path = Path(str(path_raw)).expanduser()
+        else:
+            preset_path = SEMANTIC_EXPANSION_ISA51_PRESET_YAML
+
+        if not preset_path.is_file():
+            self.logger.verbose(
+                "WARNING",
+                f"Semantic expansion preset not found at {preset_path}; using type_mappings only",
+            )
+            return user
+
+        try:
+            preset = self._load_type_mappings_from_yaml(preset_path)
+        except Exception as e:
+            self.logger.verbose(
+                "WARNING", f"Failed to load semantic expansion preset {preset_path}: {e}"
+            )
+            return user
+
+        merged = {**preset, **user}
+        return merged
 
     def transform(
         self, aliases: Set[str], config: Dict[str, Any], context: Dict[str, Any] = None
@@ -23,71 +75,62 @@ class SemanticExpansionHandler(AliasTransformerHandler):
                 "T": ["TANK", "TNK"]
             },
             "format_templates": ["{type}-{tag}", "{type}_{tag}"],
-            "auto_detect": True
+            "auto_detect": True,
+            "include_isa_semantic_preset": true,
+            "isa_preset_path": "/optional/override/path.yaml"
         }
         """
         new_aliases = set()
-        type_mappings = config.get("type_mappings", {})
+        type_mappings = self._resolve_type_mappings(config)
         format_templates = config.get("format_templates", ["{type}-{tag}"])
-        # Default to auto_detect if type_mappings are provided
         auto_detect = config.get("auto_detect", bool(type_mappings))
+        prefixes = _sorted_prefixes(type_mappings)
 
         for alias in aliases:
-            # Try to detect equipment type from alias
-            equipment_types = []
+            equipment_types: List[str] = []
 
             if auto_detect:
-                # Auto-detect based on patterns
-                for prefix, types in type_mappings.items():
-                    # Try basic pattern first (e.g., ^P[-_]?\d+)
+                for prefix in prefixes:
+                    types = type_mappings[prefix]
                     pattern = f"^{re.escape(prefix)}[-_]?\\d+"
                     if re.match(pattern, alias):
                         equipment_types.extend(types)
                     else:
-                        # Try hierarchical pattern (e.g., \d+-P[-_]?\d+)
                         hierarchical_pattern = f"\\d+-{re.escape(prefix)}[-_]?\\d+"
                         if re.search(hierarchical_pattern, alias):
                             equipment_types.extend(types)
 
-            # Also check if equipment type is provided in context
             if context and context.get("equipment_type"):
                 context_type = context["equipment_type"].upper()
-                # Find matching type mappings
-                for prefix, types in type_mappings.items():
+                for prefix in prefixes:
+                    types = type_mappings[prefix]
                     if context_type in [t.upper() for t in types]:
                         equipment_types.extend(types)
 
-            # Generate aliases with equipment types
             for eq_type in set(equipment_types):
-                # Check if this is a hierarchical tag (e.g., 10-P-10001)
                 hierarchical_prefix = None
                 tag_part = alias
 
-                # Try to detect hierarchical pattern first
-                for prefix in type_mappings.keys():
+                for prefix in prefixes:
                     hierarchical_pattern = (
-                        f"^(\\d+[-_])({re.escape(prefix)}[-_]?)(\\d+)$"
+                        f"^(\\d+[-_])({re.escape(prefix)}[-_]?)(\\d+)([A-Z]?)$"
                     )
                     match = re.match(hierarchical_pattern, alias)
                     if match:
-                        hierarchical_prefix = match.group(1)  # e.g., "10-"
-                        tag_part = match.group(3)  # e.g., "10001"
+                        hierarchical_prefix = match.group(1)
+                        tag_part = match.group(3) + (match.group(4) or "")
                         break
 
-                # If not hierarchical, use standard extraction
                 if hierarchical_prefix is None:
-                    for prefix in type_mappings.keys():
+                    for prefix in prefixes:
                         pattern = f"^{re.escape(prefix)}[-_]?"
                         if re.match(pattern, alias):
-                            # Remove the prefix and separator
                             tag_part = re.sub(pattern, "", alias)
                             break
 
-                # Generate expanded aliases
                 for template in format_templates:
                     try:
                         expanded_alias = template.format(type=eq_type, tag=tag_part)
-                        # Add hierarchical prefix if this was a hierarchical tag
                         if hierarchical_prefix:
                             expanded_alias = hierarchical_prefix + expanded_alias
                         new_aliases.add(expanded_alias)
@@ -96,6 +139,5 @@ class SemanticExpansionHandler(AliasTransformerHandler):
                             "WARNING", f"Invalid template {template} for alias {alias}"
                         )
 
-        # Always include original aliases
         new_aliases.update(aliases)
         return new_aliases

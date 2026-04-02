@@ -21,6 +21,16 @@ from scope_build.registry import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_HIERARCHY = "default.config.yaml"
+DEFAULT_WORKFLOW_EXTERNAL_ID = "key_extraction_aliasing"
+
+
+def workflow_external_id_from_hierarchy(doc: dict) -> str:
+    """Resolve workflow external id for trigger YAML (``default.config.yaml`` key ``workflow``)."""
+    w = doc.get("workflow")
+    if w is not None and str(w).strip():
+        return str(w).strip()
+    return DEFAULT_WORKFLOW_EXTERNAL_ID
+
 DEFAULT_SCOPE_DOCUMENT = Path("workflows") / "_template" / "workflow.template.config.yaml"
 
 
@@ -46,8 +56,12 @@ def run_build(
             logger.debug("Builder %r → scope_id=%s", b.name, ctx.scope_id)
             b.run(ctx)
     if triggers_builder is not None:
+        wf_id = workflow_external_id_from_hierarchy(doc)
         triggers_builder.write_all(
-            contexts, dry_run=dry_run, module_root=module_root
+            contexts,
+            dry_run=dry_run,
+            module_root=module_root,
+            workflow_external_id=wf_id,
         )
     return contexts
 
@@ -151,6 +165,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 list(contexts),
                 template_path=args.workflow_trigger_template,
                 scope_document_path=scope_document,
+                workflow_external_id=workflow_external_id_from_hierarchy(doc),
             )
         except SystemExit as e:
             logger.error("%s", e)

@@ -97,6 +97,7 @@ class WorkflowTriggersBuilder:
         *,
         dry_run: bool,
         module_root: Path | None = None,
+        workflow_external_id: str = "key_extraction_aliasing",
     ) -> list[Path] | None:
         """Create missing ``key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`` under ``workflows/``.
 
@@ -115,7 +116,12 @@ class WorkflowTriggersBuilder:
         workflows_dir = module_root / "workflows"
         template_text = _read_trigger_template(module_root, self._template_path_override)
         scope_tpl = _read_scope_document_template(module_root, self._scope_document_path_override)
-        triggers = _render_triggers(template_text, scope_tpl, contexts)
+        triggers = _render_triggers(
+            template_text,
+            scope_tpl,
+            contexts,
+            workflow_external_id=workflow_external_id,
+        )
         created: list[Path] = []
         skipped_existing = 0
         header = (
@@ -187,6 +193,8 @@ def _render_triggers(
     template_text: str,
     scope_template: dict,
     contexts: Sequence[ScopeBuildContext],
+    *,
+    workflow_external_id: str = "key_extraction_aliasing",
 ) -> list[dict]:
     if PLACEHOLDER not in template_text:
         raise ValueError(
@@ -197,6 +205,8 @@ def _render_triggers(
     for ctx in contexts:
         suffix = cdf_external_id_suffix(ctx.scope_id)
         chunk = template_text.replace(PLACEHOLDER, suffix)
+        # Bare `{{ workflow }}` is invalid YAML; substitute before parse (see default.config.yaml `workflow:`).
+        chunk = chunk.replace("{{ workflow }}", workflow_external_id)
         trig = yaml.safe_load(chunk)
         if not isinstance(trig, dict):
             raise ValueError("Workflow trigger template must be a single YAML mapping (one trigger)")
@@ -221,6 +231,7 @@ def verify_triggers_file(
     *,
     template_path: Path | None = None,
     scope_document_path: Path | None = None,
+    workflow_external_id: str = "key_extraction_aliasing",
 ) -> None:
     """Raise SystemExit(1) if a required trigger is missing, invalid YAML, or out of date.
 
@@ -240,7 +251,12 @@ def verify_triggers_file(
     expected_by_name: dict[str, dict] = {}
     for ctx in contexts:
         name = workflow_trigger_filename(cdf_external_id_suffix(ctx.scope_id))
-        exp = _render_triggers(template_text, scope_tpl, [ctx])[0]
+        exp = _render_triggers(
+            template_text,
+            scope_tpl,
+            [ctx],
+            workflow_external_id=workflow_external_id,
+        )[0]
         expected_by_name[name] = exp
 
     on_disk = {p.name for p in workflows_dir.glob(GENERATED_TRIGGER_GLOB)}

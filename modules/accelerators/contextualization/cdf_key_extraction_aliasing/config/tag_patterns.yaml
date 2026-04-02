@@ -8,16 +8,16 @@ tag_patterns:
     # Pump patterns
     pump_patterns:
       - name: "standard_pump"
-        pattern: '\\bP[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bP[-_]?\d{1,6}[A-Z]?\b'
         description: "Standard pump tags (P-101, P101A, P-2001)"
         equipment_type: "PUMP"
-        examples: ["P-101", "P101A", "P-2001", "P_101", "P-10001"]
+        examples: ["P-101", "P101A", "P-2001", "P_101", "P-10001", "10-P-101", "U1-P-10001"]
         priority: 50
         industry_standard: "ISA"
         validation_rules: []
 
       - name: "pump_with_service"
-        pattern: '\\b[A-Z]{2,4}P[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b'
         description: "Pump with service designation (FWP-101, CWP-201)"
         equipment_type: "PUMP"
         examples: ["FWP-101", "CWP-201", "BWP-301A", "FWP-10001"]
@@ -26,7 +26,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "centrifugal_pump"
-        pattern: '\\bCP[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bCP[-_]?\d{1,6}[A-Z]?\b'
         description: "Centrifugal pump tags"
         equipment_type: "PUMP"
         examples: ["CP-101", "CP101A", "CP-2001", "CP-10001"]
@@ -37,7 +37,7 @@ tag_patterns:
     # Compressor patterns
     compressor_patterns:
       - name: "standard_compressor"
-        pattern: '\\bC[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bC[-_]?\d{1,6}[A-Z]?\b'
         description: "Standard compressor tags (C-101, C101A)"
         equipment_type: "COMPRESSOR"
         examples: ["C-101", "C101A", "C-2001", "C-10001"]
@@ -46,7 +46,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "compressor_with_type"
-        pattern: '\\b[A-Z]{2}C[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b'
         description: "Compressor with type designation (AC-101, RC-201)"
         equipment_type: "COMPRESSOR"
         examples: ["AC-101", "RC-201", "CC-301A", "AC-10001"]
@@ -57,7 +57,7 @@ tag_patterns:
     # Valve patterns
     valve_patterns:
       - name: "control_valve"
-        pattern: '\\b[A-Z]{2,3}V[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b'
         description: "Control valve tags (FCV-101, PCV-201, TCV-301)"
         equipment_type: "VALVE"
         examples: ["FCV-101", "PCV-201", "TCV-301A", "LCV-401", "FCV-10001"]
@@ -66,7 +66,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "manual_valve"
-        pattern: '\\bV[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bV[-_]?\d{1,6}[A-Z]?\b'
         description: "Manual valve tags (V-101, V101A)"
         equipment_type: "VALVE"
         examples: ["V-101", "V101A", "V-2001", "V-10001"]
@@ -75,7 +75,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "safety_valve"
-        pattern: '\\b[A-Z]{2,3}SV[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b'
         description: "Safety valve tags (PSV-101, TSV-201)"
         equipment_type: "VALVE"
         examples: ["PSV-101", "TSV-201", "FSV-301A", "PSV-10001"]
@@ -86,7 +86,7 @@ tag_patterns:
     # Tank and vessel patterns
     tank_patterns:
       - name: "standard_tank"
-        pattern: '\\bT[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bT[-_]?\d{1,6}[A-Z]?\b'
         description: "Standard tank tags (T-101, T101A)"
         equipment_type: "TANK"
         examples: ["T-101", "T101A", "T-2001", "T-10001"]
@@ -95,7 +95,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "vessel"
-        pattern: '\\bV[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bV[-_]?\d{1,6}[A-Z]?\b'
         description: "Vessel tags (V-101, V101A)"
         equipment_type: "VESSEL"
         examples: ["V-101", "V101A", "V-2001", "V-10001"]
@@ -104,7 +104,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "reactor"
-        pattern: '\\bR[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bR[-_]?\d{1,6}[A-Z]?\b'
         description: "Reactor tags (R-101, R101A)"
         equipment_type: "REACTOR"
         examples: ["R-101", "R101A", "R-2001", "R-10001"]
@@ -115,7 +115,7 @@ tag_patterns:
     # Heat exchanger patterns
     heat_exchanger_patterns:
       - name: "heat_exchanger"
-        pattern: '\\bE[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bE[-_]?\d{1,6}[A-Z]?\b'
         description: "Heat exchanger tags (E-101, E101A)"
         equipment_type: "HEAT_EXCHANGER"
         examples: ["E-101", "E101A", "E-2001", "E-10001"]
@@ -124,7 +124,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "heat_exchanger_with_type"
-        pattern: '\\b[A-Z]{2}E[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b'
         description: "Heat exchanger with type (HE-101, CE-201)"
         equipment_type: "HEAT_EXCHANGER"
         examples: ["HE-101", "CE-201", "AE-301A", "HE-10001"]
@@ -135,7 +135,7 @@ tag_patterns:
     # Instrument patterns
     instrument_patterns:
       - name: "flow_instrument"
-        pattern: '\\bF[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
         description: "Flow instruments (FIC-101, FIT-201, FCV-301)"
         equipment_type: "INSTRUMENT"
         instrument_type: "FLOW"
@@ -145,7 +145,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "pressure_instrument"
-        pattern: '\\bP[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
         description: "Pressure instruments (PIC-101, PIT-201, PCV-301)"
         equipment_type: "INSTRUMENT"
         instrument_type: "PRESSURE"
@@ -155,7 +155,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "temperature_instrument"
-        pattern: '\\bT[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
         description: "Temperature instruments (TIC-101, TIT-201, TCV-301)"
         equipment_type: "INSTRUMENT"
         instrument_type: "TEMPERATURE"
@@ -165,7 +165,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "level_instrument"
-        pattern: '\\bL[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
         description: "Level instruments (LIC-101, LIT-201, LCV-301)"
         equipment_type: "INSTRUMENT"
         instrument_type: "LEVEL"
@@ -175,7 +175,7 @@ tag_patterns:
         validation_rules: []
 
       - name: "analytical_instrument"
-        pattern: '\\bA[A-Z]{1,3}[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
         description: "Analytical instruments (AIC-101, AIT-201, ACV-301)"
         equipment_type: "INSTRUMENT"
         instrument_type: "ANALYTICAL"
@@ -187,7 +187,7 @@ tag_patterns:
     # Column patterns
     column_patterns:
       - name: "distillation_column"
-        pattern: '\\b[A-Z]?C[-_]?\\\d{1,6}[A-Z]?\\b'
+        pattern: '(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b'
         description: "Distillation column tags (C-101, DC-201)"
         equipment_type: "COLUMN"
         examples: ["C-101", "DC-201", "AC-301A", "DC-10001"]
@@ -198,8 +198,9 @@ tag_patterns:
     # Generic patterns
     generic_patterns:
       - name: "alphanumeric_tag"
-        # Double-quoted: YAML single-quoted entries in this file over-escape. Keep in sync with
-        # ``&alphanumeric_tag`` in ``workflow.local.config.yaml`` (module root).
+        # Double-quoted for ``(?<![\d-])`` etc.; ISA rows above use single-quoted patterns with
+        # normal regex escapes (``\b``, ``\d``). Keep in sync with ``&alphanumeric_tag`` in
+        # ``workflow.local.config.yaml`` (module root).
         pattern: "(?<![\\d-])(?:\\b|(?<=_))(?:\\d{1,8}-?)?[A-Z]{1,8}-?\\d{1,10}(?:-\\d{1,6})*[A-Z]?\\b"
         description: "Generic industrial tag — same as default scope; opening anchor (?:\\b|(?<=_)) so VAL_45-TT-… matches (Python \\b does not separate _ from digits)"
         equipment_type: "GENERIC"

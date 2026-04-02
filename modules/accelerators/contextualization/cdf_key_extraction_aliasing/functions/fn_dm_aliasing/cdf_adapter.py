@@ -170,6 +170,14 @@ def _convert_aliasing_config(cdf_rule: Any) -> Dict[str, Any]:
             config["format_templates"] = list(cdf_rule.format_templates)
         if hasattr(cdf_rule, "auto_detect"):
             config["auto_detect"] = cdf_rule.auto_detect
+        if hasattr(cdf_rule, "include_isa_semantic_preset"):
+            config["include_isa_semantic_preset"] = (
+                cdf_rule.include_isa_semantic_preset
+            )
+        if hasattr(cdf_rule, "isa_preset"):
+            config["isa_preset"] = cdf_rule.isa_preset
+        if hasattr(cdf_rule, "isa_preset_path"):
+            config["isa_preset_path"] = cdf_rule.isa_preset_path
 
     elif rule_type == "related_instruments":
         if hasattr(cdf_rule, "applicable_equipment_types"):

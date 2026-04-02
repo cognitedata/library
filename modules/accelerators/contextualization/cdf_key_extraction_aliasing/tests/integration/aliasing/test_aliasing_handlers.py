@@ -282,6 +282,66 @@ class TestSemanticExpansionTransformer(unittest.TestCase):
         self.assertIn("PUMP-10001", result)
         self.assertIn("PMP-10001", result)
 
+    def test_semantic_expansion_longest_prefix_strips_correctly(self):
+        """When stripping type prefix, longest mapping key must win (PI vs PIC)."""
+        transformer = SemanticExpansionHandler()
+        config = {
+            "type_mappings": {"PI": ["TYPE_PI"], "PIC": ["TYPE_PIC"]},
+            "format_templates": ["{type}-{tag}"],
+            "auto_detect": False,
+        }
+        context = {"equipment_type": "TYPE_PIC"}
+        result = transformer.transform({"PIC-101"}, config, context)
+        self.assertIn("TYPE_PIC-101", result)
+        self.assertNotIn("TYPE_PIC-C-101", result)
+
+    def test_sorted_prefixes_longest_first(self):
+        from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.handlers.SemanticExpansionHandler import (
+            _sorted_prefixes,
+        )
+
+        self.assertEqual(
+            _sorted_prefixes({"PI": [1], "PIC": [1], "A": [1]}),
+            ["PIC", "PI", "A"],
+        )
+
+    def test_semantic_expansion_hierarchical_multiletter(self):
+        transformer = SemanticExpansionHandler()
+        config = {
+            "type_mappings": {"FCV": ["FLOW_CONTROL_VALVE"]},
+            "format_templates": ["{type}-{tag}"],
+        }
+        result = transformer.transform({"10-FCV-101"}, config)
+        self.assertIn("10-FLOW_CONTROL_VALVE-101", result)
+
+    def test_semantic_expansion_isa_preset_merge_user_overrides(self):
+        from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.semantic_expansion_paths import (
+            SEMANTIC_EXPANSION_ISA51_PRESET_YAML,
+        )
+
+        self.assertTrue(
+            SEMANTIC_EXPANSION_ISA51_PRESET_YAML.is_file(),
+            "preset YAML must exist for merge test",
+        )
+        transformer = SemanticExpansionHandler()
+        config = {
+            "include_isa_semantic_preset": True,
+            "type_mappings": {"P": ["SITE_PUMP"]},
+            "format_templates": ["{type}-{tag}"],
+        }
+        result = transformer.transform({"P-101"}, config)
+        self.assertIn("SITE_PUMP-101", result)
+        self.assertNotIn("PUMP-101", result)
+
+    def test_semantic_expansion_isa_preset_fcv(self):
+        transformer = SemanticExpansionHandler()
+        config = {
+            "include_isa_semantic_preset": True,
+            "format_templates": ["{type}-{tag}"],
+        }
+        result = transformer.transform({"FCV-201"}, config)
+        self.assertTrue(any("FLOW_CONTROL_VALVE" in a for a in result))
+
 
 class TestRelatedInstrumentsTransformer(unittest.TestCase):
     """Test RelatedInstrumentsTransformer."""

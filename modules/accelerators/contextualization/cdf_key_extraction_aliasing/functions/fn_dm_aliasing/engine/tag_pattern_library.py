@@ -35,6 +35,9 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.t
 
 logger = logging.getLogger(__name__)
 
+# Optional site/unit segments before ISA core (bounded). Prepended to default + YAML tag patterns.
+ISA_OPTIONAL_LEADING_PREFIX = r"(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}"
+
 
 class EquipmentType(Enum):
     """Standard equipment types in industrial facilities."""
@@ -258,36 +261,188 @@ class StandardTagPatternRegistry(IPatternRegistry):
             )
 
     def _initialize_default_patterns(self):
-        """Initialize with a minimal set of default patterns if YAML loading fails."""
+        """Initialize with default ISA patterns if YAML loading fails (no tag_patterns.yaml required)."""
         logger.info("Initializing with default patterns...")
 
-        # Create minimal default patterns
+        def isa(pat: str) -> str:
+            return ISA_OPTIONAL_LEADING_PREFIX + pat
+
+        # Mirrors committed tag_patterns.yaml ISA cores with optional leading segments.
         default_patterns = [
             TagPattern(
-                name="default_pump",
-                pattern=r"\bP[-_]?\d{1,6}[A-Z]?\b",
-                description="Default pump pattern",
+                name="standard_pump",
+                pattern=isa(r"\bP[-_]?\d{1,6}[A-Z]?\b"),
+                description="Standard pump tags (P-101, P101A)",
                 equipment_type=EquipmentType.PUMP,
-                examples=["P-101", "P101A", "P-10001"],
+                examples=["P-101", "P101A", "10-P-101", "U1-P-10001"],
                 priority=50,
                 industry_standard="ISA",
             ),
             TagPattern(
-                name="default_valve",
-                pattern=r"\bV[-_]?\d{1,6}[A-Z]?\b",
-                description="Default valve pattern",
+                name="pump_with_service",
+                pattern=isa(r"\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b"),
+                description="Pump with service designation (FWP-101, CWP-201)",
+                equipment_type=EquipmentType.PUMP,
+                examples=["FWP-101", "10-FWP-101"],
+                priority=60,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="centrifugal_pump",
+                pattern=isa(r"\bCP[-_]?\d{1,6}[A-Z]?\b"),
+                description="Centrifugal pump tags",
+                equipment_type=EquipmentType.PUMP,
+                examples=["CP-101", "10-CP-101"],
+                priority=70,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="standard_compressor",
+                pattern=isa(r"\bC[-_]?\d{1,6}[A-Z]?\b"),
+                description="Standard compressor tags (C-101)",
+                equipment_type=EquipmentType.COMPRESSOR,
+                examples=["C-101", "10-C-101"],
+                priority=50,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="compressor_with_type",
+                pattern=isa(r"\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b"),
+                description="Compressor with type (AC-101, RC-201)",
+                equipment_type=EquipmentType.COMPRESSOR,
+                examples=["AC-101", "10-AC-101"],
+                priority=60,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="control_valve",
+                pattern=isa(r"\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b"),
+                description="Control valve tags (FCV-101, PCV-201)",
                 equipment_type=EquipmentType.VALVE,
-                examples=["V-101", "V101A", "V-10001"],
+                examples=["FCV-101", "10-FCV-101"],
+                priority=40,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="manual_valve",
+                pattern=isa(r"\bV[-_]?\d{1,6}[A-Z]?\b"),
+                description="Manual valve tags (V-101)",
+                equipment_type=EquipmentType.VALVE,
+                examples=["V-101", "10-V-101"],
+                priority=60,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="safety_valve",
+                pattern=isa(r"\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b"),
+                description="Safety valve tags (PSV-101)",
+                equipment_type=EquipmentType.VALVE,
+                examples=["PSV-101", "10-PSV-101"],
+                priority=30,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="standard_tank",
+                pattern=isa(r"\bT[-_]?\d{1,6}[A-Z]?\b"),
+                description="Standard tank tags",
+                equipment_type=EquipmentType.TANK,
+                examples=["T-101", "10-T-101"],
                 priority=50,
                 industry_standard="ISA",
             ),
             TagPattern(
-                name="default_instrument",
-                pattern=r"\b[A-Z]{2,3}[-_]?\d{1,6}[A-Z]?\b",
-                description="Default instrument pattern",
+                name="vessel",
+                pattern=isa(r"\bV[-_]?\d{1,6}[A-Z]?\b"),
+                description="Vessel tags",
+                equipment_type=EquipmentType.VESSEL,
+                examples=["V-101"],
+                priority=51,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="reactor",
+                pattern=isa(r"\bR[-_]?\d{1,6}[A-Z]?\b"),
+                description="Reactor tags",
+                equipment_type=EquipmentType.REACTOR,
+                examples=["R-101", "10-R-101"],
+                priority=50,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="heat_exchanger",
+                pattern=isa(r"\bE[-_]?\d{1,6}[A-Z]?\b"),
+                description="Heat exchanger tags (E-101)",
+                equipment_type=EquipmentType.HEAT_EXCHANGER,
+                examples=["E-101", "10-E-101"],
+                priority=50,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="heat_exchanger_with_type",
+                pattern=isa(r"\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b"),
+                description="Heat exchanger with type (HE-101, CE-201)",
+                equipment_type=EquipmentType.HEAT_EXCHANGER,
+                examples=["HE-101", "10-HE-101"],
+                priority=60,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="flow_instrument",
+                pattern=isa(r"\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b"),
+                description="Flow instruments (FIC-101, FIT-201)",
                 equipment_type=EquipmentType.INSTRUMENT,
-                examples=["FIC-101", "PIC-201", "TIC-10001"],
+                instrument_type=InstrumentType.FLOW,
+                examples=["FIC-101", "10-FIC-101"],
                 priority=40,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="pressure_instrument",
+                pattern=isa(r"\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b"),
+                description="Pressure instruments (PIC-101)",
+                equipment_type=EquipmentType.INSTRUMENT,
+                instrument_type=InstrumentType.PRESSURE,
+                examples=["PIC-101", "10-PIC-101"],
+                priority=40,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="temperature_instrument",
+                pattern=isa(r"\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b"),
+                description="Temperature instruments (TIC-101)",
+                equipment_type=EquipmentType.INSTRUMENT,
+                instrument_type=InstrumentType.TEMPERATURE,
+                examples=["TIC-101", "10-TIC-101"],
+                priority=40,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="level_instrument",
+                pattern=isa(r"\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b"),
+                description="Level instruments (LIC-101)",
+                equipment_type=EquipmentType.INSTRUMENT,
+                instrument_type=InstrumentType.LEVEL,
+                examples=["LIC-101", "10-LIC-101"],
+                priority=40,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="analytical_instrument",
+                pattern=isa(r"\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b"),
+                description="Analytical instruments (AIC-101)",
+                equipment_type=EquipmentType.INSTRUMENT,
+                instrument_type=InstrumentType.ANALYTICAL,
+                examples=["AIC-101", "10-AIC-101"],
+                priority=40,
+                industry_standard="ISA",
+            ),
+            TagPattern(
+                name="distillation_column",
+                pattern=isa(r"\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b"),
+                description="Distillation column tags (C-101, DC-201)",
+                equipment_type=EquipmentType.COLUMN,
+                examples=["DC-201", "10-DC-201"],
+                priority=50,
                 industry_standard="ISA",
             ),
         ]

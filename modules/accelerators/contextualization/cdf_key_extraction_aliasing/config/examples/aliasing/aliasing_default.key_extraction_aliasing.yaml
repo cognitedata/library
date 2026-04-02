@@ -255,25 +255,8 @@ aliasing:
         priority: 30
         preserve_original: true
         config:
+          include_isa_semantic_preset: true
           type_mappings:
-            P:
-            - PUMP
-            - PMP
-            V:
-            - VALVE
-            - VLV
-            T:
-            - TANK
-            - TNK
-            C:
-            - COMPRESSOR
-            - COMP
-            E:
-            - EXCHANGER
-            - EXCH
-            R:
-            - REACTOR
-            - REAC
             F:
             - FILTER
             - FLT

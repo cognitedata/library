@@ -12,13 +12,22 @@ from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
-# Standard tag structure pattern: prefix-number-suffix
+# Standard tag structure pattern: prefix-number-suffix (no leading unit/site segment)
 # Example: "P-10001", "FIC_001-A", "PUMP10001"
 STANDARD_TAG_PATTERN = re.compile(r"^([A-Z]+)[-_]?(\d+)([A-Z]?)$")
 
-# Hierarchical tag pattern: unit-prefix-number
-# Example: "10-P-10001", "20_V-2001"
-HIERARCHICAL_TAG_PATTERN = re.compile(r"^(\d+[-_])([A-Z][-_]?)(\d+)$")
+# Optional bounded site/unit segments before ISA-style core (alphanumeric or numeric + separator).
+# Example: "10-P-101", "U1-FIC-101", "AREA12_HE-10001"
+TAG_OPTIONAL_LEADING_SEGMENTS = re.compile(
+    r"^(?:(?:[A-Za-z0-9]{1,12}|\d{1,8})[-_/]){0,4}"
+    r"([A-Z]{1,8})[-_]?(\d{1,10})([A-Z]?)$"
+)
+
+# Hierarchical tag pattern: unit + equipment prefix (1–8 letters) + number + optional suffix
+# Example: "10-P-10001", "20_V-2001", "10-FIC-101", "10-FIC-101A"
+HIERARCHICAL_TAG_PATTERN = re.compile(
+    r"^(\d+[-_])([A-Z]{1,8}[-_]?)(\d+)([A-Z]?)$"
+)
 
 
 def extract_equipment_number(tag: str) -> Optional[str]:
@@ -58,10 +67,23 @@ def extract_tag_structure(tag: str) -> Optional[dict]:
         {'prefix': 'P', 'number': '10001', 'suffix': ''}
         >>> extract_tag_structure("FIC_001-A")
         {'prefix': 'FIC', 'number': '001', 'suffix': 'A'}
+        >>> extract_tag_structure("10-P-10001")
+        {'prefix': 'P', 'number': '10001', 'suffix': ''}
+        >>> extract_tag_structure("10-FIC-101")
+        {'prefix': 'FIC', 'number': '101', 'suffix': ''}
+        >>> extract_tag_structure("U1-FIC-101")
+        {'prefix': 'FIC', 'number': '101', 'suffix': ''}
         >>> extract_tag_structure("invalid")
         None
     """
     match = STANDARD_TAG_PATTERN.match(tag)
+    if match:
+        return {
+            "prefix": match.group(1),
+            "number": match.group(2),
+            "suffix": match.group(3) or "",
+        }
+    match = TAG_OPTIONAL_LEADING_SEGMENTS.match(tag)
     if match:
         return {
             "prefix": match.group(1),
@@ -137,6 +159,8 @@ def extract_hierarchical_structure(tag: str) -> Optional[dict]:
         {'unit': '10', 'equipment': 'P', 'number': '10001'}
         >>> extract_hierarchical_structure("20_V-2001")
         {'unit': '20', 'equipment': 'V', 'number': '2001'}
+        >>> extract_hierarchical_structure("10-FIC-101")
+        {'unit': '10', 'equipment': 'FIC', 'number': '101'}
         >>> extract_hierarchical_structure("P-10001")
         None
     """
@@ -144,7 +168,7 @@ def extract_hierarchical_structure(tag: str) -> Optional[dict]:
     if match:
         unit = match.group(1).rstrip("-_")
         equipment = match.group(2).strip("-_")
-        number = match.group(3)
+        number = match.group(3) + (match.group(4) or "")
         return {
             "unit": unit,
             "equipment": equipment,

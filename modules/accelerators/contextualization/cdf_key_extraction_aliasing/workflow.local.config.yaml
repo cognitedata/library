@@ -425,19 +425,153 @@ aliasing:
         priority: 10
         preserve_original: true
         config:
+          # type_mappings: keep in sync with config/semantic_expansion_isa51.yaml (embedded for scope_document).
           type_mappings:
             P:
             - PUMP
             - PMP
+            CP:
+            - CENTRIFUGAL_PUMP
+            - PUMP
+            - PMP
+            FWP:
+            - FEEDWATER_PUMP
+            - PUMP
+            - PMP
+            CWP:
+            - COOLING_WATER_PUMP
+            - PUMP
+            - PMP
+            BWP:
+            - BOILER_WATER_PUMP
+            - PUMP
+            - PMP
+            C:
+            - COMPRESSOR
+            - COMP
+            AC:
+            - AIR_COMPRESSOR
+            - COMPRESSOR
+            - COMP
+            RC:
+            - RECIPROCATING_COMPRESSOR
+            - COMPRESSOR
+            - COMP
+            CC:
+            - CENTRIFUGAL_COMPRESSOR
+            - COMPRESSOR
+            - COMP
+            FCV:
+            - FLOW_CONTROL_VALVE
+            - VALVE
+            - VLV
+            PCV:
+            - PRESSURE_CONTROL_VALVE
+            - VALVE
+            - VLV
+            TCV:
+            - TEMPERATURE_CONTROL_VALVE
+            - VALVE
+            - VLV
+            LCV:
+            - LEVEL_CONTROL_VALVE
+            - VALVE
+            - VLV
+            PSV:
+            - PRESSURE_SAFETY_VALVE
+            - SAFETY_VALVE
+            - VALVE
+            - VLV
+            TSV:
+            - TEMPERATURE_SAFETY_VALVE
+            - SAFETY_VALVE
+            - VALVE
+            - VLV
+            FSV:
+            - FLOW_SAFETY_VALVE
+            - SAFETY_VALVE
+            - VALVE
+            - VLV
             V:
             - VALVE
             - VLV
             T:
             - TANK
             - TNK
-            C:
-            - COMPRESSOR
-            - COMP
+            R:
+            - REACTOR
+            - REAC
+            E:
+            - HEAT_EXCHANGER
+            - EXCHANGER
+            - EXCH
+            HE:
+            - HEAT_EXCHANGER
+            - EXCHANGER
+            - EXCH
+            CE:
+            - CONDENSER_EXCHANGER
+            - HEAT_EXCHANGER
+            - EXCH
+            DC:
+            - DISTILLATION_COLUMN
+            - COLUMN
+            - COL
+            FIC:
+            - FLOW_INDICATOR_CONTROLLER
+            - FLOW_CONTROLLER
+            - INSTRUMENT
+            FIT:
+            - FLOW_INDICATOR_TRANSMITTER
+            - FLOW_TRANSMITTER
+            - INSTRUMENT
+            FE:
+            - FLOW_ELEMENT
+            - INSTRUMENT
+            PIC:
+            - PRESSURE_INDICATOR_CONTROLLER
+            - PRESSURE_CONTROLLER
+            - INSTRUMENT
+            PIT:
+            - PRESSURE_INDICATOR_TRANSMITTER
+            - PRESSURE_TRANSMITTER
+            - INSTRUMENT
+            PE:
+            - PRESSURE_ELEMENT
+            - INSTRUMENT
+            TIC:
+            - TEMPERATURE_INDICATOR_CONTROLLER
+            - TEMPERATURE_CONTROLLER
+            - INSTRUMENT
+            TIT:
+            - TEMPERATURE_INDICATOR_TRANSMITTER
+            - TEMPERATURE_TRANSMITTER
+            - INSTRUMENT
+            TE:
+            - TEMPERATURE_ELEMENT
+            - INSTRUMENT
+            LIC:
+            - LEVEL_INDICATOR_CONTROLLER
+            - LEVEL_CONTROLLER
+            - INSTRUMENT
+            LIT:
+            - LEVEL_INDICATOR_TRANSMITTER
+            - LEVEL_TRANSMITTER
+            - INSTRUMENT
+            LE:
+            - LEVEL_ELEMENT
+            - INSTRUMENT
+            AIC:
+            - ANALYTICAL_INDICATOR_CONTROLLER
+            - ANALYTICAL_CONTROLLER
+            - INSTRUMENT
+            AIT:
+            - ANALYTICAL_INDICATOR_TRANSMITTER
+            - ANALYTICAL_TRANSMITTER
+            - INSTRUMENT
+            ACV:
+            - ANALYTICAL_CONTROL_VALVE
+            - INSTRUMENT
           format_templates:
           - '{type}-{tag}'
           - '{type}_{tag}'

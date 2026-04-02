@@ -56,7 +56,7 @@ Asset, timeseries tag, and FK rules share one YAML anchor **`&alphanumeric_tag`*
 
 **Parameters:** `exclude_self_referencing_keys` (default `true`, or a legacy map with `default` / per-`entity_type`) controls dropping FK strings that equal a candidate on the same instance. **`source_views[].exclude_self_referencing_keys`** (optional boolean) overrides parameters for entities listed from that view; default scope sets **`false`** on **`CogniteTimeSeries`** only so overlapping FK values are kept there while asset/file views inherit **`true`** (CogniteAsset sets **`true`** explicitly).
 
-**Aliasing (default):** Under `aliasing.config.data.aliasing_rules` — `semantic_expansion` (**`type: semantic_expansion`**, letter codes → full words such as `P-101` → `PUMP-101`) and `strip_numeric_unit_prefix` (priority 10, assets), `leading_zero_normalization` (priority 20, assets), `document_aliases` (priority 30, files). Default **`write_foreign_key_references: false`**. Timeseries candidate keys are **not** processed by the asset-only rules unless you add or widen `scope_filters.entity_type`.
+**Aliasing (default):** Under `aliasing.config.data.aliasing_rules` — `semantic_expansion` (**`type: semantic_expansion`**, `include_isa_semantic_preset` + [`semantic_expansion_isa51.yaml`](../../config/semantic_expansion_isa51.yaml) for ISA-style multi-letter codes as well as letter codes) and `strip_numeric_unit_prefix` (priority 10, assets), `leading_zero_normalization` (priority 20, assets), `document_aliases` (priority 30, files). Default **`write_foreign_key_references: false`**. Timeseries candidate keys are **not** processed by the asset-only rules unless you add or widen `scope_filters.entity_type`.
 
 **Workflows:** [`workflows/key_extraction_aliasing.WorkflowVersion.yaml`](../../workflows/key_extraction_aliasing.WorkflowVersion.yaml) may embed **scope-specific** `source_views` and rules (often file-heavy). Treat the **scope YAML** as the authoring reference for the full three-entity CDM layout; align inline workflow config when behavior should match.
 
@@ -731,7 +731,9 @@ Transform case of tags.
 
 #### 6. Semantic expansion
 
-Expand equipment type letter codes to full names (`SemanticExpansionHandler`; YAML rule type **`semantic_expansion`**).
+Expand equipment and ISA-style functional prefixes to full names (`SemanticExpansionHandler`; YAML rule type **`semantic_expansion`**). Mapping keys are matched in **longest-first** order so multi-letter codes (e.g. `FCV`, `PIC`) are not split by shorter keys (`F`, `PI`).
+
+**Built-in ISA preset (no `tag_patterns.yaml`):** Set **`include_isa_semantic_preset: true`** (or a truthy **`isa_preset`**) to merge [`config/semantic_expansion_isa51.yaml`](../../config/semantic_expansion_isa51.yaml) into `type_mappings`. User-supplied `type_mappings` entries **override** preset keys with the same name. Optional **`isa_preset_path`** points to a different YAML file with a top-level **`type_mappings`** map.
 
 ```yaml
 - name: "semantic_expansion"
@@ -741,22 +743,22 @@ Expand equipment type letter codes to full names (`SemanticExpansionHandler`; YA
   priority: 30
   preserve_original: true
   config:
+    include_isa_semantic_preset: true
     type_mappings:
-      P: ["PUMP", "PMP"]                  # P can expand to PUMP or PMP
-      V: ["VALVE", "VLV"]
-      T: ["TANK", "TNK"]
-      C: ["COMPRESSOR", "COMP"]
-      E: ["EXCHANGER", "EXCH"]
+      F: ["FILTER", "FLT"]                # Add or override preset entries
     format_templates:
-      - "{type}-{tag}"                     # PUMP-101
-      - "{type}_{tag}"                     # PUMP_101
-    auto_detect: true                      # Auto-detect equipment type
+      - "{type}-{tag}"                     # PUMP-101, FLOW_CONTROL_VALVE-201
+      - "{type}_{tag}"
+    auto_detect: true
   conditions:
     entity_type: ["asset", "equipment"]
 ```
 
+**Manual-only example** (no preset): keep `type_mappings` as before and omit `include_isa_semantic_preset`.
+
 **Result Examples:**
-- Input: `P-101` → Output: `P-101`, `PUMP-101`, `PMP-101`
+- Input: `P-101` → Output: `P-101`, `PUMP-101`, … (from preset or `type_mappings`)
+- Input: `10-FCV-101` → hierarchical expansions such as `10-FLOW_CONTROL_VALVE-101` when `FCV` is mapped
 
 #### 7. Related Instruments
 

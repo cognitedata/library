@@ -7,6 +7,7 @@ testing YAML loading, pattern registration, and pattern search.
 """
 
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -151,6 +152,22 @@ class TestTagPatternLibrary(unittest.TestCase):
         # Should fall back to default patterns
         self.assertIsInstance(registry, StandardTagPatternRegistry)
         self.assertGreater(len(registry.patterns), 0)
+
+    def test_default_isa_patterns_allow_leading_segments(self):
+        """In-code defaults must match tags with unit/site prefixes (no tag_patterns.yaml)."""
+        fd, missing_path = tempfile.mkstemp(suffix=".yaml")
+        os.close(fd)
+        os.unlink(missing_path)
+        self.assertFalse(Path(missing_path).exists())
+        registry = StandardTagPatternRegistry(missing_path)
+        pump = registry.get_pattern_by_name("standard_pump")
+        self.assertIsNotNone(pump)
+        cre = re.compile(pump.pattern)
+        self.assertTrue(cre.search("10-P-101"))
+        self.assertTrue(cre.search("U1-P-10001"))
+        fic = registry.get_pattern_by_name("flow_instrument")
+        self.assertIsNotNone(fic)
+        self.assertTrue(re.compile(fic.pattern).search("10-FIC-101"))
 
     def test_invalid_yaml_file(self):
         """Test handling of invalid YAML file."""

@@ -26,6 +26,14 @@ class TestTransformerUtils(unittest.TestCase):
             extract_tag_structure("P-10001")["number"],
             "10001",
         )
+        s = extract_tag_structure("10-FIC-101")
+        self.assertIsNotNone(s)
+        self.assertEqual(s["prefix"], "FIC")
+        self.assertEqual(s["number"], "101")
+        s2 = extract_tag_structure("U1-P-10001")
+        self.assertIsNotNone(s2)
+        self.assertEqual(s2["prefix"], "P")
+        self.assertEqual(s2["number"], "10001")
         self.assertIsNone(extract_tag_structure("invalid"))
 
     def test_generate_separator_variants(self):
@@ -40,6 +48,14 @@ class TestTransformerUtils(unittest.TestCase):
         h = extract_hierarchical_structure("10-P-10001")
         self.assertIsNotNone(h)
         self.assertEqual(h["equipment"], "P")
+        self.assertEqual(h["number"], "10001")
+        h2 = extract_hierarchical_structure("10-FIC-101")
+        self.assertIsNotNone(h2)
+        self.assertEqual(h2["equipment"], "FIC")
+        self.assertEqual(h2["number"], "101")
+        h3 = extract_hierarchical_structure("10-P-10001A")
+        self.assertIsNotNone(h3)
+        self.assertEqual(h3["number"], "10001A")
         self.assertIsNone(extract_hierarchical_structure("P-10001"))
 
 
