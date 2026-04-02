@@ -26,6 +26,33 @@ from metadata_optimizations import (
     optimize_metadata_processing
 )
 
+# ---------------------------------------------------------------------------
+# Usage tracking
+# ---------------------------------------------------------------------------
+_SOURCE = "dp:cdf_entity_matching"
+_DP_VERSION = "1"
+_TRACKER_VERSION = "1"
+
+
+def _report_usage(client: CogniteClient) -> None:
+    try:
+        import threading
+        from mixpanel import Consumer, Mixpanel
+        mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
+        distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
+        def _send() -> None:
+            mp.track(distinct_id, "fn-handle", {
+                "source": _SOURCE,
+                "tracker_version": _TRACKER_VERSION,
+                "dp_version": _DP_VERSION,
+                "type": "py-function",
+                "cdf_cluster": client.config.cdf_cluster,
+                "cdf_project": client.config.project,
+            })
+        threading.Thread(target=_send, daemon=True).start()
+    except Exception:
+        pass
+
 
 def handle(data: Dict[str, Any], client: CogniteClient) -> Dict[str, Any]:
     """
@@ -40,7 +67,7 @@ def handle(data: Dict[str, Any], client: CogniteClient) -> Dict[str, Any]:
     Returns:
         Dict containing status and result information
     """
-    
+    _report_usage(client)
     logger = None
     benchmark = None
     

@@ -4,4 +4,4 @@ cognite-pygen
 packaging
 plotly
 matplotlib
-fpdf2>=2.7.0
+fpdf2>=2.7.0mixpanel>=4.10.0

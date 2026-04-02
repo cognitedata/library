@@ -3,3 +3,4 @@ cognite-sdk == 7.*
 pyyaml >= 6.0.1
 tenacity >= 8.0.0
 psutil >= 5.9.0
+mixpanel>=4.10.0

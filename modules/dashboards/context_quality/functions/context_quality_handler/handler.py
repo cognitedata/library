@@ -500,6 +500,34 @@ def _handle_batch_collection(client: CogniteClient, config: dict, start_time: fl
     }
 
 
+# ---------------------------------------------------------------------------
+# Usage tracking
+# ---------------------------------------------------------------------------
+_SOURCE = "dp:context_quality"
+_DP_VERSION = "1"
+_TRACKER_VERSION = "1"
+
+
+def _report_usage(client: CogniteClient) -> None:
+    try:
+        import threading
+        from mixpanel import Consumer, Mixpanel
+        mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
+        distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
+        def _send() -> None:
+            mp.track(distinct_id, "fn-handle", {
+                "source": _SOURCE,
+                "tracker_version": _TRACKER_VERSION,
+                "dp_version": _DP_VERSION,
+                "type": "py-function",
+                "cdf_cluster": client.config.cdf_cluster,
+                "cdf_project": client.config.project,
+            })
+        threading.Thread(target=_send, daemon=True).start()
+    except Exception:
+        pass
+
+
 # ----------------------------------------------------
 # MAIN HANDLER
 # ----------------------------------------------------
@@ -524,6 +552,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
     Returns:
         dict: All computed metrics (or batch status in batch mode)
     """
+    _report_usage(client)
     start_time = time.time()
     
     # Merge config

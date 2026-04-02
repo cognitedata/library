@@ -64,6 +64,36 @@ RESOURCE_OPTIONS = [
 
 COUNT_LOAD_CAP = 50
 
+# ---------------------------------------------------------------------------
+# Usage tracking
+# ---------------------------------------------------------------------------
+_SOURCE = "dp:classic_cdf_analysis"
+_DP_VERSION = "1"
+_TRACKER_VERSION = "1"
+
+
+def _report_usage(cdf_client) -> None:
+    if st.session_state.get("_usage_tracked"):
+        return
+    try:
+        import threading
+        from mixpanel import Consumer, Mixpanel
+        mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
+        distinct_id = f"{cdf_client.config.project}:{cdf_client.config.cdf_cluster}"
+        def _send() -> None:
+            mp.track(distinct_id, "streamlit-session", {
+                "source": _SOURCE,
+                "tracker_version": _TRACKER_VERSION,
+                "dp_version": _DP_VERSION,
+                "type": "streamlit",
+                "cdf_cluster": cdf_client.config.cdf_cluster,
+                "cdf_project": cdf_client.config.project,
+            })
+        threading.Thread(target=_send, daemon=True).start()
+        st.session_state["_usage_tracked"] = True
+    except Exception:
+        pass
+
 
 def _is_pyodide() -> bool:
     try:
@@ -357,6 +387,7 @@ def main() -> None:
         return
 
     client, project = client_and_project
+    _report_usage(client)
     adapter = ClientAdapter(client, project)
 
     # ---- Analysis loading block (must be before UI so API calls run at top level) ----

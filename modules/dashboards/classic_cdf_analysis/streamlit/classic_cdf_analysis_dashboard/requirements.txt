@@ -3,3 +3,4 @@ streamlit
 pandas
 python-dotenv
 pyodide-http>=0.2.1
+mixpanel>=4.10.0
