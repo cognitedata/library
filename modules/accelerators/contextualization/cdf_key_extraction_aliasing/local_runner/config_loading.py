@@ -10,7 +10,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
+    _DEFAULT_ALIASING_VALIDATION,
     _convert_yaml_direct_to_aliasing_config,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.scope_document_dm import (
+    resolve_scope_document_source_views,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
     _convert_rule_dict_to_engine_format,
@@ -23,14 +27,6 @@ DEFAULT_SCOPE = "default"
 # v1 scope document at module root (local runs only; CDF uses trigger-embedded configuration).
 WORKFLOW_LOCAL_CONFIG_FILENAME = "workflow.local.config.yaml"
 DEFAULT_SCOPE_DOCUMENT_PATH = SCRIPT_DIR / WORKFLOW_LOCAL_CONFIG_FILENAME
-
-_DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
-    "max_aliases_per_tag": 50,
-    "min_alias_length": 2,
-    "max_alias_length": 50,
-    "allowed_characters": r"A-Za-z0-9-_/. ",
-}
-
 
 def resolve_scope_document_path(scope: Optional[str] = None) -> Path:
     """Resolve the default v1 scope YAML at the module root.
@@ -113,19 +109,7 @@ def _load_from_scope_document(
     if not isinstance(config_data, dict):
         raise ValueError("key_extraction.config.data must be a mapping")
 
-    source_views = list(config_data.get("source_views") or [])
-    if not source_views:
-        logger.warning(
-            "No source_views in scope; using default CogniteAsset view (no instance_space)"
-        )
-        source_views = [
-            {
-                "view_external_id": "CogniteAsset",
-                "view_space": "cdf_cdm",
-                "view_version": "v1",
-                "entity_type": "asset",
-            }
-        ]
+    source_views = resolve_scope_document_source_views(doc)
 
     extraction_rules_raw = config_data.get("extraction_rules")
     if extraction_rules_raw is None:

@@ -372,6 +372,8 @@ python main.py run
 ### 2. Review Documentation
 
 - [Documentation map](../README.md)
+- [Quickstart — `.env` and `main.py`](../guides/howto_quickstart.md)
+- [Scoped deployment — `--build` and Toolkit](../guides/howto_scoped_deployment.md)
 - [Configuration guide](../guides/configuration_guide.md)
 - [Key extraction / aliasing report](../key_extraction_aliasing_report.md)
 

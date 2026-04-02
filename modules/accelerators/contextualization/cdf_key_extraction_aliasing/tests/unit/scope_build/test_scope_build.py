@@ -162,17 +162,17 @@ def test_path_step_level_name() -> None:
 
 MINIMAL_TEMPLATE = """
 schemaVersion: 1
+source_views:
+  - view_external_id: CogniteAsset
+    view_space: cdf_cdm
+    view_version: v1
+    entity_type: asset
 key_extraction:
   externalId: ctx_key_extraction_default
   config:
     parameters: {}
     data:
       validation: { min_confidence: 0.5 }
-      source_views:
-        - view_external_id: CogniteAsset
-          view_space: cdf_cdm
-          view_version: v1
-          entity_type: asset
       extraction_rules: []
 aliasing:
   externalId: ctx_aliasing_default
@@ -259,25 +259,25 @@ def _tb(
 
 MULTIVIEW_TEMPLATE = """
 schemaVersion: 1
+source_views:
+  - view_external_id: CogniteAsset
+    view_space: cdf_cdm
+    view_version: v1
+    entity_type: asset
+    filters:
+      - operator: CONTAINSANY
+        target_property: tags
+        values: [asset_tag]
+  - view_external_id: CogniteFile
+    view_space: cdf_cdm
+    view_version: v1
+    entity_type: file
 key_extraction:
   externalId: ctx_key_extraction_default
   config:
     parameters: {}
     data:
       validation: { min_confidence: 0.5 }
-      source_views:
-        - view_external_id: CogniteAsset
-          view_space: cdf_cdm
-          view_version: v1
-          entity_type: asset
-          filters:
-            - operator: CONTAINSANY
-              target_property: tags
-              values: [asset_tag]
-        - view_external_id: CogniteFile
-          view_space: cdf_cdm
-          view_version: v1
-          entity_type: file
       extraction_rules: []
 aliasing:
   externalId: ctx_aliasing_default
@@ -304,7 +304,7 @@ def test_prepare_scope_document_injects_node_space_all_views_prepends(tmp_path: 
     )
     ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
     data = prepare_scope_document_for_context(doc, ctx)
-    views = data["key_extraction"]["config"]["data"]["source_views"]
+    views = data["source_views"]
     assert len(views) == 2
     for v in views:
         assert v["filters"][0]["property_scope"] == "node"
@@ -332,7 +332,7 @@ def test_prepare_scope_document_uses_leaf_instance_space_when_set(tmp_path: Path
     )
     ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
     data = prepare_scope_document_for_context(doc, ctx)
-    v0 = data["key_extraction"]["config"]["data"]["source_views"][0]
+    v0 = data["source_views"][0]
     assert v0["filters"][0]["values"] == ["sp_acme_prod"]
 
 
@@ -341,22 +341,22 @@ def test_prepare_scope_document_skips_inject_when_node_space_filter_exists(tmp_p
     doc = yaml.safe_load(
         """
 schemaVersion: 1
+source_views:
+  - view_external_id: CogniteAsset
+    view_space: cdf_cdm
+    view_version: v1
+    entity_type: asset
+    filters:
+      - operator: IN
+        property_scope: node
+        target_property: space
+        values: [sp_already_set]
 key_extraction:
   externalId: ctx_key_extraction_default
   config:
     parameters: {}
     data:
       validation: { min_confidence: 0.5 }
-      source_views:
-        - view_external_id: CogniteAsset
-          view_space: cdf_cdm
-          view_version: v1
-          entity_type: asset
-          filters:
-            - operator: IN
-              property_scope: node
-              target_property: space
-              values: [sp_already_set]
       extraction_rules: []
 aliasing:
   externalId: ctx_aliasing_default
@@ -378,7 +378,7 @@ aliasing:
     )
     ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
     data = prepare_scope_document_for_context(doc, ctx)
-    fl = data["key_extraction"]["config"]["data"]["source_views"][0]["filters"]
+    fl = data["source_views"][0]["filters"]
     assert len(fl) == 1
     assert fl[0]["values"] == ["sp_already_set"]
 
@@ -402,7 +402,7 @@ def test_prepare_scope_document_external_ids_and_scope_block(tmp_path: Path) -> 
     assert data["scope"]["name"] == "Leaf One"
     assert data["key_extraction"]["externalId"] == "ctx_key_extraction_leaf1"
     assert data["aliasing"]["externalId"] == "ctx_aliasing_leaf1"
-    views = data["key_extraction"]["config"]["data"]["source_views"]
+    views = data["source_views"]
     assert len(views) == 1
     flt = views[0]["filters"][0]
     assert flt["property_scope"] == "node"

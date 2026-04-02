@@ -17,6 +17,10 @@ Trigger shell: ``workflow_template/workflow.template.WorkflowTrigger.yaml``
 
 ``--build`` only creates missing files by default; ``--force`` overwrites existing generated YAML from
 templates. ``--check-workflow-triggers`` validates triggers and Workflow/WorkflowVersion vs templates (no writes).
+``--clean`` removes generated YAML under ``workflows/`` matching the hierarchy ``workflow`` id (recursive under
+``workflows/``, plus legacy root trigger names). It prints a summary, warns the operation cannot be undone, and
+prompts for ``yes`` unless ``--yes`` is set (required when stdin is not a TTY). ``--dry-run --clean`` lists what
+would be deleted only. It does **not** run a build afterward—run again without ``--clean`` to recreate.
 """
 
 from __future__ import annotations

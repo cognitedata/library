@@ -12,11 +12,13 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     read_enable_reference_index,
     reference_index_raw_table_key_from_scope,
     resolve_instance_space_from_scope_document,
+    resolve_scope_document_source_views,
 )
 
 
 def test_build_key_extraction_merges_runtime() -> None:
     doc = {
+        "source_views": [{"view_external_id": "CogniteFile", "instance_space": "old"}],
         "key_extraction": {
             "externalId": "ctx_key_extraction_x",
             "config": {
@@ -26,13 +28,10 @@ def test_build_key_extraction_merges_runtime() -> None:
                     "raw_table_key": "my_suffix_key_extraction_state",
                 },
                 "data": {
-                    "source_views": [
-                        {"view_external_id": "CogniteFile", "instance_space": "old"}
-                    ],
                     "extraction_rules": [],
                 },
             },
-        }
+        },
     }
     out = build_key_extraction_workflow_config(
         doc,
@@ -103,12 +102,13 @@ def test_read_enable_reference_index() -> None:
 
 def _doc_with_source_views(views: list) -> dict:
     return {
+        "source_views": views,
         "key_extraction": {
             "config": {
                 "parameters": {"raw_table_key": "x_key_extraction_state"},
-                "data": {"source_views": views, "extraction_rules": []},
+                "data": {"extraction_rules": []},
             }
-        }
+        },
     }
 
 
@@ -196,3 +196,13 @@ def test_build_reference_index_config_block() -> None:
     blk = build_reference_index_config_block(doc)
     assert "config" in blk
     assert blk["config"]["data"]["aliasing_rules"] == []
+
+def test_resolve_scope_document_source_views_requires_non_empty_list() -> None:
+    with pytest.raises(ValueError, match="top-level source_views"):
+        resolve_scope_document_source_views({})
+    with pytest.raises(ValueError, match="top-level source_views"):
+        resolve_scope_document_source_views({"source_views": []})
+    out = resolve_scope_document_source_views({"source_views": [{"view_external_id": "X"}]})
+    assert len(out) == 1
+    assert out[0]["view_external_id"] == "X"
+

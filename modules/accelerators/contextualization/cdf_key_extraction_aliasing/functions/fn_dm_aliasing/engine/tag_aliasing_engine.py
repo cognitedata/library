@@ -26,6 +26,9 @@ from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
+from ...cdf_fn_common.confidence_match_eval import (
+    apply_confidence_match_rules_to_float_scores,
+)
 from ..common.logger import CogniteFunctionLogger
 from .transformer_utils import (
     STANDARD_TAG_PATTERN,
@@ -383,56 +386,25 @@ class AliasingEngine:
         return True
 
     def _validate_aliases(self, aliases: List[str]) -> List[str]:
-        """Apply validation rules to generated aliases."""
-        validated = []
+        """Apply confidence_match_rules, min_confidence, dedupe, and max_aliases_per_tag."""
+        max_aliases = int(self.validation_config.get("max_aliases_per_tag", 50) or 50)
+        min_confidence = float(self.validation_config.get("min_confidence", 0.0) or 0.0)
+        rules_raw = self.validation_config.get("confidence_match_rules") or []
 
-        min_length = self.validation_config.get("min_alias_length", 1)
-        max_length = self.validation_config.get("max_alias_length", 100)
-        max_aliases = self.validation_config.get("max_aliases_per_tag", 50)
-        allowed_chars = self.validation_config.get(
-            "allowed_characters", r"A-Za-z0-9-_/. "
+        scored = [(str(a), 1.0) for a in aliases if a]
+        scored = apply_confidence_match_rules_to_float_scores(
+            scored,
+            rules_raw=list(rules_raw) if isinstance(rules_raw, list) else list(rules_raw),
+            default_expression_match=self.validation_config,
+            log_warning=self.logger.warning,
+            log_verbose=self.logger.verbose,
         )
+        validated = [v for v, c in scored if c >= min_confidence]
 
-        # Create regex pattern for allowed characters - fix the escaping issue
-        if allowed_chars:
-            # Don't escape if it's already a character class pattern
-            if allowed_chars.startswith("[") and allowed_chars.endswith("]"):
-                char_pattern = f"^{allowed_chars}+$"
-            else:
-                # For simple string, create character class but handle spaces properly
-                char_pattern = f"^[{allowed_chars}]+$"
-        else:
-            char_pattern = None
-
-        for alias in aliases:
-            # Skip empty aliases
-            if not alias:
-                continue
-
-            # Check length
-            if len(alias) < min_length or len(alias) > max_length:
-                self.logger.verbose(
-                    "DEBUG", f"Alias '{alias}' rejected due to length: {len(alias)}"
-                )
-                continue
-
-            # Check allowed characters
-            if char_pattern and not re.match(char_pattern, alias):
-                self.logger.verbose(
-                    "DEBUG",
-                    f"Alias '{alias}' rejected due to invalid characters. Pattern: {char_pattern}",
-                )
-                continue
-
-            validated.append(alias)
-
-        # Remove duplicates while preserving order
-        seen = set()
+        seen: Set[str] = set()
         validated = [x for x in validated if not (x in seen or seen.add(x))]
 
-        # Limit number of aliases
         if len(validated) > max_aliases:
-            # Sort and take the first max_aliases items
             validated = sorted(validated)[:max_aliases]
 
         return validated
@@ -447,6 +419,9 @@ def load_config_from_yaml(file_path: str) -> Dict[str, Any]:
 
 def main():
     """Example usage of the AliasingEngine."""
+    import copy
+
+    from ..cdf_adapter import _DEFAULT_ALIASING_VALIDATION
 
     # Example configuration
     config = {
@@ -525,9 +500,8 @@ def main():
             },
         ],
         "validation": {
+            **copy.deepcopy(_DEFAULT_ALIASING_VALIDATION),
             "max_aliases_per_tag": 30,
-            "min_alias_length": 2,
-            "max_alias_length": 50,
         },
     }
 

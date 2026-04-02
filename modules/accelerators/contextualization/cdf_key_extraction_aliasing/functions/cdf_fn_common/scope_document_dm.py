@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, Mapping, MutableMapping, Optional
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
 from .reference_index_naming import reference_index_raw_table_from_key_extraction_table
 
@@ -21,6 +21,16 @@ def _workflow_v1_from_task_data(data: Mapping[str, Any]) -> Dict[str, Any]:
     )
 
 
+def resolve_scope_document_source_views(doc: Dict[str, Any]) -> List[Any]:
+    """Return a deep copy of the document root ``source_views`` list (required, non-empty)."""
+    raw = doc.get("source_views")
+    if not isinstance(raw, list) or not raw:
+        raise ValueError(
+            "scope document must define a non-empty top-level source_views list"
+        )
+    return copy.deepcopy(raw)
+
+
 def _space_from_filter_values(vals: Any) -> Optional[str]:
     if vals is None:
         return None
@@ -34,19 +44,8 @@ def _space_from_filter_values(vals: Any) -> Optional[str]:
 
 
 def resolve_instance_space_from_scope_document(doc: Dict[str, Any]) -> str:
-    """Infer DM instance space from ``key_extraction.config.data.source_views`` (field or node space filter)."""
-    ke = doc.get("key_extraction")
-    if not isinstance(ke, dict):
-        raise ValueError("scope document missing key_extraction")
-    cfg = ke.get("config")
-    if not isinstance(cfg, dict):
-        raise ValueError("scope document missing key_extraction.config")
-    data = cfg.get("data")
-    if not isinstance(data, dict):
-        raise ValueError("scope document missing key_extraction.config.data")
-    views = data.get("source_views")
-    if not isinstance(views, list):
-        raise ValueError("scope document missing key_extraction.config.data.source_views")
+    """Infer DM instance space from top-level ``source_views`` (field or node space filter)."""
+    views = resolve_scope_document_source_views(doc)
     for v in views:
         if not isinstance(v, dict):
             continue
@@ -70,7 +69,7 @@ def resolve_instance_space_from_scope_document(doc: Dict[str, Any]) -> str:
                     return s
     raise ValueError(
         "Cannot derive instance_space from configuration: set "
-        "key_extraction.config.data.source_views[].instance_space or add a node "
+        "source_views[].instance_space or add a node "
         "space filter (EQUALS with one value, or IN with one value)"
     )
 
@@ -135,6 +134,11 @@ def build_key_extraction_workflow_config(
     if full_rescan is not None:
         params["full_rescan"] = bool(full_rescan)
     params["incremental_change_processing"] = incremental_change_processing
+    data = inner.setdefault("data", {})
+    if not isinstance(data, dict):
+        inner["data"] = {}
+        data = inner["data"]
+    data["source_views"] = resolve_scope_document_source_views(doc)
     _merge_instance_space_into_source_views(inner, instance_space)
     ext = ke.get("externalId")
     return {"externalId": ext, "config": inner}

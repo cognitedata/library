@@ -27,6 +27,7 @@ from ..utils.TokenReassemblyMethodParameter import (
     TokenReassemblyMethodParameter,
 )
 
+from ...cdf_fn_common.confidence_match_eval import apply_confidence_match_rules_mutating
 from ..common.logger import CogniteFunctionLogger
 from ..config import Config, ExtractionRuleConfig
 from ..utils.DataStructures import *
@@ -71,6 +72,8 @@ class KeyExtractionEngine:
                 validation_default.min_confidence = 0.1
             if not hasattr(validation_default, "regexp_match"):
                 validation_default.regexp_match = None
+            if not hasattr(validation_default, "expression_match"):
+                validation_default.expression_match = None
             if not hasattr(validation_default, "confidence_match_rules"):
                 validation_default.confidence_match_rules = []
             self._data_validation = validation_default
@@ -599,18 +602,16 @@ class KeyExtractionEngine:
     ) -> Optional[str]:
         """Get field value from entity data. Uses rule_name for pipeline-style keys (rule_name_field_name)."""
         field_name = getattr(source_field, "field_name", source_field)
-        if isinstance(field_name, str) and "." in field_name:
-            parts = field_name.split(".")
-            value = entity
-            for part in parts:
-                if isinstance(value, dict) and part in value:
-                    value = value[part]
-                else:
-                    return None
-            return str(value) if value is not None else None
+        if not isinstance(field_name, str):
+            field_name = str(field_name) if field_name is not None else ""
+
+        # Prefer pipeline-style prefixed keys (supports dotted field_name) before
+        # walking nested dicts on the entity root.
         if rule_name and getattr(source_field, "table_id", None):
             lookup = "_".join([rule_name, source_field.table_id, field_name])
-            return entity.get("table_data", {}).get(lookup) or entity.get(lookup)
+            got = entity.get("table_data", {}).get(lookup) or entity.get(lookup)
+            if got is not None:
+                return str(got)
         if rule_name:
             lookup = "_".join([rule_name, field_name])
             if lookup in entity:
@@ -618,6 +619,15 @@ class KeyExtractionEngine:
                 return str(value) if value is not None else None
         if field_name in entity:
             value = entity[field_name]
+            return str(value) if value is not None else None
+        if "." in field_name:
+            parts = field_name.split(".")
+            value = entity
+            for part in parts:
+                if isinstance(value, dict) and part in value:
+                    value = value[part]
+                else:
+                    return str(entity[field_name]) if field_name in entity else None
             return str(value) if value is not None else None
         return None
 
@@ -739,10 +749,16 @@ class KeyExtractionEngine:
         ns = SimpleNamespace(
             min_confidence=d.get("min_confidence", 0.1),
             regexp_match=d.get("regexp_match"),
+            expression_match=d.get("expression_match"),
             confidence_match_rules=rules,
         )
         for k, v in d.items():
-            if k in ("min_confidence", "regexp_match", "confidence_match_rules"):
+            if k in (
+                "min_confidence",
+                "regexp_match",
+                "expression_match",
+                "confidence_match_rules",
+            ):
                 continue
             setattr(ns, k, v)
         return ns
@@ -786,26 +802,6 @@ class KeyExtractionEngine:
 
         return merged
 
-    def _expression_items_to_pattern_strings(self, expressions: Any) -> List[str]:
-        """Normalize match.expressions entries to regex strings (str or {pattern, ...} dict/model)."""
-        out: List[str] = []
-        if not expressions:
-            return out
-        for e in expressions:
-            if isinstance(e, str):
-                s = str(e).strip()
-                if s:
-                    out.append(s)
-            elif isinstance(e, dict):
-                p = str(e.get("pattern", "") or "").strip()
-                if p:
-                    out.append(p)
-            elif hasattr(e, "pattern"):
-                p = str(getattr(e, "pattern", "") or "").strip()
-                if p:
-                    out.append(p)
-        return out
-
     def _confidence_rule_as_dict(self, raw: Any) -> Optional[Dict[str, Any]]:
         if raw is None:
             return None
@@ -821,110 +817,19 @@ class KeyExtractionEngine:
             return dict(raw)
         return None
 
-    def _build_sorted_confidence_runtime(
-        self, rules_raw: List[Any]
-    ) -> List[tuple]:
-        """Return list of (priority, list_index, name, compiled_regexes, keywords, mode, value)."""
-        runtime: List[tuple] = []
-        for idx, raw in enumerate(rules_raw or []):
-            rd = self._confidence_rule_as_dict(raw)
-            if not rd:
-                continue
-            if not rd.get("enabled", True):
-                continue
-            match = rd.get("match") or {}
-            if hasattr(match, "model_dump"):
-                match = match.model_dump(mode="python")
-            elif isinstance(match, SimpleNamespace):
-                match = vars(match)
-            exprs = self._expression_items_to_pattern_strings(match.get("expressions"))
-            kws = [k for k in (match.get("keywords") or []) if str(k).strip()]
-            if not exprs and not kws:
-                self.logger.verbose(
-                    "WARNING",
-                    "Skipping confidence_match_rule with empty match (no expressions or keywords)",
-                )
-                continue
-            mod = rd.get("confidence_modifier") or {}
-            if hasattr(mod, "model_dump"):
-                mod = mod.model_dump(mode="python")
-            elif isinstance(mod, SimpleNamespace):
-                mod = vars(mod)
-            mode = mod.get("mode")
-            if mode not in ("explicit", "offset"):
-                self.logger.warning(
-                    "Skipping confidence_match_rule %r: invalid confidence_modifier.mode %r",
-                    rd.get("name", idx),
-                    mode,
-                )
-                continue
-            try:
-                value = float(mod.get("value", 0.0))
-            except (TypeError, ValueError):
-                self.logger.warning(
-                    "Skipping confidence_match_rule %r: invalid confidence_modifier.value",
-                    rd.get("name", idx),
-                )
-                continue
-            pri = rd.get("priority")
-            if pri is None:
-                pri = idx * 10
-            compiled: List[re.Pattern] = []
-            for pat in exprs:
-                try:
-                    compiled.append(re.compile(pat))
-                except re.error as e:
-                    self.logger.warning(
-                        "Invalid regex in confidence_match_rule %r pattern %r: %s",
-                        rd.get("name", idx),
-                        pat,
-                        e,
-                    )
-            name = rd.get("name")
-            runtime.append((int(pri), idx, name, compiled, kws, mode, value))
-        runtime.sort(key=lambda t: (t[0], t[1]))
-        return runtime
-
-    def _key_matches_confidence_rule(
-        self,
-        key_value: str,
-        compiled: List[re.Pattern],
-        keywords: List[str],
-    ) -> bool:
-        kv_lower = key_value.lower()
-        if any(kw.lower() in kv_lower for kw in keywords):
-            return True
-        for cre in compiled:
-            if cre.search(key_value):
-                return True
-        return False
-
-    @staticmethod
-    def _apply_confidence_modifier_value(
-        confidence: float, mode: str, value: float
-    ) -> float:
-        if mode == "explicit":
-            out = value
-        else:
-            out = confidence + value
-        return max(0.0, min(1.0, out))
-
-    def _apply_confidence_match_rules(
-        self, keys: List[ExtractedKey], runtime: List[tuple]
+    def _apply_validation_confidence_rules(
+        self, validation: Any, keys: List[ExtractedKey]
     ) -> None:
-        if not runtime:
-            return
-        for key in keys:
-            for _pri, _idx, name, compiled, kws, mode, mod_val in runtime:
-                if self._key_matches_confidence_rule(key.value, compiled, kws):
-                    key.confidence = self._apply_confidence_modifier_value(
-                        key.confidence, mode, mod_val
-                    )
-                    self.logger.verbose(
-                        "DEBUG",
-                        f"confidence_match_rule {name or _idx!r} applied to key {key.value!r} -> {key.confidence:.4f}",
-                    )
-                    break
+        rules_raw = getattr(validation, "confidence_match_rules", None) or []
+        if not isinstance(rules_raw, list):
+            rules_raw = list(rules_raw)
+        apply_confidence_match_rules_mutating(
+            keys,
+            rules_raw=rules_raw,
+            default_expression_match=validation,
+            log_warning=self.logger.warning,
+            log_verbose=self.logger.verbose,
+        )
 
     def _validation_to_metadata_dict(self, validation: Any) -> Dict[str, Any]:
         if validation is None:
@@ -953,18 +858,6 @@ class KeyExtractionEngine:
         validation_override: Optional[Any] = None,
     ) -> ExtractionResult:
         """Apply validation to extraction result (uses rule.validation and config.parameters)."""
-        min_key_length = getattr(
-            self.config.parameters, "min_key_length", 3
-        ) or 3
-        result.candidate_keys = [
-            k for k in result.candidate_keys if len(k.value) >= min_key_length
-        ]
-        result.foreign_key_references = [
-            k for k in result.foreign_key_references if len(k.value) >= min_key_length
-        ]
-        result.document_references = [
-            k for k in result.document_references if len(k.value) >= min_key_length
-        ]
         result.candidate_keys = self._remove_duplicate_keys(result.candidate_keys)
         result.foreign_key_references = self._remove_duplicate_keys(
             result.foreign_key_references
@@ -993,16 +886,17 @@ class KeyExtractionEngine:
             validation = SimpleNamespace(
                 min_confidence=0.1,
                 regexp_match=None,
+                expression_match=None,
                 confidence_match_rules=[],
             )
 
-        rules_raw = getattr(validation, "confidence_match_rules", None) or []
-        runtime = self._build_sorted_confidence_runtime(
-            list(rules_raw) if not isinstance(rules_raw, list) else rules_raw
+        self._apply_validation_confidence_rules(validation, result.candidate_keys)
+        self._apply_validation_confidence_rules(
+            validation, result.foreign_key_references
         )
-        self._apply_confidence_match_rules(result.candidate_keys, runtime)
-        self._apply_confidence_match_rules(result.foreign_key_references, runtime)
-        self._apply_confidence_match_rules(result.document_references, runtime)
+        self._apply_validation_confidence_rules(
+            validation, result.document_references
+        )
 
         min_confidence = getattr(validation, "min_confidence", 0) or 0
         result.candidate_keys = [
@@ -1014,25 +908,6 @@ class KeyExtractionEngine:
         result.document_references = [
             k for k in result.document_references if k.confidence >= min_confidence
         ]
-        rgx_patterns = None
-        regexp_match = getattr(validation, "regexp_match", None)
-        if isinstance(regexp_match, list):
-            rgx_patterns = regexp_match
-        elif isinstance(regexp_match, str):
-            rgx_patterns = [regexp_match]
-        if rgx_patterns:
-            result.candidate_keys = [
-                k for k in result.candidate_keys
-                if any(re.search(p, k.value) for p in rgx_patterns)
-            ]
-            result.foreign_key_references = [
-                k for k in result.foreign_key_references
-                if any(re.search(p, k.value) for p in rgx_patterns)
-            ]
-            result.document_references = [
-                k for k in result.document_references
-                if any(re.search(p, k.value) for p in rgx_patterns)
-            ]
         self._exclude_self_referencing_keys(
             result, source_override=exclude_self_referencing_keys
         )

@@ -1,4 +1,82 @@
 schemaVersion: 1
+source_views:
+  - view_external_id: CogniteEquipment
+    view_space: sp_enterprise_process_industry
+    view_version: v1
+    instance_space: sp_my_instance_space
+    entity_type: asset
+    include_properties:
+    - name
+    - description
+    - equipmentType
+    - manufacturer
+    - serialNumber
+    filters:
+    - operator: EQUALS
+      target_property: equipmentType
+      values: Pump
+      negate: false
+  - view_external_id: CogniteTimeSeries
+    view_space: sp_enterprise_process_industry
+    view_version: v1
+    instance_space: sp_my_instance_space
+    entity_type: timeseries
+    batch_size: 50
+    include_properties:
+    - name
+    - description
+    - unit
+    filters:
+    - operator: IN
+      target_property: type
+      values:
+      - temperature
+      - pressure
+      - flow
+      negate: false
+  - view_external_id: CogniteFile
+    view_space: sp_enterprise_process_industry
+    view_version: v1
+    instance_space: sp_my_instance_space
+    entity_type: file
+    batch_size: 75
+    include_properties:
+    - name
+    - mimeType
+    filters:
+    - operator: EXISTS
+      target_property: uploaded
+      negate: false
+  - view_external_id: CogniteAsset
+    view_space: sp_enterprise_process_industry
+    view_version: v1
+    instance_space: sp_my_instance_space
+    entity_type: asset
+    include_properties:
+    - name
+    - labels
+    filters:
+    - operator: CONTAINSALL
+      target_property: labels
+      values:
+      - critical
+      - production
+      negate: true
+  - view_external_id: CogniteDocument
+    view_space: sp_enterprise_process_industry
+    view_version: v1
+    instance_space: sp_my_instance_space
+    entity_type: file
+    batch_size: 25
+    include_properties:
+    - name
+    - content
+    filters:
+    - operator: SEARCH
+      target_property: content
+      values: P&ID diagram
+      negate: false
+
 key_extraction:
   externalId: ctx_key_extraction_tag_heuristic_comprehensive
   config:
@@ -84,83 +162,6 @@ key_extraction:
             mode: offset
             value: -0.2
       field_selection_strategy: merge_all
-      source_views:
-      - view_external_id: CogniteEquipment
-        view_space: sp_enterprise_process_industry
-        view_version: v1
-        instance_space: sp_my_instance_space
-        entity_type: asset
-        include_properties:
-        - name
-        - description
-        - equipmentType
-        - manufacturer
-        - serialNumber
-        filters:
-        - operator: EQUALS
-          target_property: equipmentType
-          values: Pump
-          negate: false
-      - view_external_id: CogniteTimeSeries
-        view_space: sp_enterprise_process_industry
-        view_version: v1
-        instance_space: sp_my_instance_space
-        entity_type: timeseries
-        batch_size: 50
-        include_properties:
-        - name
-        - description
-        - unit
-        filters:
-        - operator: IN
-          target_property: type
-          values:
-          - temperature
-          - pressure
-          - flow
-          negate: false
-      - view_external_id: CogniteFile
-        view_space: sp_enterprise_process_industry
-        view_version: v1
-        instance_space: sp_my_instance_space
-        entity_type: file
-        batch_size: 75
-        include_properties:
-        - name
-        - mimeType
-        filters:
-        - operator: EXISTS
-          target_property: uploaded
-          negate: false
-      - view_external_id: CogniteAsset
-        view_space: sp_enterprise_process_industry
-        view_version: v1
-        instance_space: sp_my_instance_space
-        entity_type: asset
-        include_properties:
-        - name
-        - labels
-        filters:
-        - operator: CONTAINSALL
-          target_property: labels
-          values:
-          - critical
-          - production
-          negate: true
-      - view_external_id: CogniteDocument
-        view_space: sp_enterprise_process_industry
-        view_version: v1
-        instance_space: sp_my_instance_space
-        entity_type: file
-        batch_size: 25
-        include_properties:
-        - name
-        - content
-        filters:
-        - operator: SEARCH
-          target_property: content
-          values: P&ID diagram
-          negate: false
       extraction_rules:
       - rule_id: tag_heuristic_comprehensive
         method: heuristic

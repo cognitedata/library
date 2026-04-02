@@ -325,7 +325,8 @@ class ConfidenceMatchSpec(BaseModel):
         default_factory=list,
         description=(
             "Regex patterns as plain strings, or {pattern, description} objects; "
-            "match if any re.search succeeds on the key value."
+            "matched using the parent rule's expression_match (or validation default): "
+            "search -> re.search, fullmatch -> re.fullmatch."
         ),
     )
     keywords: List[str] = Field(
@@ -347,12 +348,22 @@ class ConfidenceMatchSpec(BaseModel):
         return self
 
 
+ExpressionMatchMode = Literal["search", "fullmatch"]
+
+
 class ConfidenceMatchRule(BaseModel):
     name: Optional[str] = Field(None, description="Optional label for logs.")
     enabled: bool = True
     priority: Optional[int] = Field(
         None,
         description="Lower runs first. If omitted, order is list_index * 10.",
+    )
+    expression_match: Optional[ExpressionMatchMode] = Field(
+        None,
+        description=(
+            "How match.expressions are applied for this rule: search (re.search) or "
+            "fullmatch (re.fullmatch). Omit to use validation.expression_match, then search."
+        ),
     )
     match: ConfidenceMatchSpec
     confidence_modifier: ConfidenceModifier
@@ -363,14 +374,26 @@ class ValidationConfig(BaseModel):
         0.1,
         description="Minimum confidence for validated keys.",
     )
+    expression_match: Optional[ExpressionMatchMode] = Field(
+        None,
+        description=(
+            "Default expression match mode for confidence_match_rules that omit expression_match "
+            "(search or fullmatch). If omitted, rules default to search."
+        ),
+    )
     regexp_match: Union[str, List[str], None] = Field(
         default=None,
-        description="Regular expression(s) that the extracted key must match to be considered valid.",
+        description=(
+            "Deprecated: prefer confidence_match_rules with expressions. If set, engine may still "
+            "accept config but post-processing should use rules only."
+        ),
     )
     confidence_match_rules: List[ConfidenceMatchRule] = Field(
         default_factory=list,
         description=(
-            "Ordered confidence adjustments per key: first matching rule wins (by priority, then list order)."
+            "Ordered confidence adjustments per key (priority, then list order). "
+            "For each key, each rule: if match succeeds, apply modifier — offset chains with "
+            "later rules; explicit sets confidence and stops further rules for that key."
         ),
     )
 

@@ -12,6 +12,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 
 from .incremental_scope import scope_key_from_view_dict
+from .property_path import get_value_by_property_path
 
 
 def apply_preprocessing(field_value: str, preprocessing: List[str]) -> str:
@@ -97,7 +98,7 @@ def build_field_map_for_hash(
     """
     field_map: Dict[str, Any] = {}
     for field_name, required, preprocessing in wanted_fields:
-        field_value = entity_props.get(field_name)
+        field_value = get_value_by_property_path(entity_props, field_name)
         if field_value is None:
             if required and logger is not None and hasattr(logger, "verbose"):
                 logger.verbose(

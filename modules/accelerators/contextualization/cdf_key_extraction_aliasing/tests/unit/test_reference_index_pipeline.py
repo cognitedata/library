@@ -23,6 +23,26 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     source_snapshot_row_key,
 )
 
+_REFERENCE_INDEX_TEST_VALIDATION = {
+    "max_aliases_per_tag": 50,
+    "min_confidence": 0.01,
+    "confidence_match_rules": [
+        {
+            "name": "alias_shape_invalid",
+            "priority": 0,
+            "expression_match": "fullmatch",
+            "match": {
+                "expressions": [
+                    {"pattern": r"^.{0,1}$", "description": "too short"},
+                    {"pattern": r"^.{51,}$", "description": "too long"},
+                    {"pattern": r"[^A-Za-z0-9]", "description": "non-alphanumeric"},
+                ],
+            },
+            "confidence_modifier": {"mode": "explicit", "value": 0.0},
+        },
+    ],
+}
+
 
 def _fk_rows(*entities):
     fk_json = json.dumps([{"value": "TAG-1", "confidence": 0.9}])
@@ -95,12 +115,7 @@ class TestReferenceIndexHelpers(unittest.TestCase):
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": {
-                            "max_aliases_per_tag": 50,
-                            "min_alias_length": 2,
-                            "max_alias_length": 50,
-                            "allowed_characters": r"[A-Za-z0-9]+",
-                        },
+                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
                     },
                 }
             },
@@ -131,12 +146,7 @@ class TestReferenceIndexHelpers(unittest.TestCase):
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": {
-                            "max_aliases_per_tag": 50,
-                            "min_alias_length": 2,
-                            "max_alias_length": 50,
-                            "allowed_characters": r"[A-Za-z0-9]+",
-                        },
+                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
                     },
                 }
             },
@@ -156,12 +166,7 @@ class TestReferenceIndexHelpers(unittest.TestCase):
                 "parameters": {"debug": True},
                 "data": {
                     "aliasing_rules": [],
-                    "validation": {
-                        "max_aliases_per_tag": 50,
-                        "min_alias_length": 2,
-                        "max_alias_length": 50,
-                        "allowed_characters": r"[A-Za-z0-9]+",
-                    },
+                    "validation": _REFERENCE_INDEX_TEST_VALIDATION,
                 },
             }
         }
@@ -224,12 +229,7 @@ class TestReferenceIndexHelpers(unittest.TestCase):
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": {
-                            "max_aliases_per_tag": 50,
-                            "min_alias_length": 2,
-                            "max_alias_length": 50,
-                            "allowed_characters": r"[A-Za-z0-9]+",
-                        },
+                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
                     },
                 }
             },
@@ -263,12 +263,7 @@ class TestReferenceIndexHelpers(unittest.TestCase):
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": {
-                            "max_aliases_per_tag": 50,
-                            "min_alias_length": 2,
-                            "max_alias_length": 50,
-                            "allowed_characters": r"[A-Za-z0-9]+",
-                        },
+                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
                     },
                 }
             },

@@ -260,8 +260,24 @@ class TestAliasingEngineAliasMappingTable(unittest.TestCase):
             ],
             "validation": {
                 "max_aliases_per_tag": 50,
-                "min_alias_length": 1,
-                "max_alias_length": 100,
+                "min_confidence": 0.01,
+                "confidence_match_rules": [
+                    {
+                        "name": "alias_shape_invalid",
+                        "priority": 0,
+                        "expression_match": "fullmatch",
+                        "match": {
+                            "expressions": [
+                                {"pattern": r"^$", "description": "empty alias"},
+                                {
+                                    "pattern": r"^.{101,}$",
+                                    "description": "exceeds max length 100",
+                                },
+                            ],
+                        },
+                        "confidence_modifier": {"mode": "explicit", "value": 0.0},
+                    },
+                ],
             },
         }
         engine = AliasingEngine(config, client=None)

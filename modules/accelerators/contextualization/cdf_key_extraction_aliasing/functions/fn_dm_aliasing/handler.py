@@ -17,7 +17,10 @@ except ImportError:
 
 from ..cdf_fn_common.function_logging import resolve_function_logger
 from ..cdf_fn_common.scope_document_dm import ensure_aliasing_config_from_scope_dm
-from .cdf_adapter import _convert_yaml_direct_to_aliasing_config
+from .cdf_adapter import (
+    _DEFAULT_ALIASING_VALIDATION,
+    _convert_yaml_direct_to_aliasing_config,
+)
 from .dependencies import create_client, get_env_variables
 from .engine.tag_aliasing_engine import AliasingEngine
 
@@ -102,12 +105,7 @@ def handle(
             )
             aliasing_config = {
                 "rules": [],
-                "validation": {
-                    "max_aliases_per_tag": 50,
-                    "min_alias_length": 2,
-                    "max_alias_length": 50,
-                    "allowed_characters": r"A-Za-z0-9-_/. ",
-                },
+                "validation": dict(_DEFAULT_ALIASING_VALIDATION),
             }
 
         # Initialize engine with logger

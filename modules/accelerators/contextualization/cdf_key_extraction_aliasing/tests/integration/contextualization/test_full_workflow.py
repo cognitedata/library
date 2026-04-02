@@ -14,6 +14,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
+    _DEFAULT_ALIASING_VALIDATION,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
     AliasingEngine,
 )
@@ -61,9 +64,6 @@ class TestIntegrationWorkflow(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
 
@@ -79,9 +79,8 @@ class TestIntegrationWorkflow(unittest.TestCase):
                 }
             ],
             "validation": {
+                **dict(_DEFAULT_ALIASING_VALIDATION),
                 "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
             },
         }
 

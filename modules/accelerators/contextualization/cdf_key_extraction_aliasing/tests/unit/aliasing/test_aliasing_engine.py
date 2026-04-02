@@ -7,6 +7,7 @@ rule application, validation, and edge cases.
 """
 
 # Add project root to path for imports
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -17,12 +18,21 @@ sys.path.insert(0, str(project_root))
 
 from tests.fixtures.aliasing.sample_data import get_sample_tags
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
+    _DEFAULT_ALIASING_VALIDATION,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
     AliasingEngine,
     AliasingResult,
     AliasRule,
     TransformationType,
 )
+
+
+def _test_aliasing_validation(**overrides: Any) -> Dict[str, Any]:
+    v = copy.deepcopy(_DEFAULT_ALIASING_VALIDATION)
+    v.update(overrides)
+    return v
 
 
 class TestAliasingRuleTypes(unittest.TestCase):
@@ -32,11 +42,7 @@ class TestAliasingRuleTypes(unittest.TestCase):
         """Set up test fixtures."""
         self.base_config = {
             "rules": [],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
     def test_character_substitution_rule(self):
@@ -108,11 +114,7 @@ class TestContextHandling(unittest.TestCase):
                     },
                 }
             ],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
         self.engine = AliasingEngine(self.config)
@@ -187,11 +189,7 @@ class TestAliasValidation(unittest.TestCase):
                     "config": {"substitutions": {"-": ["_", " ", ""]}},
                 }
             ],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
         self.engine = AliasingEngine(self.config)
@@ -213,7 +211,7 @@ class TestAliasValidation(unittest.TestCase):
     def test_maximum_aliases_per_tag(self):
         """Test maximum aliases per tag limit."""
         # Create config with very low limit
-        limited_config = self.config.copy()
+        limited_config = copy.deepcopy(self.config)
         limited_config["validation"]["max_aliases_per_tag"] = 5
 
         engine = AliasingEngine(limited_config)
@@ -263,11 +261,7 @@ class TestRulePriorityAndOrdering(unittest.TestCase):
                     "config": {"substitutions": {"_": "-"}},
                 },
             ],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
         self.engine = AliasingEngine(self.config)
@@ -318,11 +312,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
                     "config": {"substitutions": {"-": ["_", " ", ""]}},
                 }
             ],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
         self.engine = AliasingEngine(self.config)
@@ -382,11 +372,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
                     "config": {"substitutions": None},  # Invalid config
                 }
             ],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
         # Should handle invalid config gracefully
@@ -408,11 +394,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
                     "config": {},  # Empty config
                 }
             ],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
         engine = AliasingEngine(missing_config)
@@ -443,11 +425,7 @@ class TestPerformanceAndScalability(unittest.TestCase):
                     },
                 }
             ],
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
         }
 
         self.engine = AliasingEngine(self.config)

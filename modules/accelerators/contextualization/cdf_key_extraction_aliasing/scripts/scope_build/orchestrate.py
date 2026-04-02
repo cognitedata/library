@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from pathlib import Path
 from typing import List, Sequence
 
@@ -20,6 +21,7 @@ from scope_build.context import ScopeBuildContext
 from scope_build.hierarchy import build_contexts, load_hierarchy_doc
 from scope_build.mode import scope_build_mode_from_doc
 from scope_build.paths import WORKFLOW_ARTIFACTS_REL, WORKFLOW_TEMPLATE_REL
+from scope_build.workflow_clean import run_clean_workflow_artifacts
 from scope_build.registry import (
     ScopeArtifactBuilder,
     default_builders,
@@ -86,7 +88,8 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
             "Create missing workflow artifacts from default.config.yaml (scope_hierarchy + scope_build_mode). "
             "trigger_only: root Workflow/WorkflowVersion if missing, flat *.WorkflowTrigger.yaml under workflows/. "
             "full: scoped trio under workflows/<suffix>/. "
-            "Templates are read from workflow_template/. Use --force to overwrite existing generated files."
+            "Templates are read from workflow_template/. Use --force to overwrite existing generated files. "
+            "Use --clean to remove generated YAML under workflows/ (with confirmation or --yes); no build runs after clean."
         )
     )
     p.add_argument(
@@ -114,6 +117,20 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Do not write files; log intended actions",
+    )
+    p.add_argument(
+        "--clean",
+        action="store_true",
+        help=(
+            "Remove generated Workflow/WorkflowVersion/WorkflowTrigger YAML under workflows/ "
+            "(from hierarchy ``workflow`` id + legacy names). Does not run a build afterward; "
+            "use a separate run without --clean to recreate. Non-interactive use requires --yes."
+        ),
+    )
+    p.add_argument(
+        "--yes",
+        action="store_true",
+        help="With --clean, skip confirmation (required when stdin is not a TTY).",
     )
     p.add_argument(
         "--list-builders",
@@ -179,6 +196,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
+    if args.clean and (args.list_builders or args.check_workflow_triggers):
+        logging.getLogger(__name__).error(
+            "--clean cannot be used with --list-builders or --check-workflow-triggers"
+        )
+        return 1
     module_root = module_root_from_package()
     hierarchy = args.hierarchy or (module_root / DEFAULT_HIERARCHY)
     scope_document = args.scope_document or (module_root / DEFAULT_SCOPE_DOCUMENT)
@@ -210,6 +232,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OSError, ValueError, yaml.YAMLError) as e:
         logging.getLogger(__name__).error("%s", e)
         return 1
+    if args.clean:
+        return run_clean_workflow_artifacts(
+            module_root,
+            wf_base,
+            dry_run=bool(args.dry_run),
+            assume_yes=bool(args.yes),
+            stdin_isatty=sys.stdin.isatty(),
+        )
     builders = default_builders(
         scope_build_mode=mode,
         workflow_base=wf_base,

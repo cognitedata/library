@@ -9,6 +9,7 @@ rule application, validation, and edge cases.
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent.parent
@@ -117,6 +118,26 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
 
         # No extraction should occur
         self.assertEqual(len(result.candidate_keys), 0)
+
+    def test_get_field_value_prefixed_key_for_dotted_field_name(self):
+        """Pipeline stores ruleName + dotted field as a flat key; resolve that first."""
+        engine = KeyExtractionEngine(self.minimal_config)
+        sf = SimpleNamespace(
+            field_name="metadata.code", table_id=None, preprocessing=None
+        )
+        entity = {"basic_pump_tag_metadata.code": "P-101"}
+        val = engine._get_field_value(entity, sf, "basic_pump_tag")
+        self.assertEqual(val, "P-101")
+
+    def test_get_field_value_nested_entity_without_rule_prefix(self):
+        """Legacy shape: nested dict on entity root."""
+        engine = KeyExtractionEngine(self.minimal_config)
+        sf = SimpleNamespace(
+            field_name="metadata.code", table_id=None, preprocessing=None
+        )
+        entity = {"metadata": {"code": "X-9"}}
+        val = engine._get_field_value(entity, sf, None)
+        self.assertEqual(val, "X-9")
 
     def test_passthrough_extraction(self):
         """Passthrough method uses entire field value as candidate key."""

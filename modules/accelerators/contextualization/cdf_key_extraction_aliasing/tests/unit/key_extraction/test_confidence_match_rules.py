@@ -1,4 +1,4 @@
-"""Unit tests for validation.confidence_match_rules (first match wins)."""
+"""Unit tests for validation.confidence_match_rules (offset chains; explicit breaks)."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
         self.assertGreater(len(r_ok.candidate_keys), 0)
         self.assertEqual(len(r_bad.candidate_keys), 0)
 
-    def test_first_match_wins_isa_bonus_not_catch_all(self):
+    def test_offset_rules_chain_isa_then_catch_all(self):
         config = {
             "extraction_rules": [
                 {
@@ -83,8 +83,39 @@ class TestConfidenceMatchRules(unittest.TestCase):
         result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset")
         self.assertEqual(len(result.candidate_keys), 1)
         k = result.candidate_keys[0]
-        # base ~1.0 from regex handler + 0.05 offset, not -0.5 from catch-all
-        self.assertGreaterEqual(k.confidence, 0.99)
+        # Both match: base ~1.0 + 0.05 (clamp 1.0) then -0.5 from catch-all
+        self.assertAlmostEqual(k.confidence, 0.5, places=4)
+
+    def test_explicit_modifier_stops_further_rules(self):
+        config = {
+            "extraction_rules": [
+                {
+                    **_base_rule("pump", r"\bP[-_]?\d+\b"),
+                    "pattern": r"\bP[-_]?\d+\b",
+                }
+            ],
+            "validation": {
+                "min_confidence": 0.1,
+                "confidence_match_rules": [
+                    {
+                        "name": "isa",
+                        "priority": 50,
+                        "match": {"expressions": [r"\bP[-_]?\d+\b"]},
+                        "confidence_modifier": {"mode": "explicit", "value": 1.0},
+                    },
+                    {
+                        "name": "catch_all",
+                        "priority": 1000,
+                        "match": {"expressions": ["(?s).*"]},
+                        "confidence_modifier": {"mode": "offset", "value": -0.5},
+                    },
+                ],
+            },
+        }
+        engine = KeyExtractionEngine(config)
+        result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset")
+        self.assertEqual(len(result.candidate_keys), 1)
+        self.assertGreaterEqual(result.candidate_keys[0].confidence, 0.99)
 
     def test_catch_all_penalty_when_no_earlier_match(self):
         config = {

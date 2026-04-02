@@ -30,9 +30,6 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
 

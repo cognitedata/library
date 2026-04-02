@@ -6,6 +6,10 @@ import argparse
 import logging
 from unittest.mock import MagicMock, patch
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
+    _DEFAULT_ALIASING_VALIDATION,
+)
+
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.function_logging import (
     StdlibLoggerAdapter,
 )
@@ -61,12 +65,7 @@ def test_non_incremental_passes_stdlib_adapter_to_both_engines():
     }
     aliasing_config: dict = {
         "rules": [],
-        "validation": {
-            "max_aliases_per_tag": 50,
-            "min_alias_length": 2,
-            "max_alias_length": 50,
-            "allowed_characters": r"A-Za-z0-9",
-        },
+        "validation": dict(_DEFAULT_ALIASING_VALIDATION),
     }
     source_views = [
         {

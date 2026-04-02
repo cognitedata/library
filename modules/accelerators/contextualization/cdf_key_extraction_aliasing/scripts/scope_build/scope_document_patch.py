@@ -35,17 +35,8 @@ def _filter_is_node_space(f: Any) -> bool:
 
 
 def inject_leaf_instance_space_filters(doc: Dict[str, Any], ctx: ScopeBuildContext) -> None:
-    """Prepend a node `space` filter on each template source_view (unless one already exists)."""
-    ke = doc.get("key_extraction")
-    if not isinstance(ke, dict):
-        return
-    cfg = ke.get("config")
-    if not isinstance(cfg, dict):
-        return
-    data = cfg.get("data")
-    if not isinstance(data, dict):
-        return
-    views = data.get("source_views")
+    """Prepend a node `space` filter on each top-level source_view (unless one already exists)."""
+    views = doc.get("source_views")
     if not isinstance(views, list) or not views:
         return
 

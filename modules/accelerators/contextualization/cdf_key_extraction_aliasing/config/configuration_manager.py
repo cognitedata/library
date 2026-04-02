@@ -35,6 +35,10 @@ from typing import Any, Dict, List, Optional, Union
 import jsonschema
 import yaml
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
+    _DEFAULT_ALIASING_VALIDATION,
+)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -72,13 +76,12 @@ class AliasingSettings:
 
 @dataclass
 class ValidationSettings:
-    """Configuration for validation operations."""
+    """Key extraction validation (confidence rules, limits)."""
 
     min_confidence: float = 0.5
     max_keys_per_type: int = 10
-    min_alias_length: int = 2
-    max_alias_length: int = 50
-    allowed_characters: str = r"A-Za-z0-9-_/. "
+    confidence_match_rules: List[Dict[str, Any]] = field(default_factory=list)
+    expression_match: Optional[str] = None
 
 
 @dataclass
@@ -400,11 +403,10 @@ class ConfigurationManager:
         validation_settings = ValidationSettings(
             min_confidence=validation_data.get("min_confidence", 0.5),
             max_keys_per_type=validation_data.get("max_keys_per_type", 10),
-            min_alias_length=validation_data.get("min_alias_length", 2),
-            max_alias_length=validation_data.get("max_alias_length", 50),
-            allowed_characters=validation_data.get(
-                "allowed_characters", r"A-Za-z0-9-_/. "
+            confidence_match_rules=list(
+                validation_data.get("confidence_match_rules") or []
             ),
+            expression_match=validation_data.get("expression_match"),
         )
 
         return KeyExtractionConfig(
@@ -445,9 +447,12 @@ class ConfigurationManager:
             "validation": {
                 "min_confidence": config.validation.min_confidence,
                 "max_keys_per_type": config.validation.max_keys_per_type,
-                "min_alias_length": config.validation.min_alias_length,
-                "max_alias_length": config.validation.max_alias_length,
-                "allowed_characters": config.validation.allowed_characters,
+                "confidence_match_rules": config.validation.confidence_match_rules,
+                **(
+                    {"expression_match": config.validation.expression_match}
+                    if config.validation.expression_match
+                    else {}
+                ),
             },
             "metadata": config.metadata,
         }
@@ -578,17 +583,14 @@ class ConfigurationManager:
                 "confidence_threshold": 0.7,
                 "preserve_original": True,
                 "validation": {
+                    **dict(_DEFAULT_ALIASING_VALIDATION),
                     "max_aliases_per_tag": 30,
-                    "min_alias_length": 2,
-                    "max_alias_length": 50,
                 },
             },
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": r"A-Za-z0-9-_/. ",
+                "confidence_match_rules": [],
             },
             "metadata": {
                 "version": "1.0.0",
@@ -626,11 +628,7 @@ def load_config_from_env() -> KeyExtractionConfig:
         "validation": {
             "min_confidence": float(os.getenv("VALIDATION_MIN_CONFIDENCE", "0.5")),
             "max_keys_per_type": int(os.getenv("VALIDATION_MAX_KEYS_PER_TYPE", "10")),
-            "min_alias_length": int(os.getenv("VALIDATION_MIN_ALIAS_LENGTH", "2")),
-            "max_alias_length": int(os.getenv("VALIDATION_MAX_ALIAS_LENGTH", "50")),
-            "allowed_characters": os.getenv(
-                "VALIDATION_ALLOWED_CHARACTERS", r"A-Za-z0-9-_/. "
-            ),
+            "confidence_match_rules": [],
         },
         "metadata": {
             "loaded_from": "environment_variables",

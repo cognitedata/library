@@ -24,11 +24,12 @@ workflow: key_extraction_aliasing
 #   with {workflow}.<scope>.Workflow.yaml, WorkflowVersion, WorkflowTrigger (no root workflow pair).
 scope_build_mode: full
 
+# Remove generated Workflow/WorkflowVersion/WorkflowTrigger YAML under workflows/ (for the `workflow` id above):
+#   python main.py --build --clean  (type yes to confirm; --yes if stdin is not a TTY; --dry-run --clean to list only).
+#   Does not run a build afterward. Unrelated to main.py --clean-state (RAW tables).
+
 # Schedule (UTC cron) applied to each generated workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml (or under workflows/<scope>/ in full mode).
 key_extraction_aliasing_schedule: "0 2 * * *"
-
-# DM instance space substituted into each trigger's configuration ({{instance_space}} in source_views).
-instance_space: your_instance_space
 
 # source ID from Azure AD for the corresponding groups, ex 'c74797ce-9191-4a4a-9186-8fe21c54c3de'
 files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
@@ -43,14 +44,14 @@ files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
 # See config/README.md. Override hierarchy file: scripts/build_scopes.py --hierarchy <file>
 scope_hierarchy:
   levels:
-    - site #site
-    - unit #plant
-    - area #area
-    - system #system
+    - level_1 #site
+    - level_2 #plant
+    - level_3 #area
+    - level_4 #system
   locations:
-    # - id: global
-    #   name: Global Configuration
-    #   description: The configuration applies to all CogniteAsset, CogniteFile, and CogniteTimeSeries.  If you have multiple sites configurations, delete this scope and create a new scope for each site.
+    - id: global
+      name: Global Configuration
+      description: The configuration applies to all CogniteAsset, CogniteFile, and CogniteTimeSeries.  If you have multiple sites configurations, delete this scope and create a new scope for each site.
     # Uncomment to add more levels, e.g.:
     # - id: SITE_01
     #   name: First Manufacturing Site
@@ -71,33 +72,3 @@ scope_hierarchy:
     # - id: SITE_03
     #   name: Third Manufacturing Site
     #   description: Third site (display name may contain spaces; id is the stable segment)
-    - id: CLK
-      name: Clear Lake
-      description: Second site (display name may contain spaces; id is the stable segment)
-    - id: IPH
-      name: Frankfurt
-      description: Third site (display name may contain spaces; id is the stable segment)
-      locations:
-        - id: ACT
-          name: Acetyles
-        - id: COM
-          name: Compounding
-          locations:
-            - id: System_01
-              name: Production Area 1
-              locations:
-                - id: Line_01
-                  name: Cooling System
-                  description: Cooling system scope leaf
-                - id: Line_02
-                  name: Cooling System
-                  description: Cooling system scope leaf
-                - id: Line_03
-                  name: Cooling System
-                  description: Cooling system scope leaf
-                - id: Line_03
-                  name: Cooling System
-                  description: Cooling system scope leaf
-                  
-      
-    

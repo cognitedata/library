@@ -31,9 +31,9 @@ Configuration files are located in:
 - **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflow.local.config.yaml` at module root when using `--scope default`, or any path via `--config-path`. One v1 scope document per file: required `key_extraction`, optional `aliasing` — the single authoring shape for this pipeline, aligned with **`workflow.input.configuration`** (v4).
 - **Example demos:** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (same scope shape, `*.key_extraction_aliasing.yaml`).
 
-**Multi-leaf scopes:** Under top-level **`scope_hierarchy`** in `default.config.yaml`, set **`levels`** and **`locations`** (nest child nodes under each node’s **`locations`**). Run `scripts/build_scopes.py` (or `main.py --build`) to **create missing** **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (flat **`trigger_only`** layout) or **`workflows/<suffix>/...WorkflowTrigger.yaml`** (**`full`** mode) with **`input.configuration`** patched from **`workflow_template/workflow.template.config.yaml`** (see `config/README.md`). **`--build`** does not overwrite existing trigger files and does **not** delete other `key_extraction_aliasing.*.WorkflowTrigger.yaml` files. Use **`main.py --build --check-workflow-triggers`** in CI to ensure every required trigger exists and matches the templates (extra files on disk do not fail the check). CDF deploy uses workflow **`key_extraction_aliasing`** (v4); each trigger embeds the full v1 scope mapping, with deploy **`instance_space`** substituted into **`scope_document`** (for example **`source_views`**). RAW table keys live in **`scope_document.key_extraction.config.parameters`** / **`aliasing.config.parameters`**. See [`workflows/README.md`](../../workflows/README.md).
+**Multi-leaf scopes:** Under top-level **`scope_hierarchy`** in `default.config.yaml`, set **`levels`** and **`locations`** (nest child nodes under each node’s **`locations`**). Run `scripts/build_scopes.py` (or `main.py --build`) to **create missing** **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (flat **`trigger_only`** layout) or **`workflows/<suffix>/...WorkflowTrigger.yaml`** (**`full`** mode) with **`input.configuration`** patched from **`workflow_template/workflow.template.config.yaml`** (see `config/README.md`). **`--build`** does not overwrite existing trigger files and does **not** delete other `key_extraction_aliasing.*.WorkflowTrigger.yaml` files during a normal build; use **`main.py --build --clean`** to remove generated workflow manifests under **`workflows/`** when you need a clean slate (with confirmation; **`--yes`** for automation; not the same as **`--clean-state`**, which clears RAW tables). Use **`main.py --build --check-workflow-triggers`** in CI to ensure every required trigger exists and matches the templates (extra files on disk do not fail the check). CDF deploy uses workflow **`key_extraction_aliasing`** (v4); each trigger embeds the full v1 scope mapping, with deploy **`instance_space`** substituted into **`scope_document`** (for example **`source_views`**). RAW table keys live in **`scope_document.key_extraction.config.parameters`** / **`aliasing.config.parameters`**. See [`workflows/README.md`](../../workflows/README.md). **Guided walkthrough:** [Scoped deployment how-to](howto_scoped_deployment.md).
 
-See `config/README.md` in the module for layout and CLI behavior (`main.py` `--scope` / `--config-path`). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
+See `config/README.md` in the module for layout and CLI behavior (`main.py` `--scope` / `--config-path`). **First local run:** [Quickstart](howto_quickstart.md). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
 
 ### Default CDM scope
 
@@ -69,35 +69,37 @@ Short narrative: [Key extraction / aliasing report](../key_extraction_aliasing_r
 ### Pipeline Structure
 
 ```yaml
-externalId: ctx_key_extraction_default  # Unique identifier for the pipeline
-config:
-  parameters:
-    debug: true                          # Enable debug logging
-    full_rescan: true                    # When false, instances may be skipped per skip_entity_policy using RAW
-    raw_db: db_key_extraction            # RAW database name
-    raw_table_key: key_extraction_state # Entity rows + per-entity status + run summaries (RECORD_KIND)
-    skip_entity_policy: successful_only  # successful_only | none (when full_rescan is false)
-    write_empty_extraction_rows: false   # If true, write EXTRACTION_STATUS=empty when no keys/FKs
-    raw_skip_scan_chunk_size: 5000       # Chunk size when scanning raw_table_key for skip policy
-  data:
-    validation:                          # Global validation settings
-      min_confidence: 0.5                # Minimum confidence score (0.0-1.0)
-      max_keys_per_type: 1000            # Maximum keys per extraction type
-      confidence_match_rules:            # Optional: first matching rule wins per key (see below)
-        - name: blacklist
-          priority: 10
-          match:
-            keywords: ["test", "example", "dummy"]
-          confidence_modifier:
-            mode: explicit
-            value: 0.0
-    source_views:                        # CDF views to query from
-      # ... source view configurations
-    extraction_rules:                     # Extraction rules
-      # ... extraction rule configurations
+schemaVersion: 1
+source_views:                            # Top-level: CDF views to query (required, non-empty)
+  # ... source view configurations (see "Source Views Configuration" below)
+key_extraction:
+  externalId: ctx_key_extraction_default  # Unique identifier for the pipeline
+  config:
+    parameters:
+      debug: true                          # Enable debug logging
+      full_rescan: true                    # When false, instances may be skipped per skip_entity_policy using RAW
+      raw_db: db_key_extraction            # RAW database name
+      raw_table_key: key_extraction_state # Entity rows + per-entity status + run summaries (RECORD_KIND)
+      skip_entity_policy: successful_only  # successful_only | none (when full_rescan is false)
+      write_empty_extraction_rows: false   # If true, write EXTRACTION_STATUS=empty when no keys/FKs
+      raw_skip_scan_chunk_size: 5000       # Chunk size when scanning raw_table_key for skip policy
+    data:
+      validation:                          # Global validation settings
+        min_confidence: 0.5                # Minimum confidence score (0.0-1.0)
+        max_keys_per_type: 1000            # Maximum keys per extraction type
+        confidence_match_rules:            # Optional: first matching rule wins per key (see below)
+          - name: blacklist
+            priority: 10
+            match:
+              keywords: ["test", "example", "dummy"]
+            confidence_modifier:
+              mode: explicit
+              value: 0.0
+      extraction_rules:                     # Extraction rules
+        # ... extraction rule configurations
 ```
 
-**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Key extraction writes **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** (when rules produce FKs / document refs). **`fn_dm_reference_index`** reads only those JSON columns (not candidate-key list columns) and maintains a separate inverted index RAW table (e.g. `{site}_reference_index`). **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `full_rescan: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
+**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Key extraction writes **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** (when rules produce FKs / document refs). **Per–source-field candidate lists** are stored under column names equal to the rule’s **`source_field`** string **uppercased** (e.g. `description` → `DESCRIPTION`; `metadata.code` → `METADATA.CODE`, including any dots). **`fn_dm_reference_index`** reads only the FK/document JSON columns (not these candidate-key list columns) and maintains a separate inverted index RAW table (e.g. `{site}_reference_index`). **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `full_rescan: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
 
 ### Source Views Configuration
 
@@ -182,8 +184,9 @@ source_views:
 validation:
   min_confidence: 0.5                    # Minimum confidence (0.0-1.0)
   max_keys_per_type: 1000                # Max keys per extraction type
-  regexp_match: null                     # Optional: key value must match this regex (or any of a list)
+  expression_match: search                 # Optional default for rules: search | fullmatch (rules may override)
   confidence_match_rules: []             # Optional ordered list; see “Confidence match rules” below
+  # regexp_match: deprecated — express filters as confidence_match_rules instead
 ```
 
 **Global vs per–source-view validation**
@@ -191,7 +194,7 @@ validation:
 - **`data.validation`** applies to every extraction. The engine loads it as the baseline (together with the last rule’s optional `validation`, if present). The default scope keeps the shared keyword **blacklist** rule here so it applies to **CogniteFile** as well as asset/timeseries rows; ISA-style **confidence_match_rules** remain on **CogniteAsset** / **CogniteTimeSeries** `source_views[]` only.
 - **`source_views[].validation`** is optional. Omit it (or use an empty object) for views that should rely on the global block only.
 - When the pipeline stamps an entity with **`view_space`**, **`view_external_id`**, **`view_version`**, and **`entity_type`**, the engine picks the **first** matching `source_views[]` row (same fields as in config) and, if that row defines **`validation`**, merges it into the effective validation for **`_validate_extraction_result`**:
-  - **`min_confidence`**, **`regexp_match`**, **`max_keys_per_type`**, and other scalar-like keys: the view value overrides the baseline when set on the view’s `validation` object.
+  - **`min_confidence`**, **`expression_match`**, **`max_keys_per_type`**, and other scalar-like keys: the view value overrides the baseline when set on the view’s `validation` object.
   - **`confidence_match_rules`**: if the view **omits** the key or sets **`[]`**, only the baseline list is used. If the view lists one or more rules, the engine uses **`baseline_rules + view_rules`**, then sorts by **`priority`** then list index (same ordering as today).
 - If **`source_views`** is missing on the engine config, or no row matches the entity (including programmatic **`extract_keys`** calls without view metadata), only the global (and per-rule) validation applies.
 
@@ -202,22 +205,24 @@ validation:
 
 ### Confidence match rules
 
-After deduplication, the engine walks **`confidence_match_rules`** for **each** extracted key (candidate, foreign key, and document reference). Rules are sorted by **`priority`** (ascending), then by list order. The **first** rule whose **`match`** applies updates that key’s confidence via **`confidence_modifier`**, then no further rules run for that key.
+After deduplication, the engine walks **`confidence_match_rules`** for **each** extracted key (candidate, foreign key, and document reference). Rules are sorted by **`priority`** (ascending), then by list order. For **each** rule in order, if its **`match`** applies, the engine updates confidence via **`confidence_modifier`**: **`mode: offset`** applies the delta and **continues** to the next rule; **`mode: explicit`** sets confidence and **stops** further rules for that key. Values are clamped to `[0.0, 1.0]` after each step.
+
+**`expression_match` (per rule or validation default):** Each rule may set **`expression_match: search | fullmatch`**. If omitted, the rule uses **`validation.expression_match`** when present, else **`search`**. **`search`** uses `re.search(pattern, value)`; **`fullmatch`** uses `re.fullmatch`. **`keywords`** are unchanged (substring, case-insensitive).
 
 **`match`:**
-- **`expressions`**: list of regex strings, and/or objects `{ pattern: "<regex>", description: "<optional doc for authors>" }`. Descriptions are not used by the engine. A match if `re.search` succeeds for **any** pattern.
+- **`expressions`**: list of regex strings, and/or objects `{ pattern: "<regex>", description: "<optional doc for authors>" }`. Descriptions are not used by the engine. A match if **any** pattern matches using that rule’s resolved **`expression_match`** mode.
 - **`keywords`**: list of substrings. A match if **any** keyword appears in the key value (case-insensitive).
 - If both are set, a match if **either** a keyword matches **or** any expression matches.
 
 **`confidence_modifier`:**
-- **`mode: explicit`** — set confidence to **`value`** (clamped to `[0.0, 1.0]`). Use e.g. `value: 0.0` to emulate a keyword “blacklist” (key is then dropped by `min_confidence` if `min_confidence > 0`).
-- **`mode: offset`** — add **`value`** to the current confidence (clamped). Use a negative offset for a penalty, positive for a bonus.
+- **`mode: explicit`** — set confidence to **`value`** (clamped). Stops further rules for that key.
+- **`mode: offset`** — add **`value`** to the current confidence (clamped). Continues to the next matching rule.
 
 **`enabled`:** default `true`; set `false` to skip a rule.
 
 **`priority`:** lower numbers run first. If omitted, the engine uses **`list_index * 10`** so list order is stable.
 
-**Catch-all row:** there is no separate `match_all` flag. To penalize “everything else”, add a **last** rule with a broad regex in **`expressions`**, e.g. `(?s).*`, and a higher **`priority`** than your specific rules so it only wins when earlier rules did not match.
+**Catch-all penalties:** With **`offset`** rules, a broad regex such as `(?s).*` can match **after** more specific rules and stack penalties. To **exclude** keys from later penalties, use an **`explicit`** rule earlier (it stops the chain). Order by **`priority`** so specific rules run before catch-alls when you want offsets to stack.
 
 **Example (keyword wall + ISA-shaped bonus + default penalty):**
 
@@ -248,7 +253,7 @@ confidence_match_rules:
       value: -0.2
 ```
 
-Pipeline order: **length filter** → **dedupe** → **`confidence_match_rules`** → **`min_confidence`** → **`regexp_match`** → self-referencing FK filter.
+Pipeline order: **dedupe** → **`confidence_match_rules`** (including length / numeric-shape checks expressed as rules) → **`min_confidence`** → self-referencing FK filter. Legacy **`parameters.min_key_length`** and **`validation.regexp_match`** are not applied by the engine; encode those checks in **`confidence_match_rules`** instead.
 
 ### Extraction Rules
 
@@ -276,6 +281,8 @@ extraction_rules:
 
     field_selection_strategy: "first_match" # first_match|merge_all
 ```
+
+**Dotted `field_name` (nested view properties):** You may use dot paths such as `metadata.primaryTag` or `payload.identifier`. The pipeline resolves them against nested **object** properties on the instance for that view. If a segment’s value is a **JSON string**, it is parsed and the path continues into the decoded object (see [Key extraction specification — Nested property paths](../specifications/1.%20key_extraction.md#nested-property-paths-dot-separated-field_name)). **`source_tables`** `join_fields.view_field` supports the same path rules. RAW columns for candidate keys use the uppercased `field_name` as the column name (dots preserved).
 
 **Extraction Types:**
 - `candidate_key`: Primary identifiers for entities (e.g., equipment tags)

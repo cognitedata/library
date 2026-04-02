@@ -33,6 +33,10 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 
 **Reference tables** for each extraction method and aliasing `type` value: [Key extraction spec](<docs/specifications/1. key_extraction.md>), [Aliasing spec](<docs/specifications/2. aliasing.md>).
 
+**Custom handlers (new Python methods or transformation types):** [How to add a custom handler](docs/guides/howto_custom_handlers.md).
+
+**Local quickstart and scoped Toolkit deploy:** [Quickstart — `main.py` and `.env`](docs/guides/howto_quickstart.md), [Scoped deployment — hierarchy, triggers, `cdf deploy`](docs/guides/howto_scoped_deployment.md).
+
 **Default CDM scope** (asset + file + timeseries, shared `alphanumeric_tag`): [`workflow.local.config.yaml`](workflow.local.config.yaml) at module root. Narrative: [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md). Authoring detail: [Configuration guide — Default CDM scope](docs/guides/configuration_guide.md#default-cdm-scope). Deployed triggers embed the patched template from [`workflow_template/workflow.template.config.yaml`](workflow_template/workflow.template.config.yaml).
 
 ### Configuration entry points
@@ -53,7 +57,7 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 
 ## Local runs (main.py)
 
-Run **`main.py`** from **repository root** with **`PYTHONPATH=.`** (see [Prerequisites](./README.md#prerequisites)).
+Run **`main.py`** from **repository root** with **`PYTHONPATH=.`** (see [Prerequisites](./README.md#prerequisites)). For a focused first-run checklist (`.env`, sample commands, **`tests/results/`**), see [Quickstart — local `main.py`](docs/guides/howto_quickstart.md). For **`scope_hierarchy`**, **`main.py --build`**, editing triggers, and Toolkit **`cdf deploy`**, see [Scoped deployment](docs/guides/howto_scoped_deployment.md).
 
 ### Edit multi-site scope layout (`default.config.yaml`)
 
@@ -75,6 +79,12 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.p
 
 The second form exits non-zero if required trigger files are missing or their content does not match the current templates (for CI). See [config/README.md](config/README.md) and [workflows/README.md](workflows/README.md).
 
+### Remove generated workflow YAML (`--build --clean`)
+
+**`--build --clean`** (same flags on `scripts/build_scopes.py`) deletes Toolkit workflow artifacts under **`workflows/`** that match the **`workflow`** external id from your hierarchy file (flat **`trigger_only`** files, per-suffix folders in **`full`** mode, and a few legacy root trigger names). It prints a file list and a warning that the operation **cannot be undone**, then requires typing **`yes`** to proceed unless you pass **`--yes`** (required when stdin is not a TTY, for example in CI). **`--dry-run --clean`** shows what would be removed without deleting. **No build runs after a successful clean**—run **`main.py --build`** again to recreate files.
+
+This is **not** **`--clean-state`**: the latter drops incremental **RAW** tables for the pipeline scope; it does not remove **`workflows/*.yaml`**.
+
 ### Run the extraction / aliasing pipeline
 
 ```bash
@@ -88,7 +98,7 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--build` | Only run the scope builder: **create missing** `workflows/.../key_extraction_aliasing.*.WorkflowTrigger.yaml` (and Workflow/WorkflowVersion per `scope_build_mode`) from `default.config.yaml` (does not overwrite existing). Forwards `--check-workflow-triggers`, `--dry-run`, `--hierarchy`, etc. Does **not** run the pipeline. | off |
+| `--build` | Only run the scope builder: **create missing** `workflows/.../key_extraction_aliasing.*.WorkflowTrigger.yaml` (and Workflow/WorkflowVersion per `scope_build_mode`) from `default.config.yaml` (does not overwrite existing). Forwards `--clean`, `--yes`, `--check-workflow-triggers`, `--dry-run`, `--hierarchy`, etc. Does **not** run the pipeline. | off |
 | `--limit` | Max instances per view; `0` = all | `0` |
 | `--verbose` | Verbose logging | false |
 | `--dry-run` | Skip alias persistence to CDF | false |
@@ -125,6 +135,8 @@ See [Configuration guide](docs/guides/configuration_guide.md) (Aliasing `paramet
 Enable with workflow flags, `main.py` / YAML, or env; set `foreign_key_writeback_property` when enabled. Requires that property on your target view. See [Configuration guide](docs/guides/configuration_guide.md) and [fn_dm_alias_persistence README](functions/fn_dm_alias_persistence/README.md).
 
 ## Python API
+
+To implement **new** extraction methods or aliasing transformation types in code (beyond YAML rules), follow [How to add a custom handler](docs/guides/howto_custom_handlers.md).
 
 ### Key extraction engine (YAML config)
 
@@ -243,7 +255,7 @@ Loading in code: `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_
 
 ## CDF deployment
 
-Deploy workflow **`key_extraction_aliasing`** (v4) once; use per-scope **`workflows/.../key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (embedded **`configuration`**). Creating or refreshing triggers: [Local runs (main.py)](#local-runs-mainpy) and [workflows/README.md](workflows/README.md).
+Deploy workflow **`key_extraction_aliasing`** (v4) once; use per-scope **`workflows/.../key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (embedded **`configuration`**). Creating or refreshing triggers: [Local runs (main.py)](#local-runs-mainpy), [workflows/README.md](workflows/README.md), and [Scoped deployment — Toolkit](docs/guides/howto_scoped_deployment.md).
 
 ## Testing
 
@@ -263,7 +275,7 @@ See [tests/README.md](tests/README.md).
 
 ## Contributing
 
-Add tests under `tests/` and update [docs/README.md](docs/README.md) or the relevant guide if you introduce new entry points or config shapes.
+Add tests under `tests/` and update [docs/README.md](docs/README.md) or the relevant guide if you introduce new entry points or config shapes. If you add or rename operational docs under `docs/guides/`, extend [`tests/unit/docs/test_howto_guides.py`](tests/unit/docs/test_howto_guides.py) when those files should stay contract-tested.
 
 ## License
 

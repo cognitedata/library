@@ -11,6 +11,38 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Default post-alias validation: confidence_match_rules (regex) + min_confidence + cap.
+_DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
+    "max_aliases_per_tag": 50,
+    "min_confidence": 0.01,
+    "confidence_match_rules": [
+        {
+            "name": "alias_shape_invalid",
+            "priority": 0,
+            "expression_match": "fullmatch",
+            "match": {
+                "expressions": [
+                    {
+                        "pattern": r"^.{0,1}$",
+                        "description": "Alias too short (length under 2) or empty",
+                    },
+                    {
+                        "pattern": r"^.{51,}$",
+                        "description": "Alias exceeds maximum length 50",
+                    },
+                    {
+                        "pattern": r"[^A-Za-z0-9_/. -]",
+                        "description": (
+                            "Character outside allowed set (letters, digits, _ / . - and space)"
+                        ),
+                    },
+                ],
+            },
+            "confidence_modifier": {"mode": "explicit", "value": 0.0},
+        },
+    ],
+}
+
 
 def _pydantic_aliasing_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
     """
@@ -66,12 +98,7 @@ def convert_cdf_config_to_aliasing_config(cdf_config: Any) -> Dict[str, Any]:
     """
     aliasing_config = {
         "rules": [],
-        "validation": {
-            "max_aliases_per_tag": 50,
-            "min_alias_length": 1,
-            "max_alias_length": 100,
-            "allowed_characters": r"A-Za-z0-9-_/. ",
-        },
+        "validation": dict(_DEFAULT_ALIASING_VALIDATION),
     }
 
     # Extract aliasing rules from CDF config
@@ -262,12 +289,7 @@ def _convert_yaml_direct_to_aliasing_config(
     """
     aliasing_config = {
         "rules": [],
-        "validation": {
-            "max_aliases_per_tag": 50,
-            "min_alias_length": 2,
-            "max_alias_length": 50,
-            "allowed_characters": r"A-Za-z0-9-_/. ",
-        },
+        "validation": dict(_DEFAULT_ALIASING_VALIDATION),
     }
 
     # Extract data section - handle nested structure from pipeline configs

@@ -10,8 +10,8 @@ Authoring inputs for **`python main.py --build`** / [`scripts/build_scopes.py`](
 | [`workflow.template.WorkflowVersion.yaml`](workflow.template.WorkflowVersion.yaml) | WorkflowVersion **`v4`** template. |
 | [`workflow_diagram.md`](workflow_diagram.md) | Mermaid diagram source (no committed PNG). |
 
-**Generated** Workflow / WorkflowVersion / WorkflowTrigger YAML is written under **`workflows/`** (flat or `workflows/<suffix>/` depending on **`scope_build_mode`** in `default.config.yaml`).
+**Generated** Workflow / WorkflowVersion / WorkflowTrigger YAML is written under **`workflows/`** (flat or `workflows/<suffix>/` depending on **`scope_build_mode`** in `default.config.yaml`). To delete those generated files, use **`python main.py --build --clean`** (see [**workflows/README.md**](../workflows/README.md)); templates here are never removed by that command.
 
-**Deployment, task graph, and manifest table:** [**workflows/README.md**](../workflows/README.md).
+**Deployment, task graph, and manifest table:** [**workflows/README.md**](../workflows/README.md). **End-to-end scoped deploy:** [Scoped deployment how-to](../docs/guides/howto_scoped_deployment.md).
 
 **Documentation index:** [docs/README.md](../docs/README.md).

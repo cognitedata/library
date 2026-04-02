@@ -2,6 +2,7 @@
 CDF handler: build/update RAW reference index from key-extraction FK + document JSON.
 """
 
+from copy import deepcopy
 from typing import Any, Dict, Optional
 
 try:
@@ -12,6 +13,7 @@ except ImportError:
     CDF_AVAILABLE = False
 
 from ..cdf_fn_common.function_logging import resolve_function_logger
+from ..fn_dm_aliasing.cdf_adapter import _DEFAULT_ALIASING_VALIDATION
 from ..cdf_fn_common.scope_document_dm import apply_reference_index_scope_document
 from .dependencies import create_client, get_env_variables
 from .pipeline import persist_reference_index
@@ -117,6 +119,12 @@ def handle(
 def run_locally() -> Dict[str, Any]:
     import os
 
+    _ref_validation = deepcopy(_DEFAULT_ALIASING_VALIDATION)
+    _ref_validation["max_aliases_per_tag"] = 100
+    _exprs = _ref_validation["confidence_match_rules"][0]["match"]["expressions"]
+    _exprs[1]["pattern"] = r"^.{101,}$"
+    _exprs[1]["description"] = "Alias exceeds maximum length 100"
+
     env = get_env_variables()
     client = create_client(env, debug=False)
     site = os.getenv("SITE_ABBREVIATION", "SITE")
@@ -137,12 +145,7 @@ def run_locally() -> Dict[str, Any]:
                 "parameters": {"debug": True},
                 "data": {
                     "aliasing_rules": [],
-                    "validation": {
-                        "max_aliases_per_tag": 50,
-                        "min_alias_length": 2,
-                        "max_alias_length": 100,
-                        "allowed_characters": r"A-Za-z0-9-_/. ",
-                    },
+                    "validation": _ref_validation,
                 },
             }
         },

@@ -23,6 +23,40 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 )
 
 
+def _sample_aliasing_validation(
+    *, max_aliases_per_tag: int, max_len: int = 50, min_len: int = 2
+) -> dict:
+    if min_len < 1:
+        raise ValueError("min_len must be >= 1")
+    short_pat = "^$" if min_len == 1 else rf"^.{{0,{min_len - 1}}}$"
+    short_desc = "empty alias" if min_len == 1 else "alias too short"
+    return {
+        "max_aliases_per_tag": max_aliases_per_tag,
+        "min_confidence": 0.01,
+        "confidence_match_rules": [
+            {
+                "name": "alias_shape_invalid",
+                "priority": 0,
+                "expression_match": "fullmatch",
+                "match": {
+                    "expressions": [
+                        {"pattern": short_pat, "description": short_desc},
+                        {
+                            "pattern": rf"^.{{{max_len + 1},}}$",
+                            "description": f"alias exceeds max length {max_len}",
+                        },
+                        {
+                            "pattern": r"[^A-Za-z0-9_/. -]",
+                            "description": "character outside allowed set",
+                        },
+                    ],
+                },
+                "confidence_modifier": {"mode": "explicit", "value": 0.0},
+            },
+        ],
+    }
+
+
 def generate_key_extraction_results():
     """Generate detailed key extraction results."""
     # Sample assets for testing
@@ -187,9 +221,6 @@ def generate_key_extraction_results():
         "validation": {
             "min_confidence": 0.5,
             "max_keys_per_type": 10,
-            "min_alias_length": 2,
-            "max_alias_length": 50,
-            "allowed_characters": "A-Za-z0-9-_/. ",
         },
     }
 
@@ -628,11 +659,7 @@ def generate_aliasing_results():
                 }
             ],
             "max_aliases_per_key": 50,
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _sample_aliasing_validation(max_aliases_per_tag=30),
         },
         "case_variants": {
             "rules": [
@@ -647,11 +674,7 @@ def generate_aliasing_results():
                 }
             ],
             "max_aliases_per_key": 50,
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _sample_aliasing_validation(max_aliases_per_tag=30),
         },
         "prefix_suffix": {
             "rules": [
@@ -673,11 +696,7 @@ def generate_aliasing_results():
                 }
             ],
             "max_aliases_per_key": 50,
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _sample_aliasing_validation(max_aliases_per_tag=30),
         },
         "equipment_expansion": {
             "rules": [
@@ -703,11 +722,7 @@ def generate_aliasing_results():
                 }
             ],
             "max_aliases_per_key": 50,
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _sample_aliasing_validation(max_aliases_per_tag=30),
         },
         "related_instruments": {
             "rules": [
@@ -729,11 +744,7 @@ def generate_aliasing_results():
                 }
             ],
             "max_aliases_per_key": 50,
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _sample_aliasing_validation(max_aliases_per_tag=30),
         },
         "separator_normalization": {
             "rules": [
@@ -755,11 +766,7 @@ def generate_aliasing_results():
                 }
             ],
             "max_aliases_per_key": 50,
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _sample_aliasing_validation(max_aliases_per_tag=30),
         },
         "leading_zero_normalization": {
             "rules": [
@@ -774,11 +781,7 @@ def generate_aliasing_results():
                 }
             ],
             "max_aliases_per_key": 50,
-            "validation": {
-                "max_aliases_per_tag": 30,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-            },
+            "validation": _sample_aliasing_validation(max_aliases_per_tag=30),
         },
     }
 
@@ -867,11 +870,7 @@ def generate_aliasing_results():
             },
         ],
         "max_aliases_per_key": 50,
-        "validation": {
-            "max_aliases_per_tag": 100,
-            "min_alias_length": 2,
-            "max_alias_length": 50,
-        },
+        "validation": _sample_aliasing_validation(max_aliases_per_tag=100),
     }
 
     # Test all configurations

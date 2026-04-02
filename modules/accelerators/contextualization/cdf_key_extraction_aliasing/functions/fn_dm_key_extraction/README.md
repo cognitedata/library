@@ -15,12 +15,12 @@ Key config fields used:
 - **`config.parameters.raw_table_key`**: RAW table for entity payloads, `EXTRACTION_STATUS`, and run-summary rows (`RECORD_KIND=run`)
 - **`config.parameters.skip_entity_policy`**, **`write_empty_extraction_rows`**, **`raw_skip_scan_chunk_size`**: control instance listing when `full_rescan` is false (see configuration guide)
 - **`config.parameters.max_files`**: optional limit for testing
-- **`config.data.source_views`**: what view(s) to query; optional per-view **`instance_space`** (API `space` argument), optional **`filters`** including **`property_scope: node`** for `("node", "space")` style filters when `instance_space` is omitted or for extra narrowing
+- **`config.data.source_views`** (populated from top-level **`configuration.source_views`** on the v1 scope document before the function runs): what view(s) to query; optional per-view **`instance_space`** (API `space` argument), optional **`filters`** including **`property_scope: node`** for `("node", "space")` style filters when `instance_space` is omitted or for extra narrowing
 
 ### Outputs
 
 - **RAW extraction table** (`raw_db` / `raw_table_key`)
-  - **Entity rows:** row key = instance external id; field columns, `RULES_USED_JSON`, optional `FOREIGN_KEY_REFERENCES_JSON`, plus `RECORD_KIND=entity`, `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`, and `LAST_ERROR` on failures
+  - **Entity rows:** row key = instance external id; per–source-field **candidate key list** columns named **`source_field` uppercased** (dots preserved, e.g. `metadata.code` → `METADATA.CODE`); `RULES_USED_JSON`; optional `FOREIGN_KEY_REFERENCES_JSON` / `DOCUMENT_REFERENCES_JSON`; plus `RECORD_KIND=entity`, `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`, and `LAST_ERROR` on failures
   - **Run rows:** timestamp key; `RECORD_KIND=run` and run-level metrics (counts, durations, `skip_entity_policy`, `run_id`, etc.)
 - **Function return**: JSON-safe summary (`keys_extracted`, `status`, `message`, `run_id`, …) plus in-memory `entities_keys_extracted` for callers that need it
 

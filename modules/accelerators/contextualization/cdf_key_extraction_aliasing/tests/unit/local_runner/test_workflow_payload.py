@@ -18,15 +18,11 @@ def test_merged_scope_document_replaces_source_views(tmp_path: Path) -> None:
     scope.write_text(
         yaml.dump(
             {
-                "key_extraction": {
-                    "config": {
-                        "data": {
-                            "source_views": [
-                                {"view_external_id": "OLD", "instance_space": "sp-old"}
-                            ]
-                        }
-                    }
-                },
+                "schemaVersion": 1,
+                "source_views": [
+                    {"view_external_id": "OLD", "instance_space": "sp-old"}
+                ],
+                "key_extraction": {"config": {"data": {}}},
                 "aliasing": {"config": {"data": {}}},
             }
         ),
@@ -34,19 +30,21 @@ def test_merged_scope_document_replaces_source_views(tmp_path: Path) -> None:
     )
     filtered = [{"view_external_id": "NEW", "instance_space": "sp-new"}]
     doc = merged_scope_document_for_local_run(scope, filtered)
-    assert doc["key_extraction"]["config"]["data"]["source_views"] == filtered
+    assert doc["source_views"] == filtered
     assert "aliasing" in doc
 
 
-def test_merged_scope_document_creates_data_mapping(tmp_path: Path) -> None:
+def test_merged_scope_document_sets_top_level_source_views(tmp_path: Path) -> None:
     scope = tmp_path / "scope.yaml"
     scope.write_text(
-        yaml.dump({"key_extraction": {"config": {}}}),
+        yaml.dump(
+            {"schemaVersion": 1, "key_extraction": {"config": {"data": {}}}}
+        ),
         encoding="utf-8",
     )
     views = [{"view_external_id": "A"}]
     doc = merged_scope_document_for_local_run(scope, views)
-    assert doc["key_extraction"]["config"]["data"]["source_views"] == views
+    assert doc["source_views"] == views
 
 
 def test_merged_scope_document_rejects_non_mapping(tmp_path: Path) -> None:

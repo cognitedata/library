@@ -62,7 +62,7 @@ def compute_confidence(
     """
     Compute confidence score for an extracted value relative to its source.
 
-    Rules (first match wins, from SUBSTRING_MATCH_SCORES):
+    Rules (substring table; first matching entry wins for this helper only):
     1. Exact match -> 1.0
     2. Source starts with or ends with extracted -> 0.90
     3. Source contains extracted -> 0.80

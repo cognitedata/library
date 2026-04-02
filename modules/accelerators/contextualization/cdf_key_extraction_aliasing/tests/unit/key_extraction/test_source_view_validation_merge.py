@@ -113,8 +113,8 @@ class TestSourceViewValidationMerge(unittest.TestCase):
         ent = _stamped_entity(name="doc.pdf")
         res = engine.extract_keys(ent, "file")
         self.assertEqual(len(res.candidate_keys), 1)
-        # Concatenated then sorted: view rule (priority 10) runs before global (100) -> 1.0 - 0.1 = 0.9
-        self.assertAlmostEqual(res.candidate_keys[0].confidence, 0.9, places=4)
+        # Sorted by priority: view -0.1 then global -0.5; both .* match -> 1.0 - 0.1 - 0.5 = 0.4
+        self.assertAlmostEqual(res.candidate_keys[0].confidence, 0.4, places=4)
 
     def test_min_confidence_override_on_view(self):
         cfg = {

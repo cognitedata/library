@@ -6,7 +6,9 @@ module root when ``--scope default`` (the default); other scope names require ``
 CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each task (built by
 ``scripts/build_scopes.py`` into ``workflows/`` from templates in ``workflow_template/``). Create **missing** workflow artifacts with
 ``python main.py --build`` (same CLI as ``scripts/build_scopes.py``; respects ``scope_build_mode``;
-does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc.). See
+does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc.). Remove generated
+workflow YAML with ``python main.py --build --clean`` (confirmation or ``--yes``; no rebuild after delete—run
+``--build`` again to recreate). This is unrelated to ``--clean-state``, which drops RAW tables. See
 ``config/README.md`` and ``default.config.yaml``.
 
 Reads CDF credentials from environment (.env supported) when not using ``--build``, queries instances from configured views,
@@ -112,8 +114,8 @@ def main():
         help=(
             "Only run scope builder from default.config.yaml (scope_build_mode: trigger_only vs full). "
             "Creates missing Workflow/WorkflowVersion/trigger files; use --force to overwrite from templates. "
-            "Forwards flags to build_scopes: --hierarchy, --scope-document, --dry-run, --force, --list-builders, "
-            "--only, --check-workflow-triggers, --workflow-trigger-template, --workflow-template, "
+            "Forwards flags to build_scopes: --hierarchy, --scope-document, --dry-run, --force, --clean, --yes, "
+            "--list-builders, --only, --check-workflow-triggers, --workflow-trigger-template, --workflow-template, "
             "--workflow-version-template, -v/--verbose. Does not connect to CDF."
         ),
     )

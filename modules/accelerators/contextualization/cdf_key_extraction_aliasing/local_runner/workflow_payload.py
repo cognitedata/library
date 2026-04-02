@@ -13,28 +13,20 @@ def merged_scope_document_for_local_run(
     scope_yaml_path: Path,
     source_views: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """Load v1 scope YAML and set ``key_extraction.config.data.source_views`` to ``source_views``.
+    """Load v1 scope YAML and set top-level ``source_views`` to the filtered list.
 
-    Deployed workflows pass ``workflow.input.configuration`` with the leaf-filtered view list.
-    The local runner filters views (e.g. ``--instance-space``) before calling this so task dicts
-    match CDF function inputs.
+    Deployed workflows pass ``workflow.input.configuration`` with the leaf-filtered view list
+    at the document root. The local runner filters views (e.g. ``--instance-space``) before
+    calling this so task dicts match CDF function inputs.
     """
     with scope_yaml_path.open(encoding="utf-8") as f:
         doc = yaml.safe_load(f)
     if not isinstance(doc, dict):
         raise ValueError(f"Scope YAML must be a mapping: {scope_yaml_path}")
     out = copy.deepcopy(doc)
-    ke = out.get("key_extraction")
-    if not isinstance(ke, dict):
+    if not isinstance(out.get("key_extraction"), dict):
         raise ValueError("Scope YAML requires key_extraction mapping")
-    cfg = ke.get("config")
-    if not isinstance(cfg, dict):
-        raise ValueError("key_extraction.config must be a mapping")
-    data = cfg.get("data")
-    if not isinstance(data, dict):
-        cfg["data"] = {}
-        data = cfg["data"]
-    data["source_views"] = copy.deepcopy(source_views)
+    out["source_views"] = copy.deepcopy(source_views)
     return out
 
 

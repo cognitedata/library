@@ -1,4 +1,21 @@
 schemaVersion: 1
+source_views:
+  - view_external_id: CogniteAsset
+    view_space: cdf_cdm
+    view_version: v1
+    instance_space: sp_enterprise_schema
+    entity_type: asset
+    filters:
+    - operator: CONTAINSANY
+      target_property: tags
+      values:
+      - asset_tag
+    include_properties:
+    - externalId
+    - name
+    - description
+    - tags
+
 key_extraction:
   externalId: ctx_key_extraction_minimal_for_aliasing
   config:
@@ -82,22 +99,6 @@ key_extraction:
           confidence_modifier:
             mode: offset
             value: -0.2
-      source_views:
-      - view_external_id: CogniteAsset
-        view_space: cdf_cdm
-        view_version: v1
-        instance_space: sp_enterprise_schema
-        entity_type: asset
-        filters:
-        - operator: CONTAINSANY
-          target_property: tags
-          values:
-          - asset_tag
-        include_properties:
-        - externalId
-        - name
-        - description
-        - tags
       extraction_rules: []
 aliasing:
   externalId: ctx_aliasing_default

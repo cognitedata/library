@@ -1,6 +1,6 @@
 # Module functional document — `cdf_key_extraction_aliasing`
 
-This document describes **what the module does** in operational terms: scope, behaviors, components, data flows, and interfaces. Detailed rule semantics live in the [key extraction](specifications/1.%20key_extraction.md) and [aliasing](specifications/2.%20aliasing.md) specifications; step-by-step authoring is in the [configuration guide](guides/configuration_guide.md) and [workflows README](../workflows/README.md).
+This document describes **what the module does** in operational terms: scope, behaviors, components, data flows, and interfaces. Detailed rule semantics live in the [key extraction](specifications/1.%20key_extraction.md) and [aliasing](specifications/2.%20aliasing.md) specifications; step-by-step authoring is in the [configuration guide](guides/configuration_guide.md) and [workflows README](../workflows/README.md). **Run locally:** [Quickstart — `main.py`](guides/howto_quickstart.md). **Multi-scope Toolkit deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ---
 
@@ -39,6 +39,8 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 
 ## 3. Functional capabilities (summary)
 
+For **adding new method or transformation `type` implementations in Python** (subclassing handlers and wiring the engines), see [How to add a custom handler](guides/howto_custom_handlers.md).
+
 ### 3.1 Key extraction
 
 **Engine:** `KeyExtractionEngine` dispatches each rule’s `method` to a **method handler** (`functions/fn_dm_key_extraction/engine/handlers/`). Rules declare `extraction_type` (`candidate_key`, `foreign_key_reference`, `document_reference`); the engine sorts extracted keys into the matching lists on `ExtractionResult`.
@@ -59,9 +61,11 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 
 For field-level behavior (required vs optional fields, preprocessing, `max_matches_per_field`), see the [key extraction specification](specifications/1.%20key_extraction.md).
 
+**Source field paths:** `source_fields[].field_name` may be a single view property name or a **dot path** through nested object properties returned for that view. If an intermediate value is a **JSON string**, it is parsed so inner keys remain addressable. Limitations (no array indices, no escaped dots in names) are documented in the spec. **RAW:** candidate-key list columns are named with the **`source_field` uppercased**, so dotted paths yield column names that still contain dots (e.g. `METADATA.CODE`).
+
 ### 3.2 Aliasing
 
-**Engine:** `AliasingEngine` walks **sorted-by-priority** rules. For each rule it resolves `type` → **transformer handler** (`functions/fn_dm_aliasing/engine/handlers/`), calls `transform` on the current alias **set**, then merges or replaces the set per `preserve_original`. **`scope_filters`** / **`conditions`** gate rules (e.g. `entity_type`, context keys). Final output passes **validation** (`min_alias_length`, `max_alias_length`, `max_aliases_per_tag`, `allowed_characters`).
+**Engine:** `AliasingEngine` walks **sorted-by-priority** rules. For each rule it resolves `type` → **transformer handler** (`functions/fn_dm_aliasing/engine/handlers/`), calls `transform` on the current alias **set**, then merges or replaces the set per `preserve_original`. **`scope_filters`** / **`conditions`** gate rules (e.g. `entity_type`, context keys). Final output passes **`validation`**: **`confidence_match_rules`** (regex / keywords, same shape as key extraction), optional **`validation.expression_match`** default for rules that omit it, **`min_confidence`**, then dedupe, sort, and **`max_aliases_per_tag`**.
 
 **Input:** candidate key strings from extraction (workflow reads RAW) or direct `generate_aliases(tag, entity_type, context)` in Python.
 
@@ -169,7 +173,7 @@ Shared helpers live under `functions/cdf_fn_common/` (logging, scope document lo
 
 ### 4.3 Local runner
 
-**`main.py`** loads scope YAML from disk, optionally filters `source_views` by **`--instance-space`**, can **`--clean-state`**, then runs the same engines against live CDF data. Results are written under **`tests/results/`** as JSON. **`--dry-run`** skips alias persistence to DM.
+**`main.py`** loads scope YAML from disk, optionally filters `source_views` by **`--instance-space`**, can **`--clean-state`**, then runs the same engines against live CDF data. Results are written under **`tests/results/`** as JSON. **`--dry-run`** skips alias persistence to DM. See [Quickstart — `main.py`](guides/howto_quickstart.md).
 
 ---
 
@@ -179,7 +183,7 @@ Shared helpers live under `functions/cdf_fn_common/` (logging, scope document lo
 
 Single YAML document shape (local file or embedded in each schedule trigger) combining:
 
-- **`key_extraction`**: `config` (rules, validation, `source_views`, parameters such as `raw_table_key`, incremental flags, reference index toggles).
+- **`key_extraction`**: `config` (`parameters`, `data` with rules and validation). Top-level **`source_views`** on the scope document lists DM views; handlers receive them under `config.data.source_views` after merge.
 - **`aliasing`**: `config` (rules, validation, parameters such as `raw_table_aliases`, `alias_writeback_property`).
 - Optional top-level keys consumed by tooling (e.g. `scope` block injected by `build_scopes`).
 
@@ -193,7 +197,7 @@ Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflo
 
 ### 5.3 Multi-site generation
 
-**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`main.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored).
+**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`main.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--build --clean`** deletes generated workflow YAML under **`workflows/`** (scoped by hierarchy **`workflow`** id) with confirmation, without running a rebuild. **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored). **Operator walkthrough:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ---
 
@@ -238,7 +242,7 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 
 ### 7.2 CLI (`main.py`)
 
-Documented in the [module README](../README.md): limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, full-rescan, skip reference index (incremental parity).
+Documented in the [module README](../README.md): limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, full-rescan, skip reference index (incremental parity). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ### 7.3 Python API (minimal)
 

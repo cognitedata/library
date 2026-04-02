@@ -49,9 +49,6 @@ class TestExtractionMethods(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
 
@@ -237,9 +234,6 @@ class TestExtractionRuleTypes(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
 
@@ -369,9 +363,6 @@ class TestConfidenceCalculation(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
 
@@ -442,9 +433,6 @@ class TestSourceFieldHandling(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
         logger = CogniteFunctionLogger()
@@ -531,9 +519,6 @@ class TestRulePriorityAndOrdering(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
 
@@ -595,9 +580,6 @@ class TestValidationAndFiltering(unittest.TestCase):
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "min_alias_length": 2,
-                "max_alias_length": 50,
-                "allowed_characters": "A-Za-z0-9-_/. ",
             },
         }
 
@@ -625,7 +607,7 @@ class TestValidationAndFiltering(unittest.TestCase):
         self.assertLessEqual(len(result.candidate_keys), 1)
 
     def test_alias_length_validation(self):
-        """Test alias length validation."""
+        """Sanity-check extracted key length for sample asset (regex output)."""
         test_asset = {"id": "test", "name": "P-10001"}
         result = self.engine.extract_keys(test_asset, "asset")
 
@@ -634,7 +616,7 @@ class TestValidationAndFiltering(unittest.TestCase):
             self.assertLessEqual(len(key.value), 50)
 
     def test_allowed_characters_validation(self):
-        """Test allowed characters validation."""
+        """Sanity-check extracted key character set for sample asset."""
         test_asset = {"id": "test", "name": "P-10001"}
         result = self.engine.extract_keys(test_asset, "asset")
 

@@ -27,15 +27,16 @@ def _minimal_key_extraction_data(
     views = source_views if source_views is not None else []
     data: dict = {
         "validation": {"min_confidence": 0.5},
-        "source_views": views,
     }
     if extraction_rules is not None:
         data["extraction_rules"] = extraction_rules
     return {
+        "schemaVersion": 1,
+        "source_views": views,
         "key_extraction": {
             "externalId": "ctx_ke_test",
             "config": {"parameters": {"debug": True}, "data": data},
-        }
+        },
     }
 
 
@@ -188,7 +189,25 @@ def test_resolve_scope_document_path_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     p = tmp_path / cl.WORKFLOW_LOCAL_CONFIG_FILENAME
-    p.write_text("schemaVersion: 1\nkey_extraction:\n  externalId: x\n  config:\n    parameters: {raw_table_key: t}\n    data: {source_views: [], extraction_rules: []}\n", encoding="utf-8")
+    p.write_text(
+        "schemaVersion: 1\nsource_views:\n  - {view_external_id: CogniteAsset, view_space: cdf_cdm, view_version: v1, entity_type: asset}\nkey_extraction:\n  externalId: x\n  config:\n    parameters: {raw_table_key: t}\n    data: {extraction_rules: []}\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(cl, "DEFAULT_SCOPE_DOCUMENT_PATH", p)
     assert cl.resolve_scope_document_path("default") == p
     assert cl.resolve_scope_document_path() == p
+
+def test_scope_doc_missing_top_level_source_views_raises() -> None:
+    doc = {
+        "schemaVersion": 1,
+        "key_extraction": {
+            "externalId": "ctx_ke_test",
+            "config": {
+                "parameters": {"debug": True},
+                "data": {"validation": {"min_confidence": 0.5}, "extraction_rules": []},
+            },
+        },
+    }
+    with pytest.raises(ValueError, match="top-level source_views"):
+        cl._load_from_scope_document(_logger(), doc)
+

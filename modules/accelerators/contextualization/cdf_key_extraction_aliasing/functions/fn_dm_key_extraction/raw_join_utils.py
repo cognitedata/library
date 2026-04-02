@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from cognite.client import CogniteClient
 
+from ..cdf_fn_common.property_path import get_value_by_property_path
+
 __all__ = [
     "normalize_cell_value",
     "list_raw_rows",
@@ -147,7 +149,7 @@ def merged_join_columns_for_instance(
         tf = (st.join_fields or {}).get("table_field")
         if not jf or not tf:
             continue
-        vk = entity_props.get(jf)
+        vk = get_value_by_property_path(entity_props, str(jf))
         nk = normalize_cell_value(vk)
         if not nk:
             continue

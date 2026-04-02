@@ -45,6 +45,9 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.function_logging import (
     StdlibLoggerAdapter,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.property_path import (
+    get_value_by_property_path,
+)
 
 from .report import ensure_results_dir
 from .workflow_payload import (
@@ -1098,11 +1101,11 @@ def run_pipeline(
             # If include_properties is specified, only include those properties
             node_space = getattr(instance, "space", None)
             if include_properties:
-                filtered_props = {
-                    prop: entity_props.get(prop)
-                    for prop in include_properties
-                    if prop in entity_props
-                }
+                filtered_props = {}
+                for prop in include_properties:
+                    v = get_value_by_property_path(entity_props, str(prop))
+                    if v is not None:
+                        filtered_props[str(prop)] = v
                 entity_dict = {
                     "id": instance_id,
                     "externalId": instance_external_id,

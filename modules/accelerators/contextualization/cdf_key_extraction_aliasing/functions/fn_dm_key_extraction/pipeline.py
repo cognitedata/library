@@ -22,6 +22,7 @@ from ..cdf_fn_common.extraction_input_hash import (
     iter_wanted_fields,
     resolve_source_view_config_for_entity,
 )
+from ..cdf_fn_common.property_path import get_value_by_property_path
 from ..cdf_fn_common.incremental_scope import (
     EXTRACTION_INPUTS_HASH_COLUMN,
     EXTERNAL_ID_COLUMN,
@@ -317,7 +318,9 @@ def _load_incremental_cohort_entities(
                 for field_name, required, preprocessing in wanted_fields:
                     if not field_name:
                         continue
-                    field_value = entity_props.get(field_name)
+                    field_value = get_value_by_property_path(
+                        entity_props, field_name
+                    )
                     if field_value is None:
                         if required:
                             logger.verbose(
@@ -875,7 +878,7 @@ def _build_entity_payload_with_rules(
                         f"Missing joined RAW column {col!r} for entity {instance.external_id}",
                     )
             else:
-                field_value = entity_props.get(fn)
+                field_value = get_value_by_property_path(entity_props, fn)
                 if field_value is None and required:
                     logger.verbose(
                         "WARNING",
@@ -1048,7 +1051,9 @@ def _get_target_entities_cdf(
                     for field_name, required, preprocessing in wanted_fields:
                         if not field_name:
                             continue
-                        field_value = entity_props.get(field_name)
+                        field_value = get_value_by_property_path(
+                            entity_props, field_name
+                        )
                         if field_value is None:
                             if required:
                                 logger.verbose(
