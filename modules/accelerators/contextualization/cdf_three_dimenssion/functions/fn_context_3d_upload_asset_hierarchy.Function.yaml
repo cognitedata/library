@@ -1,6 +1,6 @@
 # Pipeline: upload asset hierarchy from CSV to DM. Assign this function to ep_ctx_3d_*_upload_asset_hierarchy.
-- name: 'context:3d:{{default_location}}:{{source_name}}:upload_asset_hierarchy'
-  externalId: 'fn_context_3d_{{default_location}}_{{source_name}}_upload_asset_hierarchy'
+- name: 'context:3d:upload_asset_hierarchy'
+  externalId: 'fn_context_3d_upload_asset_hierarchy'
   owner: 'Anonymous'
   description: 'Upload Asset hierarchy (DM nodes) from CSV in CDF Files'
   metadata:

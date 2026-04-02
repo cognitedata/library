@@ -5,6 +5,10 @@ config:
   data:
     parameters:
       assetInstanceSpace: {{asset_instance_space}}
+      # DM view for asset nodes (same variables as default.config / .env)
+      assetViewSpace: '{{data_model_space}}'
+      assetViewExternalId: '{{asset_view_ext_id}}'
+      assetViewVersion: '{{asset_view_version}}'
       # Optional: CDF File external id of the asset hierarchy CSV
       # fileExternalId: 'asset_hierarchy.csv'
       # dataSetExternalId: 'ds_3d_{{default_location}}'

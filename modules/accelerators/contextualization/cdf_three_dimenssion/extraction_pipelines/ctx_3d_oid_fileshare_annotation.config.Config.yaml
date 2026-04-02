@@ -15,6 +15,10 @@ config:
       rawTableAll: 'contextualization_all'
       rawTableManual: 'contextualization_manual_input'
       assetDmSpace: {{asset_instance_space}}
+      assetViewSpace: {{asset_view_space}}
+      assetViewExtId: {{asset_view_ext_id}}
+      assetViewVersion: {{asset_view_version}}
+
       cadNodeDmSpace: {{cad_node_instance_space}}
       threeDDataSetExtId: 'ds_3d_{{default_location}}'
       threeDModelName: '{{3d_model_name}}'

@@ -15,8 +15,8 @@ variables:
           raw_db: ${RAW_DB}
           raw_table_manual: contextualization_manual_input
           raw_table_asset_staging: asset_hierarchy_staging
-          function_space: springfield_functions
-          3d_model_name: ${3d_model_name}
+          function_space: ${FUNCTION_SPACE}
+          3d_model_name: ${3d_model_name}   # 3d_model_name is the "name" property of cognite3dmodel
           cad_model_name: cdf_cdm
           cad_model_type: CAD
           default_cad_space: cdf_cdm
@@ -101,9 +101,8 @@ variables:
 
           asset_instance_space: ${ASSET_INSTANCE_SPACE}
           cad_node_instance_space: ${CAD_NODE_INSTANCE_SPACE}
-          asset_view_ext_id: AssetExtension
-          asset_view_version: v2
-          3d_dataset: ${3d_dataset}
+          asset_view_ext_id: ${ASSET_VIEW_EXT_ID}
+          asset_view_version: ${ASSET_VIEW_VERSION}
           file_extractor_watch_path: c:/tmp/files
           3d_location_group_source_id: ${3d_location_group_source_id}
           cicd_clientId: ${cicd_clientId}
@@ -113,13 +112,13 @@ variables:
           cdf_cluster: ${CDF_CLUSTER}
           external_root_id_asset: ${EXTERNAL_ROOT_ID_ASSET}
           cad_model_view:
-            space: ${DATA_MODEL_SPACE}
-            external_id: CADModel
+            space: cdf_cdm
+            external_id: CogniteCADModel
             version: v1
 
           cad_revision_view:
-            space: ${DATA_MODEL_SPACE}
-            external_id: CADRevision
+            space: cdf_cdm
+            external_id: CogniteCADRevision
             version: v1
 
           scene_config_view:

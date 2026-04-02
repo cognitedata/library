@@ -4,6 +4,7 @@ import json
 import re
 import sys
 import io
+import os
 from pathlib import Path
 from typing import Any
 
@@ -642,10 +643,10 @@ def get_assets(
 
     entities: list[dict[str, Any]] = []
     try:
-        instance_space = getattr(config, "asset_dm_space", None) or "sp_enterprise_process_industry"
+        instance_space = getattr(config, "asset_dm_space", None) or os.getenv("ASSET_INSTANCE_SPACE")
         asset_view_space = getattr(config, "asset_view_space", instance_space)
-        asset_view_ext_id = getattr(config, "asset_view_ext_id", "AssetExtension")
-        asset_view_version = getattr(config, "asset_view_version", "v2")
+        asset_view_ext_id = getattr(config, "asset_view_ext_id",None) or os.getenv("ASSET_VIEW_EXT_ID")
+        asset_view_version = getattr(config, "asset_view_version",None) or os.getenv("ASSET_VIEW_VERSION")
 
         nodes = client.data_modeling.instances.list(
             instance_type="node",

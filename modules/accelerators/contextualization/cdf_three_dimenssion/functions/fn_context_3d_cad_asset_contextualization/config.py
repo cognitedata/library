@@ -58,6 +58,10 @@ class Parameters(BaseModel, alias_generator=to_camel):
     scene_config_view: Optional[dict[str, str]] = None
     scene_model_view: Optional[dict[str, str]] = None
     rev_props_view: Optional[dict[str, str]] = None
+    asset_view_space: Optional[str] = None
+    asset_view_ext_id: Optional[str] = None
+    asset_view_version: Optional[str] = None
+
 
 
 class ConfigData(BaseModel, alias_generator=to_camel):
@@ -133,8 +137,8 @@ _DEFAULT_REQUIRED_VIEWS = [
 ]
 
 _DEFAULT_CAD_VIEWS = {
-    "cad_model_view": ViewId("sp_enterprise_process_industry", "CADModel", "v1"),
-    "cad_revision_view": ViewId("sp_enterprise_process_industry", "CADRevision", "v1"),
+    "cad_model_view": ViewId("cdf_cdm", "CogniteCADModel", "v1"),
+    "cad_revision_view": ViewId("cdf_cdm", "CogniteCADRevision", "v1"),
     "scene_config_view": ViewId("scene", "SceneConfiguration", "v1"),
     "scene_model_view": ViewId("cdf_3d_schema", "Cdf3dModel", "1"),
     "rev_props_view": ViewId("scene", "RevisionProperties", "v1"),

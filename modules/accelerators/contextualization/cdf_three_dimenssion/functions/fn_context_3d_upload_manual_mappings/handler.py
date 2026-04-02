@@ -89,39 +89,3 @@ def handle(data: dict, client: CogniteClient) -> dict:
 
     client.raw.rows.insert(db_name=raw_db, table_name=raw_table, row=rows)
     return {"status": "succeeded", "rowsInserted": len(rows), "rawdb": raw_db, "rawTableManual": raw_table}
-
-
-if __name__ == "__main__":
-    from cognite.client import ClientConfig
-    from cognite.client.credentials import OAuthClientCredentials
-
-    os.environ.setdefault("EXTRACTION_PIPELINE_EXT_ID", "ep_ctx_3d_clov_navisworks_upload_manual_mappings")
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(Path(__file__).resolve().parents[3] / ".env")
-    except ImportError:
-        pass
-    project = os.environ["CDF_PROJECT"]
-    cluster = os.environ.get("CDF_CLUSTER", "api")
-    base_url = f"https://{cluster}.cognitedata.com"
-    client = CogniteClient(
-        ClientConfig(
-            client_name=project,
-            base_url=base_url,
-            project=project,
-            credentials=OAuthClientCredentials(
-                token_url=os.environ["IDP_TOKEN_URL"],
-                client_id=os.environ["IDP_CLIENT_ID"],
-                client_secret=os.environ["IDP_CLIENT_SECRET"],
-                scopes=[f"{base_url}/.default"],
-            ),
-        )
-    )
-    data = {"ExtractionPipelineExtId": os.environ["EXTRACTION_PIPELINE_EXT_ID"]}
-    # Optional: pass file to use when testing
-    if os.environ.get("UPLOAD_FILE_EXTERNAL_ID"):
-        data["fileExternalId"] = os.environ["UPLOAD_FILE_EXTERNAL_ID"]
-    if os.environ.get("UPLOAD_DATA_SET_EXTERNAL_ID"):
-        data["dataSetExternalId"] = os.environ["UPLOAD_DATA_SET_EXTERNAL_ID"]
-    result = handle(data, client)
-    print(result)

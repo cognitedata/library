@@ -18,8 +18,61 @@ from cognite.client.exceptions import CogniteAPIError
 
 sys.path.append(str(Path(__file__).parent))
 
-ASSET_VIEW = ViewId("upstream-value-chain", "AssetExtension", "v1")
 BATCH_SIZE = 1000
+
+
+def _resolve_asset_view(config: dict) -> ViewId:
+    """
+    View for AssetExtension (or project-specific asset view) from:
+    1) extraction pipeline config parameters (assetViewSpace / assetViewExternalId / assetViewVersion)
+    2) env vars set at deploy (ASSET_VIEW_SPACE, ASSET_VIEW_EXT_ID, ASSET_VIEW_VERSION from Function.yaml)
+    3) no hardcoded fallback: must be explicitly provided
+    """
+    space = (
+        config.get("assetViewSpace")
+        or config.get("asset_view_space")
+        or os.environ.get("ASSET_VIEW_SPACE")
+        or os.environ.get("DATA_MODEL_SPACE")
+    )
+    ext_id = (
+        config.get("assetViewExternalId")
+        or config.get("assetViewExtId")
+        or config.get("asset_view_ext_id")
+        or os.environ.get("ASSET_VIEW_EXT_ID")
+    )
+    version = (
+        config.get("assetViewVersion")
+        or config.get("asset_view_version")
+        or os.environ.get("ASSET_VIEW_VERSION")
+    )
+    if not space or not ext_id or not version:
+        raise ValueError(
+            "Missing asset view configuration. Provide assetViewSpace/assetViewExternalId/assetViewVersion "
+            "in extraction pipeline config or ASSET_VIEW_SPACE/ASSET_VIEW_EXT_ID/ASSET_VIEW_VERSION env vars."
+        )
+    return ViewId(str(space), str(ext_id), str(version))
+
+
+def _resolve_asset_instance_space(config: dict, data: dict) -> str:
+    """
+    Instance space for asset nodes from:
+    1) extraction pipeline config parameters (assetInstanceSpace)
+    2) function run input (assetInstanceSpace)
+    3) env var injected by Function.yaml (ASSET_INSTANCE_SPACE)
+    """
+    space = (
+        config.get("assetInstanceSpace")
+        or config.get("asset_instance_space")
+        or data.get("assetInstanceSpace")
+        or data.get("asset_instance_space")
+        or os.environ.get("ASSET_INSTANCE_SPACE")
+    )
+    if not space:
+        raise ValueError(
+            "Missing asset instance space. Provide assetInstanceSpace in extraction pipeline config or run input, "
+            "or set ASSET_INSTANCE_SPACE env var."
+        )
+    return str(space)
 
 
 def _get_config(client: CogniteClient, pipeline_ext_id: str) -> dict:
@@ -38,7 +91,7 @@ def _split_list(value: str) -> list[str]:
     return [v.strip() for v in value.split(";") if v.strip()] if value else []
 
 
-def _build_nodes(rows: list[dict], space: str) -> list[NodeApply]:
+def _build_nodes(rows: list[dict], space: str, asset_view: ViewId) -> list[NodeApply]:
     nodes: list[NodeApply] = []
     for row in rows:
         ext_id = (row.get("externalId") or "").strip()
@@ -67,7 +120,7 @@ def _build_nodes(rows: list[dict], space: str) -> list[NodeApply]:
             NodeApply(
                 space=space,
                 external_id=ext_id,
-                sources=[NodeOrEdgeData(source=ASSET_VIEW, properties=props)],
+                sources=[NodeOrEdgeData(source=asset_view, properties=props)],
             )
         )
     return nodes
@@ -82,7 +135,8 @@ def handle(data: dict, client: CogniteClient) -> dict:
         "EXTRACTION_PIPELINE_EXT_ID", "ep_ctx_3d_clov_navisworks_upload_asset_hierarchy"
     )
     config = _get_config(client, pipeline_ext_id)
-    space = config.get("assetInstanceSpace") or data.get("assetInstanceSpace") or "instance_upstream_value_chain"
+    space = _resolve_asset_instance_space(config, data)
+    asset_view = _resolve_asset_view(config)
     file_ext_id = config.get("fileExternalId") or data.get("fileExternalId")
     data_set_ext_id = config.get("dataSetExternalId") or data.get("dataSetExternalId")
 
@@ -106,7 +160,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
 
     text = content.decode("utf-8", errors="replace")
     rows = list(csv.DictReader(io.StringIO(text)))
-    nodes = _build_nodes(rows, space)
+    nodes = _build_nodes(rows, space, asset_view)
     if not nodes:
         return {"status": "skipped", "message": "CSV has no valid rows (need externalId)", "assetInstanceSpace": space}
 
@@ -118,36 +172,3 @@ def handle(data: dict, client: CogniteClient) -> dict:
     return {"status": "succeeded", "nodesUpserted": total, "assetInstanceSpace": space}
 
 
-if __name__ == "__main__":
-    from cognite.client import ClientConfig
-    from cognite.client.credentials import OAuthClientCredentials
-
-    os.environ.setdefault("EXTRACTION_PIPELINE_EXT_ID", "ep_ctx_3d_clov_navisworks_upload_asset_hierarchy")
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(Path(__file__).resolve().parents[3] / ".env")
-    except ImportError:
-        pass
-    project = os.environ["CDF_PROJECT"]
-    cluster = os.environ.get("CDF_CLUSTER", "api")
-    base_url = f"https://{cluster}.cognitedata.com"
-    client = CogniteClient(
-        ClientConfig(
-            client_name=project,
-            base_url=base_url,
-            project=project,
-            credentials=OAuthClientCredentials(
-                token_url=os.environ["IDP_TOKEN_URL"],
-                client_id=os.environ["IDP_CLIENT_ID"],
-                client_secret=os.environ["IDP_CLIENT_SECRET"],
-                scopes=[f"{base_url}/.default"],
-            ),
-        )
-    )
-    data = {"ExtractionPipelineExtId": os.environ["EXTRACTION_PIPELINE_EXT_ID"]}
-    if os.environ.get("UPLOAD_FILE_EXTERNAL_ID"):
-        data["fileExternalId"] = os.environ["UPLOAD_FILE_EXTERNAL_ID"]
-    if os.environ.get("UPLOAD_DATA_SET_EXTERNAL_ID"):
-        data["dataSetExternalId"] = os.environ["UPLOAD_DATA_SET_EXTERNAL_ID"]
-    result = handle(data, client)
-    print(result)
