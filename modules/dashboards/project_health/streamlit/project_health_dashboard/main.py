@@ -66,21 +66,32 @@ def _report_usage(cdf_client) -> None:
         return
     try:
         import re
-        from mixpanel import Consumer, Mixpanel
-        mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
+        import json
+        import base64
+        import requests
         cluster = getattr(cdf_client.config, "cdf_cluster", None)
         if not cluster:
             m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(cdf_client.config, "base_url", "") or "")
             cluster = m.group(1) if m else "unknown"
         distinct_id = f"{cdf_client.config.project}:{cluster}"
-        mp.track(distinct_id, "streamlit-session", {
-            "source": _SOURCE,
-            "tracker_version": _TRACKER_VERSION,
-            "dp_version": _DP_VERSION,
-            "type": "streamlit",
-            "cdf_cluster": cluster,
-            "cdf_project": cdf_client.config.project,
-        })
+        payload = base64.b64encode(json.dumps([{
+            "event": "streamlit-session",
+            "properties": {
+                "token": "8f28374a6614237dd49877a0d27daa78",
+                "distinct_id": distinct_id,
+                "source": _SOURCE,
+                "tracker_version": _TRACKER_VERSION,
+                "dp_version": _DP_VERSION,
+                "type": "streamlit",
+                "cdf_cluster": cluster,
+                "cdf_project": cdf_client.config.project,
+            },
+        }]).encode()).decode()
+        requests.post(
+            "https://api-eu.mixpanel.com/track",
+            data={"data": payload, "verbose": 1, "ip": 1},
+            timeout=5,
+        )
         st.session_state["_usage_tracked"] = True
     except Exception:
         pass
