@@ -426,6 +426,36 @@ def init_cdf_client(config_form):
     return available_projects, cdf_client, output_folder_value
 
 
+@app.cell
+def track_usage(cdf_client):
+    """Usage tracking - fires once when CDF client is established."""
+    if cdf_client is not None:
+        try:
+            import re, json, base64, requests as _req
+            _cluster = getattr(cdf_client.config, "cdf_cluster", None)
+            if not _cluster:
+                _m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(cdf_client.config, "base_url", "") or "")
+                _cluster = _m.group(1) if _m else "unknown"
+            _distinct_id = f"{cdf_client.config.project}:{_cluster}"
+            _payload = base64.b64encode(json.dumps([{
+                "event": "marimo-run",
+                "properties": {
+                    "token": "8f28374a6614237dd49877a0d27daa78",
+                    "distinct_id": _distinct_id,
+                    "source": "dp:cdf_transformation_jobs_metric_explorer",
+                    "tracker_version": "1",
+                    "dp_version": "1",
+                    "type": "marimo",
+                    "cdf_cluster": _cluster,
+                    "cdf_project": cdf_client.config.project,
+                },
+            }]).encode()).decode()
+            _req.post("https://api-eu.mixpanel.com/track", data={"data": _payload, "verbose": 1, "ip": 1}, timeout=5)
+        except Exception:
+            pass
+    return
+
+
 @app.cell(hide_code=True)
 def create_project_selector(available_projects: list[str], cdf_client):
     # mo and pd are available globally from app.setup
