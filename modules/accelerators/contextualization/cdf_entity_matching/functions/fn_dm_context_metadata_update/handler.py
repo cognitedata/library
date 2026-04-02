@@ -49,7 +49,7 @@ def _report_usage(client: CogniteClient) -> None:
                 "cdf_cluster": client.config.cdf_cluster,
                 "cdf_project": client.config.project,
             })
-        threading.Thread(target=_send, daemon=True).start()
+        threading.Thread(target=_send, daemon=False).start()
     except Exception:
         pass
 
