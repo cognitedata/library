@@ -11,17 +11,17 @@ Configs for this module are the **authoring source** for **`main.py`** / **`loca
 | **`tag_patterns.yaml`** | **Shared** tag + document regex library for **aliasing** (`tag_pattern_library`) and **authoring alignment** for key-extraction rules. Loaded via [`tag_patterns_paths.py`](tag_patterns_paths.py). |
 | **`examples/`** | **`key_extraction/`** and **`aliasing/`** example scope YAML (`*.key_extraction_aliasing.yaml`); **`reference/`** for complete YAML + migration notes (`LEGACY_TO_NEW_*.md`). Not used automatically by the local runner or CDF functions. |
 
-**Local default v1 scope file:** [`../key_extraction_aliasing.yaml`](../key_extraction_aliasing.yaml) at the **module root** (used when `--scope default` and no `--config-path`).
+**Local default v1 scope file:** [`../workflow.local.config.yaml`](../workflow.local.config.yaml) at the **module root** (used when `--scope default` and no `--config-path`).
 
 **Local incremental (workflow parity):** When `key_extraction.config.parameters.incremental_change_processing` is true, `local_runner/run.py` merges the filtered `source_views` into a v1 dict and passes **`scope_document`** plus **`instance_space`** on each step’s task payload, matching workflow v4 task inputs (see [`local_runner/workflow_payload.py`](../local_runner/workflow_payload.py)).
 
-**Trigger-embedded template:** [`../workflows/_template/key_extraction_aliasing.scope_document.yaml`](../workflows/_template/key_extraction_aliasing.scope_document.yaml) — copied into each generated trigger’s **`input.scope_document`**, patched per hierarchy leaf (external ids, node `space` filters, `scope` block).
+**Trigger-embedded template:** [`../workflows/_template/workflow.template.config.yaml`](../workflows/_template/workflow.template.config.yaml) — copied into each generated trigger’s **`input.scope_document`**, patched per hierarchy leaf (external ids, node `space` filters, `scope` block).
 
 Python package code in this folder (`configuration_manager.py`, etc.) lives beside these data directories.
 
 ## Scope hierarchy builder
 
-**[`default.config.yaml`](../default.config.yaml)** (module root) includes `scope_hierarchy.levels` and a nested `locations` tree. **Leaves may be at any depth** — you do not need a full path for every declared level name; `levels` labels the first segments only, and tiers beyond that list get synthetic names (`level_3`, …) in build metadata. Run **`python main.py --build`** or **`scripts/build_scopes.py`** to validate the tree and regenerate **`workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one file per leaf; override with **`--scope-document`** / **`--workflow-trigger-template`**). Each file is one schedule trigger with **`input.scope_document`** built from **`workflows/_template/key_extraction_aliasing.scope_document.yaml`**. The **`workflow_triggers`** builder prepends a **node `space`** filter on each `source_views` row unless one exists; filter value is the leaf **`instance_space`** when set, else the toolkit placeholder **`{{instance_space}}`** (substituted at deploy from **`default.config.yaml`**). Use **`--check-workflow-triggers`** to fail CI if any trigger required by the current hierarchy is missing or out of date (extra **`cdf_key_extraction_aliasing.*.WorkflowTrigger.yaml`** files on disk are ignored; **`--build`** does not delete them). **`--workflow-trigger-template`** overrides the trigger shell. Use `--dry-run`, `--list-builders`, `--only workflow_triggers`, and `--hierarchy` as needed.
+**[`default.config.yaml`](../default.config.yaml)** (module root) includes top-level **`scope_hierarchy`**: **`levels`** (tier labels) and **`locations`** (root node list; each node nests children under **`locations`**). **Leaves may be at any depth** — you do not need a full path for every declared level name; `levels` labels the first segments only, and tiers beyond that list get synthetic names (`level_3`, …) in build metadata. Run **`python main.py --build`** or **`scripts/build_scopes.py`** to validate the tree and **create missing** **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one file per leaf that does not already exist; override with **`--scope-document`** / **`--workflow-trigger-template`**). Existing trigger files are not overwritten—delete a file to recreate it. Each file is one schedule trigger with **`input.scope_document`** built from **`workflows/_template/workflow.template.config.yaml`**. The **`workflow_triggers`** builder prepends a **node `space`** filter on each `source_views` row unless one exists; filter value is the leaf **`instance_space`** when set, else the toolkit placeholder **`{{instance_space}}`** (substituted at deploy from **`default.config.yaml`**). Use **`--check-workflow-triggers`** to fail CI if any trigger required by the current hierarchy is missing or out of date (extra **`key_extraction_aliasing.*.WorkflowTrigger.yaml`** files on disk are ignored; **`--build`** does not delete them). **`--workflow-trigger-template`** overrides the trigger shell. Use `--dry-run`, `--list-builders`, `--only workflow_triggers`, and `--hierarchy` as needed.
 
 ## Scope YAML (v1)
 
@@ -36,11 +36,11 @@ Optional: `schemaVersion: 1`, `scope: { name, description }` (informational; **`
 | Flag | Behavior |
 |------|----------|
 | **`--config-path <file>`** | Load that file as a v1 scope document (highest precedence). |
-| **`--scope <name>`** | Only **`default`** (or omitted) loads **`key_extraction_aliasing.yaml`** at module root; other names require **`--config-path`**. |
+| **`--scope <name>`** | Only **`default`** (or omitted) loads **`workflow.local.config.yaml`** at module root; other names require **`--config-path`**. |
 
 ## Workflows
 
-Workflow **v4** ([`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml)) passes **`scope_document`** on **`workflow.input`** into each function task. RAW table keys remain in **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside that object. See [`workflows/README.md`](../workflows/README.md).
+Workflow **v4** ([`workflows/key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/key_extraction_aliasing.WorkflowVersion.yaml)) passes **`scope_document`** on **`workflow.input`** into each function task. RAW table keys remain in **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside that object. See [`workflows/README.md`](../workflows/README.md).
 
 ## Reference docs
 

@@ -2,8 +2,8 @@
 # parameters.function.data; no Cognite File upload for scope config. instance_space is derived from
 # scope_document (source_views instance_space or node space filter) when not passed on task data.
 # Optional run_id, full_rescan on workflow.input. Authoring: workflows/_template/
-# key_extraction_aliasing.scope_document.yaml + scripts/build_scopes.py.
-workflowExternalId: cdf_key_extraction_aliasing
+# workflow.template.config.yaml + scripts/build_scopes.py.
+workflowExternalId: key_extraction_aliasing
 version: 'v4'
 workflowDefinition:
   description: 'Run key extraction, aliasing, and alias persistence (config from workflow.input.scope_document)'

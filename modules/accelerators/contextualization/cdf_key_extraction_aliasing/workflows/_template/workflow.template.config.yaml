@@ -3,7 +3,7 @@
 # input.scope_document by scripts/build_scopes.py (patched per hierarchy leaf).
 # Keep key_extraction.externalId / aliasing.externalId ending with _default so
 # patches apply _<scope_cdf_suffix>. Do not add top-level scope: here; build_scopes
-# injects it. For local CLI default, edit key_extraction_aliasing.yaml at module root.
+# injects it. For local CLI default, edit workflow.local.config.yaml at module root.
 # -----------------------------------------------------------------------------
 #
 # Representative CDM default: CogniteAsset / CogniteFile / CogniteTimeSeries.
@@ -16,7 +16,7 @@ key_extraction:
   externalId: ctx_key_extraction_default
   config:
     parameters:
-      debug: true
+      debug: false
       full_rescan: false
       raw_db: db_key_extraction
       raw_table_key: key_extraction_state
@@ -425,21 +425,31 @@ aliasing:
       foreign_key_writeback_property: references_found
     data:
       aliasing_rules:
-      # priority 10 tier: same priority, YAML order — semantic first, then unit-prefix strip on expanded set.
+      # priority 10 tier: same priority, YAML order — semantic expansion (letter→full word) first, then unit-prefix strip on expanded set.
       - name: semantic_expansion
-        type: pattern_based_expansion
-        description: Semantic expansion of tag patterns (format variants); align pattern with asset extraction regex.
+        type: semantic_expansion
+        description: Expand equipment type letter codes to full words (e.g. P-101 → PUMP-101).
         enabled: true
         priority: 10
         preserve_original: true
         config:
-          patterns:
-          - pattern: ^([A-Z]{1,2})([-_]?)(\d{2,6})([A-Z]?)$
-            example_formats:
-            - '{type}{separator}{number}{suffix}'
-            - '{type}{number}{suffix}'
-            - '{type}{separator}{number}'
-          format_adaptation: true
+          type_mappings:
+            P:
+            - PUMP
+            - PMP
+            V:
+            - VALVE
+            - VLV
+            T:
+            - TANK
+            - TNK
+            C:
+            - COMPRESSOR
+            - COMP
+          format_templates:
+          - '{type}-{tag}'
+          - '{type}_{tag}'
+          auto_detect: true
         conditions: {}
         scope_filters:
           entity_type:

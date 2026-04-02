@@ -4,6 +4,15 @@ Library for extracting candidate keys and foreign-key references from entity met
 
 **Full documentation index:** [docs/README.md](docs/README.md)
 
+## Prerequisites
+
+- **Python** 3.11+
+- **PYTHONPATH:** use the **repository root** (the directory that contains `modules/`) so imports like `modules.accelerators.contextualization.cdf_key_extraction_aliasing` resolve — for example `PYTHONPATH=. python …` from that root.
+- **Dependencies:** install in your environment (this repository may not ship a root `pyproject.toml`; use your team’s setup or install required packages manually).
+- **CDF:** set credentials in `.env` or the environment when calling CDF APIs or running `main.py` without `--dry-run`.
+
+**Example config paths (for `--config-path` or `load_config_from_yaml`):** `config/examples/key_extraction/`, `config/examples/aliasing/`, `config/examples/reference/` — see [config/examples/README.md](config/examples/README.md).
+
 ## Results report
 
 [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md) describes the **current default scope** and behavior (maintained with the module).
@@ -18,20 +27,20 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 
 - **Extraction methods:** passthrough (default when `method` is omitted), regex, fixed width, token reassembly, heuristic
 - **Extraction types:** candidate keys, foreign key references, document references
-- **Aliasing transformation types:** character substitution, prefix/suffix, regex, case, equipment type expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite, **`alias_mapping_table`** (RAW-backed tag→alias catalog when configured)
-- **Config:** v1 scope document at module root (`key_extraction_aliasing.yaml`) and examples under `config/examples/` (see [config/README.md](config/README.md))
+- **Aliasing transformation types:** character substitution, prefix/suffix, regex, case, **semantic expansion** (`type: semantic_expansion`), related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite, **`alias_mapping_table`** (RAW-backed tag→alias catalog when configured)
+- **Config:** v1 scope document at module root (`workflow.local.config.yaml`) and examples under `config/examples/` (see [config/README.md](config/README.md))
 - **Tests:** `tests/` — see [tests/README.md](tests/README.md)
 
-**Reference tables** for each extraction method and aliasing `type` value: [Key extraction spec](docs/specifications/1.%20key_extraction.md), [Aliasing spec](docs/specifications/2.%20aliasing.md).
+**Reference tables** for each extraction method and aliasing `type` value: [Key extraction spec](<docs/specifications/1. key_extraction.md>), [Aliasing spec](<docs/specifications/2. aliasing.md>).
 
-**Default CDM scope** (asset + file + timeseries, shared `alphanumeric_tag`): [`key_extraction_aliasing.yaml`](key_extraction_aliasing.yaml) at module root. Narrative summary: [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md). Deployed triggers embed the patched template from [`workflows/_template/key_extraction_aliasing.scope_document.yaml`](workflows/_template/key_extraction_aliasing.scope_document.yaml).
+**Default CDM scope** (asset + file + timeseries, shared `alphanumeric_tag`): [`workflow.local.config.yaml`](workflow.local.config.yaml) at module root. Narrative: [docs/key_extraction_aliasing_report.md](docs/key_extraction_aliasing_report.md). Authoring detail: [Configuration guide — Default CDM scope](docs/guides/configuration_guide.md#default-cdm-scope). Deployed triggers embed the patched template from [`workflows/_template/workflow.template.config.yaml`](workflows/_template/workflow.template.config.yaml).
 
 ### Configuration entry points
 
-- **Deployed workflows** pass **`scope_document`** on **`workflow.input`** (v4); functions derive `config` from it. Authoring source in-repo: **`key_extraction_aliasing.yaml`**, **`workflows/_template/key_extraction_aliasing.scope_document.yaml`**, and **`config/examples/**`**. Validation: Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
+- **Deployed workflows** pass **`scope_document`** on **`workflow.input`** (v4); functions derive `config` from it. Authoring source in-repo: **`workflow.local.config.yaml`** (local default), **`workflows/_template/workflow.template.config.yaml`**, and **`config/examples/**`**. Validation: Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
 - **`config/configuration_manager.py`:** dataclasses + JSON Schema for integration-style tests (`tests/integration/contextualization/`). **Not** used by `fn_dm_*` handlers at runtime.
 
-**Multi-site scopes:** define `scope_hierarchy` and `locations` in [default.config.yaml](default.config.yaml) and run **`scripts/build_scopes.py`**. Details: [config/README.md](config/README.md) (*Scope hierarchy builder*), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
+**Multi-site scopes:** edit **`scope_hierarchy`** in [default.config.yaml](default.config.yaml), then **`main.py --build`** as in [Local runs (main.py)](#local-runs-mainpy). Deep dive: [config/README.md](config/README.md) (*Scope hierarchy builder*), [workflows/README.md](workflows/README.md), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
 
 ## Roadmap
 
@@ -40,32 +49,53 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 - [ ] DM projection / sync for the reference index (RAW remains source of truth)
 - [ ] Finer default rules per `entity_type`
 - [ ] Broader non-ISA tag testing
-- [ ] Reference-catalog relationships beyond inverted lookup
+- [ ] Reference-index relationships beyond inverted lookup
 
-## Quick start (`main.py`)
+## Local runs (main.py)
 
-From **repository root** (the directory that contains `modules/`):
+Run **`main.py`** from **repository root** with **`PYTHONPATH=.`** (see [Prerequisites](./README.md#prerequisites)).
 
-**Environment:** Python 3.11+, dependencies available on your `PYTHONPATH` or virtualenv. Set CDF variables (e.g. `CDF_PROJECT`, `CDF_CLUSTER`, API key or OAuth) when not using `--dry-run`.
+### Edit multi-site scope layout (`default.config.yaml`)
+
+Before **`--build`**, configure **`scope_hierarchy`** in [default.config.yaml](default.config.yaml) at the module root (or pass another file via **`--hierarchy`** to `scripts/build_scopes.py`):
+
+- **`scope_hierarchy.levels`** — Ordered labels for path tiers (for example site → plant → area → system). You do not have to reach every tier; shallow trees are valid, and deeper paths use synthetic names such as `level_3` when you run past the end of `levels`.
+- **`scope_hierarchy.locations`** — Root list of scope nodes. Each node should have a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`) and optional **`name`** / **`description`**. **Children** of a node are listed under another **`locations`** key on that node (same key name as the root list). A **leaf** is a node with no child list or an empty **`locations: []`**; leaves get one **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** each.
+
+See the commented example under **`scope_hierarchy.locations`** in `default.config.yaml` for a deeper tree.
+
+### Create missing workflow triggers (`--build`)
+
+**`--build`** creates **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** only when that file does not exist (embedded **`scope_document`** per leaf). It does **not** overwrite existing triggers; delete a file first if you need to recreate it from templates. **No CDF connection.**
+
+```bash
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --build
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --build --check-workflow-triggers
+```
+
+The second form exits non-zero if required trigger files are missing or their content does not match the current templates (for CI). See [config/README.md](config/README.md) and [workflows/README.md](workflows/README.md).
+
+### Run the extraction / aliasing pipeline
 
 ```bash
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --dry-run
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --limit 50 --verbose
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --scope default
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/key_extraction_aliasing.yaml
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflow.local.config.yaml
 ```
 
 If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--build` | Only run the scope builder: **create missing** `key_extraction_aliasing.*.WorkflowTrigger.yaml` from `default.config.yaml` (does not overwrite existing). Forwards `--check-workflow-triggers`, `--dry-run`, `--hierarchy`, etc. Does **not** run the pipeline. | off |
 | `--limit` | Max instances per view; `0` = all | `0` |
 | `--verbose` | Verbose logging | false |
 | `--dry-run` | Skip alias persistence to CDF | false |
 | `--write-foreign-keys` | Persist FK reference strings (needs write-back property) | false |
 | `--foreign-key-writeback-property` | DM property for FK strings | none |
 | `--instance-space` | Keep `source_views` whose `instance_space` matches **or** whose `filters` constrain node `space` (`property_scope: node`, `EQUALS`/`IN`) | all |
-| `--scope` | Only `default` supported without `--config-path` (loads module-root `key_extraction_aliasing.yaml`) | `default` |
+| `--scope` | Only `default` supported without `--config-path` (loads module-root `workflow.local.config.yaml`) | `default` |
 | `--config-path` | v1 scope document (overrides `--scope`) | none |
 | `--clean-state` | Drop incremental RAW tables from the scope (key extraction state, reference index, aliasing RAW), then run the pipeline | false |
 | `--clean-state-only` | Same RAW drops as `--clean-state`, then exit (no pipeline) | false |
@@ -94,7 +124,52 @@ See [Configuration guide](docs/guides/configuration_guide.md) (Aliasing `paramet
 
 Enable with workflow flags, `main.py` / YAML, or env; set `foreign_key_writeback_property` when enabled. Requires that property on your target view. See [Configuration guide](docs/guides/configuration_guide.md) and [fn_dm_alias_persistence README](functions/fn_dm_alias_persistence/README.md).
 
-## Python API (minimal)
+## Python API
+
+### Key extraction engine (YAML config)
+
+```python
+from pathlib import Path
+
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
+    load_config_from_yaml,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
+    KeyExtractionEngine,
+)
+
+repo_root = Path.cwd()
+config_path = (
+    repo_root
+    / "modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml"
+)
+
+config_dict = load_config_from_yaml(str(config_path))
+engine = KeyExtractionEngine(config_dict)
+
+entity = {"name": "P-101", "description": "Main pump", "id": "asset-1"}
+result = engine.extract_keys(entity, "asset")
+
+print(f"Candidate keys: {[k.value for k in result.candidate_keys]}")
+```
+
+`extract_keys(entity_dict, entity_type)` matches the shape used by `main.py` and the CDF function (`asset`, `file`, `timeseries`, etc.).
+
+### Aliasing engine
+
+```python
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
+    AliasingEngine,
+)
+
+aliasing_engine = AliasingEngine({"rules": [], "validation": {}})
+out = aliasing_engine.generate_aliases("P-101", "asset")
+print(out.aliases)
+```
+
+Production rules come from `workflow.local.config.yaml`, `--config-path`, or an example `*.key_extraction_aliasing.yaml` (e.g. `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`). For **`alias_mapping_table`** rules that load **RAW**, construct `AliasingEngine(..., client=cognite_client)`. Details: [Configuration guide](docs/guides/configuration_guide.md).
+
+### Inline rule config (no YAML file)
 
 ```python
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import KeyExtractionEngine
@@ -112,8 +187,6 @@ extraction_config = {
 extraction_engine = KeyExtractionEngine(extraction_config)
 aliasing_engine = AliasingEngine({"rules": [], "validation": {}})
 
-# For alias_mapping_table rules that read RAW, pass client= to AliasingEngine — see configuration_guide.md
-
 sample_data = {"id": "001", "name": "P-10001", "description": "Feed pump"}
 result = extraction_engine.extract_keys(sample_data, "asset")
 for key in result.candidate_keys:
@@ -121,14 +194,17 @@ for key in result.candidate_keys:
     print(f"{key.value}: {alias_result.aliases}")
 ```
 
-More examples: [docs/guides/quick_start.md](docs/guides/quick_start.md).
+### Config utilities
+
+- **YAML → key-extraction engine dict:** `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_adapter.py` (also noted under [Configuration details](./README.md#configuration-details)).
+- **Typed / schema config (tests, tooling):** `config/configuration_manager.py` — not used by `fn_dm_*` handlers at runtime; see *Configuration entry points* above.
 
 ## Repository layout (this module)
 
 ```
 cdf_key_extraction_aliasing/
 ├── main.py
-├── key_extraction_aliasing.yaml   # default v1 scope document (local CLI)
+├── workflow.local.config.yaml   # default v1 scope document (local CLI)
 ├── default.config.yaml     # module defaults + scope hierarchy for build_scopes.py
 ├── config/                 # tag_patterns.yaml, examples, configuration_manager — see config/README.md
 ├── functions/
@@ -143,9 +219,9 @@ cdf_key_extraction_aliasing/
 
 | Path | Role |
 |------|------|
-| `key_extraction_aliasing.yaml` | Default v1 scope document at module root (local CLI) |
+| `workflow.local.config.yaml` | Default v1 scope document at module root (local CLI) |
 | `config/examples/` | Demos and reference YAML — [config/examples/README.md](config/examples/README.md) |
-| `functions/fn_dm_*` | CDF functions + engines (`fn_dm_reference_index` = RAW reference catalog) |
+| `functions/fn_dm_*` | CDF functions + engines (`fn_dm_reference_index` = RAW reference index) |
 | `workflows/` | Workflow manifests and diagram |
 | `tests/` | Pytest suite and `tests/results/` for JSON artifacts |
 | `docs/` | Specs, guides, report |
@@ -165,7 +241,7 @@ Loading in code: `load_config_from_yaml` in `functions/fn_dm_key_extraction/cdf_
 
 ## CDF deployment
 
-Workflow **`cdf_key_extraction_aliasing`** (v4; see [workflows/README.md](workflows/README.md)) chains the pipeline functions. Deploy the workflow once and use the generated per-scope files **`workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (embedded **`scope_document`**); run **`python main.py --build`** or **`scripts/build_scopes.py`** after changing **`default.config.yaml`** `locations` or scope templates.
+Deploy workflow **`key_extraction_aliasing`** (v4) once; use per-scope **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (embedded **`scope_document`**). Creating or refreshing triggers: [Local runs (main.py)](#local-runs-mainpy) and [workflows/README.md](workflows/README.md).
 
 ## Testing
 
@@ -189,7 +265,7 @@ Add tests under `tests/` and update [docs/README.md](docs/README.md) or the rele
 
 ## License
 
-[Add license if applicable]
+This repository is licensed under the Apache License 2.0 — see [`LICENSE`](../../../../LICENSE) at the repository root.
 
 ## Authors
 

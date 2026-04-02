@@ -248,8 +248,8 @@ aliasing:
           entity_type:
           - asset
           - equipment
-      - name: equipment_type_expansion
-        type: equipment_type_expansion
+      - name: semantic_expansion
+        type: semantic_expansion
         description: Expand equipment type abbreviations to full names
         enabled: true
         priority: 30
@@ -342,25 +342,6 @@ aliasing:
           - level: equipment
             format: '{site}-{unit}-{equipment}'
           generate_partial_paths: true
-        conditions: {}
-        scope_filters:
-          entity_type:
-          - asset
-          - equipment
-      - name: semantic_expansion
-        type: pattern_based_expansion
-        description: Semantic expansion of tag patterns (format and structural variants)
-        enabled: true
-        priority: 52
-        preserve_original: true
-        config:
-          patterns:
-          - pattern: ^([A-Z]{1,2})([-_]?)(\d{2,6})([A-Z]?)$
-            example_formats:
-            - '{type}{separator}{number}{suffix}'
-            - '{type}{number}{suffix}'
-            - '{type}{separator}{number}'
-          format_adaptation: true
         conditions: {}
         scope_filters:
           entity_type:

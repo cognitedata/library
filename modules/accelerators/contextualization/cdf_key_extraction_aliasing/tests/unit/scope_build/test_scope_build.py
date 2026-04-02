@@ -1,4 +1,4 @@
-"""Tests for scope_hierarchy parsing, scope document patching, and workflow trigger builder."""
+"""Tests for default.config scope tree parsing, scope document patching, and workflow trigger builder."""
 
 from __future__ import annotations
 
@@ -42,9 +42,10 @@ def test_collect_leaves_name_only_one_level() -> None:
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site]
-        locations:
-          - name: "Main Site"
+          levels:
+          - site
+          locations:
+          - name: Main Site
         """
     )
     leaves = collect_leaves(doc)
@@ -56,20 +57,24 @@ def test_collect_leaves_ids_four_levels() -> None:
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site, plant, area, system]
-        locations:
+          levels:
+          - site
+          - plant
+          - area
+          - system
+          locations:
           - id: S1
             name: Site One
             locations:
-              - id: P1
-                name: Plant
+            - id: P1
+              name: Plant
+              locations:
+              - id: A1
+                name: Area
                 locations:
-                  - id: A1
-                    name: Area
-                    locations:
-                      - id: SYS1
-                        name: System
-                        instance_space: sp_demo
+                - id: SYS1
+                  name: System
+                  instance_space: sp_demo
         """
     )
     leaves = collect_leaves(doc)
@@ -83,14 +88,16 @@ def test_duplicate_scope_id_errors() -> None:
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site, leaf]
-        locations:
+          levels:
+          - site
+          - leaf
+          locations:
           - id: S
             locations:
-              - id: X
+            - id: X
           - id: S
             locations:
-              - id: X
+            - id: X
         """
     )
     with pytest.raises(ValueError, match="Duplicate scope_id"):
@@ -102,8 +109,12 @@ def test_collect_leaves_allows_shallow_leaf_when_more_levels_declared() -> None:
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site, plant, area, system]
-        locations:
+          levels:
+          - site
+          - plant
+          - area
+          - system
+          locations:
           - id: DEFAULT_SITE
             name: Main Site
             locations: []
@@ -118,14 +129,16 @@ def test_collect_leaves_deeper_tree_uses_synthetic_level_labels(tmp_path: Path) 
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site, plant]
-        locations:
+          levels:
+          - site
+          - plant
+          locations:
           - id: S
             locations:
-              - id: P
-                locations:
-                  - id: AREA
-                    name: Deep area
+            - id: P
+              locations:
+              - id: AREA
+                name: Deep area
         """
     )
     leaves = collect_leaves(doc)
@@ -166,11 +179,11 @@ aliasing:
 """
 
 MINIMAL_WORKFLOW_TRIGGER_TEMPLATE = """
-externalId: cdf_key_extraction_aliasing.__KEA_CDF_SUFFIX__
+externalId: key_extraction_aliasing.__KEA_CDF_SUFFIX__
 triggerRule:
   triggerType: schedule
   cronExpression: '{{ key_extraction_aliasing_schedule }}'
-workflowExternalId: cdf_key_extraction_aliasing
+workflowExternalId: key_extraction_aliasing
 workflowVersion: v4
 authentication:
   clientId: '{{functionClientId}}'
@@ -189,7 +202,7 @@ def _install_minimal_workflow_trigger_template(module_root: Path) -> Path:
 
 
 def _install_minimal_scope_document(module_root: Path) -> Path:
-    path = module_root / "workflows" / "_template" / "key_extraction_aliasing.scope_document.yaml"
+    path = module_root / "workflows" / "_template" / "workflow.template.config.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
     return path
@@ -233,8 +246,9 @@ def test_prepare_scope_document_injects_node_space_all_views_prepends(tmp_path: 
     hdoc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site]
-        locations:
+          levels:
+          - site
+          locations:
           - id: SITE_A
             name: Site A
         """
@@ -256,13 +270,15 @@ def test_prepare_scope_document_uses_leaf_instance_space_when_set(tmp_path: Path
     hdoc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site, plant]
-        locations:
+          levels:
+          - site
+          - plant
+          locations:
           - id: S
             locations:
-              - id: P
-                name: P
-                instance_space: sp_acme_prod
+            - id: P
+              name: P
+              instance_space: sp_acme_prod
         """
     )
     ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
@@ -306,9 +322,9 @@ aliasing:
         """
         scope_hierarchy:
           levels: [site]
-        locations:
-          - id: Z1
-            name: Z
+          locations:
+            - id: Z1
+              name: Z
         """
     )
     ctx = build_contexts(module_root=mod, doc=hdoc, dry_run=False)[0]
@@ -324,8 +340,9 @@ def test_prepare_scope_document_external_ids_and_scope_block(tmp_path: Path) -> 
     hdoc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site]
-        locations:
+          levels:
+          - site
+          locations:
           - id: LEAF1
             name: Leaf One
         """
@@ -401,16 +418,18 @@ def test_workflow_triggers_builder_two_leaves(tmp_path: Path) -> None:
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site, plant]
-        locations:
+          levels:
+          - site
+          - plant
+          locations:
           - id: S1
             locations:
-              - id: P1
-                name: Plant 1
+            - id: P1
+              name: Plant 1
           - id: S2
             locations:
-              - id: P2
-                name: Plant 2
+            - id: P2
+              name: Plant 2
         """
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
@@ -422,8 +441,8 @@ def test_workflow_triggers_builder_two_leaves(tmp_path: Path) -> None:
     data0 = yaml.safe_load(p1.read_text(encoding="utf-8"))
     data1 = yaml.safe_load(p2.read_text(encoding="utf-8"))
     assert isinstance(data0, dict) and isinstance(data1, dict)
-    assert data0["externalId"] == "cdf_key_extraction_aliasing.s1_p1"
-    assert data0["workflowExternalId"] == "cdf_key_extraction_aliasing"
+    assert data0["externalId"] == "key_extraction_aliasing.s1_p1"
+    assert data0["workflowExternalId"] == "key_extraction_aliasing"
     assert data0["workflowVersion"] == "v4"
     assert "scope_document" in data0["input"]
     assert data0["input"]["scope_document"]["key_extraction"]["externalId"] == "ctx_key_extraction_s1_p1"
@@ -431,8 +450,34 @@ def test_workflow_triggers_builder_two_leaves(tmp_path: Path) -> None:
     assert data1["input"]["scope_document"]["key_extraction"]["externalId"] == "ctx_key_extraction_s2_p2"
 
 
+def test_workflow_triggers_skips_existing_files(tmp_path: Path) -> None:
+    """Second --build must not overwrite an existing trigger file."""
+    mod = tmp_path / "mod_wt_skip_existing"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    _install_minimal_scope_document(mod)
+    doc = yaml.safe_load(
+        """
+        scope_hierarchy:
+          levels:
+          - site
+          locations:
+          - id: A
+            name: A
+        """
+    )
+    contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
+    WorkflowTriggersBuilder().write_all(contexts, dry_run=False, module_root=mod)
+    path = mod / "workflows" / workflow_trigger_filename("a")
+    assert path.is_file()
+    marker = "skip-existing-build-marker"
+    path.write_text(path.read_text(encoding="utf-8") + f"\n# {marker}\n", encoding="utf-8")
+    WorkflowTriggersBuilder().write_all(contexts, dry_run=False, module_root=mod)
+    assert marker in path.read_text(encoding="utf-8")
+
+
 def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Path) -> None:
-    """Rebuilding with fewer leaves must not delete existing cdf_key_extraction_aliasing.* triggers."""
+    """Rebuilding with fewer leaves must not delete existing key_extraction_aliasing.* triggers."""
     mod = tmp_path / "mod_wt_orphan"
     mod.mkdir()
     _install_minimal_workflow_trigger_template(mod)
@@ -441,15 +486,15 @@ def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Pat
         """
         scope_hierarchy:
           levels: [site, plant]
-        locations:
-          - id: S1
-            locations:
-              - id: P1
-                name: Plant 1
-          - id: S2
-            locations:
-              - id: P2
-                name: Plant 2
+          locations:
+            - id: S1
+              locations:
+                - id: P1
+                  name: Plant 1
+            - id: S2
+              locations:
+                - id: P2
+                  name: Plant 2
         """
     )
     contexts_two = build_contexts(module_root=mod, doc=doc_two, dry_run=False)
@@ -463,11 +508,11 @@ def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Pat
         """
         scope_hierarchy:
           levels: [site, plant]
-        locations:
-          - id: S1
-            locations:
-              - id: P1
-                name: Plant 1
+          locations:
+            - id: S1
+              locations:
+                - id: P1
+                  name: Plant 1
         """
     )
     contexts_one = build_contexts(module_root=mod, doc=doc_one, dry_run=False)
@@ -485,18 +530,19 @@ def test_verify_triggers_file_ignores_extra_dot_form_triggers(tmp_path: Path) ->
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site]
-        locations:
+          levels:
+          - site
+          locations:
           - id: Only
             name: Only
         """
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
     WorkflowTriggersBuilder(scope_document_path=sd).write_all(contexts, dry_run=False, module_root=mod)
-    orphan = mod / "workflows" / "cdf_key_extraction_aliasing.not_in_hierarchy.WorkflowTrigger.yaml"
+    orphan = mod / "workflows" / "key_extraction_aliasing.not_in_hierarchy.WorkflowTrigger.yaml"
     orphan.write_text(
-        "externalId: cdf_key_extraction_aliasing.not_in_hierarchy\n"
-        "workflowExternalId: cdf_key_extraction_aliasing\n"
+        "externalId: key_extraction_aliasing.not_in_hierarchy\n"
+        "workflowExternalId: key_extraction_aliasing\n"
         "workflowVersion: v4\n"
         "input: {}\n",
         encoding="utf-8",
@@ -512,16 +558,18 @@ def test_verify_triggers_file_fails_when_required_file_missing(tmp_path: Path) -
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site, plant]
-        locations:
+          levels:
+          - site
+          - plant
+          locations:
           - id: S1
             locations:
-              - id: P1
-                name: Plant 1
+            - id: P1
+              name: Plant 1
           - id: S2
             locations:
-              - id: P2
-                name: Plant 2
+            - id: P2
+              name: Plant 2
         """
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
@@ -539,8 +587,9 @@ def test_verify_triggers_file_fails_when_content_out_of_date(tmp_path: Path) -> 
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site]
-        locations:
+          levels:
+          - site
+          locations:
           - id: A
             name: A
         """
@@ -564,8 +613,9 @@ def test_workflow_trigger_template_without_placeholder_raises(tmp_path: Path) ->
     doc = yaml.safe_load(
         """
         scope_hierarchy:
-          levels: [site]
-        locations:
+          levels:
+          - site
+          locations:
           - id: A
             name: A
         """
@@ -589,10 +639,10 @@ def test_run_build_invokes_recording_and_triggers(tmp_path: Path) -> None:
         """
 scope_hierarchy:
   levels: [a, b]
-locations:
-  - id: X
-    locations:
-      - id: Y
+  locations:
+    - id: X
+      locations:
+        - id: Y
 """,
         encoding="utf-8",
     )

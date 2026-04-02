@@ -18,7 +18,7 @@ functionVersion: 'v1'
 
 workflow: key_extraction_aliasing
 
-# Schedule (UTC cron) applied to each generated workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml.
+# Schedule (UTC cron) applied to each generated workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml.
 key_extraction_aliasing_schedule: "0 2 * * *"
 
 # DM instance space substituted into each trigger's scope_document ({{instance_space}} in source_views).
@@ -27,32 +27,34 @@ instance_space: your_instance_space
 # source ID from Azure AD for the corresponding groups, ex 'c74797ce-9191-4a4a-9186-8fe21c54c3de'
 files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
 
-# --- Scope hierarchy (scripts/build_scopes.py) ---
-# Declares scope_hierarchy.levels and locations tree; regenerates workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml per leaf
-# with input.scope_document patched from workflows/_template/key_extraction_aliasing.scope_document.yaml per leaf.
+# --- Multi-site scope tree (scripts/build_scopes.py) ---
+# `scope_hierarchy.levels` names path tiers; `scope_hierarchy.locations` is the root list of nodes.
+# Each node uses `id` (or `name` slug) for scope_id segments; nest children under `locations`.
+# Regenerates workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml per leaf with
+# input.scope_document patched from workflows/_template/workflow.template.config.yaml.
 # Override scope body: --scope-document <path>. Override trigger shell: --workflow-trigger-template <path>.
-# See config/README.md. Override hierarchy: scripts/build_scopes.py --hierarchy <file>
+# See config/README.md. Override hierarchy file: scripts/build_scopes.py --hierarchy <file>
 scope_hierarchy:
   levels:
     - level_1 #site
     - level_2 #plant
     - level_3 #area
     - level_4 #system
-locations:
-  - id: default
-    name: Default Configuration
-    description: The configuration applies to all CogniteAsset, CogniteFile, and CogniteTimeSeries.  If you have multiple sites configurations, delete this scope and create a new scope for each site.
-  # Uncomment to add more levels, e.g.:
-  # - id: SITE_01
-  #   name: Main Manufacturing Site
-  #   description: Main site (display name may contain spaces; id is the stable segment)
-  #   locations:
-  #     - id: PLANT_A
-  #       name: Production Plant A
-  #       locations:
-  #         - id: AREA_01
-  #           name: Production Area 1
-  #           locations:
-  #             - id: COOLING_SYS
-  #               name: Cooling System
-  #               description: Cooling system scope leaf
+  locations:
+    - id: default
+      name: Default Configuration
+      description: The configuration applies to all CogniteAsset, CogniteFile, and CogniteTimeSeries.  If you have multiple sites configurations, delete this scope and create a new scope for each site.
+    # Uncomment to add more levels, e.g.:
+    # - id: SITE_01
+    #   name: Main Manufacturing Site
+    #   description: Main site (display name may contain spaces; id is the stable segment)
+    #   locations:
+    #     - id: PLANT_A
+    #       name: Production Plant A
+    #       locations:
+    #         - id: AREA_01
+    #           name: Production Area 1
+    #           locations:
+    #             - id: COOLING_SYS
+    #               name: Cooling System
+    #               description: Cooling system scope leaf

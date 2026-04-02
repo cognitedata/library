@@ -8,7 +8,7 @@ to improve entity matching and contextualization accuracy.
 Features:
 - 13+ transformation types (including alias_mapping_table from Cognite RAW, character substitution, prefix/suffix, regex, case, equipment expansion, related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite)
 - Support for related instrument tag generation
-- Equipment type expansion for semantic matching
+- Semantic expansion (equipment letter codes) for semantic matching
 - Hierarchical tag expansion
 - Document-specific aliasing
 - Composite transformations
@@ -60,7 +60,7 @@ from .handlers import (
     CaseTransformationHandler,
     CharacterSubstitutionHandler,
     DocumentAliasesHandler,
-    EquipmentTypeExpansionHandler,
+    SemanticExpansionHandler,
     HierarchicalExpansionHandler,
     LeadingZeroNormalizationHandler,
     PatternBasedExpansionHandler,
@@ -79,7 +79,7 @@ class TransformationType(Enum):
     PREFIX_SUFFIX = "prefix_suffix"
     REGEX_SUBSTITUTION = "regex_substitution"
     CASE_TRANSFORMATION = "case_transformation"
-    EQUIPMENT_TYPE_EXPANSION = "equipment_type_expansion"
+    SEMANTIC_EXPANSION = "semantic_expansion"
     RELATED_INSTRUMENTS = "related_instruments"
     HIERARCHICAL_EXPANSION = "hierarchical_expansion"
     DOCUMENT_ALIASES = "document_aliases"
@@ -231,7 +231,7 @@ class AliasingEngine:
             TransformationType.LEADING_ZERO_NORMALIZATION: LeadingZeroNormalizationHandler(
                 self.logger
             ),
-            TransformationType.EQUIPMENT_TYPE_EXPANSION: EquipmentTypeExpansionHandler(
+            TransformationType.SEMANTIC_EXPANSION: SemanticExpansionHandler(
                 self.logger
             ),
             TransformationType.RELATED_INSTRUMENTS: RelatedInstrumentsHandler(
@@ -488,8 +488,8 @@ def main():
                 },
             },
             {
-                "name": "equipment_type_expansion",
-                "type": "equipment_type_expansion",
+                "name": "semantic_expansion",
+                "type": "semantic_expansion",
                 "enabled": True,
                 "priority": 30,
                 "preserve_original": True,

@@ -21,7 +21,8 @@ from .paths import SCRIPT_DIR
 DEFAULT_SCOPE = "default"
 
 # v1 scope document at module root (local runs only; CDF uses trigger-embedded scope_document).
-DEFAULT_SCOPE_DOCUMENT_PATH = SCRIPT_DIR / "key_extraction_aliasing.yaml"
+WORKFLOW_LOCAL_CONFIG_FILENAME = "workflow.local.config.yaml"
+DEFAULT_SCOPE_DOCUMENT_PATH = SCRIPT_DIR / WORKFLOW_LOCAL_CONFIG_FILENAME
 
 _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
     "max_aliases_per_tag": 50,
@@ -47,7 +48,7 @@ def resolve_scope_document_path(scope: Optional[str] = None) -> Path:
     if not DEFAULT_SCOPE_DOCUMENT_PATH.is_file():
         raise FileNotFoundError(
             f"Missing default scope document {DEFAULT_SCOPE_DOCUMENT_PATH}. "
-            "Add key_extraction_aliasing.yaml at the module root or pass --config-path."
+            f"Add {WORKFLOW_LOCAL_CONFIG_FILENAME} at the module root or pass --config-path."
         )
     return DEFAULT_SCOPE_DOCUMENT_PATH
 
@@ -246,7 +247,7 @@ def load_configs(
 
     Resolution:
     - ``--config-path`` → load that file as a v1 scope document.
-    - Else → ``key_extraction_aliasing.yaml`` at module root when ``scope`` is ``default``.
+    - Else → ``workflow.local.config.yaml`` at module root when ``scope`` is ``default``.
     """
     if config_path:
         p = Path(config_path).expanduser()

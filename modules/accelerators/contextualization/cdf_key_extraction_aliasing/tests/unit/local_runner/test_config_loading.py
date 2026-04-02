@@ -141,7 +141,7 @@ def test_load_configs_from_explicit_path(tmp_path: Path):
         ],
         extraction_rules=[],
     )
-    p = tmp_path / "key_extraction_aliasing.yaml"
+    p = tmp_path / cl.WORKFLOW_LOCAL_CONFIG_FILENAME
     p.write_text(yaml.safe_dump(doc), encoding="utf-8")
     ext, alias, *_ = cl.load_configs(_logger(), config_path=str(p))
     assert len(ext["extraction_rules"]) >= 1
@@ -151,7 +151,7 @@ def test_load_configs_from_explicit_path(tmp_path: Path):
 def test_load_configs_missing_default_file_raises(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    missing = tmp_path / "key_extraction_aliasing.yaml"
+    missing = tmp_path / cl.WORKFLOW_LOCAL_CONFIG_FILENAME
     monkeypatch.setattr(cl, "DEFAULT_SCOPE_DOCUMENT_PATH", missing)
     with pytest.raises(FileNotFoundError, match="Missing default scope document"):
         cl.load_configs(_logger(), scope="default")
@@ -160,7 +160,7 @@ def test_load_configs_missing_default_file_raises(
 def test_load_configs_default_uses_module_root_file(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    p = tmp_path / "key_extraction_aliasing.yaml"
+    p = tmp_path / cl.WORKFLOW_LOCAL_CONFIG_FILENAME
     doc = _minimal_key_extraction_data(
         source_views=[
             {
@@ -187,7 +187,7 @@ def test_resolve_scope_document_path_non_default_requires_config_path() -> None:
 def test_resolve_scope_document_path_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    p = tmp_path / "key_extraction_aliasing.yaml"
+    p = tmp_path / cl.WORKFLOW_LOCAL_CONFIG_FILENAME
     p.write_text("schemaVersion: 1\nkey_extraction:\n  externalId: x\n  config:\n    parameters: {raw_table_key: t}\n    data: {source_views: [], extraction_rules: []}\n", encoding="utf-8")
     monkeypatch.setattr(cl, "DEFAULT_SCOPE_DOCUMENT_PATH", p)
     assert cl.resolve_scope_document_path("default") == p

@@ -28,16 +28,16 @@ The Key Extraction and Aliasing system uses YAML-based pipeline configuration fi
 - **Aliasing Pipelines**: Generate alternative representations (aliases) of extracted keys for improved matching
 
 Configuration files are located in:
-- **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/key_extraction_aliasing.yaml` at module root when using `--scope default`, or any path via `--config-path`. One v1 scope document per file: required `key_extraction`, optional `aliasing` — the single authoring shape for this pipeline, aligned with **`workflow.input.scope_document`** (v4).
+- **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflow.local.config.yaml` at module root when using `--scope default`, or any path via `--config-path`. One v1 scope document per file: required `key_extraction`, optional `aliasing` — the single authoring shape for this pipeline, aligned with **`workflow.input.scope_document`** (v4).
 - **Example demos:** `config/examples/key_extraction/comprehensive_default.key_extraction_aliasing.yaml` and `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (same scope shape, `*.key_extraction_aliasing.yaml`).
 
-**Multi-leaf scopes:** Author `scope_hierarchy` and `locations` in `default.config.yaml` at the module root and run `scripts/build_scopes.py` (or `main.py --build`) to regenerate **`workflows/cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one schedule trigger per leaf) with **`input.scope_document`** patched from **`workflows/_template/key_extraction_aliasing.scope_document.yaml`** (see `config/README.md`). **`--build`** only writes triggers for leaves in the current tree; it does **not** delete other `cdf_key_extraction_aliasing.*.WorkflowTrigger.yaml` files. Use **`main.py --build --check-workflow-triggers`** in CI to ensure every required trigger exists and matches the templates (extra files on disk do not fail the check). CDF deploy uses workflow **`cdf_key_extraction_aliasing`** (v4); each trigger embeds the full v1 scope mapping, with deploy **`instance_space`** substituted into **`scope_document`** (for example **`source_views`**). RAW table keys live in **`scope_document.key_extraction.config.parameters`** / **`aliasing.config.parameters`**. See [`workflows/README.md`](../../workflows/README.md).
+**Multi-leaf scopes:** Under top-level **`scope_hierarchy`** in `default.config.yaml`, set **`levels`** and **`locations`** (nest child nodes under each node’s **`locations`**). Run `scripts/build_scopes.py` (or `main.py --build`) to **create missing** **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one schedule trigger per leaf) with **`input.scope_document`** patched from **`workflows/_template/workflow.template.config.yaml`** (see `config/README.md`). **`--build`** does not overwrite existing trigger files and does **not** delete other `key_extraction_aliasing.*.WorkflowTrigger.yaml` files. Use **`main.py --build --check-workflow-triggers`** in CI to ensure every required trigger exists and matches the templates (extra files on disk do not fail the check). CDF deploy uses workflow **`key_extraction_aliasing`** (v4); each trigger embeds the full v1 scope mapping, with deploy **`instance_space`** substituted into **`scope_document`** (for example **`source_views`**). RAW table keys live in **`scope_document.key_extraction.config.parameters`** / **`aliasing.config.parameters`**. See [`workflows/README.md`](../../workflows/README.md).
 
 See `config/README.md` in the module for layout and CLI behavior (`main.py` `--scope` / `--config-path`). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
 
 ### Default CDM scope
 
-**Authoring file (local default):** `key_extraction_aliasing.yaml` at module root; **CDF template:** `workflows/_template/key_extraction_aliasing.scope_document.yaml`.
+**Authoring file (local default):** `workflow.local.config.yaml` at module root; **CDF template:** `workflows/_template/workflow.template.config.yaml`.
 
 The committed **default** scope is a slim **CDM template** (CogniteAsset, CogniteFile, CogniteTimeSeries). It differs from richer **examples** under `config/examples/` (which demonstrate fixed width, heuristics, many aliasing transforms, etc.).
 
@@ -56,9 +56,9 @@ Asset, timeseries tag, and FK rules share one YAML anchor **`&alphanumeric_tag`*
 
 **Parameters:** `exclude_self_referencing_keys` (default `true`, or a legacy map with `default` / per-`entity_type`) controls dropping FK strings that equal a candidate on the same instance. **`source_views[].exclude_self_referencing_keys`** (optional boolean) overrides parameters for entities listed from that view; default scope sets **`false`** on **`CogniteTimeSeries`** only so overlapping FK values are kept there while asset/file views inherit **`true`** (CogniteAsset sets **`true`** explicitly).
 
-**Aliasing (default):** Under `aliasing.config.data.aliasing_rules` — `semantic_expansion` and `strip_numeric_unit_prefix` (priority 10, assets), `leading_zero_normalization` (priority 20, assets), `document_aliases` (priority 30, files). Default **`write_foreign_key_references: false`**. Timeseries candidate keys are **not** processed by the asset-only rules unless you add or widen `scope_filters.entity_type`.
+**Aliasing (default):** Under `aliasing.config.data.aliasing_rules` — `semantic_expansion` (**`type: semantic_expansion`**, letter codes → full words such as `P-101` → `PUMP-101`) and `strip_numeric_unit_prefix` (priority 10, assets), `leading_zero_normalization` (priority 20, assets), `document_aliases` (priority 30, files). Default **`write_foreign_key_references: false`**. Timeseries candidate keys are **not** processed by the asset-only rules unless you add or widen `scope_filters.entity_type`.
 
-**Workflows:** [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) may embed **scope-specific** `source_views` and rules (often file-heavy). Treat the **scope YAML** as the authoring reference for the full three-entity CDM layout; align inline workflow config when behavior should match.
+**Workflows:** [`workflows/key_extraction_aliasing.WorkflowVersion.yaml`](../../workflows/key_extraction_aliasing.WorkflowVersion.yaml) may embed **scope-specific** `source_views` and rules (often file-heavy). Treat the **scope YAML** as the authoring reference for the full three-entity CDM layout; align inline workflow config when behavior should match.
 
 Short narrative: [Key extraction / aliasing report](../key_extraction_aliasing_report.md).
 
@@ -130,7 +130,7 @@ source_views:
         values:
           - sp_enterprise_schema
           - sp_other_schema
-      # Default scope uses CONTAINSANY on tags, e.g. asset_tag (see scopes/default/key_extraction_aliasing.yaml)
+      # Default scope uses CONTAINSANY on tags, e.g. asset_tag (see workflow.local.config.yaml at module root)
       - operator: CONTAINSANY
         target_property: tags
         values:
@@ -568,7 +568,7 @@ aliasing_rules:
     conditions: {}                       # Optional; additional rule conditions
 ```
 
-**Entity scoping:** Prefer **`scope_filters.entity_type`** (as in `key_extraction_aliasing.yaml` at module root). Older examples may show **`conditions.entity_type`**; use the same idea but match your loader/engine expectations.
+**Entity scoping:** Prefer **`scope_filters.entity_type`** (as in `workflow.local.config.yaml` at module root). Older examples may show **`conditions.entity_type`**; use the same idea but match your loader/engine expectations.
 
 **Priority:**
 - Lower priority rules execute first
@@ -583,9 +583,9 @@ aliasing_rules:
 
 ### Transformation Types
 
-The sections below document **all** transformation types the engine supports. The **default CDM scope** uses only a small subset (`pattern_based_expansion` as `semantic_expansion`, `regex_substitution`, `leading_zero_normalization`, `document_aliases`); see [Default CDM scope](#default-cdm-scope) above. Example YAML for heavier stacks (character substitution, related instruments, etc.) applies to **`config/examples/`** or custom scopes.
+The sections below document **all** transformation types the engine supports. The **default CDM scope** uses only a small subset (`semantic_expansion`, `regex_substitution`, `leading_zero_normalization`, `document_aliases`); see [Default CDM scope](#default-cdm-scope) above. Example YAML for heavier stacks (**`pattern_based_expansion`**, character substitution, related instruments, etc.) applies to **`config/examples/`** or custom scopes.
 
-Rule types **`character_substitution`** through **`composite`** below are string/rule transforms. **`alias_mapping_table`** is catalog-driven: tag→alias rows in Cognite RAW (full detail in **[§ Alias mapping table (RAW catalog)](#13-alias-mapping-table-raw-catalog)**).
+Rule types **`character_substitution`** through **`composite`** below are string/rule transforms. **`alias_mapping_table`** is catalog-driven: tag→alias rows in Cognite RAW (full detail in **[§ Alias mapping table (RAW catalog)](#14-alias-mapping-table-raw-catalog)**).
 
 #### 1. Character Substitution
 
@@ -709,32 +709,33 @@ Transform case of tags.
 **Result Examples:**
 - Input: `P-101` → Output: `P-101`, `P-101`, `p-101`, `P-101`
 
-#### 5. Separator Normalization
+#### 5. Separator variants (`character_substitution`)
 
-Normalize separators to a target format.
+**`AliasingEngine` does not register `type: separator_normalization`.** Generate `-` / `_` / space / empty variants with **`character_substitution`** (see §1). External or legacy snippets that use `separator_normalization` will not run in this module—convert them to substitution rules.
 
 ```yaml
-- name: "normalize_to_hyphen"
-  type: "separator_normalization"
-  description: "Normalize all separators to hyphens"
+- name: "separator_variants"
+  type: "character_substitution"
+  description: "Hyphen, underscore, space, and no-separator variants"
   enabled: true
   priority: 12
   preserve_original: true
   config:
-    target_separator: "-"                 # Target separator format
-    source_separators: ["_", " ", "/", "."] # Separators to normalize
-    preserve_format: false                # Don't preserve original separators
+    substitutions:
+      "-": ["_", " ", ""]
+    cascade_substitutions: false
+    max_aliases_per_input: 25
   conditions:
     entity_type: ["asset", "equipment"]
 ```
 
-#### 6. Equipment Type Expansion
+#### 6. Semantic expansion
 
-Expand equipment type abbreviations to full names.
+Expand equipment type letter codes to full names (`SemanticExpansionHandler`; YAML rule type **`semantic_expansion`**).
 
 ```yaml
-- name: "equipment_type_expansion"
-  type: "equipment_type_expansion"
+- name: "semantic_expansion"
+  type: "semantic_expansion"
   description: "Expand equipment abbreviations"
   enabled: true
   priority: 30
@@ -851,30 +852,52 @@ Generate aliases for document references (P&IDs, drawings).
 **Result Examples:**
 - Input: `P&ID-2001` → Output: `P&ID-2001`, `PID-2001`, `P ID-2001`
 
-#### 10. Leading Zero Normalization
+#### 10. Pattern recognition
 
-Normalize leading zeros in numeric components.
+Match tags against **`config/tag_patterns.yaml`** (via `StandardTagPatternRegistry` / `DocumentPatternRegistry` in code). When the pattern library imports successfully, this rule can **enrich `context`** (`equipment_type`, `instrument_type`, …) for downstream rules and optionally add pattern-driven alias variants.
+
+**Rule type:** `pattern_recognition`.
+
+```yaml
+- name: "isa_pattern_recognition"
+  type: "pattern_recognition"
+  description: "Detect ISA-style equipment/instrument patterns and update context"
+  enabled: true
+  priority: 40
+  preserve_original: true
+  config:
+    enhance_context: true
+    generate_pattern_variants: true
+    confidence_threshold: 0.7
+  conditions:
+    entity_type: ["asset", "equipment", "timeseries"]
+```
+
+If the pattern library is unavailable in the runtime environment, the handler leaves aliases unchanged and logs a warning. See [ISA patterns (aliasing)](../../functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md) and [Tag pattern library file location](../../functions/fn_dm_aliasing/TAG_PATTERNS_LIBRARY.md).
+
+#### 11. Leading zero normalization
+
+Strip leading zeros in numeric tokens (`LeadingZeroNormalizationHandler`).
 
 ```yaml
 - name: "normalize_leading_zeros"
   type: "leading_zero_normalization"
-  description: "Normalize leading zeros"
+  description: "Strip leading zeros in numeric tokens (e.g. P-001 → P-1)"
   enabled: true
   priority: 18
   preserve_original: true
   config:
-    target_length: 4                      # Target number length
-    padding_character: "0"                # Padding character
-    strip_zeros: true                     # Also strip leading zeros
+    preserve_single_zero: true            # Keep a lone 0 as-is when applicable
+    min_length: 4                          # Minimum digit-run length to rewrite (see handler)
   conditions:
     entity_type: ["asset", "equipment", "timeseries"]
 ```
 
 **Result Examples:**
-- Input: `P-101` → Output: `P-101`, `P-0101`
+- Input: `P-001` → Output: `P-001`, `P-1`
 - Input: `FIC-0101` → Output: `FIC-0101`, `FIC-101`
 
-#### 11. Pattern-Based Expansion
+#### 12. Pattern-based expansion
 
 Generate aliases based on ISA tag patterns.
 
@@ -908,15 +931,16 @@ Generate aliases based on ISA tag patterns.
 **Result Examples:**
 - Input: `P-101` → Output: `P-101`, `FIC-101`, `PI-101`, `PE-101` (ISA instrument loops)
 
-#### 12. Composite Transformation
+#### 13. Composite transformation
 
-Combine multiple transformations (future feature).
+**`AliasingEngine` does not register a `composite` handler:** rules with `type: composite` log a missing-transformer warning and apply **no** transforms. Model multi-step behavior as **several rules** ordered by **`priority`** (and `preserve_original`) instead.
 
 ```yaml
+# Prefer multiple rules, e.g. substitution (priority 10) then case (priority 20).
 - name: "composite_transform"
   type: "composite"
-  description: "Apply multiple transformations in sequence"
-  enabled: false                          # Currently not implemented
+  description: "Not supported at runtime — split into ordered rules"
+  enabled: false
   priority: 100
   preserve_original: true
   config:
@@ -927,7 +951,7 @@ Combine multiple transformations (future feature).
         # ... case config
 ```
 
-#### 13. Alias mapping table (RAW catalog)
+#### 14. Alias mapping table (RAW catalog)
 
 Adds aliases by looking up extracted tag strings in a **Cognite RAW table** loaded once at engine initialization. The mapping catalog is the **system of record in RAW**; the pipeline YAML only points at the database, table, and column names.
 
@@ -984,7 +1008,7 @@ Rules execute in priority order (lowest to highest):
    - Character substitution
 
 2. **Expansion (30-60)**: Generate variants
-   - Equipment type expansion
+   - Semantic expansion (`type: semantic_expansion`)
    - Related instruments
    - Hierarchical expansion
    - Pattern-based expansion
@@ -1088,7 +1112,7 @@ priority: 70-100
 
 ## Common Use Cases
 
-The following YAML snippets are **illustrative** (narrow rules or large aliasing stacks). For the **repository default**, prefer copying rule blocks from `key_extraction_aliasing.yaml` (module root) and the shared pattern from `config/tag_patterns.yaml`.
+The following YAML snippets are **illustrative** (narrow rules or large aliasing stacks). For the **repository default**, prefer copying rule blocks from `workflow.local.config.yaml` (module root) and the shared pattern from `config/tag_patterns.yaml`.
 
 ### Use Case 1: Extract Pump Tags
 
@@ -1274,7 +1298,7 @@ extraction_rules:
 
 ## Additional Resources
 
-- **Config tree**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/` (`scopes/`, `examples/`)
+- **Config tree**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/` (`tag_patterns.yaml`, `examples/`, `configuration_manager.py`; v1 scope YAML lives at module root and under `examples/`)
 - **ISA / tag patterns**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/config/tag_patterns.yaml`
 - **ISA Patterns Guide**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md`
 - **Tests**: `modules/accelerators/contextualization/cdf_key_extraction_aliasing/tests/`

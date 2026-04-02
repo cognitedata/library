@@ -1,14 +1,13 @@
-"""Equipment type expansion transformer handler."""
+"""Semantic expansion transformer handler (equipment letter codes to full words)."""
 
 import re
 from typing import Any, Dict, Set
 
-from ..transformer_utils import extract_equipment_number
 from .AliasTransformerHandler import AliasTransformerHandler
 
 
-class EquipmentTypeExpansionHandler(AliasTransformerHandler):
-    """Handles equipment type expansion for semantic matching."""
+class SemanticExpansionHandler(AliasTransformerHandler):
+    """Handles semantic expansion for equipment-type-aware matching."""
 
     def transform(
         self, aliases: Set[str], config: Dict[str, Any], context: Dict[str, Any] = None

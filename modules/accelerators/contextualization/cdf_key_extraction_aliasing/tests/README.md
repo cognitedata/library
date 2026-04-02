@@ -21,7 +21,6 @@ tests/
 │   ├── key_extraction/       # scenarios (regex, fixed-width, heuristics, …)
 │   ├── aliasing/             # handlers, tag_pattern_library
 │   ├── contextualization/    # configuration_manager, full workflow, edge cases
-│   ├── test_pipelines.py
 │   └── ...
 ├── test_pipeline_extraction.py
 ├── generate_detailed_results.py
@@ -62,7 +61,7 @@ Shared sample entities and tags live under `fixtures/`. Prefer importing from `t
 
 ## Result JSON and reports
 
-- **`results/`** — timestamped `*_cdf_extraction.json` / `*_cdf_aliasing.json` from pipeline-style runs.
+- **`results/`** — timestamped `*_cdf_extraction.json` / `*_cdf_aliasing.json` from pipeline-style runs. `*.json` and `*.txt` here are **gitignored** at the repo root (`__init__.py` stays tracked as a package marker).
 - **`generate_detailed_results.py`** — build structured summaries without executing the full test suite (see script docstring).
 - **Module report** — [docs/key_extraction_aliasing_report.md](../docs/key_extraction_aliasing_report.md) documents the default scope; `scripts/generate_report.py` can regenerate it from the latest `tests/results/*_cdf_extraction.json` if you want run-specific stats (overwrites the file).
 

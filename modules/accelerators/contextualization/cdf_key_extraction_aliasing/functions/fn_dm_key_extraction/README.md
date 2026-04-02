@@ -1,8 +1,8 @@
 ## fn_dm_key_extraction
 
-CDF function in workflow **`cdf_key_extraction_aliasing`** (v4). Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+CDF function in workflow **`key_extraction_aliasing`** (v4). Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
 
-Extracts candidate keys, foreign key references, and document references from **configured `source_views`** (default scope: CogniteAsset, CogniteFile, CogniteTimeSeries — see `key_extraction_aliasing.yaml` at module root), writes results to RAW, and writes a per-run state row for auditability.
+Extracts candidate keys, foreign key references, and document references from **configured `source_views`** (default scope: CogniteAsset, CogniteFile, CogniteTimeSeries — see `workflow.local.config.yaml` at module root), writes results to RAW, and writes a per-run state row for auditability.
 
 ### Inputs (workflow task `data`)
 
@@ -32,7 +32,7 @@ This function is designed to run in CDF, but you can run it locally by calling `
 
 ### How it runs in the workflow
 
-In `cdf_key_extraction_aliasing` (v4):
+In `key_extraction_aliasing` (v4):
 - task `fn_dm_key_extraction` runs this function and writes entity and run rows to `db_key_extraction/<raw_table_key>` (from the scope YAML **`key_extraction.config.parameters.raw_table_key`**)
 
 ### Change history

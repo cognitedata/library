@@ -4,7 +4,7 @@
 
 ISA (Instrument Society of America) patterns are utilized in the tag aliasing system to enable industry-standard pattern recognition and generate ISA-compliant aliases. This document explains where and how ISA patterns are used.
 
-**Default CDM scope:** The committed **`key_extraction_aliasing.yaml`** at module root does **not** run a large ISA expansion stack; it uses **`semantic_expansion`** (`pattern_based_expansion`) plus a few other rules. ISA rows in **`config/tag_patterns.yaml`** are consumed when you configure **pattern recognition / pattern-based expansion** rules (see examples under `config/examples/aliasing/`). Key **extraction** in the default scope uses the shared **`alphanumeric_tag`** regex, not per-equipment ISA patterns.
+**Default CDM scope:** The committed **`workflow.local.config.yaml`** at module root does **not** run a large ISA expansion stack; it uses **`semantic_expansion`** (**`type: semantic_expansion`**, letter codes → full words) plus strip/unit-prefix, leading-zero, and file rules. ISA rows in **`config/tag_patterns.yaml`** are consumed when you configure **pattern recognition** or **`pattern_based_expansion`** rules (see examples under `config/examples/aliasing/`). Key **extraction** in the default scope uses the shared **`alphanumeric_tag`** regex, not per-equipment ISA patterns.
 
 ## Pattern Definition
 
@@ -12,7 +12,7 @@ ISA (Instrument Society of America) patterns are utilized in the tag aliasing sy
 
 **Section:** `tag_patterns`
 
-**Count:** 19 ISA patterns defined
+**Count:** Defined in `tag_patterns.yaml` under ISA-style entries (update that file as the source of truth; do not rely on a fixed number here).
 
 ### Pattern Categories
 
@@ -113,7 +113,7 @@ def _load_patterns_from_yaml(self):
 
 **Usage:**
 - Rule type: `pattern_based_expansion`
-- **Current Status:** ✓ **ENABLED** in default config
+- **Current Status:** **not** part of the default CDM **`workflow.local.config.yaml`** stack; use **`config/examples/aliasing/`** (e.g. `isa_instrument_expansion`) or a custom scope to enable it
 
 **Key Methods:**
 - `_match_tag_patterns()`: Matches tags against ISA patterns (line 865)
@@ -135,23 +135,23 @@ def _load_patterns_from_yaml(self):
 
 **Location:** `config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml` (under `aliasing.config.data.aliasing_rules`)
 
-1. **ISA Instrument Expansion** (line 302-320)
+1. **ISA Instrument Expansion**
    - Rule: `isa_instrument_expansion`
    - Type: `pattern_based_expansion`
-   - Status: ✓ Enabled
+   - Status: ✓ Enabled (in comprehensive example config)
    - Pattern: `^([A-Z])([A-Z])([A-Z])(-?)(\d{2,4})([A-Z]?)$`
    - Generates ISA-compliant instrument tag variants
 
-2. **Semantic expansion** (pattern-based rule block after hierarchical expansion)
+2. **Semantic expansion** (equipment letter → full word; not pattern-library-based)
    - Rule: `semantic_expansion`
-   - Type: `pattern_based_expansion`
-   - Status: ✓ Enabled
-   - Uses ISA-oriented patterns to generate structural and format variants for tags
+   - Type: `semantic_expansion`
+   - Status: ✓ Enabled (in comprehensive example config)
+   - Uses **`type_mappings`** / **`format_templates`** / **`auto_detect`** (see configuration guide)
 
-3. **Hierarchical Tag Expansion** (line 341-356)
+3. **Hierarchical Tag Expansion**
    - Rule: `hierarchical_tag_expansion`
    - Type: `pattern_based_expansion`
-   - Status: ✓ Enabled
+   - Status: ✓ Enabled (in comprehensive example config)
    - Expands hierarchical tags (site-unit-equipment)
 
 ### Pattern Recognition Rule (Disabled)

@@ -1,24 +1,24 @@
 # Key Extraction and Aliasing — Module Summary
 
 **Last reviewed:** 2026-03-30  
-**Canonical default scope:** [`key_extraction_aliasing.yaml`](../key_extraction_aliasing.yaml) at module root — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
+**Canonical default scope:** [`workflow.local.config.yaml`](../workflow.local.config.yaml) at module root — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
 **Shared tag pattern library:** [`config/tag_patterns.yaml`](../config/tag_patterns.yaml) (aligned field `alphanumeric_tag`)
 
-This document describes the **current** default configuration and pipeline behavior for `cdf_key_extraction_aliasing`. For numbers from a specific CDF or local test run, use the latest JSON under [`tests/results/`](../tests/results/) or your own exported extraction output.
+This document describes the **current** default configuration and pipeline behavior for the **`key_extraction_aliasing`** workflow (Toolkit module directory `cdf_key_extraction_aliasing`). For numbers from a specific CDF or local test run, use the latest JSON under [`tests/results/`](../tests/results/) or your own exported extraction output.
 
 ---
 
 ## Workflow overview
 
-![Workflow diagram](../workflows/workflow_diagram.png)
+Diagram (Mermaid): [workflows/workflow_diagram.md](../workflows/workflow_diagram.md).
 
 1. **Key extraction** — Candidate keys, foreign key references, and document references (when configured) from DM views.
 2. **Result splitting** — Routes results by extraction type / downstream consumer.
 3. **Aliasing** — Expands candidate keys with format variants and normalizations (scoped by entity type).
 4. **Write aliases** — Persists aliases on CogniteDescribable (default property `aliases`; see `alias_writeback_property` in aliasing config).
-5. **Reference catalog / FK write-back** — Optional; default scope sets `write_foreign_key_references: false` for aliasing parameters.
+5. **Reference index / FK write-back** — Optional; default scope sets `write_foreign_key_references: false` for aliasing parameters.
 
-Deployed workflow YAML may add **scope-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per [`workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/cdf_key_extraction_aliasing.WorkflowVersion.yaml) header comment.
+Deployed workflow YAML may add **scope-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per [`workflows/key_extraction_aliasing.WorkflowVersion.yaml`](../workflows/key_extraction_aliasing.WorkflowVersion.yaml) header comment.
 
 ---
 
@@ -76,7 +76,7 @@ Rules are ordered by **priority**; at equal priority, **YAML order** applies. On
 
 | Priority | Rule | Type | Entity scope | Role |
 |----------|------|------|--------------|------|
-| 10 | `semantic_expansion` | pattern_based_expansion | asset | Format variants (type / separator / number / suffix) aligned with extraction-style tags |
+| 10 | `semantic_expansion` | semantic_expansion | asset | Letter codes → full words (`type_mappings`, `format_templates`, `auto_detect`; e.g. `P-101` → `PUMP-101`) |
 | 10 | `strip_numeric_unit_prefix` | regex_substitution | asset | Leading `^\d+-` stripped (for example `10-P-1234` → `P-1234`) |
 | 20 | `leading_zero_normalization` | leading_zero_normalization | asset | Normalize long numeric tokens (configurable min length, etc.) |
 | 30 | `document_aliases` | document_aliases | file | P&ID / drawing / file-name variants (revision handling, padding, etc.) |

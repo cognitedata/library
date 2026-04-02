@@ -163,7 +163,7 @@ def _convert_aliasing_config(cdf_rule: Any) -> Dict[str, Any]:
         if hasattr(cdf_rule, "min_length"):
             config["min_length"] = cdf_rule.min_length
 
-    elif rule_type == "equipment_type_expansion":
+    elif rule_type == "semantic_expansion":
         if hasattr(cdf_rule, "type_mappings"):
             config["type_mappings"] = dict(cdf_rule.type_mappings)
         if hasattr(cdf_rule, "format_templates"):

@@ -682,8 +682,8 @@ def generate_aliasing_results():
         "equipment_expansion": {
             "rules": [
                 {
-                    "name": "equipment_type_expansion",
-                    "type": "equipment_type_expansion",
+                    "name": "semantic_expansion",
+                    "type": "semantic_expansion",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -799,8 +799,8 @@ def generate_aliasing_results():
                 "conditions": {},
             },
             {
-                "name": "equipment_type_expansion",
-                "type": "equipment_type_expansion",
+                "name": "semantic_expansion",
+                "type": "semantic_expansion",
                 "enabled": True,
                 "priority": 10,
                 "preserve_original": True,

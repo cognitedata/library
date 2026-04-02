@@ -21,7 +21,7 @@ from scope_build.registry import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_HIERARCHY = "default.config.yaml"
-DEFAULT_SCOPE_DOCUMENT = Path("workflows") / "_template" / "key_extraction_aliasing.scope_document.yaml"
+DEFAULT_SCOPE_DOCUMENT = Path("workflows") / "_template" / "workflow.template.config.yaml"
 
 
 def module_root_from_package() -> Path:
@@ -55,8 +55,9 @@ def run_build(
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
-            "Build workflow schedule triggers from default.config.yaml (scope_hierarchy + locations). "
-            "Embeds patched scope documents from workflows/_template/key_extraction_aliasing.scope_document.yaml."
+            "Create missing workflow schedule triggers from default.config.yaml (scope_hierarchy.levels + scope_hierarchy.locations). "
+            "Does not overwrite existing key_extraction_aliasing.*.WorkflowTrigger.yaml files. "
+            "Embeds patched scope documents from workflows/_template/workflow.template.config.yaml."
         )
     )
     p.add_argument(
@@ -101,7 +102,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         action="store_true",
         help=(
             "Exit 1 if any trigger required by the current hierarchy is missing, invalid, or out of "
-            "date vs templates (no writes). Extra cdf_key_extraction_aliasing.*.WorkflowTrigger.yaml "
+            "date vs templates (no writes). Extra key_extraction_aliasing.*.WorkflowTrigger.yaml "
             "files on disk are allowed."
         ),
     )
@@ -111,7 +112,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         default=None,
         help=(
             "YAML template for each schedule trigger (default: "
-            "workflows/_template/cdf_key_extraction_aliasing_scope_trigger.WorkflowTrigger.yaml.template)"
+            "workflows/_template/workflow.template.WorkflowTrigger.yaml.template)"
         ),
     )
     return p.parse_args(list(argv) if argv is not None else None)

@@ -8,10 +8,9 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 | Document                                                   | Audience                      | Contents                                                                              |
 | ---------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
 | [Module functional document](module_functional_document.md) | Everyone                      | End-to-end scope, behaviors, components, data flows, interfaces (points to deep specs) |
-| [Module README](../README.md)                              | Everyone                      | What the module does, `main.py` quick start, CLI flags, pointers to deeper docs       |
-| [Quick start](guides/quick_start.md)                       | Developers                    | `PYTHONPATH`, `KeyExtractionEngine` / `AliasingEngine`, example config paths          |
+| [Module README](../README.md)                              | Everyone                      | What the module does, prerequisites, [Local runs (main.py)](../README.md#local-runs-mainpy), [Python API](../README.md#python-api), pointers to deeper docs |
 | [Logging (CDF functions)](guides/logging_cdf_functions.md) | Developers / workflow authors | `logLevel` / `verbose`, required logger methods, optional handler injection           |
-| [Config layout](../config/README.md)                       | Authors                       | `scopes/` vs `examples/`, v1 scope document shape, `build_scopes.py`, `main.py --build` / `--check-workflow-triggers` (extra trigger files preserved) |
+| [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `main.py --build` (create missing triggers only) / `--check-workflow-triggers` |
 | [Config examples](../config/examples/README.md)            | Authors / testers             | Demo folders, `--config-path` examples, progressive demo order                        |
 
 
@@ -31,12 +30,14 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 
 | Document                                                                     | Contents                                                                                                               |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [Workflows README](../workflows/README.md)                                   | Single workflow `cdf_key_extraction_aliasing` (v4), per-scope triggers, `workflow.input.scope_document` |
-| [Workflow diagram source](../workflows/workflow_diagram.md)                  | Diagram source (and related assets in `workflows/`)                                                                    |
+| [Workflows README](../workflows/README.md)                                   | Single workflow `key_extraction_aliasing` (v4), per-scope triggers, `workflow.input.scope_document` |
+| [Workflow diagram source](../workflows/workflow_diagram.md)                  | Mermaid diagram source (no committed PNG in `workflows/`)                                                            |
 | [fn_dm_key_extraction](../functions/fn_dm_key_extraction/README.md)          | Key extraction function I/O                                                                                            |
 | [fn_dm_aliasing](../functions/fn_dm_aliasing/README.md)                      | Aliasing function I/O                                                                                                  |
-| [fn_dm_alias_persistence](../functions/fn_dm_alias_persistence/README.md)    | Describable write-back, optional FK strings                                                                            |
+| [fn_dm_reference_index](../functions/fn_dm_reference_index/README.md)      | RAW inverted index for FK + document reference strings                                                                 |
+| [fn_dm_alias_persistence](../functions/fn_dm_alias_persistence/README.md) | Describable write-back, optional FK strings                                                                            |
 | [ISA patterns (aliasing)](../functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md) | Pattern-based rules and example config                                                                                 |
+| [Tag pattern library (paths)](../functions/fn_dm_aliasing/TAG_PATTERNS_LIBRARY.md) | Where `tag_patterns.yaml` lives and how registries load it                                                          |
 
 
 ## Specifications (behavior and options)

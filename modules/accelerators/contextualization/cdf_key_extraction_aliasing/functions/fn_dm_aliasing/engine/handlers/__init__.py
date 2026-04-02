@@ -4,7 +4,7 @@ from .AliasTransformerHandler import AliasTransformerHandler
 from .CaseTransformationHandler import CaseTransformationHandler
 from .CharacterSubstitutionHandler import CharacterSubstitutionHandler
 from .DocumentAliasesHandler import DocumentAliasesHandler
-from .EquipmentTypeExpansionHandler import EquipmentTypeExpansionHandler
+from .SemanticExpansionHandler import SemanticExpansionHandler
 from .HierarchicalExpansionHandler import HierarchicalExpansionHandler
 from .LeadingZeroNormalizationHandler import LeadingZeroNormalizationHandler
 from .PatternBasedExpansionHandler import PatternBasedExpansionHandler
@@ -21,7 +21,7 @@ __all__ = [
     "RegexSubstitutionHandler",
     "CaseTransformationHandler",
     "LeadingZeroNormalizationHandler",
-    "EquipmentTypeExpansionHandler",
+    "SemanticExpansionHandler",
     "RelatedInstrumentsHandler",
     "HierarchicalExpansionHandler",
     "DocumentAliasesHandler",

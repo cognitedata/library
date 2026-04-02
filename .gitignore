@@ -47,6 +47,10 @@ pip-delete-this-directory.txt
 *.o
 *.so
 
+# cdf_key_extraction_aliasing — local pipeline / pytest JSON dumps (not repo fixtures)
+modules/accelerators/contextualization/cdf_key_extraction_aliasing/tests/results/*.json
+modules/accelerators/contextualization/cdf_key_extraction_aliasing/tests/results/*.txt
+
 # Test results
 .coverage
 .tox/

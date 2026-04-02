@@ -30,7 +30,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 
 | Actor | Role |
 | ----- | ---- |
-| **Config author** | Maintains v1 scope YAML at module root / trigger template (`workflows/_template/key_extraction_aliasing.scope_document.yaml`) and runs `build_scopes` for multi-site triggers. |
+| **Config author** | Maintains v1 scope YAML at module root / trigger template (`workflows/_template/workflow.template.config.yaml`) and runs `build_scopes` for multi-site triggers. |
 | **CDF operator** | Deploys Toolkit manifests, monitors workflow runs and RAW/DM outcomes. |
 | **Application / search** | Consumes **`aliases`** (and optional FK list properties) on describable instances. |
 | **Downstream jobs** | May read **reference index** RAW for “who references tag X” style queries. |
@@ -76,7 +76,7 @@ For field-level behavior (required vs optional fields, preprocessing, `max_match
 | `regex_substitution` | **RegexSubstitutionHandler** | List of `{pattern, replacement}` (or single `pattern` / `replacement` on the rule config). Applies to each alias when the pattern matches. | Structural rewrites (insert hyphen between letters and digits, normalize loop suffixes). |
 | `case_transformation` | **CaseTransformationHandler** | `operation` or `operations`: `upper`, `lower`, `title`, `preserve`. | Case-insensitive search surfaces, historian conventions. |
 | `leading_zero_normalization` | **LeadingZeroNormalizationHandler** | Strips leading zeros in numeric tokens (`\b0+(\d+)\b`); **`preserve_single_zero`**, **`min_length`**. | `P-001` vs `P-1` equivalence. |
-| `equipment_type_expansion` | **EquipmentTypeExpansionHandler** | **`type_mappings`** (letter → full words), **`format_templates`** (`{type}-{tag}`), **`auto_detect`** from tag shape; uses **`context.equipment_type`** when present. | Semantic aliases (`P-101` → `PUMP-101`) for equipment-aware matching. |
+| `semantic_expansion` | **SemanticExpansionHandler** | **`type_mappings`** (letter → full words), **`format_templates`** (`{type}-{tag}`), **`auto_detect`** from tag shape; uses **`context.equipment_type`** when present. | Semantic aliases (`P-101` → `PUMP-101`) for equipment-aware matching. |
 | `related_instruments` | **RelatedInstrumentsHandler** | Requires **`context.equipment_type`**; **`instrument_types`** with `prefix` and `applicable_to`; **`format_rules`**; emits instrument tags from **`extract_equipment_number`** plus separator variants. | Infer likely FIC/PI-style tags from a pump/compressor tag when context says equipment class. |
 | `hierarchical_expansion` | **HierarchicalExpansionHandler** | **`hierarchy_levels`** with `format` strings using placeholders from **context** plus `{equipment}` (current alias). Skips formats if any placeholder is empty/null. | `{site}-{unit}-{equipment}` style global names. |
 | `document_aliases` | **DocumentAliasesHandler** | **`pid_rules`**, **`drawing_rules`**, **`file_rules`** (e.g. `P&ID` → `PID`, revision stripping, zero-padding numbers, sheet variants). | File / drawing / P&ID naming variants. |
@@ -189,11 +189,11 @@ Validation: Pydantic models in `fn_dm_key_extraction/config.py`, `fn_dm_aliasing
 
 Workflow YAML does **not** embed full rule sets inline. Each function task receives **`scope_document`** (v1 mapping) from **`workflow.input`**, optional **`full_rescan`** / **`run_id`**, and RAW wiring. **`instance_space`** for DM handlers is taken from **`scope_document`** (`source_views`) when not set on task **`data`**. Functions resolve **`config`** from **`scope_document`** in memory.
 
-Authoring: **`key_extraction_aliasing.yaml`** (local), **`workflows/_template/key_extraction_aliasing.scope_document.yaml`** (template embedded into triggers by **`build_scopes`**).
+Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflows/_template/workflow.template.config.yaml`** (template embedded into triggers by **`build_scopes`**).
 
 ### 5.3 Multi-site generation
 
-**`default.config.yaml`** defines `scope_hierarchy` and **`scripts/build_scopes.py`** (or **`main.py --build`**) writes **`cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.scope_document`** patched from the scope template). **`--build`** does not remove trigger files for scopes no longer in the hierarchy; **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored).
+**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`main.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.scope_document`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored).
 
 ---
 
@@ -228,7 +228,7 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 
 ## 7. External interfaces
 
-### 7.1 Workflow input (`cdf_key_extraction_aliasing` v4)
+### 7.1 Workflow input (`key_extraction_aliasing` v4)
 
 | Field | Role |
 | ----- | ---- |
@@ -243,7 +243,7 @@ Documented in the [module README](../README.md): limits, verbosity, dry-run, FK 
 
 ### 7.3 Python API (minimal)
 
-`KeyExtractionEngine` and `AliasingEngine` accept dict configs; RAW-backed rules need a Cognite client where applicable. See [quick start](guides/quick_start.md).
+`KeyExtractionEngine` and `AliasingEngine` accept dict configs; RAW-backed rules need a Cognite client where applicable. See [module README — Python API](../README.md#python-api).
 
 ---
 
@@ -278,7 +278,7 @@ Documented in the [module README](../README.md): limits, verbosity, dry-run, FK 
 | Item | Value |
 | ---- | ----- |
 | Module | `modules/accelerators/contextualization/cdf_key_extraction_aliasing` |
-| Workflow version referenced | **v4** (`cdf_key_extraction_aliasing`) |
+| Workflow version referenced | **v4** (`key_extraction_aliasing`) |
 | Audience | Product/engineering readers who need an end-to-end functional picture without reading all specs |
 
 When workflow semantics or default scope behavior change, update this document in the same change set as the workflow YAML or default scope so the functional story stays accurate.

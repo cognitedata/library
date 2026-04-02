@@ -60,13 +60,13 @@ class TestAliasingRuleTypes(unittest.TestCase):
         self.assertIn("P-10001", result.aliases)
         self.assertIn("P_10001", result.aliases)  # Original preserved
 
-    def test_equipment_type_expansion_rule(self):
-        """Test equipment type expansion aliasing rule."""
+    def test_semantic_expansion_rule(self):
+        """Test semantic expansion aliasing rule."""
         config = self.base_config.copy()
         config["rules"] = [
             {
-                "name": "equipment_expansion",
-                "type": "equipment_type_expansion",
+                "name": "semantic_expansion",
+                "type": "semantic_expansion",
                 "enabled": True,
                 "priority": 20,
                 "preserve_original": True,
@@ -98,7 +98,7 @@ class TestContextHandling(unittest.TestCase):
             "rules": [
                 {
                     "name": "context_test",
-                    "type": "equipment_type_expansion",
+                    "type": "semantic_expansion",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,

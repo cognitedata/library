@@ -129,7 +129,7 @@ New aliasing is configured via **aliasing rule types** under the aliasing engine
 | `regex_substitution` | Replace pattern matches (infix, delimit, remove suffix, etc.). |
 | `case_transformation` | Upper/lower/title case. |
 | `leading_zero_normalization` | Strip or normalize leading zeros. |
-| `equipment_type_expansion` | Expand equipment type codes. |
+| `semantic_expansion` | Expand equipment type letter codes to full words (replaces legacy `equipment_type_expansion`). |
 | `related_instruments` | Instrument-type–specific aliases. |
 | `hierarchical_expansion` | Hierarchy-based alias generation. |
 | `document_aliases` | PID/drawing rules for documents. |

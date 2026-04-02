@@ -9,13 +9,13 @@ This module ships a workflow that:
 4) runs **`fn_dm_aliasing`** reading **candidate keys** from RAW (optionally filtered by run + status), writes alias rows, then advances **`WORKFLOW_STATUS`** to **`aliased`** for that cohort where applicable,
 5) runs **`fn_dm_alias_persistence`** and advances **`WORKFLOW_STATUS`** to **`persisted`** (or leaves failures for operator review).
 
-For deployments that omit incremental mode, the same pipeline can be described as: key extraction → (reference index ∥ aliasing) → alias persistence. Authoring source for rules and views is the v1 scope mapping embedded in each schedule trigger as **`input.scope_document`** (template: [`_template/key_extraction_aliasing.scope_document.yaml`](_template/key_extraction_aliasing.scope_document.yaml)), patched per leaf by **`scripts/build_scopes.py`**. Local reference copy: [`../key_extraction_aliasing.yaml`](../key_extraction_aliasing.yaml) at module root.
+For deployments that omit incremental mode, the same pipeline can be described as: key extraction → (reference index ∥ aliasing) → alias persistence. Authoring source for rules and views is the v1 scope mapping embedded in each schedule trigger as **`input.scope_document`** (template: [`_template/workflow.template.config.yaml`](_template/workflow.template.config.yaml)), patched per leaf by **`scripts/build_scopes.py`**. Local default scope (same v1 shape): [`../workflow.local.config.yaml`](../workflow.local.config.yaml) at module root.
 
-### Workflow: `cdf_key_extraction_aliasing` (version `v4`)
+### Workflow: `key_extraction_aliasing` (version `v4`)
 
-There is **one** workflow external id for all scopes. **Per-leaf schedule triggers** are generated as separate files **`cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** under [`workflows/`](.) (for example `cdf_key_extraction_aliasing.default.WorkflowTrigger.yaml`), produced by [`scripts/build_scopes.py`](../scripts/build_scopes.py) or **`python main.py --build`**. Each calls the same workflow and supplies **`input`** that becomes **`workflow.input`** at run time ([Cognite trigger static input](https://docs.cognite.com/cdf/data_workflows/triggers)). Toolkit placeholders (for example `{{functionClientId}}`, `{{ key_extraction_aliasing_schedule }}`) are resolved at deploy from [`default.config.yaml`](../default.config.yaml). **`{{instance_space}}`** is substituted **inside** each trigger’s embedded **`scope_document`** (for example on **`source_views`**), not on **`workflow.input`**.
+There is **one** workflow external id for all scopes. **Per-leaf schedule triggers** live in separate files **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** under [`workflows/`](.) (for example `key_extraction_aliasing.default.WorkflowTrigger.yaml`). [`scripts/build_scopes.py`](../scripts/build_scopes.py) or **`python main.py --build`** **creates missing** trigger files only (does not overwrite existing). Each calls the same workflow and supplies **`input`** that becomes **`workflow.input`** at run time ([Cognite trigger static input](https://docs.cognite.com/cdf/data_workflows/triggers)). Toolkit placeholders (for example `{{functionClientId}}`, `{{ key_extraction_aliasing_schedule }}`) are resolved at deploy from [`default.config.yaml`](../default.config.yaml). **`{{instance_space}}`** is substituted **inside** each trigger’s embedded **`scope_document`** (for example on **`source_views`**), not on **`workflow.input`**.
 
-**Configuration:** v4 passes the full v1 scope document on **`workflow.input.scope_document`** into every function task (see [`cdf_key_extraction_aliasing.WorkflowVersion.yaml`](cdf_key_extraction_aliasing.WorkflowVersion.yaml)). Functions resolve **`config`** from that object; there is **no** Cognite Files download for scope YAML. **RAW table keys** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`, reference index target) are read from **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`scope_document`**. **`workflow.input`** supplies optional **`run_id`** and optional **`full_rescan`**; DM **`instance_space`** for handlers is taken from **`scope_document`** (first **`source_views[].instance_space`**, or a single-value node **`space`** filter) unless a task explicitly passes **`instance_space`** on function **`data`**.
+**Configuration:** v4 passes the full v1 scope document on **`workflow.input.scope_document`** into every function task (see [`key_extraction_aliasing.WorkflowVersion.yaml`](key_extraction_aliasing.WorkflowVersion.yaml)). Functions resolve **`config`** from that object; there is **no** Cognite Files download for scope YAML. **RAW table keys** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`, reference index target) are read from **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`scope_document`**. **`workflow.input`** supplies optional **`run_id`** and optional **`full_rescan`**; DM **`instance_space`** for handlers is taken from **`scope_document`** (first **`source_views[].instance_space`**, or a single-value node **`space`** filter) unless a task explicitly passes **`instance_space`** on function **`data`**.
 
 For a leaf in [`default.config.yaml`](../default.config.yaml), **`key_extraction.externalId`** / **`aliasing.externalId`** and node **`space`** filters use **`cdf_external_id_suffix(scope_id)`** from [`scripts/scope_build/naming.py`](../scripts/scope_build/naming.py) when **`build_scopes`** patches each trigger’s **`scope_document`**.
 
@@ -71,18 +71,18 @@ Aliases are aggregated **per entity**. If one entity is referenced by multiple t
 
 | File | Role |
 |------|------|
-| [`cdf_key_extraction_aliasing.Workflow.yaml`](cdf_key_extraction_aliasing.Workflow.yaml) | Workflow container: fixed `externalId: cdf_key_extraction_aliasing`. |
-| [`cdf_key_extraction_aliasing.WorkflowVersion.yaml`](cdf_key_extraction_aliasing.WorkflowVersion.yaml) | `workflowExternalId: cdf_key_extraction_aliasing`, version **`v4`**. Tasks pass **`scope_document: ${workflow.input.scope_document}`** plus wiring. |
-| **`cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one per leaf) | **Generated** from [`_template/cdf_key_extraction_aliasing_scope_trigger.WorkflowTrigger.yaml.template`](_template/cdf_key_extraction_aliasing_scope_trigger.WorkflowTrigger.yaml.template) + [`_template/key_extraction_aliasing.scope_document.yaml`](_template/key_extraction_aliasing.scope_document.yaml). Resource **`externalId`**: `cdf_key_extraction_aliasing.<suffix>` (`__KEA_CDF_SUFFIX__` → `cdf_external_id_suffix`). Regenerate with **`python main.py --build`** or **`python scripts/build_scopes.py`**. **`--build`** updates only triggers for leaves in the current hierarchy; it **does not delete** other `cdf_key_extraction_aliasing.*.WorkflowTrigger.yaml` files (remove orphans manually if needed). Override scope body with **`--scope-document`**, trigger shell with **`--workflow-trigger-template`**. Verify with **`python main.py --build --check-workflow-triggers`**: required files must exist and match templates; **extra** trigger files on disk are ignored. |
+| [`key_extraction_aliasing.Workflow.yaml`](key_extraction_aliasing.Workflow.yaml) | Workflow container: fixed `externalId: key_extraction_aliasing`. |
+| [`key_extraction_aliasing.WorkflowVersion.yaml`](key_extraction_aliasing.WorkflowVersion.yaml) | `workflowExternalId: key_extraction_aliasing`, version **`v4`**. Tasks pass **`scope_document: ${workflow.input.scope_document}`** plus wiring. |
+| **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (one per leaf) | **Created** from [`_template/workflow.template.WorkflowTrigger.yaml.template`](_template/workflow.template.WorkflowTrigger.yaml.template) + [`_template/workflow.template.config.yaml`](_template/workflow.template.config.yaml). Resource **`externalId`**: `key_extraction_aliasing.<suffix>` (`__KEA_CDF_SUFFIX__` → `cdf_external_id_suffix`). **`python main.py --build`** or **`python scripts/build_scopes.py`** creates **missing** files only (does not overwrite existing). Delete a file and re-run **`--build`** to refresh it. **`--build`** **does not delete** other `key_extraction_aliasing.*.WorkflowTrigger.yaml` files (remove orphans manually if needed). Override scope body with **`--scope-document`**, trigger shell with **`--workflow-trigger-template`**. Verify with **`python main.py --build --check-workflow-triggers`**: required files must exist and match templates; **extra** trigger files on disk are ignored. |
 
-**Migration:** New deploys use workflow **v4** and trigger-embedded **`scope_document`**. Older v3 runs that used CogniteFile + **`scope_config_file_external_id`** must be redeployed with regenerated triggers and workflow version **v4**.
+**Migration:** New deploys use workflow **v4** and trigger-embedded **`scope_document`**. Older v3 runs that used CogniteFile + **`scope_config_file_external_id`** must be redeployed with v4 schedule triggers (create via **`--build`** where missing) and workflow version **v4**.
 
 ### Alias write-back property
 
 By default, alias persistence writes the alias list to the **`aliases`** property on `cdf_cdm:CogniteDescribable:v1`. Override via:
 
 - **`aliasWritebackProperty`** or **`alias_writeback_property`** in the `fn_dm_alias_persistence` task `data` (workflow), or
-- **`alias_writeback_property`** under `aliasing.config.parameters` in the v1 scope document used by `main.py` (`key_extraction_aliasing.yaml` at module root or `--config-path`)
+- **`alias_writeback_property`** under `aliasing.config.parameters` in the v1 scope document used by `main.py` (`workflow.local.config.yaml` at module root or `--config-path`)
 
 See the module [README](../README.md#alias-write-back) for the full table.
 
@@ -103,12 +103,11 @@ Aliasing configs may include rules with `type: alias_mapping_table` that load ro
 ```
 workflows/
 ├── _template/
-│   └── cdf_key_extraction_aliasing_scope_trigger.WorkflowTrigger.yaml.template
-├── cdf_key_extraction_aliasing.Workflow.yaml
-├── cdf_key_extraction_aliasing.WorkflowVersion.yaml
-├── cdf_key_extraction_aliasing.<scope>.WorkflowTrigger.yaml  # generated, one per leaf
-├── workflow_diagram.md
-├── workflow_diagram.png
+│   └── workflow.template.WorkflowTrigger.yaml.template
+├── key_extraction_aliasing.Workflow.yaml
+├── key_extraction_aliasing.WorkflowVersion.yaml
+├── key_extraction_aliasing.<scope>.WorkflowTrigger.yaml  # generated, one per leaf
+├── workflow_diagram.md   # Mermaid source (no committed PNG)
 └── README.md
 ```
 
@@ -116,7 +115,7 @@ workflows/
 
 - RAW is used **between** workflow tasks because CDF Workflows do not automatically pass function outputs to the next task; key extraction writes extracted keys to RAW, aliasing reads them and writes alias rows, persistence reads alias rows.
 - Enable **`logLevel: DEBUG`** in task `data` for verbose function logs.
-- Legacy → new config mapping references live under [`config/examples/reference/`](../config/examples/reference/) (`LEGACY_TO_NEW_*.md`). Local default scope: [`../key_extraction_aliasing.yaml`](../key_extraction_aliasing.yaml); CDF: trigger **`input.scope_document`** (see [`_template/key_extraction_aliasing.scope_document.yaml`](_template/key_extraction_aliasing.scope_document.yaml)).
+- Legacy → new config mapping references live under [`config/examples/reference/`](../config/examples/reference/) (`LEGACY_TO_NEW_*.md`). Local default scope: [`../workflow.local.config.yaml`](../workflow.local.config.yaml); CDF: trigger **`input.scope_document`** (see [`_template/workflow.template.config.yaml`](_template/workflow.template.config.yaml)).
 
 ### Related documentation
 

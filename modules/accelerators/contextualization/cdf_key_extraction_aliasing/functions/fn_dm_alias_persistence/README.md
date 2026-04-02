@@ -1,6 +1,6 @@
 ## fn_dm_alias_persistence
 
-CDF function in workflow **`cdf_key_extraction_aliasing`** (v4). Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
+CDF function in workflow **`key_extraction_aliasing`** (v4). Pipeline context: [workflows/README.md](../../workflows/README.md). Documentation map: [docs/README.md](../../docs/README.md).
 
 Reads aliasing results (from task input or RAW) and persists generated **aliases** back to data model instances on **`cdf_cdm:CogniteDescribable:v1`**. Optionally persists **foreign key reference strings** from key extraction to a second configurable property (same default view or another view).
 
@@ -50,7 +50,7 @@ Add FK-related keys to `data` if testing FK persistence (and ensure extraction R
 
 ### How it runs in the workflow
 
-In **`cdf_key_extraction_aliasing`** (v4):
+In **`key_extraction_aliasing`** (v4):
 
 - Reads alias rows from `db_tag_aliasing/<raw_table_aliases>` (unless `aliasing_results` is passed inline; table key from scope **`aliasing.config.parameters`** when using CogniteFile config).
 - When **`write_foreign_key_references`** is true, reads key-extraction RAW (`source_raw_db` / `source_raw_table_key`) for `FOREIGN_KEY_REFERENCES_JSON` and merges with any inline extraction payload.

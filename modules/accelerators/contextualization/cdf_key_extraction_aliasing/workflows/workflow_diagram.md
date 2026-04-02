@@ -2,7 +2,7 @@
 
 ## Workflow Diagram
 
-![Workflow Diagram](workflow_diagram.png)
+The diagram below is the maintained source (no committed PNG). Render it in any Mermaid-capable viewer or GitHub preview.
 
 ### Mermaid Source Code
 
@@ -65,7 +65,7 @@ graph TD
 - **Input**: Candidate keys from key-extraction RAW
 - **Process**:
   - Generates aliases for each candidate key
-  - Applies transformation rules from config (default scope: semantic expansion, unit-prefix strip, leading-zero normalization, document aliases — larger example scopes add character substitution, ISA-style expansion, etc.)
+  - Applies transformation rules from config (default scope: **semantic expansion** [letter→full word], unit-prefix strip, leading-zero normalization, document aliases — larger example scopes add **`pattern_based_expansion`**, character substitution, ISA-style rules, etc.)
   - Validates generated aliases
 - **Output**: Aliases for each candidate key
 
@@ -77,7 +77,7 @@ graph TD
   - Optionally writes deduplicated FK reference strings to **`foreign_key_writeback_property`** on the same or another view (task `data`)
 - **Output**: Updated entities; handler summary includes `aliases_persisted`, and when FK write is enabled `foreign_keys_persisted` / `entities_fk_updated`
 
-### 5. Reference index (RAW inverted catalog)
+### 5. Reference index (RAW inverted lookup)
 - **Component**: `fn_dm_reference_index`
 - **Input**: Key-extraction RAW (`FOREIGN_KEY_REFERENCES_JSON`, `DOCUMENT_REFERENCES_JSON`); inline `AliasingEngine` config for alias tokens of each referenced value (not `fn_dm_aliasing` RAW output).
 - **Output**: Reference index RAW (e.g. `*_reference_index`) plus per-source snapshot rows for removals when refs shrink.
@@ -94,7 +94,7 @@ DM entities → fn_dm_key_extraction → RAW (keys + FK/doc JSON)
 
 ## Implementation Notes
 
-### Current workflow (`cdf_key_extraction_aliasing` v4)
+### Current workflow (`key_extraction_aliasing` v4)
 1. **Key extraction** — queries source views, writes extraction output to RAW.
 2. **Reference index** — reads FK/document JSON from extraction RAW, updates inverted index table.
 3. **Aliasing** — reads candidate keys from extraction RAW, writes alias rows to RAW.
@@ -111,7 +111,7 @@ ExtractionResult(
     entity_id: str,
     candidate_keys: List[ExtractedKey],      # → Aliasing
     foreign_key_references: List[ExtractedKey],  # → RAW JSON; optional Describable write-back
-    document_references: List[ExtractedKey]      # → extracted; catalog TBD (roadmap)
+    document_references: List[ExtractedKey]      # → extracted; index TBD (roadmap)
 )
 ```
 
@@ -127,4 +127,4 @@ AliasingResult(
 ---
 
 **Diagram Version**: 1.2  
-**Last Updated**: RAW handoff, optional FK write-back; default CDM scope is regex-only extraction with a slim aliasing stack (see `key_extraction_aliasing.yaml` at module root)
+**Last Updated**: RAW handoff, optional FK write-back; default CDM scope is regex-only extraction with a slim aliasing stack (see `workflow.local.config.yaml` at module root)

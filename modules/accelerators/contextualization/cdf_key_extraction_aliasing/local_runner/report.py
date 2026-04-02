@@ -120,16 +120,14 @@ This document provides a comprehensive analysis of the key extraction and aliasi
 
 ### Workflow Overview
 
-The following diagram illustrates the complete workflow process from key extraction through aliasing to persistence:
-
-![Workflow Diagram](../workflows/workflow_diagram.png)
+Diagram (Mermaid): [workflows/workflow_diagram.md](../workflows/workflow_diagram.md).
 
 **Workflow Steps:**
 1. **Key Extraction** - Extracts candidate keys, foreign key references, and document references from CDF entities
 2. **Result Splitting** - Separates extraction results into distinct streams based on type
 3. **Aliasing** - Generates aliases for candidate keys to improve matching
 4. **Write Aliases** - Persists the alias list to a property on CogniteDescribable (default `aliases`; configurable via pipeline or workflow `data`)
-5. **Reference Catalog** - Stores foreign key references and document references (future implementation)
+5. **Reference Index** - `fn_dm_reference_index` builds a RAW inverted index from FK and document-reference JSON written by key extraction (optional DM projection remains on the module roadmap)
 
 ---
 

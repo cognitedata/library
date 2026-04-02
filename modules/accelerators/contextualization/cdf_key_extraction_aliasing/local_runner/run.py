@@ -869,7 +869,7 @@ def run_pipeline(
         if not scope_yaml_path:
             raise ValueError(
                 "incremental_change_processing requires a scope YAML path "
-                "(module-root key_extraction_aliasing.yaml with --scope default, or --config-path)."
+                "(module-root workflow.local.config.yaml with --scope default, or --config-path)."
             )
         sp = Path(scope_yaml_path)
         if getattr(args, "full_rescan", False):

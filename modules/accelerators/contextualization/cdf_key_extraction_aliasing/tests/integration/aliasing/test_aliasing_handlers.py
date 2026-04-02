@@ -10,7 +10,7 @@ Handlers tested:
 - RegexSubstitutionHandler
 - CaseTransformationHandler
 - LeadingZeroNormalizationHandler
-- EquipmentTypeExpansionHandler
+- SemanticExpansionHandler
 - RelatedInstrumentsHandler
 - HierarchicalExpansionHandler
 - DocumentAliasesHandler
@@ -30,7 +30,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     CaseTransformationHandler,
     CharacterSubstitutionHandler,
     DocumentAliasesHandler,
-    EquipmentTypeExpansionHandler,
+    SemanticExpansionHandler,
     HierarchicalExpansionHandler,
     LeadingZeroNormalizationHandler,
     PatternBasedExpansionHandler,
@@ -264,12 +264,12 @@ class TestLeadingZeroNormalizationTransformer(unittest.TestCase):
         self.assertIn("P-10001", result)
 
 
-class TestEquipmentTypeExpansionTransformer(unittest.TestCase):
-    """Test EquipmentTypeExpansionTransformer."""
+class TestSemanticExpansionTransformer(unittest.TestCase):
+    """Test SemanticExpansionHandler."""
 
-    def test_equipment_type_expansion(self):
+    def test_semantic_expansion(self):
         """Test expanding equipment type abbreviations."""
-        transformer = EquipmentTypeExpansionHandler()
+        transformer = SemanticExpansionHandler()
         config = {
             "type_mappings": {"P": ["PUMP", "PMP"]},
             "format_templates": ["{type}-{tag}"],
