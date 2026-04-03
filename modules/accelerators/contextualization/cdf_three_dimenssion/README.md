@@ -7,6 +7,7 @@ It is parameterized by **`default_location`** and **`source_name`** (for example
 ## Prerequisites
 
 - A **DM-only or hybrid** CDF project with the 3D chain and views required for Industrial Tools / CAD contextualization. Follow **[docs/3d_contextualization_dm_only_guide.md](docs/3d_contextualization_dm_only_guide.md)** for spaces, `Cognite3DObject` / `CADNode` linking, scene configuration, and common pitfalls.
+- After configuring **`asset_instance_space`**, **view** (`assetView*` / `asset_view_*`), and pipeline IDs for your project, use **[docs/CONFIGURATION_VERIFICATION.md](docs/CONFIGURATION_VERIFICATION.md)** to verify live CDF pipeline config and instance vs view spaces.
 - A **3D model** ingested and processed in CDF (file upload via UI or the file extractor pattern in this module).
 - Toolkit **`variables`** set in your environment config (see `default.config.dev.yaml` and `env.template`).
 
@@ -79,7 +80,7 @@ The main contextualization function, in normal operation, follows the pipeline d
 
 ## Variables
 
-Set module variables in **`default.config.yaml`** (merged by the Toolkit). Values such as DM spaces, model names, and `function_space` are read from **environment variables** (see **`env.template`**): `FUNCTION_SPACE`, `THREE_D_MODEL_NAME`, `CAD_MODEL_NAME`, `DEFAULT_CAD_SPACE`, `DEFAULT_DM_SPACE`, `DATA_MODEL_SPACE`, `DEFAULT_DM_EXT_ID`, `ASSET_INSTANCE_SPACE`, `CAD_NODE_INSTANCE_SPACE`, plus `CDF_PROJECT`, `CDF_CLUSTER`, IDP and CI/CD vars as already referenced in `default.config.yaml`. Copy `env.template` → `.env` and fill in real values before `cdf build`.
+Set module variables in **`default.config.yaml`** (merged by the Toolkit). Values such as DM spaces, model names, and `function_space` are read from **environment variables** (see **`env.template`**): `FUNCTION_SPACE`, `THREE_D_MODEL_NAME`, `CAD_MODEL_NAME`, `DEFAULT_CAD_SPACE`, `DEFAULT_DM_SPACE`, `DATA_MODEL_SPACE`, `DM_EXT_ID`, `DM_VERSION`, `ASSET_INSTANCE_SPACE`, `CAD_NODE_INSTANCE_SPACE`, plus `CDF_PROJECT`, `CDF_CLUSTER`, IDP and CI/CD vars as already referenced in `default.config.yaml`. Copy `env.template` → `.env` and fill in real values before `cdf build`.
 
 | Variable | Description |
 |----------|-------------|
@@ -90,7 +91,7 @@ Set module variables in **`default.config.yaml`** (merged by the Toolkit). Value
 | `raw_db`, `raw_table_manual` | RAW database and manual-input table (for scripts / docs) |
 | `asset_instance_space`, `cad_node_instance_space` | DM instance spaces (from `.env`: `ASSET_INSTANCE_SPACE`, `CAD_NODE_INSTANCE_SPACE`) |
 | `function_space` | Space for Cognite Function code artifacts (from `.env`: `FUNCTION_SPACE`) |
-| `default_dm_space`, `default_dm_ext_id`, `default_dm_version` | Data model reference (spaces / ext id from `.env` where substituted) |
+| `default_dm_space`, `dm_ext_id`, `dm_version` | Data model reference (spaces / ext id from `.env` via `${DM_EXT_ID}` / `${DM_VERSION}`) |
 | `default_cad_space`, `default_scene_space` | CAD and scene configuration spaces (`DEFAULT_CAD_SPACE` in `.env`) |
 | `required_views`, `cad_model_view`, … | View references for DM 3D chain (see dev config) |
 | `file_extractor_watch_path` | Local path for file extractor config (if used) |

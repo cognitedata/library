@@ -12,7 +12,7 @@ variables:
         cdf_three_dimenssion:
           default_location: ${default_location}
           source_name: ${source_name}
-          raw_db: ${RAW_DB}
+          raw_db: ${RAW_DB}          # raw database name for manual mappings
           raw_table_manual: contextualization_manual_input
           raw_table_asset_staging: asset_hierarchy_staging
           function_space: ${FUNCTION_SPACE}
@@ -21,9 +21,9 @@ variables:
           cad_model_type: CAD
           default_cad_space: cdf_cdm
           default_dm_space: cdf_cdm
-          data_model_space: ${DATA_MODEL_SPACE}
-          default_dm_ext_id: ${DEFAULT_DM_EXT_ID}
-          default_dm_version: ${DEFAULT_DM_VERSION}
+          data_model_space: cdf_cdm
+          dm_ext_id: ${DM_EXT_ID}  # data model external id for the project
+          dm_version: ${DM_VERSION}
           default_scene_space: scene
           cad_contextualization_batch_size: 100
           required_views:
@@ -101,16 +101,16 @@ variables:
 
           asset_instance_space: ${ASSET_INSTANCE_SPACE}
           cad_node_instance_space: ${CAD_NODE_INSTANCE_SPACE}
-          asset_view_ext_id: ${ASSET_VIEW_EXT_ID}
-          asset_view_version: ${ASSET_VIEW_VERSION}
+          asset_view_ext_id: ${ASSET_VIEW_EXT_ID}          #view where asset are available for contextualization
+          asset_view_version: ${ASSET_VIEW_VERSION}          #version of the view where asset are available for contextualization
           file_extractor_watch_path: c:/tmp/files
-          3d_location_group_source_id: ${3d_location_group_source_id}
+          3d_location_group_source_id: ${3d_location_group_source_id}   #group source id for the project
           cicd_clientId: ${cicd_clientId}
           cicd_clientSecret: ${cicd_clientSecret}
           cicd_tokenUri: ${IDP_TOKEN_URL}
           cdf_project_name: ${CDF_PROJECT}
           cdf_cluster: ${CDF_CLUSTER}
-          external_root_id_asset: ${EXTERNAL_ROOT_ID_ASSET}
+          external_root_id_asset: ${EXTERNAL_ROOT_ID_ASSET}  #optional: only used for legacy behavior
           cad_model_view:
             space: cdf_cdm
             external_id: CogniteCADModel

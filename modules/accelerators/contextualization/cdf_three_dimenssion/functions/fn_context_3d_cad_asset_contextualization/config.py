@@ -49,8 +49,8 @@ class Parameters(BaseModel, alias_generator=to_camel):
     # Optional overrides (pipeline config; variables from config.dev.yaml at build); all default in code if omitted
     default_cad_space: Optional[str] = None
     default_dm_space: Optional[str] = None
-    default_dm_ext_id: Optional[str] = None
-    default_dm_version: Optional[str] = None
+    dm_ext_id: Optional[str] = None
+    dm_version: Optional[str] = None
     default_scene_space: Optional[str] = None
     cad_contextualization_batch_size: Optional[int] = None
     cad_model_view: Optional[dict[str, str]] = None  # { space, externalId, version }
@@ -235,12 +235,12 @@ def resolve_dm_cad_contextualization_config(config: Config) -> DMCadContextualiz
     )
     dm_ext_id = (
         _get_opt(config, "dm_data_model_ext_id", None)
-        or _get_opt(config, "default_dm_ext_id", None)
+        or _get_opt(config, "dm_ext_id", None)
         or "upstream_value_chain"
     )
     dm_version = (
         _get_opt(config, "dm_data_model_version", None)
-        or _get_opt(config, "default_dm_version", None)
+        or _get_opt(config, "dm_version", None)
         or "v1"
     )
     scene_space = (
