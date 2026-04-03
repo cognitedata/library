@@ -1,0 +1,8 @@
+kind: FileContent
+type: fileMetadataTemplate
+fileDirectory: ./p&ids
+template:
+  name: $FILENAME
+  externalId: VAL_$FILENAME
+  metadata:
+    uploadedBy: toolki_data_plugin
