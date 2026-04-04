@@ -1,4 +1,4 @@
 [module]
-title = "Empty module"
+title = "Empty Module"
 id = "dp:custom:my_module"
-package_id = "dp:custom"
+package_id = "dp:emptymodule"
