@@ -1,8 +1,12 @@
 kind: FileContent
-type: fileMetadataTemplate
+type: fileDataModelingTemplate
 fileDirectory: ./p&ids
+viewId:
+  space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
 template:
+  instanceId:
+    space: springfield_instances
+    externalId: VAL_$FILENAME
   name: $FILENAME
-  externalId: VAL_$FILENAME
-  metadata:
-    uploadedBy: toolki_data_plugin
