@@ -125,8 +125,6 @@ description = "Data exploration and analytics tools"
 canCherryPick = true
 modules = [
     "accelerators/industrial_tools/cdf_search",
-    "accelerators/industrial_tools/cdf_location_filter_datamodel_based",
-    "accelerators/industrial_tools/cdf_location_filter_asset_centric",
 ]
 
 [packages.inrobot]
