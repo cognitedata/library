@@ -16,6 +16,14 @@ views:
   externalId: {{ organization }}Notification
   version: {{ datamodelVersion }}
   type: view
+- space: cdf_cdm
+  externalId: CogniteSourceSystem
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteSourceable
+  version: v1
+  type: view
 - space: {{ schemaSpace }}
   externalId: {{ organization }}Describable
   version: {{ datamodelVersion }}
@@ -112,6 +120,14 @@ views:
   externalId: {{ organization }}AssetType
   version: {{ datamodelVersion }}
   type: view
+- space: cdf_cdm
+  externalId: CogniteAssetClass
+  version: v1
+  type: view
+- space: cdf_cdm
+  externalId: CogniteAssetType
+  version: v1
+  type: view
 - space: {{ schemaSpace }}
   externalId: {{ organization }}Equipment
   version: {{ datamodelVersion }}
@@ -120,6 +136,10 @@ views:
   externalId: {{ organization }}EquipmentType
   version: {{ datamodelVersion }}
   type: view
+- space: cdf_cdm
+  externalId: CogniteEquipmentType
+  version: v1
+  type: view
 - space: {{ schemaSpace }}
   externalId: {{ organization }}File
   version: {{ datamodelVersion }}
@@ -127,6 +147,10 @@ views:
 - space: {{ schemaSpace }}
   externalId: {{ organization }}FileCategory
   version: {{ datamodelVersion }}
+  type: view
+- space: cdf_cdm
+  externalId: CogniteFileCategory
+  version: v1
   type: view
 - space: {{ schemaSpace }}
   externalId: {{ organization }}Activity
@@ -146,5 +170,13 @@ views:
   type: view
 - space: {{ schemaSpace }}
   externalId: {{ organization }}Unit
+  version: {{ datamodelVersion }}
+  type: view
+- space: cdf_cdm
+  externalId: CogniteUnit
+  version: v1
+  type: view
+- space: {{ schemaSpace }}
+  externalId: {{ organization }}Reportable
   version: {{ datamodelVersion }}
   type: view
