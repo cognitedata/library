@@ -2,12 +2,13 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "polars>=1.0.0",
-#     "altair>=5.0.0,<6.0.0",
+#     "polars==1.39.3",
+#     "altair==5.5.0",
 #     "python-dotenv==1.2.1",
 #     "pyarrow>=18.0.0",
 #     "cognite-toolkit==0.7.69",
-#     "wigglystuff>=0.1.0",
+#     "wigglystuff==0.3.1",
+#     "pandas==2.3.3",
 # ]
 # ///
 
@@ -431,7 +432,9 @@ def track_usage(cdf_client):
     """Usage tracking - fires once when CDF client is established."""
     if cdf_client is not None:
         try:
-            import re, json, base64, requests as _req
+            # json, re from app.setup — local import here would duplicate cell defs (marimo)
+            import base64
+            import requests as _req
             _cluster = getattr(cdf_client.config, "cdf_cluster", None)
             if not _cluster:
                 _m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(cdf_client.config, "base_url", "") or "")
@@ -3105,7 +3108,8 @@ def test_timestamp_conversion_with_nulls():
 
     # Verify tsj_created_time has no nulls and is datetime
     assert _converted["tsj_created_time"].null_count() == 0, "tsj_created_time should have no nulls"
-    assert _converted["tsj_created_time"].dtype == pl.Datetime("ms"), "tsj_created_time should be Datetime"
+    # Polars may normalize epoch-ms to Datetime with time_unit us/ms depending on version
+    assert isinstance(_converted["tsj_created_time"].dtype, pl.Datetime), "tsj_created_time should be Datetime"
 
     # Verify nullable columns handle nulls correctly
     assert _converted["tsj_started_time"].null_count() == 1, "tsj_started_time should have 1 null"
