@@ -106,13 +106,23 @@ This allows the Toolkit to retrieve official library packages.
 
 ### Step 2: Add the Module
 
-Run:
+**First try:** Run:
+
+```bash
+cdf modules add .
+```
+
+This works on the first try and shows all available deployment packs. Select **Dashboards** → **CDF Project Health Dashboard**.
+
+**If you don't see the module:** Use init instead:
 
 ```bash
 cdf modules init .
 ```
 
-> **⚠️ Disclaimer**: This command will overwrite existing modules. Commit changes before running, or use a fresh directory.
+Then select **Dashboards** → **CDF Project Health Dashboard**.
+
+> **Note:** `cdf modules add` adds modules without overwriting existing ones. `cdf modules init` overwrites your current modules with a fresh selection—commit or back up first if you use init.
 
 ### Step 3: Select the Dashboards Package
 

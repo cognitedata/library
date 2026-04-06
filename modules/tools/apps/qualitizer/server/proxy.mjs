@@ -1,10 +1,16 @@
 import "dotenv/config";
 import fs from "node:fs";
+import path from "node:path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { Agent } from "undici";
 
 const app = Fastify({ logger: true });
+
+const envPath = path.join(process.cwd(), ".env");
+if (!fs.existsSync(envPath)) {
+  app.log.warn("No .env file found in current directory. This is a strong indicator that the setup is wrong.");
+}
 
 const {
   CDF_PROJECT,
@@ -23,6 +29,14 @@ if (!CDF_PROJECT || !IDP_TOKEN_URL || !IDP_CLIENT_ID || !IDP_CLIENT_SECRET) {
   app.log.error("Missing required environment variables.");
   app.log.error("Required: CDF_PROJECT, IDP_TOKEN_URL, IDP_CLIENT_ID, IDP_CLIENT_SECRET");
   process.exit(1);
+}
+
+const CDF_BROWSER_URL = process.env.CDF_BROWSER_URL?.trim();
+if (!CDF_BROWSER_URL) {
+  app.log.warn(
+    "CDF_BROWSER_URL is not set. The UI will use default https://fusion.cognite.com for transformation preview links. " +
+      "Add CDF_BROWSER_URL to your .env (e.g. https://your-cluster.fusion.cognite.com/) to customize."
+  );
 }
 
 await app.register(cors, { origin: true });
@@ -78,6 +92,9 @@ async function getAccessToken() {
 }
 
 app.all("/api/*", async (request, reply) => {
+  // if (request.method === "OPTIONS") {
+  //  return reply.status(204).send();
+  // }
   const token = await getAccessToken();
   const url = `${CDF_URL.replace(/\/$/, "")}${request.url}`;
   const headers = { ...request.headers };

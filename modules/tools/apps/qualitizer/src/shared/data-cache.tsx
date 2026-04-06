@@ -33,9 +33,14 @@ type DataCacheContextValue = {
   viewsStatus: LoadState;
   viewsError: string | null;
   dataModelDetails: Record<string, unknown>;
+  viewDetails: Record<string, unknown>;
   loadDataModels: () => Promise<void>;
   loadViews: () => Promise<void>;
   retrieveDataModels: (
+    params: Array<Record<string, unknown>>,
+    options?: Record<string, unknown>
+  ) => Promise<unknown>;
+  retrieveViews: (
     params: Array<Record<string, unknown>>,
     options?: Record<string, unknown>
   ) => Promise<unknown>;
@@ -52,9 +57,10 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   const [viewsStatus, setViewsStatus] = useState<LoadState>("idle");
   const [viewsError, setViewsError] = useState<string | null>(null);
   const [dataModelDetails, setDataModelDetails] = useState<Record<string, unknown>>({});
+  const [viewDetails, setViewDetails] = useState<Record<string, unknown>>({});
 
   const loadDataModels = async () => {
-    if (dataModelsStatus === "loading" || dataModelsStatus === "success") return;
+    if (dataModelsStatus === "loading" || dataModelsStatus === "success" || dataModelsStatus === "error") return;
     setDataModelsStatus("loading");
     setDataModelsError(null);
     try {
@@ -81,7 +87,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loadViews = async () => {
-    if (viewsStatus === "loading" || viewsStatus === "success") return;
+    if (viewsStatus === "loading" || viewsStatus === "success" || viewsStatus === "error") return;
     setViewsStatus("loading");
     setViewsError(null);
     try {
@@ -119,6 +125,19 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     return response;
   };
 
+  const retrieveViews = async (
+    params: Array<Record<string, unknown>>,
+    options?: Record<string, unknown>
+  ) => {
+    const key = `${sdk.project}:${JSON.stringify(params)}:${JSON.stringify(options ?? {})}`;
+    if (viewDetails[key]) {
+      return viewDetails[key];
+    }
+    const response = await sdk.views.retrieve(params as never, options as never);
+    setViewDetails((prev) => ({ ...prev, [key]: response }));
+    return response;
+  };
+
   const value = useMemo(
     () => ({
       dataModels,
@@ -128,9 +147,11 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       viewsStatus,
       viewsError,
       dataModelDetails,
+      viewDetails,
       loadDataModels,
       loadViews,
       retrieveDataModels,
+      retrieveViews,
     }),
     [
       dataModels,
@@ -140,6 +161,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       viewsStatus,
       viewsError,
       dataModelDetails,
+      viewDetails,
     ]
   );
 

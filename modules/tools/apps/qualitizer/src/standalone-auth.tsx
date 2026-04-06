@@ -4,6 +4,7 @@ import { CogniteClient } from "@cognite/sdk";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/shared/ApiError";
+import { SdkManagerProvider } from "./shared/SdkManager";
 import { AppSdkContext } from "./sdk-context";
 
 type StandaloneAuthProps = {
@@ -58,7 +59,9 @@ export function StandaloneAuthProvider({ children }: StandaloneAuthProps) {
   if (state === "authenticated" && sdk) {
     return (
       <AppSdkContext.Provider value={{ sdk, isLoading: false }}>
-        {children}
+        <SdkManagerProvider baseSdk={sdk} isLoading={false}>
+          {children}
+        </SdkManagerProvider>
       </AppSdkContext.Provider>
     );
   }

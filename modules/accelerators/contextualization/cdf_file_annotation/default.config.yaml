@@ -53,3 +53,4 @@ fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID
 groupSourceId: <GROUP_SOURCE_ID>
+ApplicationOwner: <APPLICATION_OWNER> # Update to your application owner email id(s)

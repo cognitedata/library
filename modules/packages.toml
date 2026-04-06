@@ -19,6 +19,7 @@ modules = [
 id = "dp:infield_quickstart"
 title = "Infield Quickstart"
 description = "Accelerate Infield App Configuration"
+canCherryPick = false
 modules = [
     "accelerators/infield_quickstart/cdf_apm_base",
     "accelerators/infield_quickstart/cdf_infield_common",
@@ -34,7 +35,8 @@ modules = [
     "models/rmdm_v1",
     "models/isa_manufacturing_extension",
     "models/cdf_process_industry_extension",
-    "models/qs_enterprise_dm"
+    "models/qs_enterprise_dm",
+    "models/cfihos_oil_and_gas_extension",
 ]
 
 [packages.atlas_ai]
@@ -55,7 +57,8 @@ description = "Streamlit dashboards and visualization modules"
 canCherryPick = true
 modules = [
     "dashboards/context_quality",
-    "dashboards/project_health"
+    "dashboards/project_health",
+    "dashboards/classic_cdf_analysis"
 ]
 
 [packages.quickstartdp]
@@ -114,3 +117,11 @@ modules = [
     "tools/apps/qualitizer"
 ]
 
+[packages.custom]
+id = "dp:emptymodule"
+title = "Empty Module"
+description = "Start with an empty module"
+canCherryPick = false
+modules = [
+    "custom/my_module",
+]

@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from logger import CogniteFunctionLogger
 from config import load_config_parameters
-from pipeline import asset_entity_matching
+from pipeline import entity_matching
 
 # IMPORT OPTIMIZATIONS
 from pipeline_optimizations import (
@@ -57,7 +57,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
         with time_operation("Complete pipeline execution", logger):
             benchmark.benchmark_function(
                 "Pipeline execution",
-                asset_entity_matching,
+                entity_matching,
                 client, logger, data, config
             )
         

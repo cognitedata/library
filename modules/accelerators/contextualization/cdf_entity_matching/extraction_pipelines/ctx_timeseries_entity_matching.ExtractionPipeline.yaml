@@ -47,15 +47,16 @@ documentation: >
    searchProperty: Property used to create the entity matching link, typically alias
    
    debug -  write DEBUG messages and only process one timeseries if True
-   debugEntity - if debug is True, process only this entity/timeseries name
    runAll - if True run on all found timeseries, 
             if False only run on document not updated since last entity matching
+   dmUpdate - if True, update the metadata in the DM, if False, only update the RAW tables
    rawdb - Raw database where status Information is stored
    rawTableState - Table to store state related to process
    rawTaleCtxGood: Table to store entities with score higher than the autoApprovalThreshold
    rawTaleCtxBad: Table to store entities with score lower than the autoApprovalThreshold
    rawTaleCtxManual: Raw table to store manual mappings
    autoApprovalThreshold - Threshold for auto approval of entity matching
+
    ```
 
    ## Running the process

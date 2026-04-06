@@ -1,0 +1,427 @@
+space: '{{space}}'
+externalId: FunctionalLocation
+description: A hierarchical location in the plant structure representing where equipment is installed and maintained. 
+ Common source for FunctionalLocationProperties are sources as SAP, IFS, etc.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: '{{dm_version}}'
+properties:
+  workOrderOperations:
+    source:
+      space: '{{space}}'
+      externalId: WorkOrderOperation
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: WorkOrderOperation
+        version: '{{dm_version}}'
+        type: view
+      identifier: functionalLocation
+    name: WorkOrderOperations
+    connectionType: multi_reverse_direct_relation
+  tag:
+    name: Tag
+    description: The tag that is related to the functional location
+    connectionType: single_reverse_direct_relation
+    source:
+      space: '{{space}}'
+      externalId: Tag
+      version: '{{dm_version}}'
+      type: view
+    through:
+      source:
+        space: '{{space}}'
+        externalId: Tag
+        version: '{{dm_version}}'
+        type: view
+      identifier: FunctionalLocationProperties
+  area:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000001
+    description: Physical location on the facility where the equipment is installed
+  facility:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000005
+    description: The facility code of a tagged object
+  parentTag:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000178
+    description: The main Tag number of a system that child Tags are related
+  system:
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000157
+    description: System code as per the used standard
+  labels:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text based labels for generic use, limited to 1000
+  flocInspCritCost:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritCost
+  flocCriticalityCombined:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityCombined
+  flocInspCritSafety:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritSafety
+  flocInspCritEnvironment:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritEnvironment
+  flocInspCritCombined:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocInspCritCombined
+  flocDisciplineType:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocDisciplineType
+  flocCriticalitySafety:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalitySafety
+  flocCriticalityEnvironment:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityEnvironment
+  flocCriticalityCost:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityCost
+  flocCriticalityProduction:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCriticalityProduction
+  flocBarrierArea:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocBarrierArea
+  flocLocationDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocLocationDesc
+  flocBarrierElementPrimary:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocBarrierElementPrimary
+  flocMainFunctionDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainFunctionDesc
+  flocItemRedundancy:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocItemRedundancy
+  flocRcmFrequency:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmFrequency
+  flocSubFunctionCode:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSubFunctionCode
+  flocSubFunctionDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSubFunctionDesc
+  flocWbs:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocWbs
+  flocGroupDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocGroupDesc
+  flocGroupId:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocGroupId
+  flocSystemId:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSystemId
+  flocRcmConsequenceCost:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceCost
+  flocRcmConsequenceEnvironment:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceEnvironment
+  flocRcmConsequenceProduction:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceProduction
+  flocRcmConsequenceSafety:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceSafety
+  flocRcmConsequenceMax:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmConsequenceMax
+  flocRcmCriticality:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocRcmCriticality
+  flocCatalogProfile:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCatalogProfile
+  flocCatalogProfileDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCatalogProfileDesc
+  flocDiscipline:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocDiscipline
+  flocMainWorkCenter:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainWorkCenter
+  flocMainWorkCenterDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainWorkCenterDesc
+  flocObjectTypeDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocObjectTypeDesc
+  flocObjectType:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocObjectType
+  flocAbcIndicator:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocAbcIndicator
+  flocSystemDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSystemDesc
+  flocLocation:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocLocation
+  flocUserStatus:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocUserStatus
+  ingestionDT:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: ingestionDT
+  flocCategory:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCategory
+  flocCreatedDate:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocCreatedDate
+  flocChangedDateTimeUTC:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocChangedDateTimeUTC
+  flocFunctionalLocation:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocFunctionalLocation
+  flocFunctionalLocationDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocFunctionalLocationDesc
+  flocMainAsset:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMainAsset
+  flocMaintenancePlant:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMaintenancePlant
+  flocMaintenancePlantDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocMaintenancePlantDesc
+  flocObjectNumber:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocObjectNumber
+  flocPlannerGroup:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlannerGroup
+  flocPlannerGroupDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlannerGroupDesc
+  flocPlanningPlant:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlanningPlant
+  flocPlanningPlantDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocPlanningPlantDesc
+  flocSuperiorFunctionalLocation:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSuperiorFunctionalLocation
+  flocSystemStatus:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: flocSystemStatus
+  superiorFuncLocationTagDesc:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: superiorFuncLocationTagDesc
+  isDeleted:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: isDeleted
+    description: Indicates whether the functional location has been deleted from the
+      source.
+  additionalProperties:
+    container:
+      space: '{{space}}'
+      externalId: FunctionalLocation
+      type: container
+    containerPropertyIdentifier: additionalProperties

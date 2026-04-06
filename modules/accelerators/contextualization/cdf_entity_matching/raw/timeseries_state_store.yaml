@@ -1,2 +1,0 @@
-dbName: {{ dbName }}
-tableName: timeseries_state_store

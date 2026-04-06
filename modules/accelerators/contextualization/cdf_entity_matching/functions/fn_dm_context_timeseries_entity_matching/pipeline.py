@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+import time
 import traceback
 from collections import defaultdict
 from pathlib import Path
@@ -19,17 +20,59 @@ from cognite.client.utils._text import shorten
 from cognite.extractorutils.uploader import RawUploadQueue
 from config import Config, ViewPropertyConfig
 from constants import (
+    BATCH_SIZE_API_SUBMIT,
+    BATCH_SIZE_ENTITIES,
     COL_KEY_MAN_CONTEXTUALIZED,
-    COL_KEY_MAN_MAPPING_ASSET,
+    COL_KEY_MAN_MAPPING_TARGET,
     COL_KEY_MAN_MAPPING_ENTITY,
-    COL_KEY_RULE_REGEXP_ASSET,
+    COL_KEY_RULE_REGEXP_TARGET,
     COL_KEY_RULE_REGEXP_ENTITY,
     COL_MATCH_KEY,
+    FILTER_PATH_NODE_EXTERNAL_ID,
     FUNCTION_ID,
+    JOB_RESULT_ITEMS,
+    KEY_TARGET_EXT_ID,
+    KEY_TARGET_MATCH_VALUE,
+    KEY_TARGET_NAME,
+    KEY_TARGET_VIEW_ID,
+    KEY_TARGET_LINKS,
+    KEY_ENTITY_EXISTING_TARGETS,
+    KEY_ENTITY_EXT_ID,
+    KEY_ENTITY_RULE_KEYS,
+    KEY_TARGET_RULE_KEYS,
+    KEY_ENTITY_MATCH_VALUE,
+    KEY_ENTITY_NAME,
+    KEY_ENTITY_VIEW_ID,
+    KEY_MATCHES,
+    KEY_MATCH_TYPE,
+    KEY_NAME,
+    KEY_ORG_NAME,
+    KEY_RULE,
+    KEY_RULE_KEYS,
+    KEY_SCORE,
+    KEY_SOURCE,
+    KEY_TARGET,
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_INFO,
+    MATCHING_LIMIT_SOURCES_TARGETS,
+    MATCH_TYPE_ENTITY,
+    MATCH_TYPE_MANUAL,
+    MATCH_TYPE_RULE,
+    MAX_LINKS_PER_ENTITY,
     ML_MODEL_FEATURE_TYPE,
+    PLACEHOLDER_NO_MATCH,
+    PLACEHOLDER_NO_MATCH_TARGET,
+    PROP_COL_EXTERNAL_ID,
+    PROP_COL_SPACE,
+    PROP_COL_LINK_NAME,
+    PROP_COL_NAME,
+    QUERY_FILTER_TYPE_TARGETS,
+    QUERY_FILTER_TYPE_ENTITIES,
+    SCORE_MANUAL_RULE_MATCH,
     STAT_STORE_MATCH_MODEL_ID,
     STAT_STORE_VALUE,
-    BATCH_SIZE_API_SUBMIT,
+    STATUS_FAILURE,
+    STATUS_SUCCESS,
 )
 from logger import CogniteFunctionLogger
 
@@ -56,43 +99,38 @@ except ImportError:
 
 
 
-def asset_entity_matching(
+def entity_matching(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     data: dict[str, Any],
     config: Config
 ) -> None:
-    """
-    Read configuration and start P&ID annotation process by
-    1. Reading initial parameters from the pipeline run
-    2. Reading configuration from the config file
-    3. Read manual mappings from RAW, and apply them to the entity matching
-    4. Read rule mappings from RAW
-    5. Get the list of entities to be matched (all, or new entities/unmatched entities)
-    6. Get assets to be matched to from the entities
-    7. Apply rule based mappings to match entities to assets
-    8. Use existing or Create a matching model and run the matching job or read existing model
-    9. Run the matching job
-    10. Get the matching results and select the good and bad matches
-    11. Write the good and bad matches to RAW
-    12. Update the pipeline run with the status and number of matches
+    """Entity matching pipeline
 
+    Args:
+        client (CogniteClient): Cognite client
+        logger (CogniteFunctionLogger): Logger
+        data (dict[str, Any]): Data from CDF
+        config (Config): Configuration
+
+    Raises:
+        Exception: Exception
     """
     good_matches = []
     len_good_matches, len_bad_matches = 0, 0
 
     try:
         pipeline_ext_id = data["ExtractionPipelineExtId"]
-        logger.info(f"Starting entity matching function: {FUNCTION_ID} with loglevel = {data.get('logLevel', 'INFO')},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
+        logger.info(f"Starting entity matching function: {FUNCTION_ID} with loglevel = {data.get('logLevel', LOG_LEVEL_INFO)},  reading parameters from extraction pipeline config: {pipeline_ext_id}")
 
         not_matches_count, match_count = 0, 0
         matching_model_id = None
         if config.parameters.debug:
-            logger = CogniteFunctionLogger("DEBUG")
+            logger = CogniteFunctionLogger(LOG_LEVEL_DEBUG)
             logger.debug("**** Write debug messages and only process one entity *****")
 
         logger.debug("Initiate RAW upload queue used to store output from entity matching")
-        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level="INFO")
+        raw_uploader = RawUploadQueue(cdf_client=client, max_queue_size=500000, trigger_log_level=LOG_LEVEL_INFO)
 
         # Check if we should run all entities (then delete state content in RAW) or just new entities
         if config.parameters.run_all:
@@ -107,46 +145,49 @@ def asset_entity_matching(
         logger.info("Read manual mappings to be used in entity matching")
         manual_mappings, manual_mappings_input = read_manual_mappings(client, logger, config)
 
-        logger.info("Read rule mappings to be used in entity matching, NOTE: Uses 'name' property for rule based matches")
+        logger.info(f"Read rule mappings to be used in entity matching, NOTE: Uses '{PROP_COL_NAME}' property for rule based matches")
         rule_mappings = read_rule_mappings(client, logger, config)
 
-        logger.info("Read all assets that are input for matching assets ( based on TAG filtering IF given in config)")
-        asset_target = get_all_assets(client, logger, config, rule_mappings)
-        if len(asset_target) == 0:
-            logger.warning("No assets found based on configuration, please check the configuration")
-            update_pipeline_run(client, logger, pipeline_ext_id, "success", match_count, not_matches_count, None)
+        logger.info(f"Read all {QUERY_FILTER_TYPE_TARGETS} that are input for matching ( based on TAG filtering IF given in config)")
+        targets = get_all_targets(client, logger, config, rule_mappings)
+        if len(targets) == 0:
+            logger.warning(f"No {QUERY_FILTER_TYPE_TARGETS} found based on configuration, please check the configuration")
+            update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, match_count, not_matches_count, None)
             return
 
         logger.info("Start by applying manual mappings")
-        good_matches, cnt_manual_mappings = apply_manual_mappings(client, logger, config, raw_uploader, manual_mappings, manual_mappings_input, good_matches, asset_target)
+        good_matches, cnt_manual_mappings = apply_manual_mappings(client, logger, config, raw_uploader, manual_mappings, manual_mappings_input, good_matches, targets)
     
         logger.info("Read new entities (ex: time series) that has been updated since last run")
-        list_good_matches = [match["entity_ext_id"] for match in good_matches]
+        list_good_matches = [match[KEY_ENTITY_EXT_ID] for match in good_matches]
         new_entities = get_new_entities(client, config, logger, list_good_matches, rule_mappings)
 
         logger.info(f"Start processing of new entities ({len(new_entities)})")
         if len(new_entities) == 0:
             logger.info("No new entities to process, we are done - just update pipeline run")
-            update_pipeline_run(client, logger, pipeline_ext_id, "success", match_count, not_matches_count, None)
+            update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, match_count, not_matches_count, None)
             return
 
-        logger.info("Applying rule based mappings - using provided reg expressions to match entities to assets")
-        good_matches, cnt_rule_mappings = apply_rule_mappings(client, config, logger, good_matches, asset_target, new_entities)  # type: ignore
+        logger.info(f"Applying rule based mappings - using provided reg expressions to match entities to {QUERY_FILTER_TYPE_TARGETS}")
+        good_matches, cnt_rule_mappings = apply_rule_mappings(client, config, logger, good_matches, targets, new_entities)  # type: ignore
 
         logger.info("NOTE: the matching runs in CDF, and the process could here be split into two steps to avoid long running jobs")
-        match_results = get_matches(client, config, logger, matching_model_id or "", asset_target, new_entities)  # type: ignore
+        match_results = get_matches(client, config, logger, matching_model_id or "", targets, new_entities)  # type: ignore
 
         good_matches, bad_matches, cnt_entity_matching = select_and_apply_matches(client, config, logger, good_matches, match_results)  # type: ignore
         write_mapping_to_raw(client, config, raw_uploader, good_matches, bad_matches, logger)
 
         len_good_matches = cnt_manual_mappings + cnt_rule_mappings + cnt_entity_matching
         len_bad_matches = len(bad_matches)
-
-        update_pipeline_run(client, logger, pipeline_ext_id, "success", len_good_matches, len_bad_matches, None)
+        if config.parameters.dm_update:
+            msg = f"Relationships updated in the DM (dmUpdate: True)"
+        else:
+            msg = f"Relationships NOT updated in DM, only updated the RAW tables (dmUpdate: False)"
+        update_pipeline_run(client, logger, pipeline_ext_id, STATUS_SUCCESS, len_good_matches, len_bad_matches, msg)
 
     except Exception as e:
         msg = f"failed, Message: {e!s}"
-        update_pipeline_run(client, logger, pipeline_ext_id, "failure", len_good_matches, len_bad_matches, msg)
+        update_pipeline_run(client, logger, pipeline_ext_id, STATUS_FAILURE, len_good_matches, len_bad_matches, msg)
         raise Exception("msg")
 
 
@@ -157,21 +198,23 @@ def update_pipeline_run(
     status: str,
     match_count: int = 0,
     not_matches_count: int = 0,
-    error: Optional[str] = None
+    input_msg: Optional[str] = None
 ) -> None:
 
     total_entities = match_count + not_matches_count
-    if status == "success":
+    if status == STATUS_SUCCESS:
         msg = (
             f"Entity matching of: {total_entities} input entities, Matched: {match_count} "
             f" - NOT matched due to low score: {not_matches_count}"
         )
         logger.info(msg)
+        if input_msg:
+            logger.info(input_msg)
     else:
         msg = (
             f"Entity matching of: {total_entities} input entities, Matched: {match_count} "
             f" - NOT matched due to low score: {not_matches_count}, "
-            f"{error or 'Unknown error'}, traceback:\n{traceback.format_exc()}"
+            f"{input_msg or 'Unknown error'}, traceback:\n{traceback.format_exc()}"
         )
         logger.error(msg)
 
@@ -270,9 +313,9 @@ def read_manual_mappings(
                 seen_mappings.add(entity)
                 manual_mappings.append(
                     {
-                        "key": row.key,
+                        KEY_RULE: row.key,
                         COL_KEY_MAN_MAPPING_ENTITY: entity,
-                        COL_KEY_MAN_MAPPING_ASSET: row.columns[COL_KEY_MAN_MAPPING_ASSET].strip(),
+                        COL_KEY_MAN_MAPPING_TARGET: row.columns[COL_KEY_MAN_MAPPING_TARGET].strip(),
                     }
                 )
                 manual_mappings_input[row.key] = row.columns
@@ -294,31 +337,30 @@ def apply_manual_mappings(
     manual_mappings: list[Row],
     manual_mappings_input: dict[str, dict[str, Any]],
     good_matches: list[dict[str, Any]] = [],
-    asset_target: list[dict[str, Any]] = []
+    targets: list[dict[str, Any]] = []
 ) -> list[dict[str, Any]]:
 
     entity_view_id = config.data.entity_view.as_view_id()
     item_update = []
-    clean_asset_list = []
+    clean_target_list = []
     cnt = 0
 
     try:
-        asset_target_lookup = {asset["asset_ext_id"]: asset for asset in asset_target}
+        targets_lookup = {target[KEY_TARGET_EXT_ID]: target for target in targets}
         entity_list = [mapping[COL_KEY_MAN_MAPPING_ENTITY] for mapping in manual_mappings]
-        lookup_mapping = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_ASSET] for mapping in manual_mappings}
-        key_lookup = {mapping[COL_KEY_MAN_MAPPING_ENTITY]:mapping["key"] for mapping in manual_mappings}
+        lookup_mapping = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[COL_KEY_MAN_MAPPING_TARGET] for mapping in manual_mappings}
+        key_lookup = {mapping[COL_KEY_MAN_MAPPING_ENTITY]: mapping[KEY_RULE] for mapping in manual_mappings}
 
-        # Split entity_list into batches of 5000
-        BATCH_SIZE = 5000
-        num_batches = (len(entity_list) - 1) // BATCH_SIZE + 1 if entity_list else 0
+        # Split entity_list into batches
+        num_batches = (len(entity_list) - 1) // BATCH_SIZE_ENTITIES + 1 if entity_list else 0
         
         if num_batches > 1:
-            logger.info(f"Entity list has {len(entity_list)} items, splitting into {num_batches} batches of up to {BATCH_SIZE}")
+            logger.info(f"Entity list has {len(entity_list)} items, splitting into {num_batches} batches of up to {BATCH_SIZE_ENTITIES}")
         
-        # Process in batches (single batch if <= 5000)
-        for batch_idx in range(0, len(entity_list), BATCH_SIZE):
-            batch_entity_list = entity_list[batch_idx:batch_idx + BATCH_SIZE]
-            batch_num = batch_idx // BATCH_SIZE + 1
+        # Process in batches
+        for batch_idx in range(0, len(entity_list), BATCH_SIZE_ENTITIES):
+            batch_entity_list = entity_list[batch_idx:batch_idx + BATCH_SIZE_ENTITIES]
+            batch_num = batch_idx // BATCH_SIZE_ENTITIES + 1
             
             if num_batches > 1:
                 logger.info(f"Processing batch {batch_num}/{num_batches} with {len(batch_entity_list)} entities")
@@ -338,48 +380,48 @@ def apply_manual_mappings(
                 if entity.external_id not in lookup_mapping:
                     continue
                     
-                asset_ext_id = lookup_mapping[entity.external_id]
-                if not asset_ext_id:
-                    logger.warning(f"Manual mapping asset ref is empty for entity: {entity.external_id}, skipping")
+                target_ext_id = lookup_mapping[entity.external_id]
+                if not target_ext_id:
+                    logger.warning(f"Manual mapping target ref is empty for entity: {entity.external_id}, skipping")
                     continue
 
-                assets = []
-                if not config.parameters.remove_old_asset_links: 
-                    # keep old asset links
-                    assets = get_assets_from_entity(entity.properties[entity_view_id]["assets"])   
+                targets = []
+                if not config.parameters.remove_old_links: 
+                    # keep old target links
+                    targets = get_links_from_entity(entity.properties[entity_view_id][PROP_COL_LINK_NAME])   
                 else:
-                    clean_asset_list = clean_asset_links(config, entity.external_id, clean_asset_list)
+                    clean_target_list = clean_links(config, entity.external_id, clean_target_list)
                 
-                assets.append(asset_ext_id)
+                targets.append(target_ext_id)
 
                 item_update = add_to_items(config, 
                                            logger, 
                                            item_update,
-                                           assets,
+                                           targets,
                                            entity.external_id,
                                            entity_view_id)
 
-                if asset_ext_id in asset_target_lookup:
-                    asset = asset_target_lookup[asset_ext_id]
-                    asset_name = asset["org_name"]
-                    asset_view_id = str(config.data.asset_view.as_view_id())
+                if target_ext_id in targets_lookup:
+                    target = targets_lookup[target_ext_id]
+                    target_name = target[KEY_ORG_NAME]
+                    target_view_id = str(config.data.target_view.as_view_id())
                 else:
-                    asset_name = "_no_match_on_asset_ext_id_"
-                    asset_view_id = "_no_match_on_asset_ext_id_"
+                    target_name = PLACEHOLDER_NO_MATCH_TARGET
+                    target_view_id = PLACEHOLDER_NO_MATCH_TARGET
 
                 good_matches.append(
                     {
-                        "match_type": "Manual Mapping",
-                        "entity_ext_id": entity.external_id,
-                        "entity_name": entity.properties[entity_view_id]["name"],
-                        "entity_match_value": entity.external_id,
-                        "entity_view_id": str(config.data.entity_view.as_view_id()),
-                        "entity_existing_assets": entity.properties[entity_view_id]["assets"],
-                        "score": 1,  # Assuming manual mappings are always 100% accurate
-                        "asset_name": asset_name,
-                        "asset_match_value": asset_ext_id,
-                        "asset_ext_id": asset_ext_id,
-                        "asset_view_id": asset_view_id,
+                        KEY_MATCH_TYPE: MATCH_TYPE_MANUAL,
+                        KEY_ENTITY_EXT_ID: entity.external_id,
+                        KEY_ENTITY_NAME: entity.properties[entity_view_id][PROP_COL_NAME],
+                        KEY_ENTITY_MATCH_VALUE: entity.external_id,
+                        KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
+                        KEY_ENTITY_EXISTING_TARGETS: entity.properties[entity_view_id][PROP_COL_LINK_NAME],
+                        KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
+                        KEY_TARGET_NAME: target_name,
+                        KEY_TARGET_MATCH_VALUE: target_ext_id,
+                        KEY_TARGET_EXT_ID: target_ext_id,
+                        KEY_TARGET_VIEW_ID: target_view_id,
                     }
                 )
 
@@ -390,10 +432,10 @@ def apply_manual_mappings(
                 raw_uploader.add_to_upload_queue(config.parameters.raw_db, config.parameters.raw_tale_ctx_manual, Row(row_key, mapping))
             
                 # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-                if not config.parameters.debug and cnt % BATCH_SIZE_API_SUBMIT == 0:
-                    if len(clean_asset_list) > 0:
-                        client.data_modeling.instances.apply(clean_asset_list)
-                        clean_asset_list = []
+                if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
+                    if len(clean_target_list) > 0:
+                        client.data_modeling.instances.apply(clean_target_list)
+                        clean_target_list = []
 
                     logger.info(f"==> Mapping table based matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(manual_mappings)}")
                     client.data_modeling.instances.apply(item_update)
@@ -402,9 +444,9 @@ def apply_manual_mappings(
             if num_batches > 1:
                 logger.info(f"Completed batch {batch_num}/{num_batches}")
 
-        if not config.parameters.debug:
-            if len(clean_asset_list) > 0:
-                client.data_modeling.instances.apply(clean_asset_list)
+        if not config.parameters.debug and config.parameters.dm_update:
+            if len(clean_target_list) > 0:
+                client.data_modeling.instances.apply(clean_target_list)
 
             # Apply the updates to the data model
             client.data_modeling.instances.apply(item_update)
@@ -423,15 +465,15 @@ def apply_manual_mappings(
         return good_matches, cnt
 
 
-def get_assets_from_entity(
-    assets_links_property: list[dict[str, Any]]
+def get_links_from_entity(
+    links_property: list[dict[str, Any]]
 ) -> list[str]:
 
-    assets = []
-    if len(assets_links_property) > 0:
-        for asset in assets_links_property:
-            assets.append(asset["externalId"])
-    return assets
+    links = []
+    if len(links_property) > 0:
+        for link in links_property:
+            links.append(link[PROP_COL_EXTERNAL_ID])
+    return links
 
 
 def list_instances_by_external_id_direct(
@@ -459,7 +501,7 @@ def list_instances_by_external_id_direct(
     
     # Filter by external_id
     external_id_filter = dm.filters.In(
-        ["node", "externalId"],
+        FILTER_PATH_NODE_EXTERNAL_ID,
         external_id
     )
     
@@ -497,9 +539,9 @@ def read_rule_mappings(
                 continue
             rule_mappings.append(
                 {
-                        "key": f"{idx}",
+                        KEY_RULE: f"{idx}",
                         COL_KEY_RULE_REGEXP_ENTITY: row.columns[COL_KEY_RULE_REGEXP_ENTITY].strip(),
-                        COL_KEY_RULE_REGEXP_ASSET: row.columns[COL_KEY_RULE_REGEXP_ASSET].strip(),
+                        COL_KEY_RULE_REGEXP_TARGET: row.columns[COL_KEY_RULE_REGEXP_TARGET].strip(),
                 }
             )
             idx += 1
@@ -510,61 +552,122 @@ def read_rule_mappings(
     return rule_mappings
 
 
-def get_all_assets(
+def get_all_targets(
     client: CogniteClient,
     logger: CogniteFunctionLogger,
     config: Config,
     rule_mappings: list[Row] | None = None
 ) -> list[dict[str, Any]]:
 
-    asset_target = []
+    targets = []
     job_config = config.data
-    search_property = job_config.asset_view.search_property
+    search_property = job_config.target_view.search_property
 
-    is_selected = get_query_filter("assets", job_config.asset_view, config.parameters.run_all, logger)
-
-    all_assets = client.data_modeling.instances.list(
-        space=job_config.asset_view.instance_space,
-        sources=[job_config.asset_view.as_view_id()],
-        filter=is_selected,
-        limit=-1
+    # `instances.list(..., sources=[view])` already scopes to instances with data in the view.
+    # Skipping extra HasData in the filter significantly reduces graph query load.
+    is_selected = get_query_filter(
+        QUERY_FILTER_TYPE_TARGETS,
+        job_config.target_view,
+        config.parameters.run_all,
+        logger,
+        include_has_data=False,
     )
 
-    logger.info(f"Number of assets to process: {len(all_assets)} NOTE: Rule based regular expressions are applied to the 'name' property")
-    for asset in all_assets:
-        org_name = str(asset.properties[job_config.asset_view.as_view_id()]["name"])
+    batch_size = 1000
+    max_page_retries = 4
+    retry_backoff_seconds = 2
+    all_targets = []
+    last_external_id: str | None = None
+
+    while True:
+        page_filters = []
+        if is_selected:
+            page_filters.append(is_selected)
+        if last_external_id:
+            page_filters.append(dm.filters.Range(FILTER_PATH_NODE_EXTERNAL_ID, gt=last_external_id))
+
+        page_filter = None
+        if len(page_filters) == 1:
+            page_filter = page_filters[0]
+        elif len(page_filters) > 1:
+            page_filter = dm.filters.And(*page_filters)
+
+        page = None
+        for retry in range(max_page_retries + 1):
+            try:
+                page = client.data_modeling.instances.list(
+                    space=job_config.target_view.instance_space,
+                    sources=[job_config.target_view.as_view_id()],
+                    filter=page_filter,
+                    sort=dm.InstanceSort(FILTER_PATH_NODE_EXTERNAL_ID, direction="ascending"),
+                    limit=batch_size,
+                )
+                break
+            except Exception as e:
+                if retry >= max_page_retries:
+                    logger.error(
+                        f"Failed to fetch {QUERY_FILTER_TYPE_TARGETS} page after {max_page_retries + 1} attempts. "
+                        f"Last cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                    )
+                    raise
+
+                sleep_seconds = retry_backoff_seconds * (2 ** retry)
+                logger.warning(
+                    f"Retry {retry + 1}/{max_page_retries} for {QUERY_FILTER_TYPE_TARGETS} page failed. "
+                    f"Sleeping {sleep_seconds}s before retry. "
+                    f"Cursor externalId: {last_external_id}. Error: {type(e)}({e})"
+                )
+                time.sleep(sleep_seconds)
+
+        if not page:
+            break
+
+        all_targets.extend(page)
+        last_external_id = page[-1].external_id
+
+        logger.debug(
+            f"Fetched {len(page)} {QUERY_FILTER_TYPE_TARGETS} in batch, "
+            f"total so far: {len(all_targets)}, last externalId cursor: {last_external_id}"
+        )
+
+        if len(page) < batch_size:
+            break
+
+    logger.info(f"Number of {QUERY_FILTER_TYPE_TARGETS} to process: {len(all_targets)}, NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
+    for target in all_targets:
+        org_name = str(target.properties[job_config.target_view.as_view_id()][PROP_COL_NAME])
 
         rule_keys = []
         if rule_mappings:
             for rule in rule_mappings:
-                reg_exp = str(rule[COL_KEY_RULE_REGEXP_ASSET])
+                reg_exp = str(rule[COL_KEY_RULE_REGEXP_TARGET])
                 match = re.search(reg_exp, org_name)
 
                 if match:
                     # Concatenate the captured groups directly
-                    cleaned_value = rule["key"] + "_" + "".join(match.groups()) # groups() returns a tuple of all captured groups
+                    cleaned_value = rule[KEY_RULE] + "_" + "".join(match.groups())  # groups() returns a tuple of all captured groups
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
 
-        if search_property in asset.properties[job_config.asset_view.as_view_id()]:
-            match_properties = asset.properties[job_config.asset_view.as_view_id()][search_property]
+        if search_property in target.properties[job_config.target_view.as_view_id()]:
+            match_properties = target.properties[job_config.target_view.as_view_id()][search_property]
             if not isinstance(match_properties, list):
                 match_properties = [match_properties]
         else:
             match_properties = [org_name]  
 
         for match_property in match_properties:
-            asset_target.append(
-            {
-                "asset_ext_id": asset.external_id,
-                "org_name": org_name,
-                "name": match_property,
-                "rule_keys": rule_keys if rule_keys else None,
-            }
-    )
-    logger.debug(f"Number assets added as entities: {len(asset_target)}")
+            targets.append(
+                {
+                    KEY_TARGET_EXT_ID: target.external_id,
+                    KEY_ORG_NAME: org_name,
+                    KEY_NAME: match_property,
+                    KEY_RULE_KEYS: rule_keys if rule_keys else None,
+                }
+            )
+    logger.debug(f"Number {QUERY_FILTER_TYPE_TARGETS} added as entities: {len(targets)}")
 
-    return asset_target
+    return targets
 
 
 def get_new_entities(
@@ -581,7 +684,7 @@ def get_new_entities(
     entity_view_id = entity_view_config.as_view_id()
 
     logger.debug(f"Get new entities from view: {entity_view_id}, based on config: {entity_view_config}")
-    is_selected = get_query_filter("entities", entity_view_config, config.parameters.run_all, logger)
+    is_selected = get_query_filter(QUERY_FILTER_TYPE_ENTITIES, entity_view_config, config.parameters.run_all, logger)
 
     new_entities = client.data_modeling.instances.list(
         space=entity_view_config.instance_space,
@@ -593,14 +696,14 @@ def get_new_entities(
     item_update = []
 
 
-    logger.info(f"Number of new entities to process: {len(new_entities)} NOTE: Rule based regular expressions are applied to the 'name' property")
+    logger.info(f"Number of new entities to process: {len(new_entities)} NOTE: Rule based regular expressions are applied to the '{PROP_COL_NAME}' property")
     for entity in new_entities:
         # test if just matched and skip if so
         if list_good_entities and entity.external_id in list_good_entities:
             logger.debug(f"Entity: {entity.external_id} just matched, skipping")
             continue
-        # Rule based matching uses the name property to match entities to assets
-        org_name = str(entity.properties[entity_view_id]["name"])
+        # Rule based matching uses the name property to match entities to targets
+        org_name = str(entity.properties[entity_view_id][PROP_COL_NAME])
 
         rule_keys = []
         if rule_mappings:
@@ -610,16 +713,16 @@ def get_new_entities(
 
                 if match:
                     # Concatenate the captured groups directly
-                    cleaned_value = rule["key"] + "_" + "".join(match.groups()) # groups() returns a tuple of all captured groups
+                    cleaned_value = rule[KEY_RULE] + "_" + "".join(match.groups())  # groups() returns a tuple of all captured groups
                     logger.debug(f"Cleaned value (using capture groups): {cleaned_value}")
                     rule_keys.append(cleaned_value)
                     
-        assets = []
-        if not config.parameters.remove_old_asset_links: 
-            # keep old asset links
-            assets = entity.properties[entity_view_id]["assets"]
+        targets = []
+        if not config.parameters.remove_old_links or not config.parameters.dm_update: # if dmUpdate is False, keep old target links    
+            # keep old target links
+            targets = entity.properties[entity_view_id][PROP_COL_LINK_NAME]
         else:
-            item_update = clean_asset_links(config, entity.external_id, item_update)
+            item_update = clean_links(config, entity.external_id, item_update)
 
         # add entities for files used to match between file references in P&ID to other files
         search_prop = entity_view_config.search_property
@@ -632,24 +735,25 @@ def get_new_entities(
             
             entities_source.append(
                 {
-                    "entity_ext_id": entity.external_id,
-                    "name": entity_name, 
-                    "org_name": org_name,
-                    "assets": json.dumps(assets),
-                    "rule_keys": rule_keys if rule_keys else None,
-                })
+                    KEY_ENTITY_EXT_ID: entity.external_id,
+                    KEY_NAME: entity_name,
+                    KEY_ORG_NAME: org_name,
+                    KEY_TARGET_LINKS: json.dumps(targets),
+                    KEY_RULE_KEYS: rule_keys if rule_keys else None,
+                }
+            )
             logger.debug(f"Entity: {entity.external_id} - {entity_name} ({org_name})")
 
     logger.info(f"Num new entities: {len(entities_source)} from view: {entity_view_id}")
 
-    if config.parameters.remove_old_asset_links and len(item_update) > 0:
+    if config.parameters.remove_old_links and len(item_update) > 0:
         client.data_modeling.instances.apply(item_update)
-        logger.info(f"Cleaned up asset links for {len(item_update)} entities")
+        logger.info(f"Cleaned up {QUERY_FILTER_TYPE_TARGETS} links for {len(item_update)} entities")
 
     return entities_source
 
 
-def clean_asset_links(
+def clean_links(
     config: Config,
     entity_ext_id: str,
     item_update: list[NodeApply]
@@ -664,7 +768,7 @@ def clean_asset_links(
             sources=[
                 NodeOrEdgeData(
                     source=entity_view_id,
-                    properties= {"assets": None},
+                    properties={PROP_COL_LINK_NAME: None},
                 )
             ],
         )
@@ -677,18 +781,23 @@ def get_query_filter(
     view_config: ViewPropertyConfig,
     run_all: bool,
     logger: CogniteFunctionLogger,
-) -> dm.filters.Filter:
+    include_has_data: bool = True,
+) -> dm.filters.Filter | None:
+    filters: list[dm.filters.Filter] = []
+    dbg_msg = f"For view: {view_config.as_view_id()}"
 
-    is_view = dm.filters.HasData(views=[view_config.as_view_id()])
-    is_selected = dm.filters.And(is_view)
-    dbg_msg = f"For for view: {view_config.as_view_id()} - Entity filter: HasData = True"
+    if include_has_data:
+        filters.append(dm.filters.HasData(views=[view_config.as_view_id()]))
+        dbg_msg = f"{dbg_msg} - Entity filter: HasData = True"
+    else:
+        dbg_msg = f"{dbg_msg} - Entity filter: HasData skipped (sources already scope instances)"
 
     # Check if the view entity already is matched or not
-    if type == "entities" and not run_all:  
-        is_matched = dm.filters.Exists(view_config.as_property_ref("assets"))
+    if type == QUERY_FILTER_TYPE_ENTITIES and not run_all:
+        is_matched = dm.filters.Exists(view_config.as_property_ref(PROP_COL_LINK_NAME))
         not_matched = dm.filters.Not(is_matched)
-        is_selected = dm.filters.And(is_selected, not_matched)
-        dbg_msg = f"{dbg_msg} Entity filtering on: 'assets' - NOT EXISTS"
+        filters.append(not_matched)
+        dbg_msg = f"{dbg_msg} Entity filtering on: '{PROP_COL_LINK_NAME}' - NOT EXISTS"
 
     if view_config.filter_property and view_config.filter_values:
         is_filter_param = dm.filters.In(
@@ -696,12 +805,16 @@ def get_query_filter(
                 view_config.filter_property),
                 view_config.filter_values
         )
-        is_selected = dm.filters.And(is_selected, is_filter_param)
+        filters.append(is_filter_param)
         dbg_msg = f"{dbg_msg} Entity filtering on: '{view_config.filter_values}' IN: '{view_config.filter_property}'"
 
-    logger.debug(dbg_msg)
+    logger.info(dbg_msg)
 
-    return is_selected
+    if not filters:
+        return None
+    if len(filters) == 1:
+        return filters[0]
+    return dm.filters.And(*filters)
 
 
 def get_matches(
@@ -724,8 +837,8 @@ def get_matches(
             model = client.entity_matching.retrieve(id=int(matching_model_id))
         else:
             model = client.entity_matching.fit(
-                sources=match_from[:10000],  # Limit to 10000 entities
-                targets=match_to[:10000],  # Limit to 10000 assets
+                sources=match_from[:MATCHING_LIMIT_SOURCES_TARGETS],
+                targets=match_to[:MATCHING_LIMIT_SOURCES_TARGETS],
                 match_fields=[(COL_MATCH_KEY, COL_MATCH_KEY)],
                 feature_type=ML_MODEL_FEATURE_TYPE,
             )
@@ -741,7 +854,7 @@ def get_matches(
             num_matches=1
         )
 
-        return job.result["items"]
+        return job.result[JOB_RESULT_ITEMS]
 
     except Exception as e:
         logger.error(f"ERROR: Failed to get matching model and run prediction. Error: {type(e)}({e})")
@@ -753,27 +866,26 @@ def apply_rule_mappings(
     config: Config, 
     logger: CogniteFunctionLogger,
     good_matches: list[dict[str, Any]],
-    asset_dest: list[dict[str, Any]], 
+    target_dest: list[dict[str, Any]], 
     new_entities: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
 
     # Use set instead of list for O(1) lookups
-    good_matches_set = {f"{match['asset_ext_id']}_{match['entity_ext_id']}"
+    good_matches_set = {f"{match[KEY_TARGET_EXT_ID]}_{match[KEY_ENTITY_EXT_ID]}"
                         for match in good_matches}
-    matched_entity_ids = {match["entity_ext_id"] for match in good_matches}
+    matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
 
-
-    key_field = "rule_keys"  # The field in the dictionaries that contains the rule keys
+    key_field = KEY_RULE_KEYS  # The field in the dictionaries that contains the rule keys
     num_added_matches = 0
     cnt = 0
     
     try:
-        # Build an inverted index for asset_dest
-        # Format: { 'rule_key_value': [dict_from_asset_dest_1, dict_from_asset_dest_2, ...] }
+        # Build an inverted index for target_dest
+        # Format: { 'rule_key_value': [dict_from_target_dest_1, dict_from_target_dest_2, ...] }
         index1 = defaultdict(list)
         matches = defaultdict(list)  # defaultdict(lambda: [[], []])
 
-        for d1 in asset_dest:
+        for d1 in target_dest:
             if not d1.get(key_field, []):  # Ensure the key_field exists
                 continue  # Skip if no rule keys are present
             for r_key in d1.get(key_field, []): # Use .get() for safety
@@ -790,7 +902,7 @@ def apply_rule_mappings(
             set2 = set(d2.get(key_field, [])) # Convert to set once
 
             # Skip if entity already has been matched
-            if d2['entity_ext_id'] in matched_entity_ids:
+            if d2[KEY_ENTITY_EXT_ID] in matched_entity_ids:
                 logger.debug(f"Entity: {d2['entity_ext_id']} already has been matched manually, skipping")
                 continue
         
@@ -799,45 +911,44 @@ def apply_rule_mappings(
                     for d1_match in index1[r_key_from_d2]:
                         # Create a canonical tuple for uniqueness tracking
                         # Ensure consistent order (e.g., by ID)
-                        pair = tuple(sorted((d2['entity_ext_id'], d1_match['asset_ext_id'])))
+                        pair = tuple(sorted((d2[KEY_ENTITY_EXT_ID], d1_match[KEY_TARGET_EXT_ID])))
 
                         if pair not in unique_matches_tracker:
-                            # matches.append((d1_match, d2))
-                            match_key = f"{d1_match['asset_ext_id']}_{d2['entity_ext_id']}"
+                            match_key = f"{d1_match[KEY_TARGET_EXT_ID]}_{d2[KEY_ENTITY_EXT_ID]}"
                             if match_key in good_matches_set:
-                                logger.debug(f"Match already exists in good matches: {d1_match['asset_ext_id']} - {d2['entity_ext_id']}")
+                                logger.debug(f"Match already exists in good matches: {d1_match[KEY_TARGET_EXT_ID]} - {d2[KEY_ENTITY_EXT_ID]}")
                                 continue
                             good_matches_set.add(match_key)
 
-                            unique_asset_list = list(set(matches[d2['entity_ext_id']]))
-                            if d1_match['asset_ext_id'] and d1_match['asset_ext_id'] not in unique_asset_list:
-                                unique_asset_list.append(d1_match['asset_ext_id'])
+                            unique_target_list = list(set(matches[d2[KEY_ENTITY_EXT_ID]]))
+                            if d1_match[KEY_TARGET_EXT_ID] and d1_match[KEY_TARGET_EXT_ID] not in unique_target_list:
+                                unique_target_list.append(d1_match[KEY_TARGET_EXT_ID])
                                 num_added_matches += 1
                                 good_matches.append(
                                     {
-                                        "match_type": "Rule Based Mapping",
-                                        "entity_ext_id": d2['entity_ext_id'],
-                                        "entity_name": d2['org_name'],
-                                        "entity_match_value": d2['name'],
-                                        "entity_view_id": str(config.data.entity_view.as_view_id()),
-                                        "entity_existing_assets": d2['assets'],
-                                        "entity_rule_keys": json.dumps(d2['rule_keys']),
-                                        "score": 1,  # Assuming rule based mappings are always 100% accurate
-                                        "asset_name": d1_match['org_name'],
-                                        "asset_match_value": d1_match['name'],
-                                        "asset_ext_id": d1_match['asset_ext_id'],
-                                        "asset_view_id": str(config.data.asset_view.as_view_id()),
-                                        "asset_rule_keys": json.dumps(d1_match['rule_keys']),
+                                        KEY_MATCH_TYPE: MATCH_TYPE_RULE,
+                                        KEY_ENTITY_EXT_ID: d2[KEY_ENTITY_EXT_ID],
+                                        KEY_ENTITY_NAME: d2[KEY_ORG_NAME],
+                                        KEY_ENTITY_MATCH_VALUE: d2[KEY_NAME],
+                                        KEY_ENTITY_VIEW_ID: str(config.data.entity_view.as_view_id()),
+                                        KEY_ENTITY_EXISTING_TARGETS: d2[KEY_TARGET_LINKS],
+                                        KEY_ENTITY_RULE_KEYS: json.dumps(d2[KEY_RULE_KEYS]),
+                                        KEY_SCORE: SCORE_MANUAL_RULE_MATCH,
+                                        KEY_TARGET_NAME: d1_match[KEY_ORG_NAME],
+                                        KEY_TARGET_MATCH_VALUE: d1_match[KEY_NAME],
+                                        KEY_TARGET_EXT_ID: d1_match[KEY_TARGET_EXT_ID],
+                                        KEY_TARGET_VIEW_ID: str(config.data.target_view.as_view_id()),
+                                        KEY_TARGET_RULE_KEYS: json.dumps(d1_match[KEY_RULE_KEYS]),
                                     }
                                 )
 
-                            existing_asset_list = json.loads(d2['assets'])
-                            if len(existing_asset_list) > 0:
-                                for asset in existing_asset_list:
-                                    if 'externalId' in asset and asset['externalId'] not in unique_asset_list:
-                                        unique_asset_list.append(asset['externalId'])
+                            existing_target_list = json.loads(d2[KEY_TARGET_LINKS])
+                            if len(existing_target_list) > 0:
+                                for target in existing_target_list:
+                                    if PROP_COL_EXTERNAL_ID in target and target[PROP_COL_EXTERNAL_ID] not in unique_target_list:
+                                        unique_target_list.append(target[PROP_COL_EXTERNAL_ID])
 
-                            matches[d2['entity_ext_id']] = unique_asset_list
+                            matches[d2[KEY_ENTITY_EXT_ID]] = unique_target_list
                             unique_matches_tracker.add(pair)
 
         item_update = []
@@ -846,22 +957,22 @@ def apply_rule_mappings(
         
         for entity_ext_id in matches:
             cnt += 1
-            asset_ext_ids = matches[entity_ext_id] # Assuming the first asset is the one to match with
+            target_ext_ids = matches[entity_ext_id] # Assuming the first target is the one to match with
 
             item_update = add_to_items(config, 
                                     logger, 
                                     item_update,
-                                    asset_ext_ids,
+                                    target_ext_ids,
                                     entity_ext_id,
                                     config.data.entity_view.as_view_id())
             
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and cnt % BATCH_SIZE_API_SUBMIT == 0:
+            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
                 logger.info(f"==> Rule based matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(matches)}")
                 client.data_modeling.instances.apply(item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug:
+        if not config.parameters.debug and config.parameters.dm_update:
             # Apply the updates to the data model
             client.data_modeling.instances.apply(item_update)
  
@@ -869,7 +980,7 @@ def apply_rule_mappings(
                 logger.info("==> Rule based matching - No items added to data model based on new items found and rule based mappings")
             else:
                 logger.info(f"==> Rule based matching - Adding remaining batch of {len(item_update)} items to data model, total count: {cnt} / {len(matches)}")
-                logger.info(f"==> Rule based matching - Total number of new matches based on rules matching one or more assets per entity added: {num_added_matches}")
+                logger.info(f"==> Rule based matching - Total number of new matches based on rules matching one or more targets per entity added: {num_added_matches}")
 
         return good_matches, cnt
 
@@ -889,7 +1000,7 @@ def select_and_apply_matches(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Select and apply matches based on filtering threshold. Matches with score above threshold are updating time series
-    with asset ID When matches are updated, metadata property with information about the match is added to time series
+    with target ID When matches are updated, metadata property with information about the match is added to time series
     to indicate that it has been matched.
 
     Args:
@@ -907,36 +1018,36 @@ def select_and_apply_matches(
     cnt = 0
 
     entity_view_id = config.data.entity_view.as_view_id()
-    asset_view_id = config.data.asset_view.as_view_id()
+    target_view_id = config.data.target_view.as_view_id()
 
     # Use set instead of list for O(1) lookups
-    good_matches_set = {f"{match['asset_ext_id']}_{match['entity_ext_id']}"
+    good_matches_set = {f"{match[KEY_TARGET_EXT_ID]}_{match[KEY_ENTITY_EXT_ID]}"
                         for match in good_matches}
-    matched_entity_ids = {match["entity_ext_id"] for match in good_matches}
+    matched_entity_ids = {match[KEY_ENTITY_EXT_ID] for match in good_matches}
     new_good_matches = []
     try:
         for match in match_results:
             # Skip if entity already has been matched
-            if match["source"]["entity_ext_id"] in matched_entity_ids:
+            if match[KEY_SOURCE][KEY_ENTITY_EXT_ID] in matched_entity_ids:
                 continue
 
-            if match["matches"]:
-                if match["matches"][0]["score"] >= config.parameters.auto_approval_threshold:
-                    entity_ext_id = match["source"]["entity_ext_id"]
-                    asset_ext_id = match["matches"][0]["target"]["asset_ext_id"]
+            if match[KEY_MATCHES]:
+                if match[KEY_MATCHES][0][KEY_SCORE] >= config.parameters.auto_approval_threshold:
+                    entity_ext_id = match[KEY_SOURCE][KEY_ENTITY_EXT_ID]
+                    target_ext_id = match[KEY_MATCHES][0][KEY_TARGET][KEY_TARGET_EXT_ID]
 
-                    match_key = f"{asset_ext_id}_{entity_ext_id}"
+                    match_key = f"{target_ext_id}_{entity_ext_id}"
                     if match_key in good_matches_set:
-                        logger.debug(f"Match already exists in good matches: {asset_ext_id} - {entity_ext_id}")
+                        logger.debug(f"Match already exists in good matches: {target_ext_id} - {entity_ext_id}")
                         continue
                     else:
                         good_matches_set.add(match_key)
 
-                    new_good_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
+                    new_good_matches.append(add_to_dict(match, str(entity_view_id), str(target_view_id)))
                 else:
-                    bad_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
+                    bad_matches.append(add_to_dict(match, str(entity_view_id), str(target_view_id)))
             else:
-                bad_matches.append(add_to_dict(match, str(entity_view_id), str(asset_view_id)))
+                bad_matches.append(add_to_dict(match, str(entity_view_id), str(target_view_id)))
 
         logger.info(f"Got {len(new_good_matches)} matches with score >= {config.parameters.auto_approval_threshold}")
         logger.info(f"Got {len(bad_matches)} matches with score < {config.parameters.auto_approval_threshold}")
@@ -944,25 +1055,25 @@ def select_and_apply_matches(
         # Update time series with matches
         for match in new_good_matches:
             cnt += 1
-            entity_ext_id = match["entity_ext_id"]
-            asset_ext_id = match["asset_ext_id"]
-            entity_assets = match["entity_existing_assets"]
+            entity_ext_id = match[KEY_ENTITY_EXT_ID]
+            target_ext_id = match[KEY_TARGET_EXT_ID]
+            entity_targets = match[KEY_ENTITY_EXISTING_TARGETS]
  
             item_update = add_to_items(config, 
                                        logger, 
                                        item_update,
-                                       [asset_ext_id],
+                                       [target_ext_id],
                                        entity_ext_id,
                                        entity_view_id,
-                                       entity_assets)
+                                       entity_targets)
 
             # Apply the updates to the data model in batches of BATCH_SIZE_API_SUBMIT
-            if not config.parameters.debug and cnt % BATCH_SIZE_API_SUBMIT == 0:
+            if not config.parameters.debug and config.parameters.dm_update and cnt % BATCH_SIZE_API_SUBMIT == 0:
                 logger.info(f"==> Entity matching - Adding batch of {len(item_update)} items to data model, total count: {cnt} / {len(new_good_matches)}")
                 client.data_modeling.instances.apply(item_update)
                 item_update = []  # Reset item_update after applying
 
-        if not config.parameters.debug:
+        if not config.parameters.debug and config.parameters.dm_update:
             client.data_modeling.instances.apply(item_update)
             if cnt == 0:
                 logger.info("==> Entity matching - No items added to data model based on new items found and entity matching")
@@ -980,39 +1091,39 @@ def add_to_items(
     config: Config,
     logger: CogniteFunctionLogger,
     item_update: list[NodeApply],
-    asset_ext_ids: list[str],
+    target_ext_ids: list[str],
     entity_ext_id: str,
     entity_view_id: dm.ViewId,
-    entity_assets: Optional[str] = None  
+    entity_targets: Optional[str] = None  
 ) -> list[NodeApply]:
 
-    assets = []
+    targets = []
 
-    if entity_assets:
-        entity_assets_array = json.loads(entity_assets)
-        if len(entity_assets_array) > 0:  # Check if there are existing assets
-            for asset in entity_assets_array:
-                assets.append(DirectRelationReference(space=asset["space"], external_id=asset["externalId"]))
+    if entity_targets:
+        entity_targets_array = json.loads(entity_targets)
+        if len(entity_targets_array) > 0:  # Check if there are existing targets
+            for target in entity_targets_array:
+                targets.append(DirectRelationReference(space=target[PROP_COL_SPACE], external_id=target[PROP_COL_EXTERNAL_ID]))
 
-    # Add new assets to the entity
-    for asset_ext_id in asset_ext_ids:  
-        if not asset_ext_id:
+    # Add new targets to the entity
+    for target_ext_id in target_ext_ids:  
+        if not target_ext_id:
             logger.warning(f"Asset external ID is empty for entity: {entity_ext_id}, skipping")
             continue
-        if asset_ext_id in [asset.external_id for asset in assets]:
-            logger.debug(f"Asset: {asset_ext_id} already exists in entity: {entity_ext_id}, skipping")
+        if target_ext_id in [target.external_id for target in targets]:
+            logger.debug(f"Asset: {target_ext_id} already exists in entity: {entity_ext_id}, skipping")
             continue
-        logger.debug(f"Adding asset: {asset_ext_id} to entity: {entity_ext_id}")   
-        assets.append(
+        logger.debug(f"Adding target: {target_ext_id} to entity: {entity_ext_id}")   
+        targets.append(
             DirectRelationReference(
-                space=config.data.asset_view.instance_space,
-                external_id=asset_ext_id
+                space=config.data.target_view.instance_space,
+                external_id=target_ext_id
             )
         )
 
-    if len(assets) > 1000:
-        logger.warning(f"Entity: {entity_ext_id} has more than 1000 assets - has {len(assets)} assets, will only add 1000 - TODO look into your rule/matching model to prevent to wide matching")
-        assets = assets[:1000]
+    if len(targets) > MAX_LINKS_PER_ENTITY:
+        logger.warning(f"Entity: {entity_ext_id} has more than {MAX_LINKS_PER_ENTITY} targets - has {len(targets)} targets, will only add {MAX_LINKS_PER_ENTITY} - TODO look into your rule/matching model to prevent to wide matching")
+        targets = targets[:MAX_LINKS_PER_ENTITY]
         
 
     item_update.append(
@@ -1022,20 +1133,20 @@ def add_to_items(
             sources=[
                 NodeOrEdgeData(
                     source=dm.ViewId.load(entity_view_id),  # type: ignore
-                    properties= {"assets": assets},
+                    properties={PROP_COL_LINK_NAME: targets},
                 )
             ],
         )
     )       
 
-    logger.debug(f"Added entity: {entity_ext_id} to asset: {asset_ext_id}")
+    logger.debug(f"Added entity: {entity_ext_id} to target: {target_ext_id}")
     return item_update
 
 
 def add_to_dict(
         match: dict[str, Any],
         entity_view_id: str,
-        asset_view_id: str,
+        target_view_id: str,
 ) -> dict[str, Any]:
     """
     Add match to dictionary
@@ -1045,31 +1156,31 @@ def add_to_dict(
     Returns:
         dictionary with match information
     """
-    source = match["source"]
-    if len(match["matches"]) > 0:
-        target = match["matches"][0]["target"]
-        score = match["matches"][0]["score"]
-        asset_name = target["org_name"]
-        asset_match_value = target["name"]
-        asset_ext_id = target["asset_ext_id"] 
+    source = match[KEY_SOURCE]
+    if len(match[KEY_MATCHES]) > 0:
+        target = match[KEY_MATCHES][0][KEY_TARGET]
+        score = match[KEY_MATCHES][0][KEY_SCORE]
+        target_name = target[KEY_ORG_NAME]
+        target_match_value = target[KEY_NAME]
+        target_ext_id = target[KEY_TARGET_EXT_ID]
     else:
         score = 0
-        asset_name = "_no_match_"
-        asset_match_value = "_no_match_"
-        asset_ext_id = "_no_match_"
-        asset_view_id = "_no_match_"
+        target_name = PLACEHOLDER_NO_MATCH
+        target_match_value = PLACEHOLDER_NO_MATCH
+        target_ext_id = PLACEHOLDER_NO_MATCH
+        target_view_id = PLACEHOLDER_NO_MATCH
     return {
-        "match_type": "Entity Matching",
-        "entity_ext_id": source["entity_ext_id"],
-        "entity_name": source["org_name"],
-        "entity_match_value": source["name"],
-        "entity_view_id": str(entity_view_id),
-        "entity_existing_assets": source["assets"],
-        "score": round(score, 2),
-        "asset_name": asset_name,
-        "asset_match_value": asset_match_value,
-        "asset_ext_id": asset_ext_id,
-        "asset_view_id": str(asset_view_id),
+        KEY_MATCH_TYPE: MATCH_TYPE_ENTITY,
+        KEY_ENTITY_EXT_ID: source[KEY_ENTITY_EXT_ID],
+        KEY_ENTITY_NAME: source[KEY_ORG_NAME],
+        KEY_ENTITY_MATCH_VALUE: source[KEY_NAME],
+        KEY_ENTITY_VIEW_ID: str(entity_view_id),
+        KEY_ENTITY_EXISTING_TARGETS: source[KEY_TARGET_LINKS],
+        KEY_SCORE: round(score, 2),
+        KEY_TARGET_NAME: target_name,
+        KEY_TARGET_MATCH_VALUE: target_match_value,
+        KEY_TARGET_EXT_ID: target_ext_id,
+        KEY_TARGET_VIEW_ID: str(target_view_id),
     }
 
 
@@ -1109,12 +1220,12 @@ def write_mapping_to_raw(
             create_table(client, raw_db, raw_tale_ctx_good)
 
             for match in good_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_tale_ctx_good, Row(match["entity_ext_id"], match))  # type: ignore
-                logger.debug(f"Added matched entity: {match['entity_ext_id']} to {raw_db}/{raw_tale_ctx_good}")
+                raw_uploader.add_to_upload_queue(raw_db, raw_tale_ctx_good, Row(match[KEY_ENTITY_EXT_ID], match))  # type: ignore
+                logger.debug(f"Added matched entity: {match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_tale_ctx_good}")
 
             for not_match in bad_matches:
-                raw_uploader.add_to_upload_queue(raw_db, raw_tale_ctx_bad, Row(not_match["entity_ext_id"], not_match))  # type: ignore
-                logger.debug(f"Added NOT matched entity: {not_match['entity_ext_id']} to {raw_db}/{raw_tale_ctx_bad}")
+                raw_uploader.add_to_upload_queue(raw_db, raw_tale_ctx_bad, Row(not_match[KEY_ENTITY_EXT_ID], not_match))  # type: ignore
+                logger.debug(f"Added NOT matched entity: {not_match[KEY_ENTITY_EXT_ID]} to {raw_db}/{raw_tale_ctx_bad}")
 
             # Upload any remaining RAW cols in queue
             raw_uploader.upload()

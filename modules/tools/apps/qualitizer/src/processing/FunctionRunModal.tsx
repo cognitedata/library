@@ -1,6 +1,27 @@
 import { ReactNode } from "react";
 import { useI18n } from "@/shared/i18n";
 
+const MAX_HASH_LENGTH = 20;
+
+function truncateHashFields(value: unknown, key?: string): unknown {
+  if (
+    typeof value === "string" &&
+    value.length > MAX_HASH_LENGTH &&
+    key?.includes("-hash")
+  ) {
+    return `${value.slice(0, MAX_HASH_LENGTH)}…`;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => truncateHashFields(v));
+  }
+  if (value != null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, truncateHashFields(v, k)])
+    );
+  }
+  return value;
+}
+
 type LoadState = "idle" | "loading" | "success" | "error";
 
 type FunctionRunModalProps = {
@@ -14,6 +35,7 @@ type FunctionRunModalProps = {
   selectedLogsError: string | null;
   formatTimeFields: (input: unknown) => unknown;
   extraActions?: ReactNode;
+  contentClassName?: string;
 };
 
 export function FunctionRunModal({
@@ -27,6 +49,7 @@ export function FunctionRunModal({
   selectedLogsError,
   formatTimeFields,
   extraActions,
+  contentClassName,
 }: FunctionRunModalProps) {
   const { t } = useI18n();
   if (!open || !selectedRun) return null;
@@ -37,7 +60,7 @@ export function FunctionRunModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl ${contentClassName ?? ""}`.trim()}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -64,7 +87,11 @@ export function FunctionRunModal({
               {t("processing.modal.function.section.function")}
             </div>
             <pre className="whitespace-pre-wrap">
-              {JSON.stringify(formatTimeFields(selectedFunction ?? {}), null, 2)}
+              {JSON.stringify(
+                truncateHashFields(formatTimeFields(selectedFunction ?? {})),
+                null,
+                2
+              )}
             </pre>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
@@ -72,7 +99,11 @@ export function FunctionRunModal({
               {t("processing.modal.function.section.execution")}
             </div>
             <pre className="whitespace-pre-wrap">
-              {JSON.stringify(formatTimeFields(selectedRun), null, 2)}
+              {JSON.stringify(
+                truncateHashFields(formatTimeFields(selectedRun)),
+                null,
+                2
+              )}
             </pre>
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">

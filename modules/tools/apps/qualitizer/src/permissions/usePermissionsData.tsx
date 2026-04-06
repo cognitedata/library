@@ -42,9 +42,17 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
           `/api/v1/projects/${sdk.project}/datasets/list`,
           { data: { limit: 1000 } }
         )) as { data?: { items?: DataSetSummary[] } };
-        const spaceItems = await sdk.spaces
-          .list({ includeGlobal: true, limit: 1000 })
-          .autoPagingToArray();
+        const spaceItems: SpaceSummary[] = [];
+        let spaceCursor: string | undefined;
+        do {
+          const spaceResponse = await sdk.spaces.list({
+            includeGlobal: true,
+            limit: 100,
+            cursor: spaceCursor,
+          }) as { items?: SpaceSummary[]; nextCursor?: string | null };
+          spaceItems.push(...(spaceResponse.items ?? []));
+          spaceCursor = spaceResponse.nextCursor ?? undefined;
+        } while (spaceCursor);
         const datasets = (datasetResponse.data?.items ?? []) as DataSetSummary[];
         const datasetMap = new Map<number, DataSetSummary>(datasets.map((ds) => [ds.id, ds]));
 

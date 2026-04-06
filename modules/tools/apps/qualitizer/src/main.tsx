@@ -3,9 +3,12 @@ import mixpanel from "mixpanel-browser";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
+import { warnIfCdfBrowserUrlMissing } from "./shared/cdf-browser-url";
 import { AppAuthProvider } from "./shared/auth";
 
 import "./styles.css";
+
+warnIfCdfBrowserUrlMissing();
 
 const queryClient = new QueryClient({
   defaultOptions: {

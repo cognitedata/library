@@ -1,0 +1,11 @@
+[module]
+title = "Classic CDF Analysis"
+id = "classic_cdf_analysis"
+package_id = "dp:dashboards"
+version = "0.1.0"
+description = """
+Streamlit app for classic CDF model analysis across assets, time series, events, sequences, and files.
+Analyses metadata field distribution and dataset coverage. Supports auto and custom analysis modes
+with optional dataset filtering. Runs inside CDF (no credentials needed) or locally with a .env file.
+"""
+tags = ["streamlit", "analysis", "metadata", "assets", "timeseries", "classic-cdf"]

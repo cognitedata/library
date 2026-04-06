@@ -15,6 +15,7 @@ import { useFunctionData } from "./useFunctionData";
 import { useTransformationData } from "./useTransformationData";
 import { useWorkflowData } from "./useWorkflowData";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import { ApiError } from "@/shared/ApiError";
 import {
   formatTimeFields,
@@ -24,6 +25,11 @@ import {
   getUserTimeZone,
   toTimestamp,
 } from "@/shared/time-utils";
+import {
+  getFunctionsPageUrl,
+  getTransformationPreviewUrl,
+  getWorkflowEditorUrl,
+} from "@/shared/cdf-browser-url";
 import type {
   ExtPipeRunSummary,
   FunctionRunSummary,
@@ -38,6 +44,8 @@ const bucketSeconds = 15;
 export function Processing() {
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const privateCls = isPrivateMode ? "private-mask" : "";
   const [windowOffsetHours, setWindowOffsetHours] = useState(0);
   const [windowRange, setWindowRange] = useState<{ start: number; end: number } | null>(null);
   const [showLoader, setShowLoader] = useState(false);
@@ -71,27 +79,23 @@ export function Processing() {
   const [scheduleStatus, setScheduleStatus] = useState<LoadState>("idle");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   type ScheduleEntryType = "function" | "transformation" | "workflow";
-  const [scheduleEntries, setScheduleEntries] = useState<
-    Array<{ cron: string; name: string; type: ScheduleEntryType }>
-  >([]);
+  type ScheduleEntry = { cron: string; name: string; type: ScheduleEntryType; id: string };
+  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [heatmapVisibleTypes, setHeatmapVisibleTypes] = useState({
     functions: true,
     transformations: true,
     workflows: true,
   });
-  const [hoverCell, setHoverCell] = useState<{
-    hour: number;
-    minute: number;
-    count: number;
-    names: string[];
-  } | null>(null);
-  const [pinnedHeatmapCell, setPinnedHeatmapCell] = useState<{
-    hour: number;
-    minute: number;
-    count: number;
-    names: string[];
-  } | null>(null);
+  type HeatmapItem = { name: string; type: ScheduleEntryType; id: string };
+  type HeatmapCell = { hour: number; minute: number; count: number; names: string[]; items: HeatmapItem[] };
+  const [hoverCell, setHoverCell] = useState<HeatmapCell | null>(null);
+  const [pinnedHeatmapCell, setPinnedHeatmapCell] = useState<HeatmapCell | null>(null);
   const lastHoverKeyRef = useRef<string | null>(null);
+  const [nowUtc, setNowUtc] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNowUtc(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const {
     status,
@@ -164,16 +168,25 @@ export function Processing() {
   useEffect(() => {
     if (isSdkLoading) return;
     const now = new Date();
-    const currentHourStart = new Date(now);
-    currentHourStart.setMinutes(0, 0, 0);
+    const currentHourStart = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours(),
+        0,
+        0,
+        0
+      )
+    );
     if (windowOffsetHours === 0) {
       setWindowRange({ start: currentHourStart.getTime(), end: now.getTime() });
       return;
     }
     const endWindow = new Date(currentHourStart);
-    endWindow.setHours(endWindow.getHours() - windowOffsetHours);
+    endWindow.setUTCHours(endWindow.getUTCHours() - windowOffsetHours);
     const startWindow = new Date(endWindow);
-    startWindow.setHours(startWindow.getHours() - hoursWindow);
+    startWindow.setUTCHours(startWindow.getUTCHours() - hoursWindow);
     setWindowRange({ start: startWindow.getTime(), end: endWindow.getTime() });
   }, [isSdkLoading, windowOffsetHours]);
 
@@ -198,7 +211,7 @@ export function Processing() {
       setScheduleError(null);
       setScheduleEntries([]);
       try {
-        const entries: Array<{ cron: string; name: string; type: ScheduleEntryType }> = [];
+        const entries: ScheduleEntry[] = [];
 
         const functionSchedules = (await sdk.post(
           `/api/v1/projects/${sdk.project}/functions/schedules/list`,
@@ -209,12 +222,13 @@ export function Processing() {
         for (const item of functionSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
-          const name =
-            (item.name as string | undefined) ??
+          const fnId =
             (item.functionExternalId as string | undefined) ??
             (item.functionId as string | undefined) ??
-            t("processing.heatmap.unknownFunction");
-          entries.push({ cron, name, type: "function" });
+            "";
+          const name =
+            (item.name as string | undefined) ?? (fnId || t("processing.heatmap.unknownFunction"));
+          entries.push({ cron, name, type: "function", id: fnId });
         }
 
         const transformationSchedules = (await sdk.get(
@@ -226,12 +240,13 @@ export function Processing() {
         for (const item of transformationSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
-          const name =
-            (item.name as string | undefined) ??
-            (item.transformationExternalId as string | undefined) ??
+          const txId =
             (item.transformationId as string | undefined) ??
-            t("processing.heatmap.unknownTransformation");
-          entries.push({ cron, name, type: "transformation" });
+            (item.transformationExternalId as string | undefined) ??
+            "";
+          const name =
+            (item.name as string | undefined) ?? (txId || t("processing.heatmap.unknownTransformation"));
+          entries.push({ cron, name, type: "transformation", id: txId });
         }
 
         let triggerCursor: string | undefined;
@@ -251,7 +266,7 @@ export function Processing() {
               (item.id as string | undefined) ??
               "trigger";
             const name = workflowId ? `${workflowId} · ${triggerId}` : triggerId;
-            entries.push({ cron, name, type: "workflow" });
+            entries.push({ cron, name, type: "workflow", id: workflowId ?? triggerId });
           }
           triggerCursor = workflowTriggers.data?.nextCursor;
         } while (triggerCursor);
@@ -315,7 +330,11 @@ export function Processing() {
     };
 
     const counts = Array.from({ length: 60 }, () =>
-      Array.from({ length: 24 }, () => ({ count: 0, names: [] as string[] }))
+      Array.from({ length: 24 }, () => ({
+        count: 0,
+        names: [] as string[],
+        items: [] as HeatmapItem[],
+      }))
     );
     for (const entry of filtered) {
       const parts = entry.cron.trim().split(/\s+/);
@@ -327,6 +346,11 @@ export function Processing() {
         for (const hour of hours) {
           counts[minute][hour].count += 1;
           counts[minute][hour].names.push(entry.name);
+          counts[minute][hour].items.push({
+            name: entry.name,
+            type: entry.type,
+            id: entry.id,
+          });
         }
       }
     }
@@ -632,10 +656,7 @@ export function Processing() {
           ) : null}
           {!availabilityMessage ? (
             <div className="rounded-md border border-slate-200 bg-white p-3">
-              <div className="text-sm text-slate-700">
-                {t("processing.stats.executions", { count: runs.length, peak: maxParallel })}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
                 <button
                   type="button"
                   className={`flex items-center gap-2 rounded-md px-2 py-1 ${
@@ -648,7 +669,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-blue-600" />
-                  {t("processing.legend.functions")}
+                  {t("processing.legend.functions")} ({t("processing.stats.peak", { peak: maxParallel })})
                 </button>
                 <button
                   type="button"
@@ -665,7 +686,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-orange-500" />
-                  {t("processing.legend.transformations")}
+                  {t("processing.legend.transformations")} ({t("processing.stats.peak", { peak: maxTransformParallel })})
                 </button>
                 <button
                   type="button"
@@ -679,7 +700,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-purple-500" />
-                  {t("processing.legend.workflows")}
+                  {t("processing.legend.workflows")} ({t("processing.stats.peak", { peak: maxWorkflowParallel })})
                 </button>
                 <button
                   type="button"
@@ -693,7 +714,7 @@ export function Processing() {
                   }
                 >
                   <span className="h-2 w-4 rounded-sm bg-cyan-500" />
-                  {t("processing.legend.extractors")}
+                  {t("processing.legend.extractors")} ({t("processing.stats.peak", { peak: maxExtractorParallel })})
                 </button>
               </div>
               <div className="mt-4 overflow-x-auto">
@@ -949,14 +970,20 @@ export function Processing() {
                             const cell = heatmapCounts[minute]?.[hour];
                             const count = cell?.count ?? 0;
                             const names = cell?.names ?? [];
+                            const items = cell?.items ?? [];
                             const hoverKey = `${hour}:${minute}:${count}:${names.length}`;
                             const isPinned =
                               pinnedHeatmapCell?.hour === hour &&
                               pinnedHeatmapCell?.minute === minute;
+                            const isNow =
+                              nowUtc.getUTCHours() === hour &&
+                              nowUtc.getUTCMinutes() === minute;
                             return (
                               <div
                                 key={`cell-${minute}-${hour}`}
-                                className="h-3 w-full rounded-sm border border-slate-100 cursor-pointer"
+                                className={`h-3 w-full rounded-sm border cursor-pointer ${
+                                  isNow ? "border-slate-800 border-dashed" : "border-slate-100"
+                                }`}
                                 style={{
                                   backgroundColor: getHeatColor(count),
                                   outline: isPinned ? "2px solid #3b82f6" : undefined,
@@ -965,14 +992,21 @@ export function Processing() {
                                 onMouseMove={() => {
                                   if (lastHoverKeyRef.current === hoverKey) return;
                                   lastHoverKeyRef.current = hoverKey;
-                                  setHoverCell({ hour, minute, count, names });
+                                  setHoverCell({ hour, minute, count, names, items });
                                 }}
                                 onClick={() => {
+                                  const isUnpinning =
+                                    pinnedHeatmapCell?.hour === hour &&
+                                    pinnedHeatmapCell?.minute === minute;
                                   setPinnedHeatmapCell((prev) =>
-                                    prev?.hour === hour && prev?.minute === minute
-                                      ? null
-                                      : { hour, minute, count, names }
+                                    isUnpinning ? null : { hour, minute, count, names, items }
                                   );
+                                  if (!isUnpinning) {
+                                    const currentHourUtc = new Date().getUTCHours();
+                                    const offset =
+                                      (currentHourUtc - hour - 1 + 24) % 24;
+                                    setWindowOffsetHours(offset);
+                                  }
                                 }}
                               />
                             );
@@ -1005,6 +1039,10 @@ export function Processing() {
                           style={{ backgroundColor: getHeatColor(10) }}
                         />
                         {t("processing.heatmap.legend.high")}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-3 w-3 rounded-sm border-2 border-dashed border-slate-700 bg-transparent" />
+                        {t("processing.heatmap.legend.now")}
                       </span>
                     </div>
                   </div>
@@ -1051,9 +1089,15 @@ export function Processing() {
                                 {t("processing.heatmap.copyList")}
                               </button>
                             </div>
-                            <ul className="mt-1 flex-1 min-h-0 list-disc space-y-0.5 overflow-auto pl-4">
-                              {(pinnedHeatmapCell ?? hoverCell)!.names.map((name, index) => (
-                                <li key={`${name}-${index}`}>{name}</li>
+                            <ul className={`mt-1 flex-1 min-h-0 space-y-1 overflow-auto pl-1 ${privateCls}`}>
+                              {(pinnedHeatmapCell ?? hoverCell)!.items.map((item, index) => (
+                                <li key={`${item.name}-${index}`} className="flex items-center gap-1.5">
+                                  <ScheduleTypeBadge type={item.type} />
+                                  <ScheduleItemLink
+                                    item={item}
+                                    project={sdk.project}
+                                  />
+                                </li>
                               ))}
                             </ul>
                           </>
@@ -1097,6 +1141,7 @@ export function Processing() {
         selectedLogsStatus={selectedLogsStatus}
         selectedLogsError={selectedLogsError}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <TransformationRunModal
         open={!!selectedTransformationJob}
@@ -1104,6 +1149,7 @@ export function Processing() {
           setSelectedTransformationJob(null);
           setSelectedTransformation(null);
         }}
+        project={sdk.project}
         transformationName={
           transformationNameMap[String(selectedTransformationJob?.transformationId ?? "")] ??
           t("processing.unknown.transformation")
@@ -1111,6 +1157,7 @@ export function Processing() {
         selectedTransformation={selectedTransformation}
         selectedTransformationJob={selectedTransformationJob as Record<string, unknown> | null}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <WorkflowRunModal
         open={!!selectedWorkflowExecution}
@@ -1127,6 +1174,7 @@ export function Processing() {
         workflowDetailsStatus={workflowDetailsStatus}
         workflowDetailsError={workflowDetailsError}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <ExtractionPipelineRunModal
         open={!!selectedExtractorRun}
@@ -1138,6 +1186,7 @@ export function Processing() {
         selectedPipeline={selectedExtractorConfig}
         selectedRun={selectedExtractorRun as Record<string, unknown> | null}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <Loader
         open={showLoader}
@@ -1154,4 +1203,53 @@ export function Processing() {
       />
     </section>
   );
+}
+
+const TYPE_BADGE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  function: { bg: "bg-blue-100", text: "text-blue-700", label: "fn" },
+  transformation: { bg: "bg-purple-100", text: "text-purple-700", label: "tx" },
+  workflow: { bg: "bg-emerald-100", text: "text-emerald-700", label: "wf" },
+};
+
+function ScheduleTypeBadge({ type }: { type: string }) {
+  const style = TYPE_BADGE_STYLES[type] ?? { bg: "bg-slate-100", text: "text-slate-600", label: type };
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[9px] font-semibold uppercase leading-none ${style.bg} ${style.text}`}
+    >
+      {style.label}
+    </span>
+  );
+}
+
+function ScheduleItemLink({
+  item,
+  project,
+}: {
+  item: { name: string; type: string; id: string };
+  project: string;
+}) {
+  let url: string | null = null;
+  if (item.type === "function") {
+    url = getFunctionsPageUrl(project);
+  } else if (item.type === "transformation" && item.id) {
+    url = getTransformationPreviewUrl(project, item.id);
+  } else if (item.type === "workflow" && item.id) {
+    url = getWorkflowEditorUrl(project, item.id);
+  }
+
+  if (url) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="truncate text-blue-600 hover:underline"
+        title={item.name}
+      >
+        {item.name}
+      </a>
+    );
+  }
+  return <span className="truncate" title={item.name}>{item.name}</span>;
 }
