@@ -36,7 +36,6 @@ except ImportError:
 def handle(
     data: Dict[str, Any],
     client: CogniteClient = None,
-    logger: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     CDF-compatible handler function for key extraction.
@@ -49,7 +48,6 @@ def handle(
             - config: Workflow-provided config payload
             - logLevel: Optional log level (DEBUG, INFO, WARNING, ERROR)
         client: CogniteClient instance (required for CDF querying/writing mode)
-        logger: Optional pre-built logger (must support ``.verbose`` for engines); default from ``data``.
 
     Returns:
         Dictionary with status and result information
@@ -60,7 +58,7 @@ def handle(
     try:
         loglevel = data.get("logLevel", "INFO")
         verbose = data.get("verbose", False)
-        log = resolve_function_logger(data, logger, strict_level_names=True)
+        log = resolve_function_logger(data, None, strict_level_names=True)
         verbose_label = "ON" if verbose else "OFF"
         log.info(
             f"Starting key extraction with loglevel = {loglevel} and verbose {verbose_label}"

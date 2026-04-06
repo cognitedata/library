@@ -432,7 +432,7 @@ def key_extraction(
             raw_db = cdf_config.parameters.raw_db
             raw_table_key = cdf_config.parameters.raw_table_key
             write_empty_extraction_rows = bool(
-                cdf_config.parameters.write_empty_extraction_rows
+                getattr(cdf_config.parameters, "write_empty_extraction_rows", False)
             )
 
             logger.debug(

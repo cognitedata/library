@@ -23,7 +23,6 @@ from .dependencies import create_client, get_env_variables
 def handle(
     data: Dict[str, Any],
     client: CogniteClient = None,
-    logger: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     CDF-compatible handler function for alias persistence.
@@ -46,7 +45,6 @@ def handle(
             - source_instance_space, source_view_space, source_view_external_id,
               source_view_version: required for FK-only entities when not in entities_keys_extracted
         client: CogniteClient instance (required)
-        logger: Optional logger; default from ``data``.
 
     Returns:
         Dictionary with status and results
@@ -55,7 +53,7 @@ def handle(
 
     try:
         loglevel = data.get("logLevel", "INFO")
-        log = resolve_function_logger(data, logger)
+        log = resolve_function_logger(data, None)
         log.info(f"Starting alias persistence with loglevel = {loglevel}")
 
         if not client:

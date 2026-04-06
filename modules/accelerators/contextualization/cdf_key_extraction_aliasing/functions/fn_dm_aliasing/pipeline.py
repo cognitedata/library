@@ -53,12 +53,35 @@ def _iter_raw_table_rows(
     """
     rows_api = client.raw.rows
     if callable(rows_api):
-        count = 0
-        for row in rows_api(raw_db, raw_table_key, chunk_size=chunk_size):
-            yield row
-            count += 1
-            if max_rows is not None and count >= max_rows:
-                return
+        yielded = 0
+        for item in rows_api(raw_db, raw_table_key, chunk_size=chunk_size):
+            # SDK iterator may yield either single Row objects or per-page lists.
+            if hasattr(item, "columns"):
+                yield item
+                yielded += 1
+                if max_rows is not None and yielded >= max_rows:
+                    return
+                continue
+
+            if isinstance(item, (list, tuple)):
+                for row in item:
+                    if not hasattr(row, "columns"):
+                        continue
+                    yield row
+                    yielded += 1
+                    if max_rows is not None and yielded >= max_rows:
+                        return
+                continue
+
+            # Defensive fallback for other iterable chunk types (e.g. RowList).
+            if hasattr(item, "__iter__") and not isinstance(item, (str, bytes, dict)):
+                for row in item:
+                    if not hasattr(row, "columns"):
+                        continue
+                    yield row
+                    yielded += 1
+                    if max_rows is not None and yielded >= max_rows:
+                        return
         return
     limit = max_rows if max_rows is not None else None
     listed = rows_api.list(raw_db, raw_table_key, limit=limit)

@@ -28,7 +28,6 @@ from .engine.tag_aliasing_engine import AliasingEngine
 def handle(
     data: Dict[str, Any],
     client: CogniteClient = None,
-    logger: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     CDF-compatible handler function for tag aliasing.
@@ -43,7 +42,6 @@ def handle(
             - tags: Optional list of tags to generate aliases for
             - entities: Optional list of entities with tags to alias
         client: CogniteClient instance (required for RAW read/write workflow mode)
-        logger: Optional logger (must support ``.verbose``); default from ``data``.
 
     Returns:
         JSON-serializable dict with status + summary.
@@ -53,7 +51,7 @@ def handle(
     try:
         loglevel = data.get("logLevel", "INFO")
         verbose = data.get("verbose", False)
-        log = resolve_function_logger(data, logger)
+        log = resolve_function_logger(data, None)
 
         log.info(f"Starting tag aliasing with loglevel = {loglevel} with verbose set to {verbose}")
 
