@@ -93,7 +93,7 @@ Set module variables in **`default.config.yaml`** (merged by the Toolkit). Value
 | `function_space` | Space for Cognite Function code artifacts (from `.env`: `FUNCTION_SPACE`) |
 | `default_dm_space`, `dm_ext_id`, `dm_version` | Data model reference (spaces / ext id from `.env` via `${DM_EXT_ID}` / `${DM_VERSION}`) |
 | `default_cad_space`, `default_scene_space` | CAD and scene configuration spaces (`DEFAULT_CAD_SPACE` in `.env`) |
-| `required_views`, `cad_model_view`, … | View references for DM 3D chain (see dev config) |
+| `required_views`, `cad_model_view`, … | Optional overrides; defaults are in `fn_context_3d_cad_asset_contextualization/config.py` (`_DEFAULT_*`) |
 | `file_extractor_watch_path` | Local path for file extractor config (if used) |
 | `3d_location_extractor_group_source_id`, `3d_location_processing_group_source_id`, `3d_location_read_group_source_id` | IdP object IDs for the three auth groups |
 | `cicd_clientId`, `cicd_clientSecret` | Optional: schedules / automation |

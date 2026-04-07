@@ -26,78 +26,9 @@ variables:
           dm_version: ${DM_VERSION}
           default_scene_space: scene
           cad_contextualization_batch_size: 100
-          required_views:
-          - space: cdf_cdm
-            external_id: Cognite3DObject
-            version: v1
-
-          - space: cdf_cdm
-            external_id: CogniteCADNode
-            version: v1
-
-          - space: cdf_cdm
-            external_id: CogniteCADRevision
-            version: v1
-
-          - space: cdf_cdm
-            external_id: CogniteCADModel
-            version: v1
-
-          - space: cdf_cdm
-            external_id: Cognite3DRevision
-            version: v1
-
-          - space: cdf_cdm
-            external_id: Cognite3DModel
-            version: v1
-
-          - space: cdf_cdm
-            external_id: Cognite3DTransformation
-            version: v1
-
-          - space: cdf_cdm
-            external_id: CogniteVisualizable
-            version: v1
-
-          - space: cdf_cdm
-            external_id: Cognite360Image
-            version: v1
-
-          - space: cdf_cdm
-            external_id: Cognite360ImageAnnotation
-            version: v1
-
-          - space: cdf_cdm
-            external_id: CogniteAnnotation
-            version: v1
-
-          - space: cdf_cdm
-            external_id: Cognite360ImageCollection
-            version: v1
-
-          - space: cdf_cdm
-            external_id: Cognite360ImageStation
-            version: v1
-
-          - space: cdf_cdm
-            external_id: CognitePointCloudVolume
-            version: v1
-
-          - space: cdf_cdm
-            external_id: CognitePointCloudRevision
-            version: v1
-
-          - space: scene
-            external_id: SceneConfiguration
-            version: v1
-
-          - space: scene
-            external_id: RevisionProperties
-            version: v1
-
-          - space: cdf_3d_schema
-            external_id: Cdf3dModel
-            version: '1'
+          # required_views / cad_*_view: omitted here — defaults are in
+          # functions/fn_context_3d_cad_asset_contextualization/config.py (_DEFAULT_REQUIRED_VIEWS, _DEFAULT_CAD_VIEWS).
+          # Override in your project config.dev.yaml if you use non-cdf_cdm view spaces.
 
           asset_instance_space: ${ASSET_INSTANCE_SPACE}
           cad_node_instance_space: ${CAD_NODE_INSTANCE_SPACE}
@@ -111,27 +42,3 @@ variables:
           cdf_project_name: ${CDF_PROJECT}
           cdf_cluster: ${CDF_CLUSTER}
           external_root_id_asset: ${EXTERNAL_ROOT_ID_ASSET}  #optional: only used for legacy behavior
-          cad_model_view:
-            space: cdf_cdm
-            external_id: CogniteCADModel
-            version: v1
-
-          cad_revision_view:
-            space: cdf_cdm
-            external_id: CogniteCADRevision
-            version: v1
-
-          scene_config_view:
-            space: scene
-            external_id: SceneConfiguration
-            version: v1
-
-          scene_model_view:
-            space: cdf_3d_schema
-            external_id: Cdf3dModel
-            version: '1'
-
-          rev_props_view:
-            space: scene
-            external_id: RevisionProperties
-            version: v1
