@@ -1,13 +1,14 @@
+import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, List, Any
+from typing import Any, List, Optional
+
+import pandas as pd
+import streamlit as st
+from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.filters import Filter
-from cognite.client import data_modeling as dm
-import pandas as pd
 from constants import FieldNames
-import logging
-import streamlit as st
 
 logger = logging.getLogger(__name__)
  

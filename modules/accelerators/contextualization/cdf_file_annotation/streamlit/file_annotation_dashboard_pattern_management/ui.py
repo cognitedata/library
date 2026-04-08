@@ -1,11 +1,12 @@
+import uuid
 from typing import Optional
+
 import streamlit as st
 from cognite.client import CogniteClient
-from data_fetcher import DataFetcher
-from tabs import PatternManagementTab
-from data_structures import ExtractionPipelineConfig
 from constants import FieldNames
-import uuid
+from data_fetcher import DataFetcher
+from data_structures import ExtractionPipelineConfig
+from tabs import PatternManagementTab
 
 
 class PatternManagementUI:

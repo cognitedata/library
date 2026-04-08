@@ -1,14 +1,14 @@
-import streamlit as st
-import pandas as pd
-import yaml
 import time
-from typing import Optional, Callable, Any
-from data_structures import ExtractionPipelineConfig
-from constants import FieldNames
+from typing import Any, Callable, Optional
+
+import pandas as pd
+import streamlit as st
+import yaml
 from cognite.client import CogniteClient
-from cognite.client.exceptions import CogniteAPIError
-from cognite.client.exceptions import CogniteConnectionError
 from cognite.client.data_classes import RowList
+from cognite.client.exceptions import CogniteAPIError, CogniteConnectionError
+from constants import FieldNames
+from data_structures import ExtractionPipelineConfig
 
 
 class DataFetcher:

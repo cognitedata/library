@@ -1,20 +1,27 @@
-import streamlit as st
-import pandas as pd
-from abc import ABC, abstractmethod
-from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
-from data_fetcher import DataFetcher
-from constants import FieldNames
-from data_structures import ExtractionPipelineConfig, ViewPropertyConfig, FilterConfig, QueryConfig, UIReporter
-from data_updater import DataUpdater
-from factories import DataEditorChangeCaptureFactory
-import uuid
-import io
 import ast
-import json
 import hashlib
+import io
+import json
+import uuid
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
+from cognite.client import CogniteClient
+from cognite.client import data_modeling as dm
+from constants import FieldNames
+from data_fetcher import DataFetcher
+from data_structures import (
+    ExtractionPipelineConfig,
+    FilterConfig,
+    QueryConfig,
+    UIReporter,
+    ViewPropertyConfig,
+)
+from data_updater import DataUpdater
+from factories import DataEditorChangeCaptureFactory
 
 
 class Component(ABC):

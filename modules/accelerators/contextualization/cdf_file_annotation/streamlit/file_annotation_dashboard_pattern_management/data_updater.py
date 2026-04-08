@@ -1,12 +1,13 @@
-import streamlit as st
-from typing import Dict, List, Any
-from datetime import datetime, timezone
 import re
 from collections import defaultdict
-from cognite.client.data_classes import Row, RowWrite
+from datetime import datetime, timezone
+from typing import Any, Dict, List
+
+import streamlit as st
 from cognite.client import data_modeling as dm
-from data_fetcher import DataFetcher
+from cognite.client.data_classes import Row, RowWrite
 from constants import FieldNames
+from data_fetcher import DataFetcher
 
 
 class DataUpdater:
