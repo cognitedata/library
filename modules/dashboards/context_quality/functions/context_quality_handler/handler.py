@@ -122,12 +122,12 @@ if not logger.handlers:
 def _handle_aggregation(client: CogniteClient, config: dict, start_time: float) -> dict:
     """
     Aggregation mode: Load all batch files, merge, and compute final metrics.
+    Produces the same metric keys as quick run (normal mode).
     """
     logger.info("=" * 70)
     logger.info("AGGREGATION MODE: Merging batch files")
     logger.info("=" * 70)
     
-    # List batch files
     batch_files = list_batch_files(client)
     if not batch_files:
         logger.error("No batch files found for aggregation")
@@ -135,8 +135,7 @@ def _handle_aggregation(client: CogniteClient, config: dict, start_time: float) 
     
     logger.info(f"Found {len(batch_files)} batch files to merge")
     
-    # Load and merge all batches
-    merged_acc = load_and_merge_all_batches(client)
+    merged_acc, merged_m3d, merged_ann = load_and_merge_all_batches(client)
     
     if not merged_acc:
         logger.error("Failed to merge batch files")
@@ -145,27 +144,44 @@ def _handle_aggregation(client: CogniteClient, config: dict, start_time: float) 
     logger.info(f"Merged accumulator: assets={merged_acc.total_assets:,}, "
                f"ts={merged_acc.total_ts:,}, equipment={merged_acc.total_equipment:,}")
     
-    # Compute all metrics from merged accumulator
+    chunk_size = config["chunk_size"]
+    max_ts = config["max_timeseries"]
+    max_assets = config["max_assets"]
+    max_eq = config["max_equipment"]
+    max_notif = config["max_notifications"]
+    max_orders = config["max_maintenance_orders"]
+    max_annotations = config["max_annotations"]
+    max_3d_objects = config.get("max_3d_objects", 150000)
+    max_files = config.get("max_files", 150000)
+    freshness_days = config["freshness_days"]
+    enable_gaps = config["enable_historical_gaps"]
+    enable_maintenance = config.get("enable_maintenance_metrics", True)
+    enable_file_annotations = config.get("enable_file_annotation_metrics", True)
+    enable_3d = config.get("enable_3d_metrics", True)
+    enable_files = config.get("enable_file_metrics", True)
+    file_external_id = config.get("file_external_id", "contextualization_quality_metrics")
+    file_name = config.get("file_name", "contextualization_quality_metrics.json")
+    
     logger.info("-" * 50)
-    logger.info("Computing final metrics from merged data")
+    logger.info("Computing final metrics from merged data (same as quick run)")
     logger.info("-" * 50)
     
     ts_metrics = compute_ts_metrics(merged_acc)
     hierarchy_metrics = compute_asset_hierarchy_metrics(merged_acc)
     equipment_metrics = compute_equipment_metrics(merged_acc)
     
-    # Maintenance metrics
-    enable_maintenance = config.get("enable_maintenance_metrics", True)
     maintenance_metrics = {}
     if enable_maintenance and merged_acc.total_notifications > 0:
         maintenance_metrics = compute_maintenance_metrics(merged_acc)
     
-    # File annotation metrics (not batched currently - would need similar treatment)
-    file_annotation_metrics = {}
+    file_annotation_metrics = (
+        compute_file_annotation_metrics(merged_ann) if enable_file_annotations else {}
+    )
+    model3d_metrics = compute_3d_metrics(merged_m3d) if enable_3d else {}
+    file_metrics = compute_file_metrics(merged_acc) if enable_files else {}
     
     total_elapsed = time.time() - start_time
     
-    # Compile final metrics
     all_metrics = {
         "metadata": {
             "computed_at": merged_acc.now.isoformat(),
@@ -203,22 +219,62 @@ def _handle_aggregation(client: CogniteClient, config: dict, start_time: float) 
                     "duplicates": merged_acc.order_duplicates,
                     "duplicate_ids": merged_acc.order_duplicate_ids,
                 },
+                "failure_notifications": {
+                    "unique": merged_acc.total_failure_notifications,
+                },
+                "annotations": {
+                    "unique": merged_ann.unique_annotations if enable_file_annotations else 0,
+                },
+                "3d_objects": {
+                    "unique": merged_m3d.total_3d_objects if enable_3d else 0,
+                    "assets_with_3d": merged_m3d.assets_with_3d if enable_3d else 0,
+                },
+                "files": {
+                    "total_instances": merged_acc.total_file_instances if enable_files else 0,
+                    "unique": merged_acc.total_files if enable_files else 0,
+                    "duplicates": merged_acc.file_duplicates if enable_files else 0,
+                    "duplicate_ids": merged_acc.file_duplicate_ids if enable_files else [],
+                },
             },
-            "config": config,
+            "limits_reached": {
+                "timeseries": merged_acc.total_ts >= max_ts,
+                "assets": merged_acc.total_assets >= max_assets,
+                "equipment": merged_acc.total_equipment >= max_eq,
+                "notifications": merged_acc.total_notifications >= max_notif if enable_maintenance else False,
+                "maintenance_orders": merged_acc.total_orders >= max_orders if enable_maintenance else False,
+                "annotations": merged_ann.unique_annotations >= max_annotations if enable_file_annotations else False,
+                "3d_objects": merged_m3d.total_3d_objects >= max_3d_objects if enable_3d else False,
+                "files": merged_acc.total_files >= max_files if enable_files else False,
+            },
+            "config": {
+                "chunk_size": chunk_size,
+                "max_timeseries": max_ts,
+                "max_assets": max_assets,
+                "max_equipment": max_eq,
+                "max_notifications": max_notif,
+                "max_maintenance_orders": max_orders,
+                "max_annotations": max_annotations,
+                "max_3d_objects": max_3d_objects,
+                "max_files": max_files,
+                "freshness_days": freshness_days,
+                "enable_historical_gaps": enable_gaps,
+                "enable_maintenance_metrics": enable_maintenance,
+                "enable_file_annotation_metrics": enable_file_annotations,
+                "enable_3d_metrics": enable_3d,
+                "enable_file_metrics": enable_files,
+            },
         },
         "timeseries_metrics": ts_metrics,
         "hierarchy_metrics": hierarchy_metrics,
         "equipment_metrics": equipment_metrics,
-        "maintenance_metrics": maintenance_metrics,
-        "file_annotation_metrics": file_annotation_metrics,
+        "maintenance_metrics": maintenance_metrics if enable_maintenance else {},
+        "file_annotation_metrics": file_annotation_metrics if enable_file_annotations else {},
+        "model3d_metrics": model3d_metrics if enable_3d else {},
+        "file_metrics": file_metrics if enable_files else {},
     }
     
-    # Save final metrics
-    file_external_id = config.get("file_external_id", "contextualization_quality_metrics")
-    file_name = config.get("file_name", "contextualization_quality_metrics.json")
     save_metrics_to_file(client, all_metrics, file_external_id, file_name)
     
-    # Clean up batch files
     logger.info("Cleaning up batch files...")
     deleted = delete_batch_files(client)
     logger.info(f"Deleted {deleted} batch files")
@@ -452,17 +508,157 @@ def _handle_batch_collection(client: CogniteClient, config: dict, start_time: fl
         
         logger.info(f"[Batch {batch_index}] Orders collected: {acc.total_orders:,}")
         
-        # Failure notifications (no offset - typically small)
+        # Failure notifications (same offset/limit pattern as other entity types)
+        instances_skipped = 0
+        instances_processed = 0
+        logger.info(f"[Batch {batch_index}] Processing Failure Notifications...")
         try:
             for fn_batch in client.data_modeling.instances(
                 chunk_size=chunk_size,
                 instance_type="node",
                 sources=failure_notification_view,
             ):
+                batch_instance_count = len(fn_batch.data)
+                if instances_skipped + batch_instance_count <= offset:
+                    instances_skipped += batch_instance_count
+                    continue
                 process_failure_notification_batch(fn_batch, failure_notification_view, acc)
+                instances_processed += batch_instance_count
+                if instances_processed >= batch_size:
+                    break
         except Exception as e:
             logger.warning(f"Could not process Failure Notifications: {e}")
     
+    # Same feature flags and limits as quick run (normal mode)
+    enable_file_annotations = config.get("enable_file_annotation_metrics", True)
+    enable_3d = config.get("enable_3d_metrics", True)
+    enable_files = config.get("enable_file_metrics", True)
+    max_annotations = config.get("max_annotations", 200000)
+    max_3d_objects = config.get("max_3d_objects", 150000)
+    max_files = config.get("max_files", 150000)
+    max_assets = config.get("max_assets", 150000)
+
+    annotation_acc = FileAnnotationAccumulator()
+    model3d_acc = Model3DAccumulator()
+
+    annotation_view = ViewId(
+        config["annotation_view_space"],
+        config["annotation_view_external_id"],
+        config["annotation_view_version"],
+    )
+    object3d_view = ViewId(
+        config["object3d_view_space"],
+        config["object3d_view_external_id"],
+        config["object3d_view_version"],
+    )
+    file_view = ViewId(
+        config.get("file_view_space", "cdf_cdm"),
+        config.get("file_view_external_id", "CogniteFile"),
+        config.get("file_view_version", "v1"),
+    )
+
+    # ============================================================
+    # PHASE 5: File Annotations (same as quick run, with offset/limit)
+    # ============================================================
+    if enable_file_annotations:
+        logger.info(f"[Batch {batch_index}] Processing File Annotations (CDM)...")
+        instances_skipped = 0
+        instances_processed = 0
+        try:
+            for annot_batch in client.data_modeling.instances(
+                chunk_size=chunk_size,
+                instance_type="edge",
+                sources=annotation_view,
+            ):
+                batch_instance_count = len(annot_batch.data)
+                if instances_skipped + batch_instance_count <= offset:
+                    instances_skipped += batch_instance_count
+                    continue
+                process_annotation_batch(annot_batch, annotation_view, annotation_acc)
+                instances_processed += batch_instance_count
+                if annotation_acc.unique_annotations >= max_annotations:
+                    break
+                if instances_processed >= batch_size:
+                    break
+        except Exception as e:
+            logger.warning(f"[Annotations] Could not process annotations: {e}")
+        logger.info(f"[Batch {batch_index}] Annotations: {annotation_acc.unique_annotations:,}")
+
+    # ============================================================
+    # PHASE 6: 3D Model Contextualization (same as quick run, with offset/limit)
+    # ============================================================
+    if enable_3d:
+        logger.info(f"[Batch {batch_index}] Processing 3D Model Contextualization...")
+        instances_skipped = 0
+        instances_processed = 0
+        try:
+            for asset_batch in client.data_modeling.instances(
+                chunk_size=chunk_size,
+                instance_type="node",
+                sources=asset_view,
+            ):
+                batch_instance_count = len(asset_batch.data)
+                if instances_skipped + batch_instance_count <= offset:
+                    instances_skipped += batch_instance_count
+                    continue
+                process_asset_3d_batch(asset_batch, asset_view, model3d_acc)
+                instances_processed += batch_instance_count
+                if model3d_acc.total_assets_checked >= max_assets:
+                    break
+                if instances_processed >= batch_size:
+                    break
+        except Exception as e:
+            logger.warning(f"[3D] Could not process asset 3D links: {e}")
+
+        instances_skipped = 0
+        instances_processed = 0
+        try:
+            for obj_batch in client.data_modeling.instances(
+                chunk_size=chunk_size,
+                instance_type="node",
+                sources=object3d_view,
+            ):
+                batch_instance_count = len(obj_batch.data)
+                if instances_skipped + batch_instance_count <= offset:
+                    instances_skipped += batch_instance_count
+                    continue
+                process_3d_object_batch(obj_batch, object3d_view, model3d_acc)
+                instances_processed += batch_instance_count
+                if model3d_acc.total_3d_objects >= max_3d_objects:
+                    break
+                if instances_processed >= batch_size:
+                    break
+        except Exception as e:
+            logger.warning(f"[3D] Could not process 3D objects: {e}")
+        logger.info(f"[Batch {batch_index}] 3D objects: {model3d_acc.total_3d_objects:,}")
+
+    # ============================================================
+    # PHASE 7: File Contextualization (same as quick run, with offset/limit)
+    # ============================================================
+    if enable_files:
+        logger.info(f"[Batch {batch_index}] Processing Files (CogniteFile)...")
+        instances_skipped = 0
+        instances_processed = 0
+        try:
+            for file_batch in client.data_modeling.instances(
+                chunk_size=chunk_size,
+                instance_type="node",
+                sources=file_view,
+            ):
+                batch_instance_count = len(file_batch.data)
+                if instances_skipped + batch_instance_count <= offset:
+                    instances_skipped += batch_instance_count
+                    continue
+                process_file_batch(file_batch, file_view, acc)
+                instances_processed += batch_instance_count
+                if acc.total_files >= max_files:
+                    break
+                if instances_processed >= batch_size:
+                    break
+        except Exception as e:
+            logger.warning(f"[Files] Could not process files: {e}")
+        logger.info(f"[Batch {batch_index}] Files: {acc.total_files:,}")
+
     # ============================================================
     # Save batch file
     # ============================================================
@@ -476,7 +672,14 @@ def _handle_batch_collection(client: CogniteClient, config: dict, start_time: fl
         "execution_time_seconds": round(total_elapsed, 2),
     }
     
-    save_batch_file(client, acc, batch_index, batch_metadata)
+    save_batch_file(
+        client,
+        acc,
+        batch_index,
+        batch_metadata,
+        model3d_accumulator=model3d_acc,
+        file_annotation_accumulator=annotation_acc,
+    )
     
     logger.info("=" * 70)
     logger.info(f"BATCH {batch_index} COMPLETE in {format_elapsed(total_elapsed)}")

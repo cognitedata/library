@@ -506,6 +506,20 @@ class CombinedAccumulator:
             "assets_with_files": list(self.assets_with_files),
             "file_category_counts": self.file_category_counts,
             "file_mime_type_counts": self.file_mime_type_counts,
+            "file_list": [
+                {
+                    "file_id": f.file_id,
+                    "asset_ids": list(f.asset_ids),
+                    "category_id": f.category_id,
+                    "mime_type": f.mime_type,
+                    "directory": f.directory,
+                    "is_uploaded": f.is_uploaded,
+                    "name": f.name,
+                    "description": f.description,
+                    "source_id": f.source_id,
+                }
+                for f in self.file_list
+            ],
         }
     
     @classmethod
@@ -613,6 +627,20 @@ class CombinedAccumulator:
         acc.assets_with_files = set(data.get("assets_with_files", []))
         acc.file_category_counts = data.get("file_category_counts", {})
         acc.file_mime_type_counts = data.get("file_mime_type_counts", {})
+        acc.file_list = [
+            FileData(
+                file_id=x["file_id"],
+                asset_ids=list(x.get("asset_ids", [])),
+                category_id=x.get("category_id"),
+                mime_type=x.get("mime_type"),
+                directory=x.get("directory"),
+                is_uploaded=bool(x.get("is_uploaded", False)),
+                name=x.get("name"),
+                description=x.get("description"),
+                source_id=x.get("source_id"),
+            )
+            for x in data.get("file_list", [])
+        ]
         
         return acc
     

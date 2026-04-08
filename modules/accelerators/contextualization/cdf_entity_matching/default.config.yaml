@@ -28,5 +28,5 @@ workflow: EntityMatching
 workflowClientId: ${IDP_CLIENT_ID}
 workflowClientSecret: ${IDP_CLIENT_SECRET}
 # Update GROUP_SOURCE_ID to your group source ID
-entity_matching_processing_group_source_id: <GROUP_SOURCE_ID>
+entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
 reservedWordPrefix: Enterprise_

@@ -15,4 +15,4 @@ reservedWordPrefix: Enterprise_
 
 # used in /auth
 # Update GROUP_SOURCE_ID to your group source ID
-groupSourceId: <GROUP_SOURCE_ID>
+groupSourceId: ${GROUP_SOURCE_ID}

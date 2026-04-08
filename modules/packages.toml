@@ -117,3 +117,11 @@ modules = [
     "tools/apps/qualitizer"
 ]
 
+[packages.custom]
+id = "dp:emptymodule"
+title = "Empty Module"
+description = "Start with an empty module"
+canCherryPick = false
+modules = [
+    "custom/my_module",
+]
