@@ -1,0 +1,8 @@
+externalId: file_annotation_dashboard_pattern_management
+name: File Annotation Dashboard - Pattern Management
+creator: lucas.guimaraes@cognite.com, jack.zhao@cognite.com
+description: Dashboard to manage patterns in the File Annotation Pipeline
+published: true
+theme: Light
+dataSetExternalId: {{dataset}}
+entrypoint: Pattern_Management.py
