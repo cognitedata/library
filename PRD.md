@@ -21,6 +21,7 @@ When a DE starts a new CDF project, there is no authoritative, reusable starting
 - `**dp:quickstart`** is demo-oriented — it ships synthetic data and pre-configured connections that are tightly coupled to a fictional "Springfield" site. Removing synthetic data, renaming locations, or swapping a source system requires touching files across multiple modules. It is not designed to evolve into a production deployment.
 - **Blank-slate projects** (no DP) require DEs to assemble spaces, datasets, groups, extractor configs, transformations, and orchestration from scratch on every engagement. This leads to inconsistent project structures, configuration drift, and undocumented decisions.
 - **gss-knowledge-base** contains mature extractor configuration templates (PI, OPC-UA, SAP) but they are not wired into any deployable DP — DEs must manually locate, copy, and adapt them per project.
+- **lack of standardisation and compliance with best practices**: a simple research showed that out of eight delivered QS there were no consistency in naming convention, access control, data model alignment
 
 The result is that each new deployment is partially reinvented, slowing delivery and introducing variability that makes cross-project support harder.
 
@@ -28,7 +29,7 @@ The result is that each new deployment is partially reinvented, slowing delivery
 
 `dp:foundation` gives DEs and partners a single, composable starting point they can deploy to a real customer project on day one:
 
-- Extractor configuration templates for the three most common industrial source systems are bundled and ready — no gss-knowledge-base lookup required.
+- Extractor configuration templates for the three most common industrial source systems are bundled and ready — no gss-knowledge-base or other lookup required.
 - The project structure (spaces, datasets, groups, data model, orchestration) is standardised and parameterised by `location` — a new site is a new variable value, not a new set of files.
 - Contextualization is a first-class, deployable capability, not an afterthought.
 - The architecture is open for extension (add a module, set a variable) rather than modification (fork and edit).
@@ -962,8 +963,8 @@ The WorkflowVersion YAML schema and variable substitution syntax are Toolkit-ver
 ### Field engineer experience (outcome-based)
 
 - **Extractor readiness**: A field engineer with CDF credentials and source system credentials can configure and run the PI, OPC-UA, or SAP extractor using only the config template shipped in the module — without consulting gss-knowledge-base or requesting help from another team member.
-- **Time to first data in CDF**: A DE starting from a blank, provisioned CDF project can have timeseries and asset data flowing into the data model within **one working day** of deploying `dp:foundation` with a single source system.
-- **Time to end-to-end deployment**: A DE deploying all three source systems (PI + OPC-UA + SAP) plus contextualization on a new customer project can complete the deployment within **two working days**.
+- **Time to first data in CDF**: A DE starting from a blank, provisioned CDF project can have timeseries and asset data flowing into the data model within **one working day** of deploying `dp:foundation` with a single source system if access to source systems is provided.
+- **Time to end-to-end deployment**: A DE deploying all three source systems (PI + OPC-UA + SAP) plus contextualization of 10-50 PIDs on a new customer project can complete the deployment within **two working days**.
 
 ### Scalability (structural checks)
 
