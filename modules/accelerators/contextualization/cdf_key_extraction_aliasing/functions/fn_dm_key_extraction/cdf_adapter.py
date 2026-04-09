@@ -16,19 +16,29 @@ logger = logging.getLogger(__name__)
 
 # Shared rule normalization (used by both Pydantic and dict paths)
 try:
-    from .utils.rule_utils import get_extraction_type_from_rule, normalize_method
+    from utils.rule_utils import get_extraction_type_from_rule, normalize_method
 except ImportError:
-    get_extraction_type_from_rule = None
-    normalize_method = None
+    try:
+        # Local/package execution fallback
+        from .utils.rule_utils import get_extraction_type_from_rule, normalize_method
+    except ImportError:
+        get_extraction_type_from_rule = None
+        normalize_method = None
 
 # Import CDF Config model internally (not exposed to users)
 try:
-    from .config import Config
+    from config import Config
 
     CDF_CONFIG_AVAILABLE = True
 except ImportError:
-    CDF_CONFIG_AVAILABLE = False
-    Config = None
+    try:
+        # Local/package execution fallback
+        from .config import Config
+
+        CDF_CONFIG_AVAILABLE = True
+    except ImportError:
+        CDF_CONFIG_AVAILABLE = False
+        Config = None
 
 
 def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:

@@ -91,6 +91,21 @@ def ensure_instance_space_from_scope_document(
     return space
 
 
+def _view_has_node_space_filter(view: Mapping[str, Any]) -> bool:
+    for f in view.get("filters") or []:
+        if str(f.get("property_scope", "view")).lower() != "node":
+            continue
+        if f.get("target_property") != "space":
+            continue
+        op = str(f.get("operator", "")).upper()
+        vals = f.get("values")
+        if op == "EQUALS" and _space_from_filter_values(vals):
+            return True
+        if op == "IN" and isinstance(vals, list) and _space_from_filter_values(vals):
+            return True
+    return False
+
+
 def _merge_instance_space_into_source_views(inner: MutableMapping[str, Any], instance_space: str) -> None:
     data = inner.get("data")
     if not isinstance(data, dict):
@@ -99,8 +114,15 @@ def _merge_instance_space_into_source_views(inner: MutableMapping[str, Any], ins
     if not isinstance(views, list):
         return
     for v in views:
-        if isinstance(v, dict):
-            v["instance_space"] = instance_space
+        if not isinstance(v, dict):
+            continue
+        # Preserve per-view restrictions when explicitly configured.
+        current = v.get("instance_space")
+        if isinstance(current, str) and current.strip():
+            continue
+        if _view_has_node_space_filter(v):
+            continue
+        v["instance_space"] = instance_space
 
 
 def build_key_extraction_workflow_config(

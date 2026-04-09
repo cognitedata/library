@@ -29,9 +29,14 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.tag_patterns_paths import (
-    TAG_PATTERNS_YAML,
-)
+try:
+    # Repo-only path helper (not available in CDF Functions runtime)
+    from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.tag_patterns_paths import (  # type: ignore
+        TAG_PATTERNS_YAML,
+    )
+except ImportError:
+    # CDF Functions fallback: if no YAML is packaged, the registry will fall back to defaults.
+    TAG_PATTERNS_YAML = Path(__file__).resolve().parent / "tag_patterns.yaml"
 
 logger = logging.getLogger(__name__)
 

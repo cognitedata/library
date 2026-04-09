@@ -290,8 +290,11 @@ def discover_single_run_id_for_status(
     chunk_size: int = 2500,
 ) -> Optional[str]:
     """
-    If exactly one distinct RUN_ID exists among entity rows with WORKFLOW_STATUS,
-    return it; otherwise None (caller must pass run_id explicitly).
+    Return RUN_ID among entity rows with WORKFLOW_STATUS.
+    - If exactly one distinct RUN_ID exists, return it.
+    - If multiple RUN_IDs exist, return the latest lexicographic RUN_ID
+      (RUN_ID format is timestamp-like, so lexicographic order is chronological).
+    - If no RUN_ID can be determined, return None.
     """
     run_ids: Set[str] = set()
     try:
@@ -309,12 +312,10 @@ def discover_single_run_id_for_status(
             rid = cols.get(RUN_ID_COLUMN)
             if rid:
                 run_ids.add(str(rid))
-            if len(run_ids) > 1:
-                return None
     except Exception:
         return None
-    if len(run_ids) == 1:
-        return next(iter(run_ids))
+    if len(run_ids) >= 1:
+        return max(run_ids)
     return None
 
 
@@ -359,12 +360,8 @@ def transition_workflow_status_for_run(
     For all entity rows with RUN_ID and WORKFLOW_STATUS=from_status, set to_status.
     Returns number of rows updated.
     """
-    from cognite.client.data_classes import Row
-
-    from .raw_upload import create_raw_upload_queue
-
     n = 0
-    uploader = create_raw_upload_queue(client)
+    row_map: Dict[str, Dict[str, Any]] = {}
     for row in iter_raw_table_rows_chunked(
         client, raw_db, raw_table, chunk_size=chunk_size
     ):
@@ -383,14 +380,10 @@ def transition_workflow_status_for_run(
         new_cols[WORKFLOW_STATUS_UPDATED_AT_COLUMN] = datetime.now(
             timezone.utc
         ).isoformat(timespec="milliseconds")
-        uploader.add_to_upload_queue(
-            database=raw_db,
-            table=raw_table,
-            raw_row=Row(key=str(key), columns=new_cols),
-        )
+        row_map[str(key)] = new_cols
         n += 1
-    if n:
-        uploader.upload()
+    if row_map:
+        client.raw.rows.insert(db_name=raw_db, table_name=raw_table, row=row_map)
     return n
 
 

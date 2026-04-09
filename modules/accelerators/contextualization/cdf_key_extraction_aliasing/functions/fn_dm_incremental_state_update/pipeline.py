@@ -10,15 +10,14 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from cognite.client import data_modeling as dm
-from cognite.client.data_classes import Row
 
-from ..cdf_fn_common.extraction_input_hash import (
+from cdf_fn_common.extraction_input_hash import (
     build_field_map_for_hash,
     extraction_inputs_hash,
     iter_wanted_fields,
     rules_fingerprint,
 )
-from ..cdf_fn_common.incremental_scope import (
+from cdf_fn_common.incremental_scope import (
     CHANGE_KIND_COLUMN,
     CHANGE_KIND_ADD,
     CHANGE_KIND_UPDATE,
@@ -45,11 +44,94 @@ from ..cdf_fn_common.incremental_scope import (
     scope_key_from_view_dict,
     scope_watermark_row_key,
 )
-from ..cdf_fn_common.raw_upload import create_raw_upload_queue
-from ..cdf_fn_common.full_rescan import resolve_full_rescan
-from ..fn_dm_key_extraction.common.cdf_utils import create_table_if_not_exists
+from cdf_fn_common.raw_upload import create_raw_upload_queue
+from cdf_fn_common.full_rescan import resolve_full_rescan
+from cdf_fn_common.cdf_utils import create_table_if_not_exists
 
 RAW_COL_UPDATED_AT = "UPDATED_AT"
+
+
+def _cfg_get(obj: Any, key: str, default: Any = None) -> Any:
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _as_view_id(entity_view_config: Any) -> dm.ViewId:
+    if hasattr(entity_view_config, "as_view_id"):
+        return entity_view_config.as_view_id()
+    return dm.ViewId(
+        space=str(_cfg_get(entity_view_config, "view_space", "")),
+        external_id=str(_cfg_get(entity_view_config, "view_external_id", "")),
+        version=str(_cfg_get(entity_view_config, "view_version", "")),
+    )
+
+
+def _build_base_filter(entity_view_config: Any, view_id: dm.ViewId) -> dm.filters.Filter:
+    if hasattr(entity_view_config, "build_filter"):
+        return entity_view_config.build_filter()
+    # Dict fallback: preserve source_view filters from workflow payload.
+    if isinstance(entity_view_config, dict):
+        filters = entity_view_config.get("filters") or []
+        built: List[dm.filters.Filter] = [dm.filters.HasData(views=[view_id])]
+        for f in filters:
+            if not isinstance(f, dict):
+                continue
+            op = str(f.get("operator", "EQUALS")).upper()
+            prop_scope = str(f.get("property_scope", "view")).lower()
+            target_prop = str(f.get("target_property", "")).strip()
+            if not target_prop:
+                continue
+
+            values = f.get("values")
+            if isinstance(values, list):
+                vals = values
+            elif values is None:
+                vals = []
+            else:
+                vals = [values]
+
+            prop_ref = (
+                ("node", target_prop)
+                if prop_scope == "node"
+                else view_id.as_property_ref(target_prop)
+            )
+
+            expr: dm.filters.Filter
+            if op == "EXISTS":
+                expr = dm.filters.Exists(property=prop_ref)
+            elif op == "IN":
+                expr = dm.filters.In(property=prop_ref, values=vals)
+            elif op == "CONTAINS_ALL":
+                expr = dm.filters.ContainsAll(property=prop_ref, values=vals)
+            elif op == "SEARCH":
+                expr = dm.filters.Search(
+                    property=prop_ref, value=str(vals[0]) if vals else ""
+                )
+            else:
+                # Default to EQUALS semantics.
+                expr = dm.filters.Equals(property=prop_ref, value=vals[0] if vals else None)
+
+            if bool(f.get("negate", False)):
+                expr = dm.filters.Not(expr)
+            built.append(expr)
+
+        if len(built) == 1:
+            return built[0]
+        return dm.filters.And(*built)
+
+    # Minimal fallback: has data in the target view.
+    return dm.filters.HasData(views=[view_id])
+
+
+def _view_dict(entity_view_config: Any) -> Dict[str, Any]:
+    if hasattr(entity_view_config, "model_dump"):
+        return entity_view_config.model_dump(mode="python")
+    if isinstance(entity_view_config, dict):
+        return dict(entity_view_config)
+    if hasattr(entity_view_config, "dict"):
+        return entity_view_config.dict()
+    return {}
 
 
 def incremental_state_update(
@@ -99,12 +181,8 @@ def incremental_state_update(
     batch_updated_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
     for entity_view_config in source_views:
-        view_id = entity_view_config.as_view_id()
-        view_dict = (
-            entity_view_config.model_dump()
-            if hasattr(entity_view_config, "model_dump")
-            else entity_view_config.dict()
-        )
+        view_id = _as_view_id(entity_view_config)
+        view_dict = _view_dict(entity_view_config)
         scope_key = scope_key_from_view_dict(view_dict)
         wm_key = scope_watermark_row_key(scope_key)
 
@@ -118,7 +196,7 @@ def incremental_state_update(
             client, raw_db, raw_table_key, wm_key
         )
 
-        base_filter = entity_view_config.build_filter()
+        base_filter = _build_base_filter(entity_view_config, view_id)
         if high_wm is not None and not full_rescan:
             # Some backends can include the boundary value for `gt` on lastUpdatedTime.
             # Add +1ms to make the bound unambiguously exclusive.
@@ -149,7 +227,7 @@ def incremental_state_update(
             wanted_fields = iter_wanted_fields(extraction_rules, entity_view_config)
 
         max_ts: Optional[int] = None
-        space = getattr(entity_view_config, "instance_space", None)
+        space = _cfg_get(entity_view_config, "instance_space", None)
 
         for instance in list_all_instances(
             client,
@@ -157,7 +235,7 @@ def incremental_state_update(
             space=space,
             sources=[view_id],
             filter=filt,
-            limit_per_page=min(1000, getattr(entity_view_config, "batch_size", 1000) or 1000),
+            limit_per_page=min(1000, int(_cfg_get(entity_view_config, "batch_size", 1000) or 1000)),
         ):
             nid = node_instance_id_str(instance)
             if not nid:
@@ -212,9 +290,9 @@ def incremental_state_update(
                 "view_version": view_id.version,
                 "instance_space": str(space or getattr(instance, "space", "") or ""),
                 "entity_type": (
-                    entity_view_config.entity_type.value
-                    if hasattr(entity_view_config.entity_type, "value")
-                    else str(entity_view_config.entity_type)
+                    _cfg_get(entity_view_config, "entity_type").value
+                    if hasattr(_cfg_get(entity_view_config, "entity_type"), "value")
+                    else str(_cfg_get(entity_view_config, "entity_type") or "")
                 ),
                 RAW_COL_UPDATED_AT: batch_updated_at,
                 WORKFLOW_STATUS_UPDATED_AT_COLUMN: batch_updated_at,
@@ -222,7 +300,7 @@ def incremental_state_update(
             raw_uploader.add_to_upload_queue(
                 database=raw_db,
                 table=raw_table_key,
-                raw_row=Row(key=rk, columns=columns),
+                raw_row={"key": rk, "columns": columns},
             )
             cohort_rows += 1
 
@@ -240,7 +318,7 @@ def incremental_state_update(
         raw_uploader.add_to_upload_queue(
             database=raw_db,
             table=raw_table_key,
-            raw_row=Row(key=wm_key, columns=wm_columns),
+            raw_row={"key": wm_key, "columns": wm_columns},
         )
 
     raw_uploader.upload()

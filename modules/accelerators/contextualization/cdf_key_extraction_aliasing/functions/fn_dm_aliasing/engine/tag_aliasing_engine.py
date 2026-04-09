@@ -26,10 +26,10 @@ from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
-from ...cdf_fn_common.confidence_match_eval import (
+from cdf_fn_common.confidence_match_eval import (
     apply_confidence_match_rules_to_float_scores,
 )
-from ..common.logger import CogniteFunctionLogger
+from common.logger import CogniteFunctionLogger
 from .transformer_utils import (
     STANDARD_TAG_PATTERN,
     PatternMatchMixin,
@@ -412,7 +412,7 @@ class AliasingEngine:
 
 def load_config_from_yaml(file_path: str) -> Dict[str, Any]:
     """Load configuration from YAML file."""
-    from ..common.config_utils import load_config_from_yaml as _load_config_from_yaml
+    from common.config_utils import load_config_from_yaml as _load_config_from_yaml
 
     return _load_config_from_yaml(file_path)
 
@@ -421,7 +421,7 @@ def main():
     """Example usage of the AliasingEngine."""
     import copy
 
-    from ..cdf_adapter import _DEFAULT_ALIASING_VALIDATION
+    from cdf_adapter import _DEFAULT_ALIASING_VALIDATION
 
     # Example configuration
     config = {

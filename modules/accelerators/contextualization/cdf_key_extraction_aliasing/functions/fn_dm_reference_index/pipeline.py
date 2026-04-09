@@ -30,8 +30,8 @@ except ImportError:
     CogniteClient = None  # type: ignore
     Row = None  # type: ignore
 
-from ..cdf_fn_common.cdf_utils import create_table_if_not_exists
-from ..cdf_fn_common.incremental_scope import (
+from cdf_fn_common.cdf_utils import create_table_if_not_exists
+from cdf_fn_common.incremental_scope import (
     EXTERNAL_ID_COLUMN,
     RECORD_KIND_COLUMN,
     RECORD_KIND_ENTITY,
@@ -45,19 +45,14 @@ from ..cdf_fn_common.incremental_scope import (
     raw_row_columns,
 )
 
-try:
-    from ..fn_dm_key_extraction.pipeline import (
-        DOCUMENT_REFERENCES_JSON_COLUMN,
-        FOREIGN_KEY_REFERENCES_JSON_COLUMN,
-    )
-except ImportError:  # pragma: no cover
-    FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
-    DOCUMENT_REFERENCES_JSON_COLUMN = "DOCUMENT_REFERENCES_JSON"
+FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
+DOCUMENT_REFERENCES_JSON_COLUMN = "DOCUMENT_REFERENCES_JSON"
 
 try:
-    from ..fn_dm_aliasing.cdf_adapter import _convert_yaml_direct_to_aliasing_config
-    from ..fn_dm_aliasing.engine.tag_aliasing_engine import AliasingEngine
-except ImportError:  # pragma: no cover
+    # Optional: if an AliasingEngine is vendored into this function folder.
+    from cdf_adapter import _convert_yaml_direct_to_aliasing_config  # type: ignore
+    from engine.tag_aliasing_engine import AliasingEngine  # type: ignore
+except Exception:  # pragma: no cover
     _convert_yaml_direct_to_aliasing_config = None
     AliasingEngine = None
 
@@ -107,7 +102,7 @@ class _IndexRowStore:
                 self._cache[row.key] = dict(getattr(row, "columns", {}) or {})
                 n += 1
         self.full_prefetch = True
-        self.logger.info("Reference index: prefetched %s index RAW row(s) into memory", n)
+        self.logger.info(f"Reference index: prefetched {n} index RAW row(s) into memory")
         return n
 
     def ensure_loaded(self, keys: Set[str]) -> None:
@@ -210,7 +205,21 @@ def _merge_remove_entity_postings(
 
 def _build_aliasing_engine(data: Dict[str, Any], logger: Any) -> Any:
     if AliasingEngine is None or _convert_yaml_direct_to_aliasing_config is None:
-        raise ValueError("AliasingEngine is not available (import fn_dm_aliasing)")
+        logger.warning(
+            "AliasingEngine not available; reference index will only index canonical values (no alias expansion)."
+        )
+
+        class _NoOpResult:
+            def __init__(self, original_tag: str):
+                self.original_tag = original_tag
+                self.aliases: List[str] = []
+                self.metadata: Dict[str, Any] = {}
+
+        class _NoOpEngine:
+            def generate_aliases(self, tag: str, entity_type: str = None, context: Dict[str, Any] = None):
+                return _NoOpResult(str(tag))
+
+        return _NoOpEngine()
     provided = data.get("config")
     if not isinstance(provided, dict):
         raise ValueError("reference index requires config with aliasing rules (data.config)")
@@ -278,12 +287,9 @@ def _load_source_raw_rows(
         chunks += 1
         out.extend(row_list)
     logger.info(
-        "Reference index: loaded %s source RAW row(s) in %s list chunk(s) "
-        "(max_rows=%s page_size=%s)",
-        len(out),
-        chunks,
-        max_rows if max_rows is not None else "unlimited",
-        page,
+        "Reference index: loaded "
+        f"{len(out)} source RAW row(s) in {chunks} list chunk(s) "
+        f"(max_rows={max_rows if max_rows is not None else 'unlimited'} page_size={page})"
     )
     return out, chunks
 
@@ -340,11 +346,7 @@ def persist_reference_index(
 
     if not data.get("skip_reference_index_ddl"):
         create_table_if_not_exists(client, index_db, index_table, logger)
-    logger.info(
-        "Reference index: target RAW db=%s table=%s",
-        index_db,
-        index_table,
-    )
+    logger.info(f"Reference index: target RAW db={index_db} table={index_table}")
 
     prefetch_table = bool(data.get("reference_index_prefetch_table", False))
     retrieve_concurrency = int(data.get("reference_index_retrieve_concurrency", 1) or 1)
@@ -381,10 +383,9 @@ def persist_reference_index(
     run_tag = str(data.get("run_id") or src_run or "")
 
     logger.info(
-        "Reference index: listing source RAW db=%s table=%s%s",
-        source_raw_db,
-        source_raw_table_key,
-        f" run_id={src_run}" if src_run else "",
+        f"Reference index: listing source RAW db={source_raw_db} "
+        f"table={source_raw_table_key}"
+        f"{f' run_id={src_run}' if src_run else ''}"
     )
     rows, source_list_chunks = _load_source_raw_rows(
         client, source_raw_db, source_raw_table_key, data, logger
@@ -392,8 +393,8 @@ def persist_reference_index(
     data["reference_index_source_list_chunks"] = source_list_chunks
     if progress_every > 0:
         logger.info(
-            "Reference index: progress log every %s entity/entities with references",
-            progress_every,
+            "Reference index: progress log every "
+            f"{progress_every} entity/entities with references"
         )
 
     entities_processed = 0
@@ -467,13 +468,11 @@ def persist_reference_index(
         entities_processed += 1
         if progress_every > 0 and entities_processed % progress_every == 0:
             logger.info(
-                "Reference index progress: entities_with_refs=%s, inverted_row_writes=%s, "
-                "posting_events=%s (foreign_key=%s, document=%s)",
-                entities_processed,
-                inverted_writes,
-                postings_written,
-                fk_postings_written,
-                doc_postings_written,
+                "Reference index progress: "
+                f"entities_with_refs={entities_processed}, "
+                f"inverted_row_writes={inverted_writes}, "
+                f"posting_events={postings_written} "
+                f"(foreign_key={fk_postings_written}, document={doc_postings_written})"
             )
 
         # Build new postings grouped by inverted row key (needed for index key prefetch).
@@ -657,14 +656,12 @@ def persist_reference_index(
         )
 
     logger.info(
-        "Reference index: entities_with_refs=%s, inverted_row_writes=%s, "
-        "posting_events=%s (foreign_key=%s, document=%s), insert_batches=%s",
-        entities_processed,
-        inverted_writes,
-        postings_written,
-        fk_postings_written,
-        doc_postings_written,
-        insert_batches,
+        "Reference index: "
+        f"entities_with_refs={entities_processed}, "
+        f"inverted_row_writes={inverted_writes}, "
+        f"posting_events={postings_written} "
+        f"(foreign_key={fk_postings_written}, document={doc_postings_written}), "
+        f"insert_batches={insert_batches}"
     )
     data["reference_index_entities_processed"] = entities_processed
     data["reference_index_inverted_writes"] = inverted_writes

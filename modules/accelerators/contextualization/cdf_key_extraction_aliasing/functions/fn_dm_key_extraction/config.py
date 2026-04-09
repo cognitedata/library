@@ -9,12 +9,12 @@ from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.filters import Filter
 from pydantic import BaseModel, Field, model_validator
 
-from .utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
-from .utils.FixedWidthMethodParameter import FixedWidthMethodParameter
-from .utils.HeuristicMethodParameter import HeuristicMethodParameter
-from .utils.PassthroughMethodParameter import PassthroughMethodParameter
-from .utils.RegexMethodParameter import RegexMethodParameter
-from .utils.TokenReassemblyMethodParameter import TokenReassemblyMethodParameter
+from utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
+from utils.FixedWidthMethodParameter import FixedWidthMethodParameter
+from utils.HeuristicMethodParameter import HeuristicMethodParameter
+from utils.PassthroughMethodParameter import PassthroughMethodParameter
+from utils.RegexMethodParameter import RegexMethodParameter
+from utils.TokenReassemblyMethodParameter import TokenReassemblyMethodParameter
 
 SkipEntityPolicy = Literal["successful_only", "none"]
 
@@ -107,6 +107,7 @@ class EntityType(Enum):
     ASSET = "asset"
     FILE = "file"
     TIMESERIES = "timeseries"
+    EQUIPMENT = "equipment"
 
 
 class ViewPropertyConfig(BaseModel):
@@ -232,7 +233,7 @@ class SourceViewConfig(TargetViewConfig):
         description="List of properties to retrieve (optional).",
     )
     resource_property: str = Field(
-        ...,
+        "externalId",
         description="The resource property that adds granularity to the instances.",
     )
     exclude_self_referencing_keys: Optional[bool] = Field(
@@ -401,9 +402,15 @@ class ValidationConfig(BaseModel):
 class ExtractionRuleConfig(BaseModel):
     """Configuration for a single extraction rule."""
 
-    rule_id: str
+    rule_id: Optional[str] = None
     method: Literal[
-        "passthrough", "regex", "fixed width", "token reassembly", "heuristic"
+        "passthrough",
+        "regex",
+        "fixed width",
+        "fixed_width",
+        "token reassembly",
+        "token_reassembly",
+        "heuristic",
     ] = "passthrough"
     config: ExtractionMethod = Field(
         ...,
@@ -431,10 +438,18 @@ class ExtractionRuleConfig(BaseModel):
         description="Validation configuration for the extraction rule.",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _fill_rule_id_from_name(cls, data: Any) -> Any:
+        if isinstance(data, dict) and not data.get("rule_id") and data.get("name"):
+            data = dict(data)
+            data["rule_id"] = str(data["name"])
+        return data
+
     @property
     def name(self) -> str:
         """Alias for rule_id for backward compatibility."""
-        return self.rule_id
+        return self.rule_id or "unnamed_rule"
 
     @property
     def min_confidence(self) -> float:
@@ -462,7 +477,7 @@ class ConfigData(BaseModel):
     )
     source_tables: Optional[List[SourceTableConfig]] = None
     extraction_rules: List[ExtractionRuleConfig]
-    field_selection_strategy: Literal["first_match", "merge_all"]
+    field_selection_strategy: Literal["first_match", "merge_all"] = "merge_all"
     validation: Optional[ValidationConfig] = Field(
         None,
         description="Global validation (min_confidence, regexp_match, confidence_match_rules) merged in engine.",

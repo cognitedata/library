@@ -3,7 +3,7 @@ CDF handler: build/update RAW reference index from key-extraction FK + document 
 """
 
 from copy import deepcopy
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 try:
     from cognite.client import CogniteClient
@@ -12,17 +12,22 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from ..cdf_fn_common.function_logging import resolve_function_logger
-from ..fn_dm_aliasing.cdf_adapter import _DEFAULT_ALIASING_VALIDATION
-from ..cdf_fn_common.scope_document_dm import apply_reference_index_scope_document
-from .dependencies import create_client, get_env_variables
-from .pipeline import persist_reference_index
+from cdf_fn_common.function_logging import resolve_function_logger
+from cdf_fn_common.scope_document_dm import apply_reference_index_scope_document
+from dependencies import create_client, get_env_variables
+from pipeline import persist_reference_index
+
+
+_DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
+    "max_aliases_per_tag": 50,
+    "min_confidence": 0.01,
+    "confidence_match_rules": [],
+}
 
 
 def handle(
     data: Dict[str, Any],
     client: CogniteClient = None,
-    logger: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Workflow payload (``data``) should include:
@@ -47,7 +52,7 @@ def handle(
     """
     log: Any = None
     try:
-        log = resolve_function_logger(data, logger)
+        log = resolve_function_logger(data, None)
         log.info("Starting reference index persistence")
 
         if not client:

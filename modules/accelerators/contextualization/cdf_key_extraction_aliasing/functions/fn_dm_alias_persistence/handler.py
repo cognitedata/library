@@ -15,9 +15,9 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from ..cdf_fn_common.function_logging import resolve_function_logger
-from ..cdf_fn_common.scope_document_dm import ensure_alias_persistence_from_scope_dm
-from .dependencies import create_client, get_env_variables
+from cdf_fn_common.function_logging import resolve_function_logger
+from cdf_fn_common.scope_document_dm import ensure_alias_persistence_from_scope_dm
+from dependencies import create_client, get_env_variables
 
 
 def handle(
@@ -63,7 +63,7 @@ def handle(
             ensure_alias_persistence_from_scope_dm(data, client)
 
         # Call pipeline function
-        from .pipeline import persist_aliases_to_entities
+        from pipeline import persist_aliases_to_entities
 
         persist_aliases_to_entities(client=client, logger=log, data=data)
 

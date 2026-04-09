@@ -6,9 +6,17 @@ from typing import Any, Dict, List, Set
 
 import yaml
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.semantic_expansion_paths import (
-    SEMANTIC_EXPANSION_ISA51_PRESET_YAML,
-)
+try:
+    # Repo-only path helper (not available in CDF Functions runtime)
+    from modules.accelerators.contextualization.cdf_key_extraction_aliasing.config.semantic_expansion_paths import (  # type: ignore
+        SEMANTIC_EXPANSION_ISA51_PRESET_YAML,
+    )
+except ImportError:
+    # CDF Functions fallback: optional preset YAML can be packaged alongside code.
+    # If the file does not exist, the handler will log a warning and proceed with user mappings.
+    SEMANTIC_EXPANSION_ISA51_PRESET_YAML = (
+        Path(__file__).resolve().parent / "semantic_expansion_isa51_preset.yaml"
+    )
 
 from .AliasTransformerHandler import AliasTransformerHandler
 

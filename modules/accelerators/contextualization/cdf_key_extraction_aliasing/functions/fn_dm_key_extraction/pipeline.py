@@ -15,15 +15,15 @@ from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
 from cognite.client.data_classes.data_modeling.ids import NodeId
 
-from ..cdf_fn_common.full_rescan import resolve_full_rescan
-from ..cdf_fn_common.extraction_input_hash import (
+from cdf_fn_common.full_rescan import resolve_full_rescan
+from cdf_fn_common.extraction_input_hash import (
     apply_preprocessing,
     compute_extraction_inputs_hash_from_entity_row,
     iter_wanted_fields,
     resolve_source_view_config_for_entity,
 )
-from ..cdf_fn_common.property_path import get_value_by_property_path
-from ..cdf_fn_common.incremental_scope import (
+from cdf_fn_common.property_path import get_value_by_property_path
+from cdf_fn_common.incremental_scope import (
     EXTRACTION_INPUTS_HASH_COLUMN,
     EXTERNAL_ID_COLUMN,
     NODE_INSTANCE_ID_COLUMN,
@@ -41,17 +41,17 @@ from ..cdf_fn_common.incremental_scope import (
     norm_workflow_status,
     raw_row_columns,
 )
-from .common.logger import CogniteFunctionLogger
-from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
-from .services.ApplyService import GeneralApplyService
+from common.logger import CogniteFunctionLogger
+from engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
+from services.ApplyService import GeneralApplyService
 
-from .raw_join_utils import (
+from raw_join_utils import (
     entity_props_for_view,
     merged_join_columns_for_instance,
     preload_raw_lookups,
 )
-from .utils.rule_utils import get_rule_id
-from ..cdf_fn_common.raw_upload import create_raw_upload_queue
+from utils.rule_utils import get_rule_id
+from cdf_fn_common.raw_upload import create_raw_upload_queue
 
 logger = None  # Use CogniteFunctionLogger directly
 
@@ -445,9 +445,11 @@ def key_extraction(
             if incremental:
                 rid = _resolve_incremental_run_id(client, raw_db, raw_table_key, data)
                 if not rid:
-                    raise ValueError(
-                        "incremental key extraction requires run_id in function data "
-                        "or exactly one RUN_ID cohort with WORKFLOW_STATUS=detected in RAW"
+                    rid = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+                    logger.warning(
+                        "No incremental run_id provided and none discoverable from "
+                        "WORKFLOW_STATUS=detected; continuing with empty cohort run_id="
+                        f"{rid}"
                     )
                 run_id = rid
                 data["run_id"] = run_id
@@ -1110,6 +1112,6 @@ def _build_filter(
     return is_selected
 
 
-from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
+from common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
 
 

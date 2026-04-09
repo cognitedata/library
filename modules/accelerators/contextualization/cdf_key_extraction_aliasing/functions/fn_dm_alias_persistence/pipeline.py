@@ -25,14 +25,11 @@ except ImportError:
     NodeId = None
     ViewId = None
 
-from .common.logger import CogniteFunctionLogger
+from common.logger import CogniteFunctionLogger
 
 logger = None  # Use CogniteFunctionLogger directly
 
-try:
-    from ..fn_dm_key_extraction.pipeline import FOREIGN_KEY_REFERENCES_JSON_COLUMN
-except ImportError:  # pragma: no cover - standalone script layout
-    FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
+FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
 
 
 def _resolve_alias_writeback_property(data: Dict[str, Any]) -> str:
@@ -815,7 +812,7 @@ def persist_aliases_to_entities(
             and data.get("source_raw_db")
             and data.get("source_raw_table_key")
         ):
-            from ..cdf_fn_common.incremental_scope import (
+            from cdf_fn_common.incremental_scope import (
                 WORKFLOW_STATUS_ALIASED,
                 discover_single_run_id_for_status,
             )
@@ -838,7 +835,7 @@ def persist_aliases_to_entities(
             and data.get("source_raw_db")
             and data.get("source_raw_table_key")
         ):
-            from ..cdf_fn_common.incremental_scope import (
+            from cdf_fn_common.incremental_scope import (
                 WORKFLOW_STATUS_ALIASED,
                 WORKFLOW_STATUS_PERSISTED,
                 transition_workflow_status_for_run,

@@ -6,7 +6,7 @@ CDF Functions or called directly, maintaining compatibility with the CDF
 workflow format while using the existing AliasingEngine.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 try:
     from cognite.client import CogniteClient
@@ -15,14 +15,14 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from ..cdf_fn_common.function_logging import resolve_function_logger
-from ..cdf_fn_common.scope_document_dm import ensure_aliasing_config_from_scope_dm
-from .cdf_adapter import (
+from cdf_fn_common.function_logging import resolve_function_logger
+from cdf_fn_common.scope_document_dm import ensure_aliasing_config_from_scope_dm
+from cdf_adapter import (
     _DEFAULT_ALIASING_VALIDATION,
     _convert_yaml_direct_to_aliasing_config,
 )
-from .dependencies import create_client, get_env_variables
-from .engine.tag_aliasing_engine import AliasingEngine
+from dependencies import create_client, get_env_variables
+from engine.tag_aliasing_engine import AliasingEngine
 
 
 def handle(
@@ -109,7 +109,7 @@ def handle(
         # Initialize engine with logger
         engine = AliasingEngine(aliasing_config, log)
 
-        from .pipeline import tag_aliasing
+        from pipeline import tag_aliasing
 
         tag_aliasing(client=client, logger=log, data=data, engine=engine)
 

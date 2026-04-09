@@ -21,10 +21,10 @@ def _delete_raw_table_if_exists(
         return
     try:
         client.raw.tables.delete(raw_db, [table])
-        logger.info("Deleted RAW table %s / %s", raw_db, table)
+        logger.info(f"Deleted RAW table {raw_db} / {table}")
     except CogniteAPIError as ex:
         if ex.code == 404:
-            logger.info("RAW table %s / %s not found (nothing to delete)", raw_db, table)
+            logger.info(f"RAW table {raw_db} / {table} not found (nothing to delete)")
         else:
             raise
 
@@ -93,10 +93,7 @@ def clean_state_tables_from_scope_yaml(
 
     pairs = _collect_db_table_pairs_from_scope_doc(doc)
     if not pairs:
-        logger.warning(
-            "No raw_db/raw_table_key (or aliasing RAW tables) found in %s; nothing to clean",
-            path,
-        )
+        logger.warning(f"No raw_db/raw_table_key (or aliasing RAW tables) found in {path}; nothing to clean")
         return []
 
     done: List[str] = []

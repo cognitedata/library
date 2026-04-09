@@ -9,7 +9,7 @@ workflow format while using the existing KeyExtractionEngine.
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 try:
     from cognite.client import CogniteClient
@@ -18,14 +18,14 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from ..cdf_fn_common.function_logging import resolve_function_logger
-from ..cdf_fn_common.scope_document_dm import ensure_key_extraction_config_from_scope_dm
-from .cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
-from .engine.key_extraction_engine import KeyExtractionEngine
+from cdf_fn_common.function_logging import resolve_function_logger
+from cdf_fn_common.scope_document_dm import ensure_key_extraction_config_from_scope_dm
+from cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
+from engine.key_extraction_engine import KeyExtractionEngine
 
 # Try to import CDF config loader - fallback if not available
 try:
-    from .config import Config
+    from config import Config
 
     CDF_CONFIG_AVAILABLE = True
 except ImportError:
@@ -102,8 +102,8 @@ def handle(
                     if not isinstance(unwrapped, dict):
                         raise
 
-                    from .cdf_adapter import _convert_yaml_direct_to_engine_config
-                    from .config import SourceViewConfig
+                    from cdf_adapter import _convert_yaml_direct_to_engine_config
+                    from config import SourceViewConfig
 
                     engine_config = _convert_yaml_direct_to_engine_config(unwrapped)
 
@@ -135,7 +135,7 @@ def handle(
         # Initialize engine (do not store in return payload)
         engine = KeyExtractionEngine(engine_config)
 
-        from .pipeline import key_extraction
+        from pipeline import key_extraction
 
         key_extraction(
             client=client,
