@@ -703,6 +703,50 @@ def _handle_batch_collection(client: CogniteClient, config: dict, start_time: fl
     }
 
 
+# ---------------------------------------------------------------------------
+# Usage tracking
+# ---------------------------------------------------------------------------
+_SOURCE = "dp:context_quality"
+_DP_VERSION = "1"
+_TRACKER_VERSION = "1"
+
+
+def _report_usage(client: CogniteClient) -> None:
+    try:
+        import re
+        import json
+        import base64
+        import threading
+        import requests
+        cluster = getattr(client.config, "cdf_cluster", None)
+        if not cluster:
+            m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(client.config, "base_url", "") or "")
+            cluster = m.group(1) if m else "unknown"
+        distinct_id = f"{client.config.project}:{cluster}"
+        payload = base64.b64encode(json.dumps([{
+            "event": "fn-handle",
+            "properties": {
+                "token": "8f28374a6614237dd49877a0d27daa78",
+                "distinct_id": distinct_id,
+                "source": _SOURCE,
+                "tracker_version": _TRACKER_VERSION,
+                "dp_version": _DP_VERSION,
+                "type": "py-function",
+                "cdf_cluster": cluster,
+                "cdf_project": client.config.project,
+            },
+        }]).encode()).decode()
+        def _send() -> None:
+            requests.post(
+                "https://api-eu.mixpanel.com/track",
+                data={"data": payload, "verbose": 1, "ip": 1},
+                timeout=5,
+            )
+        threading.Thread(target=_send, daemon=False).start()
+    except Exception:
+        pass
+
+
 # ----------------------------------------------------
 # MAIN HANDLER
 # ----------------------------------------------------
@@ -727,6 +771,7 @@ def handle(data: dict, client: CogniteClient) -> dict:
     Returns:
         dict: All computed metrics (or batch status in batch mode)
     """
+    _report_usage(client)
     start_time = time.time()
     
     # Merge config

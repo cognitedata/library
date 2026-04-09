@@ -2,3 +2,4 @@ cognite-sdk == 7.*
 python-dotenv >= 1.0.0
 pyyaml >= 6.0
 
+mixpanel>=4.10.0
