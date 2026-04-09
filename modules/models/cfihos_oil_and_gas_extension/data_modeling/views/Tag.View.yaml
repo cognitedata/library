@@ -324,6 +324,70 @@ properties:
       type: container
     containerPropertyIdentifier: classViewExtId
     description: External ID of the class-specific view for this tag (e.g., CFIHOS_Pump, CFIHOS_Valve)
+  originatingContractor:
+    name: Originating Contractor
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000179
+    description: Contractor responsible for originating the tag data
+  updatedDate:
+    name: Updated Date
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: updatedDate
+    description: Date when the tag information was last updated
+  dateInstalled:
+    name: Date Installed
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000169
+    description: Date when the equipment was installed
+  useProjectStatus:
+    name: Use Project Status
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: useProjectStatus
+    description: Project status flag for the tag
+  purchaseOrderNo:
+    name: Purchase Order No
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000128
+    description: Purchase order number for the equipment
+  avevaTagStatus:
+    name: Aveva Tag Status
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: CFIHOS_10000025
+    description: AVEVA tag status indicator
+  cfihosTagClassCode:
+    name: Cfihos Tag Class Code
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: cfihosTagClassCode
+    description: CFIHOS tag classification code
+  additionalProperties:
+    name: Additional Properties
+    container:
+      space: '{{space}}'
+      externalId: Tag
+      type: container
+    containerPropertyIdentifier: additionalProperties
+    description: Additional properties stored as JSON
   classSpecificProperties:
     name: Class Specific Properties
     container:

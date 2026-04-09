@@ -475,6 +475,22 @@ workflowDefinition:
         - externalId: 'wf_cfihos_oil_and_gas_t_subsea_equipment'
         - externalId: 'wf_cfihos_oil_and_gas_t_tool'
 
+    - externalId: 'wf_cfihos_oil_and_gas_t_tag_additional_properties'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_tag_all_to_tag_additional_properties'
+          concurrencyPolicy: fail
+      name: 'Tag additional properties enrichment'
+      description: Populate Tag.additionalProperties with connected CFIHOS context and class-specific content
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag_common_lci_properties_connection'
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag_functional_location_properties_connection'
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag_class_specific_connection'
+
     - externalId: 'wf_cfihos_oil_and_gas_t_work_order_timeseries_connection'
       type: 'transformation'
       parameters:

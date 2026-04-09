@@ -12,6 +12,13 @@ SELECT
   cast(tagDiscipline as string) as tagDiscipline,
   cast(project as string) as project,
   cast(classViewExtId as string) as classViewExtId,
+  cast(originatingContractor as string) as originatingContractor,
+  cast(updatedDate as string) as updatedDate,
+  cast(dateInstalled as string) as dateInstalled,
+  cast(useProjectStatus as string) as useProjectStatus,
+  cast(purchaseOrderNo as string) as purchaseOrderNo,
+  cast(avejaTagStatus as string) as avevaTagStatus,
+  cast(cfihosTagClassCode as string) as cfihosTagClassCode,
   CASE
     WHEN parentTag IS NULL OR parentTag = '' THEN NULL
     ELSE node_reference('{{ instance_space }}', cast(parentTag as string))

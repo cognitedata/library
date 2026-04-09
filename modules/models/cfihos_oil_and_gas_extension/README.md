@@ -15,6 +15,7 @@ The model favors **simplicity and denormalization** over strict normalization. R
 - **Failure modes** linked to tags and notifications per ISO 14224
 - **Connection transformations** that populate key direct relations (`Tag -> FunctionalLocationProperties`, `Tag -> CommonLCIProperties`, `Tag -> classSpecific`, `Notification -> FailureMode`)
 - **Dependency-aware workflow orchestration** so relation updates run after source and target nodes exist
+- **Unified JSON access on Tag**: CFIHOS class-specific properties and LCI context are available through `Tag.additionalProperties` for one-shot retrieval
 - **Alarm records** stored using Records & Stream service (Container definition `usedFor: record`) containers for event-level data
 
 ## Architecture
