@@ -13,11 +13,18 @@ The model favors **simplicity and denormalization** over strict normalization. R
 - **Document management** (`Files`) extending `CogniteFile` with document metadata
 - **Functional locations** and **maintenance/integrity** data from SAP
 - **Failure modes** linked to tags and notifications per ISO 14224
+- **Connection transformations** that populate key direct relations (`Tag -> FunctionalLocationProperties`, `Tag -> CommonLCIProperties`, `Tag -> classSpecific`, `Notification -> FailureMode`)
+- **Dependency-aware workflow orchestration** so relation updates run after source and target nodes exist
 - **Alarm records** stored using Records & Stream service (Container definition `usedFor: record`) containers for event-level data
 
 ## Architecture
 
 ![Data Model View Relationships](data_model_views.png)
+
+Use the architecture figure as a quick orientation:
+- `Tag` is the central asset node and relation hub.
+- Equipment-class, work-management, and context views connect to `Tag` through direct relations.
+- Reverse relations (`through`) are intentionally used for common navigation paths in CDF apps and search.
 
 ### CDM extensions (cdf_cdm)
 
@@ -69,9 +76,11 @@ Only `Tag` implements `CogniteAsset`. This avoids UI navigation conflicts in CDF
 
 The `classSpecificProperties` direct relation on Tag intentionally omits a `source` view — it can point to any of the 17 CFIHOS equipment class views (Pump, Valve, Compressor, etc.). This allows a single tag to reference its class-specific properties without hardcoding the target type.
 
+The corresponding `Tag.classSpecific` relation is populated by a dedicated connection transformation that matches `Tag.externalId` to the class-specific node external IDs across the equipment class views.
+
 ### Flattened document model
 
-The `Files` view combines what would traditionally be three separate entities — document, document revision, and revision file — into a single denormalized view. Instead of querying across Document → DocumentRevision → RevisionFile to find a document's status, discipline, issue date, and revision info, everything is accessible in one flat structure. This eliminates multi-hop joins for document search and makes the full document context available to AI in a single query.
+The `Files` view combines what would traditionally be three separate entities — document, document revision, and revision file — into a single denormalized view. Instead of querying across Document -> DocumentRevision -> RevisionFile to find a document's status, discipline, issue date, and revision info, everything is accessible in one flat structure. This eliminates multi-hop joins for document search and makes the full document context available to AI in a single query.
 
 ### Merged Equipment and EquipmentType
 
@@ -81,6 +90,8 @@ The default IDM defines `CogniteEquipment` and `CogniteEquipmentType` as separat
 
 All views and view properties carry human-readable `name` fields to satisfy NEAT-DMS-AI-READINESS checks. CDM-inherited properties (`name`, `description`, `tags`, `aliases`, and the CogniteSourceable/CogniteSchedulable families) are explicitly defined in each view rather than left as implicit inherits — this gives every property a display name and description that AI tools, search engines, and the CDF UI can surface.
 
+Work-management connection logic is also resilient to sparse source data: `WorkOrderOperation.mainAsset/assets` are backfilled from `maintenanceOrder -> WorkOrder.mainAsset` when operation-level asset references are missing. This improves `Tag <-> WorkOrderOperation` reverse relation coverage.
+
 ### additionalProperties as overflow
 
 Every container includes an `additionalProperties` (JSON) field for properties that exceed the 100-property container limit or are rarely queried. This keeps the core schema lean while preserving access to all source data.
@@ -88,6 +99,12 @@ Every container includes an `additionalProperties` (JSON) field for properties t
 ## Working with the module
 
 ![Data Model Development Workflow](dm-workflow.png)
+
+The workflow figure shows the recommended delivery loop end-to-end:
+- start from the library/HUB baseline and local toolkit setup
+- adapt with rules/skills in Cursor
+- build and deploy with Toolkit
+- verify with Toolkit and NEAT in the target CDF project
 
 The module follows a four-stage workflow from discovery through production verification:
 
@@ -179,7 +196,7 @@ cdf data upload dir  C:\Cognite\context\modules\models\cfihos_oil_and_gas_extens
 ### Data Purge
 
 ```bash
-cdf data purge space dm_dom_oil_and_gas  
+cdf data purge space dm_dom_oil_and_gas
 ```
 
 ### Dependencies

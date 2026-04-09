@@ -415,6 +415,66 @@ workflowDefinition:
         - externalId: 'wf_cfihos_oil_and_gas_t_timeseries'
         - externalId: 'wf_cfihos_oil_and_gas_t_equipment'
 
+    - externalId: 'wf_cfihos_oil_and_gas_t_tag_functional_location_properties_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_tag_all_to_tag_functional_location_properties_connection'
+          concurrencyPolicy: fail
+      name: 'Tag to functional location properties connection'
+      description: Connect Tag.FunctionalLocationProperties to FunctionalLocationProperties nodes by externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_tag_common_lci_properties_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_tag_all_to_tag_common_lci_properties_connection'
+          concurrencyPolicy: fail
+      name: 'Tag to common LCI properties connection'
+      description: Connect Tag.CommonLCIProperties to CommonLCIProperties nodes by externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_tag_class_specific_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_tag_all_to_tag_class_specific_connection'
+          concurrencyPolicy: fail
+      name: 'Tag to class specific connection'
+      description: Connect Tag.classSpecific to class-specific equipment view nodes by externalId
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+        - externalId: 'wf_cfihos_oil_and_gas_t_compressor'
+        - externalId: 'wf_cfihos_oil_and_gas_t_valve'
+        - externalId: 'wf_cfihos_oil_and_gas_t_pump'
+        - externalId: 'wf_cfihos_oil_and_gas_t_turbine'
+        - externalId: 'wf_cfihos_oil_and_gas_t_heat_exchanger'
+        - externalId: 'wf_cfihos_oil_and_gas_t_piping_pipeline'
+        - externalId: 'wf_cfihos_oil_and_gas_t_instrument_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_electrical_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_mechanical_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_drilling_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_enclosure'
+        - externalId: 'wf_cfihos_oil_and_gas_t_hse_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_infrastructure'
+        - externalId: 'wf_cfihos_oil_and_gas_t_it_telecom_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_miscellaneous_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_subsea_equipment'
+        - externalId: 'wf_cfihos_oil_and_gas_t_tool'
+
     - externalId: 'wf_cfihos_oil_and_gas_t_work_order_timeseries_connection'
       type: 'transformation'
       parameters:
@@ -459,6 +519,21 @@ workflowDefinition:
       dependsOn:
         - externalId: 'wf_cfihos_oil_and_gas_t_notification'
         - externalId: 'wf_cfihos_oil_and_gas_t_work_order'
+
+    - externalId: 'wf_cfihos_oil_and_gas_t_notification_failure_mode_connection'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_notification_all_to_notification_failure_mode_connection'
+          concurrencyPolicy: fail
+      name: 'Notification to failure mode connection'
+      description: Connect Notification.failureMode to FailureMode using failureModeCode
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_notification'
+        - externalId: 'wf_cfihos_oil_and_gas_t_failure_mode'
 
     - externalId: 'wf_cfihos_oil_and_gas_t_work_order_operation'
       type: 'transformation'
