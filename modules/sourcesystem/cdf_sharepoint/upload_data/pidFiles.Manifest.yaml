@@ -1,6 +1,6 @@
 kind: FileContent
 type: fileDataModelingTemplate
-fileDirectory: ./p&ids
+fileDirectory: ./pnids
 viewId:
   space: cdf_cdm
   externalId: CogniteFile

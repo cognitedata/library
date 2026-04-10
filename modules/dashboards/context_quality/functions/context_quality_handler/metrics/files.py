@@ -4,7 +4,7 @@ File processing and metrics computation.
 Measures file contextualization quality based on the CogniteFile view from CDM.
 """
 
-from typing import Optional, List
+from typing import Dict, List, Optional, Tuple
 from cognite.client.data_classes.data_modeling import ViewId
 
 from .common import (
@@ -13,6 +13,64 @@ from .common import (
     FileData,
     CombinedAccumulator,
 )
+
+
+def _unique_files_by_id(file_list: List[FileData]) -> List[FileData]:
+    """One row per file_id (last wins). Needed after batch merge may duplicate IDs."""
+    by_id: Dict[str, FileData] = {}
+    for f in file_list:
+        by_id[f.file_id] = f
+    return list(by_id.values())
+
+
+def _file_counts_from_unique_files(unique: List[FileData]) -> Tuple[
+    int,
+    int,
+    int,
+    int,
+    int,
+    int,
+    int,
+    Dict[str, int],
+    Dict[str, int],
+]:
+    """Derive all per-file numerators and histograms from deduplicated FileData rows."""
+    n = len(unique)
+    files_with_assets = 0
+    files_with_category = 0
+    files_uploaded = 0
+    files_with_name = 0
+    files_with_description = 0
+    files_with_source_id = 0
+    file_category_counts: Dict[str, int] = {}
+    file_mime_type_counts: Dict[str, int] = {}
+    for f in unique:
+        if f.asset_ids:
+            files_with_assets += 1
+        if f.category_id:
+            files_with_category += 1
+            file_category_counts[f.category_id] = file_category_counts.get(f.category_id, 0) + 1
+        if f.is_uploaded:
+            files_uploaded += 1
+        if f.name and str(f.name).strip():
+            files_with_name += 1
+        if f.description and str(f.description).strip():
+            files_with_description += 1
+        if f.source_id and str(f.source_id).strip():
+            files_with_source_id += 1
+        if f.mime_type:
+            file_mime_type_counts[f.mime_type] = file_mime_type_counts.get(f.mime_type, 0) + 1
+    return (
+        n,
+        files_with_assets,
+        files_with_category,
+        files_uploaded,
+        files_with_name,
+        files_with_description,
+        files_with_source_id,
+        file_category_counts,
+        file_mime_type_counts,
+    )
 
 
 def get_direct_relation_ids(prop) -> List[str]:
@@ -128,56 +186,76 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
     Compute all file contextualization metrics.
     
     Primary metric: Files to Asset Contextualization (% of files linked to at least one asset)
+
+    When ``acc.file_list`` is populated (quick run and batch runs with per-file rows), all
+    per-file numerators and histograms are recomputed from **deduplicated** ``file_id`` rows
+    so batch aggregation cannot yield numerators > unique file count (e.g. 151% upload rate).
+
+    Legacy accumulators without ``file_list`` fall back to summed counters, clamped to
+    ``total_files`` so rates stay in [0, 100].
     """
-    total_files = acc.total_files
-    
+    unique_files: List[FileData] = []
+    if acc.file_list:
+        unique_files = _unique_files_by_id(acc.file_list)
+        (
+            total_files,
+            files_with_assets,
+            files_with_category,
+            files_uploaded,
+            files_with_name,
+            files_with_description,
+            files_with_source_id,
+            file_category_counts,
+            file_mime_type_counts,
+        ) = _file_counts_from_unique_files(unique_files)
+    else:
+        total_files = acc.total_files
+        # Summed counters across batches can exceed unique file count; clamp for legacy JSON
+        def _clamp(c: int) -> int:
+            return min(c, total_files) if total_files > 0 else c
+
+        files_with_assets = _clamp(acc.files_with_assets)
+        files_with_category = _clamp(acc.files_with_category)
+        files_uploaded = _clamp(acc.files_uploaded)
+        files_with_name = _clamp(acc.files_with_name)
+        files_with_description = _clamp(acc.files_with_description)
+        files_with_source_id = _clamp(acc.files_with_source_id)
+        file_category_counts = dict(acc.file_category_counts)
+        file_mime_type_counts = dict(acc.file_mime_type_counts)
+
     # PRIMARY: File to Asset Contextualization
-    # This is the main metric - files should be linked to assets for context
     file_to_asset_rate = (
-        (acc.files_with_assets / total_files * 100)
-        if total_files > 0 else 0.0
+        (files_with_assets / total_files * 100) if total_files > 0 else 0.0
     )
-    
+
     # Asset File Coverage (% of assets that have at least one file)
     asset_file_coverage = (
         (len(acc.assets_with_files) / acc.total_assets * 100)
         if acc.total_assets > 0 else 0.0
     )
-    
-    # Category Completeness (% of files with a category assigned)
+
     category_rate = (
-        (acc.files_with_category / total_files * 100)
-        if total_files > 0 else 0.0
+        (files_with_category / total_files * 100) if total_files > 0 else 0.0
     )
-    
-    # Upload Completeness (% of files that have content uploaded)
     upload_rate = (
-        (acc.files_uploaded / total_files * 100)
-        if total_files > 0 else 0.0
+        (files_uploaded / total_files * 100) if total_files > 0 else 0.0
     )
-    
-    # Metadata Completeness
     name_rate = (
-        (acc.files_with_name / total_files * 100)
-        if total_files > 0 else 0.0
+        (files_with_name / total_files * 100) if total_files > 0 else 0.0
     )
     description_rate = (
-        (acc.files_with_description / total_files * 100)
-        if total_files > 0 else 0.0
+        (files_with_description / total_files * 100) if total_files > 0 else 0.0
     )
     source_id_rate = (
-        (acc.files_with_source_id / total_files * 100)
-        if total_files > 0 else 0.0
+        (files_with_source_id / total_files * 100) if total_files > 0 else 0.0
     )
-    
-    # Files per asset (for assets that have files)
-    if acc.assets_with_files:
-        # Count files per asset
-        asset_file_counts = {}
-        for f in acc.file_list:
+
+    # Files per asset — same deduplicated rows as numerators (avoids double-counting links)
+    if acc.assets_with_files and unique_files:
+        asset_file_counts: Dict[str, int] = {}
+        for f in unique_files:
             for asset_id in f.asset_ids:
                 asset_file_counts[asset_id] = asset_file_counts.get(asset_id, 0) + 1
-        
         if asset_file_counts:
             avg_files_per_asset = sum(asset_file_counts.values()) / len(asset_file_counts)
             max_files_per_asset = max(asset_file_counts.values())
@@ -187,55 +265,37 @@ def compute_file_metrics(acc: CombinedAccumulator) -> dict:
     else:
         avg_files_per_asset = 0.0
         max_files_per_asset = 0
-    
-    # Top MIME types (for diagnostics)
+
     top_mime_types = dict(
-        sorted(acc.file_mime_type_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        sorted(file_mime_type_counts.items(), key=lambda x: x[1], reverse=True)[:10]
     )
-    
-    # Top categories
     top_categories = dict(
-        sorted(acc.file_category_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        sorted(file_category_counts.items(), key=lambda x: x[1], reverse=True)[:10]
     )
-    
+
     return {
-        # Primary metric
         "file_to_asset_rate": round(file_to_asset_rate, 2),
-        "files_with_assets": acc.files_with_assets,
-        "files_without_assets": total_files - acc.files_with_assets,
-        
-        # Coverage metrics
+        "files_with_assets": files_with_assets,
+        "files_without_assets": total_files - files_with_assets,
         "file_asset_coverage": round(asset_file_coverage, 2),
         "assets_with_files": len(acc.assets_with_files),
-        
-        # Category metrics
         "file_category_rate": round(category_rate, 2),
-        "files_with_category": acc.files_with_category,
-        "unique_categories": len(acc.file_category_counts),
+        "files_with_category": files_with_category,
+        "unique_categories": len(file_category_counts),
         "top_categories": top_categories,
-        
-        # Upload status
         "file_upload_rate": round(upload_rate, 2),
-        "files_uploaded": acc.files_uploaded,
-        "files_not_uploaded": total_files - acc.files_uploaded,
-        
-        # Metadata completeness
+        "files_uploaded": files_uploaded,
+        "files_not_uploaded": total_files - files_uploaded,
         "file_name_rate": round(name_rate, 2),
-        "files_with_name": acc.files_with_name,
+        "files_with_name": files_with_name,
         "file_description_rate": round(description_rate, 2),
-        "files_with_description": acc.files_with_description,
+        "files_with_description": files_with_description,
         "file_source_id_rate": round(source_id_rate, 2),
-        "files_with_source_id": acc.files_with_source_id,
-        
-        # Distribution stats
+        "files_with_source_id": files_with_source_id,
         "avg_files_per_asset": round(avg_files_per_asset, 2),
         "max_files_per_asset": max_files_per_asset,
-        "unique_mime_types": len(acc.file_mime_type_counts),
+        "unique_mime_types": len(file_mime_type_counts),
         "top_mime_types": top_mime_types,
-        
-        # Totals
         "file_total": total_files,
-        
-        # Feature flag
         "file_has_data": total_files > 0,
     }
