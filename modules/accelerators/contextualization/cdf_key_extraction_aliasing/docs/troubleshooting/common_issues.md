@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide helps you resolve common issues with the CDF Key Extraction System.
+This guide helps you resolve common issues with the **`cdf_key_extraction_aliasing`** module. The local pipeline CLI is **`module.py`** at the module root; run it from the **repository root** with `PYTHONPATH=.` (see [Quickstart — local `module.py`](../guides/howto_quickstart.md)).
 
 ## Common Issues
 
@@ -112,8 +112,8 @@ ValueError: Required field 'api_key' is missing
 #### Solution:
 ```bash
 # Check environment variables
-# Verify .env file and run main.py to test connection
-poetry run python main.py
+# Verify .env at repository root and run module.py to test connection (from repo root, PYTHONPATH=.)
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --dry-run --limit 5
 
 # Create missing environment variables
 # Copy env.template to .env and edit with your credentials
@@ -331,7 +331,7 @@ python env_utils.py --status
 
 ### 3. Validate configuration
 
-Load pipeline YAMLs with `load_config_from_yaml` / run `main.py --dry-run` against a small `--limit` to verify CDF connectivity and rules without writing aliases.
+Load pipeline YAMLs with `load_config_from_yaml` / run `module.py --dry-run` against a small `--limit` to verify CDF connectivity and rules without writing aliases.
 
 ### 4. Test individual components
 
@@ -364,15 +364,15 @@ print("Assets:", len(client.assets.list(limit=1)))
 ### 1. Check Logs
 
 ```bash
-# Enable verbose logging
+# Enable verbose logging (from repository root, PYTHONPATH=.)
 export LOG_LEVEL=DEBUG
-python main.py run
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --verbose --limit 10
 ```
 
 ### 2. Review Documentation
 
 - [Documentation map](../README.md)
-- [Quickstart — `.env` and `main.py`](../guides/howto_quickstart.md)
+- [Quickstart — `.env` and `module.py`](../guides/howto_quickstart.md)
 - [Scoped deployment — `--build` and Toolkit](../guides/howto_scoped_deployment.md)
 - [Configuration guide](../guides/configuration_guide.md)
 - [Key extraction / aliasing report](../key_extraction_aliasing_report.md)

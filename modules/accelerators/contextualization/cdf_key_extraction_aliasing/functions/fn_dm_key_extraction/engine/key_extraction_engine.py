@@ -55,7 +55,7 @@ class KeyExtractionEngine:
         config: Union[Config, Dict[str, Any]],
         logger: CogniteFunctionLogger = CogniteFunctionLogger("INFO", False),
     ):
-        """Initialize the key extraction engine with configuration (Config or dict from main.py)."""
+        """Initialize the key extraction engine with configuration (Config or dict from scope YAML / workflow input)."""
         self.logger = logger
         if isinstance(config, dict):
             params = config.get("parameters", {})

@@ -16,7 +16,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
     property_reference_for_filter,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.main import (
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.module import (
     _source_view_matches_instance_space,
 )
 

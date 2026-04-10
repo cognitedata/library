@@ -5,7 +5,7 @@ This guide is for developers who need behavior that existing YAML-driven rules c
 ## Before you write code
 
 - **Prefer configuration:** Regex, fixed width, token reassembly, heuristics (extraction) and the built-in aliasing `type` values cover most naming variants. Compose multiple rules with `priority` and `preserve_original`.
-- **Know the contracts:** Handlers are plain Python classes called by the engines; they must return the shapes described below. The CDF functions (`fn_dm_key_extraction`, `fn_dm_aliasing`) construct the same engines as `main.py`—after you change handler code, **redeploy** the affected functions.
+- **Know the contracts:** Handlers are plain Python classes called by the engines; they must return the shapes described below. The CDF functions (`fn_dm_key_extraction`, `fn_dm_aliasing`) construct the same engines as `module.py`—after you change handler code, **redeploy** the affected functions.
 
 ---
 
@@ -69,11 +69,11 @@ python -m pytest modules/accelerators/contextualization/cdf_key_extraction_alias
 python -m pytest modules/accelerators/contextualization/cdf_key_extraction_aliasing/tests/unit/aliasing/ -q
 ```
 
-Run **`main.py`** with a scope YAML that references your new `method` or `type` to validate end-to-end locally.
+Run **`module.py`** with a scope YAML that references your new `method` or `type` to validate end-to-end locally.
 
 ## Related reading
 
-- [Quickstart — local run with `main.py`](howto_quickstart.md) (`.env`, results under `tests/results/`)
+- [Quickstart — local run with `module.py`](howto_quickstart.md) (`.env`, results under `tests/results/`)
 - [Scoped deployment — hierarchy and Toolkit](howto_scoped_deployment.md) (`--build`, WorkflowTrigger `configuration`, `cdf deploy`)
 - [Module functional document — handlers overview](../module_functional_document.md) (sections 3.1 and 3.2)
 - [Key extraction specification](../specifications/1.%20key_extraction.md)

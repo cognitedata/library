@@ -1,13 +1,13 @@
 """
-Main entry point — fetch CDF instances from data model views, run key extraction and aliasing, write results.
+Local CLI entry point — fetch CDF instances from data model views, run key extraction and aliasing, write results.
 
 Configuration: by default loads the v1 scope document ``workflow.local.config.yaml`` at the
 module root when ``--scope default`` (the default); other scope names require ``--config-path``.
 CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each task (built by
 ``scripts/build_scopes.py`` into ``workflows/`` from templates in ``workflow_template/``). Create **missing** workflow artifacts with
-``python main.py --build`` (same CLI as ``scripts/build_scopes.py``; respects ``scope_build_mode``;
+``python module.py --build`` (same CLI as ``scripts/build_scopes.py``; respects ``scope_build_mode``;
 does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc.). Remove generated
-workflow YAML with ``python main.py --build --clean`` (confirmation or ``--yes``; no rebuild after delete—run
+workflow YAML with ``python module.py --build --clean`` (confirmation or ``--yes``; no rebuild after delete—run
 ``--build`` again to recreate). This is unrelated to ``--clean-state``, which drops RAW tables. See
 ``config/README.md`` and ``default.config.yaml``.
 

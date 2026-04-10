@@ -19,9 +19,9 @@ The local CLI loads **`--config-path`** or the module-root default for **`--scop
 ## Usage
 
 1. **Local run** (cwd = module root `cdf_key_extraction_aliasing/`):  
-   `main.py --config-path config/examples/key_extraction/<demo>.key_extraction_aliasing.yaml`  
-   or `main.py --config-path config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`.  
-   From the **repository root** (`library/`), use the full prefix `modules/accelerators/contextualization/cdf_key_extraction_aliasing/` on `main.py` and on these paths (see the module [README.md](../../README.md) and [Quickstart](../../docs/guides/howto_quickstart.md) for `PYTHONPATH` and `.env`).
+   `module.py --config-path config/examples/key_extraction/<demo>.key_extraction_aliasing.yaml`  
+   or `module.py --config-path config/examples/aliasing/aliasing_default.key_extraction_aliasing.yaml`.  
+   From the **repository root** (`library/`), use the full prefix `modules/accelerators/contextualization/cdf_key_extraction_aliasing/` on `module.py` and on these paths (see the module [README.md](../../README.md) and [Quickstart](../../docs/guides/howto_quickstart.md) for `PYTHONPATH` and `.env`).
 2. **CDF**: Inline `key_extraction` / `aliasing` from those YAML files into your workflow task payload.
 
 Default aliasing-focused example: **`aliasing/aliasing_default.key_extraction_aliasing.yaml`**.

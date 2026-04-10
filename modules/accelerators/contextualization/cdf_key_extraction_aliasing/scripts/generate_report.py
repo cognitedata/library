@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate key extraction and aliasing report from latest results files using main.py function."""
+"""Generate key extraction and aliasing report from latest JSON under tests/results/."""
 
 import logging
 import sys

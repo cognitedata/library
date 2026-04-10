@@ -8,11 +8,11 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 | Document                                                   | Audience                      | Contents                                                                              |
 | ---------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
 | [Module functional document](module_functional_document.md) | Everyone                      | End-to-end scope, behaviors, components, data flows, interfaces (points to deep specs) |
-| [Module README](../README.md)                              | Everyone                      | What the module does, prerequisites, [Local runs (main.py)](../README.md#local-runs-mainpy), [Python API](../README.md#python-api), [custom handlers how-to](guides/howto_custom_handlers.md), pointers to deeper docs |
-| [Quickstart — local `main.py`](guides/howto_quickstart.md) | Everyone                      | `.env` at repo root, `PYTHONPATH=.`, run `main.py`, read outputs under `tests/results/` |
-| [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `scope_hierarchy`, `main.py --build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
+| [Module README](../README.md)                              | Everyone                      | What the module does, prerequisites, [Local runs (module.py)](../README.md#local-runs-modulepy), [Python API](../README.md#python-api), [custom handlers how-to](guides/howto_custom_handlers.md), pointers to deeper docs |
+| [Quickstart — local `module.py`](guides/howto_quickstart.md) | Everyone                      | `.env` at repo root, `PYTHONPATH=.`, run `module.py`, read outputs under `tests/results/` |
+| [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `scope_hierarchy`, `module.py --build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
 | [Logging (CDF functions)](guides/logging_cdf_functions.md) | Developers / workflow authors | `logLevel` / `verbose`, required logger methods, optional handler injection           |
-| [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `main.py --build` (create missing triggers), `--build --clean` (remove generated `workflows/` YAML), `--check-workflow-triggers` |
+| [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `module.py --build` (create missing triggers), `--build --clean` (remove generated `workflows/` YAML), `--check-workflow-triggers` |
 | [Config examples](../config/examples/README.md)            | Authors / testers             | Demo folders, `--config-path` examples, progressive demo order                        |
 
 
@@ -82,7 +82,7 @@ Additional design notes may exist alongside this tree in git history or team wik
 
 ## Package entry points (code)
 
-- **CLI**: `main.py` — [Quickstart](guides/howto_quickstart.md), [module README](../README.md) (*Local runs*), [Scoped deployment](guides/howto_scoped_deployment.md) for `--build` / triggers
+- **CLI**: `module.py` — [Quickstart](guides/howto_quickstart.md), [module README](../README.md) (*Local runs*), [Scoped deployment](guides/howto_scoped_deployment.md) for `--build` / triggers
 - **Engines**: `functions/fn_dm_key_extraction/engine/`, `functions/fn_dm_aliasing/engine/`
 - **CDF handlers**: `functions/fn_dm_key_extraction/handler.py`, `functions/fn_dm_aliasing/handler.py`, `functions/fn_dm_alias_persistence/handler.py`
 - **Scope tooling**: `scripts/build_scopes.py`, `scripts/scope_build/registry.py`

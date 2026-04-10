@@ -15,7 +15,7 @@ Reads aliasing results (from task input or RAW) and persists generated **aliases
   - **`writeForeignKeyReferences`** or **`write_foreign_key_references`**: enable FK string write-back
   - **`foreignKeyWritebackProperty`** or **`foreign_key_writeback_property`**: required when FK write is enabled
   - **`source_raw_db`**, **`source_raw_table_key`**, optional **`source_raw_read_limit`**: load `FOREIGN_KEY_REFERENCES_JSON` from key-extraction RAW (workflow pattern)
-  - **`entities_keys_extracted`**: optional in-memory map with per-entity `foreign_key_references` (local `main.py` passes this)
+  - **`entities_keys_extracted`**: optional in-memory map with per-entity `foreign_key_references` (local `module.py` passes this)
   - **`source_instance_space`**, **`source_view_space`**, **`source_view_external_id`**, **`source_view_version`**: used when resolving entities that appear only in FK data
 - **FK target view** (optional; defaults match CogniteDescribable): **`foreignKeyWritebackViewSpace`** / **`foreign_key_writeback_view_space`**, **`foreignKeyWritebackViewExternalId`** / **`foreign_key_writeback_view_external_id`**, **`foreignKeyWritebackViewVersion`** / **`foreign_key_writeback_view_version`**
 - **Bulk apply** (optional): **`persistenceApplyBatchSize`** / **`persistence_apply_batch_size`** — maximum number of nodes sent per `instances.apply` call (default **1000**, minimum **1**). Failed batches are retried in smaller sub-batches (roughly quarters) until single-node applies, so one bad instance does not fail an entire large batch without a retry path.

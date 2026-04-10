@@ -1,6 +1,6 @@
 # Module functional document — `cdf_key_extraction_aliasing`
 
-This document describes **what the module does** in operational terms: scope, behaviors, components, data flows, and interfaces. Detailed rule semantics live in the [key extraction](specifications/1.%20key_extraction.md) and [aliasing](specifications/2.%20aliasing.md) specifications; step-by-step authoring is in the [configuration guide](guides/configuration_guide.md) and [workflows README](../workflows/README.md). **Run locally:** [Quickstart — `main.py`](guides/howto_quickstart.md). **Multi-scope Toolkit deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
+This document describes **what the module does** in operational terms: scope, behaviors, components, data flows, and interfaces. Detailed rule semantics live in the [key extraction](specifications/1.%20key_extraction.md) and [aliasing](specifications/2.%20aliasing.md) specifications; step-by-step authoring is in the [configuration guide](guides/configuration_guide.md) and [workflows README](../workflows/README.md). **Run locally:** [Quickstart — `module.py`](guides/howto_quickstart.md). **Multi-scope Toolkit deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ---
 
@@ -22,7 +22,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 | Rule-driven extraction and aliasing from YAML config | Automatic DM relationship edges or graph sync (see module README roadmap) |
 | CDF Functions + Workflow orchestration (v4) | Replacing trigger-embedded `configuration` without updating workflow task wiring |
 | RAW as inter-task buffer and incremental state | Removing values already written to DM instances (`--clean-state` clears RAW only) |
-| Local runner (`main.py`) for dev / parity testing | General-purpose ETL outside contextualization |
+| Local runner (`module.py`) for dev / parity testing | General-purpose ETL outside contextualization |
 
 ---
 
@@ -107,7 +107,7 @@ When **`incremental_change_processing`** is enabled in scope parameters:
 
 - **Detection** (`fn_dm_incremental_state_update`) advances **watermarks** and emits **cohort** rows in key-extraction RAW with **`WORKFLOW_STATUS=detected`** and a **`RUN_ID`**.
 - **Skip unchanged** (`incremental_skip_unchanged_source_inputs`): digest of source inputs + rules can suppress redundant cohort rows while watermarks still advance.
-- **`full_rescan`**: overrides incremental narrowing (workflow input or scope); local runner mirrors this via `main.py --full-rescan`.
+- **`full_rescan`**: overrides incremental narrowing (workflow input or scope); local runner mirrors this via `module.py --full-rescan`.
 
 ### 3.5 Reference index
 
@@ -173,7 +173,7 @@ Shared helpers live under `functions/cdf_fn_common/` (logging, scope document lo
 
 ### 4.3 Local runner
 
-**`main.py`** loads scope YAML from disk, optionally filters `source_views` by **`--instance-space`**, can **`--clean-state`**, then runs the same engines against live CDF data. Results are written under **`tests/results/`** as JSON. **`--dry-run`** skips alias persistence to DM. See [Quickstart — `main.py`](guides/howto_quickstart.md).
+**`module.py`** loads scope YAML from disk, optionally filters `source_views` by **`--instance-space`**, can **`--clean-state`**, then runs the same engines against live CDF data. Results are written under **`tests/results/`** as JSON. **`--dry-run`** skips alias persistence to DM. See [Quickstart — `module.py`](guides/howto_quickstart.md).
 
 ---
 
@@ -197,7 +197,7 @@ Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflo
 
 ### 5.3 Multi-site generation
 
-**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`main.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--build --clean`** deletes generated workflow YAML under **`workflows/`** (scoped by hierarchy **`workflow`** id) with confirmation, without running a rebuild. **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored). **Operator walkthrough:** [Scoped deployment](guides/howto_scoped_deployment.md).
+**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`module.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--build --clean`** deletes generated workflow YAML under **`workflows/`** (scoped by hierarchy **`workflow`** id) with confirmation, without running a rebuild. **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored). **Operator walkthrough:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ---
 
@@ -240,7 +240,7 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 | `full_rescan` | Bool override for incremental behavior. |
 | `run_id` | Optional operator/run correlation; auto-discovery paths exist for single-run setups. |
 
-### 7.2 CLI (`main.py`)
+### 7.2 CLI (`module.py`)
 
 Documented in the [module README](../README.md): limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, full-rescan, skip reference index (incremental parity). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 

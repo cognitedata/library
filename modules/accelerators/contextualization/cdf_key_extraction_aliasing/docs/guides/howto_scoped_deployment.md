@@ -1,6 +1,6 @@
 # Scoped deployment — hierarchy, workflow manifests, and Toolkit
 
-Use this guide when you need **one workflow** (`key_extraction_aliasing`) with **per-scope schedule triggers** (different sites, plants, or instance spaces). You edit the **scope hierarchy** in [`default.config.yaml`](../../default.config.yaml), generate **CDF Toolkit** YAML under [`workflows/`](../../workflows/), optionally adjust **instance space** handling, validate locally with [`main.py`](../../main.py), and deploy from a **Cognite Toolkit** project that includes this module.
+Use this guide when you need **one workflow** (`key_extraction_aliasing`) with **per-scope schedule triggers** (different sites, plants, or instance spaces). You edit the **scope hierarchy** in [`default.config.yaml`](../../default.config.yaml), generate **CDF Toolkit** YAML under [`workflows/`](../../workflows/), optionally adjust **instance space** handling, validate locally with [`module.py`](../../module.py), and deploy from a **Cognite Toolkit** project that includes this module.
 
 **Documentation index:** [docs/README.md](../README.md) · **Workflow task graph:** [workflows/README.md](../../workflows/README.md) · **Quickstart:** [howto_quickstart.md](howto_quickstart.md)
 
@@ -9,7 +9,7 @@ Use this guide when you need **one workflow** (`key_extraction_aliasing`) with *
 ```mermaid
 flowchart LR
   defaultConfig[default.config.yaml]
-  buildRun["main.py --build"]
+  buildRun["module.py --build"]
   workflowsDir[workflows_manifests]
   editTokens[Edit_or_substitute_tokens]
   cdfDeploy["cdf build / cdf deploy"]
@@ -42,9 +42,9 @@ Commented examples in `default.config.yaml` show how to add sites and nested loc
 
 Set **`scope_build_mode`** in `default.config.yaml`. Templates always come from [`workflow_template/`](../../workflow_template/) (see [workflow_template/README.md](../../workflow_template/README.md)).
 
-## 3. Build commands (`main.py --build`)
+## 3. Build commands (`module.py --build`)
 
-**`python main.py --build`** does **not** connect to CDF. It runs the same orchestrator as [`scripts/build_scopes.py`](../../scripts/build_scopes.py). Forwarded flags include:
+**`python module.py --build`** does **not** connect to CDF. It runs the same orchestrator as [`scripts/build_scopes.py`](../../scripts/build_scopes.py). Forwarded flags include:
 
 | Flag | Purpose |
 |------|---------|
@@ -61,14 +61,14 @@ Set **`scope_build_mode`** in `default.config.yaml`. Templates always come from 
 | **`--clean`** | Delete generated workflow YAML under **`workflows/`** for this module’s **`workflow`** id (with confirmation, or **`--yes`**). **`--dry-run --clean`** lists paths only. **No build runs after a successful clean** — run **`--build`** again to recreate. |
 | **`--yes`** | With **`--clean`**, skip confirmation (needed when stdin is not a TTY). |
 
-**Do not confuse** **`--build --clean`** (removes Toolkit manifest files under `workflows/`) with **`main.py --clean-state`** (drops **RAW** pipeline tables for a scope). They are unrelated.
+**Do not confuse** **`--build --clean`** (removes Toolkit manifest files under `workflows/`) with **`module.py --clean-state`** (drops **RAW** pipeline tables for a scope). They are unrelated.
 
 Example:
 
 ```bash
 # From repository root
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --build
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --build --check-workflow-triggers
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --build
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --build --check-workflow-triggers
 ```
 
 ## 4. Instance spaces in generated triggers
@@ -88,7 +88,7 @@ Also ensure your Toolkit / project config supplies **`instance_space`** (or equi
 
 ## 5. Run locally against one generated scope (trigger parity)
 
-There is **no** CLI flag to point `main.py` directly at a `WorkflowTrigger.yaml` file. To mirror what CDF runs for **one** leaf:
+There is **no** CLI flag to point `module.py` directly at a `WorkflowTrigger.yaml` file. To mirror what CDF runs for **one** leaf:
 
 1. Open the leaf’s **`...WorkflowTrigger.yaml`** under **`workflows/`**.
 2. Copy the entire **`input.configuration`** mapping (the value of the **`configuration`** key under **`input`**).
@@ -97,12 +97,12 @@ There is **no** CLI flag to point `main.py` directly at a `WorkflowTrigger.yaml`
 5. Run from repository root with **`PYTHONPATH=.`**:
 
 ```bash
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py \
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py \
   --config-path /path/to/my_leaf.local.yaml \
   --dry-run --limit 50
 ```
 
-Use **`--dry-run`** and **`--limit`** until you are confident. Optional **`--instance-space`** filters views when your file lists multiple views; see [`main.py`](../../main.py).
+Use **`--dry-run`** and **`--limit`** until you are confident. Optional **`--instance-space`** filters views when your file lists multiple views; see [`module.py`](../../module.py).
 
 ## 6. Deploy with Cognite Toolkit
 
@@ -112,7 +112,7 @@ This **library** repository does not ship a root **`cdf.toml`** or **`fusion.yam
    - **`workflows/`** — `Workflow`, `WorkflowVersion`, and per-scope **`WorkflowTrigger`** YAML produced by **`--build`**.
    - **`functions/`** — Cognite Function definitions (for example [`functions.Function.yaml`](../../functions/functions.Function.yaml)) and handler code.
 2. **Build** — From your Toolkit project root, run **`cdf build`** (with the correct profile / config) so templates and variables resolve.
-3. **Deploy** — Run **`cdf deploy`** (same project conventions your team uses). Schedule cron, OAuth placeholders (`{{functionClientId}}`, `{{functionClientSecret}}`), and **`{{instance_space}}`** are resolved from your project’s configuration when you build/deploy, not by `main.py`.
+3. **Deploy** — Run **`cdf deploy`** (same project conventions your team uses). Schedule cron, OAuth placeholders (`{{functionClientId}}`, `{{functionClientSecret}}`), and **`{{instance_space}}`** are resolved from your project’s configuration when you build/deploy, not by `module.py`.
 
 Official Toolkit repository and docs: [CDF Toolkit](https://github.com/cognitedata/cdf-toolkit). For workflow triggers and **`workflow.input`**, see Cognite’s data workflows documentation (linked from [workflows/README.md](../../workflows/README.md)).
 
@@ -120,5 +120,5 @@ Official Toolkit repository and docs: [CDF Toolkit](https://github.com/cogniteda
 
 - [config/README.md](../../config/README.md) — hierarchy builder details
 - [Configuration guide](configuration_guide.md) — v1 scope shape, `source_views`, parameters
-- [Quickstart](howto_quickstart.md) — `.env` and first `main.py` run
+- [Quickstart](howto_quickstart.md) — `.env` and first `module.py` run
 - [How to add a custom handler](howto_custom_handlers.md) — when YAML is not enough

@@ -1,4 +1,4 @@
-# Quickstart — local run with `main.py`
+# Quickstart — local run with `module.py`
 
 Run the key extraction and aliasing pipeline against your CDF data model from your laptop. This path uses the same engines as the deployed Cognite Functions; configuration is the v1 scope document at the module root ([`workflow.local.config.yaml`](../../workflow.local.config.yaml)) when you use `--scope default`.
 
@@ -19,7 +19,7 @@ export PYTHONPATH=.
 
 ## Credentials (`.env`)
 
-Local runs call [`local_runner/client.py`](../../local_runner/client.py) via `main.py`. Environment variables are loaded from **`.env`** if present: the loader prefers **`$REPO_ROOT/.env`** (repository root), then falls back to python-dotenv’s default search.
+Local runs call [`local_runner/client.py`](../../local_runner/client.py) via `module.py`. Environment variables are loaded from **`.env`** if present: the loader prefers **`$REPO_ROOT/.env`** (repository root), then falls back to python-dotenv’s default search.
 
 ### API key
 
@@ -48,19 +48,19 @@ If no API key is set, the client expects OAuth. All of the following must be pre
 
 **Project and base URL:** Same as for API key. If `COGNITE_BASE_URL` (and aliases) are unset, you may set **`CDF_CLUSTER`** instead; the client builds `https://{CDF_CLUSTER}.cognitedata.com`.
 
-## Run `main.py`
+## Run `module.py`
 
 From **repository root**, with `PYTHONPATH=.`:
 
 ```bash
 # Safe first run: no alias write-back to CDF
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --dry-run
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --dry-run
 
 # Default scope document (module-root workflow.local.config.yaml)
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py --scope default
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --scope default
 
 # Explicit path to the same file (equivalent when using the default scope file)
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/main.py \
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py \
   --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflow.local.config.yaml
 ```
 
@@ -68,7 +68,7 @@ Useful options:
 
 - **`--limit N`** — cap instances per view (omit or `0` for no limit).
 - **`--verbose`** — more logging.
-- **`--instance-space <space>`** — restrict to views that match that data model instance space (see `main.py` help).
+- **`--instance-space <space>`** — restrict to views that match that data model instance space (see `module.py` help).
 
 If your team uses Poetry or another runner, prefix the command as usual (for example `poetry run python ...`).
 

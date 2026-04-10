@@ -36,9 +36,9 @@ Each `fn_dm_*` **`handle(data, client=None, logger=None)`** may receive an optio
 
 Local `dependencies.create_logger_service(level, verbose)` delegates to **`cognite_function_logger`** with the same **`strict_level_names`** semantics as **`function_logging`** ( **`fn_dm_key_extraction`**: strict names only; other `fn_dm_*` dependencies: normalized levels with invalid → `INFO` + preserved `verbose`).
 
-## Local CLI (`main.py` / `local_runner.run`)
+## Local CLI (`module.py` / `local_runner.run`)
 
-On **non-incremental** runs, [`local_runner/run.py`](../../local_runner/run.py) builds a single **`StdlibLoggerAdapter`** around the CLI root logger and passes it into **`KeyExtractionEngine`** and **`AliasingEngine`**, so engine `info` / `warning` / `verbose` lines use the same stdlib logging stream as the rest of `main.py` (including [`tag_pattern_library.py`](../../functions/fn_dm_aliasing/engine/tag_pattern_library.py), which already uses `logging`).
+On **non-incremental** runs, [`local_runner/run.py`](../../local_runner/run.py) builds a single **`StdlibLoggerAdapter`** around the CLI root logger and passes it into **`KeyExtractionEngine`** and **`AliasingEngine`**, so engine `info` / `warning` / `verbose` lines use the same stdlib logging stream as the rest of `module.py` (including [`tag_pattern_library.py`](../../functions/fn_dm_aliasing/engine/tag_pattern_library.py), which already uses `logging`).
 
 - **`--verbose`** — sets the root logger to **DEBUG**; engine `.verbose(...)` calls are forwarded at the requested level via the adapter.
 - **`--progress-every N`** (default **0** = off) — logs throttled **INFO** progress for long extraction and aliasing loops (every **N** entities and every **N** tags, per view). Does not change workflow or deployed functions.

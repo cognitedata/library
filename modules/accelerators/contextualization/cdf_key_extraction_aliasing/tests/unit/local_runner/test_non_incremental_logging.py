@@ -113,7 +113,7 @@ def test_non_incremental_passes_stdlib_adapter_to_both_engines():
 
 
 def test_progress_every_parsed_on_namespace():
-    """main.py uses argparse dest progress_every for --progress-every."""
+    """module.py uses argparse dest progress_every for --progress-every."""
     p = argparse.ArgumentParser()
     p.add_argument("--progress-every", type=int, default=0)
     ns = p.parse_args(["--progress-every", "50"])

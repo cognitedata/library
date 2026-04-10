@@ -22,7 +22,7 @@ def _module_root() -> Path:
                 "## Prerequisites",
                 ".env",
                 "PYTHONPATH",
-                "## Run `main.py`",
+                "## Run `module.py`",
                 "tests/results/",
             ],
         ),

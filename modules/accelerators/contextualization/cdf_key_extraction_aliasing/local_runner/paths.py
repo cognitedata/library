@@ -1,4 +1,4 @@
-"""Paths for the local `main.py` CLI (repo root on sys.path for `modules.*` imports)."""
+"""Paths for the local `module.py` CLI (repo root on sys.path for `modules.*` imports)."""
 
 import sys
 from pathlib import Path
