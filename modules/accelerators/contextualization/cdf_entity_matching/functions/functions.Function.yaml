@@ -2,7 +2,6 @@
 # and externalId as the function itself as defined below.
 - name: 'dm:context:timeseries:entity_matching'
   externalId: 'fn_dm_context_timeseries_entity_matching'
-  dataSetExternalId: 'ds_timeseries_{{location_name}}' 
   owner: 'Anonymous'
   description: 'Contextualization of P&ID files creating annotations in Data model'
   space: {{ functionSpace }}
@@ -15,10 +14,8 @@
   # Number of cores, not available in Azure
   runtime: 'py312'
   functionPath: 'handler.py'
-  # Data set id for the zip file with the code that is uploaded.
 - name: 'dm:context:metadata_update'
   externalId: 'fn_dm_context_metadata_update'
-  dataSetExternalId: 'ds_timeseries_{{location_name}}' 
   owner: 'Anonymous'
   description: 'Update aliases for files and attests as prep for Contextualization of P&ID files'
   space: {{ functionSpace }}
@@ -31,4 +28,3 @@
   # Number of cores, not available in Azure
   runtime: 'py312'
   functionPath: 'handler.py'
-  # Data set id for the zip file with the code that is uploaded.

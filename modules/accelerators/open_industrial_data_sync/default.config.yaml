@@ -1,7 +1,7 @@
 oidDatasetExternalId: ds_oid_sync
 instanceSpace: springfield_instances
 # Update GROUP_SOURCE_ID to your group source ID
-groupSourceId: <GROUP_SOURCE_ID>
+groupSourceId: ${GROUP_SOURCE_ID}
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 extractionPipelineExternalId: ep_oid_sync

@@ -1,0 +1,12 @@
+kind: FileContent
+type: fileDataModelingTemplate
+fileDirectory: ./pnids
+viewId:
+  space: cdf_cdm
+  externalId: CogniteFile
+  version: v1
+template:
+  instanceId:
+    space: springfield_instances
+    externalId: VAL_$FILENAME
+  name: $FILENAME

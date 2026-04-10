@@ -1,0 +1,193 @@
+---
+description: CDF Transformation SQL best practices — performance, incremental patterns, JOIN handling, scheduling, and common anti-patterns. Use when writing or reviewing CDF Transformation SQL.
+globs: "**/*.Transformation.{sql,yaml}"
+alwaysApply: false
+---
+
+# CDF Transformation SQL
+
+## How CDF Transformations Work
+
+CDF Transformations run Spark SQL that reads from CDF sources (Raw, data models, assets, etc.) and writes to CDF destinations (data model instances, Raw, assets, etc.). Key constraints:
+
+- **JOINs are client-side only.** Both sides of a JOIN are fetched entirely into Spark memory before joining. There is no server-side push-down for JOINs.
+- **All data from non-`is_new()` tables is fetched in full** on every run. Only the table using `is_new()` benefits from incremental reads.
+- **Simple queries can have long execution times** when they scan large tables without incremental filtering.
+
+## Incremental Processing with `is_new()`
+
+Always use `is_new()` on the primary source table to avoid full-table scans on every run. Without it, 90%+ of transformation runs are NOOP (no actual changes), wasting compute.
+
+> **Exception:** `is_new()` only works with Raw tables and some CDF resource types. When reading from data model views or other sources that don't support it, incremental processing isn't available — keep those transformations as simple and fast as possible.
+
+```sql
+-- ✅ GOOD — only processes new/changed rows
+SELECT
+  cast(`key` as STRING) as externalId,
+  cast(name as STRING) as name
+FROM `my_raw_db`.`my_table`
+WHERE is_new('my_raw_db', 'my_table')
+
+-- ❌ BAD — full scan every run, mostly NOOP
+SELECT
+  cast(`key` as STRING) as externalId,
+  cast(name as STRING) as name
+FROM `my_raw_db`.`my_table`
+```
+
+## JOIN Performance
+
+Since JOINs are client-side, both tables are fetched in full. Minimize JOIN impact:
+
+- **Prefer denormalized source data** over multi-table JOINs when possible
+- **Filter the driving table with `is_new()`** before joining
+- **Keep lookup tables small** — large-to-large JOINs are expensive
+- **Use `node_reference()` instead of JOINs** when you only need to set a direct relation
+
+```sql
+-- ✅ GOOD — direct relation via node_reference, no JOIN needed
+CASE
+  WHEN parent_key IS NULL OR parent_key = '' THEN NULL
+  ELSE node_reference('{{ instance_space }}', cast(parent_key as STRING))
+END as parent
+
+-- ❌ BAD — JOIN just to resolve a reference
+SELECT a.*, b.externalId as parent
+FROM source_table a
+LEFT JOIN parent_table b ON a.parent_key = b.key
+```
+
+## SQL Style
+
+- **Explicit column selection.** Never use `SELECT *`. List every column.
+- **CAST to target types.** Always `cast(col as STRING)`, `cast(col as DOUBLE)`, etc. CDF Raw stores everything as strings.
+- **NULL handling.** Use `CASE WHEN col IS NULL OR col = '' THEN NULL ELSE ... END` for direct relations and timestamps.
+- **One column per line.** Each selected column on its own line for readability.
+- **Uppercase SQL keywords.** `SELECT`, `FROM`, `WHERE`, `CASE`, `WHEN`, `THEN`, `ELSE`, `END`, `AS`, `NULL`, `AND`, `OR`, `CAST`.
+- **Lowercase identifiers.** Column aliases in `camelCase` matching view property names.
+- **Backtick reserved words.** Use backticks on source columns that may clash with SQL reserved words (e.g., `` `key` ``, `` `name` ``, `` `system` ``).
+- **Template variables everywhere.** Use `{{ instance_space }}`, `{{ space }}`, etc. from module config — never hardcode spaces, external IDs, or source context values.
+
+## Type Conversion Patterns
+
+### Direct relations (single)
+```sql
+CASE
+  WHEN parent_key IS NULL OR parent_key = '' THEN NULL
+  ELSE node_reference('{{ instance_space }}', CAST(parent_key AS STRING))
+END AS parent
+```
+
+### Direct relations (array / multi-valued)
+```sql
+CASE
+  WHEN asset_key IS NULL OR asset_key = '' THEN NULL
+  ELSE array(node_reference('{{ instance_space }}', CAST(asset_key AS STRING)))
+END AS assets
+```
+
+### Timestamps from Raw strings
+```sql
+CASE
+  WHEN startTime IS NULL OR startTime = '' THEN NULL
+  ELSE to_timestamp(startTime)
+END AS startTime
+```
+
+### Booleans from Raw strings
+```sql
+CASE WHEN lower(isDeleted) = 'true' THEN true ELSE false END AS isDeleted
+```
+
+### Optional numerics from Raw strings
+```sql
+CASE
+  WHEN pressure IS NOT NULL AND pressure != '' THEN CAST(pressure AS DOUBLE)
+  ELSE NULL
+END AS pressure
+```
+
+### String arrays (labels, tags)
+```sql
+array(CAST(labels AS STRING)) AS labels
+```
+
+## Container Ownership — Avoid `requires` Constraint Violations
+
+CDF containers can have `requires` constraints (e.g., `Tag` requires `CogniteAsset`). When a transformation writes to a view that maps properties to multiple containers, the `requires` chain must be satisfied for **every container** touched.
+
+**Rule:** Each transformation should only write to containers it **owns**. Don't re-write properties that belong to a parent transformation.
+
+```sql
+-- ❌ BAD — overlay writes area/facility/system to Tag container,
+-- triggering Tag → CogniteAsset requires chain
+SELECT
+  cast(`key` AS STRING) AS externalId,
+  cast(`name` AS STRING) AS name,
+  cast(`area` AS STRING) AS area,          -- Tag container
+  cast(`facility` AS STRING) AS facility,  -- Tag container
+  cast(`iOType` AS STRING) AS iOType       -- CFIHOS_HSE container
+FROM `source`.`hse_equipment`
+
+-- ✅ GOOD — overlay only writes to its own CFIHOS container + CogniteDescribable
+SELECT
+  cast(`key` AS STRING) AS externalId,
+  cast(`name` AS STRING) AS name,          -- CogniteDescribable (no constraint)
+  cast(`iOType` AS STRING) AS iOType       -- CFIHOS_HSE container (requires Tag ✓)
+FROM `source`.`hse_equipment`
+```
+
+**Common pattern:** A base transformation (e.g., `tr_tag`) populates `CogniteAsset`, `CogniteDescribable`, `CogniteSourceable`, and the `Tag` container. Overlay transformations (compressor, valve, etc.) should only write to their CFIHOS-specific container and optionally `CogniteDescribable` — never to `Tag`, `CogniteAsset`, or `CogniteSourceable`.
+
+## Avoid Over-Engineering
+
+CDF Transformations are a data mapping tool, not a general-purpose ETL engine.
+
+- **No regex or n-gram logic.** Complex string manipulation belongs in a preprocessing step (Function, workflow, or upstream).
+- **No business logic.** Keep transformations as simple mappings from source schema to target schema.
+- **No multi-level CTEs.** If you need more than one CTE, the transformation is likely doing too much.
+
+## Transformation YAML Configuration
+
+```yaml
+externalId: tr_{source}_{location}_to_{target}
+name: Human-readable name
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: ViewExternalId
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert
+```
+
+- **`ignoreNullFields: true`** — prevents overwriting existing values with NULL on partial updates.
+- **`conflictMode: upsert`** — create or update. Use `abort` only for one-time loads.
+- **Naming:** Follow `tr_{source}_{location}_to_{target}` convention per naming rules.
+- **`destinationType`** — use the PascalCase view external ID (e.g., `Tag`, `Notification`, `Valve`), not the space-qualified reference.
+- **Template the source database** — if the Raw database name varies by environment, use `{{ source_database }}` or similar in the SQL rather than hardcoding it.
+
+## Scheduling Best Practices
+
+- **Distribute load.** Don't schedule all transformations at the same cron interval. Stagger start times to avoid resource contention.
+- **Match frequency to data velocity.** High-frequency sources (alarms, time series) need shorter intervals than static reference data.
+- **Prefer workflow orchestration** over standalone schedules when transformations have dependencies.
+- **Use `is_new()` to make frequent schedules cheap.** A transformation with `is_new()` that finds no changes completes quickly.
+
+## Checklist
+
+1. Primary source table uses `is_new()` for incremental processing (Raw sources)
+2. No unnecessary JOINs — use `node_reference()` for direct relations
+3. All columns explicitly cast to target types (`STRING`, `DOUBLE`, `INT`, etc.)
+4. NULL/empty string handling on direct relations, timestamps, and optional numerics
+5. Template variables for spaces, external IDs, versions, and source databases
+6. No regex, n-gram, or complex business logic
+7. Scheduling is staggered, not all at the same interval
+8. `ignoreNullFields: true` to prevent accidental overwrites
+9. SQL keywords uppercase, aliases camelCase, reserved-word columns backticked
+10. Column-to-property mapping verified — each alias matches the correct source column
