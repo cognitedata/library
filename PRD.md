@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Foundation Deployment Pack** (`dp:foundation`) is a scalable, modular CDF deployment package that gives industrial projects a well-structured starting point. It covers the full stack from source system extraction through contextualization: production-grade extractor configuration templates for PI, OPC-UA, and SAP; an enterprise data model; a modular ingestion orchestration workflow; and contextualization capabilities including file annotation, entity matching, and SQL-based connections.
+The **Foundation Deployment Pack** (`dp:foundation`) is a scalable, modular CDF deployment package that gives industrial projects a well-structured starting point. It covers the full stack from source system extraction through contextualization: production-grade extractor configuration templates for PI, OPC-UA, and SAP; the ISA Manufacturing Extension data model; a modular ingestion orchestration workflow; and contextualization capabilities including file annotation and entity matching.
 
 Every module is independently deployable. The package supports `canCherryPick = true`, so teams select only the source systems and capabilities they need. Adding a new source system or contextualization step means adding a module — not modifying existing ones.
 
@@ -53,15 +53,16 @@ The following are deliberately out of scope for the initial release. Excluding t
 
 | Excluded                                        | Rationale                                                                                                                                                                             |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Maximo, Meridium, other CMMS**                | SAP is the most common asset/maintenance source system in the target segment. Additional CMMS sources are P2+ work.                                                                   |
+| **`qs_enterprise_dm` and `rmdm` data model support** | v1 ships with the ISA Manufacturing Extension data model only. `qs_enterprise_dm` and `rmdm` variants (including `cdf_connection_sql` which is qs_enterprise-specific) are P1 additions once the ISA transformation set is validated end-to-end. |
+| **Maximo, Meridium, other CMMS**                | SAP is the most common asset/maintenance source system in the target segment. Additional CMMS sources are P2+ work. |
 | **OSIsoft PI Asset Framework (AF)**             | `cdf_pi_foundation` covers the PI Data Archive (timeseries) via the PI .NET Extractor. PI AF hierarchy ingestion requires a separate extractor and transformation pattern; not in v1. |
-| **SAP PM via IDoc / RFC**                       | The SAP OData extractor pattern is the primary integration. IDoc and RFC-based extractions require different tooling and are not covered.                                             |
-| **OPC-UA Historical Access (HDA)**              | The OPC-UA module covers live/subscribed data. Historical data backfill via HDA is a separate configuration concern; left as a documented extension pattern.                          |
-| **OOTB (Out-of-the-Box) Cognite project setup** | `dp:foundation` does not configure IDP, project creation, or network connectivity. It assumes a provisioned CDF project with IDP authentication already in place.                     |
-| **Atlas AI / OOTB Agents**                      | AI agent deployment (`dp:atlas_ai`) is a P2 concern layered on top of a working foundation.                                                                                           |
-| **Automated transformation unit tests**         | A testing framework for verifying transformation SQL output is a P1 concern.                                                                                                          |
-| **Multi-tenant or multi-project federation**    | Each deployment of `dp:foundation` targets a single CDF project. Cross-project data federation is out of scope.                                                                       |
-| **Sharepoint / document source system**         | File ingestion from SharePoint is not included in v1. A generic `cdf_documents_foundation` module is a P1 candidate.                                                                  |
+| **SAP PM via IDoc / RFC**                       | The SAP OData extractor pattern is the primary integration. IDoc and RFC-based extractions require different tooling and are not covered. |
+| **OPC-UA Historical Access (HDA)**              | The OPC-UA module covers live/subscribed data. Historical data backfill via HDA is a separate configuration concern; left as a documented extension pattern. |
+| **OOTB (Out-of-the-Box) Cognite project setup** | `dp:foundation` does not configure IDP, project creation, or network connectivity. It assumes a provisioned CDF project with IDP authentication already in place. |
+| **Atlas AI / OOTB Agents**                      | AI agent deployment (`dp:atlas_ai`) is a P2 concern layered on top of a working foundation. |
+| **Automated transformation unit tests**         | A testing framework for verifying transformation SQL output is a P1 concern. |
+| **Multi-tenant or multi-project federation**    | Each deployment of `dp:foundation` targets a single CDF project. Cross-project data federation is out of scope. |
+| **Sharepoint / document source system**         | File ingestion from SharePoint is not included in v1. A generic `cdf_documents_foundation` module is a P1 candidate. |
 
 
 ---
@@ -91,7 +92,7 @@ canCherryPick = true
 modules = [
     # Core infrastructure
     "foundation/cdf_foundation",
-    "models/qs_enterprise_dm",
+    "models/isa_manufacturing_extension",
     # Source systems — deploy the ones matching your site
     "sourcesystem/cdf_pi_foundation",
     "sourcesystem/cdf_opcua_foundation",
@@ -101,7 +102,6 @@ modules = [
     # Contextualization
     "accelerators/contextualization/cdf_file_annotation",
     "accelerators/contextualization/cdf_entity_matching",
-    "accelerators/contextualization/cdf_connection_sql",
     # Search
     "accelerators/industrial_tools/cdf_search",
     # Contextualization quality
@@ -119,7 +119,7 @@ New modules created as part of this DP:
 
 Existing modules referenced without modification:
 
-- `models/qs_enterprise_dm`
+- `models/isa_manufacturing_extension`
 - `accelerators/contextualization/cdf_file_annotation`
 - `accelerators/contextualization/cdf_entity_matching`
 - `accelerators/contextualization/cdf_connection_sql`
@@ -135,9 +135,9 @@ Existing modules referenced without modification:
 │  LAYER 0 — DATA MODEL                                                        │
 │                                                                              │
 │  ┌───────────────────────────────────────────────────────────────────────┐   │
-│  │  models/qs_enterprise_dm  [existing]                                  │   │
-│  │  39 views · 46 containers · 3 spaces · 2 data models                 │   │
-│  │  sp_enterprise_process_industry · sp_enterprise_instance             │   │
+│  │  models/isa_manufacturing_extension  [existing]                                       │   │
+│  │  ISA Manufacturing Extension · views for Equipment, Asset, TimeSeries, Files        │   │
+│  │  ISA-specific spaces · containers · ISA-aligned relationship model    │   │
 │  └───────────────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -276,7 +276,7 @@ foundation/cdf_foundation/
 | `rawSourceDatabase` | `ingestion`                      | RAW DB for source system landed data                     |
 | `rawStateDatabase`  | `contextualizationState`         | RAW DB for state cursors                                 |
 | `rawStateTable`     | `diagramParsing`                 | State table used by annotation and sync jobs             |
-| `schemaSpace`       | `sp_enterprise_process_industry` | Schema space from `qs_enterprise_dm`                     |
+| `schemaSpace`       | `sp_isa_manufacturing_extension` | Schema space from `isa_manufacturing_extension` data model                     |
 | `annotationSpace`   | `{{location}}_instances`         | Space where annotation edges are stored                  |
 | `dataModelVersion`  | `v1.0`                           | Data model version for transformation view references    |
 
@@ -285,15 +285,15 @@ foundation/cdf_foundation/
 
 ---
 
-### 2. `models/qs_enterprise_dm` *(Existing — no changes)*
+### 2. `models/isa_manufacturing_extension` *(Existing — no changes)*
 
-**Purpose**: Enterprise data model providing 39 views across Asset, Equipment, Maintenance, TimeSeries, Files, and 3D. All source system transformations in this DP write into views defined here.
+**Purpose**: Extends the CDF core data model (CDM) with manufacturing-specific views covering Asset, Equipment, TimeSeries, Files, and Maintenance entities. All source system transformations in this DP write into views defined here. This module already exists in the library and is referenced without modification.
 
 **Resources** (existing, unchanged):
+- Schema space for the ISA Manufacturing Extension (confirm exact `spaceId` from `module.toml`)
+- Containers and Views extending CDM for manufacturing asset hierarchy, equipment, timeseries, and maintenance
 
-- 3 Spaces (`sp_enterprise_process_industry`, `sp_enterprise_instance`, `sp_site_instance`)
-- 46 Containers, 39 Views
-- 2 Data Models (`qs-enterprise`, `qs-enterprise-search`)
+**Key implementation note**: The exact `schemaSpace`, view external IDs, and property names that source system transformation SQL must reference should be read from the existing `module.toml` and resource YAMLs before authoring any transformation in `cdf_pi_foundation`, `cdf_opcua_foundation`, or `cdf_sap_foundation`.
 
 **Dependencies**: None
 
@@ -585,8 +585,8 @@ The workflow has two sequential phases:
 
 The contextualization tasks included in phase 2 are determined by `dataModelVariant`:
 
-- `qs_enterprise` → `cdf_connection_sql` transformations (maintenance order → asset, TS → equipment, etc.)
-- `isa_oil_gas` → ISA-specific relationship transformations from that module
+- `isa_manufacturing_extension` → ISA-specific relationship transformations from the `isa_manufacturing_extension` module (v1 default)
+- `qs_enterprise` → `cdf_connection_sql` transformations (P1, added when `qs_enterprise_dm` support ships)
 - Future DM variants follow the same pattern
 
 Any task failure aborts the workflow (`onFailure: abortWorkflow`).
@@ -620,11 +620,12 @@ enabledSources:
 # Which contextualization tasks to include in phase 2
 # Driven by dataModelVariant — set manually only to override
 enabledContextualization:
-  connectionSql: true   # auto-enabled when dataModelVariant: qs_enterprise
+  isaRelationships: true    # auto-enabled when dataModelVariant: isa_manufacturing_extension
+  connectionSql: false      # enable only when dataModelVariant: qs_enterprise (P1)
 
 # Selects the transformation set used in the contextualization phase
-# Supported: qs_enterprise | isa_oil_gas | rmdm
-dataModelVariant: qs_enterprise
+# Supported: isa_manufacturing_extension (v1) | qs_enterprise (P1) | rmdm (P1)
+dataModelVariant: isa_manufacturing_extension
 ```
 
 `**workflow_template/tasks/**` — one snippet per task, each a self-contained YAML block:
@@ -710,11 +711,14 @@ foundation/cdf_ingestion_foundation/
 │       ├── task.sap_maintenance_orders.yaml
 │       ├── task.sap_operations.yaml
 │       ├── task.sap_operation_to_order.yaml
-│       ├── ctx.qs_enterprise.maintenance_order_to_asset.yaml   # DM-variant ctx tasks
+│       ├── ctx.isa_manufacturing_extension.equipment_connections.yaml          # ISA ctx tasks (v1 default)
+│       ├── ctx.isa_manufacturing_extension.ts_to_equipment.yaml
+│       ├── ctx.isa_manufacturing_extension.maintenance_to_functional_loc.yaml
+│       ├── ctx.isa_manufacturing_extension.operation_to_order.yaml
+│       ├── ctx.qs_enterprise.maintenance_order_to_asset.yaml  # QS Enterprise ctx tasks (P1)
 │       ├── ctx.qs_enterprise.ts_to_equipment.yaml
 │       ├── ctx.qs_enterprise.activity_to_ts.yaml
 │       ├── ctx.qs_enterprise.operation_to_asset.yaml
-│       ├── ctx.isa_oil_gas.asset_connections.yaml              # ISA ctx tasks (P1)
 │       └── ctx.rmdm.asset_connections.yaml                    # RMDM ctx tasks (P1)
 ├── auth/
 │   ├── grp_workflow.Group.yaml
@@ -765,7 +769,7 @@ foundation/cdf_ingestion_foundation/
 
 **Resources** (existing): 1 Location Filter.
 
-**Dependencies**: `models/qs_enterprise_dm` (data model space).
+**Dependencies**: `models/isa_manufacturing_extension` (data model space).
 
 ---
 
@@ -812,7 +816,7 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 | Module                                | Status   | Spaces | Datasets | RAW DBs | RAW Tables | Transformations | Workflows | Pipelines | Groups |
 | ------------------------------------- | -------- | ------ | -------- | ------- | ---------- | --------------- | --------- | --------- | ------ |
 | `foundation/cdf_foundation`           | New      | 2      | 2        | 1       | 0          | 0               | 0         | 0         | 4      |
-| `models/qs_enterprise_dm`             | Existing | 3      | 0        | 0       | 0          | 0               | 0         | 0         | 0      |
+| `models/isa_manufacturing_extension`                  | Existing | —      | 0        | 0       | 0          | 0               | 0         | 0         | 0      |
 | `sourcesystem/cdf_pi_foundation`      | New      | 0      | 0        | 1       | 1          | 1               | 0         | 1         | 0      |
 | `sourcesystem/cdf_opcua_foundation`   | New      | 0      | 0        | 1       | 1          | 1               | 0         | 1         | 0      |
 | `sourcesystem/cdf_sap_foundation`     | New      | 0      | 0        | 1       | 7          | 6               | 0         | 1         | 0      |
@@ -837,14 +841,14 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 | Deliverable                         | Modules                                                           |
 | ----------------------------------- | ----------------------------------------------------------------- |
 | Core project infrastructure         | `foundation/cdf_foundation`                                       |
-| Enterprise data model               | `models/qs_enterprise_dm`                                         |
+| ISA Manufacturing Extension data model            | `models/isa_manufacturing_extension` *(new)*                                      |
 | PI timeseries ingestion             | `sourcesystem/cdf_pi_foundation`                                  |
 | OPC-UA timeseries ingestion         | `sourcesystem/cdf_opcua_foundation`                               |
 | SAP asset + maintenance ingestion   | `sourcesystem/cdf_sap_foundation`                                 |
 | Modular ingestion orchestration     | `foundation/cdf_ingestion_foundation`                             |
 | P&ID file annotation                | `accelerators/contextualization/cdf_file_annotation` *(existing)* |
 | Entity matching                     | `accelerators/contextualization/cdf_entity_matching` *(existing)* |
-| SQL-based connections               | `accelerators/contextualization/cdf_connection_sql` *(existing)*  |
+| ISA-specific relationship transforms | Part of `models/isa_manufacturing_extension` or `foundation/cdf_ingestion_foundation` ctx snippets |
 | Contextualization quality dashboard | `dashboards/context_quality` *(existing)*                         |
 | Scoped search filters               | `accelerators/industrial_tools/cdf_search` *(existing)*           |
 
@@ -854,11 +858,14 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 **Goal**: Deployments are verifiable. A DE can confirm that transformations produce correct output before handing a project to a customer.
 
 
-| Deliverable                                         | Notes                                                                             |
-| --------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Transformation unit test framework                  | Test harness that validates SQL transformation output against known-good fixtures |
-| Document source module (`cdf_documents_foundation`) | Generic file ingestion replacing the SharePoint-specific module                   |
-| Multi-plant SAP validation                          | Verified multi-plant expansion via `sapPlants` list variable                      |
+| Deliverable | Notes |
+|---|---|
+| `qs_enterprise_dm` data model support | Add `models/qs_enterprise_dm` as an alternative selectable DM; wire in `cdf_connection_sql` contextualization tasks for the `qs_enterprise` variant in `cdf_ingestion_foundation` |
+| `rmdm` data model support | Add `models/rmdm_v1` as a selectable DM variant with its own contextualization task snippets |
+| SQL-based connections (`cdf_connection_sql`) | Becomes available as the contextualization layer when `dataModelVariant: qs_enterprise` is selected |
+| Transformation unit test framework | Test harness that validates SQL transformation output against known-good fixtures |
+| Document source module (`cdf_documents_foundation`) | Generic file ingestion replacing the SharePoint-specific module |
+| Multi-plant SAP validation | Verified multi-plant expansion via `sapPlants` list variable |
 
 
 ### P2 — v3: AI, Extended Source Systems, and Operational Tooling
@@ -886,7 +893,7 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `**library` repo** (this repo)    | All new modules land here; merge conflicts if other teams are actively developing in `modules/`                                                                                                                       | Coordinate with module owners; use feature branches per module                                                                                                       |
 | `**gss-knowledge-base` repo**     | Extractor config templates are sourced from here; changes there may need to be reflected in the DP                                                                                                                    | Pin to a specific commit or tag at release time; document the source commit in module READMEs                                                                        |
-| `**qs_enterprise_dm` data model** | All source system transformations reference views in this data model. A view rename or property removal in a future `qs_enterprise_dm` version will break the foundation transformations without a coordinated update | Transformation SQL should reference the model via the `{{dataModelVersion}}` variable; bump the variable when upgrading; pin the model version used in v1 explicitly |
+| **`isa_manufacturing_extension` schema evolution** | The existing module may receive view or property changes in future library releases. Any such change will break the foundation source system transformations without a coordinated update | Pin the `dataModelVersion` variable to the version used at build time. Reference all view IDs and spaces via `{{schemaSpace}}` and `{{dataModelVersion}}` variables — a version bump stays a config change, not a code change. Read the existing module's `module.toml` before authoring any transformation SQL. |
 | **CDF Toolkit version**           | Module YAML syntax, WorkflowVersion schema, and variable substitution behaviour are Toolkit-version-dependent. A Toolkit major version bump may require YAML updates                                                  | Document the minimum supported Toolkit version in `module.toml`; test against the pinned version in CI                                                               |
 | **CDF Workflows API**             | The ingestion workflow uses the Workflows API (GA). Behaviour changes to `concurrencyPolicy`, `onFailure`, or task types would require workflow YAML updates                                                          | Monitor CDF release notes; the two-phase task graph is relatively simple and low-risk                                                                                |
 
@@ -913,7 +920,7 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 
 A Python script reads `enabledSources` flags from `default.config.yaml`, assembles only the relevant per-task snippets from `workflow_template/tasks/`, and writes the final `WorkflowVersion.yaml` before `cdf deploy` runs. The generated file is committed to the repo. CDF only ever sees a static YAML that references transformations that are actually deployed.
 
-This also resolves the DM-variant contextualization task selection: `dataModelVariant: qs_enterprise` pulls in `cdf_connection_sql` task snippets; `dataModelVariant: isa_oil_gas` pulls in ISA-specific snippets. The workflow YAML structure is identical — only the task set differs.
+This also resolves the DM-variant contextualization task selection: `dataModelVariant: isa_manufacturing_extension` (v1 default) pulls in ISA-specific relationship task snippets; `dataModelVariant: qs_enterprise` (P1) pulls in `cdf_connection_sql` snippets. The workflow YAML structure is identical — only the task set differs.
 
 A `--check` flag on the script validates in CI that the committed YAML matches what the current config would generate, preventing drift.
 
