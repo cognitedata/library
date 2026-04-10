@@ -1,6 +1,6 @@
 space: "{{space}}"
 externalId: AlarmRecord
-usedFor: node # should be record
+usedFor: record
 name: AlarmRecord
 description: Alarm record properties including source node, severity, and state information.
 properties:
@@ -352,53 +352,4 @@ properties:
     autoIncrement: false
     name: tag
 constraints:
-  tagPresent:
-    constraintType: requires
-    require:
-      space: "{{space}}"
-      externalId: Tag
-      type: container
 indexes:
-  tag:
-    indexType: btree
-    properties:
-      - tag
-    bySpace: false
-    cursorable: false
-  severity:
-    indexType: btree
-    properties:
-      - severity
-    bySpace: false
-    cursorable: true
-  time:
-    indexType: btree
-    properties:
-      - time
-    bySpace: false
-    cursorable: true
-  SourceNode:
-    indexType: btree
-    properties:
-      - SourceNode
-    bySpace: false
-    cursorable: false
-  AlarmState:
-    indexType: btree
-    properties:
-      - AlarmState
-    bySpace: false
-    cursorable: false
-  eventType:
-    indexType: btree
-    properties:
-      - eventType
-    bySpace: false
-    cursorable: false
-  alarmStateAndTime:
-    indexType: btree
-    properties:
-      - AlarmState
-      - time
-    bySpace: false
-    cursorable: false
