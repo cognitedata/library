@@ -1,0 +1,9 @@
+3DId,assetId,3dNodeName,assetExternalId,contextualized
+1001,2001,PumpA,CLV-PUMP-001,false
+1002,2002,ValveB,CLV-VALVE-002,false
+1003,2003,CompressorC,CLV-COMP-003,false
+1004,2004,TurbineD,CLV-TURB-004,false
+1005,2005,HeatExchangerE,CLV-HEX-005,false
+1006,2006,PressureVesselF,CLV-PV-006,false
+1007,2007,PipelineG,CLV-PIPE-007,false
+1008,2008,ControlValveH,CLV-CV-008,false

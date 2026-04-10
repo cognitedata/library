@@ -1,0 +1,5 @@
+kind: RawRows
+type: rawTable
+table:
+  dbName: 3d_{{default_location}}_{{source_name}}
+  tableName: three_dimension_asset

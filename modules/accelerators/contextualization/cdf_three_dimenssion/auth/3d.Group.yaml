@@ -1,0 +1,95 @@
+# Single group for all 3D pipeline actors: file extractor, contextualization functions, and read-only users.
+# Merged from 3d.extractor.Group, 3d.processing.Group, 3d.read.Group for simplified dev/small-team setup.
+name: 'gp_3d_{{default_location}}'
+sourceId: '{{3d_location_group_source_id}}'
+metadata:
+  origin: 'cdf-project-templates'
+capabilities:
+  # RAW: read/write (extractor + processing)
+  - rawAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        tableScope:
+          dbsToTables:
+            3d_{{default_location}}_{{source_name}}: []
+
+  # Files: read/write (extractor uploads, processing reads, users view)
+  - filesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+
+  # 3D models: read (processing + users)
+  - threedAcl:
+      actions:
+        - READ
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+
+  # Data Model instances: read/write (processing writes AssetExtension nodes)
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - '{{data_model_space}}'
+            - cdf_cdm
+
+  # Extraction pipelines: read configs, read/write runs
+  - extractionConfigsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+  - extractionRunsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        datasetScope:
+          ids: ['ds_3d_{{default_location}}']
+
+  # Sessions: needed for CDF Functions
+  - sessionsAcl:
+      actions:
+        - LIST
+        - CREATE
+        - DELETE
+      scope:
+        all: {}
+
+  # Entity matching + functions (contextualization processing)
+  - entitymatchingAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+  - functionsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        all: {}
+
+  # Annotations + labels: read (users)
+  - annotationsAcl:
+      actions:
+        - READ
+      scope:
+        all: {}
+  - labelsAcl:
+      actions:
+        - READ
+      scope:
+        all: {}

@@ -1,0 +1,44 @@
+environment:
+  name: dev
+  project: shivam-qs
+  validation-type: dev
+  selected:
+  - modules/
+
+variables:
+  modules:
+    accelerators:
+      contextualization:
+        cdf_three_dimenssion:
+          default_location: ${default_location}
+          source_name: ${source_name}
+          raw_db: ${RAW_DB}          # raw database name for manual mappings
+          raw_table_manual: contextualization_manual_input
+          raw_table_asset_staging: asset_hierarchy_staging
+          function_space: ${FUNCTION_SPACE}
+          3d_model_name: ${3d_model_name}   # 3d_model_name is the "name" property of cognite3dmodel
+          cad_model_name: cdf_cdm
+          cad_model_type: CAD
+          default_cad_space: cdf_cdm
+          default_dm_space: cdf_cdm
+          data_model_space: cdf_cdm
+          dm_ext_id: ${DM_EXT_ID}  # data model external id for the project
+          dm_version: ${DM_VERSION}
+          default_scene_space: scene
+          cad_contextualization_batch_size: 100
+          # required_views / cad_*_view: omitted here — defaults are in
+          # functions/fn_context_3d_cad_asset_contextualization/config.py (_DEFAULT_REQUIRED_VIEWS, _DEFAULT_CAD_VIEWS).
+          # Override in your project config.dev.yaml if you use non-cdf_cdm view spaces.
+
+          asset_instance_space: ${ASSET_INSTANCE_SPACE}
+          cad_node_instance_space: ${CAD_NODE_INSTANCE_SPACE}
+          asset_view_ext_id: ${ASSET_VIEW_EXT_ID}          #view where asset are available for contextualization
+          asset_view_version: ${ASSET_VIEW_VERSION}          #version of the view where asset are available for contextualization
+          file_extractor_watch_path: c:/tmp/files
+          3d_location_group_source_id: ${3d_location_group_source_id}   #group source id for the project
+          cicd_clientId: ${cicd_clientId}
+          cicd_clientSecret: ${cicd_clientSecret}
+          cicd_tokenUri: ${IDP_TOKEN_URL}
+          cdf_project_name: ${CDF_PROJECT}
+          cdf_cluster: ${CDF_CLUSTER}
+          external_root_id_asset: ${EXTERNAL_ROOT_ID_ASSET}  #optional: only used for legacy behavior

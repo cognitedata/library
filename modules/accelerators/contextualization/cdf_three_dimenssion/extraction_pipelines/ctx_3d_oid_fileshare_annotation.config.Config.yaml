@@ -1,0 +1,27 @@
+# Optional (defaults used when omitted): assetSubtreeExternalIds, nodeNamePrefixes, nodeNameMaxSlashes, nameReplacements, suffixesToStrip, rawTableRule
+# Example: assetSubtreeExternalIds: ['CLV/FPSOH', 'CLV/FPSOT']
+# Example: nodeNamePrefixes: ['/6049', '/6A2TE']; nodeNameMaxSlashes: 1
+# Example: nameReplacements: [{"from": "TO-", "to": ""}]; suffixesToStrip: ['CTRL']
+# Example: rawTableRule: 'contextualization_rule' (table with columns regexpEntity, regexpAsset for rule-based mapping before ML)
+externalId: 'ep_ctx_3d_{{default_location}}_{{source_name}}_annotation'
+config:
+  data:
+    parameters:
+      debug: False
+      runAll: False
+      rawdb: '3d_{{default_location}}_{{source_name}}'
+      rawTableGood: 'contextualization_good'
+      rawTableBad: 'contextualization_bad'
+      rawTableAll: 'contextualization_all'
+      rawTableManual: 'contextualization_manual_input'
+      assetDmSpace: {{asset_instance_space}}
+      assetViewSpace: {{asset_view_space}}
+      assetViewExtId: {{asset_view_ext_id}}
+      assetViewVersion: {{asset_view_version}}
+
+      cadNodeDmSpace: {{cad_node_instance_space}}
+      threeDDataSetExtId: 'ds_3d_{{default_location}}'
+      threeDModelName: '{{3d_model_name}}'
+      matchThreshold: 0.5
+      keepOldMapping: False
+
