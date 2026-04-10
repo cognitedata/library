@@ -861,17 +861,18 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 | Multi-plant SAP validation                          | Verified multi-plant expansion via `sapPlants` list variable                      |
 
 
-### P2 — v3: AI and Extended Source Systems
+### P2 — v3: AI, Extended Source Systems, and Operational Tooling
 
-**Goal**: The foundation DP becomes the entry point for AI-augmented industrial workflows and a broader set of source systems.
+**Goal**: The foundation DP becomes the entry point for AI-augmented industrial workflows, a broader set of source systems, and richer operational visibility for DEs and customers post-deployment.
 
-
-| Deliverable                          | Notes                                                                             |
-| ------------------------------------ | --------------------------------------------------------------------------------- |
-| Atlas AI integration (`dp:atlas_ai`) | OOTB agents layered on top of the foundation data model                           |
-| Additional source systems            | Maximo, Meridium, or other CMMS as `sourcesystem/cdf_<system>_foundation` modules |
-| Automated quality checks             | Scheduled data quality assertions beyond contextualization coverage               |
-| PI Asset Framework (AF) support      | Hierarchy ingestion from PI AF as an extension module                             |
+| Deliverable | Module | Notes |
+|---|---|---|
+| Atlas AI integration | `dp:atlas_ai` | OOTB agents layered on top of the foundation data model |
+| Additional source systems | `sourcesystem/cdf_<system>_foundation` | Maximo, Meridium, or other CMMS |
+| PI Asset Framework (AF) support | `sourcesystem/cdf_pi_af_foundation` | Hierarchy ingestion from PI AF as an extension to `cdf_pi_foundation` |
+| Project health dashboard | `dashboards/project_health` | Operational visibility: extraction pipeline uptime, transformation error rates, extraction run status. Already exists in the library — inclusion requires verifying it works independently of the quickstart modules it was originally shipped with. Adds to Layer 5 alongside `dashboards/context_quality`. |
+| Qualitizer app | `tools/apps/qualitizer` | Interactive data quality tool for DEs and customers to inspect and act on quality issues across assets, timeseries, and files. Complements the passive quality metrics in `context_quality` with actionable, record-level review. Adds to Layer 5. |
+| Automated quality assertions | *(new module)* | Scheduled transformation-based checks (null rates, referential integrity, coverage thresholds) that go beyond contextualization coverage metrics |
 
 
 ---
