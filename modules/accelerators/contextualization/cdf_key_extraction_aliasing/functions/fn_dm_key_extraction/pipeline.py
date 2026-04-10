@@ -41,16 +41,16 @@ from cdf_fn_common.incremental_scope import (
     norm_workflow_status,
     raw_row_columns,
 )
-from common.logger import CogniteFunctionLogger
-from engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
-from services.ApplyService import GeneralApplyService
+from .common.logger import CogniteFunctionLogger
+from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
+from .services.ApplyService import GeneralApplyService
 
-from raw_join_utils import (
+from .raw_join_utils import (
     entity_props_for_view,
     merged_join_columns_for_instance,
     preload_raw_lookups,
 )
-from utils.rule_utils import get_rule_id
+from .utils.rule_utils import get_rule_id
 from cdf_fn_common.raw_upload import create_raw_upload_queue
 
 logger = None  # Use CogniteFunctionLogger directly
@@ -1112,6 +1112,6 @@ def _build_filter(
     return is_selected
 
 
-from common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
+from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
 
 

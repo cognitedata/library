@@ -17,7 +17,7 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from common.logger import CogniteFunctionLogger
+from .common.logger import CogniteFunctionLogger
 from cdf_fn_common.incremental_scope import (
     EXTERNAL_ID_COLUMN,
     RAW_ROW_KEY_COLUMN,
@@ -34,7 +34,7 @@ from cdf_fn_common.incremental_scope import (
     raw_row_columns,
     transition_workflow_status_for_run,
 )
-from engine.tag_aliasing_engine import AliasingEngine, AliasingResult
+from .engine.tag_aliasing_engine import AliasingEngine, AliasingResult
 
 logger = None  # Use CogniteFunctionLogger directly
 
@@ -594,4 +594,4 @@ def _upload_aliases_to_raw(
         raise
 
 
-from common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists
+from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists

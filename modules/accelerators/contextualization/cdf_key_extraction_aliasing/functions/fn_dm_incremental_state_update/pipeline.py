@@ -126,7 +126,11 @@ def _build_base_filter(entity_view_config: Any, view_id: dm.ViewId) -> dm.filter
 
 def _view_dict(entity_view_config: Any) -> Dict[str, Any]:
     if hasattr(entity_view_config, "model_dump"):
-        return entity_view_config.model_dump(mode="python")
+        dump = getattr(entity_view_config, "model_dump")
+        try:
+            return dump(mode="python")
+        except TypeError:
+            return dump()
     if isinstance(entity_view_config, dict):
         return dict(entity_view_config)
     if hasattr(entity_view_config, "dict"):

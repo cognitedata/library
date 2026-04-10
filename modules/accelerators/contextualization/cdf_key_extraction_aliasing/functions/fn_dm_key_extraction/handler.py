@@ -21,7 +21,7 @@ except ImportError:
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import ensure_key_extraction_config_from_scope_dm
 from cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
-from engine.key_extraction_engine import KeyExtractionEngine
+from .engine.key_extraction_engine import KeyExtractionEngine
 
 # Try to import CDF config loader - fallback if not available
 try:

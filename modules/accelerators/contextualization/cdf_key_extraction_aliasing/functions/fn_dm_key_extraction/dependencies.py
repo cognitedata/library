@@ -6,7 +6,7 @@ from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
 
 from cdf_fn_common.function_logging import cognite_function_logger
-from utils.DataStructures import EnvConfig
+from .utils.DataStructures import EnvConfig
 
 
 def get_env_variables() -> EnvConfig:

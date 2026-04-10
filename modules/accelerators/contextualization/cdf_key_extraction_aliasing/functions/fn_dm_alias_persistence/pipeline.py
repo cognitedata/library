@@ -25,7 +25,7 @@ except ImportError:
     NodeId = None
     ViewId = None
 
-from common.logger import CogniteFunctionLogger
+from .common.logger import CogniteFunctionLogger
 
 logger = None  # Use CogniteFunctionLogger directly
 

@@ -22,7 +22,7 @@ from cdf_adapter import (
     _convert_yaml_direct_to_aliasing_config,
 )
 from dependencies import create_client, get_env_variables
-from engine.tag_aliasing_engine import AliasingEngine
+from .engine.tag_aliasing_engine import AliasingEngine
 
 
 def handle(

@@ -9,12 +9,12 @@ from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.filters import Filter
 from pydantic import BaseModel, Field, model_validator
 
-from utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
-from utils.FixedWidthMethodParameter import FixedWidthMethodParameter
-from utils.HeuristicMethodParameter import HeuristicMethodParameter
-from utils.PassthroughMethodParameter import PassthroughMethodParameter
-from utils.RegexMethodParameter import RegexMethodParameter
-from utils.TokenReassemblyMethodParameter import TokenReassemblyMethodParameter
+from .utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
+from .utils.FixedWidthMethodParameter import FixedWidthMethodParameter
+from .utils.HeuristicMethodParameter import HeuristicMethodParameter
+from .utils.PassthroughMethodParameter import PassthroughMethodParameter
+from .utils.RegexMethodParameter import RegexMethodParameter
+from .utils.TokenReassemblyMethodParameter import TokenReassemblyMethodParameter
 
 SkipEntityPolicy = Literal["successful_only", "none"]
 
