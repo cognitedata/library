@@ -267,6 +267,80 @@ const translations: Record<Language, Record<string, string>> = {
       "Show checksum-style version columns",
     "dataCatalog.versionMatrix.onlyChecksumColumns":
       "No regular version columns in this scope; only checksum-style identifiers remain. Enable below to show the grid.",
+    "dataCatalog.versionHistory.backToGrid": "Back to version matrix",
+    "dataCatalog.versionHistory.open": "Version history",
+    "dataCatalog.versionHistory.openPinned": "Version history",
+    "dataCatalog.versionHistory.title": "Data model version history",
+    "dataCatalog.versionHistory.versions": "versions",
+    "dataCatalog.versionHistory.hint":
+      "Expand a row for Fusion links and timestamps for each side, then the change summary. Steps compare consecutive published versions (newest first): views added or removed, reference version bumps, and—when CDF returns full inline view definitions—property and metadata changes between those view versions.",
+    "dataCatalog.versionHistory.stepFrom": "From",
+    "dataCatalog.versionHistory.stepTo": "To",
+    "dataCatalog.versionHistory.stepSingle": "Version",
+    "dataCatalog.versionHistory.fieldHeatmapCaption":
+      "View field presence by data model version. Each column is one property identifier (no headers)—the same name is merged across views using DMS `implements` precedence (later array entries override earlier). Blue = present in that published version; white = absent. Details are shown in the panel below—hover a cell or click to pin.",
+    "dataCatalog.versionHistory.fieldHeatmapLegendOrange":
+      "Orange row border: a transformation uses this data model version as a write destination and it is not the latest published version.",
+    "dataCatalog.versionHistory.fieldHeatmapLegendAddedFieldHover":
+      "Hovering version \"{version}\": orange cells (in rows from that version up to the one before latest) mark fields absent there but present in a newer revision.",
+    "dataCatalog.versionHistory.fieldHeatmapLegendTxSql":
+      "This data model is referenced in at least one transformation query.",
+    "dataCatalog.versionHistory.fieldHeatmapRowLatest": "Latest",
+    "dataCatalog.versionHistory.fieldHeatmapRowCatalog": "In catalog",
+    "dataCatalog.versionHistory.fieldHeatmapRowTxRefs": "In transformation SQL",
+    "dataCatalog.versionHistory.fieldHeatmapRowWriteDest": "Write destination",
+    "dataCatalog.versionHistory.fieldHeatmapRowWriteDestOlder": "Write destination (older)",
+    "dataCatalog.versionHistory.fieldHeatmapRowTooltipTx": "Transformations: {names}",
+    "dataCatalog.versionHistory.fieldHeatmapEmpty":
+      "No view properties found for this heat map. Published versions may only include view references without inline property lists.",
+    "dataCatalog.versionHistory.fieldHeatmapTooltip": 'Version "{version}" · field "{field}"',
+    "dataCatalog.versionHistory.fieldHeatmapDetailResolution": "Inheritance / resolution",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRule":
+      "DMS resolves the same property identifier from multiple inherited views by walking each view's `implements` chain: later entries in the `implements` array override earlier ones (with topological ordering for the full graph). You get one effective property per name.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionMultiRoot":
+      "This property name is also exposed by other views listed in this data model (separate roots):",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionModelMember":
+      "Model view {root}: utilized definition from {utilized}.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionShadowed":
+      "Shadowed definitions (same identifier on superseded views in the chain): {views}.",
+    "dataCatalog.versionHistory.fieldHeatmapDetailTitle": "Cell details",
+    "dataCatalog.versionHistory.fieldHeatmapDetailEmpty":
+      "Hover a cell to see version, view, field, and presence here. Click a cell to pin; click again or use Clear to release.",
+    "dataCatalog.versionHistory.fieldHeatmapDetailHover": "Hover",
+    "dataCatalog.versionHistory.fieldHeatmapDetailPinned": "Pinned",
+    "dataCatalog.versionHistory.fieldHeatmapDetailClearPin": "Clear pin",
+    "dataCatalog.versionHistory.fieldHeatmapDetailVersion": "Version",
+    "dataCatalog.versionHistory.fieldHeatmapDetailSpace": "Space",
+    "dataCatalog.versionHistory.fieldHeatmapDetailView": "View",
+    "dataCatalog.versionHistory.fieldHeatmapDetailField": "Field",
+    "dataCatalog.versionHistory.fieldHeatmapDetailPresence": "In this version",
+    "dataCatalog.versionHistory.fieldHeatmapDetailYes": "Yes",
+    "dataCatalog.versionHistory.fieldHeatmapDetailNo": "No",
+    "dataCatalog.versionHistory.created": "Created",
+    "dataCatalog.versionHistory.updated": "Updated",
+    "dataCatalog.versionHistory.noTransitions": "No consecutive transitions to compare.",
+    "dataCatalog.versionHistory.transitionLabel": "{from} → {to}",
+    "dataCatalog.versionHistory.hasChanges": "Changes",
+    "dataCatalog.versionHistory.noStructural": "No list change",
+    "dataCatalog.versionHistory.modelFields": "Data model name / description",
+    "dataCatalog.versionHistory.viewsRemoved": "Views removed",
+    "dataCatalog.versionHistory.viewsAdded": "Views added",
+    "dataCatalog.versionHistory.viewVersionBumps": "View reference version changed",
+    "dataCatalog.versionHistory.filterChanged": "View filter definition changed.",
+    "dataCatalog.versionHistory.inlineViewMissing":
+      "CDF did not return full inline definitions for this view pair; only the referenced version change is shown.",
+    "dataCatalog.versionHistory.viewSchemaUnchanged":
+      "No differences in inline view metadata, filter, or properties between these versions.",
+    "dataCatalog.versionHistory.identicalFingerprint":
+      "No differences in model metadata or view membership for this step.",
+    "dataCatalog.versionHistory.viewPrevCreated": "Previous view created",
+    "dataCatalog.versionHistory.viewNextCreated": "New view created",
+    "dataCatalog.versionHistory.viewPrevUpdated": "Previous view updated",
+    "dataCatalog.versionHistory.viewNextUpdated": "New view updated",
+    "dataCatalog.dataModelVersions.rowLabelsHint":
+      "Underlined names open version history when a model has more than one version. ↗ opens the latest version in Cognite Fusion.",
+    "dataCatalog.dataModelVersions.tooltipVersionHistory": "Click to open version history",
+    "dataCatalog.dataModelVersions.tooltipFusion": "Open latest version in Cognite Fusion",
     "dataCatalog.subtitle": "Columns: Data models → Views → Fields.",
     "dataCatalog.filter.placeholder": "Substring…",
     "dataCatalog.filter.exclude": "Exclude",
@@ -424,6 +498,21 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.modeling.viewsProcessed": "Views processed {processed} / {total}",
     "healthChecks.modeling.spacesLoading": "Loading spaces list",
     "healthChecks.transformations.loading": "Loading transformations…",
+    "healthChecks.transformations.progress.listing":
+      "Fetching transformations from CDF (up to {limit} per page)…",
+    "healthChecks.transformations.progress.remaining": "Fetching remaining transformation pages…",
+    "healthChecks.transformations.progress.queries":
+      "Resolving SQL for transformations that omit inline query…",
+    "healthChecks.transformations.progress.dmv":
+      "Scanning queries for data model version references…",
+    "healthChecks.transformations.progress.noop":
+      "Checking latest job write metrics per transformation…",
+    "healthChecks.transformations.progress.noopCount": "{current} / {total} transformations",
+    "healthChecks.transformations.sampleLimit":
+      "Only the first {count} transformations are loaded; the project list may be longer.",
+    "healthChecks.transformations.loadAll": "Load all transformations",
+    "healthChecks.transformations.partialDisclaimer":
+      "These results are based on a subset of transformations. Load all to include every transformation in the project.",
     "healthChecks.transformations.noops.title": "Transformation writes vs no-ops",
     "healthChecks.transformations.noops.description":
       "Flags transformations where every write in the last job was a no-op, meaning no data was actually changed. This often indicates redundant runs wasting resources.",
@@ -535,7 +624,20 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.scheduling.types.function": "Function",
     "healthChecks.scheduling.types.transformation": "Transformation",
     "healthChecks.scheduling.types.workflow": "Workflow",
-    "healthChecks.permissions.loading": "Loading permissions...",
+    "healthChecks.permissions.loading": "Loading permissions…",
+    "healthChecks.permissions.progress.listing": "Fetching security groups…",
+    "healthChecks.permissions.progress.analyzing":
+      "Comparing capability scopes across groups…",
+    "healthChecks.permissions.stats.title": "Overview",
+    "healthChecks.permissions.stats.groups": "Security groups",
+    "healthChecks.permissions.stats.uniqueScopeLists":
+      "Unique explicit scope lists (by capability + scope type + entries)",
+    "healthChecks.permissions.stats.totalCapabilities": "Capability rows (all groups)",
+    "healthChecks.permissions.stats.distinctTypes": "Distinct capability types",
+    "healthChecks.permissions.stats.groupsNoCapabilities": "Groups with no capabilities",
+    "healthChecks.permissions.stats.allScopeRows": "Capability rows using unrestricted (all) scope",
+    "healthChecks.permissions.stats.explicitScopeRows": "Capability rows with dataset / space / table / ID scoping",
+    "healthChecks.permissions.stats.driftFindings": "Scope drift findings",
     "healthChecks.permissions.drift.title": "Permission scope drift",
     "healthChecks.permissions.drift.description":
       "Capabilities with nearly identical scopes that differ slightly between groups.",
@@ -813,6 +915,80 @@ const translations: Record<Language, Record<string, string>> = {
       "チェックサム形式のバージョン列を表示",
     "dataCatalog.versionMatrix.onlyChecksumColumns":
       "この範囲では通常のバージョン列がなく、チェックサム形式の識別子のみです。下で有効にするとグリッドに表示されます。",
+    "dataCatalog.versionHistory.backToGrid": "バージョン一覧に戻る",
+    "dataCatalog.versionHistory.open": "バージョン履歴",
+    "dataCatalog.versionHistory.openPinned": "バージョン履歴",
+    "dataCatalog.versionHistory.title": "データモデルのバージョン履歴",
+    "dataCatalog.versionHistory.versions": "バージョン",
+    "dataCatalog.versionHistory.hint":
+      "行を開くと、それぞれの側の Fusion リンクと作成・更新日時、その後に変更内容が表示されます。ステップは連続する公開バージョン同士を比較します（新しい順）。追加・削除されたビュー、参照バージョンの更新、およびCDFが完全なインラインビュー定義を返した場合はそのビュー間のプロパティとメタデータの差分を表示します。",
+    "dataCatalog.versionHistory.stepFrom": "変更前",
+    "dataCatalog.versionHistory.stepTo": "変更後",
+    "dataCatalog.versionHistory.stepSingle": "バージョン",
+    "dataCatalog.versionHistory.fieldHeatmapCaption":
+      "データモデル各バージョンにおけるビューフィールドの有無。列はプロパティ識別子ごと（見出しなし）。同一の名前は DMS の `implements` の優先（配列の後ろのエントリが前に勝つ）でビュー間でまとめます。青＝その公開バージョンに存在、白＝なし。下のパネルに詳細—セルにホバーまたはクリックで固定。",
+    "dataCatalog.versionHistory.fieldHeatmapLegendOrange":
+      "オレンジの行枠：変換の書き込み先がこのデータモデルバージョンで、かつ最新の公開バージョンではありません。",
+    "dataCatalog.versionHistory.fieldHeatmapLegendAddedFieldHover":
+      "バージョン \"{version}\" にホバー中：オレンジのセルは、その行から「最新の一つ手前」の行までで、当該リビジョンでは無いがより新しいリビジョンで現れるフィールドです。",
+    "dataCatalog.versionHistory.fieldHeatmapLegendTxSql":
+      "このデータモデルは少なくとも1件の変換クエリで参照されています。",
+    "dataCatalog.versionHistory.fieldHeatmapRowLatest": "最新",
+    "dataCatalog.versionHistory.fieldHeatmapRowCatalog": "カタログ内",
+    "dataCatalog.versionHistory.fieldHeatmapRowTxRefs": "変換SQLで参照",
+    "dataCatalog.versionHistory.fieldHeatmapRowWriteDest": "書き込み先",
+    "dataCatalog.versionHistory.fieldHeatmapRowWriteDestOlder": "書き込み先（旧バージョン）",
+    "dataCatalog.versionHistory.fieldHeatmapRowTooltipTx": "変換: {names}",
+    "dataCatalog.versionHistory.fieldHeatmapEmpty":
+      "ヒートマップ用のビュープロパティが見つかりません。公開バージョンにインラインのプロパティ一覧が含まれていない可能性があります。",
+    "dataCatalog.versionHistory.fieldHeatmapTooltip": 'バージョン "{version}" · フィールド "{field}"',
+    "dataCatalog.versionHistory.fieldHeatmapDetailResolution": "継承 / 解決",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRule":
+      "DMS では、複数の継承ビューに同じプロパティ識別子がある場合、各ビューの `implements` を辿って解決します。`implements` 配列では後のエントリが先に優先され（グラフ全体はトポロジカル順）、名前ごとに一つの有効なプロパティになります。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionMultiRoot":
+      "このプロパティ名は、このデータモデルに列挙されている他のビュー（別ルート）からも公開されています:",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionModelMember":
+      "モデルビュー {root}: 採用される定義は {utilized}。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionShadowed":
+      "シャドウされた定義（チェーン上で優先されなかったビュー上の同一識別子）: {views}。",
+    "dataCatalog.versionHistory.fieldHeatmapDetailTitle": "セル詳細",
+    "dataCatalog.versionHistory.fieldHeatmapDetailEmpty":
+      "セルにホバーするとバージョン・ビュー・フィールド・有無がここに表示されます。クリックで固定、もう一度クリックかクリアで解除します。",
+    "dataCatalog.versionHistory.fieldHeatmapDetailHover": "ホバー中",
+    "dataCatalog.versionHistory.fieldHeatmapDetailPinned": "固定",
+    "dataCatalog.versionHistory.fieldHeatmapDetailClearPin": "固定を解除",
+    "dataCatalog.versionHistory.fieldHeatmapDetailVersion": "バージョン",
+    "dataCatalog.versionHistory.fieldHeatmapDetailSpace": "スペース",
+    "dataCatalog.versionHistory.fieldHeatmapDetailView": "ビュー",
+    "dataCatalog.versionHistory.fieldHeatmapDetailField": "フィールド",
+    "dataCatalog.versionHistory.fieldHeatmapDetailPresence": "このバージョンに存在",
+    "dataCatalog.versionHistory.fieldHeatmapDetailYes": "あり",
+    "dataCatalog.versionHistory.fieldHeatmapDetailNo": "なし",
+    "dataCatalog.versionHistory.created": "作成",
+    "dataCatalog.versionHistory.updated": "更新",
+    "dataCatalog.versionHistory.noTransitions": "比較できる連続バージョンがありません。",
+    "dataCatalog.versionHistory.transitionLabel": "{from} → {to}",
+    "dataCatalog.versionHistory.hasChanges": "変更あり",
+    "dataCatalog.versionHistory.noStructural": "リスト変更なし",
+    "dataCatalog.versionHistory.modelFields": "データモデル名 / 説明",
+    "dataCatalog.versionHistory.viewsRemoved": "削除されたビュー",
+    "dataCatalog.versionHistory.viewsAdded": "追加されたビュー",
+    "dataCatalog.versionHistory.viewVersionBumps": "ビュー参照バージョンの変更",
+    "dataCatalog.versionHistory.filterChanged": "ビューのフィルター定義が変更されました。",
+    "dataCatalog.versionHistory.inlineViewMissing":
+      "CDFはこのビューペアの完全なインライン定義を返していません。参照バージョンの変更のみ表示します。",
+    "dataCatalog.versionHistory.viewSchemaUnchanged":
+      "これらのバージョン間でインラインビューのメタデータ、フィルター、プロパティに差分はありません。",
+    "dataCatalog.versionHistory.identicalFingerprint":
+      "このステップではモデルメタデータまたはビュー構成に差分はありません。",
+    "dataCatalog.versionHistory.viewPrevCreated": "以前のビュー作成",
+    "dataCatalog.versionHistory.viewNextCreated": "新しいビュー作成",
+    "dataCatalog.versionHistory.viewPrevUpdated": "以前のビュー更新",
+    "dataCatalog.versionHistory.viewNextUpdated": "新しいビュー更新",
+    "dataCatalog.dataModelVersions.rowLabelsHint":
+      "下線のある名前は複数バージョンがあるモデルでバージョン履歴を開きます。↗ は Cognite Fusion で最新バージョンを開きます。",
+    "dataCatalog.dataModelVersions.tooltipVersionHistory": "クリックでバージョン履歴を開く",
+    "dataCatalog.dataModelVersions.tooltipFusion": "Cognite Fusion で最新バージョンを開く",
     "dataCatalog.subtitle": "列: データモデル → ビュー → フィールド。",
     "dataCatalog.filter.placeholder": "部分文字列…",
     "dataCatalog.filter.exclude": "除外",
@@ -972,6 +1148,21 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.modeling.viewsProcessed": "ビュー処理 {processed} / {total}",
     "healthChecks.modeling.spacesLoading": "スペース一覧を読み込み中",
     "healthChecks.transformations.loading": "変換を読み込み中…",
+    "healthChecks.transformations.progress.listing":
+      "CDFから変換を取得中（1ページあたり最大{limit}件）…",
+    "healthChecks.transformations.progress.remaining": "残りの変換ページを取得中…",
+    "healthChecks.transformations.progress.queries":
+      "インラインクエリがない変換のSQLを解決中…",
+    "healthChecks.transformations.progress.dmv":
+      "クエリ内のデータモデルバージョン参照をスキャン中…",
+    "healthChecks.transformations.progress.noop":
+      "変換ごとに最新ジョブの書き込みメトリクスを確認中…",
+    "healthChecks.transformations.progress.noopCount": "{current} / {total} 件の変換",
+    "healthChecks.transformations.sampleLimit":
+      "最初の {count} 件の変換のみ読み込み済みです。プロジェクトにはさらに存在する場合があります。",
+    "healthChecks.transformations.loadAll": "すべての変換を読み込む",
+    "healthChecks.transformations.partialDisclaimer":
+      "結果は変換のサブセットに基づきます。プロジェクト内のすべての変換に含めるにはすべて読み込んでください。",
     "healthChecks.transformations.noops.title": "変換の書き込み vs No-op",
     "healthChecks.transformations.noops.description":
       "最後のジョブですべての書き込みがNo-opだった変換をフラグします。これはデータが実際に変更されなかったことを意味し、冗長な実行によるリソースの浪費を示唆します。",
@@ -1084,7 +1275,21 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.scheduling.types.function": "関数",
     "healthChecks.scheduling.types.transformation": "変換",
     "healthChecks.scheduling.types.workflow": "ワークフロー",
-    "healthChecks.permissions.loading": "権限を読み込み中...",
+    "healthChecks.permissions.loading": "権限を読み込み中…",
+    "healthChecks.permissions.progress.listing": "セキュリティグループを取得中…",
+    "healthChecks.permissions.progress.analyzing":
+      "グループ間でケイパビリティスコープを比較中…",
+    "healthChecks.permissions.stats.title": "概要",
+    "healthChecks.permissions.stats.groups": "セキュリティグループ",
+    "healthChecks.permissions.stats.uniqueScopeLists":
+      "一意の明示スコープリスト（ケイパビリティ＋スコープ種別＋エントリ）",
+    "healthChecks.permissions.stats.totalCapabilities": "ケイパビリティ行（全グループ）",
+    "healthChecks.permissions.stats.distinctTypes": "異なるケイパビリティ種別数",
+    "healthChecks.permissions.stats.groupsNoCapabilities": "ケイパビリティがないグループ",
+    "healthChecks.permissions.stats.allScopeRows": "無制限（all）スコープのケイパビリティ行",
+    "healthChecks.permissions.stats.explicitScopeRows":
+      "データセット／スペース／テーブル／ID スコープのあるケイパビリティ行",
+    "healthChecks.permissions.stats.driftFindings": "スコープドリフトの検出件数",
     "healthChecks.permissions.drift.title": "権限スコープのドリフト",
     "healthChecks.permissions.drift.description":
       "ほぼ同一だが僅かに異なるスコープを持つケイパビリティを検出します。",

@@ -251,6 +251,20 @@ const TAB_THRESHOLD = 10;
 /** Ring for transformation write destination on latest column — indigo reads clearly on green/orange/pink fills */
 const STROKE_TX_LATEST = "#4f46e5";
 
+/** Selected / pinned bubble — distinct from indigo tx-destination ring */
+const STROKE_PINNED = "#c2410c";
+
+const INITIAL_VIEW_DISPLAY_CAP = 100;
+const INITIAL_UNIQUE_VIEW_FETCH_CAP = 100;
+const VIEWS_LIST_PAGE_LIMIT = 250;
+const VIEW_DETAILS_BATCH = 50;
+
+function countUniqueViewKeys(items: ViewVersionItem[]): number {
+  const s = new Set<string>();
+  for (const i of items) s.add(`${i.space}:${i.externalId}`);
+  return s.size;
+}
+
 type TransformationDestinationView = {
   space?: string;
   externalId?: string;
@@ -280,6 +294,16 @@ export function ViewVersions() {
   const { dataModels, dataModelsStatus, loadDataModels, retrieveDataModels } = useAppData();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadProgress, setLoadProgress] = useState<
+    | { phase: "listing"; itemsLoaded: number; uniqueViews: number }
+    | { phase: "details"; batchIndex: number; batchTotal: number }
+    | null
+  >(null);
+  const [resumeViewsListCursor, setResumeViewsListCursor] = useState<string | undefined>(undefined);
+  const [showAllViewRows, setShowAllViewRows] = useState(false);
+  const catalogListItemsRef = useRef<ViewVersionItem[]>([]);
+  const resumeViewsListCursorRef = useRef<string | undefined>(undefined);
+  const detailsMapRef = useRef<Map<string, ViewVersionItem>>(new Map());
   const [viewRows, setViewRows] = useState<ViewRow[]>([]);
   const [versions, setVersions] = useState<string[]>([]);
   const [detailsMap, setDetailsMap] = useState<Map<string, ViewVersionItem>>(new Map());
@@ -317,6 +341,14 @@ export function ViewVersions() {
   useEffect(() => {
     if (!isSdkLoading) loadDataModels();
   }, [isSdkLoading, loadDataModels]);
+
+  useEffect(() => {
+    resumeViewsListCursorRef.current = resumeViewsListCursor;
+  }, [resumeViewsListCursor]);
+
+  useEffect(() => {
+    detailsMapRef.current = detailsMap;
+  }, [detailsMap]);
 
   useEffect(() => {
     if (dataModelsStatus !== "success" || dataModels.length === 0) {
@@ -576,7 +608,7 @@ export function ViewVersions() {
     [filteredVersions]
   );
 
-  const gridVersions = useMemo(() => {
+  const matrixVersions = useMemo(() => {
     if (showChecksumVersions || !hasChecksumVersions) return filteredVersions;
     return filteredVersions.filter((v) => !isChecksumLikeVersion(v));
   }, [filteredVersions, showChecksumVersions, hasChecksumVersions]);
@@ -589,7 +621,7 @@ export function ViewVersions() {
         row.key,
         viewRowLegendFlagUnion(
           row,
-          gridVersions,
+          matrixVersions,
           detailsMap,
           viewKeysInDataModel,
           viewKeysInTransformation,
@@ -600,7 +632,7 @@ export function ViewVersions() {
     return m;
   }, [
     filteredViewRows,
-    gridVersions,
+    matrixVersions,
     detailsMap,
     viewKeysInDataModel,
     viewKeysInTransformation,
@@ -613,6 +645,31 @@ export function ViewVersions() {
       viewRowLegendFlagsByKey.get(row.key)?.has(viewLegendFilter)
     );
   }, [filteredViewRows, viewLegendFilter, viewRowLegendFlagsByKey]);
+
+  const cappedLegendViewRows = useMemo(() => {
+    if (showAllViewRows || legendFilteredViewRows.length <= INITIAL_VIEW_DISPLAY_CAP) {
+      return legendFilteredViewRows;
+    }
+    return legendFilteredViewRows.slice(0, INITIAL_VIEW_DISPLAY_CAP);
+  }, [legendFilteredViewRows, showAllViewRows]);
+
+  const versionsUsedByCappedRows = useMemo(() => {
+    const used = new Set<string>();
+    for (const row of cappedLegendViewRows) {
+      for (const v of row.versions.keys()) used.add(v);
+    }
+    return versions.filter((v) => used.has(v));
+  }, [versions, cappedLegendViewRows]);
+
+  const hasChecksumVersionsInMatrix = useMemo(
+    () => versionsUsedByCappedRows.some((v) => isChecksumLikeVersion(v)),
+    [versionsUsedByCappedRows]
+  );
+
+  const gridVersions = useMemo(() => {
+    if (showChecksumVersions || !hasChecksumVersionsInMatrix) return versionsUsedByCappedRows;
+    return versionsUsedByCappedRows.filter((v) => !isChecksumLikeVersion(v));
+  }, [versionsUsedByCappedRows, showChecksumVersions, hasChecksumVersionsInMatrix]);
 
   const usedViewLegendIds = useMemo(() => {
     const u = new Set<ViewGridLegendFilterId>();
@@ -643,101 +700,161 @@ export function ViewVersions() {
     }
   }, [viewLegendFilter, visibleViewLegendIds]);
 
-  const loadData = useCallback(async () => {
-    if (isSdkLoading) return;
-    setStatus("loading");
-    setErrorMessage(null);
-    try {
-      const listItems: ViewVersionItem[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await sdk.views.list({
-          includeGlobal: true,
-          allVersions: true,
-          limit: 250,
-          cursor,
-        });
-        const items = (response.items ?? []) as ViewVersionItem[];
-        listItems.push(...items);
-        cursor = response.nextCursor ?? undefined;
-      } while (cursor);
+  const loadData = useCallback(
+    async (extendToFull: boolean) => {
+      if (isSdkLoading) return;
+      setStatus("loading");
+      setErrorMessage(null);
+      setLoadProgress({ phase: "listing", itemsLoaded: 0, uniqueViews: 0 });
+      try {
+        const listItems: ViewVersionItem[] = extendToFull ? [...catalogListItemsRef.current] : [];
+        let cursor: string | undefined = extendToFull ? resumeViewsListCursorRef.current : undefined;
 
-      const viewMap = new Map<string, Map<string, ViewVersionItem>>();
-      const versionSet = new Set<string>();
-
-      for (const item of listItems) {
-        const v = String(item.version ?? "latest");
-        versionSet.add(v);
-        const key = `${item.space}:${item.externalId}`;
-        let versions = viewMap.get(key);
-        if (!versions) {
-          versions = new Map();
-          viewMap.set(key, versions);
+        const skipListFetch = extendToFull && listItems.length > 0 && cursor == null;
+        if (!skipListFetch) {
+          do {
+            const response = await sdk.views.list({
+              includeGlobal: true,
+              allVersions: true,
+              limit: VIEWS_LIST_PAGE_LIMIT,
+              cursor,
+            });
+            const items = (response.items ?? []) as ViewVersionItem[];
+            listItems.push(...items);
+            cursor = response.nextCursor ?? undefined;
+            setLoadProgress({
+              phase: "listing",
+              itemsLoaded: listItems.length,
+              uniqueViews: countUniqueViewKeys(listItems),
+            });
+            if (!extendToFull && cursor && countUniqueViewKeys(listItems) >= INITIAL_UNIQUE_VIEW_FETCH_CAP) {
+              setResumeViewsListCursor(cursor);
+              break;
+            }
+          } while (cursor);
+        } else {
+          setLoadProgress({
+            phase: "listing",
+            itemsLoaded: listItems.length,
+            uniqueViews: countUniqueViewKeys(listItems),
+          });
         }
-        versions.set(v, item);
-      }
 
-      const allVersions = Array.from(versionSet);
-      allVersions.sort((a, b) => {
-        const cmp = compareVersionStrings(a, b);
-        if (cmp !== 0) return cmp;
-        const aItem = listItems.find((i) => String(i.version ?? "latest") === a);
-        const bItem = listItems.find((i) => String(i.version ?? "latest") === b);
-        const aTime = aItem?.createdTime ?? 0;
-        const bTime = bItem?.createdTime ?? 0;
-        if (aTime !== bTime) return aTime - bTime;
-        return String(a).localeCompare(String(b));
-      });
+        if (!cursor) {
+          setResumeViewsListCursor(undefined);
+        }
 
-      const refs = listItems
-        .filter((i) => i.version != null && i.version !== "")
-        .map((i) => ({
-          space: i.space,
-          externalId: i.externalId,
-          version: String(i.version),
-        }));
+        catalogListItemsRef.current = listItems;
 
-      const details = new Map<string, ViewVersionItem>();
-      for (let i = 0; i < refs.length; i += 50) {
-        const batch = refs.slice(i, i + 50);
-        const response = (await sdk.views.retrieve(batch as never, {
-          includeInheritedProperties: false,
-        })) as { items?: ViewVersionItem[] };
-        for (const item of response.items ?? []) {
+        const viewMap = new Map<string, Map<string, ViewVersionItem>>();
+        const versionSet = new Set<string>();
+
+        for (const item of listItems) {
           const v = String(item.version ?? "latest");
-          const key = `${item.space}:${item.externalId}:${v}`;
-          details.set(key, item);
+          versionSet.add(v);
+          const key = `${item.space}:${item.externalId}`;
+          let versions = viewMap.get(key);
+          if (!versions) {
+            versions = new Map();
+            viewMap.set(key, versions);
+          }
+          versions.set(v, item);
         }
-      }
 
-      const rows: ViewRow[] = [];
-      for (const [viewKey, verMap] of viewMap) {
-        const first = Array.from(verMap.values())[0];
-        const label = first?.name ?? first?.externalId ?? viewKey;
-        rows.push({
-          key: viewKey,
-          label,
-          versions: verMap,
+        const allVersions = Array.from(versionSet);
+        allVersions.sort((a, b) => {
+          const cmp = compareVersionStrings(a, b);
+          if (cmp !== 0) return cmp;
+          const aItem = listItems.find((i) => String(i.version ?? "latest") === a);
+          const bItem = listItems.find((i) => String(i.version ?? "latest") === b);
+          const aTime = aItem?.createdTime ?? 0;
+          const bTime = bItem?.createdTime ?? 0;
+          if (aTime !== bTime) return aTime - bTime;
+          return String(a).localeCompare(String(b));
         });
-      }
-      rows.sort((a, b) => a.label.localeCompare(b.label));
 
-      setViewRows(rows);
-      setVersions(allVersions);
-      setDetailsMap(details);
-      setStatus("success");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to load views.");
-      setStatus("error");
-    }
-  }, [sdk, isSdkLoading]);
+        const refs = listItems
+          .filter((i) => i.version != null && i.version !== "")
+          .map((i) => ({
+            space: i.space,
+            externalId: i.externalId,
+            version: String(i.version),
+          }));
+
+        const details = extendToFull ? new Map(detailsMapRef.current) : new Map<string, ViewVersionItem>();
+        const batchTotal = Math.max(1, Math.ceil(refs.length / VIEW_DETAILS_BATCH));
+        if (!extendToFull) {
+          for (let i = 0; i < refs.length; i += VIEW_DETAILS_BATCH) {
+            const batchIndex = Math.floor(i / VIEW_DETAILS_BATCH) + 1;
+            setLoadProgress({ phase: "details", batchIndex, batchTotal });
+            const batch = refs.slice(i, i + VIEW_DETAILS_BATCH);
+            const response = (await sdk.views.retrieve(batch as never, {
+              includeInheritedProperties: false,
+            })) as { items?: ViewVersionItem[] };
+            for (const item of response.items ?? []) {
+              const v = String(item.version ?? "latest");
+              const key = `${item.space}:${item.externalId}:${v}`;
+              details.set(key, item);
+            }
+          }
+        } else {
+          const missing = refs.filter((r) => {
+            const k = `${r.space}:${r.externalId}:${r.version}`;
+            return !details.has(k);
+          });
+          for (let i = 0; i < missing.length; i += VIEW_DETAILS_BATCH) {
+            const batchIndex = Math.floor(i / VIEW_DETAILS_BATCH) + 1;
+            const batchCount = Math.max(1, Math.ceil(missing.length / VIEW_DETAILS_BATCH));
+            setLoadProgress({ phase: "details", batchIndex, batchTotal: batchCount });
+            const batch = missing.slice(i, i + VIEW_DETAILS_BATCH);
+            const response = (await sdk.views.retrieve(batch as never, {
+              includeInheritedProperties: false,
+            })) as { items?: ViewVersionItem[] };
+            for (const item of response.items ?? []) {
+              const v = String(item.version ?? "latest");
+              const key = `${item.space}:${item.externalId}:${v}`;
+              details.set(key, item);
+            }
+          }
+        }
+
+        const rows: ViewRow[] = [];
+        for (const [viewKey, verMap] of viewMap) {
+          const first = Array.from(verMap.values())[0];
+          const label = first?.name ?? first?.externalId ?? viewKey;
+          rows.push({
+            key: viewKey,
+            label,
+            versions: verMap,
+          });
+        }
+        rows.sort((a, b) => a.label.localeCompare(b.label));
+
+        setViewRows(rows);
+        setVersions(allVersions);
+        setDetailsMap(details);
+        setLoadProgress(null);
+        setStatus("success");
+      } catch (error) {
+        setLoadProgress(null);
+        setErrorMessage(error instanceof Error ? error.message : "Failed to load views.");
+        setStatus("error");
+      }
+    },
+    [sdk, isSdkLoading]
+  );
 
   useEffect(() => {
-    if (!isSdkLoading) loadData();
+    if (!isSdkLoading) {
+      setShowAllViewRows(false);
+      setResumeViewsListCursor(undefined);
+      catalogListItemsRef.current = [];
+      loadData(false);
+    }
   }, [isSdkLoading, loadData]);
 
   const { rows, linePath } = useMemo(() => {
-    if (legendFilteredViewRows.length === 0 || gridVersions.length === 0) {
+    if (cappedLegendViewRows.length === 0 || gridVersions.length === 0) {
       return { rows: [], linePath: line<{ x: number; y: number }>() };
     }
 
@@ -748,8 +865,8 @@ export function ViewVersions() {
     const rows: Array<{ label: string; dots: CellDot[]; connected: Array<{ x: number; y: number }> }> = [];
     const txByCell = viewCellPinIndex.txByCell;
 
-    for (let r = 0; r < legendFilteredViewRows.length; r++) {
-      const row = legendFilteredViewRows[r];
+    for (let r = 0; r < cappedLegendViewRows.length; r++) {
+      const row = cappedLegendViewRows[r];
       const cy = PADDING + r * ROW_HEIGHT + ROW_HEIGHT / 2;
       const dots: CellDot[] = [];
       const connected: Array<{ x: number; y: number }> = [];
@@ -795,7 +912,7 @@ export function ViewVersions() {
 
     return { rows, linePath: lineGen };
   }, [
-    legendFilteredViewRows,
+    cappedLegendViewRows,
     gridVersions,
     detailsMap,
     viewKeysInDataModel,
@@ -1007,14 +1124,14 @@ export function ViewVersions() {
           .attr("fill", (d) => d.fill)
           .attr("stroke", (d) => {
             if (pinned && d.viewKey === pinned.viewKey && d.version === pinned.version) {
-              return "rgba(59,130,246,0.95)";
+              return STROKE_PINNED;
             }
             if (d.borderTone === "red") return "#dc2626";
             if (d.borderTone === "green") return STROKE_TX_LATEST;
             return "none";
           })
           .attr("stroke-width", (d) => {
-            if (pinned && d.viewKey === pinned.viewKey && d.version === pinned.version) return 2.5;
+            if (pinned && d.viewKey === pinned.viewKey && d.version === pinned.version) return 3;
             if (d.borderTone) return 2;
             return 0;
           })
@@ -1161,14 +1278,14 @@ export function ViewVersions() {
       .attr("fill", (d) => d.fill)
       .attr("stroke", (d) => {
         if (pinned && d.baseKey === pinned.baseKey && d.version === pinned.version) {
-          return "rgba(59,130,246,0.95)";
+          return STROKE_PINNED;
         }
         if (d.borderTone === "red") return "#dc2626";
         if (d.borderTone === "green") return STROKE_TX_LATEST;
         return "none";
       })
       .attr("stroke-width", (d) => {
-        if (pinned && d.baseKey === pinned.baseKey && d.version === pinned.version) return 2.5;
+        if (pinned && d.baseKey === pinned.baseKey && d.version === pinned.version) return 3;
         if (d.borderTone) return 2;
         return 0;
       })
@@ -1187,6 +1304,12 @@ export function ViewVersions() {
   }, [modelVersionRow, selectedModelVersions, handleModelBubbleClick, pinnedBubble]);
 
   const isLoading = isSdkLoading || status === "loading";
+
+  const hiddenRowCountByCap =
+    !showAllViewRows && legendFilteredViewRows.length > INITIAL_VIEW_DISPLAY_CAP
+      ? legendFilteredViewRows.length - INITIAL_VIEW_DISPLAY_CAP
+      : 0;
+  const hasMoreCatalogOnServer = Boolean(resumeViewsListCursor);
 
   const viewsContentWidth = LABEL_WIDTH + PADDING * 2 + gridVersions.length * COL_WIDTH;
   const viewsSvgHeight =
@@ -1260,8 +1383,22 @@ export function ViewVersions() {
             {errorMessage}
           </div>
         ) : isLoading && viewRows.length === 0 ? (
-          <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
-            Loading views...
+          <div className="flex min-h-64 flex-col items-center justify-center gap-2 bg-sky-100 px-4 py-8 text-sm text-slate-600">
+            <p className="font-medium text-slate-800">Loading views…</p>
+            {loadProgress?.phase === "listing" ? (
+              <p className="max-w-md text-center text-xs text-slate-500">
+                Listing view definitions from CDF… {loadProgress.itemsLoaded} items fetched,{" "}
+                {loadProgress.uniqueViews} unique views so far.
+              </p>
+            ) : null}
+            {loadProgress?.phase === "details" ? (
+              <p className="max-w-md text-center text-xs text-slate-500">
+                Loading view details… batch {loadProgress.batchIndex} of {loadProgress.batchTotal}.
+              </p>
+            ) : null}
+            {!loadProgress ? (
+              <p className="text-xs text-slate-500">Preparing request…</p>
+            ) : null}
           </div>
         ) : viewRows.length === 0 || versions.length === 0 ? (
           <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
@@ -1279,6 +1416,62 @@ export function ViewVersions() {
           </div>
         ) : (
           <>
+            {isLoading && viewRows.length > 0 ? (
+              <div className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                {loadProgress?.phase === "listing" ? (
+                  <>
+                    Listing view definitions… {loadProgress.itemsLoaded} items,{" "}
+                    {loadProgress.uniqueViews} unique views.
+                  </>
+                ) : loadProgress?.phase === "details" ? (
+                  <>
+                    Loading view details… batch {loadProgress.batchIndex} of {loadProgress.batchTotal}.
+                  </>
+                ) : (
+                  <>Refreshing views…</>
+                )}
+              </div>
+            ) : null}
+            {hiddenRowCountByCap > 0 || hasMoreCatalogOnServer ? (
+              <div className="flex flex-col gap-2 border-b border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  {hiddenRowCountByCap > 0 ? (
+                    <p>
+                      Showing the first {INITIAL_VIEW_DISPLAY_CAP} of {legendFilteredViewRows.length}{" "}
+                      views in the matrix (sorted by name).
+                    </p>
+                  ) : null}
+                  {hasMoreCatalogOnServer ? (
+                    <p>
+                      The catalog list was truncated after {INITIAL_UNIQUE_VIEW_FETCH_CAP} unique views (
+                      {viewRows.length} loaded). Load all to fetch the rest from the server.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {hasMoreCatalogOnServer ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
+                      disabled={isLoading}
+                      onClick={() => void loadData(true)}
+                    >
+                      Load all from server
+                    </button>
+                  ) : null}
+                  {hiddenRowCountByCap > 0 ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
+                      disabled={isLoading}
+                      onClick={() => setShowAllViewRows(true)}
+                    >
+                      Show all in matrix ({hiddenRowCountByCap} more)
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {selectedModelKey && modelVersionRow ? (
               <div className="border-b border-slate-200">
                 <div className="bg-sky-50 px-3 py-1.5 text-xs font-medium text-slate-600">
@@ -1504,7 +1697,8 @@ export function ViewVersions() {
             </>
           ) : (
             <div className="text-slate-500 flex-1 flex items-center">
-              Click a bubble to see referrers.
+              Click a bubble to see referrers. Pinned cells use an orange ring; indigo rings mark
+              transformation write targets to the latest column.
             </div>
           )}
         </div>

@@ -31,6 +31,7 @@ const internalPages = [
   { id: "edges", label: "Edges" },
   { id: "spaces", label: "Spaces" },
   { id: "testing", label: "Testing" },
+  { id: "dpUsage", label: "DP Usage" },
   { id: "overlap", label: "Overlap" },
   { id: "settings", label: "Settings" },
 ] as const;

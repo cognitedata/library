@@ -3,6 +3,7 @@ import type {
   GroupSummary,
   NormalizedCapability,
   PermissionScopeDriftEntry,
+  PermissionsHealthOverviewStats,
 } from "./types";
 
 export function renderProgressBar(value: number, total: number) {
@@ -103,6 +104,54 @@ export function parsePythonVersion(runtime?: string) {
   if (raw.length === 3)
     return { major: Number(raw[0]), minor: Number(raw.slice(1)) };
   return null;
+}
+
+function capabilityUsesAllScope(scope?: Record<string, unknown>): boolean {
+  if (!scope) return true;
+  const keys = Object.keys(scope);
+  if (keys.length === 0) return true;
+  if (keys.includes("all") || keys.includes("allScope")) return true;
+  return false;
+}
+
+export function computePermissionsHealthOverviewStats(
+  groups: GroupSummary[],
+  driftEntries: PermissionScopeDriftEntry[]
+): PermissionsHealthOverviewStats {
+  const scopeSignatures = new Set<string>();
+  let totalCapabilityRows = 0;
+  const capabilityTypes = new Set<string>();
+  let groupsWithNoCapabilities = 0;
+  let capabilityRowsAllScope = 0;
+  let capabilityRowsWithExplicitScopeLists = 0;
+
+  for (const g of groups) {
+    const caps = g.capabilities ?? [];
+    if (caps.length === 0) groupsWithNoCapabilities += 1;
+    for (const cap of caps) {
+      totalCapabilityRows += 1;
+      const normalized = normalizeCapability(cap);
+      capabilityTypes.add(normalized.name);
+      if (capabilityUsesAllScope(normalized.scope)) {
+        capabilityRowsAllScope += 1;
+      }
+      for (const entry of extractScopeEntries(normalized.scope)) {
+        capabilityRowsWithExplicitScopeLists += 1;
+        scopeSignatures.add(`${normalized.name}::${entry.type}::${entry.items.join("\u001f")}`);
+      }
+    }
+  }
+
+  return {
+    groupCount: groups.length,
+    uniqueScopeLists: scopeSignatures.size,
+    totalCapabilityRows,
+    distinctCapabilityTypes: capabilityTypes.size,
+    groupsWithNoCapabilities,
+    capabilityRowsAllScope,
+    capabilityRowsWithExplicitScopeLists,
+    driftPairCount: driftEntries.length,
+  };
 }
 
 export function computePermissionScopeDrift(
