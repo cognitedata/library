@@ -383,6 +383,15 @@ def select_env(repo_root: Path, cli_env: Optional[str]) -> str:
     return prompt_text("Select environment (dev/prod/staging)", default="dev").lower()
 
 
+def find_repo_root(start_path: Path) -> Path:
+    for candidate in [start_path, *start_path.parents]:
+        if (candidate / "cdf.toml").exists() and (candidate / "modules").exists():
+            return candidate
+    raise RuntimeError(
+        "Could not detect project root. Run this script from inside a Toolkit project containing cdf.toml and modules/."
+    )
+
+
 def _check_gitignore(repo_root: Path) -> None:
     gitignore = repo_root / ".gitignore"
     if gitignore.exists():
@@ -394,7 +403,7 @@ def _check_gitignore(repo_root: Path) -> None:
 
 
 def main(cli_env: Optional[str] = None) -> int:
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = find_repo_root(Path(__file__).resolve().parent)
     env = select_env(repo_root, cli_env).strip().lower()
 
     if env not in {"dev", "prod", "staging"}:
