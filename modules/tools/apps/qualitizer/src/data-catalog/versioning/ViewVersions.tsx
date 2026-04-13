@@ -46,6 +46,35 @@ type ViewRow = {
   versions: Map<string, ViewVersionItem>;
 };
 
+function viewRowSearchHaystack(row: ViewRow, detailsMap: Map<string, ViewVersionItem>): string {
+  const parts: string[] = [row.label, row.key];
+  const colon = row.key.indexOf(":");
+  if (colon >= 0) {
+    parts.push(row.key.slice(0, colon), row.key.slice(colon + 1));
+  }
+  for (const ver of row.versions.keys()) {
+    parts.push(ver);
+    const detail = detailsMap.get(`${row.key}:${ver}`) ?? row.versions.get(ver);
+    if (!detail) continue;
+    if (typeof detail.name === "string" && detail.name.trim()) parts.push(detail.name.trim());
+    const props = detail.properties;
+    if (props && typeof props === "object") {
+      for (const k of Object.keys(props)) parts.push(k);
+    }
+    const imp = detail.implements;
+    if (Array.isArray(imp)) {
+      for (const x of imp) {
+        if (x && typeof x === "object" && "space" in x && "externalId" in x) {
+          const o = x as { space: string; externalId: string; version?: string };
+          parts.push(`${o.space}:${o.externalId}`, o.externalId, o.space);
+          if (typeof o.version === "string" && o.version.trim()) parts.push(o.version.trim());
+        }
+      }
+    }
+  }
+  return parts.join(" ").toLowerCase();
+}
+
 type CellDot = {
   x: number;
   y: number;
@@ -326,6 +355,7 @@ export function ViewVersions() {
     dmByCell: new Map(),
   });
   const [viewLegendFilter, setViewLegendFilter] = useState<ViewGridLegendFilterId | null>(null);
+  const [matrixSearch, setMatrixSearch] = useState("");
   const [showChecksumVersions, setShowChecksumVersions] = useState(false);
   const [selectedModelVersions, setSelectedModelVersions] = useState<
     Array<{ version: string; createdTime?: number }>
@@ -587,21 +617,27 @@ export function ViewVersions() {
     setShowChecksumVersions(false);
   }, [selectedModelKey]);
 
-  const filteredViewRows = useMemo(() => {
+  const modelFilteredViewRows = useMemo(() => {
     if (!selectedModelKey) return viewRows;
     const opt = modelOptions.find((o) => o.key === selectedModelKey);
     if (!opt || opt.viewKeys.size === 0) return viewRows;
     return viewRows.filter((row) => opt.viewKeys.has(row.key));
   }, [viewRows, selectedModelKey, modelOptions]);
 
+  const filteredViewRows = useMemo(() => {
+    const q = matrixSearch.trim().toLowerCase();
+    if (!q) return modelFilteredViewRows;
+    return modelFilteredViewRows.filter((row) => viewRowSearchHaystack(row, detailsMap).includes(q));
+  }, [modelFilteredViewRows, matrixSearch, detailsMap]);
+
   const filteredVersions = useMemo(() => {
-    if (!selectedModelKey || filteredViewRows.length === 0) return versions;
+    if (filteredViewRows.length === 0) return versions;
     const used = new Set<string>();
     for (const row of filteredViewRows) {
       for (const v of row.versions.keys()) used.add(v);
     }
     return versions.filter((v) => used.has(v));
-  }, [versions, selectedModelKey, filteredViewRows]);
+  }, [versions, filteredViewRows]);
 
   const hasChecksumVersions = useMemo(
     () => filteredVersions.some((v) => isChecksumLikeVersion(v)),
@@ -1376,6 +1412,22 @@ export function ViewVersions() {
           )}
         </div>
       ) : null}
+      {viewRows.length > 0 && !isLoadingModels ? (
+        <div className="flex max-w-xl flex-col gap-1">
+          <label htmlFor="view-matrix-search" className="text-xs font-medium text-slate-500">
+            {t("dataCatalog.viewVersions.searchLabel")}
+          </label>
+          <input
+            id="view-matrix-search"
+            type="search"
+            value={matrixSearch}
+            onChange={(e) => setMatrixSearch(e.target.value)}
+            placeholder={t("dataCatalog.viewVersions.searchPlaceholder")}
+            autoComplete="off"
+            className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+        </div>
+      ) : null}
       <div className="flex gap-4 items-stretch">
         <div className="min-w-0 flex-1 rounded-md border border-slate-200">
         {status === "error" ? (
@@ -1404,11 +1456,15 @@ export function ViewVersions() {
           <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
             No views or versions found.
           </div>
-        ) : filteredViewRows.length === 0 ? (
+        ) : modelFilteredViewRows.length === 0 ? (
           <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
             {selectedModelKey
               ? "No views in this data model."
               : "No views or versions found."}
+          </div>
+        ) : matrixSearch.trim() && filteredViewRows.length === 0 ? (
+          <div className="flex h-64 items-center justify-center bg-sky-100 px-4 text-center text-sm text-slate-600">
+            {t("dataCatalog.viewVersions.noSearchResults")}
           </div>
         ) : filteredVersions.length === 0 ? (
           <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">

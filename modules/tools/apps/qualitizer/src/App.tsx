@@ -1,5 +1,6 @@
 import mixpanel from "mixpanel-browser";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDailyDeploymentPackUsageMixpanel } from "@/deployment-pack-usage";
 import { useAppSdk } from "@/shared/auth";
 import { useSdkManager } from "@/shared/SdkManager";
 import { HealthChecks } from "./health-checks";
@@ -34,6 +35,7 @@ const internalPages = [
   { id: "dpUsage", label: "DP Usage" },
   { id: "overlap", label: "Overlap" },
   { id: "settings", label: "Settings" },
+  { id: "apiConsole", label: "API Console" },
 ] as const;
 
 type AppMode =
@@ -43,11 +45,17 @@ type AppMode =
 function AppContent() {
   const { isLoading } = useAppSdk();
   const {
+    sdk,
     project: selectedProject,
     availableProjects,
     setSelectedProject,
     projectResolved,
   } = useSdkManager();
+  useDailyDeploymentPackUsageMixpanel({
+    sdk,
+    project: selectedProject,
+    enabled: !isLoading && projectResolved && Boolean(selectedProject?.trim()),
+  });
   const { language, setLanguage, t } = useI18n();
   const { isPrivateMode } = usePrivateMode();
   const showInternal =
