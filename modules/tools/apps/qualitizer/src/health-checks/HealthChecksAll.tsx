@@ -3,30 +3,23 @@ import { Loader } from "@/shared/Loader";
 import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
 import { useI18n } from "@/shared/i18n";
-import { extractDataModelRefs } from "@/transformations/transformationChecks";
-import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
 import { ModelingHealthPanel } from "./ModelingHealthPanel";
 import { RawHealthPanel } from "./RawHealthPanel";
 import { FunctionsHealthPanel } from "./FunctionsHealthPanel";
 import { PermissionsHealthPanel } from "./PermissionsHealthPanel";
 import { SchedulingHealthPanel } from "./SchedulingHealthPanel";
-import {
-  TransformationsHealthPanel,
-  type NoopTransformation,
-  type DmvInconsistency,
-} from "./TransformationsHealthPanel";
+import { TransformationsHealthPanel } from "./TransformationsHealthPanel";
+import { usePermissionsHealthChecks } from "./usePermissionsHealthChecks";
+import { useTransformationsHealthChecks } from "./useTransformationsHealthChecks";
 import {
   toTimestamp,
   formatIsoDate,
   isOlderThanSixMonths,
   parsePythonVersion,
-  classifyCompliantGroups,
-  computePermissionScopeDrift,
 } from "./health-checks-utils";
 import type {
   ContainerSummary,
   FunctionSummary,
-  GroupSummary,
   LoadState,
   RawDatabaseSummary,
   RawTableSummary,
@@ -78,22 +71,43 @@ export function HealthChecksAll({ onBack }: Props) {
   const [schedulesStatus, setSchedulesStatus] = useState<LoadState>("idle");
   const [schedulesError, setSchedulesError] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
-  const [permissionsStatus, setPermissionsStatus] = useState<LoadState>("idle");
-  const [permissionsError, setPermissionsError] = useState<string | null>(null);
-  const [groups, setGroups] = useState<GroupSummary[]>([]);
-  const [dataModelVersioningStatus, setDataModelVersioningStatus] = useState<LoadState>("idle");
-  const [dataModelVersioningError, setDataModelVersioningError] = useState<string | null>(null);
-  const [dataModelVersioningInconsistencies, setDataModelVersioningInconsistencies] = useState<DmvInconsistency[]>([]);
-  const [noopStatus, setNoopStatus] = useState<LoadState>("idle");
-  const [noopError, setNoopError] = useState<string | null>(null);
-  const [noopTransformations, setNoopTransformations] = useState<NoopTransformation[]>([]);
-  const [noopTotal, setNoopTotal] = useState(0);
   const [showLoader, setShowLoader] = useState(false);
 
   const [rawLoadAll, setRawLoadAll] = useState(false);
   const consecutiveErrorsRef = useRef(0);
   const [circuitBreakerTripped, setCircuitBreakerTripped] = useState(false);
   const prevStatusesRef = useRef<Record<string, LoadState>>({});
+
+  const {
+    dmvStatus: dataModelVersioningStatus,
+    dmvError: dataModelVersioningError,
+    dmvInconsistencies: dataModelVersioningInconsistencies,
+    noopStatus,
+    noopError,
+    noopTransformations,
+    noopTotal,
+    transformationsSampleMode: transformationsHealthSampleMode,
+    onLoadAllTransformations,
+    checksLoadingPhase,
+    noopCheckProgress,
+  } = useTransformationsHealthChecks({
+    sdk,
+    isSdkLoading,
+    enabled: !circuitBreakerTripped,
+  });
+
+  const {
+    permissionsStatus,
+    permissionsError,
+    permissionScopeDrift,
+    compliantGroups,
+    permissionsStats,
+    checksLoadingPhase: permissionsChecksLoadingPhase,
+  } = usePermissionsHealthChecks({
+    sdk,
+    isSdkLoading,
+    enabled: !circuitBreakerTripped,
+  });
 
   const RAW_SAMPLE_DB_LIMIT = 10;
   const RAW_SAMPLE_TABLES_PER_DB = 100;
@@ -265,158 +279,6 @@ export function HealthChecksAll({ onBack }: Props) {
   useEffect(() => {
     if (circuitBreakerTripped || isSdkLoading) return;
     let cancelled = false;
-    const loadPermissions = async () => {
-      setPermissionsStatus("loading");
-      setPermissionsError(null);
-      try {
-        const groupResponse = (await sdk.groups.list({ all: true })) as GroupSummary[];
-        if (!cancelled) { setGroups(groupResponse); setPermissionsStatus("success"); }
-      } catch (error) {
-        if (!cancelled) {
-          setPermissionsError(error instanceof Error ? error.message : t("healthChecks.errors.permissions"));
-          setPermissionsStatus("error");
-        }
-      }
-    };
-    loadPermissions();
-    return () => { cancelled = true; };
-  }, [circuitBreakerTripped, isSdkLoading, sdk, t]);
-
-  useEffect(() => {
-    if (circuitBreakerTripped || isSdkLoading) return;
-    let cancelled = false;
-
-    type ModelUsage = { transformationId: string; transformationName: string; version: string | undefined };
-    const buildModelKey = (space: string | undefined, externalId: string | undefined) =>
-      `${space ?? ""}:${externalId ?? ""}`;
-
-    const loadDataModelVersioning = async () => {
-      setDataModelVersioningStatus("loading");
-      setDataModelVersioningError(null);
-      try {
-        const response = (await sdk.get(`/api/v1/projects/${sdk.project}/transformations`, {
-          params: { includePublic: "true", limit: "1000" },
-        })) as { data?: { items?: Array<{ id: number | string; name?: string; query?: string }> } };
-        const items = response.data?.items ?? [];
-        const idsMissingQuery = items
-          .filter((tr) => !(tr.query ?? "").trim())
-          .map((tr) => String(tr.id));
-        const queryById = await fetchTransformationsByIds(sdk, sdk.project, idsMissingQuery);
-        const byModel = new Map<string, { space: string; externalId: string; usages: ModelUsage[] }>();
-        for (const tr of items) {
-          if (cancelled) return;
-          let query = tr.query ?? "";
-          if (!String(query).trim()) query = queryById.get(String(tr.id))?.query ?? "";
-          if (!query?.trim()) continue;
-          const refs = extractDataModelRefs(query);
-          const id = String(tr.id);
-          const name = tr.name ?? id;
-          const seenVersions = new Set<string>();
-          for (const ref of refs) {
-            const space = ref.space ?? "";
-            const externalId = ref.externalId ?? "";
-            const key = buildModelKey(space, externalId);
-            if (!key || key === ":") continue;
-            const version = ref.version?.trim() || undefined;
-            const usageKey = `${id}::${version ?? ""}`;
-            if (seenVersions.has(usageKey)) continue;
-            seenVersions.add(usageKey);
-            const existing = byModel.get(key);
-            const usage: ModelUsage = { transformationId: id, transformationName: name, version };
-            if (existing) {
-              if (!existing.usages.some((u) => u.transformationId === id && u.version === version))
-                existing.usages.push(usage);
-            } else {
-              byModel.set(key, { space, externalId, usages: [usage] });
-            }
-          }
-        }
-        const inconsistencies: typeof dataModelVersioningInconsistencies = [];
-        for (const [key, { space, externalId, usages }] of byModel.entries()) {
-          const versions = [...new Set(usages.map((u) => u.version ?? "(unspecified)"))];
-          if (versions.length > 1) inconsistencies.push({ modelKey: key, space, externalId, usages });
-        }
-        inconsistencies.sort((a, b) => a.modelKey.localeCompare(b.modelKey));
-        if (!cancelled) { setDataModelVersioningInconsistencies(inconsistencies); setDataModelVersioningStatus("success"); }
-      } catch (error) {
-        if (!cancelled) {
-          setDataModelVersioningError(error instanceof Error ? error.message : t("healthChecks.dataModelVersioning.error"));
-          setDataModelVersioningStatus("error");
-        }
-      }
-    };
-    loadDataModelVersioning();
-    return () => { cancelled = true; };
-  }, [circuitBreakerTripped, isSdkLoading, sdk, t]);
-
-  useEffect(() => {
-    if (circuitBreakerTripped || isSdkLoading) return;
-    let cancelled = false;
-
-    type JobMetricItem = { name: string; timestamp: number; count: number };
-    type JobSummary = { id?: number | string; startedTime?: number };
-
-    const aggregateJobMetrics = (items: JobMetricItem[]) => {
-      const byName = new Map<string, { timestamp: number; count: number }>();
-      for (const item of items) {
-        const prev = byName.get(item.name);
-        if (!prev || item.timestamp > prev.timestamp)
-          byName.set(item.name, { timestamp: item.timestamp, count: item.count });
-      }
-      let writes = 0;
-      let noops = 0;
-      for (const [name, { count }] of byName) {
-        if (name === "instances.upserted") writes = count;
-        if (name === "instances.upsertedNoop") noops = count;
-      }
-      return { writes, noops };
-    };
-
-    const loadNoops = async () => {
-      setNoopStatus("loading");
-      setNoopError(null);
-      try {
-        const response = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations`,
-          { params: { includePublic: "true", limit: "1000" } }
-        )) as { data?: { items?: Array<{ id: number | string; name?: string }> } };
-        const items = response.data?.items ?? [];
-        setNoopTotal(items.length);
-        const flagged: NoopTransformation[] = [];
-        for (const tr of items) {
-          if (cancelled) return;
-          const id = String(tr.id);
-          try {
-            const jobRes = (await sdk.get(
-              `/api/v1/projects/${sdk.project}/transformations/jobs`,
-              { params: { limit: "1", transformationId: id } }
-            )) as { data?: { items?: JobSummary[] } };
-            const latestJob = jobRes.data?.items?.[0];
-            if (!latestJob?.id) continue;
-            const metricsRes = (await sdk.get(
-              `/api/v1/projects/${sdk.project}/transformations/jobs/${latestJob.id}/metrics`
-            )) as { data?: { items?: JobMetricItem[] } };
-            const { writes, noops } = aggregateJobMetrics(metricsRes.data?.items ?? []);
-            if (writes > 0 && noops === writes) {
-              flagged.push({ id, name: tr.name ?? id, writes, noops });
-            }
-          } catch { /* skip individual failures */ }
-        }
-        if (!cancelled) { setNoopTransformations(flagged); setNoopStatus("success"); }
-      } catch (error) {
-        if (!cancelled) {
-          setNoopError(error instanceof Error ? error.message : "Failed to load transformation metrics");
-          setNoopStatus("error");
-        }
-      }
-    };
-    loadNoops();
-    return () => { cancelled = true; };
-  }, [circuitBreakerTripped, isSdkLoading, sdk]);
-
-  useEffect(() => {
-    if (circuitBreakerTripped || isSdkLoading) return;
-    let cancelled = false;
     const readCron = (item: Record<string, unknown>) => {
       const direct = item.cron ?? item.cronExpression;
       if (typeof direct === "string" && direct.trim()) return direct.trim();
@@ -554,9 +416,6 @@ export function HealthChecksAll({ onBack }: Props) {
   const functionsByRuntime = useMemo(() => { const map = new Map<string, FunctionSummary[]>(); for (const fn of functions) { const rt = fn.runtime ?? t("healthChecks.functions.runtime.unknown"); map.set(rt, [...(map.get(rt) ?? []), fn]); } return map; }, [functions, t]);
   const runtimeList = useMemo(() => Array.from(functionsByRuntime.keys()).sort(), [functionsByRuntime]);
   const lowPythonFunctions = useMemo(() => functions.filter((fn) => { const v = parsePythonVersion(fn.runtime); if (!v) return false; if (v.major !== 3) return true; return v.minor < 12; }).sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id)), [functions]);
-  const permissionScopeDrift = useMemo(() => computePermissionScopeDrift(groups), [groups]);
-  const compliantGroups = useMemo(() => classifyCompliantGroups(groups, permissionScopeDrift), [groups, permissionScopeDrift]);
-
   const scheduleOverlaps = useMemo(() => {
     const byKey = new Map<string, ScheduleEntry[]>();
     const parseKey = (cron: string) => { const p = cron.trim().split(/\s+/); return p.length < 2 ? cron : `${p[0]} ${p[1]}`; };
@@ -596,10 +455,29 @@ export function HealthChecksAll({ onBack }: Props) {
       ) : null}
       <FunctionsHealthPanel functionsStatus={functionsStatus} functionsError={functionsError} runtimeList={runtimeList} functionsByRuntime={functionsByRuntime} lowPythonFunctions={lowPythonFunctions} />
       <SchedulingHealthPanel status={schedulesStatus} error={schedulesError} schedules={schedules} overlaps={scheduleOverlaps} />
-      <TransformationsHealthPanel noopStatus={noopStatus} noopError={noopError} noopTransformations={noopTransformations} noopTotal={noopTotal} dmvStatus={dataModelVersioningStatus} dmvError={dataModelVersioningError} dmvInconsistencies={dataModelVersioningInconsistencies} />
+      <TransformationsHealthPanel
+        noopStatus={noopStatus}
+        noopError={noopError}
+        noopTransformations={noopTransformations}
+        noopTotal={noopTotal}
+        dmvStatus={dataModelVersioningStatus}
+        dmvError={dataModelVersioningError}
+        dmvInconsistencies={dataModelVersioningInconsistencies}
+        checksLoadingPhase={checksLoadingPhase}
+        noopCheckProgress={noopCheckProgress}
+        transformationsSampleMode={transformationsHealthSampleMode}
+        onLoadAllTransformations={onLoadAllTransformations}
+      />
       <ModelingHealthPanel dataModelsStatus={dataModelsStatus} viewsStatus={viewsStatus} viewDetailsStatus={viewDetailsStatus} containersStatus={containersStatus} spacesStatus={spacesStatus} dataModelsError={dataModelsError} viewsError={viewsError} viewDetailsError={viewDetailsError} containersError={containersError} spacesError={spacesError} unusedViews={unusedViews} viewsWithoutContainers={viewsWithoutContainers} unusedContainers={unusedContainers} unusedSpaces={unusedSpaces} viewDetailsProcessed={viewDetailsProcessed} viewDetailsTotal={viewDetailsTotal} renderProgressBar={renderProgressBar} />
       <RawHealthPanel rawStatus={rawStatus} rawError={rawError} rawAvailabilityMessage={rawAvailabilityMessage} rawDatabases={rawDatabases} rawTables={rawTables} rawDbProcessed={rawDbProcessed} rawDbTotal={rawDbTotal} rawTableScanned={rawTableScanned} rawSampleTotal={rawSampleTotal} rawSampleProcessed={rawSampleProcessed} emptyRawTables={emptyRawTables} formatIsoDate={formatIsoDate} isOlderThanSixMonths={isOlderThanSixMonths} renderProgressBar={renderProgressBar} rawIsSample={!rawLoadAll} onLoadAll={() => setRawLoadAll(true)} />
-      <PermissionsHealthPanel permissionsStatus={permissionsStatus} permissionsError={permissionsError} permissionScopeDrift={permissionScopeDrift} compliantGroups={compliantGroups} />
+      <PermissionsHealthPanel
+        permissionsStatus={permissionsStatus}
+        permissionsError={permissionsError}
+        permissionScopeDrift={permissionScopeDrift}
+        compliantGroups={compliantGroups}
+        permissionsStats={permissionsStats}
+        checksLoadingPhase={permissionsChecksLoadingPhase}
+      />
       <Loader open={showLoader} onClose={() => setShowLoader(false)} title={t("healthChecks.loader.title")} />
     </section>
   );

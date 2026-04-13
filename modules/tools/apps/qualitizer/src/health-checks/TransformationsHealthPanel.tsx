@@ -8,25 +8,16 @@ import {
 import { ApiError } from "@/shared/ApiError";
 import { useI18n } from "@/shared/i18n";
 import { usePrivateMode } from "@/shared/PrivateModeContext";
+import {
+  TRANSFORMATIONS_HEALTH_TX_PAGE_SIZE,
+  type DmvInconsistency,
+  type NoopTransformation,
+} from "./transformations-health-types";
 import type { LoadState } from "./types";
 
-export type NoopTransformation = {
-  id: string;
-  name: string;
-  writes: number;
-  noops: number;
-};
+export type { DmvInconsistency, NoopTransformation };
 
-export type DmvInconsistency = {
-  modelKey: string;
-  space: string;
-  externalId: string;
-  usages: Array<{
-    transformationId: string;
-    transformationName: string;
-    version: string | undefined;
-  }>;
-};
+type ChecksLoadingPhase = "listing" | "remaining" | "queries" | "dmv" | "noop" | null;
 
 type TransformationsHealthPanelProps = {
   noopStatus: LoadState;
@@ -36,6 +27,10 @@ type TransformationsHealthPanelProps = {
   dmvStatus: LoadState;
   dmvError: string | null;
   dmvInconsistencies: DmvInconsistency[];
+  checksLoadingPhase?: ChecksLoadingPhase;
+  noopCheckProgress?: { current: number; total: number } | null;
+  transformationsSampleMode?: boolean;
+  onLoadAllTransformations?: () => void;
 };
 
 export function TransformationsHealthPanel({
@@ -46,13 +41,51 @@ export function TransformationsHealthPanel({
   dmvStatus,
   dmvError,
   dmvInconsistencies,
+  checksLoadingPhase = null,
+  noopCheckProgress = null,
+  transformationsSampleMode = false,
+  onLoadAllTransformations,
 }: TransformationsHealthPanelProps) {
   const { t } = useI18n();
   const { isPrivateMode } = usePrivateMode();
   const pc = isPrivateMode ? " private-mask" : "";
 
+  const checksLoading =
+    dmvStatus === "loading" || noopStatus === "loading";
+
+  const phaseLine =
+    checksLoading && checksLoadingPhase === "listing"
+      ? t("healthChecks.transformations.progress.listing", {
+          limit: TRANSFORMATIONS_HEALTH_TX_PAGE_SIZE,
+        })
+      : checksLoading && checksLoadingPhase === "remaining"
+        ? t("healthChecks.transformations.progress.remaining")
+        : checksLoading && checksLoadingPhase === "queries"
+          ? t("healthChecks.transformations.progress.queries")
+          : checksLoading && checksLoadingPhase === "dmv"
+            ? t("healthChecks.transformations.progress.dmv")
+            : checksLoading && checksLoadingPhase === "noop"
+              ? t("healthChecks.transformations.progress.noop")
+              : null;
+
   return (
     <>
+      {checksLoading ? (
+        <div className="rounded-md border border-slate-200 bg-sky-50 px-3 py-3 text-sm text-slate-700">
+          <p className="font-medium text-slate-900">
+            {t("healthChecks.transformations.loading")}
+          </p>
+          {phaseLine ? <p className="mt-1 text-xs text-slate-600">{phaseLine}</p> : null}
+          {checksLoading && noopCheckProgress ? (
+            <p className="mt-1 text-xs text-slate-600">
+              {t("healthChecks.transformations.progress.noopCount", {
+                current: noopCheckProgress.current,
+                total: noopCheckProgress.total,
+              })}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{t("healthChecks.transformations.noops.title")}</CardTitle>
@@ -61,11 +94,6 @@ export function TransformationsHealthPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {noopStatus === "loading" ? (
-            <div className="text-sm text-slate-600">
-              {t("healthChecks.transformations.loading")}
-            </div>
-          ) : null}
           {noopStatus === "error" ? (
             <ApiError
               message={
@@ -75,6 +103,12 @@ export function TransformationsHealthPanel({
           ) : null}
           {noopStatus === "success" ? (
             noopTransformations.length > 0 ? (
+              <div className="space-y-3">
+                {transformationsSampleMode ? (
+                  <p className="text-xs text-amber-800">
+                    {t("healthChecks.transformations.partialDisclaimer")}
+                  </p>
+                ) : null}
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
                 <div className="font-medium">
                   {t("healthChecks.transformations.noops.count", {
@@ -96,13 +130,37 @@ export function TransformationsHealthPanel({
                   ))}
                 </ul>
               </div>
+              </div>
             ) : (
+              <div className="space-y-3">
+                {transformationsSampleMode ? (
+                  <p className="text-xs text-amber-800">
+                    {t("healthChecks.transformations.partialDisclaimer")}
+                  </p>
+                ) : null}
               <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
                 {t("healthChecks.transformations.noops.allGood", {
                   total: noopTotal,
                 })}
               </div>
+              </div>
             )
+          ) : null}
+          {noopStatus === "success" && transformationsSampleMode && onLoadAllTransformations ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-600">
+                {t("healthChecks.transformations.sampleLimit", {
+                  count: noopTotal,
+                })}
+              </span>
+              <button
+                type="button"
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                onClick={onLoadAllTransformations}
+              >
+                {t("healthChecks.transformations.loadAll")}
+              </button>
+            </div>
           ) : null}
         </CardContent>
       </Card>
@@ -117,11 +175,6 @@ export function TransformationsHealthPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {dmvStatus === "loading" ? (
-            <div className="text-sm text-slate-600">
-              {t("healthChecks.loading")}
-            </div>
-          ) : null}
           {dmvStatus === "error" ? (
             <ApiError
               message={
@@ -132,6 +185,11 @@ export function TransformationsHealthPanel({
           {dmvStatus === "success" ? (
             dmvInconsistencies.length > 0 ? (
               <div className="space-y-3">
+                {transformationsSampleMode ? (
+                  <p className="text-xs text-amber-800">
+                    {t("healthChecks.transformations.partialDisclaimer")}
+                  </p>
+                ) : null}
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                   <div className="font-medium">
                     {t(
@@ -177,8 +235,15 @@ export function TransformationsHealthPanel({
                 </div>
               </div>
             ) : (
+              <div className="space-y-3">
+                {transformationsSampleMode ? (
+                  <p className="text-xs text-amber-800">
+                    {t("healthChecks.transformations.partialDisclaimer")}
+                  </p>
+                ) : null}
               <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
                 {t("healthChecks.dataModelVersioning.allConsistent")}
+              </div>
               </div>
             )
           ) : null}

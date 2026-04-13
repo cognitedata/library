@@ -87,3 +87,14 @@ export type CompliantGroupEntry = {
   label: string;
   details?: string;
 };
+
+export type PermissionsHealthOverviewStats = {
+  groupCount: number;
+  uniqueScopeLists: number;
+  totalCapabilityRows: number;
+  distinctCapabilityTypes: number;
+  groupsWithNoCapabilities: number;
+  capabilityRowsAllScope: number;
+  capabilityRowsWithExplicitScopeLists: number;
+  driftPairCount: number;
+};

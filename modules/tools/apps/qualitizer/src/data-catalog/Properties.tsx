@@ -43,6 +43,18 @@ export function Properties() {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [status, setStatus] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadProgress, setLoadProgress] = useState<
+    | { phase: "viewIndex" }
+    | {
+        phase: "viewDetails";
+        batchIndex: number;
+        batchTotal: number;
+        viewsLoaded: number;
+        viewsTotal: number;
+      }
+    | { phase: "containers"; batchIndex: number; batchTotal: number; containersTotal: number }
+    | null
+  >(null);
   const [viewDetails, setViewDetails] = useState<ViewDetail[]>([]);
   const [containerPropertyTypes, setContainerPropertyTypes] = useState<Map<string, string>>(new Map());
   const [searchText, setSearchText] = useState("");
@@ -69,10 +81,12 @@ export function Properties() {
     if (viewsStatus === "loading" || viewsStatus === "idle") {
       setStatus("loading");
       setErrorMessage(null);
+      setLoadProgress({ phase: "viewIndex" });
       return;
     }
     if (viewsStatus === "error") {
       setStatus("error");
+      setLoadProgress(null);
       setErrorMessage(viewsError ?? "Failed to load views.");
       return;
     }
@@ -92,12 +106,31 @@ export function Properties() {
           batches.push(refs.slice(i, i + 50));
         }
 
+        const viewBatchTotal = batches.length;
         const allDetails: ViewDetail[] = [];
-        for (const batch of batches) {
+        if (viewBatchTotal === 0) {
+          setLoadProgress({
+            phase: "viewDetails",
+            batchIndex: 0,
+            batchTotal: 0,
+            viewsLoaded: 0,
+            viewsTotal: 0,
+          });
+        }
+        for (let bi = 0; bi < batches.length; bi++) {
+          if (cancelled) return;
+          const batch = batches[bi]!;
           const response = (await retrieveViews(batch, {
             includeInheritedProperties: true,
           })) as { items?: ViewDetail[] };
           allDetails.push(...(response.items ?? []));
+          setLoadProgress({
+            phase: "viewDetails",
+            batchIndex: bi + 1,
+            batchTotal: viewBatchTotal,
+            viewsLoaded: allDetails.length,
+            viewsTotal: refs.length,
+          });
         }
 
         const containerRefs = new Map<string, { space: string; externalId: string }>();
@@ -116,7 +149,17 @@ export function Properties() {
 
         const containerRefList = Array.from(containerRefs.values());
         const containerPropertyTypeMap = new Map<string, string>();
+        const containerBatchTotal =
+          containerRefList.length === 0 ? 0 : Math.ceil(containerRefList.length / 50);
         for (let i = 0; i < containerRefList.length; i += 50) {
+          if (cancelled) return;
+          const batchIndex = Math.floor(i / 50) + 1;
+          setLoadProgress({
+            phase: "containers",
+            batchIndex,
+            batchTotal: containerBatchTotal,
+            containersTotal: containerRefList.length,
+          });
           const batch = containerRefList.slice(i, i + 50);
           const response = (await sdk.containers.retrieve(batch as never)) as {
             items?: Array<{
@@ -146,10 +189,12 @@ export function Properties() {
         if (!cancelled) {
           setViewDetails(allDetails);
           setContainerPropertyTypes(containerPropertyTypeMap);
+          setLoadProgress(null);
           setStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setErrorMessage(error instanceof Error ? error.message : "Failed to load view properties.");
           setStatus("error");
         }
@@ -503,7 +548,37 @@ export function Properties() {
         </CardHeader>
         <CardContent>
           {status === "loading" ? (
-            <div className="text-sm text-slate-600">Loading properties...</div>
+            <div className="flex flex-col gap-2 rounded-md border border-slate-200 bg-sky-50 px-4 py-4 text-sm text-slate-600">
+              <p className="font-medium text-slate-800">Loading properties…</p>
+              {loadProgress?.phase === "viewIndex" ? (
+                <p className="text-xs text-slate-500">
+                  Loading the view catalog from CDF (one row per view version). This runs once and is
+                  shared with other Data Catalog sections.
+                </p>
+              ) : null}
+              {loadProgress?.phase === "viewDetails" && loadProgress.batchTotal === 0 ? (
+                <p className="text-xs text-slate-500">No views in the catalog — skipping schema load.</p>
+              ) : null}
+              {loadProgress?.phase === "viewDetails" && loadProgress.batchTotal > 0 ? (
+                <p className="text-xs text-slate-500">
+                  Loading view schemas with inherited properties… batch {loadProgress.batchIndex} of{" "}
+                  {loadProgress.batchTotal} ({loadProgress.viewsLoaded} of {loadProgress.viewsTotal}{" "}
+                  views detailed).
+                </p>
+              ) : null}
+              {loadProgress?.phase === "containers" && loadProgress.containersTotal === 0 ? (
+                <p className="text-xs text-slate-500">No container references found in view schemas.</p>
+              ) : null}
+              {loadProgress?.phase === "containers" && loadProgress.containersTotal > 0 ? (
+                <p className="text-xs text-slate-500">
+                  Resolving container property types… batch {loadProgress.batchIndex} of{" "}
+                  {loadProgress.batchTotal} ({loadProgress.containersTotal} distinct containers).
+                </p>
+              ) : null}
+              {!loadProgress ? (
+                <p className="text-xs text-slate-500">Preparing…</p>
+              ) : null}
+            </div>
           ) : null}
           {status === "error" ? (
             <ApiError message={errorMessage ?? "Failed to load properties."} />
