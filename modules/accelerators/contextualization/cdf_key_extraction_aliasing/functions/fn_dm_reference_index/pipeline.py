@@ -22,13 +22,13 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 try:
     from cognite.client import CogniteClient
-    from cognite.client.data_classes import Row
+    from cognite.client.data_classes.raw import RowWrite
 
     CDF_AVAILABLE = True
 except ImportError:
     CDF_AVAILABLE = False
     CogniteClient = None  # type: ignore
-    Row = None  # type: ignore
+    RowWrite = None  # type: ignore
 
 from cdf_fn_common.cdf_utils import create_table_if_not_exists
 from cdf_fn_common.incremental_scope import (
@@ -327,8 +327,8 @@ def persist_reference_index(
     """
     if not client:
         raise ValueError("CogniteClient is required for reference index persistence")
-    if not CDF_AVAILABLE or Row is None:
-        raise ValueError("CDF client/Row not available")
+    if not CDF_AVAILABLE or RowWrite is None:
+        raise ValueError("CDF client/RowWrite not available")
 
     engine = _build_aliasing_engine(data, logger)
 
@@ -636,7 +636,7 @@ def persist_reference_index(
     for ik in sorted(dirty_inv):
         bucket = inv_cache[ik]
         flush_rows.append(
-            Row(
+            RowWrite(
                 key=ik,
                 columns={
                     "lookup_token": str(bucket.get("lookup_token") or "") or ik,
@@ -647,7 +647,7 @@ def persist_reference_index(
         )
     for snap_key in sorted(pending_snapshots.keys()):
         flush_rows.append(
-            Row(key=snap_key, columns=pending_snapshots[snap_key])
+            RowWrite(key=snap_key, columns=pending_snapshots[snap_key])
         )
     insert_batches = 0
     if flush_rows:
