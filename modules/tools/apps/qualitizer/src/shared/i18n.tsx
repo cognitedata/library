@@ -278,7 +278,9 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.stepTo": "To",
     "dataCatalog.versionHistory.stepSingle": "Version",
     "dataCatalog.versionHistory.fieldHeatmapCaption":
-      "View field presence by data model version. Each column is one property identifier (no headers)—the same name is merged across views using DMS `implements` precedence (later array entries override earlier). Blue = present in that published version; white = absent. Details are shown in the panel below—hover a cell or click to pin.",
+      "View field presence by data model version. Each column is one property identifier (no headers)—the same name is merged across views using DMS `implements` precedence (later array entries override earlier). Dark blue = present; light blue = present in this version and the adjacent older/newer row too, but which view wins after `implements` resolution changed between those two; white = absent. Details below—hover a cell or click to pin.",
+    "dataCatalog.versionHistory.fieldHeatmapLegendLightBlue":
+      "Light blue cells: property still present vs the neighboring version row, but the resolved supplying view (per root) changed—often because `implements` order or parent view definitions changed.",
     "dataCatalog.versionHistory.fieldHeatmapLegendOrange":
       "Orange row border: a transformation uses this data model version as a write destination and it is not the latest published version.",
     "dataCatalog.versionHistory.fieldHeatmapLegendAddedFieldHover":
@@ -295,6 +297,23 @@ const translations: Record<Language, Record<string, string>> = {
       "No view properties found for this heat map. Published versions may only include view references without inline property lists.",
     "dataCatalog.versionHistory.fieldHeatmapTooltip": 'Version "{version}" · field "{field}"',
     "dataCatalog.versionHistory.fieldHeatmapDetailResolution": "Inheritance / resolution",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRuleShort":
+      "Per root: later `implements` entries override earlier. Tags show root, any shadowed suppliers (struck through), then the resolved supplier for this version.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionTrivialManyRoots":
+      "This heatmap column is only the property name \"{field}\" merged across all member views in the model. In this version it appears on {count} views, each with a trivial chain (that view supplies the name itself—no `implements` shadowing). There is not one shared inheritance path for the whole column.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionOmittedTrivialRoots":
+      "{count} other member view(s) also supply this name only from themselves (not shown).",
+    "dataCatalog.versionHistory.fieldHeatmapDriftVsOlder": "vs older row ({version})",
+    "dataCatalog.versionHistory.fieldHeatmapDriftVsNewer": "vs newer row ({version})",
+    "dataCatalog.versionHistory.fieldHeatmapDriftWinnerAbsentInVersion": "Absent / {version}",
+    "dataCatalog.versionHistory.fieldHeatmapDriftWinnerMalformedSig": "Empty supplier (see console)",
+    "dataCatalog.versionHistory.fieldHeatmapDriftRootAdded":
+      "Added in row \"{version}\": member view {root} now supplies this property (resolved to {supplier}).",
+    "dataCatalog.versionHistory.fieldHeatmapDriftRootRemoved":
+      "Removed in row \"{version}\": member view {root} no longer contributes this property (had been {supplier}).",
+    "dataCatalog.versionHistory.fieldHeatmapDriftDebugTitle": "Drift debug (raw)",
+    "dataCatalog.versionHistory.fieldHeatmapDriftDebugDismiss": "Dismiss",
+    "dataCatalog.versionHistory.fieldHeatmapDetailWinnerDrift": "Supplier vs adjacent version",
     "dataCatalog.versionHistory.fieldHeatmapResolutionRule":
       "DMS resolves the same property identifier from multiple inherited views by walking each view's `implements` chain: later entries in the `implements` array override earlier ones (with topological ordering for the full graph). You get one effective property per name.",
     "dataCatalog.versionHistory.fieldHeatmapResolutionMultiRoot":
@@ -303,7 +322,7 @@ const translations: Record<Language, Record<string, string>> = {
       "Model view {root}: utilized definition from {utilized}.",
     "dataCatalog.versionHistory.fieldHeatmapResolutionShadowed":
       "Shadowed definitions (same identifier on superseded views in the chain): {views}.",
-    "dataCatalog.versionHistory.fieldHeatmapDetailTitle": "Cell details",
+    "dataCatalog.versionHistory.fieldHeatmapDetailTitle": "Details",
     "dataCatalog.versionHistory.fieldHeatmapDetailEmpty":
       "Hover a cell to see version, view, field, and presence here. Click a cell to pin; click again or use Clear to release.",
     "dataCatalog.versionHistory.fieldHeatmapDetailHover": "Hover",
@@ -339,6 +358,16 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.viewNextUpdated": "New view updated",
     "dataCatalog.dataModelVersions.rowLabelsHint":
       "Underlined names open version history when a model has more than one version. ↗ opens the latest version in Cognite Fusion.",
+    "dataCatalog.dataModelVersions.searchLabel": "Search rows",
+    "dataCatalog.dataModelVersions.searchPlaceholder":
+      "Filter by model name, space, external id, or view ref…",
+    "dataCatalog.dataModelVersions.noSearchResults":
+      "No data models match this search. Try another substring or clear the box.",
+    "dataCatalog.viewVersions.searchLabel": "Search rows",
+    "dataCatalog.viewVersions.searchPlaceholder":
+      "Filter by view name, space, external id, version, property, or implements ref…",
+    "dataCatalog.viewVersions.noSearchResults":
+      "No views match this search. Try another substring or clear the box.",
     "dataCatalog.dataModelVersions.tooltipVersionHistory": "Click to open version history",
     "dataCatalog.dataModelVersions.tooltipFusion": "Open latest version in Cognite Fusion",
     "dataCatalog.subtitle": "Columns: Data models → Views → Fields.",
@@ -926,7 +955,9 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.stepTo": "変更後",
     "dataCatalog.versionHistory.stepSingle": "バージョン",
     "dataCatalog.versionHistory.fieldHeatmapCaption":
-      "データモデル各バージョンにおけるビューフィールドの有無。列はプロパティ識別子ごと（見出しなし）。同一の名前は DMS の `implements` の優先（配列の後ろのエントリが前に勝つ）でビュー間でまとめます。青＝その公開バージョンに存在、白＝なし。下のパネルに詳細—セルにホバーまたはクリックで固定。",
+      "データモデル各バージョンにおけるビューフィールドの有無。列はプロパティ識別子ごと（見出しなし）。同一の名前は DMS の `implements` の優先（配列の後ろのエントリが前に勝つ）でビュー間でまとめます。濃い青＝存在、薄い青＝隣の行（より新しい／古い公開バージョン）でも存在するが、その2版の間で `implements` 解決後の供給元ビューが変わった、白＝なし。下のパネルに詳細—セルにホバーまたはクリックで固定。",
+    "dataCatalog.versionHistory.fieldHeatmapLegendLightBlue":
+      "薄い青のセル：隣のバージョン行ともプロパティはあるが、ルートごとの解決後の供給元ビューが変わっている（`implements` の順や親ビュー定義の変更など）。",
     "dataCatalog.versionHistory.fieldHeatmapLegendOrange":
       "オレンジの行枠：変換の書き込み先がこのデータモデルバージョンで、かつ最新の公開バージョンではありません。",
     "dataCatalog.versionHistory.fieldHeatmapLegendAddedFieldHover":
@@ -943,6 +974,23 @@ const translations: Record<Language, Record<string, string>> = {
       "ヒートマップ用のビュープロパティが見つかりません。公開バージョンにインラインのプロパティ一覧が含まれていない可能性があります。",
     "dataCatalog.versionHistory.fieldHeatmapTooltip": 'バージョン "{version}" · フィールド "{field}"',
     "dataCatalog.versionHistory.fieldHeatmapDetailResolution": "継承 / 解決",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRuleShort":
+      "ルートごと: `implements` では配列の後ろのエントリが前に優先。タグはルート →（打ち消しはシャドウ）→ このバージョンで採用される供給元ビュー。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionTrivialManyRoots":
+      "ヒートマップの列はプロパティ名「{field}」だけをモデル内の全メンバービューにまたがってまとめています。このバージョンでは {count} ビューに存在し、いずれも自ビューがその名前を供給するだけの自明なチェーンです（`implements` によるシャドウはありません）。列全体で共有される単一の継承パスはありません。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionOmittedTrivialRoots":
+      "他に {count} 件のメンバービューも、この名前を自ビューからのみ供給しています（省略）。",
+    "dataCatalog.versionHistory.fieldHeatmapDriftVsOlder": "より古い行（{version}）との差",
+    "dataCatalog.versionHistory.fieldHeatmapDriftVsNewer": "より新しい行（{version}）との差",
+    "dataCatalog.versionHistory.fieldHeatmapDriftWinnerAbsentInVersion": "なし / {version}",
+    "dataCatalog.versionHistory.fieldHeatmapDriftWinnerMalformedSig": "空の供給元（コンソール参照）",
+    "dataCatalog.versionHistory.fieldHeatmapDriftRootAdded":
+      "行「{version}」で追加: メンバービュー {root} がこのプロパティを供給（解決先 {supplier}）。",
+    "dataCatalog.versionHistory.fieldHeatmapDriftRootRemoved":
+      "行「{version}」で削除: メンバービュー {root} がこのプロパティに含まれなくなりました（以前は {supplier}）。",
+    "dataCatalog.versionHistory.fieldHeatmapDriftDebugTitle": "ドリフトデバッグ（生データ）",
+    "dataCatalog.versionHistory.fieldHeatmapDriftDebugDismiss": "閉じる",
+    "dataCatalog.versionHistory.fieldHeatmapDetailWinnerDrift": "隣接バージョンとの供給元の差",
     "dataCatalog.versionHistory.fieldHeatmapResolutionRule":
       "DMS では、複数の継承ビューに同じプロパティ識別子がある場合、各ビューの `implements` を辿って解決します。`implements` 配列では後のエントリが先に優先され（グラフ全体はトポロジカル順）、名前ごとに一つの有効なプロパティになります。",
     "dataCatalog.versionHistory.fieldHeatmapResolutionMultiRoot":
@@ -951,7 +999,7 @@ const translations: Record<Language, Record<string, string>> = {
       "モデルビュー {root}: 採用される定義は {utilized}。",
     "dataCatalog.versionHistory.fieldHeatmapResolutionShadowed":
       "シャドウされた定義（チェーン上で優先されなかったビュー上の同一識別子）: {views}。",
-    "dataCatalog.versionHistory.fieldHeatmapDetailTitle": "セル詳細",
+    "dataCatalog.versionHistory.fieldHeatmapDetailTitle": "詳細",
     "dataCatalog.versionHistory.fieldHeatmapDetailEmpty":
       "セルにホバーするとバージョン・ビュー・フィールド・有無がここに表示されます。クリックで固定、もう一度クリックかクリアで解除します。",
     "dataCatalog.versionHistory.fieldHeatmapDetailHover": "ホバー中",
@@ -987,6 +1035,16 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.viewNextUpdated": "新しいビュー更新",
     "dataCatalog.dataModelVersions.rowLabelsHint":
       "下線のある名前は複数バージョンがあるモデルでバージョン履歴を開きます。↗ は Cognite Fusion で最新バージョンを開きます。",
+    "dataCatalog.dataModelVersions.searchLabel": "行を検索",
+    "dataCatalog.dataModelVersions.searchPlaceholder":
+      "モデル名・スペース・外部ID・ビュー参照で絞り込み…",
+    "dataCatalog.dataModelVersions.noSearchResults":
+      "検索に一致するデータモデルはありません。別の文字列を試すか検索をクリアしてください。",
+    "dataCatalog.viewVersions.searchLabel": "行を検索",
+    "dataCatalog.viewVersions.searchPlaceholder":
+      "ビュー名・スペース・外部ID・バージョン・プロパティ・implements参照で絞り込み…",
+    "dataCatalog.viewVersions.noSearchResults":
+      "検索に一致するビューはありません。別の文字列を試すか検索をクリアしてください。",
     "dataCatalog.dataModelVersions.tooltipVersionHistory": "クリックでバージョン履歴を開く",
     "dataCatalog.dataModelVersions.tooltipFusion": "Cognite Fusion で最新バージョンを開く",
     "dataCatalog.subtitle": "列: データモデル → ビュー → フィールド。",
