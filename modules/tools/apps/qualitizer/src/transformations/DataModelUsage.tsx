@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { LoadState } from "@/processing/types";
 import { extractDataModelRefs } from "./transformationChecks";
 import { fetchTransformationsByIds } from "./fetchTransformationsByIds";
+import { cachedTransformationsList } from "./transformations-cache";
 import { TransformationsHelpModal } from "./TransformationsHelpModal";
 
 type TransformationSummary = {
@@ -47,10 +48,10 @@ export function DataModelUsage() {
       setStatus("loading");
       setErrorMessage(null);
       try {
-        const response = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations`,
-          { params: { includePublic: "true", limit: "1000" } }
-        )) as { data?: { items?: TransformationSummary[] } };
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
+        })) as { data?: { items?: TransformationSummary[] } };
         const items = response.data?.items ?? [];
         const idsMissingQuery = items
           .filter((t) => !(t.query ?? "").trim())

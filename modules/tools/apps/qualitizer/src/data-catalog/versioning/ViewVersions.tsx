@@ -12,6 +12,12 @@ import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
 import { extractDataModelRefs } from "@/transformations/transformationChecks";
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
+import { cachedTransformationsList } from "@/transformations/transformations-cache";
+import {
+  cachedDataModelsList,
+  cachedViewsList,
+  cachedViewsRetrieve,
+} from "@/shared/dms-catalog-cache";
 import {
   getDataModelUrl,
   getTransformationPreviewUrl,
@@ -285,6 +291,8 @@ const STROKE_PINNED = "#c2410c";
 
 const INITIAL_VIEW_DISPLAY_CAP = 100;
 const INITIAL_UNIQUE_VIEW_FETCH_CAP = 100;
+/** If the catalog pauses after the initial cap but unique views are still below this, fetch until the list ends or this cap (avoids "Load all" for small catalogs). */
+const AUTO_COMPLETE_UNIQUE_VIEW_CAP = INITIAL_UNIQUE_VIEW_FETCH_CAP * 2;
 const VIEWS_LIST_PAGE_LIMIT = 250;
 const VIEW_DETAILS_BATCH = 50;
 
@@ -293,6 +301,56 @@ function countUniqueViewKeys(items: ViewVersionItem[]): number {
   for (const i of items) s.add(`${i.space}:${i.externalId}`);
   return s.size;
 }
+
+function buildMatrixStateFromCatalog(listItems: ViewVersionItem[]): { rows: ViewRow[]; versions: string[] } {
+  const viewMap = new Map<string, Map<string, ViewVersionItem>>();
+  const versionSet = new Set<string>();
+
+  for (const item of listItems) {
+    const v = String(item.version ?? "latest");
+    versionSet.add(v);
+    const key = `${item.space}:${item.externalId}`;
+    let versions = viewMap.get(key);
+    if (!versions) {
+      versions = new Map();
+      viewMap.set(key, versions);
+    }
+    versions.set(v, item);
+  }
+
+  const allVersions = Array.from(versionSet);
+  allVersions.sort((a, b) => {
+    const cmp = compareVersionStrings(a, b);
+    if (cmp !== 0) return cmp;
+    const aItem = listItems.find((i) => String(i.version ?? "latest") === a);
+    const bItem = listItems.find((i) => String(i.version ?? "latest") === b);
+    const aTime = aItem?.createdTime ?? 0;
+    const bTime = bItem?.createdTime ?? 0;
+    if (aTime !== bTime) return aTime - bTime;
+    return String(a).localeCompare(String(b));
+  });
+
+  const rows: ViewRow[] = [];
+  for (const [viewKey, verMap] of viewMap) {
+    const first = Array.from(verMap.values())[0];
+    const label = first?.name ?? first?.externalId ?? viewKey;
+    rows.push({
+      key: viewKey,
+      label,
+      versions: verMap,
+    });
+  }
+  rows.sort((a, b) => a.label.localeCompare(b.label));
+  return { rows, versions: allVersions };
+}
+
+type ViewVersionsFullCatalogSnapshot = {
+  project: string;
+  listItems: ViewVersionItem[];
+  detailsEntries: Array<[string, ViewVersionItem]>;
+};
+
+let viewVersionsFullCatalogSnapshot: ViewVersionsFullCatalogSnapshot | null = null;
 
 type TransformationDestinationView = {
   space?: string;
@@ -449,10 +507,10 @@ export function ViewVersions() {
       };
 
       try {
-        const response = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations`,
-          { params: { includePublic: "true", limit: "1000" } }
-        )) as { data?: { items?: TransformationApiItem[] } };
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
+        })) as { data?: { items?: TransformationApiItem[] } };
         const items = response.data?.items ?? [];
         const idsNeedingDetail: string[] = [];
         for (const t of items) {
@@ -569,12 +627,15 @@ export function ViewVersions() {
         const items: Array<{ version: string; createdTime?: number }> = [];
         let cursor: string | undefined;
         do {
-          const response = await sdk.dataModels.list({
+          const response = (await cachedDataModelsList(sdk, {
             includeGlobal: true,
             allVersions: true,
             limit: 250,
             cursor,
-          });
+          })) as {
+            items?: Array<{ space: string; externalId: string; version?: string; createdTime?: number }>;
+            nextCursor?: string;
+          };
           const listItems = (response.items ?? []) as Array<{ space: string; externalId: string; version?: string; createdTime?: number }>;
           for (const m of listItems) {
             const baseKey = `${m.space}:${m.externalId}`;
@@ -683,11 +744,16 @@ export function ViewVersions() {
   }, [filteredViewRows, viewLegendFilter, viewRowLegendFlagsByKey]);
 
   const cappedLegendViewRows = useMemo(() => {
-    if (showAllViewRows || legendFilteredViewRows.length <= INITIAL_VIEW_DISPLAY_CAP) {
+    const searchActive = matrixSearch.trim().length > 0;
+    if (
+      showAllViewRows ||
+      searchActive ||
+      legendFilteredViewRows.length <= INITIAL_VIEW_DISPLAY_CAP
+    ) {
       return legendFilteredViewRows;
     }
     return legendFilteredViewRows.slice(0, INITIAL_VIEW_DISPLAY_CAP);
-  }, [legendFilteredViewRows, showAllViewRows]);
+  }, [legendFilteredViewRows, showAllViewRows, matrixSearch]);
 
   const versionsUsedByCappedRows = useMemo(() => {
     const used = new Set<string>();
@@ -748,13 +814,14 @@ export function ViewVersions() {
 
         const skipListFetch = extendToFull && listItems.length > 0 && cursor == null;
         if (!skipListFetch) {
+          let stoppedAfterInitialCap = false;
           do {
-            const response = await sdk.views.list({
+            const response = (await cachedViewsList(sdk, {
               includeGlobal: true,
               allVersions: true,
               limit: VIEWS_LIST_PAGE_LIMIT,
               cursor,
-            });
+            })) as { items?: ViewVersionItem[]; nextCursor?: string };
             const items = (response.items ?? []) as ViewVersionItem[];
             listItems.push(...items);
             cursor = response.nextCursor ?? undefined;
@@ -764,10 +831,29 @@ export function ViewVersions() {
               uniqueViews: countUniqueViewKeys(listItems),
             });
             if (!extendToFull && cursor && countUniqueViewKeys(listItems) >= INITIAL_UNIQUE_VIEW_FETCH_CAP) {
-              setResumeViewsListCursor(cursor);
+              stoppedAfterInitialCap = true;
               break;
             }
           } while (cursor);
+
+          if (!extendToFull && stoppedAfterInitialCap && cursor) {
+            while (cursor && countUniqueViewKeys(listItems) < AUTO_COMPLETE_UNIQUE_VIEW_CAP) {
+              const response = (await cachedViewsList(sdk, {
+                includeGlobal: true,
+                allVersions: true,
+                limit: VIEWS_LIST_PAGE_LIMIT,
+                cursor,
+              })) as { items?: ViewVersionItem[]; nextCursor?: string };
+              const items = (response.items ?? []) as ViewVersionItem[];
+              listItems.push(...items);
+              cursor = response.nextCursor ?? undefined;
+              setLoadProgress({
+                phase: "listing",
+                itemsLoaded: listItems.length,
+                uniqueViews: countUniqueViewKeys(listItems),
+              });
+            }
+          }
         } else {
           setLoadProgress({
             phase: "listing",
@@ -778,36 +864,11 @@ export function ViewVersions() {
 
         if (!cursor) {
           setResumeViewsListCursor(undefined);
+        } else if (!skipListFetch) {
+          setResumeViewsListCursor(cursor);
         }
 
         catalogListItemsRef.current = listItems;
-
-        const viewMap = new Map<string, Map<string, ViewVersionItem>>();
-        const versionSet = new Set<string>();
-
-        for (const item of listItems) {
-          const v = String(item.version ?? "latest");
-          versionSet.add(v);
-          const key = `${item.space}:${item.externalId}`;
-          let versions = viewMap.get(key);
-          if (!versions) {
-            versions = new Map();
-            viewMap.set(key, versions);
-          }
-          versions.set(v, item);
-        }
-
-        const allVersions = Array.from(versionSet);
-        allVersions.sort((a, b) => {
-          const cmp = compareVersionStrings(a, b);
-          if (cmp !== 0) return cmp;
-          const aItem = listItems.find((i) => String(i.version ?? "latest") === a);
-          const bItem = listItems.find((i) => String(i.version ?? "latest") === b);
-          const aTime = aItem?.createdTime ?? 0;
-          const bTime = bItem?.createdTime ?? 0;
-          if (aTime !== bTime) return aTime - bTime;
-          return String(a).localeCompare(String(b));
-        });
 
         const refs = listItems
           .filter((i) => i.version != null && i.version !== "")
@@ -824,9 +885,11 @@ export function ViewVersions() {
             const batchIndex = Math.floor(i / VIEW_DETAILS_BATCH) + 1;
             setLoadProgress({ phase: "details", batchIndex, batchTotal });
             const batch = refs.slice(i, i + VIEW_DETAILS_BATCH);
-            const response = (await sdk.views.retrieve(batch as never, {
-              includeInheritedProperties: false,
-            })) as { items?: ViewVersionItem[] };
+            const response = (await cachedViewsRetrieve(
+              sdk,
+              batch as Array<Record<string, unknown>>,
+              { includeInheritedProperties: false }
+            )) as { items?: ViewVersionItem[] };
             for (const item of response.items ?? []) {
               const v = String(item.version ?? "latest");
               const key = `${item.space}:${item.externalId}:${v}`;
@@ -843,9 +906,11 @@ export function ViewVersions() {
             const batchCount = Math.max(1, Math.ceil(missing.length / VIEW_DETAILS_BATCH));
             setLoadProgress({ phase: "details", batchIndex, batchTotal: batchCount });
             const batch = missing.slice(i, i + VIEW_DETAILS_BATCH);
-            const response = (await sdk.views.retrieve(batch as never, {
-              includeInheritedProperties: false,
-            })) as { items?: ViewVersionItem[] };
+            const response = (await cachedViewsRetrieve(
+              sdk,
+              batch as Array<Record<string, unknown>>,
+              { includeInheritedProperties: false }
+            )) as { items?: ViewVersionItem[] };
             for (const item of response.items ?? []) {
               const v = String(item.version ?? "latest");
               const key = `${item.space}:${item.externalId}:${v}`;
@@ -854,25 +919,25 @@ export function ViewVersions() {
           }
         }
 
-        const rows: ViewRow[] = [];
-        for (const [viewKey, verMap] of viewMap) {
-          const first = Array.from(verMap.values())[0];
-          const label = first?.name ?? first?.externalId ?? viewKey;
-          rows.push({
-            key: viewKey,
-            label,
-            versions: verMap,
-          });
-        }
-        rows.sort((a, b) => a.label.localeCompare(b.label));
+        const { rows, versions: versionLabels } = buildMatrixStateFromCatalog(listItems);
 
         setViewRows(rows);
-        setVersions(allVersions);
+        setVersions(versionLabels);
         setDetailsMap(details);
         setLoadProgress(null);
+        if (!cursor) {
+          viewVersionsFullCatalogSnapshot = {
+            project: sdk.project,
+            listItems: listItems.map((i) => ({ ...i })),
+            detailsEntries: [...details.entries()].map(([k, v]) => [k, { ...v }] as [string, ViewVersionItem]),
+          };
+        } else {
+          viewVersionsFullCatalogSnapshot = null;
+        }
         setStatus("success");
       } catch (error) {
         setLoadProgress(null);
+        viewVersionsFullCatalogSnapshot = null;
         setErrorMessage(error instanceof Error ? error.message : "Failed to load views.");
         setStatus("error");
       }
@@ -881,13 +946,37 @@ export function ViewVersions() {
   );
 
   useEffect(() => {
-    if (!isSdkLoading) {
+    if (isSdkLoading) return;
+
+    if (viewVersionsFullCatalogSnapshot && viewVersionsFullCatalogSnapshot.project !== sdk.project) {
+      viewVersionsFullCatalogSnapshot = null;
+    }
+
+    if (
+      viewVersionsFullCatalogSnapshot &&
+      viewVersionsFullCatalogSnapshot.project === sdk.project
+    ) {
+      const { listItems, detailsEntries } = viewVersionsFullCatalogSnapshot;
+      catalogListItemsRef.current = listItems;
+      const details = new Map<string, ViewVersionItem>(detailsEntries);
+      detailsMapRef.current = details;
       setShowAllViewRows(false);
       setResumeViewsListCursor(undefined);
-      catalogListItemsRef.current = [];
-      loadData(false);
+      const { rows, versions: versionLabels } = buildMatrixStateFromCatalog(listItems);
+      setViewRows(rows);
+      setVersions(versionLabels);
+      setDetailsMap(details);
+      setStatus("success");
+      setLoadProgress(null);
+      setErrorMessage(null);
+      return;
     }
-  }, [isSdkLoading, loadData]);
+
+    setShowAllViewRows(false);
+    setResumeViewsListCursor(undefined);
+    catalogListItemsRef.current = [];
+    void loadData(false);
+  }, [isSdkLoading, loadData, sdk.project]);
 
   const { rows, linePath } = useMemo(() => {
     if (cappedLegendViewRows.length === 0 || gridVersions.length === 0) {
@@ -1342,7 +1431,9 @@ export function ViewVersions() {
   const isLoading = isSdkLoading || status === "loading";
 
   const hiddenRowCountByCap =
-    !showAllViewRows && legendFilteredViewRows.length > INITIAL_VIEW_DISPLAY_CAP
+    !showAllViewRows &&
+    matrixSearch.trim().length === 0 &&
+    legendFilteredViewRows.length > INITIAL_VIEW_DISPLAY_CAP
       ? legendFilteredViewRows.length - INITIAL_VIEW_DISPLAY_CAP
       : 0;
   const hasMoreCatalogOnServer = Boolean(resumeViewsListCursor);
@@ -1499,8 +1590,9 @@ export function ViewVersions() {
                   ) : null}
                   {hasMoreCatalogOnServer ? (
                     <p>
-                      The catalog list was truncated after {INITIAL_UNIQUE_VIEW_FETCH_CAP} unique views (
-                      {viewRows.length} loaded). Load all to fetch the rest from the server.
+                      Listing paused after {INITIAL_UNIQUE_VIEW_FETCH_CAP} unique views for a quick first
+                      paint; more definitions exist on the server. Use{" "}
+                      <span className="font-medium">Load all from server</span> to fetch the remainder.
                     </p>
                   ) : null}
                 </div>

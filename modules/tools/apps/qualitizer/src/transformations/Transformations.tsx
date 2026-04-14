@@ -42,6 +42,11 @@ function CellSpinner() {
 }
 
 import { getTransformationPreviewUrl } from "@/shared/cdf-browser-url";
+import {
+  cachedTransformationJobMetrics,
+  cachedTransformationJobs,
+  cachedTransformationsList,
+} from "./transformations-cache";
 
 function ExternalLinkIcon({ className }: { className?: string }) {
   return (
@@ -246,8 +251,9 @@ export function TransformationsList({
       setStatus("loading");
       setErrorMessage(null);
       try {
-        const response = (await sdk.get(`/api/v1/projects/${sdk.project}/transformations`, {
-          params: { includePublic: "true", limit: "1000" },
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
         })) as { data?: { items?: TransformationSummary[] } };
         const items = response.data?.items ?? [];
         if (!cancelled) {
@@ -294,10 +300,7 @@ export function TransformationsList({
         if (cancelled) return;
         const id = String(transformation.id);
         try {
-          const jobResponse = await sdk.get(
-            `/api/v1/projects/${sdk.project}/transformations/jobs`,
-            { params: { limit: "1000", transformationId: id } }
-          );
+          const jobResponse = await cachedTransformationJobs(sdk, id, "1000");
           if (cancelled) return;
           const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
           const jobs = data?.items ?? [];
@@ -463,8 +466,9 @@ export function TransformationsList({
         }
 
         try {
-          const metricsRes = (await sdk.get(
-            `/api/v1/projects/${sdk.project}/transformations/jobs/${jobId}/metrics`
+          const metricsRes = (await cachedTransformationJobMetrics(
+            sdk,
+            jobId
           )) as { data?: { items?: JobMetricItem[] } };
           const metricItems = metricsRes.data?.items ?? [];
           const agg = aggregateJobMetrics(metricItems);

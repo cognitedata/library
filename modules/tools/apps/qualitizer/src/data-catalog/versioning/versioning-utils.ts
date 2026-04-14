@@ -8,17 +8,18 @@ export function isChecksumLikeVersion(s: string): boolean {
   return /^[a-zA-Z0-9]+$/.test(t);
 }
 
-/** Parse version into comparable parts. Handles v1.0.1, 3_1_1 vs 3_12_0, v2, v10, alpha, beta, v1.0-alpha, v2.0-beta, etc. */
+/** Parse version into comparable parts. Handles v1.0.1, v.0.0.1, 3_1_1 vs 3_12_0, v2, v10, alpha, beta, v1.0-alpha, v2.0-beta, etc. */
 function parseVersionParts(s: string): { parts: number[]; isV: boolean } {
   const trimmed = s.trim();
   const isV = /^v/i.test(trimmed);
-  const rest = isV ? trimmed.slice(1).trim() : trimmed;
+  let rest = isV ? trimmed.slice(1).trim() : trimmed;
+  rest = rest.replace(/^[._]+/, "");
 
   if (/^alpha$/i.test(rest)) return { parts: [0, 9998], isV };
   if (/^beta$/i.test(rest)) return { parts: [0, 9999], isV };
 
   const segmentMatch = rest.match(/^\d+(?:[._]\d+)*/);
-  if (!segmentMatch) return { parts: [Number.MAX_SAFE_INTEGER], isV: false };
+  if (!segmentMatch) return { parts: [Number.MAX_SAFE_INTEGER], isV };
   const afterNumeric = rest.slice(segmentMatch[0].length).toLowerCase();
   const hasPreReleaseTag = /[-.]alpha|[-.]beta/.test(afterNumeric);
 
