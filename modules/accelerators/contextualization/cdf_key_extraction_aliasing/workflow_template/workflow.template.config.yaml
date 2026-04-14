@@ -196,10 +196,19 @@ key_extraction:
       write_empty_extraction_rows: false
       raw_skip_scan_chunk_size: 5000
       incremental_change_processing: true
+      # Key Discovery FDM (modules/.../data_modeling/) — listing watermark + per-record hash/prior state.
+      # Runtime checks views via the API; if missing or calls fail, watermark/hash fall back to RAW.
+      # RAW-only: omit key_discovery_instance_space.
+      key_discovery_instance_space: inst_key_discovery
+      key_discovery_schema_space: dm_key_discovery
+      key_discovery_dm_version: v1
+      cdm_view_version: v1
+      # workflow_scope is injected per leaf by scope_build (same as scope.id). Required when using FDM.
+      incremental_skip_unchanged_source_inputs: true
       # When true, run fn_dm_reference_index (RAW inverted index for FK + document refs).
       # Must match enable_reference_index on the workflow task payload for deployed runs.
       enable_reference_index: true
-      # Optional: set false to disable default hash-gated cohort skipping in incremental mode.
+      # Optional: set false to disable hash-gated cohort skipping in incremental mode.
       # incremental_skip_unchanged_source_inputs: false
       # Drop FK strings that duplicate a candidate key on the same instance (default true).
       # Per-source_view exclude_self_referencing_keys overrides this (CogniteAsset: true; CogniteTimeSeries: false).
@@ -689,6 +698,19 @@ aliasing:
           - CogniteAsset
       validation:
         max_aliases_per_tag: 100
-        min_alias_length: 2
-        max_alias_length: 80
-        allowed_characters: r"A-Za-z0-9-_/. "
+        min_confidence: 0.01
+        confidence_match_rules:
+        - name: alias_shape_invalid
+          priority: 0
+          expression_match: fullmatch
+          match:
+            expressions:
+            - pattern: '^.{0,1}$'
+              description: Alias too short (length under 2) or empty
+            - pattern: '^.{81,}$'
+              description: Alias exceeds maximum length 80
+            - pattern: '[^A-Za-z0-9-_/. ]'
+              description: Character outside allowed set (letters, digits, _ / . - and space)
+          confidence_modifier:
+            mode: explicit
+            value: 0.0

@@ -1,4 +1,4 @@
-"""scope_build_mode from default.config.yaml (module.py --build / build_scopes.py)."""
+"""scope_build_mode from default.config.yaml (module.py build / build_scopes.py)."""
 
 from __future__ import annotations
 

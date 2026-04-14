@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI: build workflow artifacts from default.config.yaml (same as ``python module.py --build``).
+"""CLI: build workflow artifacts from default.config.yaml (same as ``python module.py build``).
 
 Uses top-level ``scope_build_mode``:
 

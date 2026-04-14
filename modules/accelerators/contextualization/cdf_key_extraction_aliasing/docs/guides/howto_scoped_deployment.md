@@ -9,7 +9,7 @@ Use this guide when you need **one workflow** (`key_extraction_aliasing`) with *
 ```mermaid
 flowchart LR
   defaultConfig[default.config.yaml]
-  buildRun["module.py --build"]
+  buildRun["module.py build"]
   workflowsDir[workflows_manifests]
   editTokens[Edit_or_substitute_tokens]
   cdfDeploy["cdf build / cdf deploy"]
@@ -42,9 +42,13 @@ Commented examples in `default.config.yaml` show how to add sites and nested loc
 
 Set **`scope_build_mode`** in `default.config.yaml`. Templates always come from [`workflow_template/`](../../workflow_template/) (see [workflow_template/README.md](../../workflow_template/README.md)).
 
-## 3. Build commands (`module.py --build`)
+### Key Discovery data model (incremental state)
 
-**`python module.py --build`** does **not** connect to CDF. It runs the same orchestrator as [`scripts/build_scopes.py`](../../scripts/build_scopes.py). Forwarded flags include:
+Incremental watermark and per-record hash state can live in **FDM** views shipped under [`data_modeling/`](../../data_modeling/) (`KeyDiscoveryScopeCheckpoint`, `KeyDiscoveryProcessingState`). Include those resources in your **Cognite Toolkit** project and deploy them to the same CDF project as the functions. **`workflow_scope`** on each generated trigger is set by scope build (same as **`scope.id`**). If the views are not deployed yet, pipeline code **falls back to RAW** watermarks and hash columns — see [workflows/README.md](../../workflows/README.md) and [configuration guide](configuration_guide.md#incremental-mode-key-discovery-fdm-and-raw-cohort).
+
+## 3. Build commands (`module.py build`)
+
+**`python module.py build`** does **not** connect to CDF. (Legacy: **`python module.py --build`**.) It runs the same orchestrator as [`scripts/build_scopes.py`](../../scripts/build_scopes.py). Forwarded flags include:
 
 | Flag | Purpose |
 |------|---------|
@@ -58,17 +62,17 @@ Set **`scope_build_mode`** in `default.config.yaml`. Templates always come from 
 | **`--list-builders`** | Print builder names. |
 | **`--only <name>`** | Run only named builders (repeatable). |
 | **`-v` / `--verbose`** | Debug logging. |
-| **`--clean`** | Delete generated workflow YAML under **`workflows/`** for this module’s **`workflow`** id (with confirmation, or **`--yes`**). **`--dry-run --clean`** lists paths only. **No build runs after a successful clean** — run **`--build`** again to recreate. |
+| **`--clean`** | Delete generated workflow YAML under **`workflows/`** for this module’s **`workflow`** id (with confirmation, or **`--yes`**). **`--dry-run --clean`** lists paths only. **No build runs after a successful clean** — run **`module.py build`** again to recreate. |
 | **`--yes`** | With **`--clean`**, skip confirmation (needed when stdin is not a TTY). |
 
-**Do not confuse** **`--build --clean`** (removes Toolkit manifest files under `workflows/`) with **`module.py --clean-state`** (drops **RAW** pipeline tables for a scope). They are unrelated.
+**Do not confuse** **`module.py build --clean`** (removes Toolkit manifest files under `workflows/`) with **`module.py run --clean-state`** (drops **RAW** pipeline tables for a scope). They are unrelated.
 
 Example:
 
 ```bash
 # From repository root
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --build
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --build --check-workflow-triggers
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py build
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py build --check-workflow-triggers
 ```
 
 ## 4. Instance spaces in generated triggers
@@ -76,7 +80,7 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module
 Deployed workflows read **`workflow.input.configuration`** (v1 scope shape). The builder patches **`source_views`** (including node **`space`** filters) per leaf. You can control instance space in three ways:
 
 **A — Leaf `instance_space` in the hierarchy**  
-Set **`instance_space`** on the leaf node in `default.config.yaml`. Regenerate with **`--build`** (and **`--force`** if the trigger file already exists). Generated filters can contain the **literal** space string instead of a template token.
+Set **`instance_space`** on the leaf node in `default.config.yaml`. Regenerate with **`module.py build`** (and **`--force`** if the trigger file already exists). Generated filters can contain the **literal** space string instead of a template token.
 
 **B — Toolkit placeholder `{{instance_space}}`**  
 If the leaf has no baked-in space, triggers may keep **`{{instance_space}}`** inside **`input.configuration`** (for example on node `space` filters). **CDF Toolkit** substitutes that value at **`cdf build` / deploy** from your project’s variables (often aligned with keys in `default.config.yaml`). Substitution applies **inside the embedded configuration**, not only on `workflow.input` top-level fields. See [workflows/README.md](../../workflows/README.md).

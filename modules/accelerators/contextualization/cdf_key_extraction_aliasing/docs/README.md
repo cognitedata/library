@@ -7,13 +7,31 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 
 | Document                                                   | Audience                      | Contents                                                                              |
 | ---------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| [Key Discovery incremental state](#key-discovery-incremental-state-architecture-summary) | Everyone | Plan-aligned summary: FDM vs RAW split, checkpoint vs processing state, naming, deploy/fallback |
 | [Module functional document](module_functional_document.md) | Everyone                      | End-to-end scope, behaviors, components, data flows, interfaces (points to deep specs) |
 | [Module README](../README.md)                              | Everyone                      | What the module does, prerequisites, [Local runs (module.py)](../README.md#local-runs-modulepy), [Python API](../README.md#python-api), [custom handlers how-to](guides/howto_custom_handlers.md), pointers to deeper docs |
 | [Quickstart — local `module.py`](guides/howto_quickstart.md) | Everyone                      | `.env` at repo root, `PYTHONPATH=.`, run `module.py`, read outputs under `tests/results/` |
-| [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `scope_hierarchy`, `module.py --build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
+| [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `scope_hierarchy`, `module.py build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
 | [Logging (CDF functions)](guides/logging_cdf_functions.md) | Developers / workflow authors | `logLevel` / `verbose`, required logger methods, optional handler injection           |
-| [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `module.py --build` (create missing triggers), `--build --clean` (remove generated `workflows/` YAML), `--check-workflow-triggers` |
+| [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `module.py build` (create missing triggers), `build --clean` (remove generated `workflows/` YAML), `--check-workflow-triggers` |
 | [Config examples](../config/examples/README.md)            | Authors / testers             | Demo folders, `--config-path` examples, progressive demo order                        |
+
+
+## Key Discovery incremental state (architecture summary)
+
+Incremental **listing cursor**, **per-record content hash**, and **prior classification** for cohort gating can live in **FDM** (CDM-aligned Key Discovery views) while the **work queue** stays on **RAW** — by design: moving every cohort row into data modeling would multiply instance creates/updates and hit consumption limits at scale.
+
+| Responsibility | **FDM (Key Discovery)** | **RAW** (`raw_table_key`) |
+|----------------|-------------------------|---------------------------|
+| Global listing watermark (`lastUpdatedTime` cursor) | **`KeyDiscoveryScopeCheckpoint`** (`highWatermarkMs`) | Legacy **`scope_wm_*`** rows only when FDM is off or at runtime fallback |
+| Per-source-record hash, status, retries | **`KeyDiscoveryProcessingState`** (`lastSeenHash`, `status`, …) | **`EXTRACTION_INPUTS_HASH`** scans only in legacy/fallback path — not dual-written when FDM is active |
+| Cohort / workflow handoff (`RUN_ID`, `WORKFLOW_STATUS=detected` → downstream) | — | **Kept on RAW** (not migrated to FDM as a per-run queue) |
+
+**Views** (`data_modeling/`): **`KeyDiscoveryProcessingState`** and **`KeyDiscoveryScopeCheckpoint`** both **implement** `cdf_cdm:CogniteDescribable` (container `requires` + describable payload on upsert). Deploy them with Cognite Toolkit alongside functions. At runtime, if views are missing or API calls fail, **`fn_dm_incremental_state_update`** and **`fn_dm_key_extraction`** **fall back** to RAW watermark + hash behavior.
+
+**Naming (config vs legacy):** **`workflow_scope`** (same as leaf **`scope.id`**, injected by **`module.py build`**) groups FDM rows; **`source_view_fingerprint`** (deterministic hash of view + filters) disambiguates multiple source views under one scope; content digest is **`lastSeenHash`** (hash v2 payload may use `workflow_scope` / `source_view_fingerprint` in JSON). Optional per-view **`key_discovery_hash_property_paths`** controls which source properties feed the hash.
+
+**See also:** [Module functional document](module_functional_document.md) (§3.4 Incremental processing), [Configuration guide](guides/configuration_guide.md) (subsection *Incremental mode, Key Discovery FDM, and RAW cohort*), [Workflows README](../workflows/README.md) (incremental state task), [module README](../README.md) (*Incremental cohort processing*), [Scoped deployment](guides/howto_scoped_deployment.md) (*Key Discovery data model*).
 
 
 ## Configuration (YAML and parameters)
@@ -40,7 +58,8 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 
 | Document                                                                     | Contents                                                                                                               |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [Workflows README](../workflows/README.md)                                   | Single workflow `key_extraction_aliasing` (v4), generated YAML under `workflows/`, `workflow.input.configuration` |
+| [Workflows README](../workflows/README.md)                                   | Single workflow `key_extraction_aliasing` (v4), generated YAML under `workflows/`, `workflow.input.configuration`, incremental Key Discovery vs RAW |
+| [Key Discovery data modeling YAML](../data_modeling/)                        | `KeyDiscoveryProcessingState` / `KeyDiscoveryScopeCheckpoint` containers, views, datamodel — deploy with Toolkit; runtime falls back to RAW if missing |
 | [Workflow diagram source](../workflow_template/workflow_diagram.md)                  | Mermaid diagram source (no committed PNG; lives in `workflow_template/`)                                                            |
 | [fn_dm_key_extraction](../functions/fn_dm_key_extraction/README.md)          | Key extraction function I/O                                                                                            |
 | [fn_dm_aliasing](../functions/fn_dm_aliasing/README.md)                      | Aliasing function I/O                                                                                                  |
@@ -55,7 +74,7 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 
 | Document                                                     | Contents                                     |
 | ------------------------------------------------------------ | -------------------------------------------- |
-| [Key extraction spec](specifications/1.%20key_extraction.md) | Methods, rules, extraction types, handlers   |
+| [Key extraction spec](specifications/1.%20key_extraction.md) | Methods, rules, extraction types, handlers, incremental / Key Discovery pointers   |
 | [Aliasing spec](specifications/2.%20aliasing.md)             | Transformation types, rules, engine behavior |
 
 

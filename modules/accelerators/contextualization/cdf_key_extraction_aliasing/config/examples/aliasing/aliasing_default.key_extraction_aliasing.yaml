@@ -465,6 +465,19 @@ aliasing:
           - file
       validation:
         max_aliases_per_tag: 50
-        min_alias_length: 2
-        max_alias_length: 50
-        allowed_characters: r"A-Za-z0-9-_/. "
+        min_confidence: 0.01
+        confidence_match_rules:
+        - name: alias_shape_invalid
+          priority: 0
+          expression_match: fullmatch
+          match:
+            expressions:
+            - pattern: '^.{0,1}$'
+              description: Alias too short (length under 2) or empty
+            - pattern: '^.{51,}$'
+              description: Alias exceeds maximum length 50
+            - pattern: '[^A-Za-z0-9-_/. ]'
+              description: Character outside allowed set (letters, digits, _ / . - and space)
+          confidence_modifier:
+            mode: explicit
+            value: 0.0

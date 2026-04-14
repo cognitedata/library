@@ -28,6 +28,53 @@ def apply_preprocessing(field_value: str, preprocessing: List[str]) -> str:
     return field_value
 
 
+def resolve_key_discovery_hash_field_paths(
+    extraction_rules: Any,
+    entity_view_config: Any,
+) -> List[Tuple[str, bool, List[str]]]:
+    """
+    Fields participating in incremental content hash.
+
+    When ``key_discovery_hash_property_paths`` is non-empty on the source view config,
+    hash only those paths (no preprocessing unless matching extraction rules provide it).
+    Otherwise fall back to ``iter_wanted_fields`` (rules + include_properties).
+    """
+    raw_paths: Optional[List[str]] = None
+    if hasattr(entity_view_config, "key_discovery_hash_property_paths"):
+        raw_paths = getattr(entity_view_config, "key_discovery_hash_property_paths", None)
+    elif isinstance(entity_view_config, dict):
+        raw_paths = entity_view_config.get("key_discovery_hash_property_paths")
+
+    if raw_paths:
+        wanted: List[Tuple[str, bool, List[str]]] = []
+        rule_fields: Dict[str, List[str]] = {}
+        if isinstance(extraction_rules, list) and extraction_rules:
+            for rule in extraction_rules:
+                source_fields = getattr(rule, "source_fields", None)
+                if source_fields is None and isinstance(rule, dict):
+                    source_fields = rule.get("source_fields")
+                if not source_fields:
+                    continue
+                if not isinstance(source_fields, list):
+                    source_fields = [source_fields]
+                for sf in source_fields:
+                    fn = str(getattr(sf, "field_name", None) or (sf.get("field_name") if isinstance(sf, dict) else "") or "")
+                    pre = list(getattr(sf, "preprocessing", None) or (sf.get("preprocessing") if isinstance(sf, dict) else []) or [])
+                    if fn:
+                        rule_fields[fn] = pre
+
+        for path in raw_paths:
+            p = str(path or "").strip()
+            if not p:
+                continue
+            pre = rule_fields.get(p, [])
+            wanted.append((p, False, pre))
+        if wanted:
+            return wanted
+
+    return iter_wanted_fields(extraction_rules, entity_view_config)
+
+
 def iter_wanted_fields(
     extraction_rules: Any,
     entity_view_config: Any,
@@ -135,14 +182,26 @@ def extraction_inputs_hash(
     scope_key: str,
     rules_fp: str,
     field_name_to_value: Dict[str, Any],
+    *,
+    workflow_scope: Optional[str] = None,
+    source_view_fingerprint: Optional[str] = None,
 ) -> str:
     """SHA-256 hex digest of scope, rules fingerprint, and sorted field map."""
     fields_sorted = {k: field_name_to_value[k] for k in sorted(field_name_to_value)}
-    payload = {
-        "scope_key": scope_key,
-        "rules_fingerprint": rules_fp,
-        "fields": fields_sorted,
-    }
+    if workflow_scope is not None:
+        payload = {
+            "hashVersion": 2,
+            "workflow_scope": workflow_scope,
+            "source_view_fingerprint": source_view_fingerprint or "",
+            "rules_fingerprint": rules_fp,
+            "fields": fields_sorted,
+        }
+    else:
+        payload = {
+            "scope_key": scope_key,
+            "rules_fingerprint": rules_fp,
+            "fields": fields_sorted,
+        }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -153,21 +212,34 @@ def compute_extraction_inputs_hash_from_entity_row(
     extraction_rules: Any,
     entity_view_config: Any,
     *,
+    workflow_scope: Optional[str] = None,
+    source_view_fingerprint: Optional[str] = None,
     logger: Any = None,
 ) -> str:
     """
     Hash from a key-extraction entity metadata dict (includes source field keys copied
     onto the entity before ``extract_keys``).
     """
-    wanted = iter_wanted_fields(extraction_rules, entity_view_config)
+    wanted = resolve_key_discovery_hash_field_paths(extraction_rules, entity_view_config)
     field_map = build_field_map_for_hash(entity_metadata, wanted, logger=logger)
-    view_dict = (
-        entity_view_config.model_dump()
-        if hasattr(entity_view_config, "model_dump")
-        else entity_view_config.dict()
-    )
+    if hasattr(entity_view_config, "model_dump"):
+        view_dict = entity_view_config.model_dump()
+    elif hasattr(entity_view_config, "dict"):
+        view_dict = entity_view_config.dict()
+    elif isinstance(entity_view_config, dict):
+        view_dict = entity_view_config
+    else:
+        view_dict = {}
     scope_key = scope_key_from_view_dict(view_dict)
     rf = rules_fingerprint(extraction_rules)
+    if workflow_scope is not None:
+        return extraction_inputs_hash(
+            scope_key,
+            rf,
+            field_map,
+            workflow_scope=workflow_scope,
+            source_view_fingerprint=source_view_fingerprint,
+        )
     return extraction_inputs_hash(scope_key, rf, field_map)
 
 

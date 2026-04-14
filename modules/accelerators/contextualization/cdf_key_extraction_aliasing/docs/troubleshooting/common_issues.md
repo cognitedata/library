@@ -113,7 +113,7 @@ ValueError: Required field 'api_key' is missing
 ```bash
 # Check environment variables
 # Verify .env at repository root and run module.py to test connection (from repo root, PYTHONPATH=.)
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --dry-run --limit 5
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py run --dry-run --limit 5
 
 # Create missing environment variables
 # Copy env.template to .env and edit with your credentials
@@ -314,6 +314,14 @@ Memory usage: 2GB for 1000 records
    gc.collect()
    ```
 
+### Key Discovery FDM not deployed (incremental mode)
+
+**Symptoms:** Log lines about **RAW** watermark or hash fallback; **`workflow_scope`** validation errors only when FDM views are present.
+
+**Expected behavior:** If **`key_discovery_instance_space`** is set but **Key Discovery** views under [`data_modeling/`](../../data_modeling/) are not deployed (or FDM calls fail), functions **fall back** to legacy RAW watermarks (`scope_wm_*`) and **`EXTRACTION_INPUTS_HASH`** for skip logic. No separate fix is required for correctness.
+
+**To use FDM state:** Deploy the Key Discovery containers/views/datamodel with Cognite Toolkit, set instance/schema spaces to match **`key_discovery_instance_space`** / **`key_discovery_schema_space`**, and ensure **`workflow_scope`** on each trigger matches the leaf **`scope.id`** from **`module.py build`**.
+
 ## Debugging Tools
 
 ### 1. Enable Debug Logging
@@ -331,7 +339,7 @@ python env_utils.py --status
 
 ### 3. Validate configuration
 
-Load pipeline YAMLs with `load_config_from_yaml` / run `module.py --dry-run` against a small `--limit` to verify CDF connectivity and rules without writing aliases.
+Load pipeline YAMLs with `load_config_from_yaml` / run `module.py run --dry-run` against a small `--limit` to verify CDF connectivity and rules without writing aliases.
 
 ### 4. Test individual components
 
@@ -366,14 +374,14 @@ print("Assets:", len(client.assets.list(limit=1)))
 ```bash
 # Enable verbose logging (from repository root, PYTHONPATH=.)
 export LOG_LEVEL=DEBUG
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --verbose --limit 10
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py run --verbose --limit 10
 ```
 
 ### 2. Review Documentation
 
 - [Documentation map](../README.md)
-- [Quickstart — `.env` and `module.py`](../guides/howto_quickstart.md)
-- [Scoped deployment — `--build` and Toolkit](../guides/howto_scoped_deployment.md)
+- [Quickstart — `.env` and `module.py run`](../guides/howto_quickstart.md)
+- [Scoped deployment — `module.py build` and Toolkit](../guides/howto_scoped_deployment.md)
 - [Configuration guide](../guides/configuration_guide.md)
 - [Key extraction / aliasing report](../key_extraction_aliasing_report.md)
 

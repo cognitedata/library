@@ -93,4 +93,11 @@ def prepare_scope_document_for_context(doc: Dict[str, Any], ctx: ScopeBuildConte
     patch_external_ids(out, suffix)
     inject_leaf_instance_space_filters(out, ctx)
     out["scope"] = build_scope_block(ctx)
+    ke = out.get("key_extraction")
+    if isinstance(ke, dict):
+        cfg = ke.get("config")
+        if isinstance(cfg, dict):
+            params = cfg.get("parameters")
+            if isinstance(params, dict):
+                params["workflow_scope"] = ctx.scope_id
     return out

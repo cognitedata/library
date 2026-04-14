@@ -402,6 +402,7 @@ def test_prepare_scope_document_external_ids_and_scope_block(tmp_path: Path) -> 
     assert data["scope"]["name"] == "Leaf One"
     assert data["key_extraction"]["externalId"] == "ctx_key_extraction_leaf1"
     assert data["aliasing"]["externalId"] == "ctx_aliasing_leaf1"
+    assert data["key_extraction"]["config"]["parameters"]["workflow_scope"] == "LEAF1"
     views = data["source_views"]
     assert len(views) == 1
     flt = views[0]["filters"][0]

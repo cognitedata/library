@@ -1,0 +1,57 @@
+space: {{key_discovery_schema_space}}
+externalId: KeyDiscoveryScopeCheckpoint
+name: Key Discovery scope checkpoint
+description: Global listing cursor (high watermark ms) per workflow scope for incremental detection.
+usedFor: node
+constraints:
+  cdf_cdm_CogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+indexes:
+  workflowScope_checkpoint_idx:
+    indexType: btree
+    properties:
+      - workflowScope
+    cursorable: false
+properties:
+  workflowScope:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Workflow scope
+    description: Leaf deployment scope for this checkpoint row.
+  sourceViewFingerprint:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Source view fingerprint
+    description: Optional view+filters fingerprint when multiple views share one scope.
+  highWatermarkMs:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: High watermark ms
+    description: Global cursor for instances.list lastUpdatedTime filter (milliseconds).
+  updatedAt:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Updated at
+    description: When the checkpoint was last written.

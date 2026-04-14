@@ -1,19 +1,24 @@
 """
 Local CLI entry point — fetch CDF instances from data model views, run key extraction and aliasing, write results.
 
-Configuration: by default loads the v1 scope document ``workflow.local.config.yaml`` at the
+**Invoke the pipeline with** ``python module.py run`` (not ``module.py`` alone; bare ``module.py`` prints help).
+
+Configuration: ``run`` loads the v1 scope document ``workflow.local.config.yaml`` at the
 module root when ``--scope default`` (the default); other scope names require ``--config-path``.
+Incremental workflow-parity runs use ``key_extraction.config.parameters`` the same way as deployed
+workflows: optional ``key_discovery_instance_space`` / ``workflow_scope`` for Key Discovery FDM state
+(watermark and hash use RAW automatically if the views are not deployed).
 CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each task (built by
 ``scripts/build_scopes.py`` into ``workflows/`` from templates in ``workflow_template/``). Create **missing** workflow artifacts with
-``python module.py --build`` (same CLI as ``scripts/build_scopes.py``; respects ``scope_build_mode``;
-does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc.). Remove generated
-workflow YAML with ``python module.py --build --clean`` (confirmation or ``--yes``; no rebuild after delete—run
-``--build`` again to recreate). This is unrelated to ``--clean-state``, which drops RAW tables. See
+``python module.py build`` (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
+Respects ``scope_build_mode``; does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc. Remove generated
+workflow YAML with ``python module.py build --clean`` (confirmation or ``--yes``; no rebuild after delete—run
+``build`` again to recreate). This is unrelated to ``run --clean-state``, which drops RAW tables. See
 ``config/README.md`` and ``default.config.yaml``.
 
-Reads CDF credentials from environment (.env supported) when not using ``--build``, queries instances from configured views,
+Reads CDF credentials from environment (.env supported) for ``run``, queries instances from configured views,
 runs the key extraction engine followed by the aliasing engine, and writes JSON results under
-``tests/results/`` (relative to this package). Use ``--clean-state`` / ``--clean-state-only`` to drop
+``tests/results/`` (relative to this package). Use ``run --clean-state`` / ``run --clean-state-only`` to drop
 incremental RAW state tables from the scope YAML (not data-model alias/FK properties).
 """
 
@@ -98,35 +103,16 @@ def _run_scope_build(build_argv: List[str]) -> int:
     return int(scope_build_main(build_argv))
 
 
-def main():
-    """Fetch instances from CDF views, run extraction & aliasing, write results to tests/results/."""
-    argv = sys.argv[1:]
-    if "--build" in argv:
-        build_argv = [a for a in argv if a != "--build"]
-        raise SystemExit(_run_scope_build(build_argv))
-
-    parser = argparse.ArgumentParser(
-        description="Run key extraction + aliasing on CDF data model instances"
-    )
-    parser.add_argument(
-        "--build",
-        action="store_true",
-        help=(
-            "Only run scope builder from default.config.yaml (scope_build_mode: trigger_only vs full). "
-            "Creates missing Workflow/WorkflowVersion/trigger files; use --force to overwrite from templates. "
-            "Forwards flags to build_scopes: --hierarchy, --scope-document, --dry-run, --force, --clean, --yes, "
-            "--list-builders, --only, --check-workflow-triggers, --workflow-trigger-template, --workflow-template, "
-            "--workflow-version-template, -v/--verbose. Does not connect to CDF."
-        ),
-    )
-    parser.add_argument(
+def _add_run_arguments(p: argparse.ArgumentParser) -> None:
+    """CLI flags for ``module.py run``."""
+    p.add_argument(
         "--limit",
         type=int,
         default=0,
         help="Max instances per view (0 = no limit, fetch all). Default 0.",
     )
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
-    parser.add_argument(
+    p.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    p.add_argument(
         "--progress-every",
         type=int,
         default=0,
@@ -137,23 +123,23 @@ def main():
             "aliasing. Example: --progress-every 100"
         ),
     )
-    parser.add_argument(
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="Run without persisting aliases to CDF (skip alias persistence step)",
     )
-    parser.add_argument(
+    p.add_argument(
         "--write-foreign-keys",
         action="store_true",
-        help="Persist extracted foreign key references to DM (requires foreign key write-back property)",
+        help="Persist extracted foreign key references to DM (requires write-back property)",
     )
-    parser.add_argument(
+    p.add_argument(
         "--foreign-key-writeback-property",
         type=str,
         default=None,
         help="DM property for FK reference strings (e.g. references_found); overrides config/env",
     )
-    parser.add_argument(
+    p.add_argument(
         "--instance-space",
         type=str,
         default=None,
@@ -162,7 +148,7 @@ def main():
             "include property_scope: node / target_property: space (EQUALS or IN) for this space"
         ),
     )
-    parser.add_argument(
+    p.add_argument(
         "--scope",
         type=str,
         default=None,
@@ -172,13 +158,13 @@ def main():
             "Ignored if --config-path is set."
         ),
     )
-    parser.add_argument(
+    p.add_argument(
         "--config-path",
         type=str,
         default=None,
         help="Path to a v1 scope YAML document (overrides --scope).",
     )
-    parser.add_argument(
+    p.add_argument(
         "--full-rescan",
         action="store_true",
         help=(
@@ -187,7 +173,7 @@ def main():
             "workflow input full_rescan). No effect if incremental mode is off."
         ),
     )
-    parser.add_argument(
+    p.add_argument(
         "--skip-reference-index",
         action="store_true",
         help=(
@@ -197,7 +183,7 @@ def main():
             "No effect on non-incremental runs (reference index is not available there)."
         ),
     )
-    clean_group = parser.add_mutually_exclusive_group()
+    clean_group = p.add_mutually_exclusive_group()
     clean_group.add_argument(
         "--clean-state",
         action="store_true",
@@ -213,8 +199,41 @@ def main():
             "Delete RAW state tables for this scope only; exit without running extraction/aliasing."
         ),
     )
-    args = parser.parse_args()
 
+
+def _print_root_cli_help() -> None:
+    """Top-level help (``module.py`` / ``module.py -h``): lists ``run`` and ``build``."""
+    parser = argparse.ArgumentParser(
+        prog="module.py",
+        description=(
+            "cdf_key_extraction_aliasing local CLI. Use ``module.py run`` for the pipeline; "
+            "``module.py build`` for workflow YAML generation. Invoking ``module.py`` with no "
+            "subcommand prints this help."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python module.py run --dry-run\n"
+            "  python module.py run --scope default --limit 50\n"
+            "  python module.py build\n"
+            "  python module.py build --check-workflow-triggers\n"
+            "Legacy: ``python module.py --build`` is equivalent to ``python module.py build``."
+        ),
+    )
+    sub = parser.add_subparsers(title="commands", metavar="COMMAND", dest="command")
+    sub.add_parser(
+        "run",
+        help="Run key extraction + aliasing on CDF data model instances (writes tests/results/*.json)",
+    )
+    sub.add_parser(
+        "build",
+        help="Generate workflow YAML from default.config.yaml (same as scripts/build_scopes.py)",
+    )
+    parser.print_help()
+
+
+def cmd_run(args: argparse.Namespace) -> None:
+    """Fetch instances from CDF views, run extraction & aliasing, write results to tests/results/."""
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
@@ -294,6 +313,33 @@ def main():
         foreign_key_writeback_property,
         scope_yaml_path=scope_yaml_path,
     )
+
+
+def main() -> None:
+    argv = list(sys.argv[1:])
+    # Legacy: `module.py --build ...` → `module.py build ...`
+    if argv and argv[0] == "--build":
+        argv = ["build"] + argv[1:]
+
+    if not argv or (len(argv) == 1 and argv[0] in ("-h", "--help")):
+        _print_root_cli_help()
+        sys.exit(0)
+
+    if argv[0] == "build":
+        raise SystemExit(_run_scope_build(argv[1:]))
+
+    if argv[0] != "run":
+        print(f"module.py: error: unknown command {argv[0]!r}", file=sys.stderr)
+        _print_root_cli_help()
+        sys.exit(2)
+
+    run_parser = argparse.ArgumentParser(
+        prog="module.py run",
+        description="Fetch instances from CDF views, run extraction & aliasing.",
+    )
+    _add_run_arguments(run_parser)
+    args = run_parser.parse_args(argv[1:])
+    cmd_run(args)
 
 
 if __name__ == "__main__":

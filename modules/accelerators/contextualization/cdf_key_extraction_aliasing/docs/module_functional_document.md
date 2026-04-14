@@ -105,9 +105,11 @@ The enum includes **`composite`**, but **`AliasingEngine._initialize_transformer
 
 When **`incremental_change_processing`** is enabled in scope parameters:
 
-- **Detection** (`fn_dm_incremental_state_update`) advances **watermarks** and emits **cohort** rows in key-extraction RAW with **`WORKFLOW_STATUS=detected`** and a **`RUN_ID`**.
-- **Skip unchanged** (`incremental_skip_unchanged_source_inputs`): digest of source inputs + rules can suppress redundant cohort rows while watermarks still advance.
+- **Detection** (`fn_dm_incremental_state_update`) advances the **listing watermark** (Key Discovery **`KeyDiscoveryScopeCheckpoint`** in FDM when **`key_discovery_instance_space`** is set **and** the Key Discovery views exist in the project; otherwise legacy RAW **`scope_wm_*`** rows). If FDM reads or checkpoint writes fail at runtime, the function falls back to RAW for that pass.
+- **Skip unchanged** (`incremental_skip_unchanged_source_inputs`): digest of source inputs + rules can suppress redundant cohort rows while watermarks still advance; latest digest is read from **`KeyDiscoveryProcessingState`** in FDM when that path is active, otherwise from RAW **`EXTRACTION_INPUTS_HASH`** on completed rows.
+- **`workflow_scope`**: set per leaf by scope build (same as **`scope.id`**) for FDM grouping; required when **`key_discovery_instance_space`** is set **and** Key Discovery FDM is available (after the view-existence check). If the views are not deployed, the pipeline uses RAW state and does not require **`workflow_scope`** for that fallback path.
 - **`full_rescan`**: overrides incremental narrowing (workflow input or scope); local runner mirrors this via `module.py --full-rescan`.
+- **Deployable artifacts:** Key Discovery view/container YAML is under [`data_modeling/`](../data_modeling/) (`KeyDiscoveryProcessingState`, `KeyDiscoveryScopeCheckpoint`); deploy with Cognite Toolkit alongside functions. **FDM** = listing cursor + per-record hash state; **RAW** = high-volume cohort queue (`WORKFLOW_STATUS=detected`).
 
 ### 3.5 Reference index
 
@@ -197,7 +199,7 @@ Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflo
 
 ### 5.3 Multi-site generation
 
-**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`module.py --build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`--build`** does not remove trigger files for scopes no longer in the tree; **`--build --clean`** deletes generated workflow YAML under **`workflows/`** (scoped by hierarchy **`workflow`** id) with confirmation, without running a rebuild. **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored). **Operator walkthrough:** [Scoped deployment](guides/howto_scoped_deployment.md).
+**`default.config.yaml`** defines **`scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`module.py build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`module.py build`** does not remove trigger files for scopes no longer in the tree; **`module.py build --clean`** deletes generated workflow YAML under **`workflows/`** (scoped by hierarchy **`workflow`** id) with confirmation, without running a rebuild. **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored). **Operator walkthrough:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ---
 
@@ -242,7 +244,7 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 
 ### 7.2 CLI (`module.py`)
 
-Documented in the [module README](../README.md): limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, full-rescan, skip reference index (incremental parity). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
+**`module.py run`** carries the pipeline (limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, full-rescan, skip reference index for incremental parity). **`module.py build`** runs the scope builder; bare **`module.py`** prints help. Documented in the [module README](../README.md). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ### 7.3 Python API (minimal)
 

@@ -1,0 +1,121 @@
+space: {{key_discovery_schema_space}}
+externalId: KeyDiscoveryProcessingState
+name: Key Discovery processing state
+description: Per-source-record key discovery incremental state (CDM extension).
+implements:
+  - space: cdf_cdm
+    externalId: CogniteDescribable
+    version: "{{cdm_view_version}}"
+    type: view
+version: {{key_discovery_dm_version}}
+properties:
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Display name for the state node
+  description:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description
+  workflowScope:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: workflowScope
+    name: Workflow scope
+    description: Leaf deployment scope
+  sourceViewFingerprint:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: sourceViewFingerprint
+    name: Source view fingerprint
+    description: View configuration fingerprint
+  recordExternalId:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: recordExternalId
+    name: Record external id
+    description: Source external id
+  recordInstanceKey:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: recordInstanceKey
+    name: Record instance key
+    description: Space-qualified source node id
+  lastSeenHash:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: lastSeenHash
+    name: Last seen hash
+    description: Content hash for skip logic
+  lastWatermarkValue:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: lastWatermarkValue
+    name: Last watermark value
+    description: Source lastUpdatedTime ms (observability)
+  processedAt:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: processedAt
+    name: Processed at
+    description: Processing timestamp
+  status:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: status
+    name: Status
+    description: Processing status
+  attemptCount:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: attemptCount
+    name: Attempt count
+    description: Retry count
+  lastError:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: lastError
+    name: Last error
+    description: Last error text
+  metadata:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: metadata
+    name: Metadata
+    description: JSON metadata
+  hashVersion:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryProcessingState
+      type: container
+    containerPropertyIdentifier: hashVersion
+    name: Hash version
+    description: Hash algorithm version

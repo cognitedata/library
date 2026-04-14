@@ -14,8 +14,9 @@ Key config fields used:
 - **`config.parameters.raw_db`**
 - **`config.parameters.raw_table_key`**: RAW table for entity payloads, `EXTRACTION_STATUS`, and run-summary rows (`RECORD_KIND=run`)
 - **`config.parameters.skip_entity_policy`**, **`write_empty_extraction_rows`**, **`raw_skip_scan_chunk_size`**: control instance listing when `full_rescan` is false (see configuration guide)
+- **Incremental + Key Discovery (optional):** when **`incremental_change_processing`** is true and **`key_discovery_instance_space`** is set, successful extraction can upsert **`KeyDiscoveryProcessingState`** in FDM instead of writing **`EXTRACTION_INPUTS_HASH`** on RAW for skip/hash parity — see **`workflow_scope`**, **`key_discovery_schema_space`**, **`key_discovery_dm_version`**, **`cdm_view_version`**, and [configuration guide](../../../docs/guides/configuration_guide.md#incremental-mode-key-discovery-fdm-and-raw-cohort). If Key Discovery views are not deployed, the function falls back to RAW hash columns.
 - **`config.parameters.max_files`**: optional limit for testing
-- **`config.data.source_views`** (populated from top-level **`configuration.source_views`** on the v1 scope document before the function runs): what view(s) to query; optional per-view **`instance_space`** (API `space` argument), optional **`filters`** including **`property_scope: node`** for `("node", "space")` style filters when `instance_space` is omitted or for extra narrowing
+- **`config.data.source_views`** (populated from top-level **`configuration.source_views`** on the v1 scope document before the function runs): what view(s) to query; optional per-view **`instance_space`** (API `space` argument), optional **`filters`** including **`property_scope: node`** for `("node", "space")` style filters when `instance_space` is omitted or for extra narrowing; optional **`key_discovery_hash_property_paths`** for incremental hash field selection
 
 ### Outputs
 

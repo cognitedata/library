@@ -1,6 +1,6 @@
 # Key Extraction and Aliasing — Module Summary
 
-**Last reviewed:** 2026-03-30  
+**Last reviewed:** 2026-04-14  
 **Canonical default scope:** [`workflow.local.config.yaml`](../workflow.local.config.yaml) at module root — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
 **Shared tag pattern library:** [`config/tag_patterns.yaml`](../config/tag_patterns.yaml) (aligned field `alphanumeric_tag`)
 
@@ -12,7 +12,9 @@ This document describes the **current** default configuration and pipeline behav
 
 Diagram (Mermaid): [workflow_template/workflow_diagram.md](../workflow_template/workflow_diagram.md).
 
-1. **Key extraction** — Candidate keys, foreign key references, and document references (when configured) from DM views.
+**Incremental / Key Discovery:** When **`incremental_change_processing`** is on, **`fn_dm_incremental_state_update`** advances watermarks and optional hash-based skip using **Key Discovery** FDM views ([`data_modeling/`](../data_modeling/)) when deployed, then emits **cohort** rows on RAW (`WORKFLOW_STATUS=detected`). If FDM views are missing, behavior falls back to RAW watermark rows and `EXTRACTION_INPUTS_HASH`. Parameters: **`key_discovery_instance_space`**, **`workflow_scope`**, **`cdm_view_version`**, **`incremental_skip_unchanged_source_inputs`** — see [module README — Incremental cohort processing](../README.md#incremental-cohort-processing-raw-cohort-cdm-state).
+
+1. **Key extraction** — Candidate keys, foreign key references, and document references (when configured) from DM views (incremental mode reads the **cohort** from RAW for the current `RUN_ID`).
 2. **Result splitting** — Routes results by extraction type / downstream consumer.
 3. **Aliasing** — Expands candidate keys with format variants and normalizations (scoped by entity type).
 4. **Write aliases** — Persists aliases on CogniteDescribable (default property `aliases`; see `alias_writeback_property` in aliasing config).
@@ -81,7 +83,7 @@ Rules are ordered by **priority**; at equal priority, **YAML order** applies. On
 | 20 | `leading_zero_normalization` | leading_zero_normalization | asset | Normalize long numeric tokens (configurable min length, etc.) |
 | 30 | `document_aliases` | document_aliases | file | P&ID / drawing / file-name variants (revision handling, padding, etc.) |
 
-**Validation (default):** `max_aliases_per_tag: 100`, `min_alias_length: 2`, `max_alias_length: 80`, allowed characters as in YAML.
+**Validation (default):** `aliasing.config.data.validation` sets `max_aliases_per_tag`, `min_confidence`, and `confidence_match_rules` (for example `alias_shape_invalid` with `fullmatch` expressions for minimum length, maximum length, and allowed character class — see `workflow.local.config.yaml`).
 
 ---
 

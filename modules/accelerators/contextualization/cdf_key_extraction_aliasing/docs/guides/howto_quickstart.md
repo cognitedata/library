@@ -1,6 +1,8 @@
-# Quickstart — local run with `module.py`
+# Quickstart — local run with `module.py run`
 
-Run the key extraction and aliasing pipeline against your CDF data model from your laptop. This path uses the same engines as the deployed Cognite Functions; configuration is the v1 scope document at the module root ([`workflow.local.config.yaml`](../../workflow.local.config.yaml)) when you use `--scope default`.
+Run the key extraction and aliasing pipeline against your CDF data model from your laptop. This path uses the same engines as the deployed Cognite Functions; configuration is the v1 scope document at the module root ([`workflow.local.config.yaml`](../../workflow.local.config.yaml)) when you use `run --scope default`. With **`incremental_change_processing: true`**, local runs mirror workflow parity (state update → extraction → …) and use the same **Key Discovery** / **RAW fallback** parameters as deployed triggers — see [module README — Incremental cohort processing](../../README.md#incremental-cohort-processing-raw-cohort-cdm-state).
+
+**CLI:** `python module.py` with no subcommand prints help. The pipeline is **`module.py run`** (with the flags below). Workflow YAML generation is **`module.py build`** (legacy: **`module.py --build`**).
 
 **Documentation index:** [docs/README.md](../README.md)
 
@@ -19,7 +21,7 @@ export PYTHONPATH=.
 
 ## Credentials (`.env`)
 
-Local runs call [`local_runner/client.py`](../../local_runner/client.py) via `module.py`. Environment variables are loaded from **`.env`** if present: the loader prefers **`$REPO_ROOT/.env`** (repository root), then falls back to python-dotenv’s default search.
+Local runs call [`local_runner/client.py`](../../local_runner/client.py) via `module.py run`. Environment variables are loaded from **`.env`** if present: the loader prefers **`$REPO_ROOT/.env`** (repository root), then falls back to python-dotenv’s default search.
 
 ### API key
 
@@ -48,19 +50,19 @@ If no API key is set, the client expects OAuth. All of the following must be pre
 
 **Project and base URL:** Same as for API key. If `COGNITE_BASE_URL` (and aliases) are unset, you may set **`CDF_CLUSTER`** instead; the client builds `https://{CDF_CLUSTER}.cognitedata.com`.
 
-## Run `module.py`
+## Run `module.py run`
 
 From **repository root**, with `PYTHONPATH=.`:
 
 ```bash
 # Safe first run: no alias write-back to CDF
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --dry-run
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py run --dry-run
 
 # Default scope document (module-root workflow.local.config.yaml)
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py --scope default
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py run --scope default
 
 # Explicit path to the same file (equivalent when using the default scope file)
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py \
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py run \
   --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflow.local.config.yaml
 ```
 
@@ -68,7 +70,7 @@ Useful options:
 
 - **`--limit N`** — cap instances per view (omit or `0` for no limit).
 - **`--verbose`** — more logging.
-- **`--instance-space <space>`** — restrict to views that match that data model instance space (see `module.py` help).
+- **`--instance-space <space>`** — restrict to views that match that data model instance space (see `module.py run --help`).
 
 If your team uses Poetry or another runner, prefix the command as usual (for example `poetry run python ...`).
 

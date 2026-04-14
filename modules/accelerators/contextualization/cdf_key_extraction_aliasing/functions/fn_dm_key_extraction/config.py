@@ -86,10 +86,45 @@ class Parameters(BaseModel):
         True,
         description=(
             "When true (default) together with incremental_change_processing: fn_dm_incremental_state_update "
-            "skips emitting cohort rows when EXTRACTION_INPUTS_HASH matches the last completed "
-            "entity row for that node in RAW (lastUpdatedTime watermarks still advance). "
-            "fn_dm_key_extraction writes EXTRACTION_INPUTS_HASH on incremental entity rows."
+            "skips emitting cohort rows when the content hash matches the last completed state "
+            "for that node (RAW EXTRACTION_INPUTS_HASH when key_discovery_instance_space is unset; "
+            "otherwise Key Discovery FDM state). lastUpdatedTime watermarks still advance. "
+            "fn_dm_key_extraction writes EXTRACTION_INPUTS_HASH to RAW only when key_discovery_instance_space is unset."
         ),
+    )
+    workflow_scope: Optional[str] = Field(
+        None,
+        description=(
+            "Leaf deployment scope id (same as scope.id); set by module build / scope_build. "
+            "Required for Key Discovery FDM state when incremental_change_processing is true."
+        ),
+    )
+    key_discovery_instance_space: Optional[str] = Field(
+        None,
+        description=(
+            "When set, incremental watermark/hash/prior state use Key Discovery FDM views in this "
+            "instance space instead of RAW scans."
+        ),
+    )
+    key_discovery_schema_space: str = Field(
+        "dm_key_discovery",
+        description="DMS space for KeyDiscoveryProcessingState / KeyDiscoveryScopeCheckpoint views.",
+    )
+    key_discovery_dm_version: str = Field(
+        "v1",
+        description="Version of Key Discovery views/containers.",
+    )
+    key_discovery_processing_state_view_external_id: str = Field(
+        "KeyDiscoveryProcessingState",
+        description="External id of the KeyDiscoveryProcessingState view.",
+    )
+    key_discovery_checkpoint_view_external_id: str = Field(
+        "KeyDiscoveryScopeCheckpoint",
+        description="External id of the KeyDiscoveryScopeCheckpoint view.",
+    )
+    cdm_view_version: str = Field(
+        "v1",
+        description="cdf_cdm CogniteDescribable view version used for state node upserts.",
     )
     exclude_self_referencing_keys: Union[bool, Dict[str, Any]] = Field(
         True,
@@ -167,6 +202,14 @@ class FilterConfig(BaseModel):
             filter = dm.filters.Equals(property=property_reference, value=find_values)
         elif self.operator == FilterOperator.CONTAINSALL:
             filter = dm.filters.ContainsAll(
+                property=property_reference, values=find_values
+            )
+        elif self.operator == FilterOperator.CONTAINSANY:
+            if not isinstance(find_values, list):
+                raise ValueError(
+                    f"Operator 'CONTAINSANY' requires a list of values for property {self.target_property}"
+                )
+            filter = dm.filters.ContainsAny(
                 property=property_reference, values=find_values
             )
         elif self.operator == FilterOperator.SEARCH:
@@ -248,6 +291,14 @@ class SourceViewConfig(TargetViewConfig):
         description=(
             "Optional validation overlay merged with global data.validation for entities "
             "from this view (scalar overrides; confidence_match_rules concatenated then sorted)."
+        ),
+    )
+    key_discovery_hash_property_paths: Optional[List[str]] = Field(
+        None,
+        description=(
+            "When non-empty, incremental content hash uses only these view property paths "
+            "(same syntax as rule source_field.field_name). When omitted, hash fields match "
+            "iter_wanted_fields / extraction rules."
         ),
     )
 

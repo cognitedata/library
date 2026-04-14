@@ -18,14 +18,14 @@ functionVersion: 'v1'
 
 workflow: key_extraction_aliasing
 
-# Scope artifact layout for python module.py --build / scripts/build_scopes.py:
+# Scope artifact layout for python module.py build / scripts/build_scopes.py:
 # trigger_only — one root {workflow}.Workflow.yaml + {workflow}.WorkflowVersion.yaml (created if missing);
 #   flat workflows/{workflow}.<scope>.WorkflowTrigger.yaml per leaf. full — per leaf under workflows/<scope>/
 #   with {workflow}.<scope>.Workflow.yaml, WorkflowVersion, WorkflowTrigger (no root workflow pair).
-scope_build_mode: trigger_only
+scope_build_mode: full
 
 # Remove generated Workflow/WorkflowVersion/WorkflowTrigger YAML under workflows/ (for the `workflow` id above):
-#   python module.py --build --clean  (type yes to confirm; --yes if stdin is not a TTY; --dry-run --clean to list only).
+#   python module.py build --clean  (type yes to confirm; --yes if stdin is not a TTY; --dry-run --clean to list only).
 #   Does not run a build afterward. Unrelated to module.py --clean-state (RAW tables).
 
 # Schedule (UTC cron) applied to each generated workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml (or under workflows/<scope>/ in full mode).

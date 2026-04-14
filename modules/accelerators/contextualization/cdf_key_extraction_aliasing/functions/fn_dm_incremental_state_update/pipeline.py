@@ -7,15 +7,25 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from cognite.client import data_modeling as dm
+from cognite.client.data_classes import Row
+from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 
 from cdf_fn_common.extraction_input_hash import (
     build_field_map_for_hash,
     extraction_inputs_hash,
     iter_wanted_fields,
+    resolve_key_discovery_hash_field_paths,
     rules_fingerprint,
+)
+from cdf_fn_common.key_discovery_state_fdm import (
+    is_key_discovery_cdm_deployed,
+    key_discovery_view_ids_from_parameters,
+    load_key_discovery_scope_state_maps,
+    read_key_discovery_high_watermark_ms,
+    upsert_scope_checkpoint,
 )
 from cdf_fn_common.incremental_scope import (
     CHANGE_KIND_COLUMN,
@@ -184,11 +194,32 @@ def incremental_state_update(
     cohort_rows_skipped_unchanged_hash = 0
     batch_updated_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
+    kd_space = str(getattr(params, "key_discovery_instance_space", None) or "").strip()
+    use_key_discovery = bool(kd_space)
+    workflow_scope_param = str(getattr(params, "workflow_scope", None) or "").strip()
+    processing_view_id = None
+    checkpoint_view_id = None
+    if use_key_discovery:
+        processing_view_id, checkpoint_view_id = key_discovery_view_ids_from_parameters(
+            params
+        )
+        if not is_key_discovery_cdm_deployed(
+            client, processing_view_id, checkpoint_view_id, logger=logger
+        ):
+            use_key_discovery = False
+            processing_view_id = None
+            checkpoint_view_id = None
+    if use_key_discovery and not workflow_scope_param:
+        raise ValueError(
+            "workflow_scope must be set (e.g. via scope build) when key_discovery_instance_space is set"
+        )
+
     for entity_view_config in source_views:
         view_id = _as_view_id(entity_view_config)
         view_dict = _view_dict(entity_view_config)
         scope_key = scope_key_from_view_dict(view_dict)
         wm_key = scope_watermark_row_key(scope_key)
+        sv_fp = scope_key
 
         if full_rescan:
             try:
@@ -196,9 +227,54 @@ def incremental_state_update(
             except Exception as ex:
                 logger.warning(f"Could not delete watermark row {wm_key!r}: {ex}")
 
-        high_wm = None if full_rescan else read_watermark_high_ms(
-            client, raw_db, raw_table_key, wm_key
-        )
+        effective_kd = use_key_discovery
+        high_wm: Optional[int] = None
+        hash_by_node: Dict[str, str] = {}
+        prior_ids: Set[str] = set()
+
+        if effective_kd:
+            assert checkpoint_view_id is not None and processing_view_id is not None
+            try:
+                high_wm = (
+                    None
+                    if full_rescan
+                    else read_key_discovery_high_watermark_ms(
+                        client,
+                        checkpoint_view_id,
+                        kd_space,
+                        workflow_scope_param,
+                        sv_fp,
+                    )
+                )
+                hash_by_node, prior_ids_set = load_key_discovery_scope_state_maps(
+                    client,
+                    processing_view_id,
+                    kd_space,
+                    workflow_scope_param,
+                    sv_fp,
+                    limit_per_page=min(
+                        1000,
+                        int(_cfg_get(entity_view_config, "batch_size", 1000) or 1000),
+                    ),
+                    logger=logger,
+                )
+                prior_ids = prior_ids_set
+            except (CogniteAPIError, CogniteNotFoundError) as ex:
+                if hasattr(logger, "warning"):
+                    logger.warning(
+                        "Key Discovery FDM state read failed; using RAW watermark/hash for this view: %s",
+                        ex,
+                    )
+                effective_kd = False
+
+        if not effective_kd:
+            high_wm = None if full_rescan else read_watermark_high_ms(
+                client, raw_db, raw_table_key, wm_key
+            )
+            prior_ids = load_prior_node_ids_for_scope(
+                client, raw_db, raw_table_key, scope_key
+            )
+            hash_by_node = {}
 
         base_filter = _build_base_filter(entity_view_config, view_id)
         if high_wm is not None and not full_rescan:
@@ -212,23 +288,27 @@ def incremental_state_update(
         else:
             filt = base_filter
 
-        prior_ids = load_prior_node_ids_for_scope(
-            client, raw_db, raw_table_key, scope_key
-        )
-
-        hash_by_node: Dict[str, str] = {}
+        if not isinstance(hash_by_node, dict):
+            hash_by_node = {}
         wanted_fields: Optional[List[Tuple[str, bool, List[str]]]] = None
         if skip_unchanged_inputs and rules_fp is not None:
-            hash_by_node = load_latest_hash_by_node_for_scope(
-                client,
-                raw_db,
-                raw_table_key,
-                scope_key,
-                chunk_size=int(
-                    getattr(params, "raw_skip_scan_chunk_size", 2500) or 2500
-                ),
+            if not effective_kd:
+                hash_by_node = load_latest_hash_by_node_for_scope(
+                    client,
+                    raw_db,
+                    raw_table_key,
+                    scope_key,
+                    chunk_size=int(
+                        getattr(params, "raw_skip_scan_chunk_size", 2500) or 2500
+                    ),
+                )
+            wanted_fields = (
+                resolve_key_discovery_hash_field_paths(
+                    extraction_rules, entity_view_config
+                )
+                if effective_kd
+                else iter_wanted_fields(extraction_rules, entity_view_config)
             )
-            wanted_fields = iter_wanted_fields(extraction_rules, entity_view_config)
 
         max_ts: Optional[int] = None
         space = _cfg_get(entity_view_config, "instance_space", None)
@@ -274,7 +354,16 @@ def incremental_state_update(
                 )
                 # With no fields to hash, every instance would share the same digest; never skip.
                 if field_map:
-                    new_hash = extraction_inputs_hash(scope_key, rules_fp, field_map)
+                    if effective_kd:
+                        new_hash = extraction_inputs_hash(
+                            scope_key,
+                            rules_fp,
+                            field_map,
+                            workflow_scope=workflow_scope_param,
+                            source_view_fingerprint=sv_fp,
+                        )
+                    else:
+                        new_hash = extraction_inputs_hash(scope_key, rules_fp, field_map)
                     if new_hash == hash_by_node.get(nid):
                         cohort_rows_skipped_unchanged_hash += 1
                         continue
@@ -304,26 +393,61 @@ def incremental_state_update(
             raw_uploader.add_to_upload_queue(
                 database=raw_db,
                 table=raw_table_key,
-                raw_row={"key": rk, "columns": columns},
+                raw_row=Row(key=rk, columns=columns),
             )
             cohort_rows += 1
 
-        # Upsert watermark for this scope.
+        # Upsert watermark for this scope (RAW legacy, or Key Discovery checkpoint).
         # If this run found no changed instances, preserve existing high watermark
         # instead of resetting to 0 (which would re-select the full scope next run).
         next_high_wm = max_ts if max_ts is not None else high_wm
-        wm_columns: Dict[str, Any] = {
-            RECORD_KIND_COLUMN: RECORD_KIND_WATERMARK,
-            WORKFLOW_STATUS_COLUMN: WORKFLOW_STATUS_CHECKPOINT,
-            SCOPE_KEY_COLUMN: scope_key,
-            RAW_COL_UPDATED_AT: batch_updated_at,
-            HIGH_WATERMARK_MS_COLUMN: int(next_high_wm if next_high_wm is not None else 0),
-        }
-        raw_uploader.add_to_upload_queue(
-            database=raw_db,
-            table=raw_table_key,
-            raw_row={"key": wm_key, "columns": wm_columns},
-        )
+        if effective_kd:
+            assert checkpoint_view_id is not None
+            try:
+                upsert_scope_checkpoint(
+                    client,
+                    checkpoint_view_id,
+                    kd_space,
+                    workflow_scope_param,
+                    sv_fp,
+                    int(next_high_wm if next_high_wm is not None else 0),
+                    logger=logger,
+                )
+            except (CogniteAPIError, CogniteNotFoundError) as ex:
+                if hasattr(logger, "warning"):
+                    logger.warning(
+                        "Key Discovery checkpoint upsert failed; writing RAW watermark instead: %s",
+                        ex,
+                    )
+                wm_columns_fb: Dict[str, Any] = {
+                    RECORD_KIND_COLUMN: RECORD_KIND_WATERMARK,
+                    WORKFLOW_STATUS_COLUMN: WORKFLOW_STATUS_CHECKPOINT,
+                    SCOPE_KEY_COLUMN: scope_key,
+                    RAW_COL_UPDATED_AT: batch_updated_at,
+                    HIGH_WATERMARK_MS_COLUMN: int(
+                        next_high_wm if next_high_wm is not None else 0
+                    ),
+                }
+                raw_uploader.add_to_upload_queue(
+                    database=raw_db,
+                    table=raw_table_key,
+                    raw_row=Row(key=wm_key, columns=wm_columns_fb),
+                )
+        else:
+            wm_columns: Dict[str, Any] = {
+                RECORD_KIND_COLUMN: RECORD_KIND_WATERMARK,
+                WORKFLOW_STATUS_COLUMN: WORKFLOW_STATUS_CHECKPOINT,
+                SCOPE_KEY_COLUMN: scope_key,
+                RAW_COL_UPDATED_AT: batch_updated_at,
+                HIGH_WATERMARK_MS_COLUMN: int(
+                    next_high_wm if next_high_wm is not None else 0
+                ),
+            }
+            raw_uploader.add_to_upload_queue(
+                database=raw_db,
+                table=raw_table_key,
+                raw_row=Row(key=wm_key, columns=wm_columns),
+            )
 
     raw_uploader.upload()
 

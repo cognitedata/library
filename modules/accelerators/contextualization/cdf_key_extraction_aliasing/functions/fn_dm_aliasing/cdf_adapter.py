@@ -123,8 +123,17 @@ def convert_cdf_config_to_aliasing_config(cdf_config: Any) -> Dict[str, Any]:
                     aliasing_config["rules"].append(alias_rule)
 
     # If validation is specified in CDF config
-    if hasattr(cdf_config, "aliasing") and hasattr(cdf_config.aliasing, "validation"):
-        aliasing_config["validation"].update(cdf_config.aliasing.validation)
+    if hasattr(cdf_config, "aliasing") and cdf_config.aliasing:
+        av = getattr(cdf_config.aliasing, "validation", None)
+        if av is not None:
+            if hasattr(av, "model_dump"):
+                aliasing_config["validation"].update(
+                    av.model_dump(mode="python", exclude_none=False)
+                )
+            elif isinstance(av, dict):
+                aliasing_config["validation"].update(av)
+            else:
+                aliasing_config["validation"].update(dict(av))
 
     return aliasing_config
 

@@ -479,6 +479,25 @@ def _run_workflow_parity(
         scope_yaml_path, source_views, logger
     )
 
+    _kd_space = str(
+        getattr(getattr(cdf_config, "parameters", None), "key_discovery_instance_space", None)
+        or ""
+    ).strip()
+    _wf_scope = str(
+        getattr(getattr(cdf_config, "parameters", None), "workflow_scope", None) or ""
+    ).strip()
+    if _kd_space:
+        logger.info(
+            "Incremental local run: key_discovery_instance_space=%r workflow_scope=%r "
+            "(FDM state when views exist; otherwise RAW watermark/hash fallback)",
+            _kd_space,
+            _wf_scope or "(empty — set for FDM path when views are deployed)",
+        )
+    else:
+        logger.info(
+            "Incremental local run: RAW-only incremental state (key_discovery_instance_space unset)"
+        )
+
     scope_document = merged_scope_document_for_local_run(
         scope_yaml_path, source_views
     )

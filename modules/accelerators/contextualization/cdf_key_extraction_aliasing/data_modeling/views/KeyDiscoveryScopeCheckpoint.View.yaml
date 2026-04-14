@@ -1,0 +1,57 @@
+space: {{key_discovery_schema_space}}
+externalId: KeyDiscoveryScopeCheckpoint
+name: Key Discovery scope checkpoint
+description: Global incremental listing cursor per scope (CDM extension).
+implements:
+  - space: cdf_cdm
+    externalId: CogniteDescribable
+    version: "{{cdm_view_version}}"
+    type: view
+version: {{key_discovery_dm_version}}
+properties:
+  name:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Display name for the checkpoint node
+  description:
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description
+  workflowScope:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryScopeCheckpoint
+      type: container
+    containerPropertyIdentifier: workflowScope
+    name: Workflow scope
+    description: Leaf deployment scope
+  sourceViewFingerprint:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryScopeCheckpoint
+      type: container
+    containerPropertyIdentifier: sourceViewFingerprint
+    name: Source view fingerprint
+    description: Optional view fingerprint
+  highWatermarkMs:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryScopeCheckpoint
+      type: container
+    containerPropertyIdentifier: highWatermarkMs
+    name: High watermark ms
+    description: Listing cursor in milliseconds
+  updatedAt:
+    container:
+      space: {{key_discovery_schema_space}}
+      externalId: KeyDiscoveryScopeCheckpoint
+      type: container
+    containerPropertyIdentifier: updatedAt
+    name: Updated at
+    description: Last checkpoint update time

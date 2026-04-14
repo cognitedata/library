@@ -28,7 +28,8 @@ class FilterOperator(str, Enum):
     EQUALS = "EQUALS"  # Checks for equality against a single value.
     EXISTS = "EXISTS"  # Checks if a property exists (is not null).
     CONTAINSALL = "CONTAINSALL"  # Checks if an item contains all specified values for a given property
-    IN = "IN"  # Checks if a value is within a list of specified values. Not implementing CONTAINSANY b/c IN is usually more suitable
+    CONTAINSANY = "CONTAINSANY"  # Checks if an item contains any of the specified values (e.g. tags)
+    IN = "IN"  # Checks if a value is within a list of specified values
     SEARCH = "SEARCH"  # Performs full text search on a specified property
 
 

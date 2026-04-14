@@ -14,6 +14,7 @@ from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
 from cognite.client.data_classes.data_modeling.ids import NodeId
+from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 
 from cdf_fn_common.full_rescan import resolve_full_rescan
 from cdf_fn_common.extraction_input_hash import (
@@ -22,12 +23,18 @@ from cdf_fn_common.extraction_input_hash import (
     iter_wanted_fields,
     resolve_source_view_config_for_entity,
 )
+from cdf_fn_common.key_discovery_state_fdm import (
+    is_key_discovery_cdm_deployed,
+    key_discovery_view_ids_from_parameters,
+    upsert_key_discovery_processing_state_success,
+)
 from cdf_fn_common.property_path import get_value_by_property_path
 from cdf_fn_common.incremental_scope import (
     EXTRACTION_INPUTS_HASH_COLUMN,
     EXTERNAL_ID_COLUMN,
     NODE_INSTANCE_ID_COLUMN,
     RAW_ROW_KEY_COLUMN,
+    scope_key_from_view_dict,
     RECORD_KIND_COLUMN,
     RECORD_KIND_ENTITY,
     RUN_ID_COLUMN,
@@ -608,6 +615,24 @@ def key_extraction(
                 cdf_config.data, "extraction_rules", None
             )
 
+            key_discovery_fdm_available = True
+            if incremental_mode and incremental_skip_hash:
+                _kd_space_cfg = str(
+                    getattr(
+                        getattr(cdf_config, "parameters", None),
+                        "key_discovery_instance_space",
+                        None,
+                    )
+                    or ""
+                ).strip()
+                if _kd_space_cfg:
+                    _pv, _cv = key_discovery_view_ids_from_parameters(
+                        cdf_config.parameters
+                    )
+                    key_discovery_fdm_available = is_key_discovery_cdm_deployed(
+                        client, _pv, _cv, logger=logger
+                    )
+
             for ext_id, entity_metadata in entities_keys_extracted.items():
                 field_keys = entity_metadata.get("keys", {})
                 fk_refs = entity_metadata.get("foreign_key_references") or []
@@ -678,14 +703,86 @@ def key_extraction(
                         source_views_for_hash, entity_metadata
                     )
                     if svc is not None:
-                        columns[EXTRACTION_INPUTS_HASH_COLUMN] = (
-                            compute_extraction_inputs_hash_from_entity_row(
-                                entity_metadata,
-                                extraction_rules_for_hash,
-                                svc,
-                                logger=logger,
-                            )
+                        kd_space = getattr(
+                            getattr(cdf_config, "parameters", None),
+                            "key_discovery_instance_space",
+                            None,
                         )
+                        use_kd = (
+                            bool(kd_space and str(kd_space).strip())
+                            and key_discovery_fdm_available
+                        )
+                        workflow_scope = str(
+                            getattr(
+                                getattr(cdf_config, "parameters", None),
+                                "workflow_scope",
+                                None,
+                            )
+                            or ""
+                        ).strip()
+                        view_dict = (
+                            svc.model_dump(mode="python")
+                            if hasattr(svc, "model_dump")
+                            else svc.dict()
+                        )
+                        sv_fp = scope_key_from_view_dict(view_dict)
+                        inputs_hash = compute_extraction_inputs_hash_from_entity_row(
+                            entity_metadata,
+                            extraction_rules_for_hash,
+                            svc,
+                            workflow_scope=workflow_scope if use_kd else None,
+                            source_view_fingerprint=sv_fp if use_kd else None,
+                            logger=logger,
+                        )
+                        if use_kd:
+                            if workflow_scope:
+                                proc_view, _ = key_discovery_view_ids_from_parameters(
+                                    cdf_config.parameters
+                                )
+                                cohort_columns = entity_metadata.get("_cohort_columns") or {}
+                                node_inst = str(
+                                    cohort_columns.get(NODE_INSTANCE_ID_COLUMN) or ""
+                                )
+                                try:
+                                    upsert_key_discovery_processing_state_success(
+                                        client,
+                                        proc_view,
+                                        str(kd_space).strip(),
+                                        workflow_scope,
+                                        sv_fp,
+                                        node_inst,
+                                        str(ext_id),
+                                        inputs_hash,
+                                        None,
+                                        hash_version=2,
+                                        logger=logger,
+                                    )
+                                except (CogniteAPIError, CogniteNotFoundError) as ex:
+                                    logger.warning(
+                                        "Key Discovery processing state upsert failed; "
+                                        "writing EXTRACTION_INPUTS_HASH to RAW instead: %s",
+                                        ex,
+                                    )
+                                    inputs_hash_raw = (
+                                        compute_extraction_inputs_hash_from_entity_row(
+                                            entity_metadata,
+                                            extraction_rules_for_hash,
+                                            svc,
+                                            workflow_scope=None,
+                                            source_view_fingerprint=None,
+                                            logger=logger,
+                                        )
+                                    )
+                                    columns[
+                                        EXTRACTION_INPUTS_HASH_COLUMN
+                                    ] = inputs_hash_raw
+                            else:
+                                logger.error(
+                                    "key_discovery_instance_space is set but workflow_scope is missing; "
+                                    "skipping Key Discovery state upsert"
+                                )
+                        else:
+                            columns[EXTRACTION_INPUTS_HASH_COLUMN] = inputs_hash
 
                 raw_key = str(raw_row_key) if raw_row_key else str(ext_id)
                 raw_uploader.add_to_upload_queue(

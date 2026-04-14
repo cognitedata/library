@@ -5,9 +5,11 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     build_field_map_for_hash,
     extraction_inputs_hash,
     iter_wanted_fields,
+    resolve_key_discovery_hash_field_paths,
     rules_fingerprint,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.config import (
+    EntityType,
     ExtractionRuleConfig,
     SourceFieldParameter,
     SourceViewConfig,
@@ -81,6 +83,64 @@ def test_extraction_inputs_hash_differs_on_value():
     h1 = extraction_inputs_hash("scope_a", fp, {"x": "a"})
     h2 = extraction_inputs_hash("scope_a", fp, {"x": "b"})
     assert h1 != h2
+
+
+def test_extraction_inputs_hash_v2_with_workflow_scope():
+    fp = rules_fingerprint([])
+    h = extraction_inputs_hash(
+        "scope_a",
+        fp,
+        {"x": "a"},
+        workflow_scope="site__unit",
+        source_view_fingerprint="fp1",
+    )
+    assert len(h) == 64
+    h2 = extraction_inputs_hash(
+        "scope_a",
+        fp,
+        {"x": "a"},
+        workflow_scope="site__unit",
+        source_view_fingerprint="fp1",
+    )
+    assert h == h2
+    h3 = extraction_inputs_hash(
+        "scope_a",
+        fp,
+        {"x": "a"},
+        workflow_scope="other",
+        source_view_fingerprint="fp1",
+    )
+    assert h3 != h
+
+
+def test_resolve_key_discovery_hash_uses_explicit_paths():
+    v = SourceViewConfig(
+        view_external_id="v",
+        view_space="s",
+        view_version="1",
+        entity_type=EntityType.ASSET,
+        resource_property="externalId",
+        include_properties=["fallback"],
+        key_discovery_hash_property_paths=["title", "metadata.code"],
+    )
+    rules = [
+        ExtractionRuleConfig(
+            rule_id="r1",
+            parameters=PassthroughMethodParameter(),
+            source_fields=[
+                SourceFieldParameter(
+                    field_name="title",
+                    required=False,
+                    preprocessing=["trim"],
+                )
+            ],
+        )
+    ]
+    wanted = resolve_key_discovery_hash_field_paths(rules, v)
+    names = [w[0] for w in wanted]
+    assert "title" in names
+    assert "metadata.code" in names
+    assert "fallback" not in names
 
 
 def test_iter_wanted_fields_include_properties_fallback():
