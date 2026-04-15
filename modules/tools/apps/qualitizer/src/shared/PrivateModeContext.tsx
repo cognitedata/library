@@ -31,7 +31,7 @@ export function PrivateModeProvider({ children }: { children: React.ReactNode })
 
   // Expose console commands for quick toggling
   useEffect(() => {
-    const w = window as Record<string, unknown>;
+    const w = window as unknown as Record<string, unknown>;
     w.enablePrivateMode = () => {
       setPrivateMode(true);
       // eslint-disable-next-line no-console

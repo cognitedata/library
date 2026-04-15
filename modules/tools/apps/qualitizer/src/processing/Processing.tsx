@@ -998,7 +998,7 @@ export function Processing() {
                                   const isUnpinning =
                                     pinnedHeatmapCell?.hour === hour &&
                                     pinnedHeatmapCell?.minute === minute;
-                                  setPinnedHeatmapCell((prev) =>
+                                  setPinnedHeatmapCell(
                                     isUnpinning ? null : { hour, minute, count, names, items }
                                   );
                                   if (!isUnpinning) {

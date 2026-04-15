@@ -350,9 +350,6 @@ export function DataModelVersions() {
     space: string;
     externalId: string;
   } | null>(null);
-  const [modelVersionRefs, setModelVersionRefs] = useState<
-    Map<string, { versions: Set<string>; hasUnspecified: boolean }>
-  >(new Map());
   const [dmTxByCell, setDmTxByCell] = useState<Map<string, Array<{ id: string; name: string }>>>(
     new Map()
   );
@@ -452,7 +449,6 @@ export function DataModelVersions() {
         const detailById = await fetchTransformationsByIds(sdk, sdk.project, idsNeedingDetail);
 
         const modelRefs = new Set<string>();
-        const versionRefs = new Map<string, { versions: Set<string>; hasUnspecified: boolean }>();
         const txByModelVersion = new Map<string, Array<{ id: string; name: string }>>();
         const destinationDmBaseKeys = new Set<string>();
 
@@ -490,16 +486,6 @@ export function DataModelVersions() {
             if (!key || key === ":") continue;
             modelRefs.add(key);
             const ver = ref.version?.trim() ?? "";
-            let entry = versionRefs.get(key);
-            if (!entry) {
-              entry = { versions: new Set(), hasUnspecified: false };
-              versionRefs.set(key, entry);
-            }
-            if (ver) {
-              entry.versions.add(ver);
-            } else {
-              entry.hasUnspecified = true;
-            }
             const mvKey = `${key}:${ver}`;
             let arr = txByModelVersion.get(mvKey);
             if (!arr) {
@@ -510,7 +496,6 @@ export function DataModelVersions() {
           }
         }
         if (!cancelled) {
-          setModelVersionRefs(versionRefs);
           setTransformationRefsByModelVersion(txByModelVersion);
           setDmTxByCell(destinationDmTxByCell);
         }

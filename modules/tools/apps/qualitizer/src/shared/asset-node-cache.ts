@@ -1,19 +1,20 @@
 import { LRUCache } from "lru-cache";
 
 export type CachedNodeSummary = {
+  project: string;
   externalId: string;
   space: string;
   properties?: Record<string, Record<string, unknown>>;
 };
 
 const DEFAULT_MAX = 30_000;
-export const ASSET_NODE_CACHE_TTL_MS = 30 * 60 * 1000;
+export const ASSET_NODE_CACHE_TTL_MS = 60 * 60 * 1000;
 const TTL = ASSET_NODE_CACHE_TTL_MS;
 
 let cache = new LRUCache<string, CachedNodeSummary>({ max: DEFAULT_MAX, ttl: TTL });
 
-function nodeKey(space: string, externalId: string): string {
-  return `${space}:${externalId}`;
+function nodeKey(project: string, space: string, externalId: string): string {
+  return `${project}:${space}:${externalId}`;
 }
 
 export function resizeAssetNodeCache(assetLimit: number) {
@@ -26,28 +27,36 @@ export function resizeAssetNodeCache(assetLimit: number) {
   }
 }
 
-export function getAssetNode(space: string, externalId: string): CachedNodeSummary | undefined {
-  return cache.get(nodeKey(space, externalId));
+export function getAssetNode(
+  project: string,
+  space: string,
+  externalId: string
+): CachedNodeSummary | undefined {
+  return cache.get(nodeKey(project, space, externalId));
 }
 
 export function setAssetNode(node: CachedNodeSummary): void {
-  cache.set(nodeKey(node.space, node.externalId), node);
+  cache.set(nodeKey(node.project, node.space, node.externalId), node);
 }
 
-export function setAssetNodes(nodes: CachedNodeSummary[]): void {
+type AssetNodeWrite = Omit<CachedNodeSummary, "project">;
+
+export function setAssetNodes(project: string, nodes: AssetNodeWrite[]): void {
   for (const node of nodes) {
-    cache.set(nodeKey(node.space, node.externalId), node);
+    cache.set(nodeKey(project, node.space, node.externalId), { project, ...node });
   }
 }
 
-export function getAssetNodes(keys: Array<{ space: string; externalId: string }>): {
+export function getAssetNodes(
+  keys: Array<{ project: string; space: string; externalId: string }>
+): {
   hits: CachedNodeSummary[];
-  misses: Array<{ space: string; externalId: string }>;
+  misses: Array<{ project: string; space: string; externalId: string }>;
 } {
   const hits: CachedNodeSummary[] = [];
-  const misses: Array<{ space: string; externalId: string }> = [];
+  const misses: Array<{ project: string; space: string; externalId: string }> = [];
   for (const k of keys) {
-    const cached = cache.get(nodeKey(k.space, k.externalId));
+    const cached = cache.get(nodeKey(k.project, k.space, k.externalId));
     if (cached) {
       hits.push(cached);
     } else {
@@ -79,7 +88,7 @@ export type AssetNodeLruStatRow = {
 export function getAssetNodeCacheStats(): AssetNodeLruStatRow {
   return {
     id: "assetNodes",
-    label: "Asset node summaries (sunburst / samples)",
+    label: "Asset node summaries (per project / sunburst / samples)",
     size: cache.size,
     max: cache.max,
     fillRate: cache.max > 0 ? cache.size / cache.max : 0,

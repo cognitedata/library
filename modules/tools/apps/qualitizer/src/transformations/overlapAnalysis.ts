@@ -176,7 +176,7 @@ function growIdenticalFragments(
 
       const wordBefore = getWordBefore(allNorms[0], occurrences[0].index);
       if (!wordBefore) break;
-      const sameBefore = occurrences.every((o, i) => {
+      const sameBefore = occurrences.every((o) => {
         const norm = normById.get(o.id)!;
         return getWordBefore(norm, o.index) === wordBefore;
       });

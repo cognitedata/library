@@ -338,7 +338,7 @@ export function DataCatalogOverview() {
         });
 
         if (!cancelled) {
-          setSampleRows(response.items as Array<Record<string, unknown>>);
+          setSampleRows((response.items ?? []) as unknown as Array<Record<string, unknown>>);
           setSampleStatus("success");
         }
       } catch (error) {

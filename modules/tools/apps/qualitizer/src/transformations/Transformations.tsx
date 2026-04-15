@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
 import { useI18n } from "@/shared/i18n";
 import { usePrivateMode } from "@/shared/PrivateModeContext";
@@ -190,6 +190,12 @@ function aggregateJobMetrics(items: JobMetricItem[]): {
   return { reads, writes, noops, rateLimit429 };
 }
 
+/** Smaller API pages load faster; cursor fetches the rest without huge single responses. */
+const TRANSFORMATIONS_LIST_PAGE_LIMIT = 200;
+/** Enough recent jobs for 24h stats + latest job id; avoids multi‑MB payloads per transformation. */
+const TRANSFORMATIONS_JOBS_LIST_LIMIT = "100";
+const TRANSFORMATIONS_STATS_CONCURRENCY = 5;
+
 type TransformationsListProps = {
   transformationToSelect?: string | null;
   onTransformationSelected?: () => void;
@@ -251,11 +257,21 @@ export function TransformationsList({
       setStatus("loading");
       setErrorMessage(null);
       try {
-        const response = (await cachedTransformationsList(sdk, {
-          includePublic: "true",
-          limit: "1000",
-        })) as { data?: { items?: TransformationSummary[] } };
-        const items = response.data?.items ?? [];
+        const items: TransformationSummary[] = [];
+        let cursor: string | undefined;
+        do {
+          const response = (await cachedTransformationsList(sdk, {
+            includePublic: "true",
+            limit: String(TRANSFORMATIONS_LIST_PAGE_LIMIT),
+            ...(cursor ? { cursor } : {}),
+          })) as {
+            data?: { items?: TransformationSummary[]; nextCursor?: string | null };
+          };
+          items.push(...(response.data?.items ?? []));
+          const next = response.data?.nextCursor;
+          cursor = next && String(next).trim() !== "" ? String(next) : undefined;
+        } while (cursor && !cancelled);
+
         if (!cancelled) {
           setTransformations(items);
           const toSelect =
@@ -295,45 +311,79 @@ export function TransformationsList({
     const windowStart = windowEnd - 24 * 60 * 60 * 1000;
     let cancelled = false;
 
+    const computeJobStats = (
+      jobs: TransformationJobSummary[]
+    ): {
+      count: number;
+      lastRun?: number;
+      totalMs: number;
+      latestJobId: string | null;
+    } => {
+      const recent = jobs.filter((job) => {
+        const start = toTimestamp(job.startedTime);
+        if (!start) return false;
+        return start >= windowStart && start <= windowEnd;
+      });
+      const count = recent.length;
+      const lastRun = recent.reduce<number | undefined>((acc, job) => {
+        const start = toTimestamp(job.startedTime);
+        if (!start) return acc;
+        return acc == null || start > acc ? start : acc;
+      }, undefined);
+      const totalMs = recent.reduce((acc, job) => {
+        const start = toTimestamp(job.startedTime);
+        const end = toTimestamp(job.finishedTime);
+        if (!start || !end || end < start) return acc;
+        return acc + (end - start);
+      }, 0);
+      const sorted = [...jobs].sort(
+        (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
+      );
+      const latest = sorted[0];
+      const latestJobId = latest?.id != null ? String(latest.id) : null;
+      return { count, lastRun, totalMs, latestJobId };
+    };
+
     const run = async () => {
-      for (const transformation of transformations) {
+      const nextStats: Record<string, { count: number; lastRun?: number; totalMs: number }> = {};
+      const nextLatest: Record<string, string | null> = {};
+
+      for (let i = 0; i < transformations.length; i += TRANSFORMATIONS_STATS_CONCURRENCY) {
         if (cancelled) return;
-        const id = String(transformation.id);
-        try {
-          const jobResponse = await cachedTransformationJobs(sdk, id, "1000");
-          if (cancelled) return;
-          const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
-          const jobs = data?.items ?? [];
-          const recent = jobs.filter((job) => {
-            const start = toTimestamp(job.startedTime);
-            if (!start) return false;
-            return start >= windowStart && start <= windowEnd;
-          });
-          const count = recent.length;
-          const lastRun = recent.reduce<number | undefined>((acc, job) => {
-            const start = toTimestamp(job.startedTime);
-            if (!start) return acc;
-            return acc == null || start > acc ? start : acc;
-          }, undefined);
-          const totalMs = recent.reduce((acc, job) => {
-            const start = toTimestamp(job.startedTime);
-            const end = toTimestamp(job.finishedTime);
-            if (!start || !end || end < start) return acc;
-            return acc + (end - start);
-          }, 0);
-          const sorted = [...jobs].sort(
-            (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
-          );
-          const latest = sorted[0];
-          const latestJobId = latest?.id != null ? String(latest.id) : null;
-          setStatsById((prev) => ({ ...prev, [id]: { count, lastRun, totalMs } }));
-          setLatestJobById((prev) => ({ ...prev, [id]: latestJobId }));
-        } catch {
-          if (!cancelled) {
-            setStatsById((prev) => ({ ...prev, [id]: { count: 0, totalMs: 0 } }));
-            setLatestJobById((prev) => ({ ...prev, [id]: null }));
-          }
+        const chunk = transformations.slice(i, i + TRANSFORMATIONS_STATS_CONCURRENCY);
+        const chunkResults = await Promise.all(
+          chunk.map(async (transformation) => {
+            const id = String(transformation.id);
+            try {
+              const jobResponse = await cachedTransformationJobs(
+                sdk,
+                id,
+                TRANSFORMATIONS_JOBS_LIST_LIMIT
+              );
+              const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
+              const jobs = data?.items ?? [];
+              const { count, lastRun, totalMs, latestJobId } = computeJobStats(jobs);
+              return { id, stats: { count, lastRun, totalMs }, latestJobId };
+            } catch {
+              return {
+                id,
+                stats: { count: 0, totalMs: 0 } as { count: number; lastRun?: number; totalMs: number },
+                latestJobId: null,
+              };
+            }
+          })
+        );
+        for (const row of chunkResults) {
+          nextStats[row.id] = row.stats;
+          nextLatest[row.id] = row.latestJobId;
         }
+      }
+
+      if (!cancelled) {
+        startTransition(() => {
+          setStatsById(nextStats);
+          setLatestJobById(nextLatest);
+        });
       }
     };
 
@@ -413,22 +463,16 @@ export function TransformationsList({
     );
     if (items.length === 0) return;
     let cancelled = false;
-    setCountsById({});
-    const withQuery = items.filter((t) => t.query?.trim());
-    let index = 0;
-    const run = () => {
-      if (cancelled || index >= withQuery.length) return;
-      const t = withQuery[index];
+    const nextCounts: Record<string, ParsedInsightCounts> = {};
+    for (const t of items) {
+      const q = t.query?.trim();
+      if (!q) continue;
       const id = String(t.id);
-      const query = t.query!.trim();
-      const counts = getParsedInsightCounts(parseTransformationQuery(query), query);
-      setCountsById((prev) => ({ ...prev, [id]: counts }));
-      index += 1;
-      if (index < withQuery.length) {
-        setTimeout(run, 0);
-      }
-    };
-    setTimeout(run, 0);
+      nextCounts[id] = getParsedInsightCounts(parseTransformationQuery(q), q);
+    }
+    if (!cancelled) {
+      setCountsById(nextCounts);
+    }
     return () => {
       cancelled = true;
     };
@@ -444,47 +488,46 @@ export function TransformationsList({
     if (items.some((t) => !(String(t.id) in latestJobById))) return;
 
     let cancelled = false;
-    let index = 0;
 
     const run = async () => {
-      while (index < items.length && !cancelled) {
-        const t = items[index];
-        const id = String(t.id);
-        index += 1;
+      type MetricRow = { reads: number; writes: number; noops: number; rateLimit429: number };
+      const pageMetrics: Record<string, MetricRow> = {};
 
-        const jobId = latestJobById[id];
-        if (jobId == null) {
-          setMetricsById((prev) => ({
-            ...prev,
-            [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 },
-          }));
-          continue;
-        }
-
-        if (metricsJobFetchedRef.current[id] === jobId) {
-          continue;
-        }
-
-        try {
-          const metricsRes = (await cachedTransformationJobMetrics(
-            sdk,
-            jobId
-          )) as { data?: { items?: JobMetricItem[] } };
-          const metricItems = metricsRes.data?.items ?? [];
-          const agg = aggregateJobMetrics(metricItems);
-          if (!cancelled) {
-            metricsJobFetchedRef.current[id] = jobId;
-            setMetricsById((prev) => ({ ...prev, [id]: agg }));
+      await Promise.all(
+        items.map(async (t) => {
+          const id = String(t.id);
+          const jobId = latestJobById[id];
+          if (jobId == null) {
+            pageMetrics[id] = { reads: 0, writes: 0, noops: 0, rateLimit429: 0 };
+            return;
           }
-        } catch {
-          if (!cancelled) {
-            metricsJobFetchedRef.current[id] = jobId;
-            setMetricsById((prev) => ({
-              ...prev,
-              [id]: { reads: 0, writes: 0, noops: 0, rateLimit429: 0 },
-            }));
+          if (metricsJobFetchedRef.current[id] === jobId) {
+            return;
           }
-        }
+          try {
+            const metricsRes = (await cachedTransformationJobMetrics(
+              sdk,
+              jobId
+            )) as { data?: { items?: JobMetricItem[] } };
+            const metricItems = metricsRes.data?.items ?? [];
+            const agg = aggregateJobMetrics(metricItems);
+            if (!cancelled) {
+              metricsJobFetchedRef.current[id] = jobId;
+              pageMetrics[id] = agg;
+            }
+          } catch {
+            if (!cancelled) {
+              metricsJobFetchedRef.current[id] = jobId;
+              pageMetrics[id] = { reads: 0, writes: 0, noops: 0, rateLimit429: 0 };
+            }
+          }
+        })
+      );
+
+      if (!cancelled && Object.keys(pageMetrics).length > 0) {
+        startTransition(() => {
+          setMetricsById((prev) => ({ ...prev, ...pageMetrics }));
+        });
       }
     };
 
@@ -790,7 +833,7 @@ export function TransformationsList({
         </CardHeader>
         <CardContent>
           {status === "loading" ? (
-            <div className="text-sm text-slate-600">{t("transformations.list.loading")}</div>
+            <div className="min-h-[240px] text-sm text-slate-600">{t("transformations.list.loading")}</div>
           ) : null}
           {status === "error" ? (
             <ApiError message={errorMessage ?? t("transformations.list.error")} />
