@@ -12,6 +12,8 @@ import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
 import { extractDataModelRefs } from "@/transformations/transformationChecks";
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
+import { cachedTransformationsList } from "@/transformations/transformations-cache";
+import { cachedDataModelsList, cachedDataModelsRetrieve } from "@/shared/dms-catalog-cache";
 import { getDataModelUrl, getTransformationPreviewUrl } from "@/shared/cdf-browser-url";
 import { useI18n } from "@/shared/i18n";
 import { compareVersionStrings, isChecksumLikeVersion } from "./versioning-utils";
@@ -432,10 +434,10 @@ export function DataModelVersions() {
       };
 
       try {
-        const response = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations`,
-          { params: { includePublic: "true", limit: "1000" } }
-        )) as { data?: { items?: TransformationApiItem[] } };
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
+        })) as { data?: { items?: TransformationApiItem[] } };
         const items = response.data?.items ?? [];
         const idsNeedingDetail: string[] = [];
         for (const t of items) {
@@ -638,12 +640,24 @@ export function DataModelVersions() {
       const listItems: DataModelVersionItem[] = [];
       let cursor: string | undefined;
       do {
-        const response = await sdk.dataModels.list({
+        const response = (await cachedDataModelsList(sdk, {
           includeGlobal: true,
           allVersions: true,
           limit: DM_LIST_PAGE_LIMIT,
           cursor,
-        });
+        })) as {
+          items?: Array<{
+            space: string;
+            externalId: string;
+            version?: string;
+            name?: string;
+            createdTime?: number;
+            lastUpdatedTime?: number;
+            description?: string;
+            views?: unknown;
+          }>;
+          nextCursor?: string;
+        };
         const items = (response.items ?? []) as Array<{
           space: string;
           externalId: string;
@@ -719,7 +733,7 @@ export function DataModelVersions() {
           externalId,
           version,
         }));
-        const response = (await sdk.dataModels.retrieve(batch as never, {
+        const response = (await cachedDataModelsRetrieve(sdk, batch as Array<Record<string, unknown>>, {
           inlineViews: true,
         })) as { items?: DataModelVersionItem[] };
         for (let j = 0; j < batch.length; j++) {

@@ -13,6 +13,7 @@ import {
   type NearDuplicateGroup,
 } from "./overlapAnalysis";
 import { fetchTransformationsByIds } from "./fetchTransformationsByIds";
+import { cachedTransformationJobs, cachedTransformationsList } from "./transformations-cache";
 import { TransformationsHelpModal } from "./TransformationsHelpModal";
 
 type TransformationSummary = {
@@ -53,10 +54,10 @@ export function TransformationOverlap() {
       setErrorMessage(null);
       setProgress({ phase: "Loading transformations…", current: 0, total: 0 });
       try {
-        const response = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations`,
-          { params: { includePublic: "true", limit: "1000" } }
-        )) as { data?: { items?: TransformationSummary[] } };
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
+        })) as { data?: { items?: TransformationSummary[] } };
         const items = response.data?.items ?? [];
         if (!cancelled) setTotalCount(items.length);
         if (items.length === 0) {
@@ -74,10 +75,7 @@ export function TransformationOverlap() {
         const jobPromises = items.map(async (t) => {
           const id = String(t.id);
           try {
-            const jobResponse = await sdk.get(
-              `/api/v1/projects/${sdk.project}/transformations/jobs`,
-              { params: { limit: "1000", transformationId: id } }
-            );
+            const jobResponse = await cachedTransformationJobs(sdk, id, "1000");
             const data = (jobResponse as { data?: { items?: JobSummary[] } }).data;
             const jobs = data?.items ?? [];
             const recent = jobs.filter((job) => {

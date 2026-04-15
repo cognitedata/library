@@ -7,7 +7,8 @@ export type CachedNodeSummary = {
 };
 
 const DEFAULT_MAX = 30_000;
-const TTL = 30 * 60 * 1000;
+export const ASSET_NODE_CACHE_TTL_MS = 30 * 60 * 1000;
+const TTL = ASSET_NODE_CACHE_TTL_MS;
 
 let cache = new LRUCache<string, CachedNodeSummary>({ max: DEFAULT_MAX, ttl: TTL });
 
@@ -62,4 +63,28 @@ export function clearAssetNodeCache(): void {
 
 export function assetNodeCacheSize(): number {
   return cache.size;
+}
+
+export type AssetNodeLruStatRow = {
+  id: string;
+  label: string;
+  size: number;
+  max: number;
+  fillRate: number;
+  ttlMs: number;
+  calculatedSize: number;
+  maxSize: number;
+};
+
+export function getAssetNodeCacheStats(): AssetNodeLruStatRow {
+  return {
+    id: "assetNodes",
+    label: "Asset node summaries (sunburst / samples)",
+    size: cache.size,
+    max: cache.max,
+    fillRate: cache.max > 0 ? cache.size / cache.max : 0,
+    ttlMs: TTL,
+    calculatedSize: cache.calculatedSize ?? 0,
+    maxSize: cache.maxSize ?? cache.max,
+  };
 }

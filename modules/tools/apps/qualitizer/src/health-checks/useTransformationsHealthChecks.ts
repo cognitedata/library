@@ -2,6 +2,11 @@ import type { CogniteClient } from "@cognite/sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extractDataModelRefs } from "@/transformations/transformationChecks";
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
+import {
+  cachedTransformationJobMetrics,
+  cachedTransformationJobs,
+  cachedTransformationsList,
+} from "@/transformations/transformations-cache";
 import type { NoopTransformation, DmvInconsistency } from "./transformations-health-types";
 import { TRANSFORMATIONS_HEALTH_TX_PAGE_SIZE } from "./transformations-health-types";
 import type { LoadState } from "./types";
@@ -50,9 +55,7 @@ export function useTransformationsHealthChecks({
         limit: String(TX_LIST_PAGE_SIZE),
       };
       if (cursor) params.cursor = cursor;
-      const response = (await sdk.get(`/api/v1/projects/${sdk.project}/transformations`, {
-        params,
-      })) as {
+      const response = (await cachedTransformationsList(sdk, params)) as {
         data?: { items?: TxListItem[]; nextCursor?: string };
       };
       return {
@@ -209,15 +212,15 @@ export function useTransformationsHealthChecks({
           }
           const id = String(tr.id);
           try {
-            const jobRes = (await sdk.get(
-              `/api/v1/projects/${sdk.project}/transformations/jobs`,
-              { params: { limit: "1", transformationId: id } }
-            )) as { data?: { items?: JobSummary[] } };
+            const jobRes = (await cachedTransformationJobs(sdk, id, "1")) as {
+              data?: { items?: JobSummary[] };
+            };
             const latestJob = jobRes.data?.items?.[0];
             if (!latestJob?.id) continue;
 
-            const metricsRes = (await sdk.get(
-              `/api/v1/projects/${sdk.project}/transformations/jobs/${latestJob.id}/metrics`
+            const metricsRes = (await cachedTransformationJobMetrics(
+              sdk,
+              String(latestJob.id)
             )) as { data?: { items?: JobMetricItem[] } };
             const { writes, noops } = aggregateJobMetrics(metricsRes.data?.items ?? []);
             if (writes > 0 && noops === writes) {
