@@ -1,48 +1,57 @@
 SELECT
   cast(woo.externalId as string) as externalId,
   CASE
-    WHEN woo.mainAsset IS NOT NULL THEN woo.mainAsset
-    WHEN max(CASE WHEN wo.mainAsset IS NOT NULL THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE node_reference('{{ instance_space }}', cast(min(wo.mainAsset.externalId) as string))
+    WHEN max(trim(cast(raw_woo.`mainAsset_externalId` as string))) IS NULL
+      OR max(trim(cast(raw_woo.`mainAsset_externalId` as string))) = '' THEN NULL
+    ELSE node_reference('{{ instance_space }}', max(trim(cast(raw_woo.`mainAsset_externalId` as string))))
   END as mainAsset,
   CASE
-    WHEN woo.assets IS NOT NULL AND size(woo.assets) > 0 THEN woo.assets
-    WHEN woo.mainAsset IS NOT NULL THEN array(woo.mainAsset)
-    WHEN max(CASE WHEN wo.mainAsset IS NOT NULL THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE array(node_reference('{{ instance_space }}', cast(min(wo.mainAsset.externalId) as string)))
+    WHEN max(trim(cast(raw_woo.`mainAsset_externalId` as string))) IS NULL
+      OR max(trim(cast(raw_woo.`mainAsset_externalId` as string))) = '' THEN NULL
+    ELSE array(node_reference('{{ instance_space }}', max(trim(cast(raw_woo.`mainAsset_externalId` as string)))))
   END as assets,
   CASE
-    WHEN max(CASE WHEN eq.externalId IS NOT NULL AND eq.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instance_space }}', cast(eq.externalId as string)))
-  END as equipment,
-  CASE
-    WHEN max(CASE WHEN ts.externalId IS NOT NULL AND ts.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE collect_set(node_reference('{{ instance_space }}', cast(ts.externalId as string)))
-  END as timeSeries,
-  CASE
-    WHEN woo.maintenanceOrder IS NOT NULL THEN woo.maintenanceOrder
-    WHEN max(CASE WHEN wo.externalId IS NOT NULL AND wo.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE node_reference('{{ instance_space }}', cast(min(wo.externalId) as string))
+    WHEN max(trim(cast(raw_woo.`maintenanceOrder_externalId` as string))) IS NOT NULL
+      AND max(trim(cast(raw_woo.`maintenanceOrder_externalId` as string))) != '' THEN
+      node_reference('{{ instance_space }}', max(trim(cast(raw_woo.`maintenanceOrder_externalId` as string))))
+    WHEN max(trim(cast(raw_wo.`key` as string))) IS NOT NULL
+      AND max(trim(cast(raw_wo.`key` as string))) != '' THEN
+      node_reference('{{ instance_space }}', max(trim(cast(raw_wo.`key` as string))))
+    ELSE NULL
   END as maintenanceOrder,
   CASE
-    WHEN max(CASE WHEN fl.externalId IS NOT NULL AND fl.externalId != '' THEN 1 ELSE 0 END) = 0 THEN NULL
-    ELSE node_reference('{{ instance_space }}', cast(min(fl.externalId) as string))
+    WHEN max(CASE WHEN raw_eq.`key` IS NOT NULL AND trim(cast(raw_eq.`key` as string)) != '' THEN 1 ELSE 0 END) = 0 THEN NULL
+    ELSE collect_set(node_reference('{{ instance_space }}', trim(cast(raw_eq.`key` as string))))
+  END as equipment,
+  CASE
+    WHEN max(CASE WHEN raw_ts.`key` IS NOT NULL AND trim(cast(raw_ts.`key` as string)) != '' THEN 1 ELSE 0 END) = 0 THEN NULL
+    ELSE collect_set(node_reference('{{ instance_space }}', trim(cast(raw_ts.`key` as string))))
+  END as timeSeries,
+  CASE
+    WHEN max(flm.fl_external_id) IS NULL OR trim(cast(max(flm.fl_external_id) as string)) = '' THEN NULL
+    ELSE node_reference('{{ instance_space }}', trim(cast(max(flm.fl_external_id) as string)))
   END as functionalLocation
 FROM cdf_nodes('{{ space }}', 'WorkOrderOperation', '{{ dm_version }}') woo
-LEFT JOIN cdf_nodes('{{ space }}', 'Equipment', '{{ dm_version }}') eq
-  ON eq.space = '{{ instance_space }}'
-  AND woo.mainAsset = eq.asset
-LEFT JOIN cdf_nodes('{{ space }}', 'TimeSeriesData', '{{ dm_version }}') ts
-  ON ts.space = '{{ instance_space }}'
-  AND array_contains(ts.assets, woo.mainAsset)
-LEFT JOIN cdf_nodes('{{ space }}', 'WorkOrder', '{{ dm_version }}') wo
-  ON wo.space = '{{ instance_space }}'
-  AND (
-    (woo.maintenanceOrder IS NOT NULL AND wo.externalId = woo.maintenanceOrder.externalId)
-    OR (woo.mainAsset IS NOT NULL AND woo.mainAsset = wo.mainAsset)
-  )
-LEFT JOIN cdf_nodes('{{ space }}', 'FunctionalLocation', '{{ dm_version }}') fl
-  ON fl.space = '{{ instance_space }}'
-  AND woo.mainAsset.externalId = fl.flocMainAsset
+INNER JOIN `cfihos_oil_and_gas`.`work_order_operation` raw_woo
+  ON woo.space = '{{ instance_space }}'
+  AND trim(cast(woo.externalId as string)) = trim(cast(raw_woo.`key` as string))
+LEFT JOIN `cfihos_oil_and_gas`.`work_order` raw_wo
+  ON trim(cast(raw_woo.`mainAsset_externalId` as string)) = trim(cast(raw_wo.`mainAsset_externalId` as string))
+LEFT JOIN `cfihos_oil_and_gas`.`equipment` raw_eq
+  ON trim(cast(raw_woo.`mainAsset_externalId` as string)) = trim(cast(raw_eq.`asset_externalId` as string))
+LEFT JOIN `cfihos_oil_and_gas`.`timeseries` raw_ts
+  ON trim(cast(raw_woo.`mainAsset_externalId` as string)) = trim(cast(raw_ts.`asset_externalId` as string))
+LEFT JOIN (
+  SELECT
+    trim(cast(flocMainAsset as string)) as floc_main_asset,
+    min(trim(cast(fl.`key` as string))) as fl_external_id
+  FROM `cfihos_oil_and_gas`.`functional_location` fl
+  INNER JOIN `cfihos_oil_and_gas`.`tag` tg
+    ON trim(cast(fl.`key` as string)) = trim(cast(tg.`key` as string))
+  WHERE fl.flocMainAsset IS NOT NULL
+    AND trim(cast(flocMainAsset as string)) != ''
+  GROUP BY trim(cast(flocMainAsset as string))
+) flm
+  ON trim(cast(raw_woo.`mainAsset_externalId` as string)) = flm.floc_main_asset
 WHERE woo.space = '{{ instance_space }}'
-GROUP BY woo.externalId, woo.mainAsset, woo.assets, woo.maintenanceOrder
+GROUP BY woo.externalId

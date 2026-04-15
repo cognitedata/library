@@ -27,4 +27,4 @@ SELECT
   cast(key as string) as sourceId,
   'cfihos_test' as sourceContext
 FROM `cfihos_oil_and_gas`.`tag`
-WHERE is_new('tag', lastUpdatedTime)
+WHERE 1=1 -- full reload: is_new('tag', lastUpdatedTime)

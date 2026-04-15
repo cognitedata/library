@@ -10,22 +10,6 @@ implements:
   type: view
 version: '{{dm_version}}'
 properties:
-  workOrderOperations:
-    source:
-      space: '{{space}}'
-      externalId: WorkOrderOperation
-      version: '{{dm_version}}'
-      type: view
-    through:
-      source:
-        space: '{{space}}'
-        externalId: WorkOrderOperation
-        version: '{{dm_version}}'
-        type: view
-      identifier: functionalLocation
-    name: WorkOrderOperations
-    description: Work order operations performed at this functional location
-    connectionType: multi_reverse_direct_relation
   tag:
     name: Tag
     description: The tag that is related to the functional location

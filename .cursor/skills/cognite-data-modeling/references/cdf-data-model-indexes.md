@@ -1,13 +1,9 @@
----
-description: CDF data model indexing best practices for containers and views. Use when creating or modifying container YAML files, adding indexes, or designing filterable properties.
-globs: **/data_model*/**/*.yaml
-alwaysApply: false
----
-
 # CDF Data Model Indexing Best Practices
 
+These rules apply to **`usedFor: node`** containers only. **`usedFor: record`** containers must **not** define `indexes` (records are not tuned as graph nodes for reverse relations or btree-backed view queries).
+
 ## Index Limits
-- Max **20 indexes per container**. Use slots strategically — don't index everything.
+- Max **20 indexes per container** (`usedFor: node`). Use slots strategically — don't index everything.
 - Never modify indexes or constraints on CDM types (`cdf_cdm` space) — they are immutable.
 
 ## What to Index

@@ -31,6 +31,20 @@ workflowDefinition:
       dependsOn:
         - externalId: 'wf_cfihos_oil_and_gas_t_tag'
 
+    - externalId: 'wf_cfihos_oil_and_gas_t_functional_location_node'
+      type: 'transformation'
+      parameters:
+        transformation:
+          externalId: 'tr_functional_location_all_to_functional_location_node'
+          concurrencyPolicy: fail
+      name: 'Functional location node'
+      description: Upsert FunctionalLocation container nodes (flocMainAsset, etc.) for WorkOrderOperation.functionalLocation
+      retries: 3
+      timeout: 3600
+      onFailure: 'skipTask'
+      dependsOn:
+        - externalId: 'wf_cfihos_oil_and_gas_t_tag'
+
     - externalId: 'wf_cfihos_oil_and_gas_t_equipment'
       type: 'transformation'
       parameters:
@@ -564,6 +578,7 @@ workflowDefinition:
       onFailure: 'skipTask'
       dependsOn:
         - externalId: 'wf_cfihos_oil_and_gas_t_infrastructure'
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location_node'
 
     - externalId: 'wf_cfihos_oil_and_gas_t_work_order_operation_connection'
       type: 'transformation'
@@ -582,3 +597,4 @@ workflowDefinition:
         - externalId: 'wf_cfihos_oil_and_gas_t_timeseries'
         - externalId: 'wf_cfihos_oil_and_gas_t_work_order'
         - externalId: 'wf_cfihos_oil_and_gas_t_functional_location'
+        - externalId: 'wf_cfihos_oil_and_gas_t_functional_location_node'

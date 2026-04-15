@@ -26,4 +26,4 @@ SELECT
     x -> x IS NOT NULL
   ) as assets
 FROM `cfihos_oil_and_gas`.`failure_mode`
-WHERE is_new('failure_mode', lastUpdatedTime)
+WHERE 1=1 -- full reload: is_new('failure_mode', lastUpdatedTime)

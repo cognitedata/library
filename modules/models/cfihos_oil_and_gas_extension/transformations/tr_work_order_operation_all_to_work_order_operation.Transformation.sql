@@ -13,7 +13,10 @@ SELECT
   cast(woo.wctrDiscipline as string) as wctrDiscipline,
   array(cast(woo.systemStatusCode AS STRING)) AS systemStatusCode,
   array(cast(woo.systemStatusDesc AS STRING)) AS systemStatusCodeDesc,
-  array(cast(woo.userStatusCode AS STRING)) AS userStatusCode,
+  CASE
+    WHEN woo.userStatusCode IS NULL OR trim(cast(woo.userStatusCode as string)) = '' THEN NULL
+    ELSE array(cast(woo.userStatusCode AS STRING))
+  END AS userStatusCode,
   CASE
     WHEN woo.maintenanceOrder_externalId IS NOT NULL AND trim(woo.maintenanceOrder_externalId) != '' THEN
       node_reference('{{ instance_space }}', cast(trim(woo.maintenanceOrder_externalId) as string))
@@ -30,6 +33,10 @@ SELECT
     ELSE array(node_reference('{{ instance_space }}', cast(trim(woo.mainAsset_externalId) as string)))
   END as assets,
   CASE
+    WHEN flm.fl_external_id IS NULL OR trim(cast(flm.fl_external_id as string)) = '' THEN NULL
+    ELSE node_reference('{{ instance_space }}', trim(cast(flm.fl_external_id as string)))
+  END as functionalLocation,
+  CASE
     WHEN woo.startTime IS NULL OR woo.startTime = '' THEN NULL
     ELSE to_timestamp(woo.startTime)
   END as startTime,
@@ -42,4 +49,16 @@ SELECT
 FROM `cfihos_oil_and_gas`.`work_order_operation` woo
 LEFT JOIN `cfihos_oil_and_gas`.`work_order` wo
   ON trim(woo.mainAsset_externalId) = trim(wo.mainAsset_externalId)
-WHERE is_new('work_order_operation', woo.lastUpdatedTime)
+LEFT JOIN (
+  SELECT
+    trim(cast(flocMainAsset as string)) as floc_main_asset,
+    min(trim(cast(`key` as string))) as fl_external_id
+  FROM `cfihos_oil_and_gas`.`functional_location`
+  WHERE trim(cast(`key` as string)) IN (SELECT trim(cast(`key` as string)) FROM `cfihos_oil_and_gas`.`tag`)
+    AND flocMainAsset IS NOT NULL
+    AND trim(cast(flocMainAsset as string)) != ''
+  GROUP BY trim(cast(flocMainAsset as string))
+) flm
+  ON woo.mainAsset_externalId IS NOT NULL
+  AND trim(cast(woo.mainAsset_externalId as string)) = flm.floc_main_asset
+WHERE 1=1 -- full reload: is_new('work_order_operation', woo.lastUpdatedTime)

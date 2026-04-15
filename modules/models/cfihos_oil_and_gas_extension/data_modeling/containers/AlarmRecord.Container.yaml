@@ -351,5 +351,3 @@ properties:
     nullable: true
     autoIncrement: false
     name: tag
-constraints:
-indexes:

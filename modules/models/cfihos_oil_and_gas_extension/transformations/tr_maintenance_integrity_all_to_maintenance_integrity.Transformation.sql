@@ -14,5 +14,5 @@ SELECT
   cast(flocInspCritProbability as string) as flocInspCritProbability,
   CASE WHEN lower(isDeleted) = 'true' THEN true ELSE false END AS isDeleted
 FROM `cfihos_oil_and_gas`.`maintenance_integrity`
-WHERE is_new('maintenance_integrity', lastUpdatedTime)
-  AND `key` IN (SELECT `key` FROM `cfihos_oil_and_gas`.`tag`)
+WHERE -- full reload: is_new('maintenance_integrity', lastUpdatedTime)
+  `key` IN (SELECT `key` FROM `cfihos_oil_and_gas`.`tag`)
