@@ -44,7 +44,7 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 - **Deployed workflows** pass **`configuration`** on **`workflow.input`** (v4); functions derive `config` from it. Authoring source in-repo: **`workflow.local.config.yaml`** (local default), **`workflow_template/workflow.template.config.yaml`**, and **`config/examples/**`**. Validation: Pydantic in `functions/fn_dm_key_extraction/config.py`, `functions/fn_dm_aliasing/config.py`, and the `cdf_adapter` modules.
 - **`config/configuration_manager.py`:** dataclasses + JSON Schema for integration-style tests (`tests/integration/contextualization/`). **Not** used by `fn_dm_*` handlers at runtime.
 
-**Multi-site scopes:** edit **`scope_hierarchy`** in [default.config.yaml](default.config.yaml), then **`module.py build`** as in [Local runs (module.py)](#local-runs-modulepy). Deep dive: [config/README.md](config/README.md) (*Scope hierarchy builder*), [workflows/README.md](workflows/README.md) (generated manifests), [workflow_template/README.md](workflow_template/README.md) (templates), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
+**Multi-site scopes:** edit **`aliasing_scope_hierarchy`** in [default.config.yaml](default.config.yaml), then **`module.py build`** as in [Local runs (module.py)](#local-runs-modulepy). Deep dive: [config/README.md](config/README.md) (*Scope hierarchy builder*), [workflows/README.md](workflows/README.md) (generated manifests), [workflow_template/README.md](workflow_template/README.md) (templates), [scripts/scope_build/registry.py](scripts/scope_build/registry.py).
 
 ## Roadmap
 
@@ -57,16 +57,16 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 
 ## Local runs (module.py)
 
-Run **`module.py run`** from **repository root** with **`PYTHONPATH=.`** (see [Prerequisites](./README.md#prerequisites)). Invoking **`module.py`** with no subcommand prints help. For a focused first-run checklist (`.env`, sample commands, **`tests/results/`**), see [Quickstart — local `module.py run`](docs/guides/howto_quickstart.md). For **`scope_hierarchy`**, **`module.py build`** (legacy **`module.py --build`**), editing triggers, and Toolkit **`cdf deploy`**, see [Scoped deployment](docs/guides/howto_scoped_deployment.md).
+Run **`module.py run`** from **repository root** with **`PYTHONPATH=.`** (see [Prerequisites](./README.md#prerequisites)). Invoking **`module.py`** with no subcommand prints help. For a focused first-run checklist (`.env`, sample commands, **`tests/results/`**), see [Quickstart — local `module.py run`](docs/guides/howto_quickstart.md). For **`aliasing_scope_hierarchy`**, **`module.py build`** (legacy **`module.py --build`**), editing triggers, and Toolkit **`cdf deploy`**, see [Scoped deployment](docs/guides/howto_scoped_deployment.md).
 
 ### Edit multi-site scope layout (`default.config.yaml`)
 
-Before **`module.py build`**, configure **`scope_hierarchy`** in [default.config.yaml](default.config.yaml) at the module root (or pass another file via **`--hierarchy`** to `scripts/build_scopes.py`):
+Before **`module.py build`**, configure **`aliasing_scope_hierarchy`** in [default.config.yaml](default.config.yaml) at the module root (or pass another file via **`--hierarchy`** to `scripts/build_scopes.py`):
 
-- **`scope_hierarchy.levels`** — Ordered labels for path tiers (for example site → plant → area → system). You do not have to reach every tier; shallow trees are valid, and deeper paths use synthetic names such as `level_3` when you run past the end of `levels`.
-- **`scope_hierarchy.locations`** — Root list of scope nodes. Each node should have a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`) and optional **`name`** / **`description`**. **Children** of a node are listed under another **`locations`** key on that node (same key name as the root list). A **leaf** is a node with no child list or an empty **`locations: []`**; leaves get one **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** each (or under **`workflows/<suffix>/`** when **`scope_build_mode: full`**).
+- **`aliasing_scope_hierarchy.levels`** — Ordered labels for path tiers (same naming style as **`cdf_access_control`** `dimensions.*.levels` under **`type: hierarchy`**, e.g. `site` → `unit` → `area` → `system`). You do not have to reach every tier; shallow trees are valid, and deeper paths use synthetic names such as `level_5` when you run past the end of `levels`.
+- **`aliasing_scope_hierarchy.locations`** — Root list of scope nodes. Each node should have a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`) and optional **`name`** / **`description`**. **Children** of a node are listed under another **`locations`** key on that node (same key name as the root list). A **leaf** is a node with no child list or an empty **`locations: []`**; leaves get one **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** each (or under **`workflows/<suffix>/`** when **`scope_build_mode: full`**).
 
-See the commented example under **`scope_hierarchy.locations`** in `default.config.yaml` for a deeper tree.
+See the commented example under **`aliasing_scope_hierarchy.locations`** in `default.config.yaml` for a deeper tree.
 
 ### Create missing workflow triggers (`build`)
 

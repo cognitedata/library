@@ -35,19 +35,23 @@ key_extraction_aliasing_schedule: "0 2 * * *"
 files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
 
 # --- Multi-site scope tree (scripts/build_scopes.py) ---
-# `scope_hierarchy.levels` names path tiers; `scope_hierarchy.locations` is the root list of nodes.
-# Each node uses `id` (or `name` slug) for scope_id segments; nest children under `locations`.
+# Same structural pattern as cdf_access_control ``dimensions.<dimension_id>`` with ``type: hierarchy``:
+# optional ``order`` + ``type: hierarchy``, ``levels`` (tier labels), and nested ``locations`` on each node.
+# Tier labels follow the access-control scope tree style (``site``, ``unit``, …) — not generic ``level_1`` names.
+# Each node uses ``id`` (or ``name`` slug) for scope_id segments; nest children under ``locations``.
 # Regenerates workflows/.../key_extraction_aliasing.<scope>.WorkflowTrigger.yaml per leaf with
 # input.configuration patched from workflow_template/workflow.template.config.yaml.
 # Override scope body: --scope-document <path> (default workflow_template/workflow.template.config.yaml).
 # Override trigger shell: --workflow-trigger-template <path>.
 # See config/README.md. Override hierarchy file: scripts/build_scopes.py --hierarchy <file>
-scope_hierarchy:
+aliasing_scope_hierarchy:
+  order: 0
+  type: hierarchy
   levels:
-    - level_1 #site
-    - level_2 #plant
-    - level_3 #area
-    - level_4 #system
+    - site
+    - unit
+    - area
+    - system
   locations:
     # - id: global
     #   name: Global Configuration
@@ -66,6 +70,9 @@ scope_hierarchy:
                 - id: COOLING_SYS
                   name: Cooling System
                   description: Cooling system scope leaf
+    - id: SITE_04
+      name: Fourth Manufacturing Site
+      description: Second site (display name may contain spaces; id is the stable segment)
     - id: SITE_02
       name: Second Manufacturing Site
       description: Second site (display name may contain spaces; id is the stable segment)

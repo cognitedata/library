@@ -46,7 +46,7 @@ def test_slugify_display_name_spaces() -> None:
 def test_collect_leaves_name_only_one_level() -> None:
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -61,7 +61,7 @@ def test_collect_leaves_name_only_one_level() -> None:
 def test_collect_leaves_ids_four_levels() -> None:
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           - plant
@@ -92,7 +92,7 @@ def test_collect_leaves_ids_four_levels() -> None:
 def test_duplicate_scope_id_errors() -> None:
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           - leaf
@@ -113,7 +113,7 @@ def test_collect_leaves_allows_shallow_leaf_when_more_levels_declared() -> None:
     """A leaf under the root is valid even when ``levels`` lists more tier names (optional depth)."""
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           - plant
@@ -133,7 +133,7 @@ def test_collect_leaves_allows_shallow_leaf_when_more_levels_declared() -> None:
 def test_collect_leaves_deeper_tree_uses_synthetic_level_labels(tmp_path: Path) -> None:
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           - plant
@@ -294,7 +294,7 @@ def test_prepare_scope_document_injects_node_space_all_views_prepends(tmp_path: 
     doc = yaml.safe_load(MULTIVIEW_TEMPLATE)
     hdoc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -318,7 +318,7 @@ def test_prepare_scope_document_uses_leaf_instance_space_when_set(tmp_path: Path
     doc = yaml.safe_load(MINIMAL_TEMPLATE)
     hdoc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           - plant
@@ -369,7 +369,7 @@ aliasing:
     )
     hdoc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels: [site]
           locations:
             - id: Z1
@@ -388,7 +388,7 @@ def test_prepare_scope_document_external_ids_and_scope_block(tmp_path: Path) -> 
     doc = yaml.safe_load(MINIMAL_TEMPLATE)
     hdoc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -467,7 +467,7 @@ def test_workflow_triggers_builder_two_leaves(tmp_path: Path) -> None:
     _install_minimal_scope_document(mod)
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           - plant
@@ -508,7 +508,7 @@ def test_workflow_triggers_skips_existing_files(tmp_path: Path) -> None:
     _install_minimal_scope_document(mod)
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -534,7 +534,7 @@ def test_workflow_triggers_force_overwrites_existing(tmp_path: Path) -> None:
     sd = _install_minimal_scope_document(mod)
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -567,7 +567,7 @@ def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Pat
     _install_minimal_scope_document(mod)
     doc_two = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels: [site, plant]
           locations:
             - id: S1
@@ -589,7 +589,7 @@ def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Pat
 
     doc_one = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels: [site, plant]
           locations:
             - id: S1
@@ -612,7 +612,7 @@ def test_verify_triggers_file_ignores_extra_dot_form_triggers(tmp_path: Path) ->
     sd = _install_minimal_scope_document(mod)
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -640,7 +640,7 @@ def test_verify_triggers_file_fails_when_required_file_missing(tmp_path: Path) -
     sd = _install_minimal_scope_document(mod)
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           - plant
@@ -669,7 +669,7 @@ def test_verify_triggers_file_fails_when_content_out_of_date(tmp_path: Path) -> 
     sd = _install_minimal_scope_document(mod)
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -695,7 +695,7 @@ def test_workflow_trigger_template_without_placeholder_raises(tmp_path: Path) ->
     sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels:
           - site
           locations:
@@ -720,7 +720,7 @@ def test_run_build_invokes_recording_and_triggers(tmp_path: Path) -> None:
     hier = tmp_path / "h.yaml"
     hier.write_text(
         """
-scope_hierarchy:
+aliasing_scope_hierarchy:
   levels: [a, b]
   locations:
     - id: X
@@ -781,7 +781,7 @@ def test_trigger_only_run_build_force_overwrites_root_workflow(tmp_path: Path) -
         """
 workflow: key_extraction_aliasing
 scope_build_mode: trigger_only
-scope_hierarchy:
+aliasing_scope_hierarchy:
   levels: [site]
   locations:
     - id: B
@@ -823,7 +823,7 @@ def test_trigger_only_run_build_writes_root_and_flat_triggers(tmp_path: Path) ->
         """
 workflow: key_extraction_aliasing
 scope_build_mode: trigger_only
-scope_hierarchy:
+aliasing_scope_hierarchy:
   levels: [site]
   locations:
     - id: B
@@ -859,7 +859,7 @@ def test_full_mode_run_build_writes_scoped_trio(tmp_path: Path) -> None:
         """
 workflow: key_extraction_aliasing
 scope_build_mode: full
-scope_hierarchy:
+aliasing_scope_hierarchy:
   levels: [site]
   locations:
     - id: B
@@ -897,7 +897,7 @@ def test_workflow_triggers_builder_full_mode_paths(tmp_path: Path) -> None:
     sd = _install_minimal_scope_document(mod)
     doc = yaml.safe_load(
         """
-        scope_hierarchy:
+        aliasing_scope_hierarchy:
           levels: [site]
           locations:
           - id: A

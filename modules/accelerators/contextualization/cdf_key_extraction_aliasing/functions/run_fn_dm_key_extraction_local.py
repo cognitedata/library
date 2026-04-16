@@ -106,6 +106,8 @@ def _build_view_filter(view_cfg: Dict[str, Any], view_id: ViewId) -> Any:
                 filter_exprs.append(dm.filters.Equals(property=prop_ref, value=values))
         elif op == "CONTAINSALL" and isinstance(values, list):
             filter_exprs.append(dm.filters.ContainsAll(property=prop_ref, values=values))
+        elif op == "CONTAINSANY" and isinstance(values, list):
+            filter_exprs.append(dm.filters.ContainsAny(property=prop_ref, values=values))
         elif op == "SEARCH":
             if isinstance(values, list) and values:
                 filter_exprs.append(dm.filters.Search(property=prop_ref, value=values[0]))

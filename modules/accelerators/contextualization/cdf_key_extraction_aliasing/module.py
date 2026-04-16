@@ -11,10 +11,13 @@ workflows: optional ``key_discovery_instance_space`` / ``workflow_scope`` for Ke
 CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each task (built by
 ``scripts/build_scopes.py`` into ``workflows/`` from templates in ``workflow_template/``). Create **missing** workflow artifacts with
 ``python module.py build`` (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
+Use ``python module.py copy-workflow-config`` to copy ``input.configuration`` between leaf WorkflowTrigger YAML files.
 Respects ``scope_build_mode``; does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc. Remove generated
 workflow YAML with ``python module.py build --clean`` (confirmation or ``--yes``; no rebuild after delete—run
 ``build`` again to recreate). This is unrelated to ``run --clean-state``, which drops RAW tables. See
 ``config/README.md`` and ``default.config.yaml``.
+
+  python module.py ui [--api-host HOST] [--api-port PORT] [--vite-port PORT] [--no-browser]
 
 Reads CDF credentials from environment (.env supported) for ``run``, queries instances from configured views,
 runs the key extraction engine followed by the aliasing engine, and writes JSON results under
@@ -23,8 +26,15 @@ incremental RAW state tables from the scope YAML (not data-model alias/FK proper
 """
 
 import argparse
+import atexit
 import logging
+import os
+import shutil
+import signal
+import subprocess
 import sys
+import time
+import webbrowser
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -101,6 +111,135 @@ def _run_scope_build(build_argv: List[str]) -> int:
     from scope_build.orchestrate import main as scope_build_main
 
     return int(scope_build_main(build_argv))
+
+
+def _run_copy_workflow_config(copy_argv: List[str]) -> int:
+    """Copy ``input.configuration`` between leaf WorkflowTrigger.yaml files (see ``copy_workflow_config``)."""
+    scripts_dir = _PACKAGE_ROOT / "scripts"
+    sd = str(scripts_dir)
+    if sd not in sys.path:
+        sys.path.insert(0, sd)
+    from scope_build.copy_workflow_config import main as copy_workflow_config_main
+
+    return int(copy_workflow_config_main(copy_argv))
+
+
+_UI_DIR = _PACKAGE_ROOT / "ui"
+
+
+def _run_ui(argv: List[str]) -> int:
+    """Start FastAPI (operator API) and Vite dev server; open browser unless --no-browser."""
+    p = argparse.ArgumentParser(
+        prog="module.py ui",
+        description="Host key discovery & aliasing operator UI.",
+    )
+    p.add_argument(
+        "--api-host", default="127.0.0.1", help="Bind address for FastAPI (default 127.0.0.1)"
+    )
+    p.add_argument("--api-port", type=int, default=8765, help="Port for FastAPI (default 8765)")
+    p.add_argument("--vite-port", type=int, default=5173, help="Port for Vite dev server (default 5173)")
+    p.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Do not open a browser tab",
+    )
+    p.add_argument(
+        "--no-reload",
+        action="store_true",
+        help="Disable uvicorn --reload (API only)",
+    )
+    args = p.parse_args(argv)
+
+    if not shutil.which("npm"):
+        print(
+            "npm not found on PATH; install Node.js or use manual API + Vite steps.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not (_UI_DIR / "package.json").is_file():
+        print(f"Missing {_UI_DIR / 'package.json'}", file=sys.stderr)
+        return 1
+
+    node_modules = _UI_DIR / "node_modules"
+    if not node_modules.is_dir():
+        print("Installing UI dependencies (npm install)…")
+        r = subprocess.run(
+            ["npm", "install"],
+            cwd=str(_UI_DIR),
+            check=False,
+        )
+        if r.returncode != 0:
+            return r.returncode
+
+    env = {**os.environ, "PYTHONPATH": str(_PACKAGE_ROOT)}
+    api_cmd = [
+        sys.executable,
+        "-m",
+        "uvicorn",
+        "ui.server.main:app",
+        "--host",
+        args.api_host,
+        "--port",
+        str(args.api_port),
+    ]
+    if not args.no_reload:
+        api_cmd.append("--reload")
+
+    procs: List[subprocess.Popen] = []
+
+    def _terminate_all() -> None:
+        for pr in reversed(procs):
+            if pr.poll() is None:
+                pr.terminate()
+        for pr in reversed(procs):
+            try:
+                pr.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pr.kill()
+
+    atexit.register(_terminate_all)
+
+    def _handle_sigint(_signum: int, _frame: object) -> None:
+        _terminate_all()
+        sys.exit(130)
+
+    signal.signal(signal.SIGINT, _handle_sigint)
+
+    print(f"Starting API on http://{args.api_host}:{args.api_port} …")
+    procs.append(
+        subprocess.Popen(
+            api_cmd,
+            cwd=str(_PACKAGE_ROOT),
+            env=env,
+        )
+    )
+    time.sleep(0.8)
+
+    vite_url = f"http://{args.api_host}:{args.vite_port}/"
+    print(f"Starting Vite on {vite_url} …")
+    vite_env = {
+        **os.environ,
+        "VITE_API_PROXY": f"http://{args.api_host}:{args.api_port}",
+    }
+    procs.append(
+        subprocess.Popen(
+            ["npm", "run", "dev", "--", "--port", str(args.vite_port), "--host", args.api_host],
+            cwd=str(_UI_DIR),
+            env=vite_env,
+        )
+    )
+
+    if not args.no_browser:
+        time.sleep(1.2)
+        webbrowser.open(vite_url)
+
+    print("Operator UI running — Ctrl+C to stop both servers.\n")
+    try:
+        code = procs[-1].wait()
+    finally:
+        _terminate_all()
+    return code if code is not None else 1
 
 
 def _add_run_arguments(p: argparse.ArgumentParser) -> None:
@@ -217,6 +356,7 @@ def _print_root_cli_help() -> None:
             "  python module.py run --scope default --limit 50\n"
             "  python module.py build\n"
             "  python module.py build --check-workflow-triggers\n"
+            "  python module.py copy-workflow-config --from SITE_A --to SITE_B\n"
             "Legacy: ``python module.py --build`` is equivalent to ``python module.py build``."
         ),
     )
@@ -228,6 +368,17 @@ def _print_root_cli_help() -> None:
     sub.add_parser(
         "build",
         help="Generate workflow YAML from default.config.yaml (same as scripts/build_scopes.py)",
+    )
+    sub.add_parser(
+        "copy-workflow-config",
+        help=(
+            "Copy workflow input.configuration from one leaf WorkflowTrigger.yaml to another "
+            "(reconciles destination scope ids, filters, scope block)"
+        ),
+    )
+    sub.add_parser(
+        "ui",
+        help="Local operator UI (FastAPI + Vite) for default.config.yaml, scope YAML, and workflows/",
     )
     parser.print_help()
 
@@ -327,6 +478,12 @@ def main() -> None:
 
     if argv[0] == "build":
         raise SystemExit(_run_scope_build(argv[1:]))
+
+    if argv[0] == "copy-workflow-config":
+        raise SystemExit(_run_copy_workflow_config(argv[1:]))
+
+    if argv[0] == "ui":
+        raise SystemExit(_run_ui(argv[1:]))
 
     if argv[0] != "run":
         print(f"module.py: error: unknown command {argv[0]!r}", file=sys.stderr)

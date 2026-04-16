@@ -30,7 +30,7 @@ def _module_root() -> Path:
             "howto_scoped_deployment.md",
             [
                 "# Scoped deployment",
-                "scope_hierarchy",
+                "aliasing_scope_hierarchy",
                 "## 3. Build commands",
                 "WorkflowTrigger",
                 "input.configuration",

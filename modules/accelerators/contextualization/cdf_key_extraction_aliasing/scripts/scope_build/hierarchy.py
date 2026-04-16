@@ -1,7 +1,7 @@
-"""Load and validate hierarchy YAML under top-level ``scope_hierarchy`` (``levels`` + ``locations``).
+"""Load and validate hierarchy YAML under top-level ``aliasing_scope_hierarchy`` (``levels`` + ``locations``).
 
-``scope_hierarchy.levels`` names the first path segments (site, plant, …).
-``scope_hierarchy.locations`` is the root list of scope nodes. Each node may nest child nodes
+``aliasing_scope_hierarchy.levels`` names the first path segments (site, plant, …).
+``aliasing_scope_hierarchy.locations`` is the root list of scope nodes. Each node may nest child nodes
 under ``locations``. Leaves may appear at any depth; a shorter tree does not need to use every
 declared level name, and a deeper tree uses synthetic labels ``level_{n}`` past the end of
 ``levels``.
@@ -20,7 +20,7 @@ from scope_build.context import PathStep, ScopeBuildContext
 _SEGMENT_INVALID = re.compile(r"[/\\\0]")
 _WHITESPACE_RUN = re.compile(r"\s+")
 
-_SCOPE_HIERARCHY = "scope_hierarchy"
+_SCOPE_HIERARCHY = "aliasing_scope_hierarchy"
 _LEVELS = "levels"
 _LOCATIONS = "locations"
 
@@ -85,8 +85,8 @@ def _scope_hierarchy_section(doc: Dict[str, Any]) -> Dict[str, Any]:
     sh = doc.get(_SCOPE_HIERARCHY)
     if not isinstance(sh, dict):
         raise ValueError(
-            "Missing top-level 'scope_hierarchy' mapping (expected scope_hierarchy.levels and "
-            "scope_hierarchy.locations)"
+            "Missing top-level 'aliasing_scope_hierarchy' mapping (expected aliasing_scope_hierarchy.levels and "
+            "aliasing_scope_hierarchy.locations)"
         )
     return sh
 
@@ -95,11 +95,11 @@ def parse_levels(doc: Dict[str, Any]) -> List[str]:
     sh = _scope_hierarchy_section(doc)
     levels = sh.get(_LEVELS)
     if not isinstance(levels, list) or not levels:
-        raise ValueError("scope_hierarchy.levels must be a non-empty list")
+        raise ValueError("aliasing_scope_hierarchy.levels must be a non-empty list")
     out: List[str] = []
     for i, lv in enumerate(levels):
         if not isinstance(lv, str) or not lv.strip():
-            raise ValueError(f"scope_hierarchy.levels[{i}] must be a non-empty string")
+            raise ValueError(f"aliasing_scope_hierarchy.levels[{i}] must be a non-empty string")
         out.append(lv.strip())
     return out
 
@@ -120,12 +120,12 @@ def _walk(
 ) -> List[Tuple[str, List[Dict[str, Any]], List[str]]]:
     """Return list of (scope_id, node_chain, segment_ids). Leaves may appear at any depth."""
     if not isinstance(nodes, list):
-        raise ValueError("scope_hierarchy.locations must be a list")
+        raise ValueError("aliasing_scope_hierarchy.locations must be a list")
     leaves: List[Tuple[str, List[Dict[str, Any]], List[str]]] = []
     for i, node in enumerate(nodes):
         if not isinstance(node, dict):
-            raise ValueError(f"scope_hierarchy.locations[{i}] must be a mapping")
-        where = f"scope_hierarchy.locations[{i}] at depth {depth}"
+            raise ValueError(f"aliasing_scope_hierarchy.locations[{i}] must be a mapping")
+        where = f"aliasing_scope_hierarchy.locations[{i}] at depth {depth}"
         seg = node_segment_id(node, where=where)
         chain = ancestors + [node]
         segments = ancestor_segments + [seg]
@@ -150,7 +150,7 @@ def _walk(
 
 
 def collect_leaves(doc: Dict[str, Any]) -> List[Tuple[str, List[Dict[str, Any]], List[str]]]:
-    parse_levels(doc)  # validate scope_hierarchy.levels exists
+    parse_levels(doc)  # validate aliasing_scope_hierarchy.levels exists
     sh = _scope_hierarchy_section(doc)
     loc = sh.get(_LOCATIONS)
     if loc is None:

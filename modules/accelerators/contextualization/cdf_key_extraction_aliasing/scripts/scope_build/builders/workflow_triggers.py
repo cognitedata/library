@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
-from typing import Any, List, Sequence
+from typing import List, Sequence
 
 import yaml
 
@@ -14,6 +13,11 @@ from scope_build.paths import WORKFLOW_ARTIFACTS_REL, WORKFLOW_TEMPLATE_REL
 from scope_build.io_util import strip_leading_comments_and_blanks
 from scope_build.mode import ScopeBuildMode, scoped_workflow_external_id
 from scope_build.naming import cdf_external_id_suffix
+from scope_build.scope_document_limits import (
+    MAX_SCOPE_DOCUMENT_JSON_BYTES,
+    assert_scope_document_within_limit,
+    minified_json_utf8_length,
+)
 from scope_build.scope_document_patch import prepare_scope_document_for_context
 
 logger = logging.getLogger(__name__)
@@ -22,8 +26,6 @@ logger = logging.getLogger(__name__)
 LEGACY_MONOLITHIC_NAME = "key_extraction_aliasing_scope_triggers.WorkflowTrigger.yaml"
 
 PLACEHOLDER = "__KEA_CDF_SUFFIX__"
-# Safe margin under Cognite task I/O 0.2 MiB (minified JSON byte length).
-MAX_SCOPE_DOCUMENT_JSON_BYTES = 200_000
 DEFAULT_TRIGGER_TEMPLATE_REL = (
     WORKFLOW_TEMPLATE_REL / "workflow.template.WorkflowTrigger.yaml"
 )
@@ -58,7 +60,7 @@ def _cleanup_legacy_trigger_layout(workflows_dir: Path) -> None:
     """Remove superseded trigger layouts only (does not delete current dot-form per-scope files).
 
     Per-scope files ``<workflow_base>.<suffix>.WorkflowTrigger.yaml`` are always
-    left on disk even when no longer in the configured ``scope_hierarchy.locations`` tree — remove those by hand if needed.
+    left on disk even when no longer in the configured ``aliasing_scope_hierarchy.locations`` tree — remove those by hand if needed.
     """
     legacy = workflows_dir / LEGACY_MONOLITHIC_NAME
     if legacy.is_file():
@@ -71,26 +73,6 @@ def _cleanup_legacy_trigger_layout(workflows_dir: Path) -> None:
         for p in sorted(workflows_dir.glob(pattern)):
             p.unlink()
             logger.info("Removed old-format trigger file %s", p.name)
-
-
-def minified_json_utf8_length(obj: Any) -> int:
-    """UTF-8 byte length of JSON with no unnecessary whitespace (platform limit checks)."""
-    return len(
-        json.dumps(
-            obj,
-            separators=(",", ":"),
-            ensure_ascii=False,
-        ).encode("utf-8")
-    )
-
-
-def _assert_scope_document_within_limit(scope_document: dict, *, scope_id: str) -> None:
-    n = minified_json_utf8_length(scope_document)
-    if n > MAX_SCOPE_DOCUMENT_JSON_BYTES:
-        raise ValueError(
-            f"configuration for scope_id={scope_id!r} minified JSON is {n} bytes "
-            f"(limit {MAX_SCOPE_DOCUMENT_JSON_BYTES}); shrink config or split scopes."
-        )
 
 
 class WorkflowTriggersBuilder:
@@ -269,7 +251,7 @@ def _render_triggers(
             raise ValueError("Workflow trigger template must be a single YAML mapping (one trigger)")
         inp = trig.setdefault("input", {})
         scope_document = prepare_scope_document_for_context(scope_template, ctx)
-        _assert_scope_document_within_limit(scope_document, scope_id=ctx.scope_id)
+        assert_scope_document_within_limit(scope_document, scope_id=ctx.scope_id)
         inp["configuration"] = scope_document
         out.append(trig)
     return out

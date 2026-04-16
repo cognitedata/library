@@ -26,8 +26,8 @@ flowchart LR
 
 Authoring lives in **[`default.config.yaml`](../../default.config.yaml)** at the module root.
 
-- **`scope_hierarchy.levels`** — Ordered labels for path tiers (site, plant, area, …). You do not have to use every tier; deeper paths can use synthetic tier names when you exceed the list (see [config/README.md](../../config/README.md)).
-- **`scope_hierarchy.locations`** — Root list of nodes. Each node has a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`). Nest children under another **`locations`** key on each node.
+- **`aliasing_scope_hierarchy.levels`** — Ordered labels for path tiers (same convention as **`cdf_access_control`** hierarchy dimensions: semantic names like `site`, `unit`, `area`, `system`, not `level_1`, `level_2`, …). You do not have to use every tier; deeper paths can use synthetic tier names when you exceed the list (see [config/README.md](../../config/README.md)).
+- **`aliasing_scope_hierarchy.locations`** — Root list of nodes. Each node has a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`). Nest children under another **`locations`** key on each node.
 - **Leaves** — A leaf is a node with no child `locations` or **`locations: []`**. Each leaf gets its own **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (path depends on `scope_build_mode`; see below).
 - **Optional `instance_space` on a leaf** — When set, the scope builder can emit **literal** node `space` filters in that leaf’s embedded **`input.configuration`** instead of the Toolkit placeholder `{{instance_space}}`. See *Instance spaces* below.
 

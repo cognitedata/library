@@ -85,7 +85,7 @@ def run_build(
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
-            "Create missing workflow artifacts from default.config.yaml (scope_hierarchy + scope_build_mode). "
+            "Create missing workflow artifacts from default.config.yaml (aliasing_scope_hierarchy + scope_build_mode). "
             "trigger_only: root Workflow/WorkflowVersion if missing, flat *.WorkflowTrigger.yaml under workflows/. "
             "full: scoped trio under workflows/<suffix>/. "
             "Templates are read from workflow_template/. Use --force to overwrite existing generated files. "
