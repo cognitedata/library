@@ -227,7 +227,7 @@ def load_configs(
     bool,
     Optional[str],
 ]:
-    """Load extraction and aliasing config for local runs.
+    """Load key discovery and aliasing config for local runs.
 
     Resolution:
     - ``--config-path`` → load that file as a v1 scope document.

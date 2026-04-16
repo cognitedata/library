@@ -3,7 +3,7 @@
 Integration Tests for Configuration Manager
 
 This module provides integration tests for the Configuration Manager
-used across key extraction and aliasing workflows.
+used across key discovery and aliasing workflows.
 """
 
 import json

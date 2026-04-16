@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate detailed test results showing actual extraction and aliasing output.
+Generate detailed test results showing actual key discovery and aliasing output.
 """
 
 import json

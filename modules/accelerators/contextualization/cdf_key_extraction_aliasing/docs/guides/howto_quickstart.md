@@ -1,6 +1,6 @@
 # Quickstart — local run with `module.py run`
 
-Run the key extraction and aliasing pipeline against your CDF data model from your laptop. This path uses the same engines as the deployed Cognite Functions; configuration is the v1 scope document at the module root ([`workflow.local.config.yaml`](../../workflow.local.config.yaml)) when you use `run --scope default`. With **`incremental_change_processing: true`**, local runs mirror workflow parity (state update → extraction → …) and use the same **Key Discovery** / **RAW fallback** parameters as deployed triggers — see [module README — Incremental cohort processing](../../README.md#incremental-cohort-processing-raw-cohort-cdm-state).
+Run the key discovery and aliasing pipeline against your CDF data model from your laptop. This path uses the same engines as the deployed Cognite Functions; configuration is the v1 scope document at the module root ([`workflow.local.config.yaml`](../../workflow.local.config.yaml)) when you use `run --scope default`. With **`incremental_change_processing: true`**, local runs mirror workflow parity (state update → extraction → …) and use the same **Key Discovery** / **RAW fallback** parameters as deployed triggers — see [module README — Incremental cohort processing](../../README.md#incremental-cohort-processing-raw-cohort-cdm-state).
 
 **CLI:** `python module.py` with no subcommand prints help. The pipeline is **`module.py run`** (with the flags below). Workflow YAML generation is **`module.py build`** (legacy: **`module.py --build`**).
 

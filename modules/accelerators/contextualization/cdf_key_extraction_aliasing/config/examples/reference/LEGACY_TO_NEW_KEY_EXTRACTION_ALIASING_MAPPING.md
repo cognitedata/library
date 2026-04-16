@@ -1,6 +1,6 @@
-# Legacy → New Key Extraction and Aliasing Mapping
+# Legacy → New Key Discovery and Aliasing Mapping
 
-This document maps **legacy** extraction and aliasing functions from `celanese-data-pipelines-main/src/filters/jinja2_filters.py` to the **new** key extraction and aliasing configuration handlers (extraction methods and aliasing rule types).
+This document maps **legacy** extraction and aliasing functions from `celanese-data-pipelines-main/src/filters/jinja2_filters.py` to the **new** key discovery and aliasing configuration handlers (extraction methods and aliasing rule types).
 
 ---
 

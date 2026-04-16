@@ -1,5 +1,5 @@
 """
-Common utilities shared across key extraction and aliasing modules.
+Common utilities shared across key discovery and aliasing modules.
 
 This module provides shared functionality to avoid code duplication
 and ensure consistency across both modules.

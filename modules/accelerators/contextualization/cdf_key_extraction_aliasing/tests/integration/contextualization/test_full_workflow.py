@@ -3,7 +3,7 @@
 Integration Tests for Full Contextualization Workflow
 
 This module provides integration tests for the complete workflow
-combining key extraction and aliasing.
+combining key discovery and aliasing.
 """
 
 import sys

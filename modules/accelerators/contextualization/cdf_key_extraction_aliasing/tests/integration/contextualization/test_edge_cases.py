@@ -3,7 +3,7 @@
 Integration Tests for Edge Cases and Error Handling
 
 This module provides integration tests for edge cases and error handling
-across the key extraction and aliasing workflows.
+across the key discovery and aliasing workflows.
 """
 
 import sys

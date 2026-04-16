@@ -1,5 +1,5 @@
 """
-Local CLI entry point — fetch CDF instances from data model views, run key extraction and aliasing, write results.
+Local CLI entry point — fetch CDF instances from data model views, run key discovery and aliasing, write results.
 
 **Invoke the pipeline with** ``python module.py run`` (not ``module.py`` alone; bare ``module.py`` prints help).
 
@@ -223,7 +223,7 @@ def _print_root_cli_help() -> None:
     sub = parser.add_subparsers(title="commands", metavar="COMMAND", dest="command")
     sub.add_parser(
         "run",
-        help="Run key extraction + aliasing on CDF data model instances (writes tests/results/*.json)",
+        help="Run key discovery + aliasing on CDF data model instances (writes tests/results/*.json)",
     )
     sub.add_parser(
         "build",
@@ -233,7 +233,7 @@ def _print_root_cli_help() -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    """Fetch instances from CDF views, run extraction & aliasing, write results to tests/results/."""
+    """Fetch instances from CDF views, run key discovery & aliasing, write results to tests/results/."""
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
@@ -335,7 +335,7 @@ def main() -> None:
 
     run_parser = argparse.ArgumentParser(
         prog="module.py run",
-        description="Fetch instances from CDF views, run extraction & aliasing.",
+        description="Fetch instances from CDF views, run key discovery & aliasing.",
     )
     _add_run_arguments(run_parser)
     args = run_parser.parse_args(argv[1:])

@@ -1,4 +1,4 @@
-# Key Extraction and Aliasing Workflow
+# Key Discovery and Aliasing Workflow
 
 ## Workflow Diagram
 

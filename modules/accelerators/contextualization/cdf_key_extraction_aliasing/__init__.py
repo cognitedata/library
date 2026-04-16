@@ -1,7 +1,7 @@
 """
-Key Extraction and Aliasing Module
+Key Discovery and Aliasing Module
 
-This package contains both key extraction and aliasing engines and related components.
+This package contains key discovery and aliasing pipelines (key extraction engine, tag aliasing engine) and related components.
 Supports both standalone usage and CDF-compatible workflows.
 """
 

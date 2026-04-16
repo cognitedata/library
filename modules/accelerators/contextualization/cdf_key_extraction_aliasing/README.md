@@ -1,4 +1,4 @@
-# Key Extraction and Aliasing
+# Key Discovery and Aliasing
 
 Library for extracting candidate keys and foreign-key references from entity metadata, and generating aliases for matching. It targets **Cognite Data Fusion (CDF)** (data model views, functions, workflows) and can run standalone in Python.
 
@@ -51,7 +51,7 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 - [x] Key Discovery FDM state for incremental watermark/hash (`data_modeling/`; RAW cohort unchanged; RAW fallback if views not deployed)
 - [x] RAW inverted **reference index** for FK + document refs (`fn_dm_reference_index`; see [workflows/README.md](workflows/README.md))
 - [ ] DM projection / sync for the reference index (RAW remains source of truth)
-- [ ] Finer default rules per `entity_type`
+- [x] Default scope rules differentiated per `entity_type` / source view (separate extraction, validation, and aliasing scopes in [`workflow.local.config.yaml`](workflow.local.config.yaml); asset vs file vs timeseries)
 - [ ] Broader non-ISA tag testing
 - [ ] Reference-index relationships beyond inverted lookup
 

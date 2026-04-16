@@ -1,6 +1,6 @@
-# Legacy → New Key Extraction/Aliasing: Auto-Conversion Summary
+# Legacy → New Key Discovery/Aliasing: Auto-Conversion Summary
 
-This document consolidates all mapping findings for **automated conversion** of legacy pipeline configs (jinja2 filter chains in `solutions-register-main/celanese/ce-data-pipelines/prod`) to the new key extraction and aliasing config format.
+This document consolidates all mapping findings for **automated conversion** of legacy pipeline configs (jinja2 filter chains in `solutions-register-main/celanese/ce-data-pipelines/prod`) to the new key discovery and aliasing config format.
 
 ---
 

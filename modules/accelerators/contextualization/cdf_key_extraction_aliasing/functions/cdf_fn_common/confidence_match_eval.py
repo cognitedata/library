@@ -1,5 +1,5 @@
 """
-Shared confidence_match_rules evaluation for key extraction and aliasing.
+Shared confidence_match_rules evaluation for key discovery and aliasing.
 
 Resolves expression_match per rule (rule -> validation default -> search).
 offset modifiers chain; explicit modifier then stops further rules for that value.

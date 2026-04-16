@@ -1,4 +1,4 @@
-# Key Extraction and Aliasing — Module Summary
+# Key Discovery and Aliasing — Module Summary
 
 **Last reviewed:** 2026-04-14  
 **Canonical default scope:** [`workflow.local.config.yaml`](../workflow.local.config.yaml) at module root — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  

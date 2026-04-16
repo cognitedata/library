@@ -83,7 +83,7 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 
 | Document                                                              | Contents                                                                                                  |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [Key extraction / aliasing report](key_extraction_aliasing_report.md) | Current default scope, shared tag regex, aliasing stack; run-specific metrics live under `tests/results/` |
+| [Key discovery / aliasing report](key_extraction_aliasing_report.md) | Current default scope, shared tag regex, aliasing stack; run-specific metrics live under `tests/results/` |
 | [Common issues](troubleshooting/common_issues.md)                     | Troubleshooting                                                                                           |
 
 

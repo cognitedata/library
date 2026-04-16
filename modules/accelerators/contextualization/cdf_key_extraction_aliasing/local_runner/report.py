@@ -109,14 +109,14 @@ def generate_report(
     results_source = extraction_path.stem.replace("_cdf_extraction", "")
 
     # Generate markdown report
-    report_content = f"""# Key Extraction and Aliasing Results Summary
+    report_content = f"""# Key Discovery and Aliasing Results Summary
 
 **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 **Results Source:** {results_source}
 
 ## Executive Summary
 
-This document provides a comprehensive analysis of the key extraction and aliasing pipeline execution results, covering processing statistics, entity type breakdowns, extraction methods, and aliasing transformations.
+This document provides a comprehensive analysis of the key discovery and aliasing pipeline execution results, covering processing statistics, entity type breakdowns, extraction methods, and aliasing transformations.
 
 ### Workflow Overview
 

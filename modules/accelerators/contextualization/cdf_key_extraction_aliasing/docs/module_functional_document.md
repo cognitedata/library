@@ -19,7 +19,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 
 | In scope | Out of scope (by design) |
 | -------- | ------------------------ |
-| Rule-driven extraction and aliasing from YAML config | Automatic DM relationship edges or graph sync (see module README roadmap) |
+| Rule-driven key discovery and aliasing from YAML config | Automatic DM relationship edges or graph sync (see module README roadmap) |
 | CDF Functions + Workflow orchestration (v4) | Replacing trigger-embedded `configuration` without updating workflow task wiring |
 | RAW as inter-task buffer and incremental state | Removing values already written to DM instances (`--clean-state` clears RAW only) |
 | Local runner (`module.py`) for dev / parity testing | General-purpose ETL outside contextualization |

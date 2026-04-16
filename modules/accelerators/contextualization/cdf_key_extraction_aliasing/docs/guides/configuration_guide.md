@@ -22,7 +22,7 @@
 
 ## Overview
 
-The Key Extraction and Aliasing system uses YAML-based pipeline configuration files that define:
+The Key Discovery and Aliasing system uses YAML-based pipeline configuration files that define:
 
 - **Key Extraction Pipelines**: Extract candidate keys, foreign key references, and document references from CDF data model views
 - **Aliasing Pipelines**: Generate alternative representations (aliases) of extracted keys for improved matching
