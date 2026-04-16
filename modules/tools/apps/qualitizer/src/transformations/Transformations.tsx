@@ -6,6 +6,12 @@ import { ApiError } from "@/shared/ApiError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LoadState } from "@/processing/types";
 import { formatDuration, formatIso, toTimestamp } from "@/shared/time-utils";
+import {
+  isFailed as isFailedStatus,
+  isSuccess as isSuccessStatus,
+  uptimeColor,
+  uptimePercentage,
+} from "@/health-checks/run-health/uptime";
 
 function formatDurationShort(ms: number | undefined): string {
   if (ms == null) return "—";
@@ -219,6 +225,9 @@ export function TransformationsList({
   const [statsById, setStatsById] = useState<
     Record<string, { count: number; lastRun?: number; totalMs: number }>
   >({});
+  const [uptimeById, setUptimeById] = useState<
+    Record<string, { success: number; failed: number; uptime: number }>
+  >({});
   const [countsById, setCountsById] = useState<Record<string, ParsedInsightCounts>>({});
   const [metricsById, setMetricsById] = useState<
     Record<string, { reads: number; writes: number; noops: number; rateLimit429: number }>
@@ -284,6 +293,7 @@ export function TransformationsList({
             onTransformationSelected();
           }
           setStatsById({});
+          setUptimeById({});
           setCountsById({});
           setLatestJobById({});
           setMetricsById({});
@@ -318,6 +328,9 @@ export function TransformationsList({
       lastRun?: number;
       totalMs: number;
       latestJobId: string | null;
+      success: number;
+      failed: number;
+      uptime: number;
     } => {
       const recent = jobs.filter((job) => {
         const start = toTimestamp(job.startedTime);
@@ -336,16 +349,20 @@ export function TransformationsList({
         if (!start || !end || end < start) return acc;
         return acc + (end - start);
       }, 0);
+      const success = recent.filter((job) => isSuccessStatus(job.status)).length;
+      const failed = recent.filter((job) => isFailedStatus(job.status)).length;
+      const uptime = uptimePercentage(success, failed);
       const sorted = [...jobs].sort(
         (a, b) => (toTimestamp(b.startedTime) ?? 0) - (toTimestamp(a.startedTime) ?? 0)
       );
       const latest = sorted[0];
       const latestJobId = latest?.id != null ? String(latest.id) : null;
-      return { count, lastRun, totalMs, latestJobId };
+      return { count, lastRun, totalMs, latestJobId, success, failed, uptime };
     };
 
     const run = async () => {
       const nextStats: Record<string, { count: number; lastRun?: number; totalMs: number }> = {};
+      const nextUptime: Record<string, { success: number; failed: number; uptime: number }> = {};
       const nextLatest: Record<string, string | null> = {};
 
       for (let i = 0; i < transformations.length; i += TRANSFORMATIONS_STATS_CONCURRENCY) {
@@ -362,12 +379,19 @@ export function TransformationsList({
               );
               const data = (jobResponse as { data?: { items?: TransformationJobSummary[] } }).data;
               const jobs = data?.items ?? [];
-              const { count, lastRun, totalMs, latestJobId } = computeJobStats(jobs);
-              return { id, stats: { count, lastRun, totalMs }, latestJobId };
+              const { count, lastRun, totalMs, latestJobId, success, failed, uptime } =
+                computeJobStats(jobs);
+              return {
+                id,
+                stats: { count, lastRun, totalMs },
+                uptime: { success, failed, uptime },
+                latestJobId,
+              };
             } catch {
               return {
                 id,
                 stats: { count: 0, totalMs: 0 } as { count: number; lastRun?: number; totalMs: number },
+                uptime: { success: 0, failed: 0, uptime: 100 },
                 latestJobId: null,
               };
             }
@@ -375,6 +399,7 @@ export function TransformationsList({
         );
         for (const row of chunkResults) {
           nextStats[row.id] = row.stats;
+          nextUptime[row.id] = row.uptime;
           nextLatest[row.id] = row.latestJobId;
         }
       }
@@ -382,6 +407,7 @@ export function TransformationsList({
       if (!cancelled) {
         startTransition(() => {
           setStatsById(nextStats);
+          setUptimeById(nextUptime);
           setLatestJobById(nextLatest);
         });
       }
@@ -921,6 +947,18 @@ export function TransformationsList({
                                 {sortKey === "totalMs" ? (sortDesc ? " ↓" : " ↑") : ""}
                               </button>
                             </th>
+                            <th
+                              className="px-2 py-2 font-medium"
+                              title="Uptime % = successful / (successful + failed) over the last 24h."
+                            >
+                              Uptime 24h
+                            </th>
+                            <th
+                              className="px-2 py-2 font-medium"
+                              title="Successful / failed job counts over the last 24h."
+                            >
+                              S / F
+                            </th>
                             <th className="px-2 py-2 font-medium" title={t("transformations.list.columnHelp.reads")}>
                               {t("transformations.list.reads")}
                             </th>
@@ -986,6 +1024,28 @@ export function TransformationsList({
                                     formatDuration(stats.totalMs)
                                   ) : (
                                     "—"
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 tabular-nums">
+                                  {!statsReady ? (
+                                    <CellSpinner />
+                                  ) : (uptimeById[id]?.success ?? 0) + (uptimeById[id]?.failed ?? 0) > 0 ? (
+                                    <span className={`font-semibold ${uptimeColor(uptimeById[id]?.uptime ?? 100)}`}>
+                                      {(uptimeById[id]?.uptime ?? 0).toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+                                <td className="px-2 py-2 tabular-nums">
+                                  {!statsReady ? (
+                                    <CellSpinner />
+                                  ) : (
+                                    <span className="text-xs text-slate-600">
+                                      <span className="text-emerald-700">{uptimeById[id]?.success ?? 0}</span>
+                                      {" / "}
+                                      <span className="text-red-700">{uptimeById[id]?.failed ?? 0}</span>
+                                    </span>
                                   )}
                                 </td>
                                 <td className="px-2 py-2 tabular-nums">
