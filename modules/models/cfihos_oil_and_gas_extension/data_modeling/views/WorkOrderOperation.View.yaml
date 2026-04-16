@@ -85,7 +85,7 @@ properties:
     containerPropertyIdentifier: functionalLocation
     source:
       space: "{{space}}"
-      externalId: FunctionalLocationProperties
+      externalId: FunctionalLocation
       version: "{{dm_version}}"
       type: view
   labels:

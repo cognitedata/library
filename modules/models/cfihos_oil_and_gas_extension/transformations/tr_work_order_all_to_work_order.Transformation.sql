@@ -44,4 +44,4 @@ SELECT
   cast(sourceId as string) as sourceId,
   cast(source as string) as sourceContext
 FROM `cfihos_oil_and_gas`.`work_order`
-WHERE is_new('work_order', lastUpdatedTime)
+WHERE 1=1 -- full reload: is_new('work_order', lastUpdatedTime)

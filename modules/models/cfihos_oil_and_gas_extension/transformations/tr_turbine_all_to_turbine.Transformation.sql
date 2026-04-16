@@ -21,6 +21,5 @@ select
 from
   `cfihos_oil_and_gas`.`turbine`
 where
-  is_new('turbine', lastUpdatedTime)
-  and
+  -- full reload: is_new('turbine', lastUpdatedTime) and
   `key` in (select `key` from `cfihos_oil_and_gas`.`tag`)

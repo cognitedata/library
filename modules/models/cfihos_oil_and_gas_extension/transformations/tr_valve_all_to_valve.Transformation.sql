@@ -32,6 +32,5 @@ select
 from
   `cfihos_oil_and_gas`.`valve`
 where
-  is_new('valve', lastUpdatedTime)
-  and
+  -- full reload: is_new('valve', lastUpdatedTime) and
   `key` in (select `key` from `cfihos_oil_and_gas`.`tag`)

@@ -59,7 +59,6 @@ Use the architecture figure as a quick orientation:
 | Container | Purpose |
 |-----------|---------|
 | AlarmRecord | OPC UA alarm events — queried directly against the container |
-| OpcuaAlarm | OPC UA alarm metadata with tag references |
 
 ## Key design decisions
 

@@ -17,6 +17,5 @@ select
 from
   `cfihos_oil_and_gas`.`subsea_equipment`
 where
-  is_new('subsea_equipment', lastUpdatedTime)
-  and
+  -- full reload: is_new('subsea_equipment', lastUpdatedTime) and
   `key` in (select `key` from `cfihos_oil_and_gas`.`tag`)

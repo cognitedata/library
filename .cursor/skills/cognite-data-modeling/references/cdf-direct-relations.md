@@ -1,9 +1,3 @@
----
-description: CDF direct relation and connection patterns for views and containers. Use when adding relationships between data model entities.
-globs: **/data_model*/**/*.yaml
-alwaysApply: false
----
-
 # CDF Direct Relations & Connections
 
 ## Direct Relations in Containers
@@ -77,7 +71,22 @@ Key rules:
 - `through.identifier` must match an actual property name on that view.
 - Use `single_reverse_direct_relation` when the reverse is guaranteed to be 1:1.
 
+## Forward–reverse pairing and anchor view (NEAT-DMS-CONNECTIONS-REVERSE-009)
+
+Validators (e.g. NEAT) expect symmetry: if view **A** declares a reverse through view **B**’s property **`p`**, then property **`p`** on **B** must have `source` pointing to **A** — **only when** the container behind **`p`** stores references to instances that are meant to be opened as **A** (same view as the reverse host).
+
+**Satellite / properties pattern:** A forward property may correctly point at a **child or properties** view (e.g. `FunctionalLocationProperties`) because ingest stores `node_reference` targets for that container. Do **not** change `source` to a **parent** view (e.g. `FunctionalLocation`) just to satisfy a reverse declared on the parent: resolution would treat stored ids as the wrong type. Instead:
+
+- Put the reverse on the view that matches the stored target (**B → satellite**), or
+- Add a separate forward property and ingest path that references the parent view if you truly need a reverse on **A**.
+
+**Align `source` with transformations:** For each direct relation, confirm instance load SQL (e.g. `cdf_nodes('…', 'SomeContainer', …)` and `node_reference`) targets the same logical entity as the property’s `source` view. A mismatched `source` (copy-paste from another entity) is a common cause of REVERSE-009 noise.
+
+**One reverse host per edge shape:** Avoid defining the same reverse (`through.identifier` on the same forward view) on two different “anchor” views (e.g. parent and satellite) unless two distinct forward properties exist with matching `source` targets.
+
 ## Index Direct Relations
+Indexing policy for direct relations applies to **`usedFor: node`** containers only. Do **not** add btree indexes on **`usedFor: record`** containers.
+
 Indexing policy for direct relations:
 - **MUST** index any direct relation used as `through.identifier` by a reverse relation.
 - **MUST** index direct relations used in primary query paths (filters, navigation, graph traversal).
@@ -168,9 +177,10 @@ When reviewing or adding relationships, verify:
 7. **`source` view is semantically correct**: the source view matches the intended target entity
 8. **Description matches context**: description text refers to the correct entity, not a copy-paste from another view
 9. **Source specificity**: direct relation `source` points to the most specific view in the data model, not a CDM ancestor (see NEAT-DMS-CONNECTIONS-REVERSE-008)
-10. **No CDM property duplication**: custom containers don't redefine properties available from CDM containers (`CogniteDescribable`, `CogniteSchedulable`, `CogniteSourceable`)
-11. **CDM properties re-sourced correctly**: view properties for CDM concepts (name, description, startTime, etc.) source from CDM containers, not custom containers
-12. **Canonical describable mapping**: if CogniteDescribable properties are re-sourced, verify `aliases` maps to `aliases` and not another container property by mistake
+10. **Reverse pairing / anchor view**: reverse on view **A** through **B`.`p`** requires **`p`.`source` → A** only if stored refs resolve as **A**; otherwise move the reverse to the view that matches stored targets, or add a dedicated forward property (see NEAT-DMS-CONNECTIONS-REVERSE-009 section above)
+11. **No CDM property duplication**: custom containers don't redefine properties available from CDM containers (`CogniteDescribable`, `CogniteSchedulable`, `CogniteSourceable`)
+12. **CDM properties re-sourced correctly**: view properties for CDM concepts (name, description, startTime, etc.) source from CDM containers, not custom containers
+13. **Canonical describable mapping**: if CogniteDescribable properties are re-sourced, verify `aliases` maps to `aliases` and not another container property by mistake
 
 ## Checklist for Adding a New Relationship
 1. Add `type: direct` property to the source container

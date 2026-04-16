@@ -1,9 +1,3 @@
----
-description: CDF data model structure conventions for containers, views, and CDM extensions. Use when creating or modifying container/view YAML files or data models.
-globs: **/data_model*/**/*.yaml
-alwaysApply: false
----
-
 # CDF Data Model Structure
 
 ## Property Limits
@@ -55,7 +49,7 @@ constraints:
 ```
 
 ### Query Optimization via `requires`
-CDF uses `requires` constraints to optimize joins at query time. If a view exposes properties from or has relationships to a CDM/IDM type, the underlying container **must** declare a `requires` constraint on that type's container.
+CDF uses `requires` constraints to optimize joins at query time. If a view exposes properties from or has relationships to a CDM/IDM type, the underlying **`usedFor: node`** container **must** declare a `requires` constraint on that type's container. This does **not** apply to **`usedFor: record`** containers (they have no `constraints` block).
 
 **Important:** Do **not** add unrelated `requires` constraints just to silence optimization warnings. A `requires` constraint is an ingest-time dependency and will make writes fail unless the required container is also present on the same node.
 
@@ -73,8 +67,8 @@ Common required constraints by pattern:
 Always run `cdf build` or deploy to check for "not optimized for querying" warnings, then add only semantically valid `requires` constraints.
 
 ## usedFor: node vs record
-- `usedFor: node` — standard entity data (assets, equipment, work orders). Requires a corresponding view.
-- `usedFor: record` — event/time-stamped record data (alarms, log entries). Does **not** need a view; records are queried directly against the container, not through the data model API.
+- `usedFor: node` — standard entity data (assets, equipment, work orders). Requires a corresponding view. Use **`constraints`** (including `requires` where valid) and **`indexes`** for ingest dependencies, query optimization, and btree-backed filters or reverse relations.
+- `usedFor: record` — event/time-stamped record data (alarms, log entries). Does **not** need a view; records are queried directly against the container, not through the data model API. **Omit `constraints` and `indexes`** entirely on record containers — they are not graph nodes; do not model `requires` or btree tuning there. Optional relations (e.g. a `tag` pointer on an alarm row) stay as plain properties only.
 
 ## CogniteAsset — Single Implementation Only
 Only **one view** in your data model should `implements: CogniteAsset`. Multiple views implementing CogniteAsset causes UI navigation problems in CDF applications (e.g., IndustryCanvas, Asset Explorer). If you need multiple asset-like entities, have one primary asset view implement CogniteAsset and use direct relations from the others.
@@ -133,6 +127,8 @@ source:
 ```
 
 Only omit `source` when the target is intentionally polymorphic (e.g., `classSpecific` pointing to multiple equipment class views) or when no view exists for the target node type.
+
+For reverse traversals, align forward `source`, reverse host view, and actual stored edge targets (parent vs satellite); details in **`cdf-direct-relations.md`** (*Forward–reverse pairing and anchor view*, NEAT-DMS-CONNECTIONS-REVERSE-009).
 
 ## Descriptions
 - Every container and view must have a top-level `description`.
@@ -198,7 +194,7 @@ When reviewing or modifying a data model, verify:
 6. **No `source` on non-direct**: `source` blocks only appear on properties backed by `type: direct` container properties
 7. **Property count**: No container exceeds 100 properties
 8. **CDM sourcing**: Properties from CogniteDescribable/CogniteSourceable/CogniteSchedulable reference CDM containers, not custom ones
-9. **Top-level fields**: Containers have `space`, `externalId`, `description`, `usedFor`, `properties`, `constraints`, `indexes`; views have `space`, `externalId`, `description`, `version`, `properties`
+9. **Top-level fields**: Node containers include `constraints` and `indexes`; record containers omit them; views have `space`, `externalId`, `description`, `version`, `properties`
 10. **CDM container match**: Every CDM property's `container.externalId` matches the type declared in `implements` (not copy-pasted from another view)
 11. **View-to-data-model coverage**: Every `*.View.yaml` file in the module is referenced by at least one `*.DataModel.yaml` file (no orphaned views)
 12. **No unrelated requires**: Every `constraintType: requires` reflects a true entity dependency, not a workaround (e.g., no `Files -> CogniteTimeSeries` unless files are guaranteed to be time series nodes)
@@ -212,14 +208,17 @@ Never use these as `externalId` for containers or views — they are reserved by
 `Boolean`, `Date`, `File`, `Float`, `Float32`, `Float64`, `Int`, `Int32`, `Int64`, `JSONObject`, `Mutation`, `Numeric`, `PageInfo`, `Query`, `Sequence`, `String`, `Subscription`, `TimeSeries`, `Timestamp`.
 
 ## Required Top-Level Fields
-Containers: `space`, `externalId`, `description`, `properties`, `constraints`, `indexes`, `usedFor`
-Views: `space`, `externalId`, `description`, `version`, `properties` (plus `implements` when extending CDM)
+- **`usedFor: node` containers:** `space`, `externalId`, `description`, `properties`, `constraints`, `indexes`, `usedFor`
+- **`usedFor: record` containers:** `space`, `externalId`, `description`, `properties`, `usedFor` — do **not** include `constraints` or `indexes`
+- **Views:** `space`, `externalId`, `description`, `version`, `properties` (plus `implements` when extending CDM)
 
 ## Data Models
 - Data model files list all views that form the model's public API.
+- Each view entry under `views:` may include **`name`** (human-readable display label). Some validators (e.g. NEAT) flag missing names on these references even when the `*.View.yaml` already defines `name` — keep the data model entry in sync with the view file.
 - Every view in a data model file must exist as a `*.View.yaml` file.
 - **Every `*.View.yaml` file in the module must be referenced by at least one `*.DataModel.yaml` file.** Orphaned view files are never deployed and silently drift from the live model. When adding a new view, always add a corresponding entry in the data model file. When auditing, compare the set of `*.View.yaml` filenames (minus extension) against all `externalId` values with `space: "{{space}}"` across the module's `*.DataModel.yaml` files — any view file not matched is orphaned.
 - Use `{{dm_version}}` for version and `{{space}}` for space to support multi-environment deployment.
+- For **view version bumps**, **container migration**, and **uniqueness** constraints, see `cdf-schema-versioning.md`.
 
 ## View-Only UX Modules
 - In UX/exploration modules that primarily expose views (and rely on containers in other spaces), keep property mappings semantically aligned with the source-domain views.
