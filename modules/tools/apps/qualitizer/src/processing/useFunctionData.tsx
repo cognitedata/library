@@ -3,6 +3,26 @@ import { normalizeStatus, toTimestamp } from "@/shared/time-utils";
 import type { FunctionRunSummary, FunctionSummary, LoadState } from "./types";
 import { useI18n } from "@/shared/i18n";
 
+type FunctionCallLogsApiResponse = {
+  data?: {
+    items?: { message?: string }[];
+  };
+};
+
+type FunctionsListApiResponse = {
+  data?: {
+    items?: FunctionSummary[];
+    nextCursor?: string | null;
+  };
+};
+
+type FunctionCallsListApiResponse = {
+  data?: {
+    items?: FunctionRunSummary[];
+    nextCursor?: string | null;
+  };
+};
+
 type UseFunctionDataArgs = {
   isSdkLoading: boolean;
   sdk: { project: string; post: Function; get: Function };
@@ -71,9 +91,9 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
   const fetchRunLogs = async (run: FunctionRunSummary) => {
     if (!run.functionId || !run.id) return;
     try {
-      const response = await sdk.get<{
-        items?: { message?: string }[];
-      }>(`/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`);
+      const response = (await sdk.get(
+        `/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`
+      )) as FunctionCallLogsApiResponse;
       const logs = response.data?.items ?? [];
       if (logs.length > 0) {
         setLogMap((prev) => ({
@@ -111,12 +131,9 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
           const items: FunctionSummary[] = [];
           let cursor: string | undefined;
           do {
-            const response = await sdk.post<{
-              items?: FunctionSummary[];
-              nextCursor?: string | null;
-            }>(`/api/v1/projects/${sdk.project}/functions/list`, {
+            const response = (await sdk.post(`/api/v1/projects/${sdk.project}/functions/list`, {
               data: JSON.stringify({ limit: 100, cursor }),
-            });
+            })) as FunctionsListApiResponse;
             items.push(...(response.data?.items ?? []));
             cursor = response.data?.nextCursor ?? undefined;
           } while (cursor);
@@ -134,12 +151,12 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
             limit: 10000,
             cursor,
           };
-          const response = await sdk.post<{
-            items?: FunctionRunSummary[];
-            nextCursor?: string | null;
-          }>(`/api/v1/projects/${sdk.project}/functions/${functionId}/calls/list`, {
-            data: JSON.stringify(requestBody),
-          });
+          const response = (await sdk.post(
+            `/api/v1/projects/${sdk.project}/functions/${functionId}/calls/list`,
+            {
+              data: JSON.stringify(requestBody),
+            }
+          )) as FunctionCallsListApiResponse;
           return {
             items: response.data?.items ?? [],
             nextCursor: response.data?.nextCursor ?? null,

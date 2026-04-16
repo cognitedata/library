@@ -13,7 +13,6 @@ type DataCatalogGraphProps = {
 };
 
 const columnX = [40, 340, 640];
-const rowSpacing = 20;
 const minNodeHeight = 14;
 const nodeWidth = 180;
 const tooltipWidth = 260;
@@ -69,11 +68,11 @@ export function DataCatalogGraph({
       }
     }
 
-    const orderByAverage = (
-      items: Array<ModelNode | ViewNode | FieldNode>,
+    const orderByAverage = <T extends ModelNode | ViewNode | FieldNode>(
+      items: T[],
       neighborMap: Map<string, string[]>,
       neighborIndex: Map<string, number>
-    ) => {
+    ): T[] => {
       return [...items].sort((a, b) => {
         const aNeighbors = neighborMap.get(a.key) ?? [];
         const bNeighbors = neighborMap.get(b.key) ?? [];
@@ -98,7 +97,6 @@ export function DataCatalogGraph({
 
     for (let i = 0; i < 2; i += 1) {
       const modelIndex = new Map(orderedModels.map((item, index) => [item.key, index]));
-      const viewIndex = new Map(orderedViews.map((item, index) => [item.key, index]));
       const fieldIndex = new Map(orderedFields.map((item, index) => [item.key, index]));
 
       orderedViews = orderByAverage(

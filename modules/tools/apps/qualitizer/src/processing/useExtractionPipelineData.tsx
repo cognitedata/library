@@ -3,6 +3,20 @@ import { normalizeStatus, toTimestampLoose } from "@/shared/time-utils";
 import type { ExtPipeConfigSummary, ExtPipeRunSummary, LoadState } from "./types";
 import { useI18n } from "@/shared/i18n";
 
+type ExtPipesListApiResponse = {
+  data?: {
+    items?: ExtPipeConfigSummary[];
+    nextCursor?: string | null;
+  };
+};
+
+type ExtPipeRunsListApiResponse = {
+  data?: {
+    items?: Array<ExtPipeRunSummary & { createdTime?: unknown }>;
+    nextCursor?: string | null;
+  };
+};
+
 type UseExtractionPipelineDataArgs = {
   isSdkLoading: boolean;
   sdk: { project: string; get: Function; post: Function };
@@ -34,12 +48,9 @@ export function useExtractionPipelineData({
         const configs: ExtPipeConfigSummary[] = [];
         let cursor: string | undefined;
         do {
-          const response = await sdk.get<{
-            items?: ExtPipeConfigSummary[];
-            nextCursor?: string | null;
-          }>(`/api/v1/projects/${sdk.project}/extpipes`, {
+          const response = (await sdk.get(`/api/v1/projects/${sdk.project}/extpipes`, {
             params: { limit: "100", cursor },
-          });
+          })) as ExtPipesListApiResponse;
           configs.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
         } while (cursor);
@@ -84,10 +95,7 @@ export function useExtractionPipelineData({
           const stopMessages: Array<ExtPipeRunSummary & { createdTime: number }> = [];
           const otherEvents: Array<ExtPipeRunSummary & { createdTime: number }> = [];
           do {
-            const response = await sdk.post<{
-              items?: Array<ExtPipeRunSummary & { createdTime?: unknown }>;
-              nextCursor?: string | null;
-            }>(`/api/v1/projects/${sdk.project}/extpipes/runs/list`, {
+            const response = (await sdk.post(`/api/v1/projects/${sdk.project}/extpipes/runs/list`, {
               data: {
                 limit: 100,
                 cursor,
@@ -99,7 +107,7 @@ export function useExtractionPipelineData({
                   },
                 },
               },
-            });
+            })) as ExtPipeRunsListApiResponse;
             for (const item of response.data?.items ?? []) {
               const createdTime = toTimestampLoose(item.createdTime);
               if (createdTime == null) continue;

@@ -19,28 +19,28 @@ function cacheKey(project: string, segment: string, payload: unknown): string {
 }
 
 export const DMS_DM_LIST_CACHE_MAX = 300;
-export const DMS_DM_LIST_CACHE_TTL_MS = 10 * 60 * 1000;
+export const DMS_DM_LIST_CACHE_TTL_MS = 60 * 60 * 1000;
 const dataModelsListCache = new LRUCache<string, Record<string, unknown>>({
   max: DMS_DM_LIST_CACHE_MAX,
   ttl: DMS_DM_LIST_CACHE_TTL_MS,
 });
 
 export const DMS_VIEW_LIST_CACHE_MAX = 300;
-export const DMS_VIEW_LIST_CACHE_TTL_MS = 10 * 60 * 1000;
+export const DMS_VIEW_LIST_CACHE_TTL_MS = 60 * 60 * 1000;
 const viewsListCache = new LRUCache<string, Record<string, unknown>>({
   max: DMS_VIEW_LIST_CACHE_MAX,
   ttl: DMS_VIEW_LIST_CACHE_TTL_MS,
 });
 
 export const DMS_DM_RETRIEVE_CACHE_MAX = 500;
-export const DMS_DM_RETRIEVE_CACHE_TTL_MS = 10 * 60 * 1000;
+export const DMS_DM_RETRIEVE_CACHE_TTL_MS = 60 * 60 * 1000;
 const dataModelsRetrieveCache = new LRUCache<string, Record<string, unknown>>({
   max: DMS_DM_RETRIEVE_CACHE_MAX,
   ttl: DMS_DM_RETRIEVE_CACHE_TTL_MS,
 });
 
 export const DMS_VIEW_RETRIEVE_CACHE_MAX = 500;
-export const DMS_VIEW_RETRIEVE_CACHE_TTL_MS = 10 * 60 * 1000;
+export const DMS_VIEW_RETRIEVE_CACHE_TTL_MS = 60 * 60 * 1000;
 const viewsRetrieveCache = new LRUCache<string, Record<string, unknown>>({
   max: DMS_VIEW_RETRIEVE_CACHE_MAX,
   ttl: DMS_VIEW_RETRIEVE_CACHE_TTL_MS,
@@ -56,6 +56,10 @@ export async function cachedDataModelsList(
   const response = await sdk.dataModels.list(params as never);
   dataModelsListCache.set(key, response as unknown as Record<string, unknown>);
   return response;
+}
+
+function isSingleRetrieveBatch(params: Array<Record<string, unknown>>): boolean {
+  return params.length === 1;
 }
 
 export async function cachedViewsList(
@@ -75,6 +79,9 @@ export async function cachedDataModelsRetrieve(
   params: Array<Record<string, unknown>>,
   options?: Record<string, unknown>
 ): Promise<unknown> {
+  if (!isSingleRetrieveBatch(params)) {
+    return sdk.dataModels.retrieve(params as never, options as never);
+  }
   const key = cacheKey(sdk.project, "dmRetrieve", { params, options: options ?? null });
   const hit = dataModelsRetrieveCache.get(key);
   if (hit) return hit;
@@ -88,6 +95,9 @@ export async function cachedViewsRetrieve(
   params: Array<Record<string, unknown>>,
   options?: Record<string, unknown>
 ): Promise<unknown> {
+  if (!isSingleRetrieveBatch(params)) {
+    return sdk.views.retrieve(params as never, options as never);
+  }
   const key = cacheKey(sdk.project, "viewRetrieve", { params, options: options ?? null });
   const hit = viewsRetrieveCache.get(key);
   if (hit) return hit;
@@ -125,7 +135,7 @@ export function getDmsViewsListCacheStats(): DmsCatalogCacheStatRow {
 export function getDmsDataModelsRetrieveCacheStats(): DmsCatalogCacheStatRow {
   return {
     id: "dms.dataModels.retrieve",
-    label: "Data models retrieve (batch)",
+    label: "Data models retrieve (single only)",
     size: dataModelsRetrieveCache.size,
     max: dataModelsRetrieveCache.max,
     fillRate:
@@ -139,7 +149,7 @@ export function getDmsDataModelsRetrieveCacheStats(): DmsCatalogCacheStatRow {
 export function getDmsViewsRetrieveCacheStats(): DmsCatalogCacheStatRow {
   return {
     id: "dms.views.retrieve",
-    label: "Views retrieve (batch)",
+    label: "Views retrieve (single only)",
     size: viewsRetrieveCache.size,
     max: viewsRetrieveCache.max,
     fillRate: viewsRetrieveCache.max > 0 ? viewsRetrieveCache.size / viewsRetrieveCache.max : 0,

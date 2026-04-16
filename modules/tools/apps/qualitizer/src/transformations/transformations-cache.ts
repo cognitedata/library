@@ -40,28 +40,28 @@ function rowKey(project: string, id: string): string {
 }
 
 export const TX_LIST_CACHE_MAX = 80;
-export const TX_LIST_CACHE_TTL_MS = 5 * 60 * 1000;
+export const TX_LIST_CACHE_TTL_MS = 60 * 60 * 1000;
 const listCache = new LRUCache<string, Record<string, unknown>>({
   max: TX_LIST_CACHE_MAX,
   ttl: TX_LIST_CACHE_TTL_MS,
 });
 
 export const TX_JOBS_CACHE_MAX = 3000;
-export const TX_JOBS_CACHE_TTL_MS = 5 * 60 * 1000;
+export const TX_JOBS_CACHE_TTL_MS = 60 * 60 * 1000;
 const jobsCache = new LRUCache<string, Record<string, unknown>>({
   max: TX_JOBS_CACHE_MAX,
   ttl: TX_JOBS_CACHE_TTL_MS,
 });
 
 export const TX_JOB_METRICS_CACHE_MAX = 4000;
-export const TX_JOB_METRICS_CACHE_TTL_MS = 2 * 60 * 1000;
+export const TX_JOB_METRICS_CACHE_TTL_MS = 60 * 60 * 1000;
 const jobMetricsCache = new LRUCache<string, Record<string, unknown>>({
   max: TX_JOB_METRICS_CACHE_MAX,
   ttl: TX_JOB_METRICS_CACHE_TTL_MS,
 });
 
 export const TX_BY_ID_ROW_CACHE_MAX = 8000;
-export const TX_BY_ID_ROW_CACHE_TTL_MS = 10 * 60 * 1000;
+export const TX_BY_ID_ROW_CACHE_TTL_MS = 60 * 60 * 1000;
 const byIdRowCache = new LRUCache<string, TransformationByIdsRow>({
   max: TX_BY_ID_ROW_CACHE_MAX,
   ttl: TX_BY_ID_ROW_CACHE_TTL_MS,
@@ -140,6 +140,7 @@ export async function fetchTransformationsByIds(
     const chunk = missing.slice(i, i + BATCH_SIZE);
     const items = buildByIdsPayload(chunk);
     if (items.length === 0) continue;
+    const cacheRowsFromResponse = items.length === 1;
     try {
       const response = (await sdk.post(
         `/api/v1/projects/${project}/transformations/byids`,
@@ -148,7 +149,9 @@ export async function fetchTransformationsByIds(
       for (const row of response.data?.items ?? []) {
         if (row.id == null) continue;
         const idStr = String(row.id);
-        byIdRowCache.set(rowKey(project, idStr), row);
+        if (cacheRowsFromResponse) {
+          byIdRowCache.set(rowKey(project, idStr), row);
+        }
         out.set(idStr, row);
       }
     } catch {
@@ -200,7 +203,7 @@ export function getTransformationJobMetricsCacheStats(): TransformationCacheStat
 export function getTransformationByIdRowCacheStats(): TransformationCacheStatRow {
   return {
     id: "transformations.byIdRows",
-    label: "Transformation by-id rows (POST byids, per id)",
+    label: "Transformation by-id rows (POST byids; LRU only for single-id calls)",
     size: byIdRowCache.size,
     max: byIdRowCache.max,
     fillRate: byIdRowCache.max > 0 ? byIdRowCache.size / byIdRowCache.max : 0,

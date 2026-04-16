@@ -3,6 +3,17 @@ import { normalizeStatus } from "@/shared/time-utils";
 import type { LoadState, WorkflowExecutionSummary } from "./types";
 import { useI18n } from "@/shared/i18n";
 
+type WorkflowExecutionsListApiResponse = {
+  data?: {
+    items?: WorkflowExecutionSummary[];
+    nextCursor?: string | null;
+  };
+};
+
+type WorkflowExecutionDetailApiResponse = {
+  data?: Record<string, unknown>;
+};
+
 type UseWorkflowDataArgs = {
   isSdkLoading: boolean;
   sdk: { project: string; post: Function; get: Function };
@@ -29,12 +40,12 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
         const executions: WorkflowExecutionSummary[] = [];
         let cursor: string | undefined;
         do {
-          const response = await sdk.post<{
-            items?: WorkflowExecutionSummary[];
-            nextCursor?: string | null;
-          }>(`/api/v1/projects/${sdk.project}/workflows/executions/list`, {
-            data: { limit: 1000, cursor },
-          });
+          const response = (await sdk.post(
+            `/api/v1/projects/${sdk.project}/workflows/executions/list`,
+            {
+              data: { limit: 1000, cursor },
+            }
+          )) as WorkflowExecutionsListApiResponse;
           executions.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
         } while (cursor);
@@ -97,9 +108,9 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
     setWorkflowDetailsError(null);
     setWorkflowDetails(null);
     try {
-      const response = await sdk.get<Record<string, unknown>>(
+      const response = (await sdk.get(
         `/api/v1/projects/${sdk.project}/workflows/executions/${executionId}`
-      );
+      )) as WorkflowExecutionDetailApiResponse;
       setWorkflowDetails(response.data ?? null);
       setWorkflowDetailsStatus("success");
     } catch (error) {
