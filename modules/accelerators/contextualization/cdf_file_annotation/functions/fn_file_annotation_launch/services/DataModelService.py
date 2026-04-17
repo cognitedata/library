@@ -19,6 +19,7 @@ from cognite.client.data_classes.filters import (
 )
 from services.ConfigService import (
     Config,
+    QueryConfig,
     ViewPropertyConfig,
     build_filter_from_query,
     get_limit_from_query,
@@ -63,7 +64,7 @@ class IDataModelService(abc.ABC):
     @abc.abstractmethod
     def get_instances_entities(
         self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> tuple[NodeList, NodeList]:
+    ) -> tuple[list[Node], NodeList]:
         pass
 
 
@@ -79,7 +80,7 @@ class GeneralDataModelService(IDataModelService):
 
         self.annotation_state_view: ViewPropertyConfig = config.data_model_views.annotation_state_view
         self.file_view: ViewPropertyConfig = config.data_model_views.file_view
-        self.target_entities_view: ViewPropertyConfig = config.data_model_views.target_entities_view
+        self.target_entities_views: list[ViewPropertyConfig] = config.data_model_views.get_target_entity_views()
 
         self.get_files_to_annotate_retrieve_limit: int | None = get_limit_from_query(
             config.prepare_function.get_files_to_annotate_query
@@ -94,11 +95,12 @@ class GeneralDataModelService(IDataModelService):
         self.filter_files_to_process: Filter = build_filter_from_query(
             config.launch_function.data_model_service.get_files_to_process_query
         )
-        self.filter_target_entities: Filter = build_filter_from_query(
-            config.launch_function.data_model_service.get_target_entities_query
-        )
         self.filter_file_entities: Filter = build_filter_from_query(
             config.launch_function.data_model_service.get_file_entities_query
+        )
+        raw_target_queries = config.launch_function.data_model_service.get_target_entities_query
+        self.target_entity_query_configs: list[QueryConfig] = (
+            raw_target_queries if isinstance(raw_target_queries, list) else [raw_target_queries]
         )
 
     def get_files_for_annotation_reset(self) -> NodeList | None:
@@ -270,7 +272,7 @@ class GeneralDataModelService(IDataModelService):
 
     def get_instances_entities(
         self, primary_scope_value: str, secondary_scope_value: str | None
-    ) -> tuple[NodeList, NodeList]:
+    ) -> tuple[list[Node], NodeList]:
         """
         Retrieves target entities and file entities for use in diagram detection.
 
@@ -289,16 +291,34 @@ class GeneralDataModelService(IDataModelService):
         NOTE: 1. grab assets that meet the filter requirement
         NOTE: 2. grab files that meet the filter requirement
         """
-        target_filter: Filter = self._get_target_entities_filter(primary_scope_value, secondary_scope_value)
         file_filter: Filter = self._get_file_entities_filter(primary_scope_value, secondary_scope_value)
+        target_entities_by_id: dict[tuple[str, str], Node] = {}
+        for query_cfg in self.target_entity_query_configs:
+            target_filter: Filter = self._get_target_entities_filter(
+                query_cfg, primary_scope_value, secondary_scope_value
+            )
+            target_view = query_cfg.target_view
+            target_instance_space = target_view.instance_space
+            if target_instance_space is None:
+                for v in self.target_entities_views:
+                    if (
+                        v.schema_space == target_view.schema_space
+                        and v.external_id == target_view.external_id
+                        and v.version == target_view.version
+                    ):
+                        target_instance_space = v.instance_space
+                        break
+            target_entities_for_view: NodeList = self.client.data_modeling.instances.list(
+                instance_type="node",
+                sources=target_view.as_view_id(),
+                space=target_instance_space,
+                filter=target_filter,
+                limit=-1,  # keep unlimited to ensure complete entity context
+            )
+            for node in target_entities_for_view:
+                target_entities_by_id[(node.space, node.external_id)] = node
 
-        target_entities: NodeList = self.client.data_modeling.instances.list(
-            instance_type="node",
-            sources=self.target_entities_view.as_view_id(),
-            space=self.target_entities_view.instance_space,
-            filter=target_filter,
-            limit=-1,  # NOTE: this should always be kept at -1 so that all entities are retrieved
-        )
+        target_entities: list[Node] = list(target_entities_by_id.values())
         file_entities: NodeList = self.client.data_modeling.instances.list(
             instance_type="node",
             sources=self.file_view.as_view_id(),
@@ -308,7 +328,9 @@ class GeneralDataModelService(IDataModelService):
         )
         return target_entities, file_entities
 
-    def _get_target_entities_filter(self, primary_scope_value: str, secondary_scope_value: str | None) -> Filter:
+    def _get_target_entities_filter(
+        self, query_cfg: QueryConfig, primary_scope_value: str, secondary_scope_value: str | None
+    ) -> Filter:
         """
         Builds a filter for target entities (assets) based on scope and configuration.
 
@@ -326,21 +348,22 @@ class GeneralDataModelService(IDataModelService):
             or
             - grabs assets in the primary_scope_value with ScopeWideDetect in the tags property (hard coded) -> provides an option to include entities outside of the secondary_scope_value
         """
+        target_view = query_cfg.target_view
         filter_primary_scope: Filter = Equals(
-            property=self.target_entities_view.as_property_ref(self.config.launch_function.primary_scope_property),
+            property=target_view.as_property_ref(self.config.launch_function.primary_scope_property),
             value=primary_scope_value,
         )
-        filter_entities: Filter = self.filter_target_entities
+        filter_entities: Filter = query_cfg.build_filter()
         # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
         filter_scope_wide: Filter = In(
-            property=self.target_entities_view.as_property_ref("tags"),
+            property=target_view.as_property_ref("tags"),
             values=["ScopeWideDetect"],
         )
         if not primary_scope_value:
             target_filter = filter_entities | filter_scope_wide
         elif secondary_scope_value:
             filter_secondary_scope: Filter = Equals(
-                property=self.target_entities_view.as_property_ref(
+                property=target_view.as_property_ref(
                     self.config.launch_function.secondary_scope_property
                 ),
                 value=secondary_scope_value,
@@ -376,9 +399,17 @@ class GeneralDataModelService(IDataModelService):
             value=primary_scope_value,
         )
         filter_entities: Filter = self.filter_file_entities
-        filter_search_property_exists: Filter = Exists(
-            property=self.file_view.as_property_ref(self.config.launch_function.file_search_property),
-        )
+        file_search_property = self.config.launch_function.file_search_property
+        file_search_properties: list[str] = file_search_property if isinstance(file_search_property, list) else [file_search_property]
+        file_search_properties = [prop for prop in file_search_properties if isinstance(prop, str) and prop.strip()]
+        if not file_search_properties:
+            file_search_properties = ["aliases"]
+        search_property_exists_filters: list[Filter] = [
+            Exists(property=self.file_view.as_property_ref(prop_name)) for prop_name in file_search_properties
+        ]
+        filter_search_property_exists: Filter = search_property_exists_filters[0]
+        for f in search_property_exists_filters[1:]:
+            filter_search_property_exists = filter_search_property_exists | f
         # NOTE: ScopeWideDetect is an optional string that allows annotating across scopes
         filter_scope_wide: Filter = In(
             property=self.file_view.as_property_ref("tags"),

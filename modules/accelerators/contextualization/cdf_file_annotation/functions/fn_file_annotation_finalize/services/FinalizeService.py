@@ -1,9 +1,11 @@
 import abc
 import time
 from datetime import datetime, timezone
-from typing import Literal, cast
+from enum import Enum
+from typing import Any, Literal, cast
 
 from cognite.client import CogniteClient
+from cognite.client.data_classes import RowWrite
 from cognite.client.data_classes.data_modeling import (
     Node,
     NodeApply,
@@ -56,6 +58,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
     """
     Implementation of the FinalizeService.
     """
+    FINALIZED_FILES_RAW_TABLE = "annotation_finalize_processed_files"
 
     def __init__(
         self,
@@ -83,6 +86,8 @@ class GeneralFinalizeService(AbstractFinalizeService):
         self.clean_old_annotations: bool = config.finalize_function.clean_old_annotations
         self.function_id: int | None = function_call_info.get("function_id")
         self.call_id: int | None = function_call_info.get("call_id")
+        self.raw_db: str = config.raw_tables.raw_db
+        self.finalized_files_raw_table: str = self.FINALIZED_FILES_RAW_TABLE
 
     def run(self) -> Literal["Done"] | None:
         """
@@ -150,15 +155,9 @@ class GeneralFinalizeService(AbstractFinalizeService):
             )
             return
 
-        # A job is considered complete if:
-        # 1. The main job is finished, AND
-        # 2. EITHER pattern mode was not enabled (no pattern job ID)
-        #    OR pattern mode was enabled AND its job is also finished.
-        jobs_complete: bool = job_results is not None and (not pattern_mode_job or pattern_mode_job_results is not None)
-
-        if not jobs_complete:
+        if job_results is None:
             self.logger.info(
-                message=f"Unfinalizing {len(file_to_state_map.keys())} files - job {regular_job} and/or pattern id {pattern_mode_job} not complete",
+                message=f"Unfinalizing {len(file_to_state_map.keys())} files - unable to retrieve regular job payload for {regular_job}",
                 section="BOTH",
             )
             self._update_batch_state(
@@ -169,30 +168,63 @@ class GeneralFinalizeService(AbstractFinalizeService):
             time.sleep(30)
             return
 
+        regular_items_map = self._index_items_by_file(job_results)
+        pattern_items_map = self._index_items_by_file(pattern_mode_job_results) if pattern_mode_job_results else {}
+
+        merged_results: dict[tuple[str, str], dict[str, dict | None]] = {}
+        pending_nodes: list[Node] = []
+        pending_external_ids: list[str] = []
+        ready_external_ids: list[str] = []
+
+        for file_id, state_node in file_to_state_map.items():
+            key = file_id.as_tuple()
+            regular_item = regular_items_map.get(key)
+            pattern_item = pattern_items_map.get(key) if pattern_mode_job else None
+            regular_done = self._is_item_terminal(regular_item)
+            pattern_done = True if not pattern_mode_job else self._is_item_terminal(pattern_item)
+
+            if regular_done and pattern_done:
+                merged_results[key] = {"regular": regular_item, "pattern": pattern_item}
+                ready_external_ids.append(file_id.external_id)
+            else:
+                pending_nodes.append(state_node)
+                pending_external_ids.append(file_id.external_id)
+
+        if not merged_results:
+            self.logger.info(
+                message=(
+                    f"No terminal file items yet for claimed batch. "
+                    f"regular_job={regular_job}, pattern_job={pattern_mode_job}, pending_files={len(pending_external_ids)}"
+                ),
+                section="BOTH",
+            )
+            if pending_external_ids:
+                self.logger.info(
+                    message=f"Pending file externalIds: {', '.join(pending_external_ids)}",
+                    section="END",
+                )
+            self._update_batch_state(
+                batch=BatchOfNodes(nodes=pending_nodes),
+                status=AnnotationStatus.PROCESSING,
+            )
+            self.logger.info(message="Sleeping for 30 seconds")
+            time.sleep(30)
+            return
+
         self.logger.info(
-            f"Both jobs {regular_job} and {pattern_mode_job} complete. Applying all annotations.",
+            message=(
+                f"Finalizing {len(ready_external_ids)} files with terminal detect results. "
+                f"externalIds: {', '.join(ready_external_ids)}"
+            ),
             section="END",
         )
-
-        merged_results = {
-            (item["fileInstanceId"]["space"], item["fileInstanceId"]["externalId"]): {"regular": item}
-            for item in job_results["items"]
-        }
-        if pattern_mode_job_results:
-            for item in pattern_mode_job_results["items"]:
-                key = (
-                    item["fileInstanceId"]["space"],
-                    item["fileInstanceId"]["externalId"],
-                )
-                if key in merged_results:
-                    merged_results[key]["pattern"] = item
-                else:
-                    merged_results[key] = {"pattern": item}
 
         count_retry, count_failed, count_success = 0, 0, 0
         annotation_state_node_applies: list[NodeApply] = []
         file_node_applies: list[NodeApply] = []
 
+        finalized_external_ids: list[str] = []
+        finalized_records: list[dict[str, Any]] = []
         for (space, external_id), results in merged_results.items():
             file_id = NodeId(space, external_id)
             file_node = self.client.data_modeling.instances.retrieve_nodes(
@@ -201,7 +233,10 @@ class GeneralFinalizeService(AbstractFinalizeService):
             if not file_node:
                 continue
 
-            annotation_state_node = file_to_state_map[file_id]
+            annotation_state_node = file_to_state_map.get(file_id)
+            if not annotation_state_node:
+                self.logger.warning(f"Missing annotation state for finalized file {file_id.external_id}. Skipping.")
+                continue
             current_attempt = cast(
                 int,
                 annotation_state_node.properties[self.annotation_state_view.as_view_id()]["attemptCount"],
@@ -247,6 +282,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         annotation_msg,
                         pattern_msg,
                     )
+                    final_status: str | AnnotationStatus = AnnotationStatus.ANNOTATED
                     count_success += 1
                 else:
                     job_node_to_update = self._process_annotation_state(
@@ -258,6 +294,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         "Processed page batch, more pages remaining",
                         pattern_msg,
                     )
+                    final_status = AnnotationStatus.NEW
                     count_success += 1  # Still a success for this batch
 
             except Exception as e:
@@ -280,6 +317,7 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         annotation_message=str(e),
                         pattern_mode_message=str(e),
                     )
+                    final_status = AnnotationStatus.FAILED
                     count_failed += 1
                 else:
                     job_node_to_update = self._process_annotation_state(
@@ -289,9 +327,27 @@ class GeneralFinalizeService(AbstractFinalizeService):
                         annotation_message=str(e),
                         pattern_mode_message=str(e),
                     )
+                    final_status = AnnotationStatus.RETRY
                     count_retry += 1
 
             annotation_state_node_applies.append(job_node_to_update)
+            finalized_external_ids.append(file_id.external_id)
+            finalized_records.append(
+                {
+                    "fileSpace": file_id.space,
+                    "fileExternalId": file_id.external_id,
+                    "annotationStatus": self._enum_to_value(final_status),
+                    "regularJobId": regular_job[0] if regular_job else None,
+                    "patternModeJobId": pattern_mode_job[0] if pattern_mode_job else None,
+                    "regularItemStatus": (results.get("regular") or {}).get("status"),
+                    "patternItemStatus": (results.get("pattern") or {}).get("status"),
+                    "regularItemError": (results.get("regular") or {}).get("errorMessage"),
+                    "patternItemError": (results.get("pattern") or {}).get("errorMessage"),
+                    "functionId": self.function_id,
+                    "functionCallId": self.call_id,
+                    "finalizedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                }
+            )
 
         # Batch update the state nodes at the end
         if annotation_state_node_applies or file_node_applies:
@@ -311,8 +367,102 @@ class GeneralFinalizeService(AbstractFinalizeService):
                     section="END",
                 )
 
+        if finalized_external_ids:
+            self.logger.info(
+                message=(
+                    f"Finalized files in this cycle ({len(finalized_external_ids)}): "
+                    f"{', '.join(finalized_external_ids)}"
+                ),
+                section="BOTH",
+            )
+            self._write_finalized_files_rows(finalized_records)
+
+        if pending_nodes:
+            self.logger.info(
+                message=(
+                    f"Keeping {len(pending_nodes)} files in Processing for next finalize poll. "
+                    f"externalIds: {', '.join(pending_external_ids)}"
+                ),
+                section="END",
+            )
+            self._update_batch_state(
+                batch=BatchOfNodes(nodes=pending_nodes),
+                status=AnnotationStatus.PROCESSING,
+            )
+            # Keep the polling cadence moderate when there are still pending items.
+            self.logger.info(message="Sleeping for 30 seconds")
+            time.sleep(30)
+
         self.tracker.add_files(success=count_success, failed=(count_failed + count_retry))
         return None
+
+    def _write_finalized_files_rows(self, finalized_records: list[dict[str, Any]]) -> None:
+        if not finalized_records:
+            return
+
+        base_ts = int(time.time() * 1000)
+        rows: list[RowWrite] = []
+        for idx, record in enumerate(finalized_records):
+            key = (
+                f"{base_ts}_{idx}_{record['fileSpace']}_{record['fileExternalId']}"
+                f"_{record.get('functionCallId') or 'na'}"
+            )
+            rows.append(RowWrite(key=key, columns=record))
+
+        try:
+            self.client.raw.rows.insert(
+                db_name=self.raw_db,
+                table_name=self.finalized_files_raw_table,
+                row=rows,
+                ensure_parent=True,
+            )
+            self.logger.info(
+                message=(
+                    f"Wrote {len(rows)} finalized file records to RAW "
+                    f"{self.raw_db}.{self.finalized_files_raw_table}"
+                ),
+                section="BOTH",
+            )
+        except Exception as e:
+            self.logger.error(
+                message=(
+                    f"Failed writing finalized file records to RAW "
+                    f"{self.raw_db}.{self.finalized_files_raw_table}"
+                ),
+                error=e,
+                section="END",
+            )
+
+    @staticmethod
+    def _enum_to_value(value: Any) -> Any:
+        if isinstance(value, Enum):
+            return value.value
+        return value
+
+    def _index_items_by_file(self, job_results: dict | None) -> dict[tuple[str, str], dict]:
+        if not job_results:
+            return {}
+        indexed: dict[tuple[str, str], dict] = {}
+        for item in cast(list[dict], job_results.get("items", [])):
+            file_instance = cast(dict, item.get("fileInstanceId", {}))
+            space = file_instance.get("space")
+            external_id = file_instance.get("externalId")
+            if space and external_id:
+                indexed[(space, external_id)] = item
+        return indexed
+
+    def _is_item_terminal(self, item: dict | None) -> bool:
+        if item is None:
+            return False
+        status = str(item.get("status", "")).strip().lower()
+        if status in {"completed", "failed", "cancelled", "canceled"}:
+            return True
+        if item.get("errorMessage"):
+            return True
+        # Defensive fallback for payloads where status may be omitted on completed items.
+        if status == "" and ("annotations" in item or "pageCount" in item):
+            return True
+        return False
 
     def _process_annotation_state(
         self,

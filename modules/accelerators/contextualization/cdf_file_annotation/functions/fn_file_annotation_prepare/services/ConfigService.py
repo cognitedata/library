@@ -13,7 +13,7 @@ from cognite.client.data_classes.contextualization import (
 from cognite.client.data_classes.data_modeling import NodeId
 from cognite.client.data_classes.filters import Filter
 from cognite.client.exceptions import CogniteAPIError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic.alias_generators import to_camel
 from utils.DataStructures import AnnotationStatus, FilterOperator
 
@@ -299,7 +299,27 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
     core_annotation_view: ViewPropertyConfig
     annotation_state_view: ViewPropertyConfig
     file_view: ViewPropertyConfig
-    target_entities_view: ViewPropertyConfig
+    # Backward compatible: accept legacy singular or new multi-view config
+    target_entities_view: Optional[ViewPropertyConfig] = None
+    target_entities_views: Optional[list[ViewPropertyConfig]] = None
+
+    @model_validator(mode="after")
+    def _require_target_entities_view(self) -> "DataModelViews":
+        if self.target_entities_views:
+            return self
+        if self.target_entities_view is not None:
+            return self
+        raise ValueError(
+            "Configuration must define either targetEntitiesView or targetEntitiesViews"
+        )
+
+    def get_target_entity_views(self) -> list[ViewPropertyConfig]:
+        if self.target_entities_views:
+            return self.target_entities_views
+        if self.target_entities_view is not None:
+            return [self.target_entities_view]
+        # Guarded by validator, but keep a safe fallback.
+        return []
 
 
 class Config(BaseModel, alias_generator=to_camel):
