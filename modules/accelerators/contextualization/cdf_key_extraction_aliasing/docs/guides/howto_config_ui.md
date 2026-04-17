@@ -35,6 +35,8 @@ This **single command** starts both processes:
 - **FastAPI** operator API (uvicorn on **`ui.server.main:app`**, default **`127.0.0.1:8765`**)
 - **Vite** dev server (default **`127.0.0.1:5173`**), with **`VITE_API_PROXY`** set automatically so **`/api`** calls reach the API
 
+The **`cdf_access_control`** module defaults to API **8775** and Vite **5183** so you can run both UIs on one machine without port clashes.
+
 It runs **`npm install`** in **`ui/`** on first use if **`node_modules/`** is missing, then opens a **browser tab** to the Vite URL (unless you pass **`--no-browser`**). **Ctrl+C** stops both servers.
 
 Useful flags (see **`python module.py ui --help`**):

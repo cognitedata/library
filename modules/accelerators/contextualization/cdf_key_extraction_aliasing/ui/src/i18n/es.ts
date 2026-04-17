@@ -161,6 +161,10 @@ export const es: Messages = {
   "sourceViews.filterTargetProperty": "Propiedad objetivo",
   "sourceViews.filterPropertyScope": "Ámbito de la propiedad",
   "sourceViews.filterValues": "Valores (separados por comas o un solo valor)",
+  "sourceViews.perViewValidationTitle": "Validación (esta vista origen)",
+  "sourceViews.perViewValidationHint":
+    "Se fusiona sobre la validación global de Key Discovery. confidence_match_rules se añaden; otros campos (p. ej. min_confidence) sobrescriben si están definidos. Use «Solo validación global» para quitar esta capa.",
+  "sourceViews.perViewValidationClear": "Solo validación global",
   "keyExtraction.title": "Descubrimiento de claves",
   "keyExtraction.externalId": "Id. externo",
   "keyExtraction.parameters": "Parámetros",

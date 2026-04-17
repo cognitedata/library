@@ -19,7 +19,7 @@ source_views:
   validation:
     confidence_match_rules:
     - name: isa_compliant
-      priority: 50
+      enabled: true
       match:
         expressions:
         - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
@@ -58,19 +58,23 @@ source_views:
           description: Analytical instruments (AIC-101, AIT-201, ACV-301)
         - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
           description: Distillation column tags (C-101, DC-201)
+        keywords: []
       confidence_modifier:
         mode: explicit
         value: 1
+      priority: 50
     - name: not_isa_penalty
-      priority: 1000
+      enabled: true
       match:
         expressions:
         - pattern: (?s).*
           description: Catch-all when no higher-priority rule matched; applies non-ISA
             penalty
+        keywords: []
       confidence_modifier:
         mode: offset
         value: -0.2
+      priority: 1000
 - view_external_id: CogniteFile
   view_space: cdf_cdm
   view_version: v1
@@ -182,19 +186,18 @@ key_extraction:
         priority: 10
         description: Equipment tags — optional hyphens; optional numeric tail segments
           (e.g. ...-92529-02).
-        result_template: '{unit}-{name}'
         fields:
-        - field_name: name
-          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-          max_matches_per_field: 10
-          regex_options:
+        - regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
+          field_name: name
           required: true
-          max_length: 500
           priority: 1
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_matches_per_field: 10
+          max_length: 500
           preprocessing:
           - trim
         scope_filters:

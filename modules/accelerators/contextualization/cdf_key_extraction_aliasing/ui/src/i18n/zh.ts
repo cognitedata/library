@@ -166,6 +166,10 @@ export const zh: Messages = {
   "sourceViews.filterTargetProperty": "目标属性",
   "sourceViews.filterPropertyScope": "属性范围",
   "sourceViews.filterValues": "值（逗号分隔或单个值）",
+  "sourceViews.perViewValidationTitle": "验证（此源视图）",
+  "sourceViews.perViewValidationHint":
+    "叠加在 Key Discovery 的全局验证之上。confidence_match_rules 会追加；其他字段（如 min_confidence）在设置时会覆盖。使用「仅使用全局验证」可移除此覆盖层。",
+  "sourceViews.perViewValidationClear": "仅使用全局验证",
   "keyExtraction.title": "键发现",
   "keyExtraction.externalId": "外部 ID",
   "keyExtraction.parameters": "参数",

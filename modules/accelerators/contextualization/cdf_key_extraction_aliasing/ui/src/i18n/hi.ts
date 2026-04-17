@@ -162,6 +162,10 @@ export const hi: Messages = {
   "sourceViews.filterTargetProperty": "लक्ष्य गुण",
   "sourceViews.filterPropertyScope": "गुण स्कोप",
   "sourceViews.filterValues": "मान (अल्पविराम से अलग या एकल)",
+  "sourceViews.perViewValidationTitle": "सत्यापन (यह स्रोत दृश्य)",
+  "sourceViews.perViewValidationHint":
+    "Key Discovery की वैश्विक सत्यापन के ऊपर मिलाया जाता है। confidence_match_rules जोड़े जाते हैं; अन्य फ़ील्ड (जैसे min_confidence) सेट होने पर ओवरराइड करते हैं। ओवरले हटाने के लिए «केवल वैश्विक सत्यापन» उपयोग करें।",
+  "sourceViews.perViewValidationClear": "केवल वैश्विक सत्यापन",
   "keyExtraction.title": "कुंजी खोज",
   "keyExtraction.externalId": "बाहरी ID",
   "keyExtraction.parameters": "पैरामीटर",

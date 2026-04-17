@@ -161,6 +161,10 @@ export const nb: Messages = {
   "sourceViews.filterTargetProperty": "Målegenskap",
   "sourceViews.filterPropertyScope": "Egenskapsomfang",
   "sourceViews.filterValues": "Verdier (kommaseparert eller enkeltverdi)",
+  "sourceViews.perViewValidationTitle": "Validering (denne kildevisningen)",
+  "sourceViews.perViewValidationHint":
+    "Slås sammen oppå global Key Discovery-validering. confidence_match_rules legges til; andre felt (f.eks. min_confidence) overstyrer når de er satt. Bruk «Kun global validering» for å fjerne dette laget.",
+  "sourceViews.perViewValidationClear": "Kun global validering",
   "keyExtraction.title": "Nøkkeloppdagelse",
   "keyExtraction.externalId": "Ekstern ID",
   "keyExtraction.parameters": "Parametere",

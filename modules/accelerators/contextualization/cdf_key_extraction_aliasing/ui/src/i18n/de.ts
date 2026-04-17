@@ -162,6 +162,10 @@ export const de: Messages = {
   "sourceViews.filterTargetProperty": "Zieleigenschaft",
   "sourceViews.filterPropertyScope": "Eigenschaftsbereich",
   "sourceViews.filterValues": "Werte (kommagetrennt oder einzeln)",
+  "sourceViews.perViewValidationTitle": "Validierung (diese Quellansicht)",
+  "sourceViews.perViewValidationHint":
+    "Wird über die globale Key-Discovery-Validierung gelegt. confidence_match_rules werden angehängt; andere Felder (z. B. min_confidence) überschreiben bei gesetztem Wert. „Nur globale Validierung“ entfernt diesen Overlay.",
+  "sourceViews.perViewValidationClear": "Nur globale Validierung",
   "keyExtraction.title": "Schlüsselerkennung",
   "keyExtraction.externalId": "Externe ID",
   "keyExtraction.parameters": "Parameter",

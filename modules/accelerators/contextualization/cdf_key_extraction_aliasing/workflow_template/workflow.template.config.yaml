@@ -15,6 +15,7 @@ source_views:
   - name
   - description
   - tags
+  - unit
   validation:
     confidence_match_rules:
     - name: isa_compliant
@@ -74,7 +75,6 @@ source_views:
   view_space: cdf_cdm
   view_version: v1
   entity_type: file
-  batch_size: 50
   filters:
   - operator: IN
     target_property: mimeType
@@ -85,13 +85,13 @@ source_views:
   - name
   - description
   - tags
+  - unit
   - documentType
   - drawingNumber
 - view_external_id: CogniteTimeSeries
   view_space: cdf_cdm
   view_version: v1
   entity_type: timeseries
-  batch_size: 200
   include_properties:
   - externalId
   - name
@@ -182,6 +182,7 @@ key_extraction:
         priority: 10
         description: Equipment tags — optional hyphens; optional numeric tail segments
           (e.g. ...-92529-02).
+        result_template: '{unit}-{name}'
         fields:
         - field_name: name
           regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
@@ -223,19 +224,12 @@ key_extraction:
           entity_type:
           - file
       - name: timeseries_instrument_tag_candidate
-        handler: heuristic
+        handler: regex_handler
         extraction_type: candidate_key
         enabled: true
         priority: 30
         description: Same *alphanumeric_tag as timeseries FK rules on name/description
           (and asset candidate).
-        parameters:
-          strategies:
-          - id: delimiter_split
-            weight: 1
-          - id: sliding_token
-            weight: 0.5
-          max_candidates_per_field: 20
         fields:
         - field_name: name
           regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b

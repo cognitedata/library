@@ -161,6 +161,10 @@ export const en: Messages = {
   "sourceViews.filterTargetProperty": "Target Property",
   "sourceViews.filterPropertyScope": "Property Scope",
   "sourceViews.filterValues": "Values (Comma-Separated or Single Value)",
+  "sourceViews.perViewValidationTitle": "Validation (this source view)",
+  "sourceViews.perViewValidationHint":
+    "Merged on top of Key Discovery → Validation (global). confidence_match_rules are appended; other fields (e.g. min_confidence) override when set. Use “Use global validation only” to drop this overlay.",
+  "sourceViews.perViewValidationClear": "Use global validation only",
   "keyExtraction.title": "Key Discovery",
   "keyExtraction.externalId": "External ID",
   "keyExtraction.parameters": "Parameters",

@@ -173,6 +173,10 @@ export const fr: Messages = {
   "sourceViews.filterTargetProperty": "Propriété cible",
   "sourceViews.filterPropertyScope": "Portée de la propriété",
   "sourceViews.filterValues": "Valeurs (séparées par des virgules ou valeur unique)",
+  "sourceViews.perViewValidationTitle": "Validation (cette vue source)",
+  "sourceViews.perViewValidationHint":
+    "Fusionnée par-dessus la validation globale Key Discovery. Les confidence_match_rules sont ajoutées ; d’autres champs (p. ex. min_confidence) remplacent si définis. Utilisez « Validation globale uniquement » pour retirer cette couche.",
+  "sourceViews.perViewValidationClear": "Validation globale uniquement",
   "keyExtraction.title": "Découverte de clés",
   "keyExtraction.externalId": "ID externe",
   "keyExtraction.parameters": "Paramètres",

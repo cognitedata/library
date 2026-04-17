@@ -3,6 +3,7 @@ import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
 import { mergeDataWithValidation, splitDataByValidation } from "../utils/splitConfigData";
+import { withoutRegexpMatch } from "../utils/validationConfig";
 import { DiscoveryRulesStructuredEditor } from "./DiscoveryRulesStructuredEditor";
 import { ValidationStructuredEditor } from "./ValidationStructuredEditor";
 
@@ -50,13 +51,6 @@ function coerceParam(s: string): unknown {
 
 function editorSubtabClass(active: boolean): string {
   return `kea-tab${active ? " kea-tab--active" : ""}`;
-}
-
-/** Key Discovery validation no longer supports deprecated `regexp_match`; drop it on save. */
-function withoutRegexpMatch(validation: JsonObject): JsonObject {
-  const v = { ...validation };
-  delete (v as JsonObject).regexp_match;
-  return v;
 }
 
 type EditorSub = "settings" | "rules" | "validation";

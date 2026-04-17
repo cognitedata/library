@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { MessageKey } from "../i18n";
 import type { JsonObject } from "../types/scopeConfig";
+import { withoutRegexpMatch } from "../utils/validationConfig";
 import {
   SourceViewFilterNodeEditor,
   emptyAnd,
@@ -9,6 +11,7 @@ import {
   emptyNot,
   emptyOr,
 } from "./SourceViewFiltersEditor";
+import { ValidationStructuredEditor } from "./ValidationStructuredEditor";
 import { commaJoinSegments, splitCommaSegments } from "../utils/commaDelimited";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
@@ -101,6 +104,59 @@ export function SourceViewsControls({ value, onChange }: Props) {
     if (!view) return;
     setIncludeDraft(includePropsToText(view.include_properties));
   }, [vi, includeKey]);
+
+  const validationKey = JSON.stringify(view?.validation ?? null);
+  const validationObject = useMemo((): JsonObject => {
+    const v = view?.validation;
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) return v as JsonObject;
+    return {};
+  }, [vi, validationKey]);
+
+  const [validationYaml, setValidationYaml] = useState(() =>
+    YAML.stringify(validationObject, { lineWidth: 0 })
+  );
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!view) return;
+    const v = view.validation;
+    const vo =
+      v !== null && typeof v === "object" && !Array.isArray(v) ? (v as JsonObject) : {};
+    setValidationYaml(YAML.stringify(vo, { lineWidth: 0 }));
+    setValidationError(null);
+  }, [vi, validationKey, view]);
+
+  const commitStructuredValidation = (next: JsonObject) => {
+    const cleaned = withoutRegexpMatch(next);
+    setValidationYaml(YAML.stringify(cleaned, { lineWidth: 0 }));
+    setValidationError(null);
+    patchView(vi, { validation: cleaned });
+  };
+
+  const commitValidationYaml = () => {
+    try {
+      const parsed = YAML.parse(validationYaml);
+      const vo =
+        parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as JsonObject) : {};
+      const cleaned = withoutRegexpMatch(vo);
+      setValidationYaml(YAML.stringify(cleaned, { lineWidth: 0 }));
+      setValidationError(null);
+      patchView(vi, { validation: cleaned });
+    } catch (e) {
+      setValidationError(String(e));
+    }
+  };
+
+  const clearValidationOverlay = () => {
+    const next = views.map((v, j) => {
+      if (j !== vi) return v;
+      const copy = { ...v };
+      delete copy.validation;
+      return copy;
+    });
+    setViews(next);
+    setValidationError(null);
+  };
 
   return (
     <div className="kea-source-views">
@@ -287,6 +343,32 @@ export function SourceViewsControls({ value, onChange }: Props) {
                 >
                   {t("sourceViews.filterAddNot")}
                 </button>
+              </div>
+              <div style={{ marginTop: "1.25rem" }}>
+                <div className="kea-toolbar-inline" style={{ marginBottom: "0.5rem", flexWrap: "wrap", gap: 8 }}>
+                  <h4 className="kea-section-title" style={{ fontSize: "0.95rem", margin: 0, flex: "1 1 auto" }}>
+                    {t("sourceViews.perViewValidationTitle")}
+                  </h4>
+                  <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={clearValidationOverlay}>
+                    {t("sourceViews.perViewValidationClear")}
+                  </button>
+                </div>
+                <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
+                  {t("sourceViews.perViewValidationHint")}
+                </p>
+                <ValidationStructuredEditor variant="keyExtraction" value={validationObject} onChange={commitStructuredValidation} />
+                <details style={{ marginTop: "1rem" }}>
+                  <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("validationEditor.advancedYaml")}</summary>
+                  {validationError && <p className="kea-hint kea-hint--warn">{validationError}</p>}
+                  <textarea
+                    className="kea-textarea"
+                    style={{ minHeight: 200, fontFamily: "ui-monospace, monospace", marginTop: "0.5rem" }}
+                    value={validationYaml}
+                    onChange={(e) => setValidationYaml(e.target.value)}
+                    onBlur={commitValidationYaml}
+                    spellCheck={false}
+                  />
+                </details>
               </div>
             </div>
           )}

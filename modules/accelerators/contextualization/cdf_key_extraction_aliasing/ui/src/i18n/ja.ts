@@ -161,6 +161,10 @@ export const ja: Messages = {
   "sourceViews.filterTargetProperty": "対象プロパティ",
   "sourceViews.filterPropertyScope": "プロパティのスコープ",
   "sourceViews.filterValues": "値（カンマ区切りまたは単一値）",
+  "sourceViews.perViewValidationTitle": "検証（このソースビュー）",
+  "sourceViews.perViewValidationHint":
+    "Key Discovery の全体検証にマージされます。confidence_match_rules は追加され、その他（min_confidence など）は設定時に上書きします。「全体の検証のみ」でこのオーバーレイを外します。",
+  "sourceViews.perViewValidationClear": "全体の検証のみ",
   "keyExtraction.title": "キー探索",
   "keyExtraction.externalId": "外部 ID",
   "keyExtraction.parameters": "パラメータ",
