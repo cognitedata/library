@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import YAML from "yaml";
 import { AdvancedYamlPanel } from "./components/AdvancedYamlPanel";
 import { AliasingControls } from "./components/AliasingControls";
@@ -9,10 +9,24 @@ import { SourceViewsControls } from "./components/SourceViewsControls";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { LOCALES, type MessageKey } from "./i18n";
 import type { AliasingScopeHierarchy, JsonObject } from "./types/scopeConfig";
+import { displayNameFromRoot } from "./utils/configDisplayName";
+import { matchConfigSearch } from "./utils/configPanelSearch";
 
-type Tab = "scope" | "sourceViews" | "keyExtraction" | "aliasing" | "build" | "artifacts";
+type Tab = "scope" | "configure" | "build" | "artifacts";
+
+type ConfigSubTab = "sourceViews" | "keyExtraction" | "aliasing";
+
+type TriggerTopTab = "triggerAuth" | "schedule" | "pipeline";
 
 type PhaseKey = "status.loading" | "status.saving" | "status.saved" | "status.loaded";
+
+type ConfigureTarget =
+  | { id: "workflowLocal" }
+  | { id: "workflowTemplate" }
+  | { id: "trigger"; path: string };
+
+const SCOPE_REL = "workflow.local.config.yaml";
+const TEMPLATE_REL = "workflow_template/workflow.template.config.yaml";
 
 const MODULE_FORM_KEYS: { key: string; labelKey: MessageKey }[] = [
   { key: "function_version", labelKey: "module.field.function_version" },
@@ -42,10 +56,26 @@ function isTriggerPath(path: string | null): boolean {
   return path != null && /\.WorkflowTrigger\.ya?ml$/i.test(path);
 }
 
+function configureTargetsEqual(a: ConfigureTarget, b: ConfigureTarget): boolean {
+  if (a.id !== b.id) return false;
+  if (a.id === "trigger" && b.id === "trigger") return a.path === b.path;
+  return true;
+}
+
+type UnsavedPrompt =
+  | { kind: "configureTarget"; next: ConfigureTarget }
+  | { kind: "tab"; next: Tab }
+  | { kind: "artifactPath"; next: string };
+
 export default function App() {
   const { t, theme, setTheme, locale, setLocale } = useAppSettings();
 
   const [tab, setTab] = useState<Tab>("scope");
+  const [configureTarget, setConfigureTarget] = useState<ConfigureTarget>({ id: "workflowLocal" });
+  const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>("sourceViews");
+  const [triggerTopTab, setTriggerTopTab] = useState<TriggerTopTab>("pipeline");
+  const [configSearchQuery, setConfigSearchQuery] = useState("");
+
   const [defaultDoc, setDefaultDoc] = useState<Record<string, unknown>>({});
   const [defaultRawYaml, setDefaultRawYaml] = useState("");
   const [defaultPhase, setDefaultPhase] = useState<PhaseKey | null>("status.loading");
@@ -58,16 +88,33 @@ export default function App() {
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [savedScopeSnap, setSavedScopeSnap] = useState("");
 
+  const [templateDoc, setTemplateDoc] = useState<Record<string, unknown>>({});
+  const [templateRawYaml, setTemplateRawYaml] = useState("");
+  const [templatePhase, setTemplatePhase] = useState<PhaseKey | null>("status.loading");
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [savedTemplateSnap, setSavedTemplateSnap] = useState("");
+
+  const [configTriggerText, setConfigTriggerText] = useState("");
+  const [configTriggerPhase, setConfigTriggerPhase] = useState<PhaseKey | null>(null);
+  const [savedConfigTriggerSnap, setSavedConfigTriggerSnap] = useState("");
+
   const [buildLog, setBuildLog] = useState("");
-  const [buildOpen, setBuildOpen] = useState(false);
   const [artifactPaths, setArtifactPaths] = useState<string[]>([]);
-  const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null);
+  const [artifactPath, setArtifactPath] = useState<string | null>(null);
   const [artifactText, setArtifactText] = useState("");
+  const [savedArtifactSnap, setSavedArtifactSnap] = useState("");
   const [artifactPhase, setArtifactPhase] = useState<PhaseKey | null>(null);
-  const [artifactTriggerSub, setArtifactTriggerSub] = useState<"views" | "extraction" | "aliasing">("views");
-  const [artifactPlain, setArtifactPlain] = useState(false);
+  const [unsavedPrompt, setUnsavedPrompt] = useState<UnsavedPrompt | null>(null);
+  const [unsavedBusy, setUnsavedBusy] = useState(false);
+  /** Display names from root `name` in WorkflowTrigger YAML (from /api/workflow-trigger-meta + live edits). */
+  const [triggerNamesByPath, setTriggerNamesByPath] = useState<Record<string, string>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsWrapRef = useRef<HTMLDivElement>(null);
+  const triggerTypeDatalistId = useId();
+
+  useEffect(() => {
+    if (configureTarget.id !== "trigger") setTriggerTopTab("pipeline");
+  }, [configureTarget.id]);
 
   const api = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const r = await fetch(path, init);
@@ -78,18 +125,57 @@ export default function App() {
     return r.json() as Promise<T>;
   }, []);
 
+  const refreshArtifactLists = useCallback(async () => {
+    try {
+      const [arts, trigMeta] = await Promise.all([
+        api<{ paths: string[] }>("/api/artifacts"),
+        api<{ entries: { path: string; name: string | null }[] }>("/api/workflow-trigger-meta"),
+      ]);
+      setArtifactPaths(arts.paths ?? []);
+      const nm: Record<string, string> = {};
+      for (const e of trigMeta.entries ?? []) {
+        if (e.name) nm[e.path] = e.name;
+      }
+      setTriggerNamesByPath(nm);
+    } catch {
+      /* ignore */
+    }
+  }, [api]);
+
+  const loadConfigTrigger = useCallback(
+    async (rel: string) => {
+      setConfigTriggerPhase("status.loading");
+      try {
+        const d = await api<{ content: string }>(`/api/file?rel=${encodeURIComponent(rel)}`);
+        setConfigTriggerText(d.content ?? "");
+        setSavedConfigTriggerSnap(d.content ?? "");
+        setConfigTriggerPhase("status.loaded");
+      } catch {
+        setConfigTriggerText("");
+        setSavedConfigTriggerSnap("");
+        setConfigTriggerPhase(null);
+      }
+    },
+    [api]
+  );
+
   const loadAll = useCallback(async () => {
     setDefaultPhase("status.loading");
     setScopePhase("status.loading");
+    setTemplatePhase("status.loading");
     setDefaultError(null);
     setScopeError(null);
+    setTemplateError(null);
     try {
-      const [dDef, rawDef, dScope, rawScope, arts] = await Promise.all([
+      const [dDef, rawDef, dScope, rawScope, dTpl, rawTpl, arts, trigMeta] = await Promise.all([
         api<Record<string, unknown>>("/api/default-config/model"),
         api<{ content: string }>("/api/default-config"),
-        api<Record<string, unknown>>("/api/scope-document/model"),
-        api<{ content: string }>("/api/scope-document"),
+        api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
+        api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`),
+        api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+        api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`),
         api<{ paths: string[] }>("/api/artifacts"),
+        api<{ entries: { path: string; name: string | null }[] }>("/api/workflow-trigger-meta"),
       ]);
       setDefaultDoc(dDef && typeof dDef === "object" ? dDef : {});
       setDefaultRawYaml(rawDef.content ?? "");
@@ -97,14 +183,25 @@ export default function App() {
       setScopeDoc(dScope && typeof dScope === "object" ? dScope : {});
       setScopeRawYaml(rawScope.content ?? "");
       setSavedScopeSnap(JSON.stringify(dScope));
+      setTemplateDoc(dTpl && typeof dTpl === "object" ? dTpl : {});
+      setTemplateRawYaml(rawTpl.content ?? "");
+      setSavedTemplateSnap(JSON.stringify(dTpl));
       setArtifactPaths(arts.paths ?? []);
+      const nm: Record<string, string> = {};
+      for (const e of trigMeta.entries ?? []) {
+        if (e.name) nm[e.path] = e.name;
+      }
+      setTriggerNamesByPath(nm);
       setDefaultPhase("status.loaded");
       setScopePhase("status.loaded");
+      setTemplatePhase("status.loaded");
     } catch (e) {
       setDefaultError(String(e));
       setScopeError(String(e));
+      setTemplateError(String(e));
       setDefaultPhase(null);
       setScopePhase(null);
+      setTemplatePhase(null);
     }
   }, [api]);
 
@@ -115,6 +212,29 @@ export default function App() {
   useEffect(() => {
     loadAll().catch(() => undefined);
   }, [loadAll]);
+
+  useEffect(() => {
+    if (configureTarget.id === "trigger") {
+      void loadConfigTrigger(configureTarget.path);
+    }
+  }, [configureTarget, loadConfigTrigger]);
+
+  useEffect(() => {
+    if (configureTarget.id !== "trigger") return;
+    const path = configureTarget.path;
+    try {
+      const doc = YAML.parse(configTriggerText) as Record<string, unknown>;
+      const d = displayNameFromRoot(doc);
+      setTriggerNamesByPath((prev) => {
+        const next = { ...prev };
+        if (d) next[path] = d;
+        else delete next[path];
+        return next;
+      });
+    } catch {
+      /* keep previous label while editing broken YAML */
+    }
+  }, [configTriggerText, configureTarget]);
 
   useEffect(() => {
     if (tab === "artifacts" || tab === "build") {
@@ -139,6 +259,15 @@ export default function App() {
     };
   }, [settingsOpen]);
 
+  useEffect(() => {
+    if (!unsavedPrompt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !unsavedBusy) setUnsavedPrompt(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [unsavedPrompt, unsavedBusy]);
+
   const hierarchy = useMemo((): AliasingScopeHierarchy => {
     const h = defaultDoc.aliasing_scope_hierarchy;
     if (h && typeof h === "object" && !Array.isArray(h)) return h as AliasingScopeHierarchy;
@@ -159,7 +288,47 @@ export default function App() {
     return JSON.stringify(scopeDoc) !== savedScopeSnap;
   }, [scopeDoc, savedScopeSnap]);
 
-  const saveDefault = async () => {
+  const isTemplateDirty = useMemo(() => {
+    if (!savedTemplateSnap) return false;
+    return JSON.stringify(templateDoc) !== savedTemplateSnap;
+  }, [templateDoc, savedTemplateSnap]);
+
+  const isConfigTriggerDirty = useMemo(() => {
+    return configTriggerText !== savedConfigTriggerSnap;
+  }, [configTriggerText, savedConfigTriggerSnap]);
+
+  const isConfigureDirty = useMemo(() => {
+    switch (configureTarget.id) {
+      case "workflowLocal":
+        return isScopeDirty;
+      case "workflowTemplate":
+        return isTemplateDirty;
+      case "trigger":
+        return isConfigTriggerDirty;
+      default:
+        return false;
+    }
+  }, [configureTarget.id, isScopeDirty, isTemplateDirty, isConfigTriggerDirty]);
+
+  const isArtifactDirty = useMemo(() => {
+    if (!artifactPath) return false;
+    return artifactText !== savedArtifactSnap;
+  }, [artifactPath, artifactText, savedArtifactSnap]);
+
+  const isCurrentEditorDirty = useMemo(() => {
+    switch (tab) {
+      case "scope":
+        return isDefaultDirty;
+      case "configure":
+        return isConfigureDirty;
+      case "artifacts":
+        return isArtifactDirty;
+      default:
+        return false;
+    }
+  }, [tab, isDefaultDirty, isConfigureDirty, isArtifactDirty]);
+
+  const saveDefault = async (): Promise<boolean> => {
     setDefaultPhase("status.saving");
     setDefaultError(null);
     try {
@@ -172,33 +341,142 @@ export default function App() {
       setDefaultRawYaml(raw.content ?? "");
       setSavedDefaultSnap(JSON.stringify(defaultDoc));
       setDefaultPhase("status.saved");
+      return true;
+    } catch (e) {
+      setDefaultError(String(e));
+      setDefaultPhase(null);
+      return false;
+    }
+  };
+
+  const saveScope = async (): Promise<boolean> => {
+    setScopePhase("status.saving");
+    setScopeError(null);
+    try {
+      await api(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(scopeDoc),
+      });
+      const raw = await api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`);
+      setScopeRawYaml(raw.content ?? "");
+      setSavedScopeSnap(JSON.stringify(scopeDoc));
+      setScopePhase("status.saved");
+      return true;
+    } catch (e) {
+      setScopeError(String(e));
+      setScopePhase(null);
+      return false;
+    }
+  };
+
+  const saveTemplate = async (): Promise<boolean> => {
+    setTemplatePhase("status.saving");
+    setTemplateError(null);
+    try {
+      await api(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(templateDoc),
+      });
+      const raw = await api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`);
+      setTemplateRawYaml(raw.content ?? "");
+      setSavedTemplateSnap(JSON.stringify(templateDoc));
+      setTemplatePhase("status.saved");
+      return true;
+    } catch (e) {
+      setTemplateError(String(e));
+      setTemplatePhase(null);
+      return false;
+    }
+  };
+
+  const saveConfigureTrigger = async (): Promise<boolean> => {
+    if (configureTarget.id !== "trigger") return false;
+    const rel = configureTarget.path;
+    setConfigTriggerPhase("status.saving");
+    try {
+      await api(`/api/file?rel=${encodeURIComponent(rel)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: configTriggerText }),
+      });
+      setSavedConfigTriggerSnap(configTriggerText);
+      setConfigTriggerPhase("status.saved");
+      const art = await api<{ paths: string[] }>("/api/artifacts");
+      setArtifactPaths(art.paths ?? []);
+      return true;
+    } catch {
+      setConfigTriggerPhase(null);
+      return false;
+    }
+  };
+
+  const reloadCurrentConfigure = async () => {
+    switch (configureTarget.id) {
+      case "workflowLocal": {
+        setScopePhase("status.loading");
+        setScopeError(null);
+        try {
+          const [model, raw] = await Promise.all([
+            api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
+            api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`),
+          ]);
+          setScopeDoc(model && typeof model === "object" ? model : {});
+          setScopeRawYaml(raw.content ?? "");
+          setSavedScopeSnap(JSON.stringify(model));
+          setScopePhase("status.loaded");
+        } catch (e) {
+          setScopeError(String(e));
+          setScopePhase(null);
+        }
+        break;
+      }
+      case "workflowTemplate": {
+        setTemplatePhase("status.loading");
+        setTemplateError(null);
+        try {
+          const [model, raw] = await Promise.all([
+            api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+            api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+          ]);
+          setTemplateDoc(model && typeof model === "object" ? model : {});
+          setTemplateRawYaml(raw.content ?? "");
+          setSavedTemplateSnap(JSON.stringify(model));
+          setTemplatePhase("status.loaded");
+        } catch (e) {
+          setTemplateError(String(e));
+          setTemplatePhase(null);
+        }
+        break;
+      }
+      case "trigger":
+        await loadConfigTrigger(configureTarget.path);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const reloadDefaultFromDisk = async () => {
+    setDefaultPhase("status.loading");
+    setDefaultError(null);
+    try {
+      const [model, raw] = await Promise.all([
+        api<Record<string, unknown>>("/api/default-config/model"),
+        api<{ content: string }>("/api/default-config"),
+      ]);
+      setDefaultDoc(model && typeof model === "object" ? model : {});
+      setDefaultRawYaml(raw.content ?? "");
+      setSavedDefaultSnap(JSON.stringify(model));
+      setDefaultPhase("status.loaded");
     } catch (e) {
       setDefaultError(String(e));
       setDefaultPhase(null);
     }
   };
 
-  const saveScope = async () => {
-    setScopePhase("status.saving");
-    setScopeError(null);
-    try {
-      await api("/api/scope-document/model", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(scopeDoc),
-      });
-      const raw = await api<{ content: string }>("/api/scope-document");
-      setScopeRawYaml(raw.content ?? "");
-      setSavedScopeSnap(JSON.stringify(scopeDoc));
-      setScopePhase("status.saved");
-    } catch (e) {
-      setScopeError(String(e));
-      setScopePhase(null);
-    }
-  };
-
   const runBuild = async (force: boolean, dryRun: boolean) => {
-    setBuildOpen(true);
     setBuildLog(`${t("status.running")}\n`);
     const d = await api<{ exit_code: number; stdout: string; stderr: string }>("/api/build", {
       method: "POST",
@@ -213,38 +491,45 @@ export default function App() {
   };
 
   const openArtifact = async (rel: string) => {
-    setSelectedArtifact(rel);
+    setArtifactPath(rel);
     setArtifactPhase("status.loading");
-    setArtifactPlain(false);
     const d = await api<{ content: string }>(`/api/file?rel=${encodeURIComponent(rel)}`);
-    setArtifactText(d.content);
+    const c = d.content ?? "";
+    setArtifactText(c);
+    setSavedArtifactSnap(c);
     setArtifactPhase("status.loaded");
   };
 
-  const saveArtifactFile = async () => {
-    if (!selectedArtifact) return;
+  const saveArtifactFile = async (): Promise<boolean> => {
+    if (!artifactPath) return false;
     setArtifactPhase("status.saving");
-    await api(`/api/file?rel=${encodeURIComponent(selectedArtifact)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: artifactText }),
-    });
-    setArtifactPhase("status.saved");
-    const art = await api<{ paths: string[] }>("/api/artifacts");
-    setArtifactPaths(art.paths ?? []);
+    try {
+      await api(`/api/file?rel=${encodeURIComponent(artifactPath)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: artifactText }),
+      });
+      setSavedArtifactSnap(artifactText);
+      setArtifactPhase("status.saved");
+      const art = await api<{ paths: string[] }>("/api/artifacts");
+      setArtifactPaths(art.paths ?? []);
+      return true;
+    } catch {
+      setArtifactPhase(null);
+      return false;
+    }
   };
 
-  /** Parsed trigger document when YAML is valid and looks like a WorkflowTrigger */
-  const parsedArtifact = useMemo(() => {
-    if (!selectedArtifact || !isTriggerPath(selectedArtifact)) return null;
+  const parsedConfigTrigger = useMemo(() => {
+    if (configureTarget.id !== "trigger") return null;
     try {
-      return YAML.parse(artifactText) as JsonObject;
+      return YAML.parse(configTriggerText) as JsonObject;
     } catch {
       return null;
     }
-  }, [artifactText, selectedArtifact]);
+  }, [configTriggerText, configureTarget.id]);
 
-  const triggerInput = parsedArtifact?.input;
+  const triggerInput = parsedConfigTrigger?.input;
   const triggerConfiguration: JsonObject | null = (() => {
     if (!triggerInput || typeof triggerInput !== "object" || Array.isArray(triggerInput)) return null;
     const ti = triggerInput as JsonObject;
@@ -253,51 +538,366 @@ export default function App() {
     return {};
   })();
 
+  const triggerRuleForForm: JsonObject = useMemo(() => {
+    const tr = parsedConfigTrigger?.triggerRule;
+    if (tr !== null && typeof tr === "object" && !Array.isArray(tr)) return tr as JsonObject;
+    return {};
+  }, [parsedConfigTrigger]);
+
+  const authenticationForForm: JsonObject = useMemo(() => {
+    const a = parsedConfigTrigger?.authentication;
+    if (a !== null && typeof a === "object" && !Array.isArray(a)) return a as JsonObject;
+    return {};
+  }, [parsedConfigTrigger]);
+
+  const pipelineConfiguration: JsonObject = triggerConfiguration ?? {};
+
   const updateTriggerConfiguration = (slice: Partial<JsonObject>) => {
-    if (!parsedArtifact || !triggerInput) return;
-    const ti = triggerInput as JsonObject;
+    if (!parsedConfigTrigger) return;
+    const ti =
+      triggerInput && typeof triggerInput === "object" && !Array.isArray(triggerInput)
+        ? (triggerInput as JsonObject)
+        : {};
     const base = ti.configuration;
     const prev =
       base !== null && typeof base === "object" && !Array.isArray(base) ? (base as JsonObject) : {};
     const nextConf = { ...prev, ...slice };
     const nextInput = { ...ti, configuration: nextConf };
-    const nextDoc = { ...parsedArtifact, input: nextInput };
-    setArtifactText(YAML.stringify(nextDoc, { lineWidth: 0 }));
+    const nextDoc = { ...parsedConfigTrigger, input: nextInput };
+    setConfigTriggerText(YAML.stringify(nextDoc, { lineWidth: 0 }));
   };
 
   const setTriggerSourceViews = (v: unknown) => updateTriggerConfiguration({ source_views: v });
   const setTriggerKeyExtraction = (v: unknown) => updateTriggerConfiguration({ key_extraction: v });
   const setTriggerAliasing = (v: unknown) => updateTriggerConfiguration({ aliasing: v });
 
+  const mergeParsedTriggerDoc = useCallback((next: JsonObject) => {
+    setConfigTriggerText(YAML.stringify(next, { lineWidth: 0 }));
+  }, []);
+
+  const patchTriggerRootFields = useCallback(
+    (patch: Partial<JsonObject>) => {
+      if (!parsedConfigTrigger) return;
+      mergeParsedTriggerDoc({ ...parsedConfigTrigger, ...patch });
+    },
+    [parsedConfigTrigger, mergeParsedTriggerDoc]
+  );
+
+  const patchTriggerRule = useCallback(
+    (patch: Partial<JsonObject>) => {
+      if (!parsedConfigTrigger) return;
+      const tr = parsedConfigTrigger.triggerRule;
+      const base =
+        tr !== null && typeof tr === "object" && !Array.isArray(tr) ? ({ ...(tr as JsonObject) }) : {};
+      mergeParsedTriggerDoc({ ...parsedConfigTrigger, triggerRule: { ...base, ...patch } });
+    },
+    [parsedConfigTrigger, mergeParsedTriggerDoc]
+  );
+
+  const patchTriggerAuthentication = useCallback(
+    (patch: Partial<JsonObject>) => {
+      if (!parsedConfigTrigger) return;
+      const auth = parsedConfigTrigger.authentication;
+      const base =
+        auth !== null && typeof auth === "object" && !Array.isArray(auth)
+          ? ({ ...(auth as JsonObject) })
+          : {};
+      mergeParsedTriggerDoc({ ...parsedConfigTrigger, authentication: { ...base, ...patch } });
+    },
+    [parsedConfigTrigger, mergeParsedTriggerDoc]
+  );
+
   const setTriggerFullRescan = (v: boolean) => {
-    if (!parsedArtifact || !triggerInput) return;
-    const nextInput = { ...(triggerInput as JsonObject), full_rescan: v };
-    const nextDoc = { ...parsedArtifact, input: nextInput };
-    setArtifactText(YAML.stringify(nextDoc, { lineWidth: 0 }));
+    if (!parsedConfigTrigger) return;
+    const ti =
+      triggerInput && typeof triggerInput === "object" && !Array.isArray(triggerInput)
+        ? (triggerInput as JsonObject)
+        : {};
+    const nextInput = { ...ti, full_rescan: v };
+    const nextDoc = { ...parsedConfigTrigger, input: nextInput };
+    setConfigTriggerText(YAML.stringify(nextDoc, { lineWidth: 0 }));
   };
 
   const setTriggerRunId = (v: string) => {
-    if (!parsedArtifact || !triggerInput) return;
-    const nextInput = { ...(triggerInput as JsonObject), run_id: v };
-    const nextDoc = { ...parsedArtifact, input: nextInput };
-    setArtifactText(YAML.stringify(nextDoc, { lineWidth: 0 }));
+    if (!parsedConfigTrigger) return;
+    const ti =
+      triggerInput && typeof triggerInput === "object" && !Array.isArray(triggerInput)
+        ? (triggerInput as JsonObject)
+        : {};
+    const nextInput = { ...ti, run_id: v };
+    const nextDoc = { ...parsedConfigTrigger, input: nextInput };
+    setConfigTriggerText(YAML.stringify(nextDoc, { lineWidth: 0 }));
   };
 
+  const setTriggerRootName = (v: string) => {
+    try {
+      const doc = YAML.parse(configTriggerText) as Record<string, unknown>;
+      const next: Record<string, unknown> = { ...doc };
+      if (v.trim().length === 0) delete next.name;
+      else next.name = v;
+      setConfigTriggerText(YAML.stringify(next, { lineWidth: 0 }));
+    } catch {
+      /* invalid YAML */
+    }
+  };
+
+  const triggerPaths = useMemo(
+    () => artifactPaths.filter((p) => isTriggerPath(p)),
+    [artifactPaths]
+  );
+
+  const workflowLocalNavPrimary = useMemo(
+    () => displayNameFromRoot(scopeDoc) ?? t("config.workflowLocalNav"),
+    [scopeDoc, t]
+  );
+  const workflowTemplateNavPrimary = useMemo(
+    () => displayNameFromRoot(templateDoc) ?? t("config.workflowTemplateNav"),
+    [templateDoc, t]
+  );
+
+  const showWorkflowLocalInPanel = useMemo(
+    () =>
+      matchConfigSearch(
+        configSearchQuery,
+        workflowLocalNavPrimary,
+        t("config.fileHint.workflowLocal"),
+        scopeDoc.name != null ? String(scopeDoc.name) : ""
+      ),
+    [configSearchQuery, workflowLocalNavPrimary, t, scopeDoc.name]
+  );
+
+  const showWorkflowTemplateInPanel = useMemo(
+    () =>
+      matchConfigSearch(
+        configSearchQuery,
+        workflowTemplateNavPrimary,
+        t("config.fileHint.workflowTemplate"),
+        templateDoc.name != null ? String(templateDoc.name) : ""
+      ),
+    [configSearchQuery, workflowTemplateNavPrimary, t, templateDoc.name]
+  );
+
+  const filteredTriggerPaths = useMemo(
+    () =>
+      triggerPaths.filter((p) => {
+        const shortPath = p.replace(/^workflows\//, "");
+        const custom = triggerNamesByPath[p];
+        const primary = custom ?? shortPath;
+        return matchConfigSearch(configSearchQuery, primary, shortPath, p, custom ?? "");
+      }),
+    [triggerPaths, triggerNamesByPath, configSearchQuery]
+  );
+
+  const showFullPanelEmpty =
+    configSearchQuery.trim().length > 0 &&
+    !showWorkflowLocalInPanel &&
+    !showWorkflowTemplateInPanel &&
+    filteredTriggerPaths.length === 0;
+
+  const discardCurrentEditor = async () => {
+    switch (tab) {
+      case "scope":
+        await reloadDefaultFromDisk();
+        break;
+      case "configure":
+        await reloadCurrentConfigure();
+        break;
+      case "artifacts":
+        if (artifactPath) {
+          const d = await api<{ content: string }>(
+            `/api/file?rel=${encodeURIComponent(artifactPath)}`
+          );
+          const c = d.content ?? "";
+          setArtifactText(c);
+          setSavedArtifactSnap(c);
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
+  const applyPendingNavigation = (p: UnsavedPrompt) => {
+    if (p.kind === "configureTarget") {
+      setConfigureTarget(p.next);
+    } else if (p.kind === "tab") {
+      setTab(p.next);
+      setSettingsOpen(false);
+    } else {
+      void openArtifact(p.next);
+    }
+    setUnsavedPrompt(null);
+  };
+
+  const commitUnsavedSave = async () => {
+    const p = unsavedPrompt;
+    if (!p) return;
+    if (p.kind === "artifactPath") {
+      setUnsavedBusy(true);
+      try {
+        const ok = await saveArtifactFile();
+        if (ok) {
+          await openArtifact(p.next);
+          setUnsavedPrompt(null);
+        }
+      } finally {
+        setUnsavedBusy(false);
+      }
+      return;
+    }
+    setUnsavedBusy(true);
+    try {
+      let ok = false;
+      if (tab === "scope") ok = await saveDefault();
+      else if (tab === "configure") ok = await saveConfigure();
+      else if (tab === "artifacts") ok = await saveArtifactFile();
+      else ok = true;
+      if (ok) applyPendingNavigation(p);
+    } finally {
+      setUnsavedBusy(false);
+    }
+  };
+
+  const commitUnsavedDiscard = async () => {
+    const p = unsavedPrompt;
+    if (!p) return;
+    if (p.kind === "artifactPath") {
+      setUnsavedBusy(true);
+      try {
+        await discardCurrentEditor();
+        await openArtifact(p.next);
+        setUnsavedPrompt(null);
+      } finally {
+        setUnsavedBusy(false);
+      }
+      return;
+    }
+    setUnsavedBusy(true);
+    try {
+      await discardCurrentEditor();
+      applyPendingNavigation(p);
+    } finally {
+      setUnsavedBusy(false);
+    }
+  };
+
+  const requestArtifactOpen = (rel: string) => {
+    if (rel === artifactPath) return;
+    if (isArtifactDirty) {
+      setUnsavedPrompt({ kind: "artifactPath", next: rel });
+      return;
+    }
+    void openArtifact(rel);
+  };
+
+  const requestTabChange = (next: Tab) => {
+    if (next === tab) return;
+    if (isCurrentEditorDirty) {
+      setUnsavedPrompt({ kind: "tab", next });
+      return;
+    }
+    setTab(next);
+    setSettingsOpen(false);
+  };
+
+  const selectConfigureTarget = (next: ConfigureTarget) => {
+    if (configureTargetsEqual(configureTarget, next)) return;
+    if (isConfigureDirty) {
+      setUnsavedPrompt({ kind: "configureTarget", next });
+      return;
+    }
+    setConfigureTarget(next);
+  };
+
+  const workflowDoc =
+    configureTarget.id === "workflowTemplate" ? templateDoc : scopeDoc;
+  const setWorkflowDoc =
+    configureTarget.id === "workflowTemplate" ? setTemplateDoc : setScopeDoc;
+  const workflowRawYaml =
+    configureTarget.id === "workflowTemplate" ? templateRawYaml : scopeRawYaml;
+  const workflowPhase =
+    configureTarget.id === "workflowTemplate" ? templatePhase : scopePhase;
+  const workflowError =
+    configureTarget.id === "workflowTemplate" ? templateError : scopeError;
+  const workflowStatus =
+    workflowError ?? (workflowPhase ? t(workflowPhase) : "");
+
   const defaultStatus = defaultError ?? (defaultPhase ? t(defaultPhase) : "");
-  const scopeStatus = scopeError ?? (scopePhase ? t(scopePhase) : "");
-  const artifactStatus = artifactPhase ? t(artifactPhase) : "";
+  const configTriggerStatus = configTriggerPhase ? t(configTriggerPhase) : "";
+
+  const configureStatus = (() => {
+    switch (configureTarget.id) {
+      case "workflowLocal":
+      case "workflowTemplate":
+        return workflowStatus;
+      case "trigger":
+        return configTriggerStatus;
+      default:
+        return "";
+    }
+  })();
+
+  const configurePhaseOk =
+    configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate"
+      ? workflowPhase === "status.saved" || workflowPhase === "status.loaded"
+      : configureTarget.id === "trigger"
+        ? configTriggerPhase === "status.saved" || configTriggerPhase === "status.loaded"
+        : false;
+
+  const saveConfigure = async (): Promise<boolean> => {
+    switch (configureTarget.id) {
+      case "workflowLocal":
+        return saveScope();
+      case "workflowTemplate":
+        return saveTemplate();
+      case "trigger":
+        return saveConfigureTrigger();
+      default:
+        return false;
+    }
+  };
+
+  const calloutForConfigure = () => {
+    switch (configureTarget.id) {
+      case "workflowLocal":
+        return t("callout.scopeDoc");
+      case "workflowTemplate":
+        return t("callout.workflowTemplate");
+      case "trigger":
+        return t("callout.triggerEditor", { path: configureTarget.path });
+      default:
+        return "";
+    }
+  };
+
+  const saveButtonLabel = (): MessageKey => {
+    switch (configureTarget.id) {
+      case "workflowLocal":
+        return "btn.saveScope";
+      case "workflowTemplate":
+        return "btn.saveTemplateFile";
+      case "trigger":
+        return "btn.saveFile";
+      default:
+        return "btn.saveFile";
+    }
+  };
 
   const tabs: { id: Tab; labelKey: MessageKey }[] = [
     { id: "scope", labelKey: "tabs.scope" },
-    { id: "sourceViews", labelKey: "tabs.sourceViews" },
-    { id: "keyExtraction", labelKey: "tabs.keyExtraction" },
-    { id: "aliasing", labelKey: "tabs.aliasing" },
     { id: "build", labelKey: "tabs.build" },
+    { id: "configure", labelKey: "tabs.configure" },
     { id: "artifacts", labelKey: "tabs.artifacts" },
   ];
 
+  const configSubtabs: { id: ConfigSubTab; labelKey: MessageKey }[] = [
+    { id: "sourceViews", labelKey: "tabs.sourceViews" },
+    { id: "keyExtraction", labelKey: "tabs.keyExtraction" },
+    { id: "aliasing", labelKey: "tabs.aliasing" },
+  ];
+
   return (
-    <div className="kea-app">
+    <div className={`kea-app${tab === "configure" ? " kea-app--wide" : ""}`}>
       <header className="kea-header">
         <div className="kea-header__shell">
           <div className="kea-header__brand">
@@ -344,8 +944,7 @@ export default function App() {
               type="button"
               className={tabClass(tab === id)}
               onClick={() => {
-                setTab(id);
-                setSettingsOpen(false);
+                requestTabChange(id);
               }}
             >
               {t(labelKey)}
@@ -443,6 +1042,25 @@ export default function App() {
           <div className="kea-callout" role="status">
             {t("callout.defaultConfig")}
           </div>
+          <div className="kea-config-display-name">
+            <label className="kea-label">
+              {t("config.displayName")}
+              <input
+                className="kea-input"
+                placeholder={t("config.displayNamePlaceholder")}
+                value={defaultDoc.name != null ? String(defaultDoc.name) : ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDefaultDoc((d) => {
+                    const next = { ...d };
+                    if (!v.trim()) delete next.name;
+                    else next.name = v;
+                    return next;
+                  });
+                }}
+              />
+            </label>
+          </div>
           <div className="kea-toolbar">
             <button type="button" className="kea-btn kea-btn--ghost" onClick={() => loadAll()}>
               {t("btn.reload")}
@@ -450,7 +1068,13 @@ export default function App() {
             <button type="button" className="kea-btn kea-btn--primary" onClick={() => void saveDefault()}>
               {t("btn.saveDefault")}
             </button>
-            <span className={defaultPhase === "status.saved" || defaultPhase === "status.loaded" ? "kea-status kea-status--ok" : "kea-status"}>
+            <span
+              className={
+                defaultPhase === "status.saved" || defaultPhase === "status.loaded"
+                  ? "kea-status kea-status--ok"
+                  : "kea-status"
+              }
+            >
               {defaultStatus}
             </span>
             {isDefaultDirty && (
@@ -482,144 +1106,437 @@ export default function App() {
         </section>
       )}
 
-      {tab === "sourceViews" && (
-        <section className="kea-panel">
-          <div className="kea-callout" role="status">
-            {t("callout.scopeDoc")}
-          </div>
-          <div className="kea-toolbar">
-            <button type="button" className="kea-btn kea-btn--ghost" onClick={() => loadAll()}>
-              {t("btn.reload")}
-            </button>
-            <button type="button" className="kea-btn kea-btn--primary" onClick={() => void saveScope()}>
-              {t("btn.saveScope")}
-            </button>
-            <span className={scopePhase === "status.saved" || scopePhase === "status.loaded" ? "kea-status kea-status--ok" : "kea-status"}>
-              {scopeStatus}
-            </span>
-            {isScopeDirty && (
-              <span className="kea-hint kea-hint--warn" role="status">
-                {t("status.unsavedChanges")}
-              </span>
+      {tab === "configure" && (
+        <section className="kea-panel kea-configure">
+          <div className="kea-config-sidenav" aria-label={t("config.sidebarTitle")}>
+            <p className="kea-config-sidenav__heading">{t("config.sidebarTitle")}</p>
+            <label className="kea-label kea-config-sidenav__search">
+              <span className="kea-sr-only">{t("config.searchLabel")}</span>
+              <input
+                type="search"
+                className="kea-input"
+                value={configSearchQuery}
+                onChange={(e) => setConfigSearchQuery(e.target.value)}
+                placeholder={t("config.searchPlaceholder")}
+                title={t("config.searchPlaceholder")}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            {showFullPanelEmpty && (
+              <p className="kea-hint kea-config-sidenav__empty" role="status">
+                {t("config.noSearchResults")}
+              </p>
             )}
+            {!showFullPanelEmpty && (
+              <>
+                <div className="kea-config-sidenav__section">
+                  {showWorkflowLocalInPanel && (
+                    <button
+                      type="button"
+                      className={`kea-config-sidenav__btn${configureTarget.id === "workflowLocal" ? " kea-config-sidenav__btn--active" : ""}`}
+                      onClick={() => selectConfigureTarget({ id: "workflowLocal" })}
+                    >
+                      <span className="kea-config-sidenav__btn-primary">{workflowLocalNavPrimary}</span>
+                      <span className="kea-config-sidenav__btn-secondary">{t("config.fileHint.workflowLocal")}</span>
+                    </button>
+                  )}
+                  {showWorkflowTemplateInPanel && (
+                    <button
+                      type="button"
+                      className={`kea-config-sidenav__btn${configureTarget.id === "workflowTemplate" ? " kea-config-sidenav__btn--active" : ""}`}
+                      onClick={() => selectConfigureTarget({ id: "workflowTemplate" })}
+                    >
+                      <span className="kea-config-sidenav__btn-primary">{workflowTemplateNavPrimary}</span>
+                      <span className="kea-config-sidenav__btn-secondary">{t("config.fileHint.workflowTemplate")}</span>
+                    </button>
+                  )}
+                </div>
+                <p className="kea-config-sidenav__heading">{t("config.triggersSection")}</p>
+                <div className="kea-config-sidenav__section kea-config-sidenav__section--scroll">
+                  {triggerPaths.length === 0 ? (
+                    <p className="kea-hint kea-config-sidenav__empty">{t("config.noTriggers")}</p>
+                  ) : filteredTriggerPaths.length === 0 ? (
+                    <p className="kea-hint kea-config-sidenav__empty" role="status">
+                      {t("config.noSearchResults")}
+                    </p>
+                  ) : (
+                    filteredTriggerPaths.map((p) => {
+                      const shortPath = p.replace(/^workflows\//, "");
+                      const custom = triggerNamesByPath[p];
+                      const primary = custom ?? shortPath;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          title={p}
+                          className={`kea-config-sidenav__btn kea-config-sidenav__btn--path${configureTarget.id === "trigger" && configureTarget.path === p ? " kea-config-sidenav__btn--active" : ""}`}
+                          onClick={() => selectConfigureTarget({ id: "trigger", path: p })}
+                        >
+                          <span className="kea-config-sidenav__btn-primary">{primary}</span>
+                          {custom ? (
+                            <span className="kea-config-sidenav__btn-secondary">{shortPath}</span>
+                          ) : null}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
+            <button
+              type="button"
+              className="kea-btn kea-btn--sm kea-config-sidenav__refresh"
+              onClick={() => void refreshArtifactLists()}
+            >
+              {t("btn.refreshList")}
+            </button>
           </div>
-          <SourceViewsControls
-            value={scopeDoc.source_views}
-            onChange={(v) => setScopeDoc((d) => ({ ...d, source_views: v }))}
-          />
-          <AdvancedYamlPanel
-            initialContent={scopeRawYaml}
-            onSaveRaw={async (content) => {
-              await api("/api/scope-document", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content }),
-              });
-            }}
-            onAfterSave={async () => {
-              const [model, raw] = await Promise.all([
-                api<Record<string, unknown>>("/api/scope-document/model"),
-                api<{ content: string }>("/api/scope-document"),
-              ]);
-              setScopeDoc(model && typeof model === "object" ? model : {});
-              setScopeRawYaml(raw.content ?? "");
-              setSavedScopeSnap(JSON.stringify(model));
-            }}
-          />
-        </section>
-      )}
 
-      {tab === "keyExtraction" && (
-        <section className="kea-panel">
-          <div className="kea-callout" role="status">
-            {t("callout.scopeDoc")}
-          </div>
-          <div className="kea-toolbar">
-            <button type="button" className="kea-btn kea-btn--ghost" onClick={() => loadAll()}>
-              {t("btn.reload")}
-            </button>
-            <button type="button" className="kea-btn kea-btn--primary" onClick={() => void saveScope()}>
-              {t("btn.saveScope")}
-            </button>
-            <span className={scopePhase === "status.saved" || scopePhase === "status.loaded" ? "kea-status kea-status--ok" : "kea-status"}>
-              {scopeStatus}
-            </span>
-            {isScopeDirty && (
-              <span className="kea-hint kea-hint--warn" role="status">
-                {t("status.unsavedChanges")}
-              </span>
+          <div className="kea-config-main">
+            <div className="kea-callout" role="status">
+              {calloutForConfigure()}
+            </div>
+            {(configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate") && (
+              <div className="kea-config-display-name">
+                <label className="kea-label">
+                  {t("config.displayName")}
+                  <input
+                    className="kea-input"
+                    placeholder={t("config.displayNamePlaceholder")}
+                    value={
+                      (configureTarget.id === "workflowTemplate" ? templateDoc : scopeDoc).name != null
+                        ? String((configureTarget.id === "workflowTemplate" ? templateDoc : scopeDoc).name)
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const patch = (d: Record<string, unknown>) => {
+                        const next = { ...d };
+                        if (!v.trim()) delete next.name;
+                        else next.name = v;
+                        return next;
+                      };
+                      if (configureTarget.id === "workflowTemplate") setTemplateDoc(patch);
+                      else setScopeDoc(patch);
+                    }}
+                  />
+                </label>
+              </div>
             )}
-          </div>
-          <KeyExtractionControls
-            value={scopeDoc.key_extraction}
-            onChange={(v) => setScopeDoc((d) => ({ ...d, key_extraction: v }))}
-          />
-          <AdvancedYamlPanel
-            initialContent={scopeRawYaml}
-            onSaveRaw={async (content) => {
-              await api("/api/scope-document", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content }),
-              });
-            }}
-            onAfterSave={async () => {
-              const [model, raw] = await Promise.all([
-                api<Record<string, unknown>>("/api/scope-document/model"),
-                api<{ content: string }>("/api/scope-document"),
-              ]);
-              setScopeDoc(model && typeof model === "object" ? model : {});
-              setScopeRawYaml(raw.content ?? "");
-              setSavedScopeSnap(JSON.stringify(model));
-            }}
-          />
-        </section>
-      )}
+            {configureTarget.id === "trigger" && parsedConfigTrigger && (
+              <div className="kea-config-display-name">
+                <label className="kea-label">
+                  {t("config.displayName")}
+                  <input
+                    className="kea-input"
+                    placeholder={t("config.displayNamePlaceholder")}
+                    value={
+                      typeof parsedConfigTrigger.name === "string" ? parsedConfigTrigger.name : ""
+                    }
+                    onChange={(e) => setTriggerRootName(e.target.value)}
+                  />
+                </label>
+              </div>
+            )}
+            <div className="kea-toolbar">
+              <button type="button" className="kea-btn kea-btn--ghost" onClick={() => void reloadCurrentConfigure()}>
+                {t("btn.reload")}
+              </button>
+              <button type="button" className="kea-btn kea-btn--primary" onClick={() => void saveConfigure()}>
+                {t(saveButtonLabel())}
+              </button>
+              <span className={configurePhaseOk ? "kea-status kea-status--ok" : "kea-status"}>{configureStatus}</span>
+              {isConfigureDirty && (
+                <span className="kea-hint kea-hint--warn" role="status">
+                  {t("status.unsavedChanges")}
+                </span>
+              )}
+            </div>
 
-      {tab === "aliasing" && (
-        <section className="kea-panel">
-          <div className="kea-callout" role="status">
-            {t("callout.scopeDoc")}
-          </div>
-          <div className="kea-toolbar">
-            <button type="button" className="kea-btn kea-btn--ghost" onClick={() => loadAll()}>
-              {t("btn.reload")}
-            </button>
-            <button type="button" className="kea-btn kea-btn--primary" onClick={() => void saveScope()}>
-              {t("btn.saveScope")}
-            </button>
-            <span className={scopePhase === "status.saved" || scopePhase === "status.loaded" ? "kea-status kea-status--ok" : "kea-status"}>
-              {scopeStatus}
-            </span>
-            {isScopeDirty && (
-              <span className="kea-hint kea-hint--warn" role="status">
-                {t("status.unsavedChanges")}
-              </span>
+            {(configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate") && (
+              <>
+                <nav className="kea-tabs kea-tabs--sub" aria-label={t("nav.subtabs")}>
+                  {configSubtabs.map(({ id, labelKey }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={tabClass(configSubTab === id)}
+                      onClick={() => setConfigSubTab(id)}
+                    >
+                      {t(labelKey)}
+                    </button>
+                  ))}
+                </nav>
+                {configSubTab === "sourceViews" && (
+                  <SourceViewsControls
+                    value={workflowDoc.source_views}
+                    onChange={(v) => setWorkflowDoc((d) => ({ ...d, source_views: v }))}
+                  />
+                )}
+                {configSubTab === "keyExtraction" && (
+                  <KeyExtractionControls
+                    value={workflowDoc.key_extraction}
+                    onChange={(v) => setWorkflowDoc((d) => ({ ...d, key_extraction: v }))}
+                  />
+                )}
+                {configSubTab === "aliasing" && (
+                  <AliasingControls
+                    value={workflowDoc.aliasing}
+                    onChange={(v) => setWorkflowDoc((d) => ({ ...d, aliasing: v }))}
+                  />
+                )}
+                <AdvancedYamlPanel
+                  initialContent={workflowRawYaml}
+                  onSaveRaw={async (content) => {
+                    const rel =
+                      configureTarget.id === "workflowTemplate" ? TEMPLATE_REL : SCOPE_REL;
+                    await api(`/api/scope-document?rel=${encodeURIComponent(rel)}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ content }),
+                    });
+                  }}
+                  onAfterSave={async () => {
+                    const rel =
+                      configureTarget.id === "workflowTemplate" ? TEMPLATE_REL : SCOPE_REL;
+                    const [model, raw] = await Promise.all([
+                      api<Record<string, unknown>>(
+                        `/api/scope-document/model?rel=${encodeURIComponent(rel)}`
+                      ),
+                      api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(rel)}`),
+                    ]);
+                    if (configureTarget.id === "workflowTemplate") {
+                      setTemplateDoc(model && typeof model === "object" ? model : {});
+                      setTemplateRawYaml(raw.content ?? "");
+                      setSavedTemplateSnap(JSON.stringify(model));
+                    } else {
+                      setScopeDoc(model && typeof model === "object" ? model : {});
+                      setScopeRawYaml(raw.content ?? "");
+                      setSavedScopeSnap(JSON.stringify(model));
+                    }
+                  }}
+                />
+              </>
+            )}
+
+            {configureTarget.id === "trigger" && (
+              <>
+                {!parsedConfigTrigger ? (
+                  <textarea
+                    className="kea-textarea"
+                    value={configTriggerText}
+                    onChange={(e) => setConfigTriggerText(e.target.value)}
+                    spellCheck={false}
+                    style={{ minHeight: 320 }}
+                  />
+                ) : (
+                  <>
+                    <p className="kea-hint" style={{ marginBottom: 8 }}>
+                      {t("artifacts.triggerBar")}
+                    </p>
+                    <nav
+                      className="kea-tabs kea-tabs--sub kea-trigger-editor-top"
+                      aria-label={t("nav.triggerEditor")}
+                    >
+                      <button
+                        type="button"
+                        className={tabClass(triggerTopTab === "triggerAuth")}
+                        onClick={() => setTriggerTopTab("triggerAuth")}
+                      >
+                        {t("triggerEditor.tab.triggerAuth")}
+                      </button>
+                      <button
+                        type="button"
+                        className={tabClass(triggerTopTab === "schedule")}
+                        onClick={() => setTriggerTopTab("schedule")}
+                      >
+                        {t("triggerEditor.tab.schedule")}
+                      </button>
+                      <button
+                        type="button"
+                        className={tabClass(triggerTopTab === "pipeline")}
+                        onClick={() => setTriggerTopTab("pipeline")}
+                      >
+                        {t("triggerEditor.tab.pipeline")}
+                      </button>
+                    </nav>
+
+                    {triggerTopTab === "triggerAuth" && (
+                      <div className="kea-trigger-root-grid kea-trigger-root-grid--two">
+                        <p
+                          className="kea-trigger-editor-section-title"
+                          style={{ gridColumn: "1 / -1" }}
+                        >
+                          {t("triggerEditor.section.identity")}
+                        </p>
+                        <label className="kea-label">
+                          {t("triggerEditor.externalId")}
+                          <input
+                            className="kea-input"
+                            value={String(parsedConfigTrigger.externalId ?? "")}
+                            onChange={(e) => patchTriggerRootFields({ externalId: e.target.value })}
+                          />
+                        </label>
+                        <label className="kea-label">
+                          {t("triggerEditor.workflowExternalId")}
+                          <input
+                            className="kea-input"
+                            value={String(parsedConfigTrigger.workflowExternalId ?? "")}
+                            onChange={(e) =>
+                              patchTriggerRootFields({ workflowExternalId: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="kea-label" style={{ gridColumn: "1 / -1" }}>
+                          {t("triggerEditor.workflowVersion")}
+                          <input
+                            className="kea-input"
+                            value={String(parsedConfigTrigger.workflowVersion ?? "")}
+                            onChange={(e) =>
+                              patchTriggerRootFields({ workflowVersion: e.target.value })
+                            }
+                          />
+                        </label>
+                        <p
+                          className="kea-trigger-editor-section-title"
+                          style={{ gridColumn: "1 / -1" }}
+                        >
+                          {t("triggerEditor.section.auth")}
+                        </p>
+                        <label className="kea-label">
+                          {t("triggerEditor.authClientId")}
+                          <input
+                            className="kea-input"
+                            value={String(authenticationForForm.clientId ?? "")}
+                            onChange={(e) => patchTriggerAuthentication({ clientId: e.target.value })}
+                          />
+                        </label>
+                        <label className="kea-label">
+                          {t("triggerEditor.authClientSecret")}
+                          <input
+                            className="kea-input"
+                            type="password"
+                            autoComplete="off"
+                            value={String(authenticationForForm.clientSecret ?? "")}
+                            onChange={(e) =>
+                              patchTriggerAuthentication({ clientSecret: e.target.value })
+                            }
+                          />
+                        </label>
+                        <p
+                          className="kea-trigger-editor-section-title"
+                          style={{ gridColumn: "1 / -1" }}
+                        >
+                          {t("triggerEditor.section.input")}
+                        </p>
+                        <label className="kea-label">
+                          {t("artifacts.fullRescan")}
+                          <input
+                            type="checkbox"
+                            checked={Boolean((triggerInput as JsonObject | undefined)?.full_rescan)}
+                            onChange={(e) => setTriggerFullRescan(e.target.checked)}
+                          />
+                        </label>
+                        <label className="kea-label">
+                          {t("artifacts.runId")}
+                          <input
+                            className="kea-input"
+                            value={String((triggerInput as JsonObject | undefined)?.run_id ?? "")}
+                            onChange={(e) => setTriggerRunId(e.target.value)}
+                          />
+                        </label>
+                      </div>
+                    )}
+
+                    {triggerTopTab === "schedule" && (
+                      <div className="kea-trigger-root-grid">
+                        <p className="kea-trigger-editor-section-title">
+                          {t("triggerEditor.section.schedule")}
+                        </p>
+                        <label className="kea-label">
+                          {t("triggerEditor.triggerType")}
+                          <input
+                            className="kea-input"
+                            list={triggerTypeDatalistId}
+                            value={String(triggerRuleForForm.triggerType ?? "")}
+                            onChange={(e) => patchTriggerRule({ triggerType: e.target.value })}
+                          />
+                          <datalist id={triggerTypeDatalistId}>
+                            <option value="schedule" />
+                            <option value="dataModeling" />
+                            <option value="recordStream" />
+                          </datalist>
+                        </label>
+                        <label className="kea-label">
+                          {t("triggerEditor.cronExpression")}
+                          <input
+                            className="kea-input"
+                            value={String(triggerRuleForForm.cronExpression ?? "")}
+                            onChange={(e) => patchTriggerRule({ cronExpression: e.target.value })}
+                          />
+                        </label>
+                        <p className="kea-hint" style={{ marginTop: 4 }}>
+                          {t("triggerEditor.scheduleHint")}
+                        </p>
+                      </div>
+                    )}
+
+                    {triggerTopTab === "pipeline" && (
+                      <>
+                        <nav
+                          className="kea-tabs kea-tabs--sub kea-trigger-pipeline-sub"
+                          aria-label={t("nav.subtabs")}
+                        >
+                          {configSubtabs.map(({ id, labelKey }) => (
+                            <button
+                              key={id}
+                              type="button"
+                              className={tabClass(configSubTab === id)}
+                              onClick={() => setConfigSubTab(id)}
+                            >
+                              {t(labelKey)}
+                            </button>
+                          ))}
+                        </nav>
+                        {configSubTab === "sourceViews" && (
+                          <SourceViewsControls
+                            value={pipelineConfiguration.source_views}
+                            onChange={(v) => setTriggerSourceViews(v)}
+                          />
+                        )}
+                        {configSubTab === "keyExtraction" && (
+                          <KeyExtractionControls
+                            value={pipelineConfiguration.key_extraction}
+                            onChange={(v) => setTriggerKeyExtraction(v)}
+                          />
+                        )}
+                        {configSubTab === "aliasing" && (
+                          <AliasingControls
+                            value={pipelineConfiguration.aliasing}
+                            onChange={(v) => setTriggerAliasing(v)}
+                          />
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+                <AdvancedYamlPanel
+                  initialContent={configTriggerText}
+                  onSaveRaw={async (content) => {
+                    await api(`/api/file?rel=${encodeURIComponent(configureTarget.path)}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ content }),
+                    });
+                  }}
+                  onAfterSave={async () => {
+                    await loadConfigTrigger(configureTarget.path);
+                  }}
+                />
+              </>
             )}
           </div>
-          <AliasingControls
-            value={scopeDoc.aliasing}
-            onChange={(v) => setScopeDoc((d) => ({ ...d, aliasing: v }))}
-          />
-          <AdvancedYamlPanel
-            initialContent={scopeRawYaml}
-            onSaveRaw={async (content) => {
-              await api("/api/scope-document", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content }),
-              });
-            }}
-            onAfterSave={async () => {
-              const [model, raw] = await Promise.all([
-                api<Record<string, unknown>>("/api/scope-document/model"),
-                api<{ content: string }>("/api/scope-document"),
-              ]);
-              setScopeDoc(model && typeof model === "object" ? model : {});
-              setScopeRawYaml(raw.content ?? "");
-              setSavedScopeSnap(JSON.stringify(model));
-            }}
-          />
         </section>
       )}
 
@@ -643,22 +1560,17 @@ export default function App() {
             <button type="button" className="kea-btn kea-btn--ghost" onClick={() => void runBuild(false, true)}>
               {t("btn.dryRun")}
             </button>
-            <button type="button" className="kea-btn kea-btn--ghost" onClick={() => setBuildOpen((o) => !o)}>
-              {t("build.toggleShow")}
-            </button>
           </div>
           <p className="kea-hint kea-hint--warn" style={{ marginTop: 8, maxWidth: "62ch" }}>
             {t("build.warnForce")}
           </p>
-          {buildOpen && (
-            <textarea
-              readOnly
-              className="kea-textarea kea-textarea--readonly"
-              value={buildLog}
-              placeholder={t("build.outputPlaceholder")}
-              style={{ minHeight: 280, marginTop: 12 }}
-            />
-          )}
+          <textarea
+            readOnly
+            className="kea-textarea kea-textarea--readonly"
+            value={buildLog}
+            placeholder={t("build.outputPlaceholder")}
+            style={{ minHeight: 280, marginTop: 12 }}
+          />
         </section>
       )}
 
@@ -668,9 +1580,9 @@ export default function App() {
             <p className="kea-artifact-list-title">{t("artifacts.browse")}</p>
             <ArtifactTree
               paths={artifactPaths}
-              selectedPath={selectedArtifact}
+              selectedPath={artifactPath}
               onSelectFile={(rel) => {
-                void openArtifact(rel);
+                requestArtifactOpen(rel);
               }}
             />
             <button
@@ -688,96 +1600,80 @@ export default function App() {
                 type="button"
                 className="kea-btn kea-btn--primary"
                 onClick={() => void saveArtifactFile()}
-                disabled={!selectedArtifact}
+                disabled={!artifactPath}
               >
                 {t("btn.saveFile")}
               </button>
-              <span className={artifactPhase === "status.saved" || artifactPhase === "status.loaded" ? "kea-status kea-status--ok" : "kea-status"}>
-                {artifactStatus}
+              <span
+                className={
+                  artifactPhase === "status.saved" || artifactPhase === "status.loaded"
+                    ? "kea-status kea-status--ok"
+                    : "kea-status"
+                }
+              >
+                {artifactPhase ? t(artifactPhase) : ""}
               </span>
-              {selectedArtifact && isTriggerPath(selectedArtifact) && (
-                <label className="kea-label" style={{ marginLeft: "auto", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={artifactPlain}
-                    onChange={(e) => setArtifactPlain(e.target.checked)}
-                  />
-                  {t("artifacts.plainEditor")}
-                </label>
-              )}
             </div>
-            {selectedArtifact && isTriggerPath(selectedArtifact) && triggerConfiguration && !artifactPlain ? (
-              <>
-                <p className="kea-hint" style={{ marginBottom: 8 }}>
-                  {t("artifacts.triggerBar")}
-                </p>
-                <div className="kea-trigger-inputs">
-                  <label className="kea-label">
-                    {t("artifacts.fullRescan")}
-                    <input
-                      type="checkbox"
-                      checked={Boolean((triggerInput as JsonObject)?.full_rescan)}
-                      onChange={(e) => setTriggerFullRescan(e.target.checked)}
-                    />
-                  </label>
-                  <label className="kea-label">
-                    {t("artifacts.runId")}
-                    <input
-                      className="kea-input"
-                      value={String((triggerInput as JsonObject)?.run_id ?? "")}
-                      onChange={(e) => setTriggerRunId(e.target.value)}
-                    />
-                  </label>
-                </div>
-                <div className="kea-trigger-subtabs" role="tablist">
-                  {(
-                    [
-                      ["views", "artifacts.sub.views"] as const,
-                      ["extraction", "artifacts.sub.extraction"] as const,
-                      ["aliasing", "artifacts.sub.aliasing"] as const,
-                    ] as const
-                  ).map(([id, lk]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="tab"
-                      className={tabClass(artifactTriggerSub === id)}
-                      onClick={() => setArtifactTriggerSub(id)}
-                    >
-                      {t(lk)}
-                    </button>
-                  ))}
-                </div>
-                {artifactTriggerSub === "views" && (
-                  <SourceViewsControls
-                    value={triggerConfiguration.source_views}
-                    onChange={(v) => setTriggerSourceViews(v)}
-                  />
-                )}
-                {artifactTriggerSub === "extraction" && (
-                  <KeyExtractionControls
-                    value={triggerConfiguration.key_extraction}
-                    onChange={(v) => setTriggerKeyExtraction(v)}
-                  />
-                )}
-                {artifactTriggerSub === "aliasing" && (
-                  <AliasingControls
-                    value={triggerConfiguration.aliasing}
-                    onChange={(v) => setTriggerAliasing(v)}
-                  />
-                )}
-              </>
-            ) : (
-              <textarea
-                className="kea-textarea"
-                value={artifactText}
-                onChange={(e) => setArtifactText(e.target.value)}
-                spellCheck={false}
-                style={{ minHeight: 420 }}
-              />
-            )}
+            <textarea
+              className="kea-textarea"
+              value={artifactText}
+              onChange={(e) => setArtifactText(e.target.value)}
+              spellCheck={false}
+              style={{ minHeight: 420 }}
+            />
           </div>
         </section>
+      )}
+
+      {unsavedPrompt && (
+        <div
+          className="kea-modal-backdrop"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !unsavedBusy) setUnsavedPrompt(null);
+          }}
+        >
+          <div
+            className="kea-modal"
+            role="dialog"
+            aria-modal
+            aria-labelledby="kea-unsaved-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h2 id="kea-unsaved-title" className="kea-modal__title">
+              {t("unsaved.title")}
+            </h2>
+            <p className="kea-hint" style={{ marginTop: 0 }}>
+              {t("unsaved.message")}
+            </p>
+            <div className="kea-modal__actions">
+              <button
+                type="button"
+                className="kea-btn kea-btn--primary"
+                disabled={unsavedBusy}
+                onClick={() => void commitUnsavedSave()}
+              >
+                {t("unsaved.save")}
+              </button>
+              <button
+                type="button"
+                className="kea-btn"
+                disabled={unsavedBusy}
+                onClick={() => void commitUnsavedDiscard()}
+              >
+                {t("unsaved.discard")}
+              </button>
+              <button
+                type="button"
+                className="kea-btn kea-btn--ghost"
+                disabled={unsavedBusy}
+                onClick={() => setUnsavedPrompt(null)}
+              >
+                {t("btn.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

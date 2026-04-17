@@ -42,6 +42,9 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
     property_reference_for_filter,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.source_view_filter_build import (
+    build_source_view_query_filter,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.function_logging import (
     StdlibLoggerAdapter,
 )
@@ -59,8 +62,7 @@ from .workflow_payload import (
 def _build_dm_filter_from_view_dict(
     view_config: Dict[str, Any], logger: logging.Logger
 ) -> Any:
-    """Same DM filter semantics as the legacy per-view loop in ``run_pipeline``."""
-    from cognite.client import data_modeling as dm
+    """Same DM filter semantics as ``run_pipeline`` (``HasData`` + configured nodes)."""
     from cognite.client.data_classes.data_modeling.ids import ViewId
 
     view_space = view_config.get("view_space", "cdf_cdm")
@@ -69,75 +71,7 @@ def _build_dm_filter_from_view_dict(
     view_id = ViewId(
         space=view_space, external_id=view_external_id, version=view_version
     )
-    filter_expressions: List[Any] = [dm.filters.HasData(views=[view_id])]
-    filters = view_config.get("filters") or []
-    for filter_config in filters:
-        operator = str(filter_config.get("operator", "")).upper()
-        target_property = filter_config.get("target_property")
-        values = filter_config.get("values", [])
-        property_scope = str(filter_config.get("property_scope", "view")).lower()
-
-        if not target_property:
-            continue
-
-        property_ref = property_reference_for_filter(
-            view_id, target_property, property_scope
-        )
-
-        if operator == "EQUALS":
-            if isinstance(values, str):
-                eq_vals = [values]
-            elif isinstance(values, list):
-                eq_vals = values
-            elif values is None:
-                eq_vals = []
-            else:
-                eq_vals = [values]
-            if len(eq_vals) == 1:
-                filter_expressions.append(dm.filters.Equals(property_ref, eq_vals[0]))
-            elif len(eq_vals) > 1:
-                equals_filters = [
-                    dm.filters.Equals(property_ref, val) for val in eq_vals
-                ]
-                filter_expressions.append(dm.filters.Or(*equals_filters))
-
-        elif operator == "IN":
-            if isinstance(values, list):
-                filter_expressions.append(dm.filters.In(property_ref, values))
-
-        elif operator == "CONTAINSALL":
-            if values and isinstance(values, list):
-                filter_expressions.append(
-                    dm.filters.ContainsAll(property=property_ref, values=values)
-                )
-
-        elif operator == "CONTAINSANY":
-            if values and isinstance(values, list):
-                filter_expressions.append(
-                    dm.filters.ContainsAny(property=property_ref, values=values)
-                )
-
-        elif operator == "EXISTS":
-            if property_scope == "node":
-                filter_expressions.append(dm.filters.Exists(property=property_ref))
-            else:
-                filter_expressions.append(
-                    dm.filters.HasData(views=[view_id], properties=[target_property])
-                )
-
-        elif operator == "SEARCH":
-            if values:
-                logger.warning(
-                    f"SEARCH operator not fully supported, using IN for property {target_property}"
-                )
-                if isinstance(values, list):
-                    filter_expressions.append(dm.filters.In(property_ref, values))
-                else:
-                    filter_expressions.append(dm.filters.In(property_ref, [values]))
-
-    if len(filter_expressions) > 1:
-        return dm.filters.And(*filter_expressions)
-    return filter_expressions[0]
+    return build_source_view_query_filter(view_id, view_config.get("filters") or [])
 
 
 class _ViewConfigAdapter:
@@ -949,111 +883,13 @@ def run_pipeline(
 
         # Query data modeling instances
         try:
-            from cognite.client import data_modeling as dm
             from cognite.client.data_classes.data_modeling.ids import ViewId
 
             view_id = ViewId(
                 space=view_space, external_id=view_external_id, version=view_version
             )
 
-            # Build filter expression from configuration
-            filter_expressions = []
-
-            # Base filter: ensure instance has data from this view
-            filter_expressions.append(dm.filters.HasData(views=[view_id]))
-
-            # Add custom filters from configuration
-            if filters:
-                for filter_config in filters:
-                    operator = str(filter_config.get("operator", "")).upper()
-                    target_property = filter_config.get("target_property")
-                    values = filter_config.get("values", [])
-                    property_scope = str(
-                        filter_config.get("property_scope", "view")
-                    ).lower()
-
-                    if not target_property:
-                        continue
-
-                    property_ref = property_reference_for_filter(
-                        view_id, target_property, property_scope
-                    )
-
-                    if operator == "EQUALS":
-                        if isinstance(values, str):
-                            eq_vals = [values]
-                        elif isinstance(values, list):
-                            eq_vals = values
-                        elif values is None:
-                            eq_vals = []
-                        else:
-                            eq_vals = [values]
-                        if len(eq_vals) == 1:
-                            filter_expressions.append(
-                                dm.filters.Equals(property_ref, eq_vals[0])
-                            )
-                        elif len(eq_vals) > 1:
-                            equals_filters = [
-                                dm.filters.Equals(property_ref, val) for val in eq_vals
-                            ]
-                            filter_expressions.append(dm.filters.Or(*equals_filters))
-
-                    elif operator == "IN":
-                        if isinstance(values, list):
-                            filter_expressions.append(
-                                dm.filters.In(property_ref, values)
-                            )
-
-                    elif operator == "CONTAINSALL":
-                        if values and isinstance(values, list):
-                            filter_expressions.append(
-                                dm.filters.ContainsAll(
-                                    property=property_ref, values=values
-                                )
-                            )
-
-                    elif operator == "CONTAINSANY":
-                        if values and isinstance(values, list):
-                            filter_expressions.append(
-                                dm.filters.ContainsAny(
-                                    property=property_ref, values=values
-                                )
-                            )
-
-                    elif operator == "EXISTS":
-                        if property_scope == "node":
-                            filter_expressions.append(
-                                dm.filters.Exists(property=property_ref)
-                            )
-                        else:
-                            filter_expressions.append(
-                                dm.filters.HasData(
-                                    views=[view_id], properties=[target_property]
-                                )
-                            )
-
-                    elif operator == "SEARCH":
-                        if values:
-                            logger.warning(
-                                f"SEARCH operator not fully supported, using IN for property {target_property}"
-                            )
-                            if isinstance(values, list):
-                                filter_expressions.append(
-                                    dm.filters.In(property_ref, values)
-                                )
-                            else:
-                                filter_expressions.append(
-                                    dm.filters.In(property_ref, [values])
-                                )
-
-            # Combine all filters with AND
-            final_filter = (
-                dm.filters.And(*filter_expressions)
-                if len(filter_expressions) > 1
-                else filter_expressions[0]
-                if filter_expressions
-                else None
-            )
+            final_filter = build_source_view_query_filter(view_id, filters)
 
             # Query instances using list method (supports filters)
             # Try with filters first, fall back to no filters if filter fails
@@ -1063,30 +899,19 @@ def run_pipeline(
                 view_external_id,
                 view_version,
             )
-            instances = None
-            if final_filter is not None:
-                try:
-                    instances = client.data_modeling.instances.list(
-                        instance_type="node",
-                        space=instance_space if instance_space else None,
-                        sources=[view_id],
-                        filter=final_filter,
-                        limit=effective_limit,
-                    )
-                except Exception as filter_error:
-                    logger.warning(
-                        f"Filter failed for view {view_external_id}: {filter_error}. "
-                        f"Retrying without filters..."
-                    )
-                    # Fall back to query without filters
-                    instances = client.data_modeling.instances.list(
-                        instance_type="node",
-                        space=instance_space if instance_space else None,
-                        sources=[view_id],
-                        limit=effective_limit,
-                    )
-            else:
-                # No filters configured, query without filters
+            try:
+                instances = client.data_modeling.instances.list(
+                    instance_type="node",
+                    space=instance_space if instance_space else None,
+                    sources=[view_id],
+                    filter=final_filter,
+                    limit=effective_limit,
+                )
+            except Exception as filter_error:
+                logger.warning(
+                    f"Filter failed for view {view_external_id}: {filter_error}. "
+                    f"Retrying without filters..."
+                )
                 instances = client.data_modeling.instances.list(
                     instance_type="node",
                     space=instance_space if instance_space else None,

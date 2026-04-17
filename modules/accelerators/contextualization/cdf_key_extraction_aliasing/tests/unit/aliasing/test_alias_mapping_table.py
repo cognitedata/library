@@ -240,7 +240,7 @@ class TestAliasingEngineAliasMappingTable(unittest.TestCase):
             "rules": [
                 {
                     "name": "map",
-                    "type": "alias_mapping_table",
+                    "handler": "alias_mapping_table",
                     "enabled": True,
                     "priority": 5,
                     "preserve_original": True,
@@ -289,7 +289,7 @@ class TestAliasingEngineAliasMappingTable(unittest.TestCase):
             "rules": [
                 {
                     "name": "map",
-                    "type": "alias_mapping_table",
+                    "handler": "alias_mapping_table",
                     "enabled": True,
                     "priority": 5,
                     "preserve_original": True,

@@ -34,6 +34,8 @@ import signal
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -125,6 +127,20 @@ def _run_copy_workflow_config(copy_argv: List[str]) -> int:
 
 
 _UI_DIR = _PACKAGE_ROOT / "ui"
+
+
+def _wait_for_http(url: str, *, timeout_sec: float = 45.0, poll_interval: float = 0.25) -> bool:
+    """Return True once ``url`` responds with a 2xx/3xx status; False on timeout."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=2) as resp:
+                if 200 <= resp.status < 400:
+                    return True
+        except (urllib.error.URLError, OSError, TimeoutError):
+            pass
+        time.sleep(poll_interval)
+    return False
 
 
 def _run_ui(argv: List[str]) -> int:
@@ -231,8 +247,14 @@ def _run_ui(argv: List[str]) -> int:
     )
 
     if not args.no_browser:
-        time.sleep(1.2)
-        webbrowser.open(vite_url)
+        print("Waiting for dev server…")
+        if _wait_for_http(vite_url):
+            webbrowser.open(vite_url)
+        else:
+            print(
+                f"Timed out waiting for {vite_url}; open it manually when the dev server is ready.",
+                file=sys.stderr,
+            )
 
     print("Operator UI running — Ctrl+C to stop both servers.\n")
     try:

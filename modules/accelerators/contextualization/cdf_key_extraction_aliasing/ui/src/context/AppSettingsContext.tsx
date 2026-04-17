@@ -25,7 +25,7 @@ function readStoredTheme(): Theme | null {
 function readStoredLocale(): Locale | null {
   try {
     const v = localStorage.getItem(LOCALE_KEY);
-    if (v === "en" || v === "es" || v === "nb" || v === "ja") return v;
+    if (v === "en" || v === "es" || v === "nb" || v === "ja" || v === "pt") return v;
   } catch {
     /* ignore */
   }

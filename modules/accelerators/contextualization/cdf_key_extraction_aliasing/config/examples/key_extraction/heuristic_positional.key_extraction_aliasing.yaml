@@ -164,11 +164,10 @@ key_extraction:
       field_selection_strategy: merge_all
       extraction_rules:
       - rule_id: tag_heuristic_positional
-        method: heuristic
+        handler: heuristic
         priority: 60
         source_fields:
         - field_name: name
-          field_type: string
           required: true
           priority: 1
           role: target
@@ -176,7 +175,6 @@ key_extraction:
           preprocessing:
           - trim
         - field_name: description
-          field_type: string
           required: false
           priority: 2
           role: context

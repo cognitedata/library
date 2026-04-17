@@ -57,7 +57,7 @@ def test_build_aliasing_merges_raw_tables() -> None:
                     "raw_table_aliases": "a_aliases",
                     "raw_table_state": "a_state",
                 },
-                "data": {"aliasing_rules": [{"name": "r1", "type": "regex_substitution"}]},
+                "data": {"aliasing_rules": [{"name": "r1", "handler": "regex_substitution"}]},
             },
         }
     }

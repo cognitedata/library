@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
+import { mergeDataWithValidation, splitDataByValidation } from "../utils/splitConfigData";
+import { AliasingRulesStructuredEditor } from "./AliasingRulesStructuredEditor";
+import { ValidationStructuredEditor } from "./ValidationStructuredEditor";
 
 type Props = {
   value: unknown;
@@ -49,23 +52,71 @@ function editorSubtabClass(active: boolean): string {
   return `kea-tab${active ? " kea-tab--active" : ""}`;
 }
 
+type EditorSub = "settings" | "rules" | "validation";
+
 export function AliasingControls({ value, onChange }: Props) {
   const { t } = useAppSettings();
-  const [editorSub, setEditorSub] = useState<"settings" | "rules">("rules");
+  const [editorSub, setEditorSub] = useState<EditorSub>("rules");
   const al = useMemo(() => normalize(value), [value]);
   const params = (al.config.parameters as JsonObject) ?? {};
 
-  const [dataYaml, setDataYaml] = useState(() =>
-    YAML.stringify((al.config.data as JsonObject) ?? {}, { lineWidth: 0 })
-  );
-  const [dataError, setDataError] = useState<string | null>(null);
+  const [rulesYaml, setRulesYaml] = useState(() => {
+    const { withoutValidation } = splitDataByValidation((al.config.data as JsonObject) ?? {});
+    return YAML.stringify(withoutValidation, { lineWidth: 0 });
+  });
+  const [validationYaml, setValidationYaml] = useState(() => {
+    const { validation } = splitDataByValidation((al.config.data as JsonObject) ?? {});
+    return YAML.stringify(validation, { lineWidth: 0 });
+  });
+  const [rulesError, setRulesError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationMergeHint, setValidationMergeHint] = useState<string | null>(null);
+
+  const validationObject = useMemo(() => {
+    const { validation } = splitDataByValidation((al.config.data as JsonObject) ?? {});
+    return validation;
+  }, [value]);
+
+  const rulesDataObject = useMemo(() => {
+    const { withoutValidation } = splitDataByValidation((al.config.data as JsonObject) ?? {});
+    return withoutValidation;
+  }, [value]);
 
   useEffect(() => {
-    setDataYaml(YAML.stringify((al.config.data as JsonObject) ?? {}, { lineWidth: 0 }));
-    setDataError(null);
+    const data = (al.config.data as JsonObject) ?? {};
+    const { withoutValidation, validation } = splitDataByValidation(data);
+    setRulesYaml(YAML.stringify(withoutValidation, { lineWidth: 0 }));
+    setValidationYaml(YAML.stringify(validation, { lineWidth: 0 }));
+    setRulesError(null);
+    setValidationError(null);
+    setValidationMergeHint(null);
   }, [value]);
 
   const push = (next: AliasingBlock) => onChange(next);
+
+  const rulesObjectForMerge = (): { rulesObj: JsonObject; parseFailed: boolean } => {
+    try {
+      const parsed = YAML.parse(rulesYaml);
+      const rulesObj =
+        parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as JsonObject) : {};
+      setRulesError(null);
+      return { rulesObj, parseFailed: false };
+    } catch (e) {
+      setRulesError(String(e));
+      const data = (normalize(value).config.data as JsonObject) ?? {};
+      return { rulesObj: splitDataByValidation(data).withoutValidation, parseFailed: true };
+    }
+  };
+
+  const commitValidation = (validationObj: JsonObject) => {
+    const { rulesObj, parseFailed } = rulesObjectForMerge();
+    setValidationMergeHint(parseFailed ? t("validationEditor.rulesYamlInvalidMerge") : null);
+    setValidationYaml(YAML.stringify(validationObj, { lineWidth: 0 }));
+    setValidationError(null);
+    const current = normalize(value);
+    const data = mergeDataWithValidation(rulesObj, validationObj);
+    push({ ...current, config: { ...current.config, data } });
+  };
 
   const setExternalId = (externalId: string) => {
     push({ ...al, externalId });
@@ -105,19 +156,34 @@ export function AliasingControls({ value, onChange }: Props) {
     push({ ...al, config: { ...al.config, parameters: p } });
   };
 
-  const applyDataYaml = () => {
+  const mergeAndPushConfigData = (withoutValidation: JsonObject) => {
+    let validationObj: JsonObject;
     try {
-      const parsed = YAML.parse(dataYaml);
-      const data =
+      const parsed = YAML.parse(validationYaml);
+      validationObj =
         parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
           ? (parsed as JsonObject)
           : {};
-      setDataError(null);
-      const current = normalize(value);
-      push({ ...current, config: { ...current.config, data } });
+      setValidationError(null);
     } catch (e) {
-      setDataError(String(e));
+      setValidationError(String(e));
+      return;
     }
+    const current = normalize(value);
+    const data = mergeDataWithValidation(withoutValidation, validationObj);
+    push({ ...current, config: { ...current.config, data } });
+  };
+
+  const commitRulesData = (nextWithoutValidation: JsonObject) => {
+    setRulesYaml(YAML.stringify(nextWithoutValidation, { lineWidth: 0 }));
+    setRulesError(null);
+    mergeAndPushConfigData(nextWithoutValidation);
+  };
+
+  const commitConfigData = () => {
+    const { rulesObj, parseFailed } = rulesObjectForMerge();
+    setValidationMergeHint(parseFailed ? t("validationEditor.rulesYamlInvalidMerge") : null);
+    mergeAndPushConfigData(rulesObj);
   };
 
   return (
@@ -132,6 +198,15 @@ export function AliasingControls({ value, onChange }: Props) {
           onClick={() => setEditorSub("rules")}
         >
           {t("editor.subtab.rules")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={editorSub === "validation"}
+          className={editorSubtabClass(editorSub === "validation")}
+          onClick={() => setEditorSub("validation")}
+        >
+          {t("editor.subtab.validation")}
         </button>
         <button
           type="button"
@@ -190,15 +265,42 @@ export function AliasingControls({ value, onChange }: Props) {
             {t("aliasing.dataYaml")}
           </h4>
           <p className="kea-hint">{t("aliasing.dataYamlHint")}</p>
-          {dataError && <p className="kea-hint kea-hint--warn">{dataError}</p>}
-          <textarea
-            className="kea-textarea"
-            style={{ minHeight: 280, fontFamily: "ui-monospace, monospace" }}
-            value={dataYaml}
-            onChange={(e) => setDataYaml(e.target.value)}
-            onBlur={applyDataYaml}
-            spellCheck={false}
-          />
+          {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
+          <AliasingRulesStructuredEditor value={rulesDataObject} onChange={commitRulesData} />
+          <details style={{ marginTop: "1rem" }}>
+            <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("aliasing.advancedRulesYaml")}</summary>
+            <textarea
+              className="kea-textarea"
+              style={{ minHeight: 200, fontFamily: "ui-monospace, monospace", marginTop: "0.5rem" }}
+              value={rulesYaml}
+              onChange={(e) => setRulesYaml(e.target.value)}
+              onBlur={commitConfigData}
+              spellCheck={false}
+            />
+          </details>
+        </div>
+      )}
+      {editorSub === "validation" && (
+        <div role="tabpanel">
+          <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
+            {t("aliasing.validationYaml")}
+          </h4>
+          <p className="kea-hint">{t("aliasing.validationYamlHint")}</p>
+          {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
+          {validationMergeHint && <p className="kea-hint kea-hint--warn">{validationMergeHint}</p>}
+          <ValidationStructuredEditor variant="aliasing" value={validationObject} onChange={commitValidation} />
+          <details style={{ marginTop: "1rem" }}>
+            <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("validationEditor.advancedYaml")}</summary>
+            {validationError && <p className="kea-hint kea-hint--warn">{validationError}</p>}
+            <textarea
+              className="kea-textarea"
+              style={{ minHeight: 200, fontFamily: "ui-monospace, monospace", marginTop: "0.5rem" }}
+              value={validationYaml}
+              onChange={(e) => setValidationYaml(e.target.value)}
+              onBlur={commitConfigData}
+              spellCheck={false}
+            />
+          </details>
         </div>
       )}
     </div>

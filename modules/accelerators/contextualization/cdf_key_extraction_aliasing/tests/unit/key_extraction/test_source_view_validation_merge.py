@@ -34,7 +34,7 @@ class TestSourceViewValidationMerge(unittest.TestCase):
     def _passthrough_rule(self, entity_types):
         return {
             "name": "pt",
-            "method": "passthrough",
+            "handler": "passthrough",
             "extraction_type": "candidate_key",
             "enabled": True,
             "priority": 50,

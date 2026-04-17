@@ -33,7 +33,7 @@ from ..config import Config, ExtractionRuleConfig
 from ..utils.DataStructures import *
 from ..utils.rule_utils import (
     get_extraction_type_from_rule,
-    get_method_from_rule,
+    get_handler_from_rule,
     normalize_extraction_type,
     normalize_method,
 )
@@ -85,15 +85,21 @@ class KeyExtractionEngine:
                 if isinstance(r, dict):
                     r = dict(_defaults, **r)
                     r.setdefault("validation", validation_default)
-                    # Normalize method name for handler lookup (e.g. fixed_width -> fixed width)
-                    method = r.get("method", "")
-                    if method == "fixed_width":
-                        r["method"] = ExtractionMethod.FIXED_WIDTH.value
-                    elif method == "token_reassembly":
-                        r["method"] = ExtractionMethod.TOKEN_REASSEMBLY.value
+                    # Normalize handler name for handler lookup (e.g. fixed_width -> fixed width)
+                    handler = r.get("handler", "")
+                    if handler == "fixed_width":
+                        r["handler"] = ExtractionMethod.FIXED_WIDTH.value
+                    elif handler == "token_reassembly":
+                        r["handler"] = ExtractionMethod.TOKEN_REASSEMBLY.value
                     sf = r.get("source_fields", [])
                     if sf and isinstance(sf[0], dict):
                         r["source_fields"] = [SimpleNamespace(**{**_sf_defaults, **f}) for f in sf]
+                    # Scope / UI YAML uses `parameters`; handlers and composite strategies use `rule.config`.
+                    if r.get("config") is None and r.get("parameters") is not None:
+                        p = r["parameters"]
+                        r["config"] = dict(p) if isinstance(p, dict) else p
+                    elif r.get("config") is None:
+                        r["config"] = {}
                     self.rules.append(SimpleNamespace(**r))
                 else:
                     self.rules.append(r)
@@ -232,7 +238,7 @@ class KeyExtractionEngine:
 
                 # Extract keys using appropriate method (canonical method name from one place)
                 method_key = normalize_method(
-                    getattr(rule, "method", None)
+                    getattr(rule, "handler", None)
                 ).value
                 method_handler = self.method_handlers.get(method_key)
                 if not method_handler:
@@ -387,7 +393,7 @@ class KeyExtractionEngine:
                 composite_value = separator.join(composite_value_parts)
 
                 # Extract using the configured method (canonical method name)
-                method_key = normalize_method(getattr(rule, "method", None)).value
+                method_key = normalize_method(getattr(rule, "handler", None)).value
                 method_handler = self.method_handlers.get(method_key)
                 if method_handler:
                     try:
@@ -423,7 +429,7 @@ class KeyExtractionEngine:
                     ]["value"]
 
             # Extract from target fields with enhanced context
-            method_key = normalize_method(getattr(rule, "method", None)).value
+            method_key = normalize_method(getattr(rule, "handler", None)).value
             method_handler = self.method_handlers.get(method_key)
             if method_handler:
                 for target_field in target_fields:
@@ -553,7 +559,7 @@ class KeyExtractionEngine:
                 AssemblyRule(**assembly_rule),
                 tkr_param,
                 get_extraction_type_from_rule(rule),
-                get_method_from_rule(rule),
+                get_handler_from_rule(rule),
                 context,
             )
             if assembled_keys:
@@ -954,7 +960,7 @@ def main():
                 "name": "standard_pump_tag",
                 "description": "Extracts standard pump tags from equipment descriptions",
                 "extraction_type": "candidate_key",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\bP[-_]?\d{2,4}[A-Z]?\b",
                 "priority": 50,
                 "enabled": True,
@@ -963,13 +969,11 @@ def main():
                 "source_fields": [
                     {
                         "field_name": "name",
-                        "field_type": "string",
                         "required": True,
                         "priority": 1,
                     },
                     {
                         "field_name": "description",
-                        "field_type": "string",
                         "required": False,
                         "priority": 2,
                     },
@@ -979,7 +983,7 @@ def main():
                 "name": "flow_instrument_tag",
                 "description": "Extracts ISA flow instrument tags",
                 "extraction_type": "foreign_key_reference",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\bFIC[-_]?\d{4}[A-Z]?\b",
                 "priority": 30,
                 "enabled": True,
@@ -987,7 +991,6 @@ def main():
                 "source_fields": [
                     {
                         "field_name": "description",
-                        "field_type": "string",
                         "required": False,
                     }
                 ],

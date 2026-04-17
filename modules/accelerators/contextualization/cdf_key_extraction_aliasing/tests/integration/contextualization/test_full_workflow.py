@@ -38,7 +38,7 @@ class TestIntegrationWorkflow(unittest.TestCase):
                     "name": "pump_extraction",
                     "description": "Extract pump tags",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
                     "priority": 50,
                     "enabled": True,
@@ -51,7 +51,7 @@ class TestIntegrationWorkflow(unittest.TestCase):
                     "name": "valve_extraction",
                     "description": "Extract valve tags",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bV[-_]?\d{1,6}[A-Z]?\b",
                     "priority": 50,
                     "enabled": True,
@@ -71,7 +71,7 @@ class TestIntegrationWorkflow(unittest.TestCase):
             "rules": [
                 {
                     "name": "separator_variants",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,

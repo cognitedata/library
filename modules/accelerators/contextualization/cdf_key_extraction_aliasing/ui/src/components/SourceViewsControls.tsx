@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { MessageKey } from "../i18n";
 import type { JsonObject } from "../types/scopeConfig";
+import {
+  SourceViewFilterNodeEditor,
+  emptyAnd,
+  emptyLeaf,
+  emptyNot,
+  emptyOr,
+} from "./SourceViewFiltersEditor";
+import { commaJoinSegments, splitCommaSegments } from "../utils/commaDelimited";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -24,28 +32,6 @@ function emptyView(): JsonObject {
     filters: [],
     include_properties: [],
   };
-}
-
-function emptyFilter(): JsonObject {
-  return {
-    operator: "EQUALS",
-    target_property: "",
-    property_scope: "view",
-    values: [],
-  };
-}
-
-/** Operators supported by fn_dm_key_extraction / local_runner (Cognite DM filters). */
-const FILTER_OPERATORS = ["EQUALS", "IN", "EXISTS", "CONTAINSALL", "CONTAINSANY", "SEARCH"] as const;
-const FILTER_OPERATOR_SET = new Set<string>(FILTER_OPERATORS);
-
-function normalizeFilterOperator(raw: unknown): string {
-  const s = String(raw ?? "EQUALS").trim().toUpperCase();
-  return s || "EQUALS";
-}
-
-function filterOperatorNeedsValues(operator: string): boolean {
-  return normalizeFilterOperator(operator) !== "EXISTS";
 }
 
 function viewListLabel(view: JsonObject, vi: number, t: TFn): string {
@@ -77,16 +63,6 @@ export function SourceViewsControls({ value, onChange }: Props) {
     patchView(vi, { filters });
   };
 
-  const patchFilter = (vi: number, fi: number, f: JsonObject) => {
-    const view = views[vi];
-    const fl = Array.isArray(view.filters) ? [...view.filters] : [];
-    const row = fl[fi];
-    if (row && typeof row === "object" && !Array.isArray(row)) {
-      fl[fi] = { ...(row as JsonObject), ...f };
-    }
-    setFilters(vi, fl as JsonObject[]);
-  };
-
   const removeView = (vi: number) => {
     const next = views.filter((_, j) => j !== vi);
     setViews(next);
@@ -104,35 +80,9 @@ export function SourceViewsControls({ value, onChange }: Props) {
     setSelectedVi(next.length - 1);
   };
 
-  const splitCommaSegments = (s: string): string[] =>
-    s
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-
-  const valuesToText = (vals: unknown): string => {
-    if (vals == null) return "";
-    if (Array.isArray(vals)) return vals.map((x) => String(x)).join(", ");
-    return String(vals);
-  };
-
-  const textToValues = (s: string): unknown => {
-    const parts = splitCommaSegments(s);
-    if (parts.length === 0) return [];
-    if (parts.length === 1) {
-      const p = parts[0];
-      const n = Number(p);
-      if (!Number.isNaN(n) && p === String(n)) return n;
-      if (p === "true") return true;
-      if (p === "false") return false;
-      return p;
-    }
-    return parts;
-  };
-
   const includePropsToText = (v: unknown): string => {
     if (!Array.isArray(v)) return "";
-    return v.map((x) => String(x)).join(", ");
+    return commaJoinSegments(v.map((x) => String(x)));
   };
 
   const textToIncludeProps = (s: string): string[] => splitCommaSegments(s);
@@ -140,6 +90,17 @@ export function SourceViewsControls({ value, onChange }: Props) {
   const vi = selectedVi;
   const view = views[vi];
   const hasSelection = views.length > 0 && view != null;
+  const includeKey = JSON.stringify(view?.include_properties ?? null);
+  const [includeDraft, setIncludeDraft] = useState(() =>
+    views.length > 0 && views[selectedVi]
+      ? includePropsToText(views[selectedVi].include_properties)
+      : ""
+  );
+
+  useEffect(() => {
+    if (!view) return;
+    setIncludeDraft(includePropsToText(view.include_properties));
+  }, [vi, includeKey]);
 
   return (
     <div className="kea-source-views">
@@ -251,8 +212,9 @@ export function SourceViewsControls({ value, onChange }: Props) {
                 <input
                   type="text"
                   className="kea-input"
-                  value={includePropsToText(view.include_properties)}
-                  onChange={(e) => patchView(vi, { include_properties: textToIncludeProps(e.target.value) })}
+                  value={includeDraft}
+                  onChange={(e) => setIncludeDraft(e.target.value)}
+                  onBlur={() => patchView(vi, { include_properties: textToIncludeProps(includeDraft) })}
                   spellCheck={false}
                   autoComplete="off"
                 />
@@ -260,96 +222,72 @@ export function SourceViewsControls({ value, onChange }: Props) {
               <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "0.75rem" }}>
                 {t("sourceViews.filters")}
               </h4>
-              <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "52rem" }}>
+              <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
                 {t("sourceViews.filtersCombineHint")}
               </p>
               {(Array.isArray(view.filters) ? view.filters : []).map((f, fi) => {
-                const row = f && typeof f === "object" && !Array.isArray(f) ? (f as JsonObject) : emptyFilter();
-                const op = normalizeFilterOperator(row.operator);
+                const row =
+                  f && typeof f === "object" && !Array.isArray(f) ? (f as JsonObject) : emptyLeaf();
                 return (
-                  <div key={`f-${vi}-${fi}`} className="kea-filter-row">
-                    <label className="kea-label">
-                      {t("sourceViews.filterOperator")}
-                      <select
-                        className="kea-input"
-                        value={op}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          const patch: JsonObject = { operator: next };
-                          if (normalizeFilterOperator(next) === "EXISTS") {
-                            patch.values = [];
-                          }
-                          patchFilter(vi, fi, patch);
-                        }}
-                      >
-                        {!FILTER_OPERATOR_SET.has(op) && op ? (
-                          <option value={op}>{op}</option>
-                        ) : null}
-                        {FILTER_OPERATORS.map((o) => (
-                          <option key={o} value={o}>
-                            {o}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="kea-label">
-                      {t("sourceViews.filterTargetProperty")}
-                      <input
-                        className="kea-input"
-                        value={String(row.target_property ?? "")}
-                        onChange={(e) => patchFilter(vi, fi, { target_property: e.target.value })}
-                      />
-                    </label>
-                    <label className="kea-label">
-                      {t("sourceViews.filterPropertyScope")}
-                      <input
-                        className="kea-input"
-                        value={String(row.property_scope ?? "view")}
-                        onChange={(e) => patchFilter(vi, fi, { property_scope: e.target.value })}
-                      />
-                    </label>
-                    {filterOperatorNeedsValues(op) ? (
-                      <label className="kea-label kea-label--block" style={{ gridColumn: "1 / -1" }}>
-                        {t("sourceViews.filterValues")}
-                        <input
-                          type="text"
-                          className="kea-input"
-                          value={valuesToText(row.values)}
-                          onChange={(e) => patchFilter(vi, fi, { values: textToValues(e.target.value) })}
-                          spellCheck={false}
-                          autoComplete="off"
-                        />
-                      </label>
-                    ) : (
-                      <p className="kea-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
-                        {t("sourceViews.filterExistsNoValues")}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      className="kea-btn kea-btn--ghost kea-btn--sm"
-                      style={{ gridColumn: "1 / -1" }}
-                      onClick={() => {
-                        const fl = [...(Array.isArray(view.filters) ? view.filters : [])];
-                        fl.splice(fi, 1);
-                        setFilters(vi, fl as JsonObject[]);
-                      }}
-                    >
-                      {t("scope.remove")}
-                    </button>
-                  </div>
+                  <SourceViewFilterNodeEditor
+                    key={`f-${vi}-${fi}`}
+                    t={t}
+                    value={row}
+                    onChange={(next) => {
+                      const fl = [...(Array.isArray(view.filters) ? view.filters : [])];
+                      fl[fi] = next;
+                      setFilters(vi, fl as JsonObject[]);
+                    }}
+                    onRemove={() => {
+                      const fl = [...(Array.isArray(view.filters) ? view.filters : [])];
+                      fl.splice(fi, 1);
+                      setFilters(vi, fl as JsonObject[]);
+                    }}
+                  />
                 );
               })}
-              <button
-                type="button"
-                className="kea-btn kea-btn--sm"
-                onClick={() => {
-                  const fl = [...(Array.isArray(view.filters) ? view.filters : []), emptyFilter()];
-                  setFilters(vi, fl as JsonObject[]);
-                }}
-              >
-                {t("sourceViews.addFilter")}
-              </button>
+              <div className="kea-toolbar-inline" style={{ marginTop: 10, flexWrap: "wrap", gap: 8 }}>
+                <button
+                  type="button"
+                  className="kea-btn kea-btn--sm"
+                  onClick={() => {
+                    const fl = [...(Array.isArray(view.filters) ? view.filters : []), emptyLeaf()];
+                    setFilters(vi, fl as JsonObject[]);
+                  }}
+                >
+                  {t("sourceViews.filterAddLeaf")}
+                </button>
+                <button
+                  type="button"
+                  className="kea-btn kea-btn--sm"
+                  onClick={() => {
+                    const fl = [...(Array.isArray(view.filters) ? view.filters : []), emptyAnd()];
+                    setFilters(vi, fl as JsonObject[]);
+                  }}
+                >
+                  {t("sourceViews.filterAddAnd")}
+                </button>
+                <button
+                  type="button"
+                  className="kea-btn kea-btn--sm"
+                  onClick={() => {
+                    const fl = [...(Array.isArray(view.filters) ? view.filters : []), emptyOr()];
+                    setFilters(vi, fl as JsonObject[]);
+                  }}
+                >
+                  {t("sourceViews.filterAddOr")}
+                </button>
+                <button
+                  type="button"
+                  className="kea-btn kea-btn--sm"
+                  onClick={() => {
+                    const fl = [...(Array.isArray(view.filters) ? view.filters : []), emptyNot()];
+                    setFilters(vi, fl as JsonObject[]);
+                  }}
+                >
+                  {t("sourceViews.filterAddNot")}
+                </button>
+              </div>
             </div>
           )}
         </div>

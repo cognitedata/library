@@ -2,6 +2,8 @@
 # Scope rules are under input.configuration (from workflow.template.config.yaml, patched per leaf).
 # Toolkit substitutes {{ key_extraction_aliasing_schedule }}, {{functionClientId}}, {{functionClientSecret}},
 # and {{instance_space}} inside configuration (source_views) at deploy time (see default.config.yaml).
+# Optional root `name`: operator UI label in the Configure sidebar (remove if your Toolkit rejects extra keys).
+name: ''
 externalId: key_extraction_aliasing.__KEA_CDF_SUFFIX__
 triggerRule:
   triggerType: schedule

@@ -95,7 +95,7 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
 def _pydantic_extraction_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
     """
     Serialize ExtractionRuleConfig to the same shape as YAML rule dicts
-    (name, method, parameters, source_fields, ...).
+    (name, handler, parameters, source_fields, ...).
     """
     data = cdf_rule.model_dump(mode="python", by_alias=True)
     data["name"] = getattr(cdf_rule, "name", None) or data.get("rule_id", "unnamed_rule")
@@ -170,9 +170,9 @@ def _convert_yaml_direct_to_engine_config(
 def _convert_rule_dict_to_engine_format(
     rule_data: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
-    """Convert a rule dictionary to engine format; outputs canonical method and extraction_type."""
+    """Convert a rule dictionary to engine format; outputs canonical handler and extraction_type."""
     try:
-        method_raw = rule_data.get("method")
+        method_raw = rule_data.get("handler")
         method_canonical = normalize_method(method_raw).value
         extraction_type = (
             get_extraction_type_from_rule(rule_data).value
@@ -184,7 +184,7 @@ def _convert_rule_dict_to_engine_format(
             "description": rule_data.get("description", ""),
             "priority": rule_data.get("priority", 100),
             "enabled": rule_data.get("enabled", True),
-            "method": method_canonical,
+            "handler": method_canonical,
             "scope_filters": rule_data.get("scope_filters", {}),
             "extraction_type": extraction_type,
             "source_fields": _convert_source_fields_dict(
@@ -261,14 +261,11 @@ def _convert_source_fields_dict(source_fields_data: Any) -> List[Dict[str, Any]]
         if isinstance(field, dict):
             engine_field = {
                 "field_name": field.get("field_name", ""),
-                "field_type": field.get("field_type", "string"),
                 "required": field.get("required", False),
                 "priority": field.get("priority", 1),
                 "max_length": field.get("max_length", 1000),
             }
 
-            if "separator" in field:
-                engine_field["separator"] = field["separator"]
             if "role" in field:
                 engine_field["role"] = field["role"]
             if "preprocessing" in field:

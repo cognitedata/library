@@ -42,7 +42,7 @@ def sample_config() -> Dict[str, Any]:
             {
                 "name": "standard_pump_tag",
                 "description": "Extracts standard pump tags",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\bP[-_]?\d{2,4}[A-Z]?\b",
                 "extraction_type": "candidate_key",
                 "source_fields": [{"field_name": "name", "required": True}],
@@ -52,7 +52,7 @@ def sample_config() -> Dict[str, Any]:
             "rules": [
                 {
                     "name": "normalize_separators",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "config": {"substitutions": {"_": "-", " ": "-"}},

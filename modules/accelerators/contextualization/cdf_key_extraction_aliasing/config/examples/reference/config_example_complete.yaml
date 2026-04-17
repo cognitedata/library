@@ -116,11 +116,10 @@ data:
     # RULE 1: REGEX METHOD - Simple pattern
     # ========================================
     - rule_id: "pump_tag_regex_simple"
-      method: "regex"
+      handler: "regex"
       priority: 50
       source_fields:
         - field_name: "name"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
@@ -144,20 +143,17 @@ data:
     # RULE 2: REGEX METHOD - With capture groups
     # ========================================
     - rule_id: "instrument_tag_regex_capture"
-      method: "regex"
+      handler: "regex"
       priority: 30
       source_fields:
         - field_name: "description"
-          field_type: "string"
           required: false
           priority: 1
           role: "target"
-          separator: null
           max_length: 1000
           preprocessing:
             - "trim"
         - field_name: "name"
-          field_type: "string"
           required: false
           priority: 2
           role: "context"
@@ -187,11 +183,10 @@ data:
     # RULE 3: FIXED WIDTH METHOD - Single line
     # ========================================
     - rule_id: "tag_fixed_width_single"
-      method: "fixed width"
+      handler: "fixed width"
       priority: 40
       source_fields:
         - field_name: "rawData"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
@@ -230,11 +225,10 @@ data:
     # RULE 4: FIXED WIDTH METHOD - Multi-line
     # ========================================
     - rule_id: "tag_fixed_width_multiline"
-      method: "fixed width"
+      handler: "fixed width"
       priority: 35
       source_fields:
         - field_name: "multilineData"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
@@ -278,11 +272,10 @@ data:
     # RULE 5: TOKEN REASSEMBLY METHOD
     # ========================================
     - rule_id: "tag_token_reassembly"
-      method: "token reassembly"
+      handler: "token reassembly"
       priority: 25
       source_fields:
         - field_name: "name"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
@@ -291,7 +284,6 @@ data:
             - "trim"
             - "uppercase"
         - field_name: "description"
-          field_type: "string"
           required: false
           priority: 2
           role: "context"
@@ -364,11 +356,10 @@ data:
     # RULE 6: HEURISTIC METHOD - Positional Detection
     # ========================================
     - rule_id: "tag_heuristic_positional"
-      method: "heuristic"
+      handler: "heuristic"
       priority: 60
       source_fields:
         - field_name: "name"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
@@ -376,7 +367,6 @@ data:
           preprocessing:
             - "trim"
         - field_name: "description"
-          field_type: "string"
           required: false
           priority: 2
           role: "context"
@@ -482,11 +472,10 @@ data:
     # RULE 7: HEURISTIC METHOD - Example-Based Learning & Frequency Analysis
     # ========================================
     - rule_id: "tag_heuristic_learning"
-      method: "heuristic"
+      handler: "heuristic"
       priority: 55
       source_fields:
         - field_name: "name"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
@@ -495,7 +484,6 @@ data:
             - "trim"
             - "uppercase"
         - field_name: "description"
-          field_type: "string"
           required: false
           priority: 2
           role: "context"
@@ -557,11 +545,10 @@ data:
     # RULE 8: HEURISTIC METHOD - All Four Strategies Combined
     # ========================================
     - rule_id: "tag_heuristic_comprehensive"
-      method: "heuristic"
+      handler: "heuristic"
       priority: 45
       source_fields:
         - field_name: "name"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
@@ -569,7 +556,6 @@ data:
           preprocessing:
             - "trim"
         - field_name: "description"
-          field_type: "string"
           required: false
           priority: 2
           role: "context"
@@ -578,7 +564,6 @@ data:
             - "trim"
             - "lowercase"
         - field_name: "equipmentType"
-          field_type: "string"
           required: false
           priority: 3
           role: "context"
@@ -718,39 +703,32 @@ data:
     # RULE 9: Multiple source fields example
     # ========================================
     - rule_id: "multi_field_extraction"
-      method: "regex"
+      handler: "regex"
       priority: 70
       source_fields:
         - field_name: "name"
-          field_type: "string"
           required: true
           priority: 1
           role: "target"
-          separator: null
           max_length: 500
           preprocessing:
             - "trim"
             - "uppercase"
         - field_name: "description"
-          field_type: "string"
           required: false
           priority: 2
           role: "target"
-          separator: null
           max_length: 1000
           preprocessing:
             - "trim"
         - field_name: "metadata.tagIds"
-          field_type: "array"
           required: false
           priority: 3
           role: "target"
-          separator: ","
           max_length: 2000
           preprocessing:
             - "trim"
         - field_name: "equipmentType"
-          field_type: "string"
           required: false
           priority: 4
           role: "context"
@@ -759,7 +737,6 @@ data:
             - "trim"
             - "lowercase"
         - field_name: "serialNumber"
-          field_type: "string"
           required: false
           priority: 5
           role: "validation"
@@ -785,11 +762,10 @@ data:
     #  but this shows how different source field configs work)
     # ========================================
     - rule_id: "field_selection_demo"
-      method: "regex"
+      handler: "regex"
       priority: 80
       source_fields:
         - field_name: "primaryTag"
-          field_type: "string"
           required: false
           priority: 1  # Highest priority (lowest number)
           role: "target"
@@ -797,7 +773,6 @@ data:
           preprocessing:
             - "trim"
         - field_name: "secondaryTag"
-          field_type: "string"
           required: false
           priority: 2
           role: "target"
@@ -805,7 +780,6 @@ data:
           preprocessing:
             - "trim"
         - field_name: "alternateTag"
-          field_type: "string"
           required: false
           priority: 3  # Lowest priority (highest number)
           role: "target"

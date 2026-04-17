@@ -98,7 +98,7 @@ class AliasRule:
     """Configuration for an individual aliasing rule."""
 
     name: str
-    type: TransformationType
+    handler: TransformationType
     enabled: bool = True
     priority: int = 50
     preserve_original: bool = True
@@ -144,7 +144,7 @@ class AliasingEngine:
         from .alias_mapping_table_raw_loader import load_alias_mapping_table_from_client
 
         for rule in self.rules:
-            if rule.type != TransformationType.ALIAS_MAPPING_TABLE:
+            if rule.handler != TransformationType.ALIAS_MAPPING_TABLE:
                 continue
             cfg = rule.config
             default_sm = str(cfg.get("source_match") or "exact").strip().lower()
@@ -201,7 +201,7 @@ class AliasingEngine:
             try:
                 rule = AliasRule(
                     name=rule_config["name"],
-                    type=TransformationType(rule_config["type"]),
+                    handler=TransformationType(rule_config["handler"]),
                     enabled=rule_config.get("enabled", True),
                     priority=rule_config.get("priority", 50),
                     preserve_original=rule_config.get("preserve_original", True),
@@ -291,10 +291,10 @@ class AliasingEngine:
                 continue
 
             # Get appropriate transformer
-            transformer = self.transformers.get(rule.type)
+            transformer = self.transformers.get(rule.handler)
             if not transformer:
                 self.logger.verbose(
-                    "WARNING", f"No transformer for rule type {rule.type}"
+                    "WARNING", f"No transformer for rule handler {rule.handler}"
                 )
                 continue
 

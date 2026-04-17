@@ -18,7 +18,7 @@ def _base_rule(name: str, pattern: str) -> dict:
     return {
         "name": name,
         "extraction_type": "candidate_key",
-        "method": "regex",
+        "handler": "regex",
         "priority": 10,
         "enabled": True,
         "source_fields": [{"field_name": "name", "required": True}],

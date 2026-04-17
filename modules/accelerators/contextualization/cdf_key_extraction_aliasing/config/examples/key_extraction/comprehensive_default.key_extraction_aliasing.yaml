@@ -187,7 +187,7 @@ key_extraction:
             value: 0.0
       extraction_rules:
       - name: pump_tag_extraction
-        method: regex
+        handler: regex
         extraction_type: candidate_key
         description: Extract pump tags like P-10001, P-10002, P101A from name field (assets only)
         enabled: true
@@ -208,14 +208,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: tank_reference_extraction
-        method: regex
+        handler: regex
         extraction_type: foreign_key_reference
         description: Extract tank references like T-301, T-201 from description field
         enabled: true
@@ -233,14 +232,13 @@ key_extraction:
         - field_name: description
           required: false
           max_length: 1000
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: merge_all
       - name: instrument_tag_extraction
-        method: regex
+        handler: regex
         extraction_type: candidate_key
         description: Extract ISA standard instrument tags like FIC-2001, PIC-3002 (assets and timeseries)
         enabled: true
@@ -262,14 +260,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: timeseries_tag_pattern_extraction
-        method: regex
+        handler: regex
         extraction_type: candidate_key
         description: Extract tag patterns like 23-LY-92529 from timeseries names (timeseries only)
         enabled: true
@@ -293,14 +290,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: timeseries_tag_pattern_fixed_width
-        method: fixed width
+        handler: fixed width
         extraction_type: candidate_key
         description: Extract tag patterns using fixed width from timeseries names starting after VAL_ prefix (timeseries only)
         enabled: true
@@ -324,14 +320,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: file_name_extraction
-        method: regex
+        handler: regex
         extraction_type: candidate_key
         description: Extract file name (without path, with extension) as candidate key (files only)
         enabled: true
@@ -352,14 +347,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: pid_document_reference
-        method: regex
+        handler: regex
         extraction_type: document_reference
         description: Extract P&ID document references from description field (files only)
         enabled: true
@@ -380,14 +374,13 @@ key_extraction:
         - field_name: description
           required: false
           max_length: 1000
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: merge_all
       - name: fixed_width_tags
-        method: fixed width
+        handler: fixed width
         extraction_type: candidate_key
         description: Extract tags from fixed-width formatted text (position-based parsing)
         enabled: true
@@ -417,14 +410,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: fixed_width_with_line_number
-        method: fixed width
+        handler: fixed width
         extraction_type: candidate_key
         description: Extract tags from fixed-width format with line number prefix
         enabled: true
@@ -454,14 +446,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: hierarchical_tag_assembly
-        method: token reassembly
+        handler: token reassembly
         extraction_type: candidate_key
         description: Assemble hierarchical tags from tokenized components (site-unit-type-number)
         enabled: true
@@ -517,14 +508,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: timeseries_token_reassembly
-        method: token reassembly
+        handler: token reassembly
         extraction_type: candidate_key
         description: Reassemble instrument tags from separated components
         enabled: true
@@ -556,14 +546,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: heuristic_tag_extraction
-        method: heuristic
+        handler: heuristic
         extraction_type: candidate_key
         description: Use multiple heuristic strategies to extract tags from unstructured text
         enabled: true
@@ -677,14 +666,13 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:
           - trim
         field_selection_strategy: first_match
       - name: heuristic_fallback_extraction
-        method: heuristic
+        handler: heuristic
         extraction_type: candidate_key
         description: Simpler heuristic fallback for cases where other methods fail
         enabled: true
@@ -750,7 +738,6 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:

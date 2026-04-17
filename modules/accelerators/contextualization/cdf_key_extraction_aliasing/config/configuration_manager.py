@@ -51,7 +51,7 @@ class ExtractionRuleSettings:
     name: str
     description: str = ""
     extraction_type: str = "candidate_key"
-    method: str = "regex"
+    handler: str = "regex"
     pattern: str = ""
     priority: int = 50
     enabled: bool = True
@@ -118,7 +118,7 @@ class ConfigurationValidator:
                             "document_reference",
                         ],
                     },
-                    "method": {
+                    "handler": {
                         "type": "string",
                         "enum": [
                             "passthrough",
@@ -144,10 +144,10 @@ class ConfigurationValidator:
             },
             "aliasing_rule": {
                 "type": "object",
-                "required": ["name", "type"],
+                "required": ["name", "handler"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
-                    "type": {
+                    "handler": {
                         "type": "string",
                         "enum": [
                             "character_substitution",
@@ -182,23 +182,23 @@ class ConfigurationValidator:
             errors.append(f"Extraction rule validation error: {e.message}")
 
         # Additional validation for method-specific requirements
-        method = rule_config.get("method")
-        if method in (None, "", "passthrough"):
+        handler = rule_config.get("handler")
+        if handler in (None, "", "passthrough"):
             return errors
-        if method == "regex" and not rule_config.get("pattern"):
-            errors.append("Regex method requires a pattern")
-        elif method == "fixed_width" and not rule_config.get("config", {}).get(
+        if handler == "regex" and not rule_config.get("pattern"):
+            errors.append("Regex handler requires a pattern")
+        elif handler == "fixed_width" and not rule_config.get("config", {}).get(
             "field_definitions"
         ):
-            errors.append("Fixed width method requires field_definitions in config")
-        elif method == "token_reassembly" and not rule_config.get("config", {}).get(
+            errors.append("Fixed width handler requires field_definitions in config")
+        elif handler == "token_reassembly" and not rule_config.get("config", {}).get(
             "tokenization"
         ):
-            errors.append("Token reassembly method requires tokenization config")
-        elif method == "heuristic" and not rule_config.get("config", {}).get(
+            errors.append("Token reassembly handler requires tokenization config")
+        elif handler == "heuristic" and not rule_config.get("config", {}).get(
             "heuristic_strategies"
         ):
-            errors.append("Heuristic method requires heuristic_strategies in config")
+            errors.append("Heuristic handler requires heuristic_strategies in config")
 
         return errors
 
@@ -375,7 +375,7 @@ class ConfigurationManager:
                 name=rule_data["name"],
                 description=rule_data.get("description", ""),
                 extraction_type=rule_data.get("extraction_type", "candidate_key"),
-                method=rule_data.get("method") or "passthrough",
+                handler=rule_data.get("handler") or "passthrough",
                 pattern=rule_data.get("pattern", ""),
                 priority=rule_data.get("priority", 50),
                 enabled=rule_data.get("enabled", True),
@@ -424,7 +424,7 @@ class ConfigurationManager:
                     "name": rule.name,
                     "description": rule.description,
                     "extraction_type": rule.extraction_type,
-                    "method": rule.method,
+                    "handler": rule.handler,
                     "pattern": rule.pattern,
                     "priority": rule.priority,
                     "enabled": rule.enabled,
@@ -491,7 +491,7 @@ class ConfigurationManager:
                     "name": "standard_pump_tag",
                     "description": "Extracts standard pump tags from equipment descriptions",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d{2,4}[A-Z]?\b",
                     "priority": 50,
                     "enabled": True,
@@ -502,13 +502,11 @@ class ConfigurationManager:
                     "source_fields": [
                         {
                             "field_name": "name",
-                            "field_type": "string",
                             "required": True,
                             "priority": 1,
                         },
                         {
                             "field_name": "description",
-                            "field_type": "string",
                             "required": False,
                             "priority": 2,
                         },
@@ -519,7 +517,7 @@ class ConfigurationManager:
                     "name": "flow_instrument_tag",
                     "description": "Extracts ISA flow instrument tags",
                     "extraction_type": "foreign_key_reference",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bFIC[-_]?\d{4}[A-Z]?\b",
                     "priority": 30,
                     "enabled": True,
@@ -530,7 +528,6 @@ class ConfigurationManager:
                     "source_fields": [
                         {
                             "field_name": "description",
-                            "field_type": "string",
                             "required": False,
                         }
                     ],
@@ -541,7 +538,7 @@ class ConfigurationManager:
                 "rules": [
                     {
                         "name": "normalize_separators",
-                        "type": "character_substitution",
+                        "handler": "character_substitution",
                         "enabled": True,
                         "priority": 10,
                         "preserve_original": True,
@@ -550,7 +547,7 @@ class ConfigurationManager:
                     },
                     {
                         "name": "generate_separator_variants",
-                        "type": "character_substitution",
+                        "handler": "character_substitution",
                         "enabled": True,
                         "priority": 15,
                         "preserve_original": True,
@@ -563,7 +560,7 @@ class ConfigurationManager:
                     },
                     {
                         "name": "semantic_expansion",
-                        "type": "semantic_expansion",
+                        "handler": "semantic_expansion",
                         "enabled": True,
                         "priority": 30,
                         "preserve_original": True,
@@ -674,7 +671,7 @@ def main():
             "extraction_rules": [
                 {
                     "name": "test_rule",
-                    "method": "passthrough",
+                    "handler": "passthrough",
                     "source_fields": [{"field_name": "name", "required": True}],
                 }
             ],

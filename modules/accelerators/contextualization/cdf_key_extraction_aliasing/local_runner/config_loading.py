@@ -64,7 +64,7 @@ def _default_passthrough_rules_for_views(
         rules.append(
             {
                 "name": f"default_passthrough_name_{et}",
-                "method": "passthrough",
+                "handler": "passthrough",
                 "extraction_type": "candidate_key",
                 "description": f"Default passthrough on name for {et}",
                 "enabled": True,

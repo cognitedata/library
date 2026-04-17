@@ -104,6 +104,10 @@ code {
   padding-bottom: max(3rem, env(safe-area-inset-bottom, 0px));
 }
 
+.kea-app--wide {
+  max-width: min(1320px, 100%);
+}
+
 .kea-header {
   margin-bottom: 1.5rem;
   padding-bottom: 1.25rem;
@@ -409,6 +413,162 @@ code {
   color: var(--kea-primary);
   border-color: var(--kea-border);
   box-shadow: 0 1px 3px rgba(67, 56, 202, 0.12);
+}
+
+.kea-tabs.kea-tabs--sub {
+  margin: 0.75rem 0 1rem;
+  padding: 3px;
+  gap: 4px;
+}
+
+.kea-tabs--sub .kea-tab {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.kea-configure {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.kea-config-sidenav {
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  padding: 0.75rem 0.65rem;
+  background: var(--kea-surface);
+  max-height: min(72vh, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.kea-config-sidenav__search {
+  display: block;
+  margin: 0 0 0.65rem;
+  width: 100%;
+}
+
+.kea-config-sidenav__search .kea-input {
+  width: 100%;
+  font-size: 0.8125rem;
+}
+
+.kea-config-sidenav__heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--kea-text-subtle);
+  margin: 0.25rem 0 0.35rem;
+}
+
+.kea-config-sidenav__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kea-config-sidenav__section--scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.kea-config-sidenav__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  text-align: left;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--kea-radius-sm);
+  padding: 0.45rem 0.5rem;
+  background: transparent;
+  color: var(--kea-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.kea-config-sidenav__btn-primary {
+  font-weight: 600;
+  color: var(--kea-text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.kea-config-sidenav__btn-secondary {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--kea-text-subtle);
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
+.kea-config-display-name {
+  margin-bottom: 0.75rem;
+  max-width: 42rem;
+}
+
+.kea-config-display-name .kea-label {
+  margin-bottom: 0;
+}
+
+.kea-config-sidenav__btn:hover {
+  background: var(--kea-bg-elevated);
+}
+
+.kea-config-sidenav__btn--active {
+  background: var(--kea-primary-soft);
+  border-color: var(--kea-border);
+  color: var(--kea-primary);
+  font-weight: 600;
+}
+
+.kea-config-sidenav__btn--path {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.kea-config-sidenav__empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+}
+
+.kea-config-sidenav__refresh {
+  margin-top: 0.35rem;
+  align-self: flex-start;
+}
+
+.kea-config-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (max-width: 900px) {
+  .kea-configure {
+    grid-template-columns: 1fr;
+  }
+
+  .kea-config-main {
+    order: -1;
+  }
+
+  .kea-config-sidenav {
+    max-height: min(50vh, 480px);
+  }
 }
 
 .kea-editor-subtabs {
@@ -1251,6 +1411,45 @@ code {
   font-weight: 500;
 }
 
+/* —— Tree context menu —— */
+
+.kea-tree-ctx-menu {
+  margin: 0;
+  padding: 0.3rem 0;
+  list-style: none;
+  min-width: 11.5rem;
+  background: var(--kea-surface-elevated, var(--kea-surface));
+  border: 1px solid var(--kea-border-subtle, rgba(120, 120, 140, 0.35));
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+}
+
+.kea-tree-ctx-menu__btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.85rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--kea-text);
+}
+
+.kea-tree-ctx-menu__btn:hover:not(:disabled) {
+  background: var(--kea-surface);
+}
+
+.kea-tree-ctx-menu__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.kea-tree-ctx-menu__btn--danger {
+  color: var(--kea-danger, #b42318);
+}
+
 /* —— Advanced YAML —— */
 
 .kea-advanced {
@@ -1744,12 +1943,57 @@ code {
   margin-bottom: 1rem;
 }
 
+.kea-trigger-editor-top {
+  margin-bottom: 0.65rem;
+}
+
+.kea-trigger-pipeline-sub {
+  margin-top: 0.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.kea-trigger-editor-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.72;
+  margin: 0.35rem 0 0.25rem;
+}
+
+.kea-trigger-root-grid {
+  display: grid;
+  gap: 0.65rem 1rem;
+  max-width: 44rem;
+  margin-bottom: 0.5rem;
+}
+
+.kea-trigger-root-grid .kea-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (min-width: 36rem) {
+  .kea-trigger-root-grid--two {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .kea-filter-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   align-items: end;
+}
+
+.kea-filter-group {
+  border: 1px solid var(--kea-border-subtle, rgba(120, 120, 140, 0.35));
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem 0.75rem;
+  margin-bottom: 0.65rem;
+  background: var(--kea-surface-elevated, rgba(0, 0, 0, 0.02));
 }
 
 @media (max-width: 52rem) {
@@ -1759,4 +2003,147 @@ code {
   .kea-filter-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Rules editors: entity_type sidebar + main list */
+.kea-rules-by-entity {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 0.25rem;
+}
+
+.kea-rules-by-entity__sidebar {
+  flex: 0 0 11.5rem;
+  min-width: 0;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  padding: 0.5rem 0.35rem;
+}
+
+.kea-rules-by-entity__sidebar-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--kea-text-muted);
+  padding: 0.25rem 0.4rem 0.5rem;
+}
+
+.kea-rules-by-entity__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kea-rules-by-entity__tab {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem;
+  margin-bottom: 0.2rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kea-text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.kea-rules-by-entity__tab:hover {
+  background: var(--kea-primary-soft);
+}
+
+.kea-rules-by-entity__tab--active {
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+  font-weight: 600;
+}
+
+.kea-rules-by-entity__tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kea-rules-by-entity__tab-count {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+  background: var(--kea-surface);
+  border: 1px solid var(--kea-border);
+  border-radius: 999px;
+  padding: 0.05rem 0.35rem;
+}
+
+.kea-rules-by-entity__tab--active .kea-rules-by-entity__tab-count {
+  color: var(--kea-primary);
+  border-color: var(--kea-primary);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-rules-by-entity__main {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 40rem) {
+  .kea-rules-by-entity {
+    flex-direction: column;
+  }
+  .kea-rules-by-entity__sidebar {
+    flex: none;
+    width: 100%;
+  }
+  .kea-rules-by-entity__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .kea-rules-by-entity__list li {
+    flex: 1 1 auto;
+    min-width: 7rem;
+  }
+}
+
+.kea-handler-fields {
+  margin-top: 0.35rem;
+}
+
+.kea-handler-fieldset {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-handler-fieldset-legend {
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--kea-text-muted);
+}
+
+.kea-handler-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.kea-advanced-details summary {
+  list-style: none;
+}
+
+.kea-advanced-details summary::-webkit-details-marker {
+  display: none;
 }

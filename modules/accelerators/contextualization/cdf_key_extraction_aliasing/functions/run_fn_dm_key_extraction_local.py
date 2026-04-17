@@ -36,7 +36,6 @@ sys.path.insert(0, str(REPO_ROOT))
 from cognite.client import CogniteClient
 from cognite.client.config import ClientConfig
 from cognite.client.credentials import OAuthClientCredentials
-from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
@@ -45,8 +44,8 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.handler import (
     handle,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
-    property_reference_for_filter,
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.source_view_filter_build import (
+    build_source_view_query_filter,
 )
 
 
@@ -78,52 +77,7 @@ def _build_client_from_env() -> CogniteClient:
 
 def _build_view_filter(view_cfg: Dict[str, Any], view_id: ViewId) -> Any:
     """Build a DM filter expression from a source_view config."""
-    filters_cfg = view_cfg.get("filters", []) or []
-    filter_exprs: List[Any] = [dm.filters.HasData(views=[view_id])]
-
-    for f in filters_cfg:
-        op = str(f.get("operator", "")).upper()
-        prop = f.get("target_property")
-        values = f.get("values")
-        scope = str(f.get("property_scope", "view")).lower()
-        if not prop:
-            continue
-        prop_ref = property_reference_for_filter(view_id, prop, scope)
-
-        if op == "IN" and isinstance(values, list):
-            filter_exprs.append(dm.filters.In(property=prop_ref, values=values))
-        elif op == "EQUALS":
-            if isinstance(values, list):
-                if len(values) == 1:
-                    filter_exprs.append(dm.filters.Equals(property=prop_ref, value=values[0]))
-                elif len(values) > 1:
-                    filter_exprs.append(
-                        dm.filters.Or(
-                            *[dm.filters.Equals(property=prop_ref, value=v) for v in values]
-                        )
-                    )
-            else:
-                filter_exprs.append(dm.filters.Equals(property=prop_ref, value=values))
-        elif op == "CONTAINSALL" and isinstance(values, list):
-            filter_exprs.append(dm.filters.ContainsAll(property=prop_ref, values=values))
-        elif op == "CONTAINSANY" and isinstance(values, list):
-            filter_exprs.append(dm.filters.ContainsAny(property=prop_ref, values=values))
-        elif op == "SEARCH":
-            if isinstance(values, list) and values:
-                filter_exprs.append(dm.filters.Search(property=prop_ref, value=values[0]))
-            elif isinstance(values, str) and values:
-                filter_exprs.append(dm.filters.Search(property=prop_ref, value=values))
-        elif op == "EXISTS":
-            if scope == "node":
-                filter_exprs.append(dm.filters.Exists(property=prop_ref))
-            else:
-                filter_exprs.append(
-                    dm.filters.HasData(views=[view_id], properties=[prop])
-                )
-
-    if len(filter_exprs) == 1:
-        return filter_exprs[0]
-    return dm.filters.And(*filter_exprs)
+    return build_source_view_query_filter(view_id, view_cfg.get("filters") or [])
 
 
 def _extract_props(instance: Any, view_id: ViewId) -> Dict[str, Any]:

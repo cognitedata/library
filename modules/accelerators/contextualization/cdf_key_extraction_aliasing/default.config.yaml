@@ -1,3 +1,5 @@
+# Optional root `name`: display label in the Configure sidebar (omit or clear for default text).
+name: ''
 function_version: '1.0.0'
 organization: YourOrg
 

@@ -164,11 +164,10 @@ key_extraction:
       field_selection_strategy: merge_all
       extraction_rules:
       - rule_id: tag_fixed_width_multiline
-        method: fixed width
+        handler: fixed width
         priority: 35
         source_fields:
         - field_name: multilineData
-          field_type: string
           required: true
           priority: 1
           role: target

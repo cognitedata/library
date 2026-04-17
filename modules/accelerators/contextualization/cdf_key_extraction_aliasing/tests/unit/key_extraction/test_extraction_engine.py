@@ -48,7 +48,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
                     "name": "basic_pump_tag",
                     "description": "Extract pump tags",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
                     "priority": 50,
                     "enabled": True,
@@ -147,7 +147,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
                     "name": "name_as_key",
                     "description": "Use name as-is",
                     "extraction_type": "candidate_key",
-                    "method": "passthrough",
+                    "handler": "passthrough",
                     "priority": 50,
                     "enabled": True,
                     "min_confidence": 0.95,
@@ -182,7 +182,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
                     "name": "instrument_tags",
                     "description": "Extract instrument tags",
                     "extraction_type": "foreign_key_reference",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\b[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?\b",
                     "priority": 30,
                     "enabled": True,
@@ -221,7 +221,7 @@ class TestKeyExtractionWithCDFAssets(unittest.TestCase):
                     "name": "pump_tags",
                     "description": "Extract pump tags",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
                     "priority": 50,
                     "enabled": True,
@@ -234,7 +234,7 @@ class TestKeyExtractionWithCDFAssets(unittest.TestCase):
                     "name": "instrument_tags",
                     "description": "Extract instrument tags",
                     "extraction_type": "foreign_key_reference",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\b[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?\b",
                     "priority": 30,
                     "enabled": True,
@@ -282,7 +282,7 @@ class TestExtractionValidation(unittest.TestCase):
                     "name": "low_confidence_test",
                     "description": "Low confidence rule",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\b[A-Z]+\b",
                     "priority": 50,
                     "enabled": True,
@@ -312,7 +312,7 @@ class TestExtractionValidation(unittest.TestCase):
                     "name": "multiple_tags",
                     "description": "Extract multiple tags",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d+\b",
                     "priority": 50,
                     "enabled": True,
@@ -352,7 +352,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
                     "name": "test_rule",
                     "description": "Test rule",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d+\b",
                     "priority": 50,
                     "enabled": True,
@@ -385,7 +385,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
                     "name": "test_rule",
                     "description": "Test rule",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d+\b",
                     "priority": 50,
                     "enabled": True,
@@ -417,7 +417,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
                     "name": "test_rule",
                     "description": "Test rule",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"\bP[-_]?\d+[A-Z]?\b",
                     "priority": 50,
                     "enabled": True,
@@ -451,7 +451,7 @@ class TestCompositeFieldExtraction(unittest.TestCase):
                     "name": "composite_site_unit_tag",
                     "description": "Combine site code and unit number",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "pattern": r"[A-Z]{2}-\d{3}",
                     "priority": 50,
                     "enabled": True,
@@ -500,6 +500,37 @@ class TestCompositeFieldExtraction(unittest.TestCase):
 
         self.assertTrue(found_composite, "No composite extraction found")
 
+    def test_concatenate_strategy_parameters_alias_for_config(self):
+        """Scope/UI YAML uses `parameters`; engine should treat it as rule.config for composite."""
+        config = {
+            "extraction_rules": [
+                {
+                    "name": "composite_from_parameters",
+                    "extraction_type": "candidate_key",
+                    "handler": "regex",
+                    "priority": 50,
+                    "enabled": True,
+                    "composite_strategy": "concatenate",
+                    "source_fields": [
+                        {"field_name": "siteCode", "role": "target", "required": True},
+                        {"field_name": "unitNumber", "role": "target", "required": True},
+                    ],
+                    "parameters": {
+                        "pattern": "[A-Z]{2}-\\d{3}",
+                        "field_separator": "-",
+                        "field_order": ["siteCode", "unitNumber"],
+                    },
+                }
+            ],
+            "validation": {"min_confidence": 0.5},
+        }
+
+        engine = KeyExtractionEngine(config)
+        entity = {"siteCode": "TX", "unitNumber": "100"}
+        result = engine.extract_keys(entity, "asset")
+        self.assertTrue(any(k.metadata.get("composite_extraction") for k in result.candidate_keys))
+        self.assertEqual(result.candidate_keys[0].value, "TX-100")
+
     def test_token_reassembly_strategy(self):
         """Test cross-field token reassembly."""
         config = {
@@ -508,7 +539,7 @@ class TestCompositeFieldExtraction(unittest.TestCase):
                     "name": "cross_field_token_reassembly",
                     "description": "Extract tokens from multiple fields and reassemble",
                     "extraction_type": "candidate_key",
-                    "method": "token_reassembly",
+                    "handler": "token_reassembly",
                     "priority": 50,
                     "enabled": True,
                     "min_confidence": 0.5,
@@ -603,7 +634,7 @@ class TestPassthroughDefaultMethod(unittest.TestCase):
             }
         )
         self.assertIsNotNone(out)
-        self.assertEqual(out["method"], "passthrough")
+        self.assertEqual(out["handler"], "passthrough")
 
 
 class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
@@ -617,7 +648,7 @@ class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
                 {
                     "name": "cand",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "priority": 10,
                     "enabled": True,
                     "source_fields": [{"field_name": "name", "required": True}],
@@ -626,7 +657,7 @@ class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
                 {
                     "name": "fk_same",
                     "extraction_type": "foreign_key_reference",
-                    "method": "regex",
+                    "handler": "regex",
                     "priority": 20,
                     "enabled": True,
                     "source_fields": [{"field_name": "name", "required": True}],
@@ -635,7 +666,7 @@ class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
                 {
                     "name": "fk_other",
                     "extraction_type": "foreign_key_reference",
-                    "method": "regex",
+                    "handler": "regex",
                     "priority": 30,
                     "enabled": True,
                     "source_fields": [{"field_name": "description", "required": False}],
@@ -742,7 +773,7 @@ class TestFieldSelectionMultiEntity(unittest.TestCase):
                 {
                     "name": "FIELD SELECTION DEMO",
                     "extraction_type": "candidate_key",
-                    "method": "regex",
+                    "handler": "regex",
                     "priority": 80,
                     "source_fields": [
                         {

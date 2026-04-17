@@ -164,11 +164,10 @@ key_extraction:
       field_selection_strategy: merge_all
       extraction_rules:
       - rule_id: field_selection_demo
-        method: regex
+        handler: regex
         priority: 80
         source_fields:
         - field_name: primaryTag
-          field_type: string
           required: false
           priority: 1
           role: target
@@ -176,7 +175,6 @@ key_extraction:
           preprocessing:
           - trim
         - field_name: secondaryTag
-          field_type: string
           required: false
           priority: 2
           role: target
@@ -184,7 +182,6 @@ key_extraction:
           preprocessing:
           - trim
         - field_name: alternateTag
-          field_type: string
           required: false
           priority: 3
           role: target

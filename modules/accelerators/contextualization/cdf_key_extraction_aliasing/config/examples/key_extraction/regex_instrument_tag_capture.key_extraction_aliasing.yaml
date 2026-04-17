@@ -164,20 +164,17 @@ key_extraction:
       field_selection_strategy: merge_all
       extraction_rules:
       - rule_id: instrument_tag_regex_capture
-        method: regex
+        handler: regex
         priority: 30
         source_fields:
         - field_name: description
-          field_type: string
           required: false
           priority: 1
           role: target
-          separator: null
           max_length: 1000
           preprocessing:
           - trim
         - field_name: name
-          field_type: string
           required: false
           priority: 2
           role: context

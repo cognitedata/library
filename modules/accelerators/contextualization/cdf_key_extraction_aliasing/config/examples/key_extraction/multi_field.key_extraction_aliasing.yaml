@@ -164,39 +164,32 @@ key_extraction:
       field_selection_strategy: merge_all
       extraction_rules:
       - rule_id: multi_field_extraction
-        method: regex
+        handler: regex
         priority: 70
         source_fields:
         - field_name: name
-          field_type: string
           required: true
           priority: 1
           role: target
-          separator: null
           max_length: 500
           preprocessing:
           - trim
           - uppercase
         - field_name: description
-          field_type: string
           required: false
           priority: 2
           role: target
-          separator: null
           max_length: 1000
           preprocessing:
           - trim
         - field_name: metadata.tagIds
-          field_type: array
           required: false
           priority: 3
           role: target
-          separator: ','
           max_length: 2000
           preprocessing:
           - trim
         - field_name: equipmentType
-          field_type: string
           required: false
           priority: 4
           role: context
@@ -205,7 +198,6 @@ key_extraction:
           - trim
           - lowercase
         - field_name: serialNumber
-          field_type: string
           required: false
           priority: 5
           role: validation

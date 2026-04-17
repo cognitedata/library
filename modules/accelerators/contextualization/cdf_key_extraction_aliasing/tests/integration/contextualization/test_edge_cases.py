@@ -51,7 +51,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
                 "name": "invalid_regex",
                 "description": "Invalid regex pattern",
                 "extraction_type": "candidate_key",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": "[invalid",  # Invalid regex
                 "priority": 50,
                 "enabled": True,
@@ -127,7 +127,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
                 "name": "required_field_test",
                 "description": "Test required field",
                 "extraction_type": "candidate_key",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
                 "priority": 50,
                 "enabled": True,

@@ -267,9 +267,14 @@ class SourceViewConfig(TargetViewConfig):
         1000,
         description="Number of entities to process per batch (default 1000).",
     )
-    filters: Optional[List[FilterConfig]] = Field(
+    filters: Optional[List[Any]] = Field(
         None,
-        description="CDF DMS filter to limit query scope (optional).",
+        description=(
+            "CDF Data Modeling filters (optional). Each entry may be a leaf "
+            "(operator, target_property, property_scope, values, negate) or a boolean group "
+            "with keys ``and``, ``or``, or ``not`` (see Cognite filter grammar). "
+            "RANGE may set gt, gte, lt, lte on the leaf object."
+        ),
     )
     include_properties: List[str] = Field(
         default_factory=[],
@@ -311,22 +316,10 @@ class SourceViewConfig(TargetViewConfig):
         )
 
     def build_filter(self) -> Filter:
-        """Build a combined filter from `filters` (ANDed), or return a single filter."""
-        target_view = ViewPropertyConfig(
-            schema_space=self.view_space,
-            instance_space=self.instance_space,
-            external_id=self.view_external_id,
-            version=self.view_version,
-            search_property="",
-        )
-        list_filters: list[Filter] = (
-            [f.as_filter(target_view) for f in (self.filters or [])]
-        )
-        if len(list_filters) == 1:
-            return list_filters[0]
-        if not list_filters:
-            return dm.filters.HasData(views=[self.as_view_id()])
-        return dm.filters.And(*list_filters)
+        """Build user filter nodes (ANDed); extraction pipeline adds ``HasData`` separately."""
+        from .utils.source_view_filter_build import build_source_view_user_filters
+
+        return build_source_view_user_filters(self.as_view_id(), self.filters or [])
 
 
 class SourceTableConfig(BaseModel):
@@ -454,7 +447,7 @@ class ExtractionRuleConfig(BaseModel):
     """Configuration for a single extraction rule."""
 
     rule_id: Optional[str] = None
-    method: Literal[
+    handler: Literal[
         "passthrough",
         "regex",
         "fixed width",

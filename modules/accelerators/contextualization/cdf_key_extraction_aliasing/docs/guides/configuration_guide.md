@@ -172,6 +172,27 @@ source_views:
     #   confidence_match_rules: []
 ```
 
+**Boolean groups and extra leaf operators:** Composition matches the CDF filter grammar described in [Filtering](https://docs.cognite.com/dev/guides/advanced-query/filtering): use nested mappings with keys **`and`**, **`or`**, and **`not`**. Each top-level entry under `filters` is combined with **AND** together with implicit view membership (`HasData`). Supported leaf operators include **`PREFIX`**, **`RANGE`** (set **`gt`**, **`gte`**, **`lt`**, **`lte`** on the same object as **`operator: RANGE`**), and optional **`negate: true`** on any leaf.
+
+```yaml
+    filters:
+      - and:
+          - operator: EQUALS
+            target_property: equipmentType
+            values: [pump]
+          - or:
+              - operator: EQUALS
+                target_property: zone
+                values: [north]
+              - operator: EQUALS
+                target_property: zone
+                values: [south]
+      - not:
+          operator: EQUALS
+          target_property: deprecated
+          values: [true]
+```
+
 **`instance_space` (optional):**
 
 - **Set:** CDF `instances.list` receives `space=<instance_space>` (single instance space at the API level).

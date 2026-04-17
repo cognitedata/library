@@ -3,7 +3,7 @@ import re
 from typing import Any, Callable, Dict, Iterator, Optional
 
 from ...utils.DataStructures import *
-from ...utils.rule_utils import get_extraction_type_from_rule, get_method_from_rule
+from ...utils.rule_utils import get_extraction_type_from_rule, get_handler_from_rule
 from ...utils.TokenReassemblyMethodParameter import (
     AssemblyRule,
     TokenReassemblyMethodParameter,
@@ -214,7 +214,7 @@ class TokenReassemblyExtractionHandler(ExtractionMethodHandler):
                 self._assemble_tokens(
                     tokens, assembly_rule, tkr_rule,
                     get_extraction_type_from_rule(rule),
-                    get_method_from_rule(rule),
+                    get_handler_from_rule(rule),
                     context,
                 )
             )

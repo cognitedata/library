@@ -63,7 +63,7 @@ def _pydantic_aliasing_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
             conditions = getattr(cdf_rule, "conditions", None) or {}
         return {
             "name": name,
-            "type": data.get("type", "character_substitution"),
+            "handler": data.get("handler", "character_substitution"),
             "enabled": data.get("enabled", True),
             "priority": data.get("priority", 50),
             "preserve_original": data.get("preserve_original", True),
@@ -75,7 +75,7 @@ def _pydantic_aliasing_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
 
     return {
         "name": getattr(cdf_rule, "name", "unnamed_rule"),
-        "type": getattr(cdf_rule, "type", "character_substitution"),
+        "handler": getattr(cdf_rule, "handler", "character_substitution"),
         "enabled": getattr(cdf_rule, "enabled", True),
         "priority": getattr(cdf_rule, "priority", 50),
         "preserve_original": getattr(cdf_rule, "preserve_original", True),
@@ -150,8 +150,8 @@ def _convert_aliasing_rule(cdf_rule: Any) -> Optional[Dict[str, Any]]:
 
 
 def _convert_aliasing_config(cdf_rule: Any) -> Dict[str, Any]:
-    """Convert aliasing rule configuration based on type."""
-    rule_type = getattr(cdf_rule, "type", "character_substitution")
+    """Convert aliasing rule configuration based on handler."""
+    rule_type = getattr(cdf_rule, "handler", "character_substitution")
     config = {}
 
     if rule_type == "character_substitution":
@@ -270,7 +270,7 @@ def _convert_aliasing_rule_dict_to_engine_format(
 
         engine_rule = {
             "name": rule_data.get("name", "unnamed_rule"),
-            "type": rule_data.get("type", "character_substitution"),
+            "handler": rule_data.get("handler", "character_substitution"),
             "enabled": enabled,
             "priority": rule_data.get("priority", 50),
             "preserve_original": rule_data.get("preserve_original", True),

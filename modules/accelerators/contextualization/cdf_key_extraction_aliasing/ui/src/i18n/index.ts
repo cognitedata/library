@@ -4,13 +4,15 @@ import { en } from "./en";
 import { es } from "./es";
 import { ja } from "./ja";
 import { nb } from "./nb";
+import { pt } from "./pt";
 
 export type { Locale, MessageKey, Messages, Theme } from "./types";
-export { en, es, ja, nb };
+export { en, es, ja, nb, pt };
 
 export const LOCALES: { code: Locale; label: string }[] = [
   { code: "en", label: "English" },
   { code: "es", label: "Español" },
+  { code: "pt", label: "Português" },
   { code: "nb", label: "Norsk" },
   { code: "ja", label: "日本語" },
 ];
@@ -18,6 +20,7 @@ export const LOCALES: { code: Locale; label: string }[] = [
 export const translations: Record<Locale, Messages> = {
   en,
   es,
+  pt,
   nb,
   ja,
 };

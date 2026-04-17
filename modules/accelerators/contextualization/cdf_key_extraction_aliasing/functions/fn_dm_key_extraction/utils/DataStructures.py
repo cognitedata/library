@@ -56,13 +56,6 @@ class SourceFieldParameter(BaseModel):
         None,
         description="Identifier for the source of the field if contained in RAW table (e.g., 'cdf', 'external_api').",
     )
-    join_fields: Optional[Dict[str, str]] = Field(
-        None,
-        description="Mapping of join fields between view and table (e.g., {'view_field': 'sourceId', 'table_field': 'sourceId'}).",
-    )
-    field_type: str = Field(
-        "string", description="Data type of the field (e.g., 'string', 'array', 'object')."
-    )
     required: bool = Field(
         ...,
         description="Whether the field must exist (skip entity if missing) (e.g., false).",
@@ -79,12 +72,6 @@ class SourceFieldParameter(BaseModel):
     )
 
     # 2. Optional fields are defined next, using None or default_factory
-    separator: Optional[str] = Field(
-        None,
-        description="Delimiter for list-type fields (optional, e.g., ',', ';', '|').",
-    )
-
-    # FIX: Use default_factory for the mutable default (List)
     preprocessing: Union[List[str], str, None] = Field(
         None,
         description="Preprocessing steps before extraction (optional, e.g., ['trim', 'lowercase']).",
@@ -114,10 +101,8 @@ class SourceField:
     """Configuration for a source field to extract from."""
 
     field_name: str
-    field_type: str = "string"
     required: bool = False
     priority: int = 1
-    separator: Optional[str] = None
     role: str = "target"
     max_length: int = 1000
     preprocessing: List[str] = field(default_factory=list)
@@ -130,7 +115,7 @@ class ExtractionRule:
     name: str
     description: str = ""
     extraction_type: ExtractionType = ExtractionType.CANDIDATE_KEY
-    method: ExtractionMethod = ExtractionMethod.REGEX
+    handler: ExtractionMethod = ExtractionMethod.REGEX
     pattern: str = ""
     priority: int = 50
     enabled: bool = True

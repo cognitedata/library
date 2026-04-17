@@ -78,60 +78,13 @@ def _as_view_id(entity_view_config: Any) -> dm.ViewId:
 
 
 def _build_base_filter(entity_view_config: Any, view_id: dm.ViewId) -> dm.filters.Filter:
-    if hasattr(entity_view_config, "build_filter"):
-        return entity_view_config.build_filter()
-    # Dict fallback: preserve source_view filters from workflow payload.
-    if isinstance(entity_view_config, dict):
-        filters = entity_view_config.get("filters") or []
-        built: List[dm.filters.Filter] = [dm.filters.HasData(views=[view_id])]
-        for f in filters:
-            if not isinstance(f, dict):
-                continue
-            op = str(f.get("operator", "EQUALS")).upper()
-            prop_scope = str(f.get("property_scope", "view")).lower()
-            target_prop = str(f.get("target_property", "")).strip()
-            if not target_prop:
-                continue
+    from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.source_view_filter_build import (
+        build_source_view_query_filter,
+    )
 
-            values = f.get("values")
-            if isinstance(values, list):
-                vals = values
-            elif values is None:
-                vals = []
-            else:
-                vals = [values]
-
-            prop_ref = (
-                ("node", target_prop)
-                if prop_scope == "node"
-                else view_id.as_property_ref(target_prop)
-            )
-
-            expr: dm.filters.Filter
-            if op == "EXISTS":
-                expr = dm.filters.Exists(property=prop_ref)
-            elif op == "IN":
-                expr = dm.filters.In(property=prop_ref, values=vals)
-            elif op == "CONTAINS_ALL":
-                expr = dm.filters.ContainsAll(property=prop_ref, values=vals)
-            elif op == "SEARCH":
-                expr = dm.filters.Search(
-                    property=prop_ref, value=str(vals[0]) if vals else ""
-                )
-            else:
-                # Default to EQUALS semantics.
-                expr = dm.filters.Equals(property=prop_ref, value=vals[0] if vals else None)
-
-            if bool(f.get("negate", False)):
-                expr = dm.filters.Not(expr)
-            built.append(expr)
-
-        if len(built) == 1:
-            return built[0]
-        return dm.filters.And(*built)
-
-    # Minimal fallback: has data in the target view.
-    return dm.filters.HasData(views=[view_id])
+    vd = _view_dict(entity_view_config)
+    filters = vd.get("filters") or []
+    return build_source_view_query_filter(view_id, filters)
 
 
 def _view_dict(entity_view_config: Any) -> Dict[str, Any]:

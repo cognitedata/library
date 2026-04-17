@@ -77,3 +77,14 @@ export function collectDirRelPathsFromTree(nodes: ArtifactTreeNode[]): string[] 
   walk(nodes);
   return out;
 }
+
+/** Directory node and all nested directory `relPath` values (depth-first). */
+export function collectDirRelPathsUnderDir(
+  node: Extract<ArtifactTreeNode, { kind: "dir" }>
+): string[] {
+  const out: string[] = [node.relPath];
+  for (const c of node.children) {
+    if (c.kind === "dir") out.push(...collectDirRelPathsUnderDir(c));
+  }
+  return out;
+}

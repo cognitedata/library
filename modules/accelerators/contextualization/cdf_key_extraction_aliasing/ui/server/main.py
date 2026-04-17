@@ -20,6 +20,7 @@ MODULE_ROOT = Path(
 
 DEFAULT_CONFIG_REL = "default.config.yaml"
 DEFAULT_SCOPE_DOCUMENT_REL = "workflow.local.config.yaml"
+TEMPLATE_WORKFLOW_CONFIG_REL = "workflow_template/workflow.template.config.yaml"
 
 app = FastAPI(title="Key discovery & aliasing operator API", version="1.0.0")
 app.add_middleware(
@@ -188,6 +189,64 @@ def put_scope_document_model(
     return {"ok": True, "path": r}
 
 
+@app.post("/api/template-workflow-config/from-scope")
+def copy_template_workflow_config_from_scope(
+    scope_rel: str | None = Query(
+        None,
+        description="Scope document path under module root (default workflow.local.config.yaml)",
+    ),
+) -> dict:
+    """Overwrite workflow.template.config.yaml with the saved scope document (same v1 shape)."""
+    scope_path = _scope_document_path(scope_rel)
+    if not scope_path.is_file():
+        raise HTTPException(status_code=404, detail="Scope document not found")
+    content = scope_path.read_text(encoding="utf-8")
+    try:
+        yaml.safe_load(content)
+    except yaml.YAMLError as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid YAML in scope document: {e}"
+        ) from e
+    template_path = _safe_rel_path(TEMPLATE_WORKFLOW_CONFIG_REL)
+    template_path.parent.mkdir(parents=True, exist_ok=True)
+    template_path.write_text(content, encoding="utf-8")
+    from_rel = str(scope_path.relative_to(MODULE_ROOT)).replace("\\", "/")
+    return {
+        "ok": True,
+        "from": from_rel,
+        "to": TEMPLATE_WORKFLOW_CONFIG_REL,
+    }
+
+
+@app.post("/api/template-workflow-config/to-scope")
+def copy_template_workflow_config_to_scope(
+    scope_rel: str | None = Query(
+        None,
+        description="Scope document path under module root (default workflow.local.config.yaml)",
+    ),
+) -> dict:
+    """Overwrite the scope document with workflow.template.config.yaml (same v1 shape)."""
+    template_path = _safe_rel_path(TEMPLATE_WORKFLOW_CONFIG_REL)
+    if not template_path.is_file():
+        raise HTTPException(status_code=404, detail="Workflow template config not found")
+    content = template_path.read_text(encoding="utf-8")
+    try:
+        yaml.safe_load(content)
+    except yaml.YAMLError as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid YAML in workflow template config: {e}"
+        ) from e
+    scope_path = _scope_document_path(scope_rel)
+    scope_path.parent.mkdir(parents=True, exist_ok=True)
+    scope_path.write_text(content, encoding="utf-8")
+    to_rel = str(scope_path.relative_to(MODULE_ROOT)).replace("\\", "/")
+    return {
+        "ok": True,
+        "from": TEMPLATE_WORKFLOW_CONFIG_REL,
+        "to": to_rel,
+    }
+
+
 @app.post("/api/build")
 def run_build(body: BuildBody) -> dict:
     cmd = [
@@ -212,6 +271,39 @@ def run_build(body: BuildBody) -> dict:
         "stdout": proc.stdout,
         "stderr": proc.stderr,
     }
+
+
+def _is_workflow_trigger_path(rel: str) -> bool:
+    return rel.lower().endswith(".workflowtrigger.yaml") or rel.lower().endswith(
+        ".workflowtrigger.yml"
+    )
+
+
+@app.get("/api/workflow-trigger-meta")
+def workflow_trigger_meta() -> dict:
+    """Root `name` field per WorkflowTrigger YAML under workflows/ (operator UI nav labels)."""
+    wf = MODULE_ROOT / "workflows"
+    entries: List[Dict[str, Any]] = []
+    if wf.is_dir():
+        for p in sorted(wf.rglob("*")):
+            if not p.is_file():
+                continue
+            if p.suffix.lower() not in {".yaml", ".yml"}:
+                continue
+            rel = str(p.relative_to(MODULE_ROOT)).replace("\\", "/")
+            if not _is_workflow_trigger_path(rel):
+                continue
+            name: str | None = None
+            try:
+                data = yaml.safe_load(p.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    raw = data.get("name")
+                    if isinstance(raw, str) and raw.strip():
+                        name = raw
+            except Exception:
+                pass
+            entries.append({"path": rel, "name": name})
+    return {"entries": entries}
 
 
 @app.get("/api/artifacts")

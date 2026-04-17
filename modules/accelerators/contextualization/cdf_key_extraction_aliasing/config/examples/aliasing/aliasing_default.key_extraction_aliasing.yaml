@@ -114,7 +114,7 @@ aliasing:
     data:
       aliasing_rules:
       - name: normalize_separators_to_hyphen
-        type: character_substitution
+        handler: character_substitution
         description: Convert underscores, spaces, slashes, and periods to hyphens for standardization
         enabled: true
         priority: 10
@@ -133,7 +133,7 @@ aliasing:
           - asset
           - equipment
       - name: separator_variants_bidirectional
-        type: character_substitution
+        handler: character_substitution
         description: Generate bidirectional separator variants (hyphen, underscore, space, none)
         enabled: true
         priority: 11
@@ -160,7 +160,7 @@ aliasing:
           - asset
           - equipment
       - name: add_site_prefix
-        type: prefix_suffix
+        handler: prefix_suffix
         description: Add site prefixes based on context (Plant_A -> PA-, Plant_B -> PB-)
         enabled: true
         priority: 20
@@ -183,7 +183,7 @@ aliasing:
           - asset
           - equipment
       - name: add_unit_prefix
-        type: prefix_suffix
+        handler: prefix_suffix
         description: Add unit prefixes based on context
         enabled: true
         priority: 21
@@ -206,7 +206,7 @@ aliasing:
           - asset
           - equipment
       - name: add_equipment_type_suffix
-        type: prefix_suffix
+        handler: prefix_suffix
         description: Add equipment type suffix to tags
         enabled: true
         priority: 22
@@ -229,7 +229,7 @@ aliasing:
           - asset
           - equipment
       - name: pattern_based_replacement
-        type: regex_substitution
+        handler: regex_substitution
         description: Replace patterns using regex (e.g., P-101 -> PUMP-101)
         enabled: true
         priority: 25
@@ -250,7 +250,7 @@ aliasing:
           - asset
           - equipment
       - name: semantic_expansion
-        type: semantic_expansion
+        handler: semantic_expansion
         description: Expand equipment type abbreviations to full names
         enabled: true
         priority: 30
@@ -274,7 +274,7 @@ aliasing:
           - asset
           - equipment
       - name: generate_instruments
-        type: related_instruments
+        handler: related_instruments
         description: Generate related instrument tags for equipment
         enabled: true
         priority: 40
@@ -316,7 +316,7 @@ aliasing:
           - asset
           - equipment
       - name: hierarchical_expansion
-        type: hierarchical_expansion
+        handler: hierarchical_expansion
         description: Generate hierarchical tag expansions (site-unit-equipment)
         enabled: true
         priority: 50
@@ -332,7 +332,7 @@ aliasing:
           - asset
           - equipment
       - name: hierarchical_tag_expansion
-        type: pattern_based_expansion
+        handler: pattern_based_expansion
         description: Expand hierarchical tag patterns (site-unit-equipment)
         enabled: true
         priority: 53
@@ -351,7 +351,7 @@ aliasing:
           - asset
           - equipment
       - name: pattern_recognition_aliases
-        type: pattern_recognition
+        handler: pattern_recognition
         description: Generate aliases based on pattern recognition from tag pattern library
         enabled: false
         priority: 85
@@ -367,7 +367,7 @@ aliasing:
           - asset
           - equipment
       - name: generate_separator_variants
-        type: character_substitution
+        handler: character_substitution
         description: Generate multiple separator variants for comprehensive matching
         enabled: true
         priority: 12
@@ -388,7 +388,7 @@ aliasing:
           - equipment
           - timeseries
       - name: isa_instrument_expansion
-        type: pattern_based_expansion
+        handler: pattern_based_expansion
         description: Expand ISA standard instrument tag patterns
         enabled: true
         priority: 51
@@ -411,7 +411,7 @@ aliasing:
           - equipment
           - timeseries
       - name: case_variants
-        type: case_transformation
+        handler: case_transformation
         description: Generate upper and lower case variants
         enabled: true
         priority: 70
@@ -427,7 +427,7 @@ aliasing:
           - equipment
           - timeseries
       - name: leading_zero_normalization
-        type: leading_zero_normalization
+        handler: leading_zero_normalization
         description: Normalize leading zeros in numeric tags
         enabled: true
         priority: 75
@@ -442,7 +442,7 @@ aliasing:
           - equipment
           - timeseries
       - name: document_aliases
-        type: document_aliases
+        handler: document_aliases
         description: Generate aliases for P&ID and drawing documents, including removing revision numbers from file names
         enabled: true
         priority: 60

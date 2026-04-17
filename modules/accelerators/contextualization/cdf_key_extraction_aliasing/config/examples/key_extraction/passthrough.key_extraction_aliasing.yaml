@@ -103,7 +103,7 @@ key_extraction:
             value: 0.0
       extraction_rules:
       - name: name_as_candidate_key
-        method: passthrough
+        handler: passthrough
         extraction_type: candidate_key
         description: Use name field value as the candidate key (no regex or parsing)
         enabled: true
@@ -117,7 +117,6 @@ key_extraction:
         - field_name: name
           required: true
           max_length: 500
-          field_type: string
           priority: 1
           role: target
           preprocessing:

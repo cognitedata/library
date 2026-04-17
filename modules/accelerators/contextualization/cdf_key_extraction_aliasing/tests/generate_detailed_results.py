@@ -157,7 +157,7 @@ def generate_key_extraction_results():
             # Generic tag pattern - catches all types (runs last as fallback)
             {
                 "name": "generic_industrial_tag",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\b[A-Z]{1,4}[-_]?\d{1,6}[A-Z]?\b",
                 "extraction_type": "candidate_key",
                 "priority": 100,  # Low priority - runs last to catch anything missed
@@ -170,7 +170,7 @@ def generate_key_extraction_results():
             # Generic tag pattern - catches all types (runs last as fallback)
             {
                 "name": "generic_instrument_tag",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\b[A-Z]{1,4}[-_]?\d{1,6}[A-Z]?\b",
                 "extraction_type": "foreign_key_reference",
                 "priority": 100,  # Low priority - runs last to catch anything missed
@@ -183,7 +183,7 @@ def generate_key_extraction_results():
             # Type-specific rules for candidate keys (from name field)
             {
                 "name": "pump_tags",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
                 "extraction_type": "candidate_key",
                 "priority": 50,
@@ -195,7 +195,7 @@ def generate_key_extraction_results():
             },
             {
                 "name": "valve_tags",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\bV[-_]?\d{1,6}[A-Z]?\b",
                 "extraction_type": "candidate_key",
                 "priority": 50,
@@ -207,7 +207,7 @@ def generate_key_extraction_results():
             },
             {
                 "name": "tank_tags",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\bT[-_]?\d{1,6}[A-Z]?\b",
                 "extraction_type": "candidate_key",
                 "priority": 50,
@@ -231,7 +231,7 @@ def generate_key_extraction_results():
             # Extract full document name including revision
             {
                 "name": "document_names_full",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"^[A-Z&]{2,6}-\d{1,6}(?:-Rev-[A-Z])?$",
                 "extraction_type": "candidate_key",
                 "priority": 30,
@@ -244,7 +244,7 @@ def generate_key_extraction_results():
             # Extract base document name without revision
             {
                 "name": "document_names_base",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"^([A-Z&]{2,6}-\d{1,6})(?=-Rev-|/Rev-|/Sheet-|$)",
                 "extraction_type": "candidate_key",
                 "priority": 35,
@@ -259,7 +259,7 @@ def generate_key_extraction_results():
             # Extract document references from description (as foreign keys)
             {
                 "name": "document_references_in_description",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"\b[A-Z]{2,6}[-]?\d{1,6}\b",
                 "extraction_type": "foreign_key_reference",
                 "priority": 50,
@@ -279,7 +279,7 @@ def generate_key_extraction_results():
             # Regex extraction - extract instrument tags from externalId (e.g., TS-FIC-1001-VALUE -> FIC-1001)
             {
                 "name": "timeseries_regex_tag_extraction",
-                "method": "regex",
+                "handler": "regex",
                 "pattern": r"TS-([A-Z]{2,3}-\d{4})-[A-Z]+",
                 "extraction_type": "candidate_key",
                 "priority": 40,
@@ -292,7 +292,7 @@ def generate_key_extraction_results():
             # Fixed width extraction - hierarchical format (positions 24-32)
             {
                 "name": "timeseries_fixed_width_hierarchical",
-                "method": "fixed_width",
+                "handler": "fixed_width",
                 "pattern": ".*",
                 "extraction_type": "candidate_key",
                 "priority": 50,
@@ -318,7 +318,7 @@ def generate_key_extraction_results():
             # Fixed width extraction - standard format (positions 16-24)
             {
                 "name": "timeseries_fixed_width_standard",
-                "method": "fixed_width",
+                "handler": "fixed_width",
                 "pattern": ".*",
                 "extraction_type": "candidate_key",
                 "priority": 50,
@@ -344,7 +344,7 @@ def generate_key_extraction_results():
             # Token reassembly - extract hierarchical tags from externalId
             {
                 "name": "timeseries_token_reassembly",
-                "method": "token_reassembly",
+                "handler": "token_reassembly",
                 "pattern": "",
                 "extraction_type": "candidate_key",
                 "priority": 40,
@@ -648,7 +648,7 @@ def generate_aliasing_results():
             "rules": [
                 {
                     "name": "separator_variants",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -665,7 +665,7 @@ def generate_aliasing_results():
             "rules": [
                 {
                     "name": "case_variants",
-                    "type": "case_transformation",
+                    "handler": "case_transformation",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -680,7 +680,7 @@ def generate_aliasing_results():
             "rules": [
                 {
                     "name": "add_site_prefix",
-                    "type": "prefix_suffix",
+                    "handler": "prefix_suffix",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -702,7 +702,7 @@ def generate_aliasing_results():
             "rules": [
                 {
                     "name": "semantic_expansion",
-                    "type": "semantic_expansion",
+                    "handler": "semantic_expansion",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -728,7 +728,7 @@ def generate_aliasing_results():
             "rules": [
                 {
                     "name": "generate_instruments",
-                    "type": "related_instruments",
+                    "handler": "related_instruments",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -750,7 +750,7 @@ def generate_aliasing_results():
             "rules": [
                 {
                     "name": "separator_normalization",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -772,7 +772,7 @@ def generate_aliasing_results():
             "rules": [
                 {
                     "name": "strip_leading_zeros",
-                    "type": "leading_zero_normalization",
+                    "handler": "leading_zero_normalization",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -790,7 +790,7 @@ def generate_aliasing_results():
         "rules": [
             {
                 "name": "extract_base_equipment_tag",
-                "type": "regex_substitution",
+                "handler": "regex_substitution",
                 "enabled": True,
                 "priority": 5,
                 "preserve_original": True,
@@ -803,7 +803,7 @@ def generate_aliasing_results():
             },
             {
                 "name": "semantic_expansion",
-                "type": "semantic_expansion",
+                "handler": "semantic_expansion",
                 "enabled": True,
                 "priority": 10,
                 "preserve_original": True,
@@ -824,7 +824,7 @@ def generate_aliasing_results():
             },
             {
                 "name": "generate_instruments",
-                "type": "related_instruments",
+                "handler": "related_instruments",
                 "enabled": True,
                 "priority": 20,
                 "preserve_original": True,
@@ -840,7 +840,7 @@ def generate_aliasing_results():
             },
             {
                 "name": "case_variants",
-                "type": "case_transformation",
+                "handler": "case_transformation",
                 "enabled": True,
                 "priority": 50,
                 "preserve_original": True,
@@ -849,7 +849,7 @@ def generate_aliasing_results():
             },
             {
                 "name": "separator_normalization",
-                "type": "character_substitution",
+                "handler": "character_substitution",
                 "enabled": True,
                 "priority": 70,
                 "preserve_original": True,
@@ -861,7 +861,7 @@ def generate_aliasing_results():
             },
             {
                 "name": "strip_leading_zeros",
-                "type": "leading_zero_normalization",
+                "handler": "leading_zero_normalization",
                 "enabled": True,
                 "priority": 80,
                 "preserve_original": True,

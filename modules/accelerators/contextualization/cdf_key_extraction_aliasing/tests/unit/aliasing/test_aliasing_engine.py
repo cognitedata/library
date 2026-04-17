@@ -51,7 +51,7 @@ class TestAliasingRuleTypes(unittest.TestCase):
         config["rules"] = [
             {
                 "name": "separator_normalization",
-                "type": "character_substitution",
+                "handler": "character_substitution",
                 "enabled": True,
                 "priority": 10,
                 "preserve_original": True,
@@ -72,7 +72,7 @@ class TestAliasingRuleTypes(unittest.TestCase):
         config["rules"] = [
             {
                 "name": "semantic_expansion",
-                "type": "semantic_expansion",
+                "handler": "semantic_expansion",
                 "enabled": True,
                 "priority": 20,
                 "preserve_original": True,
@@ -104,7 +104,7 @@ class TestContextHandling(unittest.TestCase):
             "rules": [
                 {
                     "name": "context_test",
-                    "type": "semantic_expansion",
+                    "handler": "semantic_expansion",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -182,7 +182,7 @@ class TestAliasValidation(unittest.TestCase):
             "rules": [
                 {
                     "name": "validation_test",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -246,7 +246,7 @@ class TestRulePriorityAndOrdering(unittest.TestCase):
             "rules": [
                 {
                     "name": "low_priority_rule",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 100,  # Lower priority (higher number)
                     "preserve_original": True,
@@ -254,7 +254,7 @@ class TestRulePriorityAndOrdering(unittest.TestCase):
                 },
                 {
                     "name": "high_priority_rule",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,  # Higher priority (lower number)
                     "preserve_original": True,
@@ -305,7 +305,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
             "rules": [
                 {
                     "name": "edge_case_test",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -365,7 +365,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
             "rules": [
                 {
                     "name": "invalid_rule",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -387,7 +387,7 @@ class TestEdgeCasesAndErrorHandling(unittest.TestCase):
             "rules": [
                 {
                     "name": "missing_config_rule",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,
@@ -412,7 +412,7 @@ class TestPerformanceAndScalability(unittest.TestCase):
             "rules": [
                 {
                     "name": "performance_test",
-                    "type": "character_substitution",
+                    "handler": "character_substitution",
                     "enabled": True,
                     "priority": 10,
                     "preserve_original": True,

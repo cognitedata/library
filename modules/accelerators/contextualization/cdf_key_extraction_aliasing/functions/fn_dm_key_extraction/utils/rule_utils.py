@@ -2,7 +2,7 @@
 Shared rule adapter and ExtractedKey helpers.
 
 Provides a single contract for rule-like objects (Pydantic, SimpleNamespace, or dict)
-so handlers can access rule_id, config, source_field name, extraction_type, and method
+so handlers can access rule_id, config, source_field name, extraction_type, and handler
 without duplicating getattr/dict logic.
 """
 
@@ -133,13 +133,13 @@ def get_extraction_type_from_rule(rule: Any) -> ExtractionType:
     return normalize_extraction_type(getattr(rule, "extraction_type", None))
 
 
-def get_method_from_rule(rule: Any) -> ExtractionMethod:
-    """Return rule method as enum. Works with object or dict."""
+def get_handler_from_rule(rule: Any) -> ExtractionMethod:
+    """Return rule handler (extraction method) as enum. Works with object or dict."""
     if rule is None:
         return ExtractionMethod.PASSTHROUGH
     if isinstance(rule, dict):
-        return normalize_method(rule.get("method"))
-    return normalize_method(getattr(rule, "method", None))
+        return normalize_method(rule.get("handler"))
+    return normalize_method(getattr(rule, "handler", None))
 
 
 def common_extracted_key_attrs(
@@ -156,6 +156,6 @@ def common_extracted_key_attrs(
         if source_field_override is not None
         else get_source_field_name(rule),
         "extraction_type": get_extraction_type_from_rule(rule),
-        "method": method_override if method_override is not None else get_method_from_rule(rule),
+        "method": method_override if method_override is not None else get_handler_from_rule(rule),
         "rule_id": get_rule_id(rule),
     }

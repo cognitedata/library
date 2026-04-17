@@ -53,7 +53,7 @@ def test_scope_doc_omitted_aliasing_identity_passthrough():
         extraction_rules=[
             {
                 "name": "r1",
-                "method": "passthrough",
+                "handler": "passthrough",
                 "extraction_type": "candidate_key",
                 "enabled": True,
                 "priority": 1,
@@ -127,7 +127,7 @@ def test_scope_doc_empty_extraction_injects_per_entity_type():
     assert {v["entity_type"] for v in views} == {"asset", "timeseries"}
     assert len(ext["extraction_rules"]) == 2
     for r in ext["extraction_rules"]:
-        assert r.get("method") == "passthrough"
+        assert r.get("handler") == "passthrough"
 
 
 def test_load_configs_from_explicit_path(tmp_path: Path):

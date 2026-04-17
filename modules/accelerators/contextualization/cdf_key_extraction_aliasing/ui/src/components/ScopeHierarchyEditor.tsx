@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { AliasingScopeHierarchy, LocationNode } from "../types/scopeConfig";
 import { emptyLocationNode } from "../types/scopeConfig";
+import { TreeContextMenuPortal, useTreeContextMenuState, type TreeCtxMenuItem } from "./TreeContextMenu";
 
 type Props = {
   value: AliasingScopeHierarchy;
@@ -108,6 +109,22 @@ function getNodeAtPath(nodes: LocationNode[], path: number[]): LocationNode | nu
   return cur;
 }
 
+function collectSubtreeBranchKeys(nodes: LocationNode[], path: number[]): string[] {
+  const n = getNodeAtPath(nodes, path);
+  if (!n?.locations?.length) return [];
+  /** Include this node's key so its direct children render; descendants follow. */
+  return [pathKey(path), ...collectBranchKeysWithChildren(n.locations, path)];
+}
+
+function removeExpandedKeysUnderPrefix(expanded: Set<string>, prefixKey: string): Set<string> {
+  const next = new Set<string>();
+  for (const k of expanded) {
+    if (k === prefixKey || k.startsWith(`${prefixKey}/`)) continue;
+    next.add(k);
+  }
+  return next;
+}
+
 function LocationTreeList({
   nodes,
   path,
@@ -115,6 +132,8 @@ function LocationTreeList({
   onSelect,
   expandedBranches,
   onToggleBranch,
+  onNodeContextMenu,
+  onBackgroundContextMenu,
 }: {
   nodes: LocationNode[];
   path: number[];
@@ -122,6 +141,11 @@ function LocationTreeList({
   onSelect: (p: number[]) => void;
   expandedBranches: Set<string>;
   onToggleBranch: (key: string) => void;
+  onNodeContextMenu?: (
+    e: ReactMouseEvent,
+    info: { path: number[]; key: string; hasChildren: boolean }
+  ) => void;
+  onBackgroundContextMenu?: (e: ReactMouseEvent) => void;
 }) {
   const { t } = useAppSettings();
   const nested = path.length > 0;
@@ -129,6 +153,11 @@ function LocationTreeList({
     <ul
       className={nested ? "kea-dim-tree-nested" : "kea-dim-tree-root"}
       role="group"
+      onContextMenu={(e) => {
+        if (path.length > 0) return;
+        if ((e.target as HTMLElement).closest(".kea-dim-tree-row")) return;
+        onBackgroundContextMenu?.(e);
+      }}
     >
       {nodes.map((n, i) => {
         const p = [...path, i];
@@ -141,7 +170,13 @@ function LocationTreeList({
         const open = hasChildren && expandedBranches.has(key);
         return (
           <li key={key} className="kea-dim-tree-li" role="none">
-            <div className="kea-dim-tree-row">
+            <div
+              className="kea-dim-tree-row"
+              onContextMenu={(e) => {
+                e.stopPropagation();
+                onNodeContextMenu?.(e, { path: p, key, hasChildren });
+              }}
+            >
               {hasChildren ? (
                 <button
                   type="button"
@@ -182,6 +217,8 @@ function LocationTreeList({
                 onSelect={onSelect}
                 expandedBranches={expandedBranches}
                 onToggleBranch={onToggleBranch}
+                onNodeContextMenu={onNodeContextMenu}
+                onBackgroundContextMenu={onBackgroundContextMenu}
               />
             )}
           </li>
@@ -195,6 +232,12 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
   const { t } = useAppSettings();
   const h = normalizeHierarchy(value);
   const tree = h.locations || [];
+  const levelsKey = JSON.stringify(h.levels ?? []);
+  const [levelsDraft, setLevelsDraft] = useState(() => (h.levels || []).join(", "));
+
+  useEffect(() => {
+    setLevelsDraft((h.levels || []).join(", "));
+  }, [levelsKey]);
 
   const [selectedPath, setSelectedPath] = useState<number[]>(() =>
     tree.length ? [0] : []
@@ -202,6 +245,7 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(
     () => new Set()
   );
+  const ctxMenu = useTreeContextMenuState();
 
   const selected =
     selectedPath.length > 0 ? getNodeAtPath(tree, selectedPath) : null;
@@ -256,18 +300,22 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
     setSelectedPath([tree.length]);
   };
 
-  const addChild = () => {
-    if (selectedPath.length === 0) return;
-    const newTree = addChildAtPath(tree, selectedPath);
+  const addChildForPath = (path: number[]) => {
+    const newTree = addChildAtPath(tree, path);
     commit({ ...h, locations: newTree });
-    const parent = getNodeAtPath(newTree, selectedPath);
+    const parent = getNodeAtPath(newTree, path);
     const idx = (parent?.locations?.length || 1) - 1;
-    setSelectedPath([...selectedPath, idx]);
+    setSelectedPath([...path, idx]);
   };
 
-  const removeSel = () => {
+  const addChild = () => {
     if (selectedPath.length === 0) return;
-    const nextTree = removeAtPath(tree, selectedPath);
+    addChildForPath(selectedPath);
+  };
+
+  const removeForPath = (path: number[]) => {
+    if (path.length === 0) return;
+    const nextTree = removeAtPath(tree, path);
     commit({ ...h, locations: nextTree });
     setSelectedPath((p) => {
       if (p.length === 1) {
@@ -278,16 +326,106 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
     });
   };
 
+  const removeSel = () => {
+    if (selectedPath.length === 0) return;
+    removeForPath(selectedPath);
+  };
+
+  const expandSubtreeAtPath = (path: number[]) => {
+    const keys = collectSubtreeBranchKeys(tree, path);
+    setExpandedBranches((prev) => new Set([...prev, ...keys]));
+  };
+
+  const collapseSubtreeAtPath = (path: number[]) => {
+    const selfKey = pathKey(path);
+    setExpandedBranches((prev) => removeExpandedKeysUnderPrefix(prev, selfKey));
+  };
+
+  const openNodeMenu = (
+    e: ReactMouseEvent,
+    info: { path: number[]; key: string; hasChildren: boolean }
+  ) => {
+    setSelectedPath(info.path);
+    const items: TreeCtxMenuItem[] = [
+      {
+        id: "addChild",
+        label: t("scope.addChild"),
+        onSelect: () => addChildForPath(info.path),
+      },
+      {
+        id: "remove",
+        label: t("scope.remove"),
+        danger: true,
+        onSelect: () => removeForPath(info.path),
+      },
+    ];
+    if (info.hasChildren) {
+      const open = expandedBranches.has(info.key);
+      items.push(
+        {
+          id: "expandBr",
+          label: t("artifacts.treeExpand"),
+          disabled: open,
+          onSelect: () => {
+            setExpandedBranches((prev) => new Set([...prev, info.key]));
+          },
+        },
+        {
+          id: "collapseBr",
+          label: t("artifacts.treeCollapse"),
+          disabled: !open,
+          onSelect: () => {
+            setExpandedBranches((prev) => {
+              const next = new Set(prev);
+              next.delete(info.key);
+              return next;
+            });
+          },
+        },
+        {
+          id: "expandSub",
+          label: t("treeContext.expandSubtree"),
+          onSelect: () => expandSubtreeAtPath(info.path),
+        },
+        {
+          id: "collapseSub",
+          label: t("treeContext.collapseSubtree"),
+          onSelect: () => collapseSubtreeAtPath(info.path),
+        }
+      );
+    }
+    ctxMenu.open(e, items);
+  };
+
+  const openBackgroundMenu = (e: ReactMouseEvent) => {
+    ctxMenu.open(e, [
+      { id: "addRoot", label: t("scope.addRoot"), onSelect: addRoot },
+      {
+        id: "expandAll",
+        label: t("scope.expandAll"),
+        disabled: tree.length === 0,
+        onSelect: expandAll,
+      },
+      {
+        id: "collapseAll",
+        label: t("scope.collapseAll"),
+        onSelect: collapseToSelection,
+      },
+    ]);
+  };
+
   return (
     <div className="kea-scope-hierarchy">
+      <TreeContextMenuPortal menu={ctxMenu.menu} onClose={ctxMenu.close} classPrefix="kea" />
       <div className="kea-grid-2">
         <div className="kea-stack">
           <label className="kea-label" title={t("scope.levelsLabel.tooltip")}>
             {t("scope.levelsLabel")}
             <input
               className="kea-input"
-              value={(h.levels || []).join(", ")}
-              onChange={(e) => updateLevels(e.target.value)}
+              value={levelsDraft}
+              onChange={(e) => setLevelsDraft(e.target.value)}
+              onBlur={() => updateLevels(levelsDraft)}
             />
           </label>
           <div className="kea-toolbar" style={{ marginBottom: 0 }}>
@@ -331,9 +469,24 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
             className="kea-tree kea-dim-tree"
             role="tree"
             aria-label={t("scope.hierarchyTree")}
+            onContextMenu={(e) => {
+              if (tree.length === 0) return;
+              const el = e.target as HTMLElement;
+              if (el.closest(".kea-dim-tree-li")) return;
+              openBackgroundMenu(e);
+            }}
           >
             {tree.length === 0 ? (
-              <span className="kea-tree-empty">{t("scope.noLocations")}</span>
+              <span
+                className="kea-tree-empty"
+                onContextMenu={(e) => {
+                  ctxMenu.open(e, [
+                    { id: "addRoot", label: t("scope.addRoot"), onSelect: addRoot },
+                  ]);
+                }}
+              >
+                {t("scope.noLocations")}
+              </span>
             ) : (
               <LocationTreeList
                 nodes={tree}
@@ -349,6 +502,8 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
                     return next;
                   });
                 }}
+                onNodeContextMenu={openNodeMenu}
+                onBackgroundContextMenu={openBackgroundMenu}
               />
             )}
           </div>
