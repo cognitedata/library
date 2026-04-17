@@ -62,13 +62,13 @@ def _build_new_input(
     copy_run_fields: bool,
 ) -> Dict[str, Any]:
     if copy_run_fields:
-        full_rescan = bool(source_input.get("full_rescan", False))
+        run_all = bool(source_input.get("run_all", False))
         run_id = _normalize_run_id(source_input.get("run_id"))
     else:
-        full_rescan = bool(dest_input_existing.get("full_rescan", False))
+        run_all = bool(dest_input_existing.get("run_all", False))
         run_id = _normalize_run_id(dest_input_existing.get("run_id"))
     return {
-        "full_rescan": full_rescan,
+        "run_all": run_all,
         "run_id": run_id,
         "configuration": reconciled_configuration,
     }
@@ -107,7 +107,7 @@ def run_copy_workflow_config(argv: Sequence[str] | None) -> int:
     p.add_argument(
         "--copy-run-fields",
         action="store_true",
-        help="Also copy full_rescan and run_id from the source trigger (default: keep destination values).",
+        help="Also copy run_all and run_id from the source trigger (default: keep destination values).",
     )
     p.add_argument(
         "--dry-run",

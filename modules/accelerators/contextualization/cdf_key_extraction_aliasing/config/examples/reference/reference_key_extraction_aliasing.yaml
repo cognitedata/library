@@ -1,89 +1,88 @@
 schemaVersion: 1
 source_views:
-  - view_external_id: CogniteEquipment
-    view_space: sp_enterprise_process_industry
-    view_version: v1
-    instance_space: sp_my_instance_space
-    entity_type: asset
-    include_properties:
-    - name
-    - description
-    - equipmentType
-    - manufacturer
-    - serialNumber
-    filters:
-    - operator: EQUALS
-      target_property: equipmentType
-      values: Pump
-      negate: false
-  - view_external_id: CogniteTimeSeries
-    view_space: sp_enterprise_process_industry
-    view_version: v1
-    instance_space: sp_my_instance_space
-    entity_type: timeseries
-    batch_size: 50
-    include_properties:
-    - name
-    - description
-    - unit
-    filters:
-    - operator: IN
-      target_property: type
-      values:
-      - temperature
-      - pressure
-      - flow
-      negate: false
-  - view_external_id: CogniteFile
-    view_space: sp_enterprise_process_industry
-    view_version: v1
-    instance_space: sp_my_instance_space
-    entity_type: file
-    batch_size: 75
-    include_properties:
-    - name
-    - mimeType
-    filters:
-    - operator: EXISTS
-      target_property: uploaded
-      negate: false
-  - view_external_id: CogniteAsset
-    view_space: sp_enterprise_process_industry
-    view_version: v1
-    instance_space: sp_my_instance_space
-    entity_type: asset
-    include_properties:
-    - name
-    - labels
-    filters:
-    - operator: CONTAINSALL
-      target_property: labels
-      values:
-      - critical
-      - production
-      negate: true
-  - view_external_id: CogniteDocument
-    view_space: sp_enterprise_process_industry
-    view_version: v1
-    instance_space: sp_my_instance_space
-    entity_type: file
-    batch_size: 25
-    include_properties:
-    - name
-    - content
-    filters:
-    - operator: SEARCH
-      target_property: content
-      values: P&ID diagram
-      negate: false
-
+- view_external_id: CogniteEquipment
+  view_space: sp_enterprise_process_industry
+  view_version: v1
+  instance_space: sp_my_instance_space
+  entity_type: asset
+  include_properties:
+  - name
+  - description
+  - equipmentType
+  - manufacturer
+  - serialNumber
+  filters:
+  - operator: EQUALS
+    target_property: equipmentType
+    values: Pump
+    negate: false
+- view_external_id: CogniteTimeSeries
+  view_space: sp_enterprise_process_industry
+  view_version: v1
+  instance_space: sp_my_instance_space
+  entity_type: timeseries
+  batch_size: 50
+  include_properties:
+  - name
+  - description
+  - unit
+  filters:
+  - operator: IN
+    target_property: type
+    values:
+    - temperature
+    - pressure
+    - flow
+    negate: false
+- view_external_id: CogniteFile
+  view_space: sp_enterprise_process_industry
+  view_version: v1
+  instance_space: sp_my_instance_space
+  entity_type: file
+  batch_size: 75
+  include_properties:
+  - name
+  - mimeType
+  filters:
+  - operator: EXISTS
+    target_property: uploaded
+    negate: false
+- view_external_id: CogniteAsset
+  view_space: sp_enterprise_process_industry
+  view_version: v1
+  instance_space: sp_my_instance_space
+  entity_type: asset
+  include_properties:
+  - name
+  - labels
+  filters:
+  - operator: CONTAINSALL
+    target_property: labels
+    values:
+    - critical
+    - production
+    negate: true
+- view_external_id: CogniteDocument
+  view_space: sp_enterprise_process_industry
+  view_version: v1
+  instance_space: sp_my_instance_space
+  entity_type: file
+  batch_size: 25
+  include_properties:
+  - name
+  - content
+  filters:
+  - operator: SEARCH
+    target_property: content
+    values: P&ID diagram
+    negate: false
 key_extraction:
   externalId: ctx_key_extraction_complete_reference
   config:
     parameters:
       debug: true
       verbose: true
-      full_rescan: false
+      run_all: false
       raw_db: my_raw_database
       raw_table_key: key_extraction_state
     data:
@@ -113,41 +112,41 @@ key_extraction:
           priority: 50
           match:
             expressions:
-            - pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
               description: Standard pump tags (P-101, P101A, P-2001)
-            - pattern: '\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
               description: Pump with service designation (FWP-101, CWP-201)
-            - pattern: '\bCP[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
               description: Centrifugal pump tags
-            - pattern: '\bC[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
               description: Standard compressor tags (C-101, C101A)
-            - pattern: '\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
               description: Compressor with type designation (AC-101, RC-201)
-            - pattern: '\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
               description: Control valve tags (FCV-101, PCV-201, TCV-301)
-            - pattern: '\bV[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
               description: Manual valve and vessel tags (V-101, V101A)
-            - pattern: '\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
               description: Safety valve tags (PSV-101, TSV-201)
-            - pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
               description: Standard tank tags (T-101, T101A)
-            - pattern: '\bR[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
               description: Reactor tags (R-101, R101A)
-            - pattern: '\bE[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
               description: Heat exchanger tags (E-101, E101A)
-            - pattern: '\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
               description: Heat exchanger with type (HE-101, CE-201)
-            - pattern: '\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
               description: Flow instruments (FIC-101, FIT-201, FCV-301)
-            - pattern: '\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
               description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-            - pattern: '\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
               description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-            - pattern: '\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
               description: Level instruments (LIC-101, LIT-201, LCV-301)
-            - pattern: '\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
               description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-            - pattern: '\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b'
+            - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
               description: Distillation column tags (C-101, DC-201)
           confidence_modifier:
             mode: explicit
@@ -156,661 +155,209 @@ key_extraction:
           priority: 1000
           match:
             expressions:
-            - pattern: '(?s).*'
-              description: Catch-all when no higher-priority rule matched; applies non-ISA penalty
+            - pattern: (?s).*
+              description: Catch-all when no higher-priority rule matched; applies
+                non-ISA penalty
           confidence_modifier:
             mode: offset
             value: -0.2
-      field_selection_strategy: merge_all
       extraction_rules:
       - rule_id: pump_tag_regex_simple
-        handler: regex
+        handler: regex_handler
         priority: 50
-        source_fields:
+        fields:
         - field_name: name
           required: true
           priority: 1
-          role: target
           max_length: 500
           preprocessing:
           - trim
           - uppercase
-        parameters:
-          name: PUMP_TAG_SIMPLE
-          pattern: \bP[-_]?\d{2,4}[A-Z]?\b
+          regex: \bP[-_]?\d{2,4}[A-Z]?\b
+          max_matches_per_field: 10
           regex_options:
             multiline: false
             dotall: false
             ignore_case: true
             unicode: true
-          validation_pattern: ^P\d{2,4}[A-Z]?$
-          max_matches_per_field: 10
-          early_termination: false
+        field_results_mode: merge_all
       - rule_id: instrument_tag_regex_capture
-        handler: regex
+        handler: regex_handler
         priority: 30
-        source_fields:
+        fields:
         - field_name: description
           required: false
           priority: 1
-          role: target
           max_length: 1000
           preprocessing:
           - trim
-        - field_name: name
-          required: false
-          priority: 2
-          role: context
-          max_length: 500
-          preprocessing: []
-        parameters:
-          name: INSTRUMENT_TAG_CAPTURE
-          pattern: (?P<type>[FPTLA][A-Z]{1,2})[-_]?(?P<number>\d{3,4})(?P<suffix>[A-Z])?
-          regex_options:
+          regex: (?P<type>[FPTLA][A-Z]{1,2})[-_]?(?P<number>\d{3,4})(?P<suffix>[A-Z])?
+          max_matches_per_field: 50
+          regex_options: &id001
             multiline: true
             dotall: false
             ignore_case: false
             unicode: true
-          validation_pattern: ^[FPTLA][A-Z]{1,2}[-_]?\d{3,4}[A-Z]?$
-          capture_groups:
-          - name: type
-            description: Instrument type code
-          - name: number
-            description: Instrument number
-          - name: suffix
-            description: Optional suffix
-          reassemble_format: '{type}-{number}{suffix}'
+        - field_name: name
+          required: false
+          priority: 2
+          max_length: 500
+          preprocessing: []
+          regex: (?P<type>[FPTLA][A-Z]{1,2})[-_]?(?P<number>\d{3,4})(?P<suffix>[A-Z])?
           max_matches_per_field: 50
-          early_termination: false
-      - rule_id: tag_fixed_width_single
-        handler: fixed width
+          regex_options: *id001
+        field_results_mode: merge_all
+      - rule_id: tag_raw_compact_regex
+        handler: regex_handler
         priority: 40
-        source_fields:
+        fields:
         - field_name: rawData
           required: true
           priority: 1
-          role: target
           max_length: 2000
           preprocessing:
           - trim
-        parameters:
-          name: TAG_FIXED_WIDTH_SINGLE
-          field_definitions:
-          - name: equipment_type
-            start_position: 0
-            end_position: 1
-            trim: true
-            required: true
-            line: null
-          - name: equipment_number
-            start_position: 1
-            end_position: 4
-            trim: true
-            required: true
-            line: null
-          - name: suffix
-            start_position: 4
-            end_position: 5
-            trim: true
-            required: false
-            line: null
-          line_pattern: ^\s*[A-Z0-9]
-          skip_lines: 0
-          stop_on_empty: false
-          record_length: null
-          record_delimiter: null
-          encoding: utf-8
-      - rule_id: tag_fixed_width_multiline
-        handler: fixed width
+          regex: ^([A-Z]\d{3}[A-Z]?)$
+          max_matches_per_field: 10
+          regex_options:
+            multiline: false
+            dotall: false
+            ignore_case: false
+            unicode: true
+        field_results_mode: merge_all
+      - rule_id: tag_multiline_regex_demo
+        handler: regex_handler
         priority: 35
-        source_fields:
+        fields:
         - field_name: multilineData
           required: true
           priority: 1
-          role: target
           max_length: 5000
           preprocessing: []
-        parameters:
-          name: TAG_FIXED_WIDTH_MULTILINE
-          field_definitions:
-          - name: site_code
-            start_position: 0
-            end_position: 2
-            trim: true
-            required: true
-            line: 0
-          - name: unit_number
-            start_position: 3
-            end_position: 6
-            trim: true
-            required: true
-            line: 0
-          - name: equipment_tag
-            start_position: 0
-            end_position: 8
-            trim: true
-            required: true
-            line: 1
-          - name: description
-            start_position: 10
-            end_position: 50
-            trim: true
-            required: false
-            line: 2
-          line_pattern: null
-          skip_lines: 2
-          stop_on_empty: true
-          record_length: 3
-          record_delimiter: '---'
-          encoding: latin-1
-      - rule_id: tag_token_reassembly
-        handler: token reassembly
-        priority: 25
-        source_fields:
-        - field_name: name
-          required: true
-          priority: 1
-          role: target
-          max_length: 500
-          preprocessing:
-          - trim
-          - uppercase
-        - field_name: description
-          required: false
-          priority: 2
-          role: context
-          max_length: 1000
-          preprocessing:
-          - trim
-        parameters:
-          tokenization:
-            token_patterns:
-            - name: site_code
-              pattern: '[A-Z]{2,3}'
-              position: 0
-              required: true
-              component_type: location
-            - name: unit_number
-              pattern: \d{2,4}
-              position: 1
-              required: true
-              component_type: identifier
-            - name: equipment_type
-              pattern: '[A-Z]{1}'
-              position: 2
-              required: true
-              component_type: type
-            - name: equipment_number
-              pattern: \d{2,4}
-              position: 3
-              required: true
-              component_type: identifier
-            - name: suffix
-              pattern: '[A-Z]{1}'
-              position: 4
-              required: false
-              component_type: modifier
-            separator_patterns:
-            - '-'
-            - _
-            - ' '
-            - /
-            max_tokens: 10
-            min_tokens: 2
-            cross_field_extraction_paths:
-            - name
-            - description
-          assembly_rules:
-          - name: FULL_TAG_WITH_SUFFIX
-            format: '{site_code}-{unit_number}-{equipment_type}{equipment_number}{suffix}'
-            priority: 10
-            conditions:
-              all_required_present: true
-              suffix_present: true
-          - name: FULL_TAG_NO_SUFFIX
-            format: '{site_code}-{unit_number}-{equipment_type}{equipment_number}'
-            priority: 20
-            conditions:
-              all_required_present: true
-              suffix_missing: true
-          - name: SIMPLE_TAG
-            format: '{equipment_type}{equipment_number}'
-            priority: 30
-            conditions:
-              min_token_count: 2
-          validation:
-            min_tokens: 2
-            max_tokens: 6
-            validate_assembled: true
-            validation_pattern: ^[A-Z]{2,3}-\d{2,4}-[A-Z]\d{2,4}[A-Z]?$
-      - rule_id: tag_heuristic_positional
-        handler: heuristic
-        priority: 60
-        source_fields:
-        - field_name: name
-          required: true
-          priority: 1
-          role: target
-          max_length: 500
-          preprocessing:
-          - trim
-        - field_name: description
-          required: false
-          priority: 2
-          role: context
-          max_length: 1000
-          preprocessing:
-          - trim
-          - lowercase
-        parameters:
-          name: TAG_HEURISTIC_POSITIONAL
-          current_node_id:
-            space: sp_my_instance_space
-            external_id: current_node_123
-          heuristic_strategies:
-          - strategy_id: start_of_field_detection
-            weight: 0.4
-            method: positional_detection
-            rules:
-            - method: positional_detection
-              position: start_of_field
-              pattern: '[A-Z]+[-_]?\d+'
-              confidence_boost: 0.2
-            - method: positional_detection
-              position: after_keyword
-              pattern: '[A-Z0-9-_]{3,15}'
-              confidence_boost: 0.15
-          - strategy_id: frequency_analysis
-            weight: 0.3
-            method: frequency_analysis
-            rules:
-            - analyze_corpus: true
-              min_frequency: 3
-              pattern_stability_threshold: 0.75
-              common_prefix_detection: true
-              common_suffix_detection: true
-          - strategy_id: context_keywords
-            weight: 0.3
-            method: context_inference
-            rules:
-            - surrounding_keywords:
-                positive:
-                - tag
-                - equipment
-                - instrument
-                - pump
-                - valve
-                negative:
-                - description
-                - note
-                - comment
-                - ignore
-              context_window: 20
-              keyword_proximity_bonus: 0.1
-              equipment_type_correlation:
-                enabled: true
-                type_indicators:
-                  pump:
-                  - centrifugal
-                  - positive displacement
-                  - submersible
-                  valve:
-                  - ball
-                  - gate
-                  - globe
-                  - butterfly
-                  tank:
-                  - storage
-                  - pressure
-                  - atmospheric
-          scoring:
-            aggregation_method: weighted_average
-            min_confidence: 0.6
-            normalize_scores: true
-          confidence_modifiers:
-          - condition: multiple_strategies_agree
-            operator: '>=2'
-            modifier: '+0.15'
-          - condition: field_name_indicates_tag
-            field_names:
-            - tagId
-            - equipmentTag
-            - instrumentTag
-            modifier: '+0.1'
-          - condition: extracted_value_length
-            range:
-            - 5
-            - 20
-            modifier: '+0.05'
-          - condition: extracted_value_in_known_catalog
-            catalog_source: validated_tags
-            modifier: '+0.2'
-          validation:
-          - type: length_check
-            min_length: 3
-            max_length: 25
-          - type: pattern_match
-            pattern: ^[A-Z0-9-_]+$
-          - type: blacklist_check
-            blacklist:
-            - 'NULL'
-            - N/A
-            - UNKNOWN
-            - TBD
-      - rule_id: tag_heuristic_learning
-        handler: heuristic
-        priority: 55
-        source_fields:
-        - field_name: name
-          required: true
-          priority: 1
-          role: target
-          max_length: 500
-          preprocessing:
-          - trim
-          - uppercase
-        - field_name: description
-          required: false
-          priority: 2
-          role: context
-          max_length: 1000
-          preprocessing:
-          - trim
-        parameters:
-          name: TAG_HEURISTIC_LEARNING
-          current_node_id:
-            space: sp_my_instance_space
-            external_id: learning_node_456
-          heuristic_strategies:
-          - strategy_id: learn_from_examples
-            weight: 0.5
-            method: example_based_learning
-            rules:
-            - learning_mode: similarity
-              source_db: validated_tags_db
-              source_tbl: equipment_tags
-              similarity_threshold: 0.85
-              feature_extraction:
-                use_character_ngrams: true
-                ngram_sizes:
-                - 2
-                - 3
-                - 4
-                use_token_patterns: true
-                use_position_features: true
-                use_length_features: true
-          - strategy_id: pattern_frequency
-            weight: 0.5
-            method: frequency_analysis
-            rules:
-            - analyze_corpus: true
-              min_frequency: 5
-              pattern_stability_threshold: 0.8
-              common_prefix_detection: true
-              common_suffix_detection: true
-          scoring:
-            aggregation_method: consensus
-            min_confidence: 0.75
-            normalize_scores: true
-          confidence_modifiers:
-          - condition: multiple_strategies_agree
-            operator: '>=2'
-            modifier: '+0.2'
-          - condition: extracted_value_in_known_catalog
-            catalog_source: validated_tags
-            modifier: '+0.25'
-          validation:
-          - type: length_check
-            min_length: 3
-            max_length: 20
-          - type: pattern_match
-            pattern: ^[A-Z0-9-_]+$
-          - type: similarity_check
-            min_similarity_to_examples: 0.7
-      - rule_id: tag_heuristic_comprehensive
-        handler: heuristic
-        priority: 45
-        source_fields:
-        - field_name: name
-          required: true
-          priority: 1
-          role: target
-          max_length: 500
-          preprocessing:
-          - trim
-        - field_name: description
-          required: false
-          priority: 2
-          role: context
-          max_length: 1000
-          preprocessing:
-          - trim
-          - lowercase
-        - field_name: equipmentType
-          required: false
-          priority: 3
-          role: context
-          max_length: 100
-          preprocessing:
-          - trim
-        parameters:
-          name: TAG_HEURISTIC_COMPREHENSIVE
-          current_node_id:
-            space: sp_my_instance_space
-            external_id: comprehensive_node_789
-          heuristic_strategies:
-          - strategy_id: position_analysis
-            weight: 0.25
-            method: positional_detection
-            rules:
-            - method: positional_detection
-              position: start_of_field
-              pattern: '[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?'
-              confidence_boost: 0.25
-            - method: positional_detection
-              position: after_keyword
-              pattern: '[A-Z0-9-_]{3,20}'
-              confidence_boost: 0.15
-          - strategy_id: corpus_frequency
-            weight: 0.25
-            method: frequency_analysis
-            rules:
-            - analyze_corpus: true
-              min_frequency: 3
-              pattern_stability_threshold: 0.7
-              common_prefix_detection: true
-              common_suffix_detection: true
-          - strategy_id: contextual_clues
-            weight: 0.25
-            method: context_inference
-            rules:
-            - surrounding_keywords:
-                positive:
-                - tag
-                - equipment
-                - instrument
-                - id
-                - identifier
-                - code
-                negative:
-                - description
-                - note
-                - comment
-                - remark
-              context_window: 15
-              keyword_proximity_bonus: 0.12
-              equipment_type_correlation:
-                enabled: true
-                type_indicators:
-                  pump:
-                  - centrifugal
-                  - positive displacement
-                  - submersible
-                  - reciprocating
-                  valve:
-                  - ball
-                  - gate
-                  - globe
-                  - butterfly
-                  - check
-                  tank:
-                  - storage
-                  - pressure
-                  - atmospheric
-                  - holding
-                  heat_exchanger:
-                  - shell and tube
-                  - plate
-                  - air cooled
-          - strategy_id: similarity_matching
-            weight: 0.25
-            method: example_based_learning
-            rules:
-            - learning_mode: similarity
-              source_db: master_tag_database
-              source_tbl: validated_equipment_tags
-              similarity_threshold: 0.82
-              feature_extraction:
-                use_character_ngrams: true
-                ngram_sizes:
-                - 2
-                - 3
-                - 4
-                - 5
-                use_token_patterns: true
-                use_position_features: true
-                use_length_features: true
-          scoring:
-            aggregation_method: weighted_average
-            min_confidence: 0.65
-            normalize_scores: true
-          confidence_modifiers:
-          - condition: multiple_strategies_agree
-            operator: '>=3'
-            modifier: '+0.25'
-          - condition: multiple_strategies_agree
-            operator: '>=2'
-            modifier: '+0.15'
-          - condition: field_name_indicates_tag
-            field_names:
-            - tagId
-            - equipmentTag
-            - instrumentTag
-            - assetTag
-            - equipmentId
-            modifier: '+0.1'
-          - condition: extracted_value_length
-            range:
-            - 4
-            - 18
-            modifier: '+0.08'
-          - condition: extracted_value_in_known_catalog
-            catalog_source: validated_tags
-            modifier: '+0.2'
-          validation:
-          - type: length_check
-            min_length: 3
-            max_length: 25
-          - type: pattern_match
-            pattern: ^[A-Z0-9-_/]+$
-          - type: blacklist_check
-            blacklist:
-            - 'NULL'
-            - N/A
-            - UNKNOWN
-            - TBD
-            - NONE
-            - TEST
-          - type: similarity_check
-            min_similarity_to_examples: 0.65
-      - rule_id: multi_field_extraction
-        handler: regex
-        priority: 70
-        source_fields:
-        - field_name: name
-          required: true
-          priority: 1
-          role: target
-          max_length: 500
-          preprocessing:
-          - trim
-          - uppercase
-        - field_name: description
-          required: false
-          priority: 2
-          role: target
-          max_length: 1000
-          preprocessing:
-          - trim
-        - field_name: metadata.tagIds
-          required: false
-          priority: 3
-          role: target
-          max_length: 2000
-          preprocessing:
-          - trim
-        - field_name: equipmentType
-          required: false
-          priority: 4
-          role: context
-          max_length: 100
-          preprocessing:
-          - trim
-          - lowercase
-        - field_name: serialNumber
-          required: false
-          priority: 5
-          role: validation
-          max_length: 200
-          preprocessing: []
-        parameters:
-          name: MULTI_FIELD_EXTRACTION
-          pattern: '[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?'
+          regex: \b[A-Z]{2}-\d{3}\b
+          max_matches_per_field: 20
           regex_options:
+            multiline: true
+            dotall: true
+            ignore_case: false
+            unicode: true
+        field_results_mode: merge_all
+      - rule_id: tag_hierarchical_regex
+        handler: regex_handler
+        priority: 25
+        fields:
+        - field_name: name
+          required: true
+          priority: 1
+          max_length: 500
+          preprocessing:
+          - trim
+          - uppercase
+          regex: \b[A-Z]{2,3}-\d{2,4}-[A-Z]\d{2,4}[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options: &id002
+            multiline: false
+            dotall: false
+            ignore_case: false
+            unicode: true
+        - field_name: description
+          required: false
+          priority: 2
+          max_length: 1000
+          preprocessing:
+          - trim
+          regex: \b[A-Z]{2,3}-\d{2,4}-[A-Z]\d{2,4}[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options: *id002
+        field_results_mode: merge_all
+      - rule_id: multi_field_extraction
+        handler: regex_handler
+        priority: 70
+        fields:
+        - field_name: name
+          required: true
+          priority: 1
+          max_length: 500
+          preprocessing:
+          - trim
+          - uppercase
+          regex: '[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?'
+          max_matches_per_field: 100
+          regex_options: &id003
             multiline: true
             dotall: true
             ignore_case: true
             unicode: true
-          validation_pattern: ^[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?$
-          capture_groups: null
-          reassemble_format: null
+        - field_name: description
+          required: false
+          priority: 2
+          max_length: 1000
+          preprocessing:
+          - trim
+          regex: '[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?'
           max_matches_per_field: 100
-          early_termination: false
+          regex_options: *id003
+        - field_name: metadata.tagIds
+          required: false
+          priority: 3
+          max_length: 2000
+          preprocessing:
+          - trim
+          regex: '[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?'
+          max_matches_per_field: 100
+          regex_options: *id003
+        - field_name: equipmentType
+          required: false
+          priority: 4
+          max_length: 100
+          preprocessing:
+          - trim
+          - lowercase
+          regex: '[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?'
+          max_matches_per_field: 100
+          regex_options: *id003
+        - field_name: serialNumber
+          required: false
+          priority: 5
+          max_length: 200
+          preprocessing: []
+          regex: '[A-Z]{1,3}[-_]?\d{2,6}[A-Z]?'
+          max_matches_per_field: 100
+          regex_options: *id003
+        field_results_mode: merge_all
       - rule_id: field_selection_demo
-        handler: regex
+        handler: regex_handler
         priority: 80
-        source_fields:
+        fields:
         - field_name: primaryTag
           required: false
           priority: 1
-          role: target
           max_length: 500
           preprocessing:
           - trim
-        - field_name: secondaryTag
-          required: false
-          priority: 2
-          role: target
-          max_length: 500
-          preprocessing:
-          - trim
-        - field_name: alternateTag
-          required: false
-          priority: 3
-          role: target
-          max_length: 500
-          preprocessing:
-          - trim
-        parameters:
-          name: FIELD_SELECTION_DEMO
-          pattern: '[A-Z]+\d+'
-          regex_options:
+          regex: '[A-Z]+\d+'
+          max_matches_per_field: 5
+          regex_options: &id004
             multiline: false
             dotall: false
             ignore_case: false
             unicode: true
-          validation_pattern: null
-          capture_groups: null
-          reassemble_format: null
+        - field_name: secondaryTag
+          required: false
+          priority: 2
+          max_length: 500
+          preprocessing:
+          - trim
+          regex: '[A-Z]+\d+'
           max_matches_per_field: 5
-          early_termination: true
+          regex_options: *id004
+        - field_name: alternateTag
+          required: false
+          priority: 3
+          max_length: 500
+          preprocessing:
+          - trim
+          regex: '[A-Z]+\d+'
+          max_matches_per_field: 5
+          regex_options: *id004
+        field_results_mode: merge_all

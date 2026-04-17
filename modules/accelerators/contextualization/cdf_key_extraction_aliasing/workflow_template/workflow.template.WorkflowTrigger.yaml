@@ -14,5 +14,5 @@ authentication:
   clientId: '{{functionClientId}}'
   clientSecret: '{{functionClientSecret}}'
 input:
-  full_rescan: false
+  run_all: false
   run_id: ''

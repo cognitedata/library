@@ -1,4 +1,6 @@
 # Template: __KEA_WORKFLOW_EXTERNAL_ID__ → workflow external id (base or base.suffix). See default.config.yaml scope_build_mode.
 externalId: __KEA_WORKFLOW_EXTERNAL_ID__
-description: Key extraction, aliasing, and alias persistence (scope via workflow input from triggers)
+description: >-
+  Key extraction, optional RAW reference index, tag aliasing, and alias write-back to CDM describables.
+  Source views, extraction rules, and aliasing rules come from workflow.input.configuration (see workflow_template/workflow.template.config.yaml).
 dataSetExternalId: 'ds_key_extraction'

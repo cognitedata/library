@@ -135,7 +135,10 @@ def handle(
         # Initialize engine (do not store in return payload)
         engine = KeyExtractionEngine(engine_config)
 
-        from pipeline import key_extraction
+        from pipeline import key_extraction, require_incremental_change_processing_for_cdf
+
+        if cdf_config is not None:
+            require_incremental_change_processing_for_cdf(cdf_config)
 
         key_extraction(
             client=client,

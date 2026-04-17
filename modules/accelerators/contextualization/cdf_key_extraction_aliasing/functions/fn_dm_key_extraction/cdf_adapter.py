@@ -70,9 +70,6 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
         if engine_rule:
             engine_config["extraction_rules"].append(engine_rule)
 
-    # Add field_selection_strategy to config if needed
-    engine_config["field_selection_strategy"] = cdf_config.data.field_selection_strategy
-
     global_validation = getattr(cdf_config.data, "validation", None)
     if global_validation is not None:
         engine_config["validation"].update(
@@ -93,15 +90,9 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
 
 
 def _pydantic_extraction_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
-    """
-    Serialize ExtractionRuleConfig to the same shape as YAML rule dicts
-    (name, handler, parameters, source_fields, ...).
-    """
+    """Serialize ExtractionRuleConfig to engine rule dicts (fields, handler, parameters, …)."""
     data = cdf_rule.model_dump(mode="python", by_alias=True)
     data["name"] = getattr(cdf_rule, "name", None) or data.get("rule_id", "unnamed_rule")
-    sf = data.get("source_fields")
-    if sf is not None and not isinstance(sf, list):
-        data["source_fields"] = [sf]
     return data
 
 
@@ -144,11 +135,6 @@ def _convert_yaml_direct_to_engine_config(
         if engine_rule:
             engine_config["extraction_rules"].append(engine_rule)
 
-    # Add field_selection_strategy
-    engine_config["field_selection_strategy"] = data_section.get(
-        "field_selection_strategy", "merge_all"
-    )
-
     # Add validation config (min_confidence, regexp_match, confidence_match_rules, …)
     validation_config = data_section.get("validation", {})
     if validation_config:
@@ -170,254 +156,54 @@ def _convert_yaml_direct_to_engine_config(
 def _convert_rule_dict_to_engine_format(
     rule_data: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
-    """Convert a rule dictionary to engine format; outputs canonical handler and extraction_type."""
+    """Convert a rule dictionary to engine format; canonical handler id and fields[]."""
     try:
         method_raw = rule_data.get("handler")
         method_canonical = normalize_method(method_raw).value
+        if method_canonical == "unsupported":
+            logger.error(
+                "Extraction rule %r: handler %r is not supported; skip rule",
+                rule_data.get("name", rule_data.get("rule_id", "unknown")),
+                method_raw,
+            )
+            return None
         extraction_type = (
             get_extraction_type_from_rule(rule_data).value
             if get_extraction_type_from_rule
             else rule_data.get("extraction_type", "candidate_key")
         )
-        engine_rule = {
-            "name": rule_data.get("name", "unnamed_rule"),
+        rid = rule_data.get("rule_id") or rule_data.get("name", "unnamed_rule")
+        name = rule_data.get("name") or rid
+        fields = rule_data.get("fields")
+        if fields is None and rule_data.get("source_fields"):
+            logger.error(
+                "Extraction rule %r: use fields[] instead of source_fields; skip rule",
+                name,
+            )
+            return None
+        engine_rule: Dict[str, Any] = {
+            "name": name,
+            "rule_id": rid,
             "description": rule_data.get("description", ""),
             "priority": rule_data.get("priority", 100),
             "enabled": rule_data.get("enabled", True),
             "handler": method_canonical,
             "scope_filters": rule_data.get("scope_filters", {}),
             "extraction_type": extraction_type,
-            "source_fields": _convert_source_fields_dict(
-                rule_data.get("source_fields", [])
-            ),
-            "field_selection_strategy": rule_data.get(
-                "field_selection_strategy"
-            ),  # Per-rule strategy
-            "config": {},
+            "fields": list(fields or []),
+            "entity_types": list(rule_data.get("entity_types") or []),
+            "field_results_mode": rule_data.get("field_results_mode", "merge_all"),
+            "result_template": rule_data.get("result_template"),
+            "max_template_combinations": rule_data.get("max_template_combinations", 10000),
+            "parameters": rule_data.get("parameters"),
+            "validation": rule_data.get("validation"),
+            "config": rule_data.get("config") if isinstance(rule_data.get("config"), dict) else {},
         }
-
-        # Handle method-specific parameters
-        params = rule_data.get("parameters", {})
-
-        if method_canonical == "regex":
-            engine_rule["pattern"] = params.get("pattern", "")
-            engine_rule["case_sensitive"] = not params.get("regex_options", {}).get(
-                "ignore_case", True
-            )
-            engine_rule["min_confidence"] = 0.7
-
-            regex_opts = params.get("regex_options", {})
-            engine_rule["config"] = {
-                "early_termination": params.get("early_termination", False),
-                "max_matches_per_field": params.get("max_matches_per_field", None),
-                "validation_pattern": params.get("validation_pattern", None),
-                "regex_options": {
-                    "multiline": regex_opts.get("multiline", False),
-                    "dotall": regex_opts.get("dotall", False),
-                    "ignore_case": regex_opts.get("ignore_case", True),
-                    "unicode": regex_opts.get("unicode", True),
-                },
-            }
-
-            if "capture_groups" in params:
-                engine_rule["config"]["capture_groups"] = params["capture_groups"]
-            if "reassemble_format" in params:
-                engine_rule["config"]["reassemble_format"] = params["reassemble_format"]
-
-        elif method_canonical == "fixed width":
-            engine_rule["config"] = _convert_fixed_width_params_dict(params)
-
-        elif method_canonical == "token reassembly":
-            engine_rule["config"] = _convert_token_reassembly_params_dict(params)
-
-        elif method_canonical == "heuristic":
-            engine_rule["config"] = _convert_heuristic_params_dict(params)
-            if "scoring" in params:
-                engine_rule["min_confidence"] = params["scoring"].get(
-                    "min_confidence", 0.7
-                )
-
-        elif method_canonical == "passthrough":
-            engine_rule["config"] = {}
-            engine_rule["min_confidence"] = params.get("min_confidence", 1.0)
-
         return engine_rule
 
     except Exception as e:
         logger.error(f"Error converting rule {rule_data.get('name', 'unknown')}: {e}")
         return None
-
-
-def _convert_source_fields_dict(source_fields_data: Any) -> List[Dict[str, Any]]:
-    """Convert source fields dictionary/list to engine format."""
-    if not source_fields_data:
-        return []
-
-    if not isinstance(source_fields_data, list):
-        source_fields_data = [source_fields_data]
-
-    engine_fields = []
-    for field in source_fields_data:
-        if isinstance(field, dict):
-            engine_field = {
-                "field_name": field.get("field_name", ""),
-                "required": field.get("required", False),
-                "priority": field.get("priority", 1),
-                "max_length": field.get("max_length", 1000),
-            }
-
-            if "role" in field:
-                engine_field["role"] = field["role"]
-            if "preprocessing" in field:
-                engine_field["preprocessing"] = field["preprocessing"]
-
-            engine_fields.append(engine_field)
-
-    return engine_fields
-
-
-def _convert_fixed_width_params_dict(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert fixed width params dict to engine format."""
-    config = {}
-
-    if "field_definitions" in params:
-        config["field_definitions"] = [
-            {
-                "name": fd.get("name", ""),
-                "start_position": fd.get("start_position", 0),
-                "end_position": fd.get("end_position", 0),
-                "field_type": fd.get("field_type", "unknown"),
-                "required": fd.get("required", True),
-                "trim": fd.get("trim", True),
-                "line": fd.get("line", None),
-                "padding": fd.get("padding", "none"),
-            }
-            for fd in params["field_definitions"]
-        ]
-
-    for key in [
-        "encoding",
-        "record_delimiter",
-        "record_length",
-        "line_pattern",
-        "skip_lines",
-        "stop_on_empty",
-    ]:
-        if key in params:
-            config[key] = params[key]
-
-    return config
-
-
-def _convert_token_reassembly_params_dict(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert token reassembly params dict to engine format."""
-    config = {}
-
-    if "tokenization" in params:
-        tokenization = params["tokenization"]
-        config["tokenization"] = {
-            "separator_pattern": tokenization.get("separator_pattern", ""),
-            "token_patterns": [
-                {
-                    "name": tp.get("name", ""),
-                    "pattern": tp.get("pattern", ""),
-                    "position": tp.get("position", 0),
-                    "required": tp.get("required", True),
-                    "component_type": tp.get("component_type", "unknown"),
-                }
-                for tp in tokenization.get("token_patterns", [])
-            ],
-        }
-
-        if "min_tokens" in tokenization:
-            config["tokenization"]["min_tokens"] = tokenization["min_tokens"]
-        if "max_tokens" in tokenization:
-            config["tokenization"]["max_tokens"] = tokenization["max_tokens"]
-
-    if "assembly_rules" in params:
-        config["assembly_rules"] = [
-            {
-                "name": ar.get("name", ""),
-                "format": ar.get("format", ""),
-                "conditions": ar.get("conditions", {}),
-            }
-            for ar in params["assembly_rules"]
-        ]
-
-    if "validation" in params:
-        config["validation"] = {
-            "validate_assembled": params["validation"].get("validate_assembled", True),
-            "validation_pattern": params["validation"].get("validation_pattern", None),
-        }
-
-    return config
-
-
-def _convert_heuristic_params_dict(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert heuristic params dict to engine format."""
-    config = {}
-
-    if "heuristic_strategies" in params:
-        config["heuristic_strategies"] = []
-        for strategy in params["heuristic_strategies"]:
-            strategy_dict = {
-                "name": strategy.get("strategy_id", strategy.get("name", "")),
-                "weight": strategy.get("weight", 0.25),
-                "method": strategy.get("method", ""),
-                "rules": [],
-            }
-
-            for rule in strategy.get("rules", []):
-                rule_dict = {}
-                method = strategy.get("method", "")
-
-                if method == "positional_detection":
-                    rule_dict = {
-                        "position": rule.get("position", 0),
-                        "pattern": rule.get("pattern", ""),
-                        "confidence_boost": rule.get("confidence_boost", 0),
-                    }
-                    if "keywords" in rule:
-                        rule_dict["keywords"] = rule["keywords"]
-
-                elif method == "frequency_analysis":
-                    rule_dict = {
-                        "analyze_corpus": rule.get("analyze_corpus", False),
-                        "min_frequency": rule.get("min_frequency", 3),
-                    }
-
-                elif method == "context_inference":
-                    rule_dict = {
-                        "surrounding_keywords": rule.get(
-                            "surrounding_keywords", {"positive": [], "negative": []}
-                        ),
-                        "context_window": rule.get("context_window", 20),
-                        "keyword_proximity_bonus": rule.get(
-                            "keyword_proximity_bonus", 0
-                        ),
-                    }
-
-                if rule_dict:
-                    strategy_dict["rules"].append(rule_dict)
-
-            config["heuristic_strategies"].append(strategy_dict)
-
-    if "scoring" in params:
-        config["scoring"] = {
-            "aggregation_method": params["scoring"].get(
-                "aggregation_method", "weighted_average"
-            ),
-            "min_confidence": params["scoring"].get("min_confidence", 0.5),
-            "normalize_scores": params["scoring"].get("normalize_scores", True),
-        }
-
-    if "confidence_modifiers" in params:
-        config["confidence_modifiers"] = params["confidence_modifiers"]
-
-    if "validation" in params:
-        config["validation"] = params["validation"]
-
-    return config
 
 
 def load_config_from_yaml(config_path: str, validate: bool = True) -> Dict[str, Any]:

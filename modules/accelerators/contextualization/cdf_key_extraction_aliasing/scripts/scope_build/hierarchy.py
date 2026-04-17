@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import yaml
 
@@ -69,6 +69,20 @@ def display_name(node: Dict[str, Any]) -> str:
     if raw_id is not None and str(raw_id).strip() != "":
         return str(raw_id).strip()
     return ""
+
+
+def workflow_display_name_from_path(path: Sequence[PathStep]) -> str | None:
+    """Toolkit Workflow ``name`` (display): ``<first> - <leaf>`` when depth ≥ 2, else the leaf name."""
+    if not path:
+        return None
+    first = (path[0].name or "").strip()
+    leaf = (path[-1].name or "").strip()
+    if len(path) == 1:
+        single = leaf or first
+        return single if single else None
+    if first and leaf:
+        return f"{first} - {leaf}" if first != leaf else first
+    return leaf or first or None
 
 
 def load_hierarchy_doc(path: Path) -> Dict[str, Any]:

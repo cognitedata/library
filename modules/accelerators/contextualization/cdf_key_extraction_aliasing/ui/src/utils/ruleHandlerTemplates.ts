@@ -1,64 +1,28 @@
 import type { MessageKey } from "../i18n/types";
 
 /** Canonical buckets for extraction handler UI (defaults + docs). */
-export type DiscoveryHandlerKind = "passthrough" | "regex" | "fixedWidth" | "tokenReassembly" | "heuristic";
+export type DiscoveryHandlerKind = "regex_handler" | "heuristic";
 
-const PASSTHROUGH_YAML = `min_confidence: 1.0
+const REGEX_HANDLER_YAML = `# Optional rule-level keys (advanced):
+# result_template: "{unit}-{name}"
+# max_template_combinations: 10000
 `;
 
-const REGEX_YAML = `pattern: ""
-max_matches_per_field: 10
-regex_options:
-  ignore_case: false
-  multiline: false
-  dotall: false
-  unicode: true
-early_termination: false
-`;
-
-const FIXED_WIDTH_YAML = `field_definitions:
-  - name: field1
-    start_position: 0
-    end_position: 8
-    field_type: string
-    required: true
-    trim: true
-encoding: utf-8
-`;
-
-const TOKEN_REASSEMBLY_YAML = `tokenization:
-  separator_patterns:
-    - "-"
-    - "_"
-    - "/"
-    - " "
-  token_patterns: []
-assembly_rules:
-  - format: "{site}-{unit}"
-    conditions: {}
-`;
-
-const HEURISTIC_YAML = `heuristic_strategies:
-  - method: positional_detection
-    name: primary_segments
-    config: {}
-scoring:
-  min_confidence: 0.7
+const HEURISTIC_YAML = `strategies:
+  - id: delimiter_split
+    weight: 1.0
+  - id: sliding_token
+    weight: 0.5
+max_candidates_per_field: 20
 `;
 
 const EXTRACTION_DEFAULTS: Record<DiscoveryHandlerKind, string> = {
-  passthrough: PASSTHROUGH_YAML,
-  regex: REGEX_YAML,
-  fixedWidth: FIXED_WIDTH_YAML,
-  tokenReassembly: TOKEN_REASSEMBLY_YAML,
+  regex_handler: REGEX_HANDLER_YAML,
   heuristic: HEURISTIC_YAML,
 };
 
 const DISCOVERY_DOC: Record<DiscoveryHandlerKind, MessageKey> = {
-  passthrough: "discoveryRules.handlerDoc.passthrough",
-  regex: "discoveryRules.handlerDoc.regex",
-  fixedWidth: "discoveryRules.handlerDoc.fixedWidth",
-  tokenReassembly: "discoveryRules.handlerDoc.tokenReassembly",
+  regex_handler: "discoveryRules.handlerDoc.regex_handler",
   heuristic: "discoveryRules.handlerDoc.heuristic",
 };
 
@@ -66,12 +30,30 @@ const DISCOVERY_DOC: Record<DiscoveryHandlerKind, MessageKey> = {
  * Map raw handler value (from config or select) to a canonical UI bucket.
  */
 export function discoveryHandlerKind(handler: string): DiscoveryHandlerKind {
-  const h = handler.trim().toLowerCase().replace(/_/g, " ");
-  if (h === "passthrough") return "passthrough";
-  if (h === "fixed width") return "fixedWidth";
-  if (h === "token reassembly") return "tokenReassembly";
+  const h = handler.trim().toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_");
+  if (
+    h === "regex_handler" ||
+    h === "regexhandler" ||
+    h === "field_rule" ||
+    h === "fieldrule" ||
+    h === "field_rule_fixed_width" ||
+    h === "fixed_width" ||
+    h === "fixedwidth"
+  )
+    return "regex_handler";
   if (h === "heuristic") return "heuristic";
-  return "regex";
+  // Legacy → regex_handler (patterns live under fields[].regex)
+  return "regex_handler";
+}
+
+/** Single canonical `handler` string for the discovery UI and serialized YAML. */
+export function canonicalDiscoveryHandlerForUi(handler: string): string {
+  const k = discoveryHandlerKind(handler);
+  const map: Record<DiscoveryHandlerKind, string> = {
+    regex_handler: "regex_handler",
+    heuristic: "heuristic",
+  };
+  return map[k];
 }
 
 export function defaultParametersYamlForDiscoveryHandler(handler: string): string {

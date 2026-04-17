@@ -1,18 +1,17 @@
-"""Tests for non-incremental run_pipeline logging (adapter injection, progress flag)."""
+"""Tests for run_pipeline incremental requirements and logging adapters."""
 
 from __future__ import annotations
 
 import argparse
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+import pytest
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
     _DEFAULT_ALIASING_VALIDATION,
 )
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.function_logging import (
-    StdlibLoggerAdapter,
-)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_runner.run import (
     run_pipeline,
 )
@@ -24,7 +23,7 @@ def _args(**overrides: object) -> argparse.Namespace:
         dry_run=True,
         write_foreign_keys=False,
         foreign_key_writeback_property=None,
-        full_rescan=False,
+        run_all=False,
         skip_reference_index=False,
         progress_every=0,
     )
@@ -32,32 +31,9 @@ def _args(**overrides: object) -> argparse.Namespace:
     return argparse.Namespace(**base)
 
 
-def test_non_incremental_passes_stdlib_adapter_to_both_engines():
-    """Engines should receive the same StdlibLoggerAdapter as the CLI logger bridge."""
-    captured: list[tuple[str, object]] = []
-
-    def ke_ctor(*_a: object, **kw: object):
-        captured.append(("ke", kw.get("logger")))
-        m = MagicMock()
-        m.extract_keys.return_value = MagicMock(
-            entity_id="e1",
-            candidate_keys=(),
-            foreign_key_references=(),
-            document_references=(),
-            entity_type="asset",
-            metadata={},
-        )
-        return m
-
-    def ae_ctor(*_a: object, **kw: object):
-        captured.append(("ae", kw.get("logger")))
-        m = MagicMock()
-        m.generate_aliases.return_value = MagicMock(aliases=[], metadata={})
-        return m
-
+def test_run_pipeline_requires_scope_yaml_path():
+    """Direct view listing was removed; local CLI always uses workflow parity with a scope file."""
     client = MagicMock()
-    client.data_modeling.instances.list.return_value = []
-
     extraction_config: dict = {
         "parameters": {},
         "extraction_rules": [],
@@ -76,20 +52,9 @@ def test_non_incremental_passes_stdlib_adapter_to_both_engines():
             "batch_size": 10,
         }
     ]
-
-    log = logging.getLogger("test_non_incremental_logging")
+    log = logging.getLogger("test_run_pipeline_incremental")
     log.setLevel(logging.INFO)
-
-    with (
-        patch(
-            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_runner.run.KeyExtractionEngine",
-            side_effect=ke_ctor,
-        ),
-        patch(
-            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_runner.run.AliasingEngine",
-            side_effect=ae_ctor,
-        ),
-    ):
+    with pytest.raises(ValueError, match="scope YAML path"):
         run_pipeline(
             _args(progress_every=0),
             log,
@@ -102,14 +67,6 @@ def test_non_incremental_passes_stdlib_adapter_to_both_engines():
             None,
             scope_yaml_path=None,
         )
-
-    assert len(captured) == 2
-    assert captured[0][0] == "ke"
-    assert captured[1][0] == "ae"
-    ke_log, ae_log = captured[0][1], captured[1][1]
-    assert isinstance(ke_log, StdlibLoggerAdapter)
-    assert isinstance(ae_log, StdlibLoggerAdapter)
-    assert ke_log is ae_log
 
 
 def test_progress_every_parsed_on_namespace():

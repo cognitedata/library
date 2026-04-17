@@ -7,27 +7,26 @@ import yaml
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.filters import Filter
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
-from .utils.FixedWidthMethodParameter import FixedWidthMethodParameter
-from .utils.HeuristicMethodParameter import HeuristicMethodParameter
-from .utils.PassthroughMethodParameter import PassthroughMethodParameter
-from .utils.RegexMethodParameter import RegexMethodParameter
-from .utils.TokenReassemblyMethodParameter import TokenReassemblyMethodParameter
+from .utils.RegexMethodParameter import RegexOptions
 
 SkipEntityPolicy = Literal["successful_only", "none"]
+
+ExtractionHandlerId = Literal["regex_handler", "heuristic"]
+FieldResultsMode = Literal["merge_all"]
 
 
 # Configuration classes
 class Parameters(BaseModel):
     debug: bool = Field(False, description="Enable debug mode")
     verbose: bool = Field(False, description="Enable verbose output")
-    full_rescan: bool = Field(
+    run_all: bool = Field(
         False,
         description=(
             "When true, instance listing is not filtered by existing RAW rows; incremental "
-            "detection uses a full scope rescan; apply replaces keys from RAW only. When false, "
+            "detection processes the full scope; apply replaces keys from RAW only. When false, "
             "see skip_entity_policy for RAW-based exclusion and merge behavior on apply."
         ),
     )
@@ -47,9 +46,9 @@ class Parameters(BaseModel):
     skip_entity_policy: SkipEntityPolicy = Field(
         "successful_only",
         description=(
-            "When full_rescan is false: successful_only excludes instances that have a RAW entity row "
+            "When run_all is false: successful_only excludes instances that have a RAW entity row "
             "with EXTRACTION_STATUS success or empty; failed or rows without that column are listed "
-            "again. none matches full_rescan true for listing (no RAW-based exclusion)."
+            "again. none matches run_all true for listing (no RAW-based exclusion)."
         ),
     )
     write_empty_extraction_rows: bool = Field(
@@ -67,11 +66,11 @@ class Parameters(BaseModel):
         description="Chunk size when scanning raw_table_key for skip_entity_policy (RAW rows iterator).",
     )
     incremental_change_processing: bool = Field(
-        False,
+        True,
         description=(
-            "When true, use WORKFLOW_STATUS-driven RAW cohort handoff: run "
-            "fn_dm_incremental_state_update first, then key extraction reads cohort rows "
-            "(RUN_ID + WORKFLOW_STATUS) instead of listing the full view."
+            "Must be true for CDF/workflow runs: use WORKFLOW_STATUS-driven RAW cohort handoff "
+            "(run fn_dm_incremental_state_update first, then key extraction reads cohort rows "
+            "RUN_ID + WORKFLOW_STATUS=detected). Direct Data Modeling view listing is not supported."
         ),
     )
     enable_reference_index: bool = Field(
@@ -339,16 +338,6 @@ class SourceTableConfig(BaseModel):
     )
 
 
-# Union for dynamic parameter object in ExtractionRuleConfig
-ExtractionMethod = Union[
-    FixedWidthMethodParameter,
-    HeuristicMethodParameter,
-    PassthroughMethodParameter,
-    RegexMethodParameter,
-    TokenReassemblyMethodParameter,
-]
-
-
 class ConfidenceModifier(BaseModel):
     mode: Literal["explicit", "offset"] = Field(
         ...,
@@ -414,6 +403,72 @@ class ConfidenceMatchRule(BaseModel):
     confidence_modifier: ConfidenceModifier
 
 
+class FieldExtractionSpec(BaseModel):
+    """One extractable field within a regex_handler rule."""
+
+    field_name: str = Field(
+        ...,
+        description="Property name or dotted path (e.g. name, metadata.code).",
+    )
+    table_id: Optional[str] = Field(
+        None,
+        description="When using RAW source_tables, join key matching SourceTableConfig.table_id.",
+    )
+    variable: Optional[str] = Field(
+        None,
+        description="Name for result_template placeholders; defaults to field_name.",
+    )
+    regex: Optional[str] = Field(
+        None,
+        description="If set, find all matches (group 1 if present). If None, trimmed passthrough.",
+    )
+    regex_options: RegexOptions = Field(
+        default_factory=RegexOptions,
+        description="Per-field regex flags.",
+    )
+    max_matches_per_field: int = Field(
+        100,
+        ge=1,
+        le=10000,
+        description="Cap regex matches per field.",
+    )
+    preprocessing: Union[List[str], str, None] = Field(
+        None,
+        description="Optional steps before extraction: trim, lowercase, uppercase, remove_special_chars.",
+    )
+    max_length: int = Field(
+        1000,
+        ge=1,
+        le=100000,
+        description="Max processed field length (performance).",
+    )
+    required: bool = Field(
+        False,
+        description="If true, skip rule when this field is missing (engine may log).",
+    )
+    priority: int = Field(1, description="Order hint for field lists (informational).")
+
+
+class HeuristicStrategySpec(BaseModel):
+    id: str = Field(..., description="Strategy id, e.g. delimiter_split, sliding_token")
+    weight: float = Field(1.0, description="Weight for combining scores")
+
+
+class HeuristicRuleParameters(BaseModel):
+    """Parameters for handler: heuristic only."""
+
+    strategies: List[HeuristicStrategySpec] = Field(
+        default_factory=list,
+        description="Ordered heuristic strategies with weights",
+    )
+    max_candidates_per_field: int = Field(
+        20,
+        ge=1,
+        le=5000,
+        description="Max candidate substrings emitted per source field",
+    )
+
+
 class ValidationConfig(BaseModel):
     min_confidence: float = Field(
         0.1,
@@ -444,30 +499,44 @@ class ValidationConfig(BaseModel):
 
 
 class ExtractionRuleConfig(BaseModel):
-    """Configuration for a single extraction rule."""
+    """Configuration for a single extraction rule (regex_handler or heuristic)."""
 
     rule_id: Optional[str] = None
-    handler: Literal[
-        "passthrough",
-        "regex",
-        "fixed width",
-        "fixed_width",
-        "token reassembly",
-        "token_reassembly",
-        "heuristic",
-    ] = "passthrough"
-    config: ExtractionMethod = Field(
-        ...,
-        description="Method-specific configuration parameters.",
-        alias="parameters",
+    description: str = Field("", description="Human-readable description for operators")
+    handler: ExtractionHandlerId = Field(
+        "regex_handler",
+        description="regex_handler | heuristic",
     )
-    source_fields: Union[List[SourceFieldParameter], SourceFieldParameter, None] = Field(
+    parameters: Optional[HeuristicRuleParameters] = Field(
         None,
-        description="List of source field paths to extract data from.",
+        description="Required when handler is heuristic; strategy configuration",
     )
+    fields: List[FieldExtractionSpec] = Field(
+        default_factory=list,
+        description="Fields to read for this rule (all handlers)",
+    )
+    entity_types: List[str] = Field(
+        default_factory=list,
+        description="If non-empty, rule applies only to these entity types (lowercased match). Empty = all",
+    )
+    field_results_mode: FieldResultsMode = Field(
+        "merge_all",
+        description="merge_all only: use all field specs (legacy first_match is coerced to merge_all).",
+    )
+    result_template: Optional[str] = Field(
+        None,
+        description="Optional template e.g. {unit}-{tag}; Cartesian product of variable lists when set",
+    )
+    max_template_combinations: int = Field(
+        10000,
+        ge=1,
+        le=1_000_000,
+        description="Cap Cartesian combinations for result_template",
+    )
+    enabled: bool = True
     priority: int = Field(
         100,
-        description="The priority of the rule in the order of rules applied to the target field",
+        description="Lower runs first among rules (convention: sort ascending)",
     )
     scope_filters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -485,10 +554,39 @@ class ExtractionRuleConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _fill_rule_id_from_name(cls, data: Any) -> Any:
-        if isinstance(data, dict) and not data.get("rule_id") and data.get("name"):
+        if isinstance(data, dict):
             data = dict(data)
-            data["rule_id"] = str(data["name"])
+            if not data.get("rule_id") and data.get("name"):
+                data["rule_id"] = str(data["name"])
+            # Legacy handler id (pre regex_handler rename)
+            if data.get("handler") == "field_rule":
+                data["handler"] = "regex_handler"
+            # Removed field_rule_fixed_width — same engine path as regex_handler
+            if data.get("handler") == "field_rule_fixed_width":
+                data["handler"] = "regex_handler"
+            if str(data.get("field_results_mode") or "").strip().lower() == "first_match":
+                data["field_results_mode"] = "merge_all"
         return data
+
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def _coerce_heuristic_parameters(cls, v: Any) -> Any:
+        if v is None or v == {}:
+            return None
+        if isinstance(v, HeuristicRuleParameters):
+            return v
+        if isinstance(v, dict):
+            return HeuristicRuleParameters.model_validate(v)
+        return v
+
+    @model_validator(mode="after")
+    def _validate_handler_payload(self) -> "ExtractionRuleConfig":
+        if self.handler == "heuristic":
+            if self.parameters is None:
+                raise ValueError("handler heuristic requires non-empty parameters")
+            if not self.fields:
+                raise ValueError("handler heuristic requires at least one field")
+        return self
 
     @property
     def name(self) -> str:
@@ -503,11 +601,7 @@ class ExtractionRuleConfig(BaseModel):
     @property
     def get_source_field_string(self) -> str:
         """Returns a string of all the source fields used for this rule."""
-        if isinstance(self.source_fields, list):
-            return ", ".join([sf.field_name for sf in self.source_fields])
-        if isinstance(self.source_fields, SourceFieldParameter):
-            return self.source_fields.field_name
-        return ""
+        return ", ".join(f.field_name for f in self.fields)
 
 
 class ConfigData(BaseModel):
@@ -521,7 +615,6 @@ class ConfigData(BaseModel):
     )
     source_tables: Optional[List[SourceTableConfig]] = None
     extraction_rules: List[ExtractionRuleConfig]
-    field_selection_strategy: Literal["first_match", "merge_all"] = "merge_all"
     validation: Optional[ValidationConfig] = Field(
         None,
         description="Global validation (min_confidence, regexp_match, confidence_match_rules) merged in engine.",
@@ -554,7 +647,9 @@ __all__ = [
     "ViewPropertyConfig",
     "FilterConfig",
     "SourceViewConfig",
-    "SourceFieldConfig",
+    "FieldExtractionSpec",
+    "HeuristicStrategySpec",
+    "HeuristicRuleParameters",
     "ExtractionRuleConfig",
     "ConfidenceModifier",
     "ConfidenceMatchExpression",

@@ -109,7 +109,7 @@ def generate_key_extraction_results():
         },
     ]
 
-    # Sample timeseries for testing - mix of regex, fixed width, and token reassembly formats
+    # Sample timeseries for testing — regex-oriented tag extraction
     sample_timeseries = [
         # Regex extraction - extract tags from externalId
         {
@@ -126,7 +126,7 @@ def generate_key_extraction_results():
             "description": "Flow indicator value from FIC-1001",
             "metadata": {"unit": "m3/h"},
         },
-        # Fixed width extraction - position-based
+        # Padded name line (instrument tag in name)
         {
             "id": "ts_003",
             "externalId": "TS-FIC-1001-VALUE-FIXED",
@@ -273,7 +273,7 @@ def generate_key_extraction_results():
         "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
     }
 
-    # Timeseries extraction config - supports regex, fixed width, and token reassembly
+    # Timeseries extraction config — regex rules on externalId and name
     timeseries_config = {
         "extraction_rules": [
             # Regex extraction - extract instrument tags from externalId (e.g., TS-FIC-1001-VALUE -> FIC-1001)
@@ -289,100 +289,31 @@ def generate_key_extraction_results():
                 "source_fields": [{"field_name": "externalId", "required": True}],
                 "config": {"pattern": "TS-([A-Z]{2,3}-\d{4})-[A-Z]+"},
             },
-            # Fixed width extraction - hierarchical format (positions 24-32)
+            # Regex on padded timeseries name — instrument tags (e.g. FIC-1001, A-FIC-1001)
             {
-                "name": "timeseries_fixed_width_hierarchical",
-                "handler": "fixed_width",
-                "pattern": ".*",
+                "name": "timeseries_name_instrument_tag",
+                "handler": "regex",
+                "pattern": r"(?:[A-Z]-)?[A-Z]{2,4}-\d{4}",
                 "extraction_type": "candidate_key",
                 "priority": 50,
                 "enabled": True,
                 "min_confidence": 0.9,
                 "case_sensitive": False,
                 "source_fields": [{"field_name": "name", "required": True}],
-                "config": {
-                    "positions": [
-                        {
-                            "start": 24,
-                            "end": 32,
-                            "type": "tag_with_separator",
-                            "optional": False,
-                        }
-                    ],
-                    "padding": "space",
-                    "line_pattern": r"^UNIT.*",  # Only match hierarchical format
-                    "skip_lines": 0,
-                    "stop_on_empty": False,
-                },
+                "config": {"pattern": r"(?:[A-Z]-)?[A-Z]{2,4}-\d{4}"},
             },
-            # Fixed width extraction - standard format (positions 16-24)
+            # Regex on externalId — instrument-style tags (e.g. FIC-1001 from TS-FIC-1001-VALUE)
             {
-                "name": "timeseries_fixed_width_standard",
-                "handler": "fixed_width",
-                "pattern": ".*",
-                "extraction_type": "candidate_key",
-                "priority": 50,
-                "enabled": True,
-                "min_confidence": 0.9,
-                "case_sensitive": False,
-                "source_fields": [{"field_name": "name", "required": True}],
-                "config": {
-                    "positions": [
-                        {
-                            "start": 16,
-                            "end": 24,
-                            "type": "tag_with_separator",
-                            "optional": False,
-                        }
-                    ],
-                    "padding": "space",
-                    "line_pattern": r"^(?!UNIT).*",  # Exclude hierarchical format
-                    "skip_lines": 0,
-                    "stop_on_empty": False,
-                },
-            },
-            # Token reassembly - extract hierarchical tags from externalId
-            {
-                "name": "timeseries_token_reassembly",
-                "handler": "token_reassembly",
-                "pattern": "",
+                "name": "timeseries_external_id_instrument_tag",
+                "handler": "regex",
+                "pattern": r"[A-Z]{2,4}-\d{4}",
                 "extraction_type": "candidate_key",
                 "priority": 40,
                 "enabled": True,
                 "min_confidence": 0.80,
                 "case_sensitive": False,
                 "source_fields": [{"field_name": "externalId", "required": True}],
-                "config": {
-                    "tokenization": {
-                        "token_patterns": [
-                            {
-                                "name": "tag_prefix",
-                                "pattern": r"^(FIC|PIC|TIC|LIC|FCV)$",
-                                "position": 1,
-                                "required": True,
-                                "component_type": "instrument_tag",
-                            },
-                            {
-                                "name": "tag_number",
-                                "pattern": r"^\d{3,4}$",
-                                "position": 2,
-                                "required": True,
-                                "component_type": "number",
-                            },
-                        ],
-                        "separator_patterns": ["-", "_"],
-                    },
-                    "assembly_rules": [
-                        {
-                            "format": "{tag_prefix}-{tag_number}",
-                            "conditions": {"all_required_present": True},
-                        }
-                    ],
-                    "validation": {
-                        "validate_assembled": True,
-                        "validation_pattern": r"^[A-Z]{2,4}-\d{4}$",
-                    },
-                },
+                "config": {"pattern": r"[A-Z]{2,4}-\d{4}"},
             },
         ],
         "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},

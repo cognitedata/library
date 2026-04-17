@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
 import { commaJoinSegments, splitCommaSegments } from "../utils/commaDelimited";
+import { reorderListAtIndex } from "../utils/ruleListReorder";
 
 export type ValidationEditorVariant = "keyExtraction" | "aliasing";
 
@@ -170,9 +171,24 @@ function defaultRule(existing: UiRule[]): UiRule {
   };
 }
 
+/** First non-empty expression description, else keywords, else first pattern (for collapsed card summary). */
+function validationRuleCollapsedSummary(rule: UiRule): string {
+  const desc = rule.expressions.map((e) => e.description.trim()).find(Boolean);
+  if (desc) return desc;
+  const kw = rule.keywordsText.trim();
+  if (kw) return kw.length > 200 ? `${kw.slice(0, 200)}…` : kw;
+  const pat = rule.expressions.map((e) => e.pattern.trim()).find(Boolean);
+  if (pat) return pat.length > 120 ? `${pat.slice(0, 120)}…` : pat;
+  return "";
+}
+
 export function ValidationStructuredEditor({ variant, value, onChange }: Props) {
   const { t } = useAppSettings();
   const known = variant === "keyExtraction" ? KNOWN_KEY_EXTRACTION : KNOWN_ALIASING;
+  const lastWrittenFingerprintRef = useRef<string | null>(null);
+  const [ruleCardExpanded, setRuleCardExpanded] = useState<Record<string, boolean>>({});
+  const [dragRuleFrom, setDragRuleFrom] = useState<number | null>(null);
+  const [dragRuleOver, setDragRuleOver] = useState<number | null>(null);
 
   const ui = useMemo(() => {
     const rules = parseRules(value.confidence_match_rules);
@@ -189,13 +205,27 @@ export function ValidationStructuredEditor({ variant, value, onChange }: Props) 
 
   const extras = useMemo(() => extrasFrom(value, known), [value, known]);
 
+  const commitValue = (next: JsonObject) => {
+    lastWrittenFingerprintRef.current = JSON.stringify(next);
+    onChange(next);
+  };
+
   const push = (patch: Partial<JsonObject> & { confidence_match_rules?: unknown[] }) => {
-    onChange({ ...value, ...patch });
+    commitValue({ ...value, ...patch });
   };
 
   const updateRules = (nextRules: UiRule[]) => {
-    push({ confidence_match_rules: serializeRules(nextRules) as unknown[] });
+    commitValue({ ...value, confidence_match_rules: serializeRules(nextRules) as unknown[] });
   };
+
+  useEffect(() => {
+    const fp = JSON.stringify(value);
+    if (lastWrittenFingerprintRef.current !== null && fp === lastWrittenFingerprintRef.current) {
+      lastWrittenFingerprintRef.current = null;
+      return;
+    }
+    setRuleCardExpanded({});
+  }, [value]);
 
   return (
     <div className="kea-validation-editor">
@@ -274,11 +304,84 @@ export function ValidationStructuredEditor({ variant, value, onChange }: Props) 
         {t("validationEditor.section.rules")}
       </h4>
       <p className="kea-hint">{t("validationEditor.rulesHint")}</p>
+      <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+        {t("rulesEntity.dragReorderRules")}
+      </p>
 
       <div className="kea-validation-rules">
-        {ui.rules.map((rule, idx) => (
-          <div key={idx} className="kea-validation-rule" style={{ border: "1px solid var(--kea-border)", borderRadius: "var(--kea-radius-sm)", padding: "0.75rem", marginBottom: "0.75rem", background: "var(--kea-surface)" }}>
-            <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr auto", gap: "0.5rem", alignItems: "end" }}>
+        {ui.rules.map((rule, idx) => {
+          const isCardExpanded = ruleCardExpanded[rule.name] === true;
+          const dropActive = dragRuleOver === idx;
+          const cardClass = [
+            "kea-validation-rule",
+            dropActive ? "kea-validation-rule--drop" : "",
+            dragRuleFrom === idx ? "kea-validation-rule--dragging" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          const summary = validationRuleCollapsedSummary(rule);
+          return (
+          <div
+            key={`${rule.name}-${idx}`}
+            className={cardClass}
+            style={{ border: "1px solid var(--kea-border)", borderRadius: "var(--kea-radius-sm)", padding: "0.75rem", marginBottom: "0.75rem", background: "var(--kea-surface)" }}
+            onDragOver={(e: DragEvent<HTMLDivElement>) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setDragRuleOver(idx);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                setDragRuleOver(null);
+              }
+            }}
+            onDrop={(e: DragEvent<HTMLDivElement>) => {
+              e.preventDefault();
+              const raw = e.dataTransfer.getData("text/plain");
+              const from = parseInt(raw, 10);
+              if (Number.isNaN(from) || from === idx) {
+                setDragRuleFrom(null);
+                setDragRuleOver(null);
+                return;
+              }
+              updateRules(reorderListAtIndex(ui.rules, from, idx));
+              setDragRuleFrom(null);
+              setDragRuleOver(null);
+            }}
+          >
+            <div
+              className="kea-filter-row"
+              style={{ gridTemplateColumns: "auto auto 1fr auto", gap: "0.5rem", alignItems: "end" }}
+            >
+              <span
+                className="kea-drag-handle"
+                draggable
+                onDragStart={(e: DragEvent<HTMLSpanElement>) => {
+                  e.dataTransfer.setData("text/plain", String(idx));
+                  e.dataTransfer.effectAllowed = "move";
+                  setDragRuleFrom(idx);
+                }}
+                onDragEnd={() => {
+                  setDragRuleFrom(null);
+                  setDragRuleOver(null);
+                }}
+                aria-label={t("rulesEntity.dragHandle")}
+                title={t("rulesEntity.dragHandle")}
+              >
+                <span className="kea-drag-handle__grip" aria-hidden>
+                  ⋮⋮
+                </span>
+              </span>
+              <button
+                type="button"
+                className="kea-btn kea-btn--ghost kea-btn--sm"
+                aria-expanded={isCardExpanded}
+                aria-label={isCardExpanded ? t("rulesEntity.ruleCollapseDetails") : t("rulesEntity.ruleExpandDetails")}
+                onClick={() => setRuleCardExpanded((m) => ({ ...m, [rule.name]: !isCardExpanded }))}
+                style={{ minWidth: 36 }}
+              >
+                <span aria-hidden>{isCardExpanded ? "▼" : "▶"}</span>
+              </button>
               <label className="kea-label">
                 {t("validationEditor.rule.name")}
                 <input
@@ -288,20 +391,37 @@ export function ValidationStructuredEditor({ variant, value, onChange }: Props) 
                   aria-required={true}
                   value={rule.name}
                   onChange={(e) => {
+                    const newName = e.target.value;
+                    setRuleCardExpanded((m) => {
+                      if (!(rule.name in m)) return m;
+                      const v = m[rule.name]!;
+                      const { [rule.name]: _, ...rest } = m;
+                      return { ...rest, [newName]: v };
+                    });
                     const next = [...ui.rules];
-                    next[idx] = { ...rule, name: e.target.value };
+                    next[idx] = { ...rule, name: newName };
                     updateRules(next);
                   }}
                   onBlur={() => {
                     if (!rule.name.trim()) {
+                      const newName = ruleNameOrDefault("", idx + 1);
+                      setRuleCardExpanded((m) => {
+                        if (!(rule.name in m)) return m;
+                        const v = m[rule.name]!;
+                        const { [rule.name]: _, ...rest } = m;
+                        return { ...rest, [newName]: v };
+                      });
                       const next = [...ui.rules];
-                      next[idx] = { ...rule, name: ruleNameOrDefault("", idx + 1) };
+                      next[idx] = { ...rule, name: newName };
                       updateRules(next);
                     }
                   }}
                 />
               </label>
-              <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}>
+              <label
+                className="kea-label"
+                style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: 0, whiteSpace: "nowrap" }}
+              >
                 <input
                   type="checkbox"
                   checked={rule.enabled}
@@ -313,6 +433,23 @@ export function ValidationStructuredEditor({ variant, value, onChange }: Props) 
                 />
                 {t("validationEditor.rule.enabled")}
               </label>
+            </div>
+            <p className="kea-hint" style={{ marginTop: "0.5rem", marginBottom: 0 }}>
+              {summary || "—"}
+            </p>
+
+            {isCardExpanded && (
+              <>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+                marginTop: "0.5rem",
+              }}
+            >
               <div style={{ display: "flex", gap: "0.25rem" }}>
                 <button
                   type="button"
@@ -352,6 +489,9 @@ export function ValidationStructuredEditor({ variant, value, onChange }: Props) 
                 </button>
               </div>
             </div>
+            <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+              {t("validationEditor.orderSetsPriority")}
+            </p>
             <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
               <label className="kea-label">
                 {t("validationEditor.rule.priority")}
@@ -491,10 +631,21 @@ export function ValidationStructuredEditor({ variant, value, onChange }: Props) 
                 />
               </label>
             </div>
+              </>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
-      <button type="button" className="kea-btn kea-btn--sm" onClick={() => updateRules([...ui.rules, defaultRule(ui.rules)])}>
+      <button
+        type="button"
+        className="kea-btn kea-btn--sm"
+        onClick={() => {
+          const nr = defaultRule(ui.rules);
+          setRuleCardExpanded((m) => ({ ...m, [nr.name]: true }));
+          updateRules([...ui.rules, nr]);
+        }}
+      >
         {t("validationEditor.rule.addRule")}
       </button>
     </div>

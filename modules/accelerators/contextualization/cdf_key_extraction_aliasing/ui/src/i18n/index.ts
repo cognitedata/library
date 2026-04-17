@@ -2,27 +2,39 @@ import type { Locale } from "./types";
 import type { MessageKey, Messages } from "./types";
 import { en } from "./en";
 import { es } from "./es";
+import { de } from "./de";
+import { fr } from "./fr";
+import { hi } from "./hi";
 import { ja } from "./ja";
 import { nb } from "./nb";
 import { pt } from "./pt";
+import { zh } from "./zh";
 
 export type { Locale, MessageKey, Messages, Theme } from "./types";
-export { en, es, ja, nb, pt };
+export { de, en, es, fr, hi, ja, nb, pt, zh };
 
 export const LOCALES: { code: Locale; label: string }[] = [
   { code: "en", label: "English" },
+  { code: "de", label: "Deutsch" },
   { code: "es", label: "Español" },
-  { code: "pt", label: "Português" },
+  { code: "fr", label: "Français" },
   { code: "nb", label: "Norsk" },
+  { code: "pt", label: "Português" },
+  { code: "hi", label: "हिन्दी" },
   { code: "ja", label: "日本語" },
+  { code: "zh", label: "中文" },
 ];
 
 export const translations: Record<Locale, Messages> = {
   en,
   es,
   pt,
+  fr,
+  de,
   nb,
   ja,
+  zh,
+  hi,
 };
 
 export function interpolate(template: string, vars: Record<string, string | number>): string {

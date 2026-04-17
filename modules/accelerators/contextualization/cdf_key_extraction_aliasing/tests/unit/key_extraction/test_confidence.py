@@ -1,4 +1,4 @@
-"""Unit tests for shared confidence scoring (regex / fixed-width helpers)."""
+"""Unit tests for shared confidence scoring (regex helpers)."""
 
 import sys
 import unittest
@@ -9,7 +9,6 @@ sys.path.insert(0, str(_LIB_ROOT))
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.confidence import (  # noqa: E402
     compute_confidence,
-    compute_fixed_width_confidence,
 )
 
 
@@ -34,13 +33,6 @@ class TestComputeConfidence(unittest.TestCase):
 
     def test_case_insensitive(self):
         self.assertEqual(compute_confidence("p-101", "P-101", case_sensitive=False), 1.0)
-
-
-class TestComputeFixedWidthConfidence(unittest.TestCase):
-    def test_base_and_required(self):
-        v = compute_fixed_width_confidence("AB12", "string", required=True)
-        self.assertGreaterEqual(v, 0.9)
-        self.assertLessEqual(v, 1.0)
 
 
 if __name__ == "__main__":

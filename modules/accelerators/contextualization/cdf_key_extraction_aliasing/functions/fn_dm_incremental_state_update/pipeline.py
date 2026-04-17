@@ -55,7 +55,7 @@ from cdf_fn_common.incremental_scope import (
     scope_watermark_row_key,
 )
 from cdf_fn_common.raw_upload import create_raw_upload_queue
-from cdf_fn_common.full_rescan import resolve_full_rescan
+from cdf_fn_common.run_all import resolve_run_all
 from cdf_fn_common.cdf_utils import create_table_if_not_exists
 
 RAW_COL_UPDATED_AT = "UPDATED_AT"
@@ -122,7 +122,7 @@ def incremental_state_update(
     if not raw_db or not raw_table_key:
         raise ValueError("raw_db and raw_table_key are required")
 
-    full_rescan = resolve_full_rescan(params, data)
+    run_all = resolve_run_all(params, data)
 
     source_views = getattr(getattr(cdf_config, "data", None), "source_views", None) or []
     if not source_views:
@@ -133,7 +133,7 @@ def incremental_state_update(
 
     skip_unchanged_inputs = bool(
         getattr(params, "incremental_skip_unchanged_source_inputs", True)
-    ) and not full_rescan
+    ) and not run_all
     extraction_rules = getattr(getattr(cdf_config, "data", None), "extraction_rules", None)
     rules_fp: Optional[str] = None
     if skip_unchanged_inputs:
@@ -174,7 +174,7 @@ def incremental_state_update(
         wm_key = scope_watermark_row_key(scope_key)
         sv_fp = scope_key
 
-        if full_rescan:
+        if run_all:
             try:
                 client.raw.rows.delete(raw_db, raw_table_key, wm_key)
             except Exception as ex:
@@ -190,7 +190,7 @@ def incremental_state_update(
             try:
                 high_wm = (
                     None
-                    if full_rescan
+                    if run_all
                     else read_key_discovery_high_watermark_ms(
                         client,
                         checkpoint_view_id,
@@ -221,7 +221,7 @@ def incremental_state_update(
                 effective_kd = False
 
         if not effective_kd:
-            high_wm = None if full_rescan else read_watermark_high_ms(
+            high_wm = None if run_all else read_watermark_high_ms(
                 client, raw_db, raw_table_key, wm_key
             )
             prior_ids = load_prior_node_ids_for_scope(
@@ -230,7 +230,7 @@ def incremental_state_update(
             hash_by_node = {}
 
         base_filter = _build_base_filter(entity_view_config, view_id)
-        if high_wm is not None and not full_rescan:
+        if high_wm is not None and not run_all:
             # Some backends can include the boundary value for `gt` on lastUpdatedTime.
             # Add +1ms to make the bound unambiguously exclusive.
             rng = dm.filters.Range(
@@ -266,13 +266,21 @@ def incremental_state_update(
         max_ts: Optional[int] = None
         space = _cfg_get(entity_view_config, "instance_space", None)
 
+        _lpp = min(1000, int(_cfg_get(entity_view_config, "batch_size", 1000) or 1000))
+        _ctx = (
+            f"scope_key={scope_key!r} "
+            f"view={view_id.space}/{view_id.external_id}/{view_id.version} "
+            f"limit_per_page={_lpp}"
+        )
         for instance in list_all_instances(
             client,
             instance_type="node",
             space=space,
             sources=[view_id],
             filter=filt,
-            limit_per_page=min(1000, int(_cfg_get(entity_view_config, "batch_size", 1000) or 1000)),
+            limit_per_page=_lpp,
+            logger=logger,
+            progress_context=_ctx,
         ):
             nid = node_instance_id_str(instance)
             if not nid:

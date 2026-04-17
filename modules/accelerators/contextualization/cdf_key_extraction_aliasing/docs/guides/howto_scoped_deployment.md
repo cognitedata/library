@@ -2,7 +2,7 @@
 
 Use this guide when you need **one workflow** (`key_extraction_aliasing`) with **per-scope schedule triggers** (different sites, plants, or instance spaces). You edit the **scope hierarchy** in [`default.config.yaml`](../../default.config.yaml), generate **CDF Toolkit** YAML under [`workflows/`](../../workflows/), optionally adjust **instance space** handling, validate locally with [`module.py`](../../module.py), and deploy from a **Cognite Toolkit** project that includes this module.
 
-**Documentation index:** [docs/README.md](../README.md) · **Workflow task graph:** [workflows/README.md](../../workflows/README.md) · **Quickstart:** [howto_quickstart.md](howto_quickstart.md)
+**Documentation index:** [docs/README.md](../README.md) · **Workflow task graph:** [workflows/README.md](../../workflows/README.md) · **Quickstart:** [howto_quickstart.md](howto_quickstart.md) · **Config authoring:** [howto_config_yaml.md](howto_config_yaml.md), [howto_config_ui.md](howto_config_ui.md)
 
 ## Flow overview
 
@@ -101,7 +101,7 @@ There is **no** CLI flag to point `module.py` directly at a `WorkflowTrigger.yam
 5. Run from repository root with **`PYTHONPATH=.`**:
 
 ```bash
-python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py \
+python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py run \
   --config-path /path/to/my_leaf.local.yaml \
   --dry-run --limit 50
 ```
@@ -122,6 +122,8 @@ Official Toolkit repository and docs: [CDF Toolkit](https://github.com/cogniteda
 
 ## Related reading
 
+- [How to build configuration with YAML](howto_config_yaml.md) — files, template alignment, build/run
+- [How to build configuration with the UI](howto_config_ui.md) — edit triggers and run locally
 - [config/README.md](../../config/README.md) — hierarchy builder details
 - [Configuration guide](configuration_guide.md) — v1 scope shape, `source_views`, parameters
 - [Quickstart](howto_quickstart.md) — `.env` and first `module.py` run

@@ -8,15 +8,14 @@ from CDF data model views and extracts keys using the KeyExtractionEngine.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
 from cognite.client.data_classes import Row
 from cognite.client.data_classes.data_modeling.ids import NodeId
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 
-from cdf_fn_common.full_rescan import resolve_full_rescan
+from cdf_fn_common.run_all import resolve_run_all
 from cdf_fn_common.extraction_input_hash import (
     apply_preprocessing,
     compute_extraction_inputs_hash_from_entity_row,
@@ -52,11 +51,7 @@ from .common.logger import CogniteFunctionLogger
 from .engine.key_extraction_engine import ExtractionResult, KeyExtractionEngine
 from .services.ApplyService import GeneralApplyService
 
-from .raw_join_utils import (
-    entity_props_for_view,
-    merged_join_columns_for_instance,
-    preload_raw_lookups,
-)
+from .raw_join_utils import entity_props_for_view
 from .utils.rule_utils import get_rule_id
 from cdf_fn_common.raw_upload import create_raw_upload_queue
 
@@ -155,6 +150,7 @@ def _dedupe_foreign_key_references(result: ExtractionResult) -> List[Dict[str, A
             "confidence": conf,
             "source_field": getattr(fk, "source_field", None),
             "rule_id": getattr(fk, "rule_id", None),
+            "source_inputs": getattr(fk, "source_inputs", None) or {},
         }
         if v not in best or conf > best[v]["confidence"]:
             best[v] = entry
@@ -174,6 +170,7 @@ def _dedupe_document_references(result: ExtractionResult) -> List[Dict[str, Any]
             "confidence": conf,
             "source_field": getattr(doc, "source_field", None),
             "rule_id": getattr(doc, "rule_id", None),
+            "source_inputs": getattr(doc, "source_inputs", None) or {},
         }
         if v not in best or conf > best[v]["confidence"]:
             best[v] = entry
@@ -248,11 +245,13 @@ def _load_incremental_cohort_entities(
     # Retrieve instances in batches grouped by view
     batch: List[Any] = []
     batch_meta: List[Dict[str, Any]] = []
+    cohort_retrieve_batch_no = 0
 
     def flush_batch() -> None:
-        nonlocal batch, batch_meta
+        nonlocal batch, batch_meta, cohort_retrieve_batch_no
         if not batch:
             return
+        n_queued = len(batch)
         # Group consecutive batches by view for retrieve_nodes (one view per API call).
         def _view_tuple(vc: Any) -> tuple:
             return (
@@ -339,6 +338,16 @@ def _load_incremental_cohort_entities(
                         field_value = apply_preprocessing(str(field_value), preprocessing)
                     tgt[field_name] = field_value
 
+        cohort_retrieve_batch_no += 1
+        if hasattr(logger, "info"):
+            logger.info(
+                "Cohort retrieve batch %s complete: %s node(s) in batch, %s entities loaded "
+                "cumulative (run_id=%s)",
+                cohort_retrieve_batch_no,
+                n_queued,
+                len(entities_source),
+                run_id,
+            )
         batch = []
         batch_meta = []
 
@@ -386,6 +395,23 @@ def _load_incremental_cohort_entities(
     return entities_source
 
 
+def require_incremental_change_processing_for_cdf(cdf_config: Any) -> None:
+    """Raise if CDF key extraction would use unsupported direct view listing."""
+    params = getattr(cdf_config, "parameters", None)
+    inc = getattr(params, "incremental_change_processing", None)
+    if inc is None:
+        inc = True
+    else:
+        inc = bool(inc)
+    if not inc:
+        raise ValueError(
+            "key_extraction requires parameters.incremental_change_processing=true. "
+            "Run fn_dm_incremental_state_update before fn_dm_key_extraction so the RAW cohort "
+            "(RUN_ID, WORKFLOW_STATUS=detected) is populated; direct Data Modeling view listing "
+            "is not supported."
+        )
+
+
 def key_extraction(
     client: Optional[CogniteClient],
     logger: Any,
@@ -424,17 +450,17 @@ def key_extraction(
         use_cdf_format = cdf_config is not None and client is not None
 
         if use_cdf_format:
-            _fr = resolve_full_rescan(cdf_config.parameters, data)
+            _fr = resolve_run_all(cdf_config.parameters, data)
             if hasattr(cdf_config, "model_copy"):
                 cdf_config = cdf_config.model_copy(
                     update={
                         "parameters": cdf_config.parameters.model_copy(
-                            update={"full_rescan": _fr}
+                            update={"run_all": _fr}
                         )
                     }
                 )
             else:
-                cdf_config.parameters.full_rescan = _fr
+                cdf_config.parameters.run_all = _fr
             # Extract parameters from CDF config
             raw_db = cdf_config.parameters.raw_db
             raw_table_key = cdf_config.parameters.raw_table_key
@@ -446,23 +472,18 @@ def key_extraction(
                 f"Using CDF format: raw_db={raw_db}, raw_table_key={raw_table_key}"
             )
 
-            incremental = bool(
-                getattr(cdf_config.parameters, "incremental_change_processing", False)
-            )
-            if incremental:
-                rid = _resolve_incremental_run_id(client, raw_db, raw_table_key, data)
-                if not rid:
-                    rid = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
-                    logger.warning(
-                        "No incremental run_id provided and none discoverable from "
-                        "WORKFLOW_STATUS=detected; continuing with empty cohort run_id="
-                        f"{rid}"
-                    )
-                run_id = rid
-                data["run_id"] = run_id
-            else:
-                run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
-                data["run_id"] = run_id
+            require_incremental_change_processing_for_cdf(cdf_config)
+
+            rid = _resolve_incremental_run_id(client, raw_db, raw_table_key, data)
+            if not rid:
+                rid = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+                logger.warning(
+                    "No incremental run_id provided and none discoverable from "
+                    "WORKFLOW_STATUS=detected; continuing with empty cohort run_id="
+                    f"{rid}"
+                )
+            run_id = rid
+            data["run_id"] = run_id
 
             # Initialize RAW upload queue (size from CDF_RAW_UPLOAD_MAX_QUEUE_SIZE or default)
             raw_uploader = create_raw_upload_queue(client)
@@ -489,7 +510,7 @@ def key_extraction(
             rn = getattr(rule, "name", None) or getattr(rule, "rule_id", None)
             if rn is None:
                 continue
-            sfs = getattr(rule, "source_fields", None) or []
+            sfs = getattr(rule, "fields", None) or getattr(rule, "source_fields", None) or []
             if not isinstance(sfs, list):
                 sfs = [sfs]
             rule_source_fields_map[str(rn)] = [
@@ -499,16 +520,20 @@ def key_extraction(
             ]
         rules_used_counts: Dict[str, int] = {}
 
-        incremental_mode = bool(
-            cdf_config
-            and getattr(
+        _inc_mode = (
+            getattr(
                 getattr(cdf_config, "parameters", None),
                 "incremental_change_processing",
-                False,
+                None,
             )
+            if cdf_config
+            else None
         )
+        if _inc_mode is None:
+            _inc_mode = True
+        incremental_mode = bool(cdf_config) and bool(_inc_mode)
 
-        # Serial extraction per entity; instance listing uses batch_size on the source view upstream.
+        # Serial extraction per entity (cohort from fn_dm_incremental_state_update when using CDF).
         for entity_id, entity_fields in entities_source_fields.items():
             ef = dict(entity_fields)
             kex_iso = ef.pop("_kex_exclude_self_referencing_keys", None)
@@ -576,6 +601,7 @@ def key_extraction(
                     "rule_name": key_rule_name,
                     "matched_source_field": key.source_field,
                     "rule_source_fields": rule_source_fields_map.get(key_rule_name, []),
+                    "source_inputs": getattr(key, "source_inputs", None) or {},
                 }
 
             fk_refs = _dedupe_foreign_key_references(result)
@@ -885,12 +911,11 @@ def key_extraction(
 
 
 def _iter_rule_source_fields(rule: Any) -> List[Any]:
-    """Normalize source_fields on a rule to a list."""
-    sf = (
-        rule.get("source_fields", None)
-        if isinstance(rule, dict)
-        else getattr(rule, "source_fields", None)
-    )
+    """Normalize fields[] (or legacy source_fields[]) on a rule to a list."""
+    if isinstance(rule, dict):
+        sf = rule.get("fields") or rule.get("source_fields")
+    else:
+        sf = getattr(rule, "fields", None) or getattr(rule, "source_fields", None)
     if sf is None:
         return []
     return list(sf) if isinstance(sf, list) else [sf]
@@ -1004,209 +1029,26 @@ def _get_target_entities_cdf(
     data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Get entities from CDF data model views.
+    Load entities for the incremental RAW cohort (``data["run_id"]`` + ``WORKFLOW_STATUS=detected``).
 
-    When ``config.data.source_tables`` is non-empty, loads each RAW table once (cached),
-    left-joins to instances on configured join keys, and fills ``table_data`` for
-    ``source_field.table_id`` references (see key extraction engine ``_get_field_value``).
-
-    When ``incremental_change_processing`` is true, loads instances for the RAW cohort
-    (``data["run_id"]`` + ``WORKFLOW_STATUS=detected``) instead of listing views.
+    CDF key extraction no longer lists Data Modeling views directly; run
+    ``fn_dm_incremental_state_update`` first. ``source_tables`` RAW joins are not applied in
+    cohort mode (see log warning in ``_load_incremental_cohort_entities``).
     """
     data = data or {}
-    if bool(getattr(config.parameters, "incremental_change_processing", False)):
-        run_id = data.get("run_id")
-        if not run_id:
-            logger.error("incremental mode requires data['run_id']")
-            return {}
-        return _load_incremental_cohort_entities(client, config, logger, str(run_id))
-
-    entities_source: Dict[str, Dict[str, Any]] = {}
-    source_views = getattr(config.data, "source_views", None) or (
-        [config.data.source_view] if getattr(config.data, "source_view", None) else []
-    )
-    if not source_views:
-        logger.error("No Source View(s) defined for key extraction")
-        raise ValueError("No Source View(s) defined for key extraction")
-
-    raw_db = config.parameters.raw_db
-    raw_table_key = config.parameters.raw_table_key
-    full_rescan = resolve_full_rescan(config.parameters, data)
-    excluded_entities: List[str] = []
-    if not full_rescan:
-        policy = getattr(config.parameters, "skip_entity_policy", "successful_only")
-        chunk = getattr(config.parameters, "raw_skip_scan_chunk_size", 5000)
-        if policy == "none":
-            excluded_entities = []
-        else:
-            excluded_entities = list(
-                dict.fromkeys(
-                    _read_entity_keys_to_exclude(
-                        client, raw_db, raw_table_key, policy, chunk
-                    )
-                )
-            )
-        logger.debug(f"Excluding {len(excluded_entities)} existing entities (policy={policy!r})")
-
-    max_files = getattr(getattr(config, "parameters", None), "max_files", None)
-    if isinstance(max_files, bool):
-        max_files = None
-    if isinstance(max_files, int) and max_files <= 0:
-        max_files = None
-
-    source_tables = getattr(config.data, "source_tables", None) or []
-    extraction_rules = getattr(getattr(config, "data", None), "extraction_rules", None)
-    raw_lookups: Dict[Tuple[str, str], Optional[Dict[str, Dict[str, Any]]]] = {}
-    if source_tables:
-        raw_lookups = preload_raw_lookups(client, list(source_tables), logger)
-
-    for entity_view_config in source_views:
-        entity_view_id = entity_view_config.as_view_id()
-        logger.debug(f"Querying view: {entity_view_id}")
-        filter_expr = _build_filter(
-            entity_view_config,
-            excluded_entities,
-            logger,
+    _inc = getattr(config.parameters, "incremental_change_processing", None)
+    if _inc is None:
+        _inc = True
+    if not bool(_inc):
+        raise ValueError(
+            "incremental_change_processing must be true for CDF entity loading "
+            "(defensive check; use require_incremental_change_processing_for_cdf earlier)."
         )
-
-        try:
-            remaining = None
-            if isinstance(max_files, int):
-                remaining = max_files - len(entities_source)
-                if remaining <= 0:
-                    break
-
-            instances = client.data_modeling.instances.list(
-                instance_type="node",
-                space=getattr(entity_view_config, "instance_space", None),
-                sources=[entity_view_id],
-                filter=filter_expr,
-                limit=min(entity_view_config.batch_size, remaining)
-                if isinstance(remaining, int)
-                else entity_view_config.batch_size,
-            )
-
-            logger.debug(
-                f"Retrieved {len(instances)} instances from view: {entity_view_id}"
-            )
-
-            if source_tables:
-                if not len(instances):
-                    logger.info(f"No instances for view {entity_view_id}; skipping joins.")
-                    continue
-                for instance in instances:
-                    entity_external_id = instance.external_id
-                    if entity_external_id in entities_source:
-                        continue
-                    eprops = entity_props_for_view(instance, entity_view_id)
-                    merged_cols = merged_join_columns_for_instance(
-                        eprops, list(source_tables), raw_lookups
-                    )
-                    entities_source[entity_external_id] = _build_entity_payload_with_rules(
-                        instance=instance,
-                        merged_columns=merged_cols,
-                        extraction_rules=extraction_rules,
-                        entity_view_id=entity_view_id,
-                        entity_view_config=entity_view_config,
-                        logger=logger,
-                    )
-                    if isinstance(max_files, int) and len(entities_source) >= max_files:
-                        break
-            else:
-                for instance in instances:
-                    entity_external_id = instance.external_id
-                    entity_props = (
-                        instance.dump()
-                        .get("properties", {})
-                        .get(entity_view_id.space, {})
-                        .get(
-                            f"{entity_view_id.external_id}/{entity_view_id.version}",
-                            {},
-                        )
-                    )
-
-                    if entity_external_id not in entities_source:
-                        row: Dict[str, Any] = {
-                            "entity_type": entity_view_config.entity_type.value,
-                            "view_space": entity_view_id.space,
-                            "view_external_id": entity_view_id.external_id,
-                            "view_version": entity_view_id.version,
-                            "instance_space": (
-                                getattr(entity_view_config, "instance_space", None)
-                                or getattr(instance, "space", None)
-                            ),
-                        }
-                        kex_iso = getattr(
-                            entity_view_config, "exclude_self_referencing_keys", None
-                        )
-                        if kex_iso is not None:
-                            row["_kex_exclude_self_referencing_keys"] = kex_iso
-                        entities_source[entity_external_id] = row
-
-                    wanted_fields = iter_wanted_fields(
-                        extraction_rules, entity_view_config
-                    )
-
-                    for field_name, required, preprocessing in wanted_fields:
-                        if not field_name:
-                            continue
-                        field_value = get_value_by_property_path(
-                            entity_props, field_name
-                        )
-                        if field_value is None:
-                            if required:
-                                logger.verbose(
-                                    "WARNING",
-                                    f"Missing required field '{field_name}' in entity: {entity_external_id}",
-                                )
-                            continue
-
-                        if preprocessing:
-                            field_value = apply_preprocessing(
-                                str(field_value), preprocessing
-                            )
-                        entities_source[entity_external_id][field_name] = field_value
-
-                    if isinstance(max_files, int) and len(entities_source) >= max_files:
-                        break
-
-            logger.info(
-                f"Processed {len(entities_source)} entities from view: {entity_view_id}"
-            )
-
-        except Exception as e:
-            logger.error(f"Error querying view {entity_view_id}: {e}")
-            raise
-
-        if isinstance(max_files, int) and len(entities_source) >= max_files:
-            break
-
-    return entities_source
-
-
-
-def _build_filter(
-    entity_config: Any, excluded_entities: list[str], logger: Any
-) -> dm.filters.Filter:
-    """Build filter expression for querying entities."""
-    entity_view_id = entity_config.as_view_id()
-    is_view = dm.filters.HasData(views=[entity_view_id])
-    is_selected = is_view
-
-    # Exclude already processed entities
-    if excluded_entities:
-        is_excluded = dm.filters.Not(
-            dm.filters.In(
-                entity_view_id.as_property_ref("external_id"), excluded_entities
-            )
-        )
-        is_selected = dm.filters.And(is_selected, is_excluded)
-
-    # Apply custom filters
-    if entity_config.filters and len(entity_config.filters) > 0:
-        is_selected = dm.filters.And(is_selected, entity_config.build_filter())
-
-    return is_selected
+    run_id = data.get("run_id")
+    if not run_id:
+        logger.error("incremental mode requires data['run_id']")
+        return {}
+    return _load_incremental_cohort_entities(client, config, logger, str(run_id))
 
 
 from .common.cdf_utils import create_table_if_not_exists as _create_table_if_not_exists

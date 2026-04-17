@@ -64,15 +64,40 @@ def get_config(rule: Any) -> Dict[str, Any]:
     return {}
 
 
+def merge_rule_parameters_config(rule: Any) -> Dict[str, Any]:
+    """
+    Merge parameters and config for a rule (scope YAML often uses `parameters` only).
+    Shallow merge: config keys override parameters.
+    """
+    if rule is None:
+        return {}
+    if isinstance(rule, dict):
+        merged: Dict[str, Any] = {}
+        p, c = rule.get("parameters"), rule.get("config")
+        if isinstance(p, dict):
+            merged.update(p)
+        if isinstance(c, dict):
+            merged = {**merged, **c}
+        return merged
+    p = getattr(rule, "parameters", None)
+    c = getattr(rule, "config", None)
+    merged = {}
+    if isinstance(p, dict):
+        merged.update(p)
+    if isinstance(c, dict):
+        merged = {**merged, **c}
+    return merged
+
+
 def get_source_field_name(rule: Any, default: str = "unknown") -> str:
-    """Return the first source field's field_name. Works with object or dict."""
+    """Return the first field's field_name (fields[] or legacy source_fields)."""
     if rule is None:
         return default
     fields = None
     if isinstance(rule, dict):
-        fields = rule.get("source_fields")
+        fields = rule.get("fields") or rule.get("source_fields")
     else:
-        fields = getattr(rule, "source_fields", None)
+        fields = getattr(rule, "fields", None) or getattr(rule, "source_fields", None)
     if not fields:
         return default
     first = fields[0] if isinstance(fields, list) else fields
@@ -104,24 +129,30 @@ def normalize_extraction_type(extraction_type: Any) -> ExtractionType:
 
 
 def normalize_method(method: Any) -> ExtractionMethod:
-    """Return ExtractionMethod enum. Accepts string or enum. Missing/blank → passthrough."""
+    """Return ExtractionMethod enum. Missing/blank → regex_handler. Legacy handlers → UNSUPPORTED."""
     if method is None:
-        return ExtractionMethod.PASSTHROUGH
+        return ExtractionMethod.REGEX_HANDLER
     if isinstance(method, ExtractionMethod):
         return method
     if isinstance(method, str):
         stripped = method.strip()
         if not stripped:
-            return ExtractionMethod.PASSTHROUGH
-        normalized = stripped.replace("_", " ")
-        for e in ExtractionMethod:
-            if e.value == normalized or e.value == stripped:
-                return e
-        if stripped == "fixed_width":
-            return ExtractionMethod.FIXED_WIDTH
-        if stripped == "token_reassembly":
-            return ExtractionMethod.TOKEN_REASSEMBLY
-    return ExtractionMethod.REGEX
+            return ExtractionMethod.REGEX_HANDLER
+        key = stripped.lower().replace(" ", "_").replace("-", "_")
+        aliases = {
+            "regex_handler": ExtractionMethod.REGEX_HANDLER,
+            "regexhandler": ExtractionMethod.REGEX_HANDLER,
+            "field_rule": ExtractionMethod.REGEX_HANDLER,
+            # Deprecated: fixed-width handler removed; treat as regex field rules.
+            "field_rule_fixed_width": ExtractionMethod.REGEX_HANDLER,
+            "heuristic": ExtractionMethod.HEURISTIC,
+        }
+        if key in aliases:
+            return aliases[key]
+        legacy = {"passthrough", "regex", "token_reassembly", "fixed_width", "fixedwidth"}
+        if key in legacy:
+            return ExtractionMethod.UNSUPPORTED
+    return ExtractionMethod.UNSUPPORTED
 
 
 def get_extraction_type_from_rule(rule: Any) -> ExtractionType:
@@ -136,7 +167,7 @@ def get_extraction_type_from_rule(rule: Any) -> ExtractionType:
 def get_handler_from_rule(rule: Any) -> ExtractionMethod:
     """Return rule handler (extraction method) as enum. Works with object or dict."""
     if rule is None:
-        return ExtractionMethod.PASSTHROUGH
+        return ExtractionMethod.REGEX_HANDLER
     if isinstance(rule, dict):
         return normalize_method(rule.get("handler"))
     return normalize_method(getattr(rule, "handler", None))

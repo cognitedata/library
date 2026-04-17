@@ -2,22 +2,31 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from ...common.logger import CogniteFunctionLogger
-from ...utils.DataStructures import *
+from ...utils.DataStructures import ExtractedKey
 
 
 class ExtractionMethodHandler(ABC):
-    """Abstract base class for extraction method handlers."""
+    """Abstract base class for extraction handlers (entity-level API)."""
 
     def __init__(
         self,
         logger: Optional[CogniteFunctionLogger] = None,
     ):
-        """Create a handler with optional logger."""
         self.logger = logger or CogniteFunctionLogger("INFO", False)
 
     @abstractmethod
-    def extract(
-        self, text: str, rule: ExtractionRule, context: Dict[str, Any] = None
+    def extract_from_entity(
+        self,
+        entity: Dict[str, Any],
+        rule: Any,
+        context: Dict[str, Any],
+        *,
+        get_field_value: Any,
     ) -> List[ExtractedKey]:
-        """Extract keys from text using the specific method."""
+        """
+        Extract keys from entity using rule configuration.
+
+        get_field_value: callable (entity, field_spec_like, rule_name) -> Optional[str]
+        implemented by KeyExtractionEngine._get_field_value.
+        """
         pass

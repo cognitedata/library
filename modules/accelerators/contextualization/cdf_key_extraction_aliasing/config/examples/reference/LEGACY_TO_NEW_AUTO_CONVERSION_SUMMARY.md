@@ -2,6 +2,8 @@
 
 This document consolidates all mapping findings for **automated conversion** of legacy pipeline configs (jinja2 filter chains in `solutions-register-main/celanese/ce-data-pipelines/prod`) to the new key discovery and aliasing config format.
 
+**Note:** The `token_reassembly` and **`fixed width`** extraction methods were **removed** from the engine. Mentions of them in lookup tables below are **historical**; new configs should use **regex**, **heuristic**, and **aliasing**.
+
 ---
 
 ## 1. Legacy config structure
@@ -158,6 +160,6 @@ Replace with:
 
 - **Legacy filters**: `celanese-data-pipelines-main/src/filters/jinja2_filters.py`
 - **Legacy configs**: `solutions-register-main/celanese/ce-data-pipelines/prod/**/*.yaml`
-- **New extraction handlers**: `modules/.../fn_dm_key_extraction/engine/handlers/` (regex, fixed_width, token_reassembly, heuristic)
+- **New extraction handlers**: `modules/.../fn_dm_key_extraction/engine/handlers/` (regex field rules, heuristic)
 - **New aliasing**: `modules/.../fn_dm_aliasing`; rule types in cdf_adapter.py
 - **Full mapping details**: `LEGACY_TO_NEW_KEY_EXTRACTION_ALIASING_MAPPING.md`

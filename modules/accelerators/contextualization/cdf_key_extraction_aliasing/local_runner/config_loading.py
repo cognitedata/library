@@ -64,25 +64,22 @@ def _default_passthrough_rules_for_views(
         rules.append(
             {
                 "name": f"default_passthrough_name_{et}",
-                "handler": "passthrough",
+                "handler": "regex_handler",
                 "extraction_type": "candidate_key",
-                "description": f"Default passthrough on name for {et}",
+                "description": f"Default trim passthrough on name for {et}",
                 "enabled": True,
                 "priority": 50,
                 "scope_filters": {"entity_type": [et]},
-                "parameters": {"min_confidence": 1.0},
-                "source_fields": [
+                "field_results_mode": "merge_all",
+                "fields": [
                     {
                         "field_name": "name",
                         "required": True,
                         "max_length": 500,
-                        "field_type": "string",
                         "priority": 1,
-                        "role": "target",
                         "preprocessing": ["trim"],
                     }
                 ],
-                "field_selection_strategy": "first_match",
             }
         )
     return rules

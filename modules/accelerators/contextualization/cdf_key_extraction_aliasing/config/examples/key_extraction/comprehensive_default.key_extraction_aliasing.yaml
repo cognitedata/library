@@ -1,165 +1,166 @@
 schemaVersion: 1
 source_views:
-  - view_external_id: CogniteAsset
-    view_space: cdf_cdm
-    view_version: v1
-    instance_space: sp_enterprise_schema
-    entity_type: asset
-    filters:
-    - operator: CONTAINSANY
-      target_property: tags
-      values:
-      - asset_tag
-    include_properties:
-    - externalId
-    - name
-    - description
-    - tags
-    validation:
-      confidence_match_rules:
-      - name: isa_compliant
-        priority: 50
-        match:
-          expressions:
-          - pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard pump tags (P-101, P101A, P-2001)
-          - pattern: '\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b'
-            description: Pump with service designation (FWP-101, CWP-201)
-          - pattern: '\bCP[-_]?\d{1,6}[A-Z]?\b'
-            description: Centrifugal pump tags
-          - pattern: '\bC[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard compressor tags (C-101, C101A)
-          - pattern: '\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b'
-            description: Compressor with type designation (AC-101, RC-201)
-          - pattern: '\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b'
-            description: Control valve tags (FCV-101, PCV-201, TCV-301)
-          - pattern: '\bV[-_]?\d{1,6}[A-Z]?\b'
-            description: Manual valve and vessel tags (V-101, V101A)
-          - pattern: '\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b'
-            description: Safety valve tags (PSV-101, TSV-201)
-          - pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard tank tags (T-101, T101A)
-          - pattern: '\bR[-_]?\d{1,6}[A-Z]?\b'
-            description: Reactor tags (R-101, R101A)
-          - pattern: '\bE[-_]?\d{1,6}[A-Z]?\b'
-            description: Heat exchanger tags (E-101, E101A)
-          - pattern: '\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b'
-            description: Heat exchanger with type (HE-101, CE-201)
-          - pattern: '\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Flow instruments (FIC-101, FIT-201, FCV-301)
-          - pattern: '\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-          - pattern: '\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-          - pattern: '\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Level instruments (LIC-101, LIT-201, LCV-301)
-          - pattern: '\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-          - pattern: '\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b'
-            description: Distillation column tags (C-101, DC-201)
-        confidence_modifier:
-          mode: explicit
-          value: 1.0
-      - name: not_isa_penalty
-        priority: 1000
-        match:
-          expressions:
-          - pattern: '(?s).*'
-            description: Catch-all when no higher-priority rule matched; applies non-ISA penalty
-        confidence_modifier:
-          mode: offset
-          value: -0.2
-  - view_external_id: CogniteFile
-    view_space: cdf_cdm
-    view_version: v1
-    instance_space: springfield_instances
-    entity_type: file
-    batch_size: 50
-    filters:
-    - operator: IN
-      target_property: mimeType
-      values:
-      - application/pdf
-    include_properties:
-    - externalId
-    - name
-    - description
-    - tags
-    - documentType
-    - drawingNumber
-  - view_external_id: CogniteTimeSeries
-    view_space: cdf_cdm
-    view_version: v1
-    instance_space: springfield_instances
-    entity_type: timeseries
-    batch_size: 200
-    include_properties:
-    - externalId
-    - name
-    - description
-    - tags
-    - unit
-    validation:
-      confidence_match_rules:
-      - name: isa_compliant
-        priority: 50
-        match:
-          expressions:
-          - pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard pump tags (P-101, P101A, P-2001)
-          - pattern: '\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b'
-            description: Pump with service designation (FWP-101, CWP-201)
-          - pattern: '\bCP[-_]?\d{1,6}[A-Z]?\b'
-            description: Centrifugal pump tags
-          - pattern: '\bC[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard compressor tags (C-101, C101A)
-          - pattern: '\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b'
-            description: Compressor with type designation (AC-101, RC-201)
-          - pattern: '\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b'
-            description: Control valve tags (FCV-101, PCV-201, TCV-301)
-          - pattern: '\bV[-_]?\d{1,6}[A-Z]?\b'
-            description: Manual valve and vessel tags (V-101, V101A)
-          - pattern: '\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b'
-            description: Safety valve tags (PSV-101, TSV-201)
-          - pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard tank tags (T-101, T101A)
-          - pattern: '\bR[-_]?\d{1,6}[A-Z]?\b'
-            description: Reactor tags (R-101, R101A)
-          - pattern: '\bE[-_]?\d{1,6}[A-Z]?\b'
-            description: Heat exchanger tags (E-101, E101A)
-          - pattern: '\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b'
-            description: Heat exchanger with type (HE-101, CE-201)
-          - pattern: '\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Flow instruments (FIC-101, FIT-201, FCV-301)
-          - pattern: '\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-          - pattern: '\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-          - pattern: '\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Level instruments (LIC-101, LIT-201, LCV-301)
-          - pattern: '\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-          - pattern: '\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b'
-            description: Distillation column tags (C-101, DC-201)
-        confidence_modifier:
-          mode: explicit
-          value: 1.0
-      - name: not_isa_penalty
-        priority: 1000
-        match:
-          expressions:
-          - pattern: '(?s).*'
-            description: Catch-all when no higher-priority rule matched; applies non-ISA penalty
-        confidence_modifier:
-          mode: offset
-          value: -0.2
-
+- view_external_id: CogniteAsset
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: sp_enterprise_schema
+  entity_type: asset
+  filters:
+  - operator: CONTAINSANY
+    target_property: tags
+    values:
+    - asset_tag
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  validation:
+    confidence_match_rules:
+    - name: isa_compliant
+      priority: 50
+      match:
+        expressions:
+        - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+          description: Standard pump tags (P-101, P101A, P-2001)
+        - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+          description: Pump with service designation (FWP-101, CWP-201)
+        - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+          description: Centrifugal pump tags
+        - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+          description: Standard compressor tags (C-101, C101A)
+        - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+          description: Compressor with type designation (AC-101, RC-201)
+        - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+          description: Control valve tags (FCV-101, PCV-201, TCV-301)
+        - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+          description: Manual valve and vessel tags (V-101, V101A)
+        - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+          description: Safety valve tags (PSV-101, TSV-201)
+        - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+          description: Standard tank tags (T-101, T101A)
+        - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+          description: Reactor tags (R-101, R101A)
+        - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+          description: Heat exchanger tags (E-101, E101A)
+        - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+          description: Heat exchanger with type (HE-101, CE-201)
+        - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Flow instruments (FIC-101, FIT-201, FCV-301)
+        - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+        - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+        - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Level instruments (LIC-101, LIT-201, LCV-301)
+        - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+        - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+          description: Distillation column tags (C-101, DC-201)
+      confidence_modifier:
+        mode: explicit
+        value: 1.0
+    - name: not_isa_penalty
+      priority: 1000
+      match:
+        expressions:
+        - pattern: (?s).*
+          description: Catch-all when no higher-priority rule matched; applies non-ISA
+            penalty
+      confidence_modifier:
+        mode: offset
+        value: -0.2
+- view_external_id: CogniteFile
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: springfield_instances
+  entity_type: file
+  batch_size: 50
+  filters:
+  - operator: IN
+    target_property: mimeType
+    values:
+    - application/pdf
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  - documentType
+  - drawingNumber
+- view_external_id: CogniteTimeSeries
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: springfield_instances
+  entity_type: timeseries
+  batch_size: 200
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  - unit
+  validation:
+    confidence_match_rules:
+    - name: isa_compliant
+      priority: 50
+      match:
+        expressions:
+        - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+          description: Standard pump tags (P-101, P101A, P-2001)
+        - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+          description: Pump with service designation (FWP-101, CWP-201)
+        - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+          description: Centrifugal pump tags
+        - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+          description: Standard compressor tags (C-101, C101A)
+        - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+          description: Compressor with type designation (AC-101, RC-201)
+        - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+          description: Control valve tags (FCV-101, PCV-201, TCV-301)
+        - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+          description: Manual valve and vessel tags (V-101, V101A)
+        - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+          description: Safety valve tags (PSV-101, TSV-201)
+        - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+          description: Standard tank tags (T-101, T101A)
+        - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+          description: Reactor tags (R-101, R101A)
+        - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+          description: Heat exchanger tags (E-101, E101A)
+        - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+          description: Heat exchanger with type (HE-101, CE-201)
+        - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Flow instruments (FIC-101, FIT-201, FCV-301)
+        - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+        - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+        - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Level instruments (LIC-101, LIT-201, LCV-301)
+        - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+        - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+          description: Distillation column tags (C-101, DC-201)
+      confidence_modifier:
+        mode: explicit
+        value: 1.0
+    - name: not_isa_penalty
+      priority: 1000
+      match:
+        expressions:
+        - pattern: (?s).*
+          description: Catch-all when no higher-priority rule matched; applies non-ISA
+            penalty
+      confidence_modifier:
+        mode: offset
+        value: -0.2
 key_extraction:
   externalId: ctx_key_extraction_default
   config:
     parameters:
       debug: true
-      full_rescan: true
+      run_all: true
       raw_db: db_key_extraction
       raw_table_key: key_extraction_state
     data:
@@ -187,559 +188,243 @@ key_extraction:
             value: 0.0
       extraction_rules:
       - name: pump_tag_extraction
-        handler: regex
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Extract pump tags like P-10001, P-10002, P101A from name field (assets only)
+        description: Extract pump tags like P-10001, P-10002, P101A from name field
+          (assets only)
         enabled: true
         priority: 50
         scope_filters:
           entity_type:
           - asset
-        parameters:
-          pattern: \bP[-_]?\d{1,6}[A-Z]?\b
-          max_matches_per_field: 10
-          regex_options:
-            ignore_case: false
-            multiline: false
-            dotall: false
-            unicode: true
-          early_termination: false
-        source_fields:
+        fields:
         - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
-      - name: tank_reference_extraction
-        handler: regex
-        extraction_type: foreign_key_reference
-        description: Extract tank references like T-301, T-201 from description field
-        enabled: true
-        priority: 60
-        parameters:
-          pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+          regex: \bP[-_]?\d{1,6}[A-Z]?\b
           max_matches_per_field: 10
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: false
-        source_fields:
+        field_results_mode: first_match
+      - name: tank_reference_extraction
+        handler: regex_handler
+        extraction_type: foreign_key_reference
+        description: Extract tank references like T-301, T-201 from description field
+        enabled: true
+        priority: 60
+        fields:
         - field_name: description
           required: false
           max_length: 1000
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: merge_all
+          regex: \bT[-_]?\d{1,6}[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: merge_all
       - name: instrument_tag_extraction
-        handler: regex
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Extract ISA standard instrument tags like FIC-2001, PIC-3002 (assets and timeseries)
+        description: Extract ISA standard instrument tags like FIC-2001, PIC-3002
+          (assets and timeseries)
         enabled: true
         priority: 55
         scope_filters:
           entity_type:
           - asset
           - timeseries
-        parameters:
-          pattern: \b([A-Z]{2,4})-(\d{3,4})\b
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \b([A-Z]{2,4})-(\d{3,4})\b
           max_matches_per_field: 10
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: name
-          required: true
-          max_length: 500
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: first_match
+        field_results_mode: first_match
       - name: timeseries_tag_pattern_extraction
-        handler: regex
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Extract tag patterns like 23-LY-92529 from timeseries names (timeseries only)
+        description: Extract tag patterns like 23-LY-92529 from timeseries names (timeseries
+          only)
         enabled: true
         priority: 52
         scope_filters:
           entity_type:
           - timeseries
-        parameters:
-          pattern: (?:^|[_\\s])(?P<tag_pattern>\d+-[A-Z]{1,4}-\d{4,6})(?=[_\\s:]|$)
-          reassemble_format: '{tag_pattern}'
-          capture_groups:
-          - name: tag_pattern
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: (?:^|[_\\s])(?P<tag_pattern>\d+-[A-Z]{1,4}-\d{4,6})(?=[_\\s:]|$)
           max_matches_per_field: 10
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: name
-          required: true
-          max_length: 500
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: first_match
-      - name: timeseries_tag_pattern_fixed_width
-        handler: fixed width
+        field_results_mode: first_match
+      - name: timeseries_val_prefix_tag
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Extract tag patterns using fixed width from timeseries names starting after VAL_ prefix (timeseries only)
+        description: Extract token after VAL_ from timeseries name (regex; replaces
+          fixed-width column demo)
         enabled: true
         priority: 53
         scope_filters:
           entity_type:
           - timeseries
-        parameters:
-          field_definitions:
-          - name: tag_pattern
-            start_position: 4
-            end_position: 16
-            trim: true
-            required: true
-            field_type: string
-          line_pattern: ^VAL_
-          skip_lines: 0
-          stop_on_empty: false
-          early_termination: false
-        source_fields:
+        fields:
         - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
+          regex: ^VAL_([A-Z0-9-]{4,32})
+          max_matches_per_field: 5
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
       - name: file_name_extraction
-        handler: regex
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Extract file name (without path, with extension) as candidate key (files only)
+        description: Extract file name (without path, with extension) as candidate
+          key (files only)
         enabled: true
         priority: 48
         scope_filters:
           entity_type:
           - file
-        parameters:
-          pattern: (?:^|[/\\\\])([^/\\\\]+)$
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: (?:^|[/\\\\])([^/\\\\]+)$
           max_matches_per_field: 1
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: true
-        source_fields:
-        - field_name: name
-          required: true
-          max_length: 500
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: first_match
+        field_results_mode: first_match
       - name: pid_document_reference
-        handler: regex
+        handler: regex_handler
         extraction_type: document_reference
-        description: Extract P&ID document references from description field (files only)
+        description: Extract P&ID document references from description field (files
+          only)
         enabled: true
         priority: 70
         scope_filters:
           entity_type:
           - file
-        parameters:
-          pattern: \b(PID|P&ID|P_ID)[-_\s]?(\d{4,6})\b
+        fields:
+        - field_name: description
+          required: false
+          max_length: 1000
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \b(PID|P&ID|P_ID)[-_\s]?(\d{4,6})\b
           max_matches_per_field: 5
           regex_options:
             ignore_case: true
             multiline: false
             dotall: false
             unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: description
-          required: false
-          max_length: 1000
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: merge_all
-      - name: fixed_width_tags
-        handler: fixed width
+        field_results_mode: merge_all
+      - name: multiline_name_instrument_tags
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Extract tags from fixed-width formatted text (position-based parsing)
+        description: Instrument-style tags from multi-line or columnar name text (regex;
+          replaces fixed-width demos)
         enabled: true
         priority: 45
-        parameters:
-          field_definitions:
-          - name: tag_id
-            start_position: 0
-            end_position: 11
-            trim: true
-            required: true
-          - name: description
-            start_position: 13
-            end_position: 59
-            trim: true
-            required: false
-          - name: equipment_type
-            start_position: 60
-            end_position: 68
-            trim: true
-            required: false
-          line_pattern: ^\s*[A-Z0-9]
-          skip_lines: 2
-          stop_on_empty: true
-          early_termination: false
-        source_fields:
+        fields:
         - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
-      - name: fixed_width_with_line_number
-        handler: fixed width
+          regex: \b[A-Z]{2,4}-\d{4}\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: true
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: hierarchical_tag_regex
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Extract tags from fixed-width format with line number prefix
-        enabled: true
-        priority: 46
-        parameters:
-          field_definitions:
-          - name: line_number
-            start_position: 0
-            end_position: 5
-            trim: true
-            required: false
-          - name: tag_id
-            start_position: 7
-            end_position: 18
-            trim: true
-            required: true
-          - name: description
-            start_position: 20
-            end_position: 66
-            trim: true
-            required: false
-          line_pattern: ^\s*\d+\s+[A-Z0-9]
-          skip_lines: 1
-          stop_on_empty: true
-          early_termination: false
-        source_fields:
-        - field_name: name
-          required: true
-          max_length: 500
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: first_match
-      - name: hierarchical_tag_assembly
-        handler: token reassembly
-        extraction_type: candidate_key
-        description: Assemble hierarchical tags from tokenized components (site-unit-type-number)
+        description: Match hierarchical-style tags from names (regex; replaces former
+          token reassembly)
         enabled: true
         priority: 40
-        parameters:
-          tokenization:
-            token_patterns:
-            - name: site_code
-              pattern: \b[A-Z]{2,4}\b
-              position: 0
-              required: true
-              component_type: site
-            - name: unit_code
-              pattern: \b\d{3}\b
-              position: 1
-              required: true
-              component_type: unit
-            - name: equipment_type
-              pattern: \b[A-Z]{1,2}\b
-              position: 2
-              required: true
-              component_type: type
-            - name: sequence_number
-              pattern: \b\d{2,4}\b
-              position: 3
-              required: true
-              component_type: sequence
-            - name: variant
-              pattern: \b[A-Z]\b
-              position: 4
-              required: false
-              component_type: variant
-            separator_pattern: '-'
-            max_tokens: 6
-          assembly_rules:
-          - name: standard_assembly
-            format: '{site_code}-{unit_code}-{equipment_type}{sequence_number}{variant}'
-            conditions:
-              all_required_present: true
-            priority: 10
-          - name: no_variant_assembly
-            format: '{site_code}-{unit_code}-{equipment_type}{sequence_number}'
-            conditions:
-              variant_missing: true
-            priority: 20
-          validation:
-            min_tokens: 3
-            max_tokens: 5
-            validate_assembled: true
-            validation_pattern: ^[A-Z]{2,4}-\d{3}-[A-Z]{1,2}\d{2,4}[A-Z]?$
-          early_termination: false
-        source_fields:
+        fields:
         - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
-      - name: timeseries_token_reassembly
-        handler: token reassembly
+          regex: \b[A-Z]{2,4}-\d{3}-[A-Z]{1,2}\d{2,4}[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: timeseries_external_id_instrument_tag
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Reassemble instrument tags from separated components
+        description: Extract instrument-style tags (e.g. FIC-1001) from timeseries
+          externalId
         enabled: true
         priority: 41
-        parameters:
-          tokenization:
-            token_patterns:
-            - name: tag_prefix
-              pattern: ^(FIC|PIC|TIC|LIC|FCV)$
-              position: 1
-              required: true
-              component_type: instrument_tag
-            - name: tag_number
-              pattern: ^\d{3,4}$
-              position: 2
-              required: true
-              component_type: number
-            separator_pattern: '-'
-          assembly_rules:
-          - name: unnamed
-            format: '{tag_prefix}-{tag_number}'
-            conditions:
-              all_required_present: true
-          validation:
-            validate_assembled: true
-            validation_pattern: ^[A-Z]{2,4}-\d{4}$
-          early_termination: false
-        source_fields:
-        - field_name: name
+        scope_filters:
+          entity_type:
+          - timeseries
+        fields:
+        - field_name: externalId
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
-      - name: heuristic_tag_extraction
-        handler: heuristic
-        extraction_type: candidate_key
-        description: Use multiple heuristic strategies to extract tags from unstructured text
-        enabled: true
-        priority: 35
-        parameters:
-          heuristic_strategies:
-          - strategy_id: positional_detection
-            method: positional_detection
-            weight: 0.3
-            rules:
-            - method: positional_detection
-              position: start_of_field
-              pattern: ^[A-Z0-9-_]{5,15}\b
-              confidence_boost: 0.2
-            - method: positional_detection
-              position: after_keyword
-              pattern: '[A-Z0-9-_]{3,20}'
-              confidence_boost: 0.3
-            - method: positional_detection
-              position: in_parentheses
-              pattern: \(([A-Z0-9-_]{3,15})\)
-              confidence_boost: 0.15
-          - strategy_id: frequency_analysis
-            method: frequency_analysis
-            weight: 0.25
-            rules:
-            - method: frequency_analysis
-              analyze_corpus: true
-              min_frequency: 3
-              pattern_stability_threshold: 0.8
-              common_prefix_detection: true
-              common_suffix_detection: true
-          - strategy_id: context_inference
-            method: context_inference
-            weight: 0.25
-            rules:
-            - method: context_inference
-              surrounding_keywords:
-                positive:
-                - pump
-                - valve
-                - tank
-                - equipment
-                - asset
-                - instrument
-                negative:
-                - drawing
-                - document
-                - specification
-                - date
-                - revision
-              context_window: 20
-              keyword_proximity_bonus: 0.2
-              equipment_type_correlation:
-                enabled: true
-                type_indicators:
-                  pump:
-                  - centrifugal
-                  - positive displacement
-                  - feed
-                  - transfer
-                  valve:
-                  - control
-                  - isolation
-                  - safety
-                  - relief
-                  instrument:
-                  - indicator
-                  - transmitter
-                  - controller
-                  - sensor
-          scoring:
-            aggregation_method: weighted_average
-            min_confidence: 0.6
-            normalize_scores: true
-          confidence_modifiers:
-          - condition: multiple_strategies_agree
-            operator: '>=2'
-            modifier: '+0.15'
-          - condition: field_name_indicates_tag
-            field_names:
-            - tag
-            - tagId
-            - equipmentTag
-            modifier: '+0.1'
-          - condition: extracted_value_length
-            range:
-            - 5
-            - 20
-            modifier: '+0.05'
-          validation:
-          - check: length_range
-            min_length: 3
-            max_length: 30
-          - check: character_composition
-            required_character_types:
-            - uppercase
-            - digit
-            max_consecutive_same_char: 3
-          - check: not_common_word
-            dictionary: english_common_words
-            max_dictionary_matches: 0
-          - check: format_consistency
-            compare_to_historical: true
-            consistency_threshold: 0.7
-          current_node_id:
-            space: cdf_cdm
-            external_id: CogniteAsset
-          early_termination: false
-        source_fields:
-        - field_name: name
-          required: true
-          max_length: 500
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: first_match
-      - name: heuristic_fallback_extraction
-        handler: heuristic
-        extraction_type: candidate_key
-        description: Simpler heuristic fallback for cases where other methods fail
-        enabled: true
-        priority: 100
-        parameters:
-          heuristic_strategies:
-          - strategy_id: positional_detection
-            method: positional_detection
-            weight: 0.4
-            rules:
-            - method: positional_detection
-              position: after_keyword
-              pattern: '[A-Z0-9-_]{3,20}'
-              confidence_boost: 0.3
-              keywords:
-              - ASSET-
-              - EQUIP-
-              - EQ-
-              - TAG-
-            - method: positional_detection
-              position: start_of_field
-              pattern: ^[A-Z0-9]{5,15}$
-              confidence_boost: 0.2
-          - strategy_id: context_inference
-            method: context_inference
-            weight: 0.3
-            rules:
-            - method: context_inference
-              surrounding_keywords:
-                positive:
-                - equipment
-                - asset
-                - tag
-                - pump
-                - valve
-                - tank
-                negative:
-                - drawing
-                - document
-                - specification
-              context_window: 20
-              keyword_proximity_bonus: 0.15
-          scoring:
-            aggregation_method: weighted_average
-            min_confidence: 0.5
-            normalize_scores: true
-          confidence_modifiers:
-          - condition: extracted_value_length
-            range:
-            - 5
-            - 15
-            modifier: '+0.1'
-          validation:
-          - check: length_range
-            min_length: 3
-            max_length: 30
-          - check: character_composition
-            required_character_types:
-            - uppercase
-            - digit
-          early_termination: false
-        source_fields:
-        - field_name: name
-          required: true
-          max_length: 500
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: first_match
+          regex: '[A-Z]{2,4}-\d{4}'
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match

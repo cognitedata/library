@@ -2,7 +2,7 @@
 """
 Test Key Extraction using extraction pipeline configs
 
-This script loads an extraction pipeline config (regex, fixed_width, heuristic, or token_reassembly)
+This script loads an extraction pipeline config (regex)
 and tests it with data queried from CDF based on the source views configuration.
 
 Results are saved to the results/ directory (relative to this test file) in detailed JSON format compatible with view_detailed_results.py.
@@ -12,9 +12,6 @@ Usage:
 
     test_type options:
         - regex (default)
-        - fixed_width
-        - heuristic
-        - token_reassembly
 
     options:
         --limit N    Maximum number of entities to query from CDF (default: 10)
@@ -58,9 +55,6 @@ if CDF_AVAILABLE:
 # Map test types to example scope YAML under config/examples/
 CONFIG_MAP = {
     "regex": "key_extraction/regex_pump_tag_simple.key_extraction_aliasing.yaml",
-    "fixed_width": "key_extraction/fixed_width_single.key_extraction_aliasing.yaml",
-    "heuristic": "key_extraction/heuristic_comprehensive.key_extraction_aliasing.yaml",
-    "token_reassembly": "key_extraction/token_reassembly.key_extraction_aliasing.yaml",
 }
 
 
@@ -365,90 +359,6 @@ def create_test_entities(test_type: str = "regex"):
             },
         ]
 
-    elif test_type == "fixed_width":
-        # Fixed width parsing test entities - formats with fixed positions
-        test_entities = [
-            {
-                "id": "test_001",
-                "externalId": "test_001",
-                "name": "P001PUMP001  ",  # Fixed width: P001 (pos 0-4), PUMP001 (pos 5-13)
-                "description": "Fixed width pump tag",
-                "entity_type": "asset",
-            },
-            {
-                "id": "test_002",
-                "externalId": "test_002",
-                "name": "V002VALVE001",  # Fixed width: V002 (pos 0-4), VALVE001 (pos 5-13)
-                "description": "Fixed width valve tag",
-                "entity_type": "asset",
-            },
-            {
-                "id": "test_003",
-                "externalId": "test_003",
-                "name": "T003TANK001 ",  # Fixed width: T003 (pos 0-4), TANK001 (pos 5-13)
-                "description": "Fixed width tank tag",
-                "entity_type": "asset",
-            },
-        ]
-
-    elif test_type == "token_reassembly":
-        # Token reassembly test entities - hierarchical tags that need reassembly
-        test_entities = [
-            {
-                "id": "test_001",
-                "externalId": "test_001",
-                "name": "P-101-A",  # Hierarchical: P-101 + A suffix
-                "description": "Hierarchical pump tag",
-                "equipmentType": "pump",
-                "entity_type": "asset",
-            },
-            {
-                "id": "test_002",
-                "externalId": "test_002",
-                "name": "UNIT-100-P-201",  # Hierarchical: UNIT-100 + P-201
-                "description": "Hierarchical unit and pump tag",
-                "equipmentType": "pump",
-                "entity_type": "asset",
-            },
-            {
-                "id": "test_003",
-                "externalId": "test_003",
-                "name": "AREA-A-V-301",  # Hierarchical: AREA-A + V-301
-                "description": "Hierarchical area and valve tag",
-                "equipmentType": "valve",
-                "entity_type": "asset",
-            },
-        ]
-
-    elif test_type == "heuristic":
-        # Heuristic test entities - tags that need heuristic extraction
-        test_entities = [
-            {
-                "id": "test_001",
-                "externalId": "test_001",
-                "name": "ASSET-HEUR001",  # Should extract HEUR001 using heuristic
-                "description": "Generic equipment without standard tag format",
-                "equipmentType": "equipment",
-                "entity_type": "asset",
-            },
-            {
-                "id": "test_002",
-                "externalId": "test_002",
-                "name": "EQUIP-ABC123",  # Should extract ABC123 using heuristic
-                "description": "Equipment with non-standard tag format",
-                "equipmentType": "equipment",
-                "entity_type": "asset",
-            },
-            {
-                "id": "test_003",
-                "externalId": "test_003",
-                "name": "CUSTOM-TAG-456",  # Should extract TAG-456 or 456 using heuristic
-                "description": "Custom tag format",
-                "equipmentType": "equipment",
-                "entity_type": "asset",
-            },
-        ]
-
     else:
         raise ValueError(f"Unknown test_type: {test_type}")
 
@@ -561,16 +471,13 @@ def main():
         epilog="""
 Examples:
   python tests/test_pipeline_extraction.py regex
-  python tests/test_pipeline_extraction.py fixed_width --limit 20
-  python tests/test_pipeline_extraction.py heuristic
-  python tests/test_pipeline_extraction.py token_reassembly
         """,
     )
     parser.add_argument(
         "test_type",
         nargs="?",
         default="regex",
-        choices=["regex", "fixed_width", "heuristic", "token_reassembly"],
+        choices=["regex"],
         help="Type of extraction test to run (default: regex)",
     )
     parser.add_argument(

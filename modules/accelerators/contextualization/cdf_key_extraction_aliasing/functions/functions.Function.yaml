@@ -19,7 +19,7 @@
   externalId: 'fn_dm_key_extraction'
   dataSetExternalId: 'ds_key_extraction'
   owner: 'Anonymous'
-  description: 'Extract candidate keys, foreign key references, and document references from CDF data model entities using regex, fixed-width parsing, token reassembly, and heuristic methods'
+  description: 'Extract candidate keys, foreign key references, and document references from CDF data model entities using regex_handler and heuristic handlers'
   metadata:
     version: '{{key_extraction_function_version}}'
   envVars:

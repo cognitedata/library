@@ -12,6 +12,7 @@ export const ja: Messages = {
   "tabs.sourceViews": "ソース ビュー",
   "tabs.keyExtraction": "キー探索",
   "tabs.aliasing": "エイリアス",
+  "tabs.runPipeline": "パイプラインを実行",
   "tabs.configure": "設定",
   "tabs.build": "ビルド",
   "tabs.artifacts": "成果物",
@@ -35,6 +36,7 @@ export const ja: Messages = {
   "btn.refreshList": "一覧を更新",
   "btn.runBuild": "ビルドを実行",
   "btn.runBuildForce": "ビルドを実行（強制）",
+  "btn.runPipeline": "パイプラインを実行",
   "btn.dryRun": "ドライラン",
   "status.loading": "読み込み中…",
   "status.saving": "保存中…",
@@ -70,6 +72,15 @@ export const ja: Messages = {
   "build.confirmForce": "生成済みワークフロー ファイルを --force で上書きしますか？",
   "build.outputPlaceholder": "ビルド出力はここに表示されます。",
   "build.panelTitle": "オフライン ビルド",
+  "run.contextWorkflowLocal": "workflow.local.config.yaml を使用します（ディスクに保存済みの内容）。",
+  "run.contextWorkflowTemplate": "workflow_template/workflow.template.config.yaml を使用します（ディスクに保存済みの内容）。",
+  "run.contextWorkflowTrigger":
+    "保存済みの WorkflowTrigger ファイルの input.configuration を使用します（{path}）。エディタの変更を反映するには実行前に保存してください。",
+  "run.triggerUnsaved": "このトリガーに未保存の変更があります。実行ではディスク上の最後に保存したファイルが使われます。",
+  "run.runAll": "すべて実行（--all）",
+  "run.runAllHint":
+    "増分モードが有効な場合、スコープ全体を処理します（ワークフロー入力の run_all と同じ）。増分モードがオフのときは効果がありません。",
+  "run.outputPlaceholder": "パイプラインの出力がここに表示されます。",
   "scope.levelsLabel": "レベル（カンマ区切り）",
   "scope.levelsLabel.tooltip":
     "階層の各深さのラベル（例: site, unit, system）。カンマ区切り。",
@@ -156,14 +167,12 @@ export const ja: Messages = {
   "keyExtraction.addParam": "パラメータを追加",
   "keyExtraction.dataYaml": "config.data — ルールと戦略（YAML）",
   "keyExtraction.dataYamlHint":
-    "extraction_rules、field_selection_strategy、validation 以外のキー — key_extraction.config.data 内",
+    "extraction_rules（fields[]、handler、field_results_mode など）と validation 以外のキー — key_extraction.config.data 内",
   "keyExtraction.validationYaml": "config.data.validation（YAML）",
   "keyExtraction.validationYamlHint":
     "抽出キー全体の検証（min_confidence、max_keys_per_type、confidence_match_rules など）。",
   "keyExtraction.advancedRulesYaml": "ルールと戦略を YAML で編集（上級）",
-  "discoveryRules.fieldSelectionStrategy": "既定のフィールド選択（field_selection_strategy）",
-  "discoveryRules.fieldSelectionInherit": "未設定（ルール単位またはエンジン既定）",
-  "discoveryRules.compositeStrategyUnset": "なし（単一フィールド／既定の動作）",
+  "discoveryRules.fieldResultsModeInherit": "未設定（エンジン既定 merge_all）",
   "discoveryRules.extraKeysPreserved": "config.data の他のキーは保持されます: {keys}",
   "discoveryRules.rule.name": "ルール名",
   "discoveryRules.rule.enabled": "有効",
@@ -171,12 +180,16 @@ export const ja: Messages = {
   "discoveryRules.rule.moveDown": "ルールを下へ",
   "discoveryRules.rule.remove": "ルールを削除",
   "discoveryRules.rule.handler": "ハンドラー",
+  "discoveryRules.handlerOption.regex_handler": "正規表現ハンドラ",
+  "discoveryRules.handlerOption.field_rule_fixed_width": "フィールドラール（固定幅）",
+  "discoveryRules.handlerOption.heuristic": "ヒューリスティック",
   "discoveryRules.rule.extractionType": "抽出タイプ",
   "discoveryRules.rule.priority": "優先度",
-  "discoveryRules.rule.fieldSelectionStrategy": "フィールド選択（ルール単位）",
-  "discoveryRules.rule.compositeStrategy": "複合ストラテジ（複数フィールド）",
-  "discoveryRules.rule.compositeStrategyHint":
-    "concatenate: 複数の source_fields（role: target）を parameters の field_separator と任意の field_order で結合。token_reassembly: token reassembly ハンドラーと parameters の tokenization。context_aware: context（role: context）をハンドラーに渡して target から抽出。",
+  "discoveryRules.rule.orderSetsPriority":
+    "一覧の順がルール優先度です（上が先に実行）。「すべてのルール」表示で ↑↓ を使います。",
+  "discoveryRules.rule.fieldResultsMode": "フィールド結果モード（field_results_mode）",
+  "discoveryRules.rule.resultTemplate": "結果テンプレート（result_template）",
+  "discoveryRules.rule.maxTemplateCombinations": "テンプレート組み合わせ上限（max_template_combinations）",
   "discoveryRules.rule.description": "説明",
   "discoveryRules.rule.entityTypesCsv": "エンティティ種別（カンマ区切り）",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
@@ -187,45 +200,63 @@ export const ja: Messages = {
   "discoveryRules.handlerFields.maxMatchesPerField": "max_matches_per_field",
   "discoveryRules.handlerFields.earlyTermination": "early_termination",
   "discoveryRules.handlerFields.regexOptions": "regex_options",
-  "discoveryRules.handlerFields.encoding": "encoding",
-  "discoveryRules.handlerFields.fieldDefinitions": "field_definitions",
-  "discoveryRules.handlerFields.addFieldDefinition": "フィールドを追加",
-  "discoveryRules.handlerFields.separatorPatternsCsv": "区切りパターン（カンマ区切り）",
-  "discoveryRules.handlerFields.assemblyRulesYaml": "assembly_rules（YAML リスト）",
-  "discoveryRules.handlerFields.scoringMinConfidence": "scoring.min_confidence",
-  "discoveryRules.handlerFields.heuristicStrategiesYaml": "heuristic_strategies（YAML リスト）",
   "discoveryRules.rule.parametersYamlHint":
-    "parameters（YAML）— 下のテンプレートは選択したハンドラーに合わせます。ハンドラーを変更すると再読み込みされます。",
-  "discoveryRules.handlerDoc.passthrough":
-    "Passthrough: set min_confidence (often 1.0). The processed field value is emitted as the key.",
-  "discoveryRules.handlerDoc.regex":
-    "Regex: pattern, regex_options, and optional validation_pattern, capture_groups, reassemble_format, max_matches_per_field.",
-  "discoveryRules.handlerDoc.fixedWidth":
-    "Fixed width: field_definitions (positions), plus encoding, line/record options as needed.",
-  "discoveryRules.handlerDoc.tokenReassembly":
-    "Token reassembly: tokenization (separators, token_patterns) and assembly_rules to rebuild tags.",
+    "parameters（YAML）— heuristic では strategies と max_candidates_per_field が必要。regex_handler では任意。",
+  "discoveryRules.rule.parametersYamlHintHeuristic":
+    "parameters（YAML）— strategies・重み・max_candidates_per_field（heuristic で必須）。",
+  "discoveryRules.handlerDoc.regex_handler":
+    "regex_handler: fields[] にフィールドごとの regex / regex_options。任意で result_template と field_results_mode。",
+  "discoveryRules.handlerDoc.field_rule_fixed_width":
+    "field_rule_fixed_width: regex_handler に加え、fields に fixed_width（例 {0:3}-{7:13}）。",
   "discoveryRules.handlerDoc.heuristic":
-    "Heuristic: heuristic_strategies (each nested strategy has its own method/config) and scoring.",
-  "discoveryRules.rule.sourceFieldsYamlHint":
-    "source_fields — キー探索に渡すビュー上のプロパティ（1 行以上）。未知のキーは生 YAML で編集できます。",
-  "discoveryRules.rawSourceFieldsYaml": "生 source_fields（YAML）",
+    "heuristic: parameters.strategies と max_candidates_per_field。走査する fields を列挙。",
+  "discoveryRules.handlerFields.fieldRuleParametersHint":
+    "フィールドごとの regex・variable・上限は下で編集。regex_options などは生 YAML で。",
+  "discoveryRules.handlerFields.fieldRuleFixedWidthHint":
+    "各行に fixed_width（例 {0:3}-{7:13}）。他の行は regex_handler と同様に regex または trim のみ。",
+  "discoveryRules.handlerFields.heuristicParametersHint":
+    "下の parameters YAML で strategies と上限を編集（または Raw parameters）。",
+  "discoveryRules.rule.fieldsYamlHint":
+    "fields — このルールで読むビュープロパティ（1 行以上）。regex・fixed_width・variable などを YAML で。",
+  "discoveryRules.rawFieldsYaml": "生 fields（YAML）",
   "discoveryRules.sourceFields.addField": "ソースフィールドを追加",
   "discoveryRules.sourceFields.removeField": "削除",
   "discoveryRules.sourceFields.fieldName": "field_name",
+  "discoveryRules.sourceFields.variable": "variable（result_template 用）",
+  "discoveryRules.sourceFields.variablePlaceholder": "空欄で field_name",
+  "discoveryRules.sourceFields.regex": "regex（空欄はパススルー）",
+  "discoveryRules.sourceFields.regexPlaceholder": "パターン；空欄はパススルー（トリム後の値）",
+  "discoveryRules.sourceFields.fixedWidth": "fixed_width",
+  "discoveryRules.sourceFields.maxMatchesPerField": "max_matches_per_field",
+  "discoveryRules.sourceFields.heuristicFieldsHint":
+    "走査するプロパティを field_name で列挙。候補はヒューリスティック parameters から生成（行ごとの regex ではありません）。",
   "discoveryRules.sourceFields.required": "required",
   "discoveryRules.sourceFields.priority": "priority",
   "discoveryRules.sourceFields.maxLength": "max_length",
   "discoveryRules.sourceFields.role": "role",
   "discoveryRules.sourceFields.tableId": "table_id（任意）",
   "discoveryRules.sourceFields.preprocessingCsv": "preprocessing（カンマ区切りの手順）",
+  "discoveryRules.sourceFields.preprocessingCsv.tooltip":
+    "手順は順に実行されます。識別子は大文字・小文字を区別します（trim は可、Trim は不可）。\n\n" +
+    "手順 | 効果 | 説明\n" +
+    "trim | strip() | 前後の空白を削除。\n" +
+    "lowercase | lower() | 小文字に正規化。\n" +
+    "uppercase | upper() | 大文字に正規化。\n" +
+    "remove_special_chars | 文字を削除 | 英数字・アンダースコア・空白・ハイフン以外を除去（正規表現 [^\\w\\s-]）。\n\n" +
+    "その後、値は max_length（上のフィールド）で切り詰められます。",
   "discoveryRules.rule.add": "抽出ルールを追加",
   "rulesEntity.sidebarTitle": "エンティティ種別",
   "rulesEntity.sidebarAria": "エンティティ種別でルールを絞り込み",
-  "rulesEntity.bucket.unscoped": "未指定",
+  "rulesEntity.bucket.global": "グローバル",
   "rulesEntity.bucket.all": "すべてのルール",
   "rulesEntity.reorderHint":
-    "左の「すべてのルール」で、グローバルな順序を上下に移動できます。",
+    "↑ / ↓ で全体のルール順（優先度）を変更します。エンティティ種別で絞り込み中は、ここに表示されないルールと入れ替わることがあります。すべてを見るには「すべてのルール」を開いてください。",
   "rulesEntity.emptyForBucket": "この選択に該当するルールはありません。追加するか別の種別を選んでください。",
+  "rulesEntity.ruleExpandDetails": "ルールを展開 — 全項目を編集",
+  "rulesEntity.ruleCollapseDetails": "ルールを折りたたむ — 名前と説明のみ",
+  "rulesEntity.dragReorderRules":
+    "ドラッグして優先順位を変更します。折りたたみ（▶）では名前と説明のみ。展開で全フォームを表示します。",
+  "rulesEntity.dragHandle": "ドラッグしてルールの優先順位を変更",
   "editor.subtab.rules": "ルール",
   "editor.subtab.validation": "検証",
   "editor.subtab.settings": "設定",
@@ -335,6 +366,8 @@ export const ja: Messages = {
   "validationEditor.rule.modifierOffset": "offset（信頼度に加算）",
   "validationEditor.rule.modifierExplicit": "explicit（信頼度を設定）",
   "validationEditor.rule.modifierValue": "値",
+  "validationEditor.orderSetsPriority":
+    "リストの順序が評価順です。カードをドラッグするか ↑ / ↓ を使います（各ルールの数値 priority は設定されている場合に適用されます）。",
   "validationEditor.rule.addRule": "ルールを追加",
   "validationEditor.advancedYaml": "validation を YAML で編集（上級）",
   "validationEditor.rulesYamlInvalidMerge":
@@ -364,7 +397,7 @@ export const ja: Messages = {
   "artifacts.sub.views": "ソース ビュー",
   "artifacts.sub.extraction": "キー探索",
   "artifacts.sub.aliasing": "エイリアス",
-  "artifacts.fullRescan": "フル再スキャン",
+  "artifacts.runAll": "すべて実行",
   "artifacts.runId": "実行 ID",
   "artifacts.plainEditor": "プレーン YAML エディター",
   "artifacts.treeExpand": "展開",

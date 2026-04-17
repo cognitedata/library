@@ -12,6 +12,7 @@ export const nb: Messages = {
   "tabs.sourceViews": "Kildevisninger",
   "tabs.keyExtraction": "Nøkkeloppdagelse",
   "tabs.aliasing": "Alias",
+  "tabs.runPipeline": "Kjør pipeline",
   "tabs.configure": "Konfigurer",
   "tabs.build": "Bygg",
   "tabs.artifacts": "Artefakter",
@@ -35,6 +36,7 @@ export const nb: Messages = {
   "btn.refreshList": "Oppdater liste",
   "btn.runBuild": "Kjør bygg",
   "btn.runBuildForce": "Kjør bygg (tving)",
+  "btn.runPipeline": "Kjør pipeline",
   "btn.dryRun": "Tørrkjøring",
   "status.loading": "Laster…",
   "status.saving": "Lagrer…",
@@ -70,6 +72,15 @@ export const nb: Messages = {
   "build.confirmForce": "Overskrive genererte arbeidsflytfiler med --force?",
   "build.outputPlaceholder": "Byggutdata vises her.",
   "build.panelTitle": "Offline-bygg",
+  "run.contextWorkflowLocal": "Bruker workflow.local.config.yaml (lagret på disk).",
+  "run.contextWorkflowTemplate": "Bruker workflow_template/workflow.template.config.yaml (lagret på disk).",
+  "run.contextWorkflowTrigger":
+    "Bruker input.configuration fra lagret WorkflowTrigger-fil ({path}). Lagre filen før kjøring for å ta med endringer fra editoren.",
+  "run.triggerUnsaved": "Ulagrede endringer i denne utløseren — kjøringen bruker sist lagrede fil på disk.",
+  "run.runAll": "Kjør alle (--all)",
+  "run.runAllHint":
+    "Når inkrementell modus er på, behandler hele omfanget (samme som workflow-inndata run_all). Uten effekt når inkrementell modus er av.",
+  "run.outputPlaceholder": "Pipeline-utskrift vises her.",
   "scope.levelsLabel": "Nivåer (kommaseparert)",
   "scope.levelsLabel.tooltip":
     "Navn på hvert nivå i hierarkiet (f.eks. site, unit, system). Kommaseparert.",
@@ -156,14 +167,12 @@ export const nb: Messages = {
   "keyExtraction.addParam": "Legg til parameter",
   "keyExtraction.dataYaml": "config.data — regler og strategi (YAML)",
   "keyExtraction.dataYamlHint":
-    "extraction_rules, field_selection_strategy og øvrige nøkler unntatt validation — i key_extraction.config.data",
+    "extraction_rules (fields[], handler, field_results_mode, …) og øvrige nøkler unntatt validation — i key_extraction.config.data",
   "keyExtraction.validationYaml": "config.data.validation (YAML)",
   "keyExtraction.validationYamlHint":
     "Global validering for ekstraherte nøkler (min_confidence, max_keys_per_type, confidence_match_rules, …).",
   "keyExtraction.advancedRulesYaml": "Rediger regler og strategi som YAML (avansert)",
-  "discoveryRules.fieldSelectionStrategy": "Standard feltvalg (field_selection_strategy)",
-  "discoveryRules.fieldSelectionInherit": "Ikke satt (per regel eller motorstandard)",
-  "discoveryRules.compositeStrategyUnset": "Ingen (ett felt / standardatferd)",
+  "discoveryRules.fieldResultsModeInherit": "Ikke satt (motorstandard merge_all)",
   "discoveryRules.extraKeysPreserved": "Andre nøkler i config.data beholdes: {keys}",
   "discoveryRules.rule.name": "Regelnavn",
   "discoveryRules.rule.enabled": "Aktivert",
@@ -171,12 +180,16 @@ export const nb: Messages = {
   "discoveryRules.rule.moveDown": "Flytt regel ned",
   "discoveryRules.rule.remove": "Fjern regel",
   "discoveryRules.rule.handler": "Handler",
+  "discoveryRules.handlerOption.regex_handler": "Regex-handler",
+  "discoveryRules.handlerOption.field_rule_fixed_width": "Field rule (fast bredde)",
+  "discoveryRules.handlerOption.heuristic": "Heuristikk",
   "discoveryRules.rule.extractionType": "Ekstraksjonstype",
   "discoveryRules.rule.priority": "Prioritet",
-  "discoveryRules.rule.fieldSelectionStrategy": "Feltvalg (per regel)",
-  "discoveryRules.rule.compositeStrategy": "Komposittstrategi (kryssfelt)",
-  "discoveryRules.rule.compositeStrategyHint":
-    "concatenate: slå sammen flere source_fields (role: target) med field_separator og valgfri field_order i parameters. token_reassembly: bruk token reassembly-handler og tokenization i parameters. context_aware: trekk ut fra mål med kontekstfelt (role: context) til handleren.",
+  "discoveryRules.rule.orderSetsPriority":
+    "Rekkefølgen i listen setter prioritet (øverst kjører først). Bruk ↑ og ↓ når «Alle regler» er valgt.",
+  "discoveryRules.rule.fieldResultsMode": "Feltresultatmodus (field_results_mode)",
+  "discoveryRules.rule.resultTemplate": "Resultatmal (result_template)",
+  "discoveryRules.rule.maxTemplateCombinations": "Maks. mal-kombinasjoner (max_template_combinations)",
   "discoveryRules.rule.description": "Beskrivelse",
   "discoveryRules.rule.entityTypesCsv": "Entitetstyper (kommaseparert)",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
@@ -187,45 +200,63 @@ export const nb: Messages = {
   "discoveryRules.handlerFields.maxMatchesPerField": "max_matches_per_field",
   "discoveryRules.handlerFields.earlyTermination": "early_termination",
   "discoveryRules.handlerFields.regexOptions": "regex_options",
-  "discoveryRules.handlerFields.encoding": "encoding",
-  "discoveryRules.handlerFields.fieldDefinitions": "field_definitions",
-  "discoveryRules.handlerFields.addFieldDefinition": "Legg til felt",
-  "discoveryRules.handlerFields.separatorPatternsCsv": "Skilletegnmønstre (kommaseparert)",
-  "discoveryRules.handlerFields.assemblyRulesYaml": "assembly_rules (YAML-liste)",
-  "discoveryRules.handlerFields.scoringMinConfidence": "scoring.min_confidence",
-  "discoveryRules.handlerFields.heuristicStrategiesYaml": "heuristic_strategies (YAML-liste)",
   "discoveryRules.rule.parametersYamlHint":
-    "parameters (YAML) — malen under samsvarer med valgt handler; ved bytte lastes malen på nytt.",
-  "discoveryRules.handlerDoc.passthrough":
-    "Passthrough: set min_confidence (often 1.0). The processed field value is emitted as the key.",
-  "discoveryRules.handlerDoc.regex":
-    "Regex: pattern, regex_options, and optional validation_pattern, capture_groups, reassemble_format, max_matches_per_field.",
-  "discoveryRules.handlerDoc.fixedWidth":
-    "Fixed width: field_definitions (positions), plus encoding, line/record options as needed.",
-  "discoveryRules.handlerDoc.tokenReassembly":
-    "Token reassembly: tokenization (separators, token_patterns) and assembly_rules to rebuild tags.",
+    "parameters (YAML) — påkrevd for heuristic (strategies, max_candidates_per_field); valgfritt for regex_handler.",
+  "discoveryRules.rule.parametersYamlHintHeuristic":
+    "parameters (YAML) — strategies, vekter og max_candidates_per_field (påkrevd for heuristic).",
+  "discoveryRules.handlerDoc.regex_handler":
+    "regex_handler: deklarative fields[] med regex / regex_options per felt; valgfritt result_template og field_results_mode.",
+  "discoveryRules.handlerDoc.field_rule_fixed_width":
+    "field_rule_fixed_width: som regex_handler pluss fixed_width på felt (f.eks. {0:3}-{7:13}).",
   "discoveryRules.handlerDoc.heuristic":
-    "Heuristic: heuristic_strategies (each nested strategy has its own method/config) and scoring.",
-  "discoveryRules.rule.sourceFieldsYamlHint":
-    "source_fields — hvilke view-egenskaper som brukes til nøkkeloppdagelse (én eller flere rader). Ukjente nøkler kan redigeres som rå YAML.",
-  "discoveryRules.rawSourceFieldsYaml": "Rå source_fields (YAML)",
+    "heuristic: parameters.strategies (delimiter_split, sliding_token, …) og max_candidates_per_field; list opp fields.",
+  "discoveryRules.handlerFields.fieldRuleParametersHint":
+    "Regex, variabel og grenser per felt redigeres nedenfor. Bruk rå YAML for regex_options m.m.",
+  "discoveryRules.handlerFields.fieldRuleFixedWidthHint":
+    "Bruk fixed_width per rad (f.eks. {0:3}-{7:13}); andre felt kan fortsatt bruke regex eller kun trim.",
+  "discoveryRules.handlerFields.heuristicParametersHint":
+    "Rediger strategies og tak i parameters YAML under (eller Raw parameters).",
+  "discoveryRules.rule.fieldsYamlHint":
+    "fields — view-egenskaper for denne regelen (én eller flere rader). Legg til regex, fixed_width, variable i YAML.",
+  "discoveryRules.rawFieldsYaml": "Rå fields (YAML)",
   "discoveryRules.sourceFields.addField": "Legg til kildefelt",
   "discoveryRules.sourceFields.removeField": "Fjern",
   "discoveryRules.sourceFields.fieldName": "field_name",
+  "discoveryRules.sourceFields.variable": "variable (for result_template)",
+  "discoveryRules.sourceFields.variablePlaceholder": "tom = field_name",
+  "discoveryRules.sourceFields.regex": "regex (tom = passthrough)",
+  "discoveryRules.sourceFields.regexPlaceholder": "Mønster; tom = passthrough (trimmet feltverdi)",
+  "discoveryRules.sourceFields.fixedWidth": "fixed_width",
+  "discoveryRules.sourceFields.maxMatchesPerField": "max_matches_per_field",
+  "discoveryRules.sourceFields.heuristicFieldsHint":
+    "List opp felt (field_name) som skal skannes; kandidater kommer fra heuristic parameters, ikke per-felt-regex.",
   "discoveryRules.sourceFields.required": "required",
   "discoveryRules.sourceFields.priority": "priority",
   "discoveryRules.sourceFields.maxLength": "max_length",
   "discoveryRules.sourceFields.role": "role",
   "discoveryRules.sourceFields.tableId": "table_id (valgfritt)",
   "discoveryRules.sourceFields.preprocessingCsv": "preprocessing (kommaseparerte steg)",
+  "discoveryRules.sourceFields.preprocessingCsv.tooltip":
+    "Steg kjøres i rekkefølge; stegnavn er skille mellom store/små bokstaver (bruk trim, ikke Trim).\n\n" +
+    "Steg | Virkning | Beskrivelse\n" +
+    "trim | strip() | Fjerner ledende og avsluttende blanktegn.\n" +
+    "lowercase | lower() | Normaliser til små bokstaver.\n" +
+    "uppercase | upper() | Normaliser til store bokstaver.\n" +
+    "remove_special_chars | fjern tegn | Fjerner alt unntatt bokstaver, siffer, understrek, mellomrom og bindestrek (regex [^\\w\\s-]).\n\n" +
+    "Etter alle steg trunkeres verdien til max_length (feltet over).",
   "discoveryRules.rule.add": "Legg til ekstraksjonsregel",
   "rulesEntity.sidebarTitle": "Entitetstype",
   "rulesEntity.sidebarAria": "Filtrer regler etter entitetstype",
-  "rulesEntity.bucket.unscoped": "Uten omfang",
+  "rulesEntity.bucket.global": "Global",
   "rulesEntity.bucket.all": "Alle regler",
   "rulesEntity.reorderHint":
-    "Bruk «Alle regler» til venstre for å flytte rekkefølgen globalt.",
+    "↑ / ↓ endrer rekkefølgen i hele regellisten (prioritet). Ved filter på entitetstype kan byttet gjelde en regel som ikke vises her—velg **Alle regler** for å se alle.",
   "rulesEntity.emptyForBucket": "Ingen regler for dette valget. Legg til en regel eller velg en annen type.",
+  "rulesEntity.ruleExpandDetails": "Utvid regel — full redigering",
+  "rulesEntity.ruleCollapseDetails": "Skjul regel — bare navn og beskrivelse",
+  "rulesEntity.dragReorderRules":
+    "Dra regler for å sette prioritet. Sammenslått (▶) viser bare navn og beskrivelse; utvid for hele skjemaet.",
+  "rulesEntity.dragHandle": "Dra for å endre regelprioritet",
   "editor.subtab.rules": "Regler",
   "editor.subtab.validation": "Validering",
   "editor.subtab.settings": "Innstillinger",
@@ -335,6 +366,8 @@ export const nb: Messages = {
   "validationEditor.rule.modifierOffset": "offset (legg til tillit)",
   "validationEditor.rule.modifierExplicit": "explicit (sett tillit)",
   "validationEditor.rule.modifierValue": "Verdi",
+  "validationEditor.orderSetsPriority":
+    "Liste rekkefølge bestemmer evalueringsrekkefølge. Dra kort eller bruk ↑ / ↓ (numerisk prioritet på hver regel gjelder fortsatt når den er satt).",
   "validationEditor.rule.addRule": "Legg til regel",
   "validationEditor.advancedYaml": "Rediger validation som YAML (avansert)",
   "validationEditor.rulesYamlInvalidMerge":
@@ -364,7 +397,7 @@ export const nb: Messages = {
   "artifacts.sub.views": "Kildevisninger",
   "artifacts.sub.extraction": "Nøkkeloppdagelse",
   "artifacts.sub.aliasing": "Alias",
-  "artifacts.fullRescan": "Full ny skanning",
+  "artifacts.runAll": "Kjør alle",
   "artifacts.runId": "Kjørings-ID",
   "artifacts.plainEditor": "Ren YAML-redigerer",
   "artifacts.treeExpand": "Utvid",

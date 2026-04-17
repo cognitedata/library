@@ -32,10 +32,7 @@ Suggested order (simple → richer):
 
 1. `regex_pump_tag_simple.key_extraction_aliasing.yaml`
 2. `regex_instrument_tag_capture.key_extraction_aliasing.yaml`
-3. `fixed_width_single.key_extraction_aliasing.yaml` / `fixed_width_multiline.key_extraction_aliasing.yaml`
-4. `token_reassembly.key_extraction_aliasing.yaml`
-5. `heuristic_positional.key_extraction_aliasing.yaml`, `heuristic_learning.key_extraction_aliasing.yaml`, `heuristic_comprehensive.key_extraction_aliasing.yaml`
-6. `passthrough.key_extraction_aliasing.yaml`
+3. `passthrough.key_extraction_aliasing.yaml` (trim-only `regex_handler`; legacy filename)
 
 Also in this folder (not in the sequence above): `comprehensive_default.key_extraction_aliasing.yaml`, `multi_field.key_extraction_aliasing.yaml`, `field_selection_demo.key_extraction_aliasing.yaml`.
 

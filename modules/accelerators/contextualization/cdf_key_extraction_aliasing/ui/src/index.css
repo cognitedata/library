@@ -2147,3 +2147,38 @@ code {
 .kea-advanced-details summary::-webkit-details-marker {
   display: none;
 }
+
+.kea-validation-rule--drop {
+  outline: 2px dashed var(--kea-primary);
+  outline-offset: 2px;
+  background: var(--kea-primary-soft) !important;
+}
+
+.kea-validation-rule--dragging {
+  opacity: 0.65;
+}
+
+/* Drag handle only — avoids whole-card draggable stealing text selection in inputs/textareas */
+.kea-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  color: var(--kea-text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.35rem 0.2rem;
+  align-self: end;
+  flex-shrink: 0;
+}
+
+.kea-drag-handle:active {
+  cursor: grabbing;
+}
+
+.kea-drag-handle__grip {
+  letter-spacing: -0.12em;
+  font-weight: 600;
+}

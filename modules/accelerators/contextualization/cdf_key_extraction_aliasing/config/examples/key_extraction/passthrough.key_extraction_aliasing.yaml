@@ -1,81 +1,81 @@
 schemaVersion: 1
 source_views:
-  - view_external_id: CogniteAsset
-    view_space: cdf_cdm
-    view_version: v1
-    instance_space: sp_enterprise_schema
-    entity_type: asset
-    filters:
-    - operator: CONTAINSANY
-      target_property: tags
-      values:
-      - asset_tag
-    include_properties:
-    - externalId
-    - name
-    - description
-    - tags
-    validation:
-      confidence_match_rules:
-      - name: isa_compliant
-        priority: 50
-        match:
-          expressions:
-          - pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard pump tags (P-101, P101A, P-2001)
-          - pattern: '\b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b'
-            description: Pump with service designation (FWP-101, CWP-201)
-          - pattern: '\bCP[-_]?\d{1,6}[A-Z]?\b'
-            description: Centrifugal pump tags
-          - pattern: '\bC[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard compressor tags (C-101, C101A)
-          - pattern: '\b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b'
-            description: Compressor with type designation (AC-101, RC-201)
-          - pattern: '\b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b'
-            description: Control valve tags (FCV-101, PCV-201, TCV-301)
-          - pattern: '\bV[-_]?\d{1,6}[A-Z]?\b'
-            description: Manual valve and vessel tags (V-101, V101A)
-          - pattern: '\b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b'
-            description: Safety valve tags (PSV-101, TSV-201)
-          - pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
-            description: Standard tank tags (T-101, T101A)
-          - pattern: '\bR[-_]?\d{1,6}[A-Z]?\b'
-            description: Reactor tags (R-101, R101A)
-          - pattern: '\bE[-_]?\d{1,6}[A-Z]?\b'
-            description: Heat exchanger tags (E-101, E101A)
-          - pattern: '\b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b'
-            description: Heat exchanger with type (HE-101, CE-201)
-          - pattern: '\bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Flow instruments (FIC-101, FIT-201, FCV-301)
-          - pattern: '\bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Pressure instruments (PIC-101, PIT-201, PCV-301)
-          - pattern: '\bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Temperature instruments (TIC-101, TIT-201, TCV-301)
-          - pattern: '\bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Level instruments (LIC-101, LIT-201, LCV-301)
-          - pattern: '\bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b'
-            description: Analytical instruments (AIC-101, AIT-201, ACV-301)
-          - pattern: '\b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b'
-            description: Distillation column tags (C-101, DC-201)
-        confidence_modifier:
-          mode: explicit
-          value: 1.0
-      - name: not_isa_penalty
-        priority: 1000
-        match:
-          expressions:
-          - pattern: '(?s).*'
-            description: Catch-all when no higher-priority rule matched; applies non-ISA penalty
-        confidence_modifier:
-          mode: offset
-          value: -0.2
-
+- view_external_id: CogniteAsset
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: sp_enterprise_schema
+  entity_type: asset
+  filters:
+  - operator: CONTAINSANY
+    target_property: tags
+    values:
+    - asset_tag
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  validation:
+    confidence_match_rules:
+    - name: isa_compliant
+      priority: 50
+      match:
+        expressions:
+        - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+          description: Standard pump tags (P-101, P101A, P-2001)
+        - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+          description: Pump with service designation (FWP-101, CWP-201)
+        - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+          description: Centrifugal pump tags
+        - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+          description: Standard compressor tags (C-101, C101A)
+        - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+          description: Compressor with type designation (AC-101, RC-201)
+        - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+          description: Control valve tags (FCV-101, PCV-201, TCV-301)
+        - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+          description: Manual valve and vessel tags (V-101, V101A)
+        - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+          description: Safety valve tags (PSV-101, TSV-201)
+        - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+          description: Standard tank tags (T-101, T101A)
+        - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+          description: Reactor tags (R-101, R101A)
+        - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+          description: Heat exchanger tags (E-101, E101A)
+        - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+          description: Heat exchanger with type (HE-101, CE-201)
+        - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Flow instruments (FIC-101, FIT-201, FCV-301)
+        - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+        - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+        - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Level instruments (LIC-101, LIT-201, LCV-301)
+        - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+          description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+        - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+          description: Distillation column tags (C-101, DC-201)
+      confidence_modifier:
+        mode: explicit
+        value: 1.0
+    - name: not_isa_penalty
+      priority: 1000
+      match:
+        expressions:
+        - pattern: (?s).*
+          description: Catch-all when no higher-priority rule matched; applies non-ISA
+            penalty
+      confidence_modifier:
+        mode: offset
+        value: -0.2
 key_extraction:
   externalId: ctx_key_extraction_passthrough
   config:
     parameters:
       debug: true
-      full_rescan: true
+      run_all: true
       raw_db: db_key_extraction
       raw_table_key: key_extraction_state
     data:
@@ -103,7 +103,7 @@ key_extraction:
             value: 0.0
       extraction_rules:
       - name: name_as_candidate_key
-        handler: passthrough
+        handler: regex_handler
         extraction_type: candidate_key
         description: Use name field value as the candidate key (no regex or parsing)
         enabled: true
@@ -111,14 +111,11 @@ key_extraction:
         scope_filters:
           entity_type:
           - asset
-        parameters:
-          min_confidence: 1.0
-        source_fields:
+        fields:
         - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
+        field_results_mode: first_match

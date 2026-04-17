@@ -26,6 +26,9 @@ from tests.fixtures.key_extraction.sample_data import (
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
     _convert_rule_dict_to_engine_format,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.config import (
+    ExtractionRuleConfig,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
     ExtractionMethod,
     ExtractionResult,
@@ -45,17 +48,23 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         self.minimal_config = {
             "extraction_rules": [
                 {
+                    "rule_id": "basic_pump_tag",
                     "name": "basic_pump_tag",
                     "description": "Extract pump tags",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                    "handler": "regex_handler",
+                    "field_results_mode": "merge_all",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "P[-_]?\d{1,6}[A-Z]?"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.7},
                 }
             ],
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
@@ -87,9 +96,20 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
     def test_extract_with_description(self):
         """Test extraction from description field."""
         config = self.minimal_config.copy()
-        config["extraction_rules"][0]["source_fields"] = [
-            {"field_name": "name", "required": True},
-            {"field_name": "description", "required": False},
+        config["extraction_rules"][0]["field_results_mode"] = "merge_all"
+        config["extraction_rules"][0]["fields"] = [
+            {
+                "field_name": "name",
+                "required": True,
+                "regex": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                "regex_options": {"ignore_case": True},
+            },
+            {
+                "field_name": "description",
+                "required": False,
+                "regex": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                "regex_options": {"ignore_case": True},
+            },
         ]
 
         engine = KeyExtractionEngine(config)
@@ -139,20 +159,20 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         val = engine._get_field_value(entity, sf, None)
         self.assertEqual(val, "X-9")
 
-    def test_passthrough_extraction(self):
-        """Passthrough method uses entire field value as candidate key."""
+    def test_trim_passthrough_regex_handler(self):
+        """regex_handler without regex emits trimmed field text as one candidate key."""
         passthrough_config = {
             "extraction_rules": [
                 {
+                    "rule_id": "name_as_key",
                     "name": "name_as_key",
                     "description": "Use name as-is",
                     "extraction_type": "candidate_key",
-                    "handler": "passthrough",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.95,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {},
+                    "fields": [{"field_name": "name", "required": True}],
+                    "validation": {"min_confidence": 0.95},
                 }
             ],
             "validation": {
@@ -169,9 +189,9 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         key = result.candidate_keys[0]
         self.assertEqual(key.value, "P-10001-A")
         self.assertEqual(key.source_field, "name")
-        self.assertEqual(key.method, ExtractionMethod.PASSTHROUGH)
+        self.assertEqual(key.method, ExtractionMethod.REGEX_HANDLER)
         self.assertEqual(key.rule_id, "name_as_key")
-        self.assertEqual(key.confidence, 0.95)
+        self.assertEqual(key.confidence, 1.0)
         self.assertEqual(len(result.foreign_key_references), 0)
 
     def test_extraction_with_instrument_tags(self):
@@ -179,17 +199,23 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         config = {
             "extraction_rules": [
                 {
+                    "rule_id": "instrument_tags",
                     "name": "instrument_tags",
                     "description": "Extract instrument tags",
                     "extraction_type": "foreign_key_reference",
-                    "handler": "regex",
-                    "pattern": r"\b[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?\b",
+                    "handler": "regex_handler",
+                    "field_results_mode": "merge_all",
                     "priority": 30,
                     "enabled": True,
-                    "min_confidence": 0.8,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "description", "required": False}],
-                    "config": {"pattern": "[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?"},
+                    "fields": [
+                        {
+                            "field_name": "description",
+                            "required": False,
+                            "regex": r"\b[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.8},
                 }
             ],
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 15},
@@ -218,30 +244,42 @@ class TestKeyExtractionWithCDFAssets(unittest.TestCase):
         self.config = {
             "extraction_rules": [
                 {
+                    "rule_id": "pump_tags",
                     "name": "pump_tags",
                     "description": "Extract pump tags",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                    "handler": "regex_handler",
+                    "field_results_mode": "merge_all",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "P[-_]?\d{1,6}[A-Z]?"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.7},
                 },
                 {
+                    "rule_id": "instrument_tags",
                     "name": "instrument_tags",
                     "description": "Extract instrument tags",
                     "extraction_type": "foreign_key_reference",
-                    "handler": "regex",
-                    "pattern": r"\b[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?\b",
+                    "handler": "regex_handler",
+                    "field_results_mode": "merge_all",
                     "priority": 30,
                     "enabled": True,
-                    "min_confidence": 0.8,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "description", "required": False}],
-                    "config": {"pattern": "[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?"},
+                    "fields": [
+                        {
+                            "field_name": "description",
+                            "required": False,
+                            "regex": r"\b[FPTLA][A-Z]{1,2}[-_]?\d{1,6}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.8},
                 },
             ],
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 15},
@@ -279,17 +317,22 @@ class TestExtractionValidation(unittest.TestCase):
         config = {
             "extraction_rules": [
                 {
+                    "rule_id": "low_confidence_test",
                     "name": "low_confidence_test",
                     "description": "Low confidence rule",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\b[A-Z]+\b",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.9,  # Very high threshold
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "[A-Z]+"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\b[A-Z]+\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.9},
                 }
             ],
             "validation": {"min_confidence": 0.9, "max_keys_per_type": 10},
@@ -309,17 +352,22 @@ class TestExtractionValidation(unittest.TestCase):
         config = {
             "extraction_rules": [
                 {
+                    "rule_id": "multiple_tags",
                     "name": "multiple_tags",
                     "description": "Extract multiple tags",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d+\b",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.5,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "description", "required": False}],
-                    "config": {"pattern": "P[-_]?\d+"},
+                    "fields": [
+                        {
+                            "field_name": "description",
+                            "required": False,
+                            "regex": r"\bP[-_]?\d+\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.5},
                 }
             ],
             "validation": {
@@ -349,17 +397,22 @@ class TestExtractionEdgeCases(unittest.TestCase):
         config = {
             "extraction_rules": [
                 {
+                    "rule_id": "test_rule",
                     "name": "test_rule",
                     "description": "Test rule",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d+\b",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "P[-_]?\d+"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\bP[-_]?\d+\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.7},
                 }
             ],
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
@@ -382,17 +435,22 @@ class TestExtractionEdgeCases(unittest.TestCase):
         config = {
             "extraction_rules": [
                 {
+                    "rule_id": "test_rule",
                     "name": "test_rule",
                     "description": "Test rule",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d+\b",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "P[-_]?\d+"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\bP[-_]?\d+\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.7},
                 }
             ],
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
@@ -414,17 +472,22 @@ class TestExtractionEdgeCases(unittest.TestCase):
         config = {
             "extraction_rules": [
                 {
+                    "rule_id": "test_rule",
                     "name": "test_rule",
                     "description": "Test rule",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d+[A-Z]?\b",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "P[-_]?\d+[A-Z]?"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\bP[-_]?\d+[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.7},
                 }
             ],
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
@@ -440,201 +503,77 @@ class TestExtractionEdgeCases(unittest.TestCase):
         self.assertIn("P-101", extracted_values)
 
 
-class TestCompositeFieldExtraction(unittest.TestCase):
-    """Test cross-field merging functionality."""
+class TestFieldResultsModeCoercion(unittest.TestCase):
+    """Legacy field_results_mode: first_match is coerced to merge_all in Pydantic config."""
 
-    def test_concatenate_strategy(self):
-        """Test concatenating multiple fields into a single tag."""
-        config = {
-            "extraction_rules": [
-                {
-                    "name": "composite_site_unit_tag",
-                    "description": "Combine site code and unit number",
-                    "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"[A-Z]{2}-\d{3}",
-                    "priority": 50,
-                    "enabled": True,
-                    "min_confidence": 0.5,
-                    "composite_strategy": "concatenate",
-                    "source_fields": [
-                        {"field_name": "siteCode", "role": "target", "required": True},
-                        {
-                            "field_name": "unitNumber",
-                            "role": "target",
-                            "required": True,
-                        },
-                    ],
-                    "config": {
-                        "pattern": "[A-Z]{2}-\d{3}",
-                        "field_separator": "-",
-                        "field_order": ["siteCode", "unitNumber"],
-                    },
-                }
-            ],
-            "validation": {"min_confidence": 0.5},
-        }
-
-        engine = KeyExtractionEngine(config)
-        entity = {
-            "id": "test_001",
-            "name": "Test Asset",
-            "siteCode": "TX",
-            "unitNumber": "100",
-        }
-
-        result = engine.extract_keys(entity, "asset")
-
-        self.assertGreater(len(result.candidate_keys), 0)
-        # The concatenated value should match the pattern
-        found_composite = False
-        for key in result.candidate_keys:
-            if key.metadata.get("composite_extraction"):
-                found_composite = True
-                self.assertEqual(key.metadata["composite_strategy"], "concatenate")
-                self.assertIn("siteCode", key.metadata["composite_fields"])
-                self.assertIn("unitNumber", key.metadata["composite_fields"])
-                # Value should be concatenated (e.g., "TX-100")
-                self.assertEqual(key.value, "TX-100")
-                break
-
-        self.assertTrue(found_composite, "No composite extraction found")
-
-    def test_concatenate_strategy_parameters_alias_for_config(self):
-        """Scope/UI YAML uses `parameters`; engine should treat it as rule.config for composite."""
-        config = {
-            "extraction_rules": [
-                {
-                    "name": "composite_from_parameters",
-                    "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "priority": 50,
-                    "enabled": True,
-                    "composite_strategy": "concatenate",
-                    "source_fields": [
-                        {"field_name": "siteCode", "role": "target", "required": True},
-                        {"field_name": "unitNumber", "role": "target", "required": True},
-                    ],
-                    "parameters": {
-                        "pattern": "[A-Z]{2}-\\d{3}",
-                        "field_separator": "-",
-                        "field_order": ["siteCode", "unitNumber"],
-                    },
-                }
-            ],
-            "validation": {"min_confidence": 0.5},
-        }
-
-        engine = KeyExtractionEngine(config)
-        entity = {"siteCode": "TX", "unitNumber": "100"}
-        result = engine.extract_keys(entity, "asset")
-        self.assertTrue(any(k.metadata.get("composite_extraction") for k in result.candidate_keys))
-        self.assertEqual(result.candidate_keys[0].value, "TX-100")
-
-    def test_token_reassembly_strategy(self):
-        """Test cross-field token reassembly."""
-        config = {
-            "extraction_rules": [
-                {
-                    "name": "cross_field_token_reassembly",
-                    "description": "Extract tokens from multiple fields and reassemble",
-                    "extraction_type": "candidate_key",
-                    "handler": "token_reassembly",
-                    "priority": 50,
-                    "enabled": True,
-                    "min_confidence": 0.5,
-                    "composite_strategy": "token_reassembly",
-                    "source_fields": [
-                        {
-                            "field_name": "siteCode",
-                            "role": "unit",
-                            "required": True,
-                        },
-                        {
-                            "field_name": "equipmentTag",
-                            "role": "unit",
-                            "required": True,
-                        },
-                    ],
-                    "config": {
-                        "tokenization": {
-                            "separator_patterns": ["-", "_", " "],
-                            "extract_from_multiple_fields": [
-                                {"field_name": "siteCode", "component_type": "unit"},
-                                {
-                                    "field_name": "equipmentTag",
-                                    "component_type": "unit",
-                                },
-                            ],
-                            "token_patterns": [
-                                {
-                                    "name": "siteCode",
-                                    "pattern": r"([A-Z]{2})",
-                                    "required": True,
-                                    "component_type": "unit",
-                                },
-                                {
-                                    "name": "equipmentTag",
-                                    "pattern": r"([A-Z]{1}\d{3})",
-                                    "required": True,
-                                    "component_type": "unit",
-                                },
-                            ],
-                        },
-                        "assembly_rules": [
-                            {
-                                "format": "{siteCode}-{equipmentTag}",
-                                "conditions": {},
-                            }
-                        ],
-                    },
-                }
-            ],
-            "validation": {"min_confidence": 0.5},
-        }
-
-        engine = KeyExtractionEngine(config)
-        entity = {
-            "id": "test_002",
-            "name": "Test Asset",
-            "siteCode": "TX",
-            "equipmentTag": "P101",
-        }
-
-        result = engine.extract_keys(entity, "asset")
-
-        self.assertGreater(len(result.candidate_keys), 0)
-        found_cross_field = False
-        for key in result.candidate_keys:
-            if key.metadata.get("cross_field_extraction"):
-                found_cross_field = True
-                self.assertIn("siteCode", key.metadata["source_fields"])
-                self.assertIn("equipmentTag", key.metadata["source_fields"])
-                # Should be reassembled as TX-P101
-                self.assertEqual(key.value, "TX-P101")
-                break
-
-        self.assertTrue(found_cross_field, "No cross-field extraction found")
+    def test_first_match_coerced_to_merge_all(self):
+        r = ExtractionRuleConfig.model_validate(
+            {
+                "rule_id": "legacy_fm",
+                "handler": "heuristic",
+                "field_results_mode": "first_match",
+                "parameters": {
+                    "strategies": [{"id": "delimiter_split", "weight": 1.0}],
+                    "max_candidates_per_field": 5,
+                },
+                "fields": [{"field_name": "name"}],
+            }
+        )
+        self.assertEqual(r.field_results_mode, "merge_all")
 
 
-class TestPassthroughDefaultMethod(unittest.TestCase):
-    """Omitted or blank method resolves to passthrough."""
+class TestNormalizeMethod(unittest.TestCase):
+    """Handler id normalization (regex_handler default)."""
 
     def test_normalize_method_defaults(self):
-        self.assertEqual(normalize_method(None), ExtractionMethod.PASSTHROUGH)
-        self.assertEqual(normalize_method(""), ExtractionMethod.PASSTHROUGH)
-        self.assertEqual(normalize_method("   "), ExtractionMethod.PASSTHROUGH)
+        self.assertEqual(normalize_method(None), ExtractionMethod.REGEX_HANDLER)
+        self.assertEqual(normalize_method(""), ExtractionMethod.REGEX_HANDLER)
+        self.assertEqual(normalize_method("   "), ExtractionMethod.REGEX_HANDLER)
+
+    def test_normalize_method_legacy_field_rule_alias(self):
+        self.assertEqual(normalize_method("field_rule"), ExtractionMethod.REGEX_HANDLER)
+
+    def test_normalize_method_deprecated_field_rule_fixed_width_maps_to_regex(self):
+        self.assertEqual(
+            normalize_method("field_rule_fixed_width"), ExtractionMethod.REGEX_HANDLER
+        )
+
+    def test_normalize_method_removed_handlers(self):
+        self.assertEqual(normalize_method("passthrough"), ExtractionMethod.UNSUPPORTED)
+        self.assertEqual(normalize_method("regex"), ExtractionMethod.UNSUPPORTED)
+        self.assertEqual(normalize_method("fixed_width"), ExtractionMethod.UNSUPPORTED)
+        self.assertEqual(normalize_method("token_reassembly"), ExtractionMethod.UNSUPPORTED)
 
     def test_convert_rule_without_method_key(self):
         out = _convert_rule_dict_to_engine_format(
             {
-                "name": "implicit_passthrough",
+                "name": "implicit_regex_handler",
                 "extraction_type": "candidate_key",
-                "source_fields": [{"field_name": "name", "required": True}],
+                "fields": [{"field_name": "name", "required": True, "regex": r"P-\d+"}],
             }
         )
         self.assertIsNotNone(out)
-        self.assertEqual(out["handler"], "passthrough")
+        self.assertEqual(out["handler"], "regex_handler")
+
+    def test_convert_rule_token_reassembly_handler_removed(self):
+        out = _convert_rule_dict_to_engine_format(
+            {
+                "name": "legacy_tr",
+                "handler": "token_reassembly",
+                "parameters": {"tokenization": {}, "assembly_rules": []},
+            }
+        )
+        self.assertIsNone(out)
+
+    def test_convert_rule_fixed_width_handler_removed(self):
+        out = _convert_rule_dict_to_engine_format(
+            {
+                "name": "legacy_fw",
+                "handler": "fixed_width",
+                "parameters": {"field_definitions": []},
+            }
+        )
+        self.assertIsNone(out)
 
 
 class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
@@ -646,31 +585,55 @@ class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
             "parameters": {"exclude_self_referencing_keys": True},
             "extraction_rules": [
                 {
+                    "rule_id": "cand",
                     "name": "cand",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
+                    "handler": "regex_handler",
                     "priority": 10,
                     "enabled": True,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": r"45-TT-92506"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"45-TT-92506",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.1},
                 },
                 {
+                    "rule_id": "fk_same",
                     "name": "fk_same",
                     "extraction_type": "foreign_key_reference",
-                    "handler": "regex",
+                    "handler": "regex_handler",
                     "priority": 20,
                     "enabled": True,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": r"45-TT-92506"},
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"45-TT-92506",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.1},
                 },
                 {
+                    "rule_id": "fk_other",
                     "name": "fk_other",
                     "extraction_type": "foreign_key_reference",
-                    "handler": "regex",
+                    "handler": "regex_handler",
                     "priority": 30,
                     "enabled": True,
-                    "source_fields": [{"field_name": "description", "required": False}],
-                    "config": {"pattern": r"P-\d+"},
+                    "fields": [
+                        {
+                            "field_name": "description",
+                            "required": False,
+                            "regex": r"P-\d+",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.1},
                 },
             ],
             "validation": {"min_confidence": 0.1, "max_keys_per_type": 10},
@@ -771,50 +734,48 @@ class TestFieldSelectionMultiEntity(unittest.TestCase):
         sample_config = {
             "extraction_rules": [
                 {
+                    "rule_id": "FIELD SELECTION DEMO",
                     "name": "FIELD SELECTION DEMO",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
+                    "handler": "regex_handler",
+                    "field_results_mode": "merge_all",
                     "priority": 80,
-                    "source_fields": [
+                    "fields": [
                         {
                             "field_name": "name",
-                            "field_type": "string",
                             "required": False,
                             "priority": 1,
-                            "role": "target",
                             "max_length": 500,
                             "preprocessing": ["trim"],
+                            "regex": r"\d+[A-Z]+",
+                            "regex_options": {"ignore_case": False},
+                            "max_matches_per_field": 5,
                         },
                         {
                             "field_name": "description",
-                            "field_type": "string",
                             "required": False,
                             "priority": 2,
-                            "role": "target",
                             "max_length": 500,
                             "preprocessing": ["trim"],
+                            "regex": r"\d+[A-Z]+",
+                            "regex_options": {"ignore_case": False},
+                            "max_matches_per_field": 5,
                         },
                         {
                             "field_name": "unit",
-                            "field_type": "string",
                             "required": False,
                             "priority": 3,
-                            "role": "target",
                             "max_length": 500,
                             "preprocessing": ["trim"],
+                            "regex": r"\d+[A-Z]+",
+                            "regex_options": {"ignore_case": False},
+                            "max_matches_per_field": 5,
                         },
                     ],
-                    "config": {
-                        "pattern": r"\d+[A-Z]+",
-                        "regex_options": {"multiline": False, "dotall": False},
-                        "ignore_case": False,
-                        "unicode": True,
-                        "reassemble_format": None,
-                        "max_matches_per_field": 5,
-                        "early_termination": True,
-                    },
+                    "validation": {"min_confidence": 0.1},
                 }
-            ]
+            ],
+            "validation": {"min_confidence": 0.1, "max_keys_per_type": 100},
         }
         engine = KeyExtractionEngine(sample_config)
         results: list[ExtractionResult] = []

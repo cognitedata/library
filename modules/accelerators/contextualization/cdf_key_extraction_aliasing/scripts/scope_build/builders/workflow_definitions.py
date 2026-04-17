@@ -9,6 +9,7 @@ from typing import Sequence
 import yaml
 
 from scope_build.context import ScopeBuildContext
+from scope_build.hierarchy import workflow_display_name_from_path
 from scope_build.paths import WORKFLOW_ARTIFACTS_REL, WORKFLOW_TEMPLATE_REL
 from scope_build.io_util import strip_leading_comments_and_blanks
 from scope_build.mode import scoped_workflow_external_id
@@ -33,12 +34,33 @@ def _read_text_template(module_root: Path, rel: Path, override: Path | None) -> 
     return path.read_text(encoding="utf-8")
 
 
-def render_workflow_template_text(template_text: str, workflow_external_id: str) -> str:
+def render_workflow_template_text(
+    template_text: str,
+    workflow_external_id: str,
+    *,
+    display_name: str | None = None,
+) -> str:
     if WORKFLOW_EXTERNAL_ID_PLACEHOLDER not in template_text:
         raise ValueError(
             f"Workflow template must contain placeholder {WORKFLOW_EXTERNAL_ID_PLACEHOLDER!r}"
         )
     body = template_text.replace(WORKFLOW_EXTERNAL_ID_PLACEHOLDER, workflow_external_id)
+    dn = (display_name or "").strip()
+    if dn:
+        name_line = yaml.dump({"name": dn}, default_flow_style=False, allow_unicode=True).rstrip()
+        lines = body.splitlines()
+        out: list[str] = []
+        inserted = False
+        for line in lines:
+            out.append(line)
+            if not inserted and line.startswith("externalId:"):
+                out.append(name_line)
+                inserted = True
+        if not inserted:
+            raise ValueError("Workflow template must contain an externalId mapping for name injection")
+        body = "\n".join(out)
+        if template_text.endswith("\n") and not body.endswith("\n"):
+            body += "\n"
     yaml.safe_load(body)  # validate
     return body
 
@@ -142,7 +164,11 @@ class ScopedWorkflowDefinitionsBuilder:
             DEFAULT_WORKFLOW_VERSION_TEMPLATE_REL,
             self._workflow_version_template_override,
         )
-        wf_body = render_workflow_template_text(wf_tpl, ext_id)
+        wf_body = render_workflow_template_text(
+            wf_tpl,
+            ext_id,
+            display_name=workflow_display_name_from_path(ctx.path),
+        )
         wv_body = render_workflow_template_text(wv_tpl, ext_id)
         scope_dir = module_root / WORKFLOW_ARTIFACTS_REL / suffix
         wf_name = f"{self._workflow_base}.{suffix}.Workflow.yaml"
@@ -206,6 +232,7 @@ def expected_scoped_workflow_documents(
     *,
     workflow_template_path: Path | None,
     workflow_version_template_path: Path | None,
+    display_name: str | None = None,
 ) -> tuple[dict, dict]:
     ext_id = scoped_workflow_external_id(workflow_base, suffix)
     wf_tpl = _read_text_template(
@@ -214,7 +241,9 @@ def expected_scoped_workflow_documents(
     wv_tpl = _read_text_template(
         module_root, DEFAULT_WORKFLOW_VERSION_TEMPLATE_REL, workflow_version_template_path
     )
-    wf_doc = yaml.safe_load(render_workflow_template_text(wf_tpl, ext_id))
+    wf_doc = yaml.safe_load(
+        render_workflow_template_text(wf_tpl, ext_id, display_name=display_name)
+    )
     wv_doc = yaml.safe_load(render_workflow_template_text(wv_tpl, ext_id))
     if not isinstance(wf_doc, dict) or not isinstance(wv_doc, dict):
         raise ValueError("Workflow templates must render to YAML mappings")
@@ -260,12 +289,13 @@ def verify_root_workflow_bundle(
 def verify_scoped_workflow_bundle(
     module_root: Path,
     workflow_base: str,
-    suffix: str,
+    ctx: ScopeBuildContext,
     *,
     workflow_template_path: Path | None,
     workflow_version_template_path: Path | None,
 ) -> None:
     """Raise SystemExit(1) if scoped Workflow / WorkflowVersion are missing or differ."""
+    suffix = cdf_external_id_suffix(ctx.scope_id)
     scope_dir = module_root / WORKFLOW_ARTIFACTS_REL / suffix
     exp_wf, exp_wv = expected_scoped_workflow_documents(
         module_root,
@@ -273,6 +303,7 @@ def verify_scoped_workflow_bundle(
         suffix,
         workflow_template_path=workflow_template_path,
         workflow_version_template_path=workflow_version_template_path,
+        display_name=workflow_display_name_from_path(ctx.path),
     )
     wf_name = f"{workflow_base}.{suffix}.Workflow.yaml"
     wv_name = f"{workflow_base}.{suffix}.WorkflowVersion.yaml"
@@ -306,11 +337,10 @@ def verify_all_scoped_workflow_bundles(
     workflow_version_template_path: Path | None,
 ) -> None:
     for ctx in contexts:
-        suffix = cdf_external_id_suffix(ctx.scope_id)
         verify_scoped_workflow_bundle(
             module_root,
             workflow_base,
-            suffix,
+            ctx,
             workflow_template_path=workflow_template_path,
             workflow_version_template_path=workflow_version_template_path,
         )

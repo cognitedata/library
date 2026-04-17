@@ -130,12 +130,12 @@ def build_key_extraction_workflow_config(
     *,
     instance_space: str,
     incremental_change_processing: bool,
-    full_rescan: Optional[bool] = None,
+    run_all: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Return ``{externalId, config}`` for key-extraction / incremental handlers.
 
-    ``raw_table_key`` and default ``full_rescan`` come from ``key_extraction.config.parameters``
-    in the scope document. When ``full_rescan`` is not ``None``, it overrides the document value.
+    ``raw_table_key`` and default ``run_all`` come from ``key_extraction.config.parameters``
+    in the scope document. When ``run_all`` is not ``None``, it overrides the document value.
     """
     ke = doc.get("key_extraction")
     if not isinstance(ke, dict):
@@ -153,8 +153,8 @@ def build_key_extraction_workflow_config(
             "scope document must set key_extraction.config.parameters.raw_table_key "
             "(used as key-extraction RAW table key)"
         )
-    if full_rescan is not None:
-        params["full_rescan"] = bool(full_rescan)
+    if run_all is not None:
+        params["run_all"] = bool(run_all)
     params["incremental_change_processing"] = incremental_change_processing
     data = inner.setdefault("data", {})
     if not isinstance(data, dict):
@@ -243,10 +243,10 @@ def ensure_key_extraction_config_from_scope_dm(
         return
     doc = _workflow_v1_from_task_data(data)
     space = ensure_instance_space_from_scope_document(data, doc)
-    fr_override: Optional[bool] = bool(data["full_rescan"]) if "full_rescan" in data else None
+    fr_override: Optional[bool] = bool(data["run_all"]) if "run_all" in data else None
     data["config"] = build_key_extraction_workflow_config(
         doc,
-        full_rescan=fr_override,
+        run_all=fr_override,
         instance_space=str(space),
         incremental_change_processing=incremental_change_processing,
     )

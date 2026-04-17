@@ -1,6 +1,6 @@
 import YAML from "yaml";
 
-/** Bucket id: rules with no `entity_type` in scope_filters (empty / missing). */
+/** Bucket id: rules with no `entity_type` in scope_filters — apply to all entity types (same as empty `scope_filters`). */
 export const ENTITY_BUCKET_UNSCOPED = "__unscoped__";
 /** Bucket id: show every rule (for reordering across the full list). */
 export const ENTITY_BUCKET_ALL = "__all__";
@@ -50,17 +50,18 @@ export function defaultScopeFiltersYamlForBucket(bucket: string, fallbackEntity:
 export type EntityBucketRow = { id: string; count: number };
 
 /**
- * Build sidebar rows: standard types (with counts), extra types sorted, unscoped, then "all".
+ * Build sidebar rows: "All rules" (full list / reorder) first, then Global (no entity_type),
+ * then standard types and any extra entity types.
  */
 export function buildEntityBucketSidebar(
   scopeYamlList: string[],
   totalRules: number
 ): EntityBucketRow[] {
   const counts = new Map<string, number>();
-  let unscoped = 0;
+  let globalCount = 0;
   for (const yaml of scopeYamlList) {
     const types = parseEntityTypesFromScopeFiltersYaml(yaml);
-    if (types.length === 0) unscoped += 1;
+    if (types.length === 0) globalCount += 1;
     else for (const t of types) counts.set(t, (counts.get(t) ?? 0) + 1);
   }
 
@@ -69,14 +70,14 @@ export function buildEntityBucketSidebar(
     .sort();
 
   const rows: EntityBucketRow[] = [];
+  rows.push({ id: ENTITY_BUCKET_ALL, count: totalRules });
+  rows.push({ id: ENTITY_BUCKET_UNSCOPED, count: globalCount });
   for (const id of STANDARD_ENTITY_TYPES) {
     rows.push({ id, count: counts.get(id) ?? 0 });
   }
   for (const id of extra) {
     rows.push({ id, count: counts.get(id) ?? 0 });
   }
-  rows.push({ id: ENTITY_BUCKET_UNSCOPED, count: unscoped });
-  rows.push({ id: ENTITY_BUCKET_ALL, count: totalRules });
   return rows;
 }
 

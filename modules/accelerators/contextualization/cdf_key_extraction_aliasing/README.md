@@ -25,7 +25,7 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 
 ## Capabilities
 
-- **Extraction methods:** passthrough (default when `method` is omitted), regex, fixed width, token reassembly, heuristic
+- **Extraction handlers:** `regex_handler` (default) and `heuristic` — configured per rule with a shared `fields` list and optional `validation` / `confidence_match_rules`
 - **Extraction types:** candidate keys, foreign key references, document references
 - **Aliasing transformation types:** character substitution, prefix/suffix, regex, case, **semantic expansion** (`type: semantic_expansion`), related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite, **`alias_mapping_table`** (RAW-backed tag→alias catalog when configured)
 - **Config:** v1 scope document at module root (`workflow.local.config.yaml`) and examples under `config/examples/` (see [config/README.md](config/README.md))
@@ -34,6 +34,8 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 **Reference tables** for each extraction method and aliasing `type` value: [Key extraction spec](<docs/specifications/1. key_extraction.md>), [Aliasing spec](<docs/specifications/2. aliasing.md>).
 
 **Custom handlers (new Python methods or transformation types):** [How to add a custom handler](docs/guides/howto_custom_handlers.md).
+
+**Configuration authoring:** [How to build configuration with YAML](docs/guides/howto_config_yaml.md) (files, git, CLI), [How to build configuration with the UI](docs/guides/howto_config_ui.md) (local operator UI + API).
 
 **Local quickstart and scoped Toolkit deploy:** [Quickstart — `module.py run` and `.env`](docs/guides/howto_quickstart.md), [Scoped deployment — hierarchy, triggers, `cdf deploy`](docs/guides/howto_scoped_deployment.md).
 
@@ -110,7 +112,7 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 | `--clean-state` | Drop incremental RAW tables from the scope (key extraction state, reference index, aliasing RAW), then run the pipeline | false |
 | `--clean-state-only` | Same RAW drops as `--clean-state`, then exit (no pipeline) | false |
 
-**RAW clean does not** remove alias or FK values already written on data-model instances. For incremental runs, a typical full reprocess is `--clean-state --full-rescan`.
+**RAW clean does not** remove alias or FK values already written on data-model instances. For incremental runs, a typical full reprocess is `--clean-state --all`.
 
 **Outputs:** timestamped JSON under `tests/results/` (`*_cdf_extraction.json`, `*_cdf_aliasing.json`). Without `--dry-run`, aliases are written to **`cdf_cdm:CogniteDescribable:v1`** (property configurable; default `aliases`). Optional FK strings use the configured FK write-back property.
 
@@ -122,7 +124,7 @@ When `parameters.incremental_change_processing` is true, `fn_dm_incremental_stat
 
 **Watermark and hash state:** When `parameters.key_discovery_instance_space` is set (and `workflow_scope` is set—scope build injects it from the hierarchy leaf), the global watermark and per-node hash/prior classification use **Key Discovery** FDM views under `data_modeling/` (`KeyDiscoveryScopeCheckpoint`, `KeyDiscoveryProcessingState`, CogniteDescribable-backed) **if those views are deployed** (verified via `data_modeling.views.retrieve`). If the views are missing or FDM calls fail, the pipeline **falls back** to the legacy **RAW** watermark row (`scope_wm_*`) and RAW `EXTRACTION_INPUTS_HASH` scans. If `key_discovery_instance_space` is unset, only the RAW path is used.
 
-**`parameters.incremental_skip_unchanged_source_inputs`** (default `true`): when enabled together with incremental processing, detection computes a SHA-256 digest of the same source fields and preprocessing as key extraction (optional per-view `key_discovery_hash_property_paths`), plus a fingerprint of `extraction_rules`. If it matches the latest stored hash for that node and scope, no new cohort row is emitted; **watermarks still advance** from `lastUpdatedTime` so unchanged noise updates do not re-list the same instances forever. With Key Discovery FDM, `fn_dm_key_extraction` upserts processing state instead of writing `EXTRACTION_INPUTS_HASH` on RAW rows. The `+1 ms` bound on `lastUpdatedTime` filters is unchanged. `full_rescan=true` still emits cohort rows for all matched instances regardless of prior hash/state.
+**`parameters.incremental_skip_unchanged_source_inputs`** (default `true`): when enabled together with incremental processing, detection computes a SHA-256 digest of the same source fields and preprocessing as key extraction (optional per-view `key_discovery_hash_property_paths`), plus a fingerprint of `extraction_rules`. If it matches the latest stored hash for that node and scope, no new cohort row is emitted; **watermarks still advance** from `lastUpdatedTime` so unchanged noise updates do not re-list the same instances forever. With Key Discovery FDM, `fn_dm_key_extraction` upserts processing state instead of writing `EXTRACTION_INPUTS_HASH` on RAW rows. The `+1 ms` bound on `lastUpdatedTime` filters is unchanged. `run_all=true` still emits cohort rows for all matched instances regardless of prior hash/state.
 
 ## Alias write-back
 
@@ -191,7 +193,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 
 extraction_config = {
     "extraction_rules": [{
-        "name": "pump_tags", "method": "regex", "extraction_type": "candidate_key",
+        "name": "pump_tags", "handler": "regex_handler", "extraction_type": "candidate_key",
         "priority": 50, "enabled": True,
         "source_fields": [{"field_name": "name", "required": True}],
         "parameters": {"pattern": r"P[-_]?\d{1,6}[A-Z]?", "max_matches_per_field": 10},
@@ -240,6 +242,7 @@ cdf_key_extraction_aliasing/
 | `workflow_template/` | `workflow.template.Workflow*.yaml`, `workflow.template.WorkflowTrigger.yaml`, `workflow.template.config.yaml`, diagram |
 | `workflows/` | Generated Workflow / WorkflowVersion / WorkflowTrigger YAML |
 | `tests/` | Pytest suite and `tests/results/` for JSON artifacts |
+| `ui/` | Operator UI (Vite) and `ui/server/` FastAPI for editing YAML and invoking `module.py` locally — [How to build configuration with the UI](docs/guides/howto_config_ui.md) |
 | `docs/` | Specs, guides, report |
 
 ## Architecture (short)

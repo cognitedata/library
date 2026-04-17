@@ -326,12 +326,13 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         help="Path to a v1 scope YAML document (overrides --scope).",
     )
     p.add_argument(
-        "--full-rescan",
+        "--all",
+        dest="run_all",
         action="store_true",
         help=(
             "When key_extraction.parameters.incremental_change_processing is enabled, "
-            "passes full_rescan to the local runner (full scope rescan; same semantics as "
-            "workflow input full_rescan). No effect if incremental mode is off."
+            "passes run_all to the local runner (entire scope; same semantics as "
+            "workflow input run_all). No effect if incremental mode is off."
         ),
     )
     p.add_argument(
@@ -341,7 +342,7 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
             "In incremental/workflow-parity mode, skip fn_dm_reference_index even when "
             "key_extraction.config.parameters.enable_reference_index is true. "
             "When the scope flag is false (default), the reference index step is skipped regardless. "
-            "No effect on non-incremental runs (reference index is not available there)."
+            "No effect when incremental workflow parity is not used (local CLI always uses incremental parity)."
         ),
     )
     clean_group = p.add_mutually_exclusive_group()
@@ -350,7 +351,7 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help=(
             "Delete RAW state tables for this scope (key extraction, reference index, aliasing state/aliases) "
-            "then run the pipeline. With incremental mode, combine with --full-rescan for a full reprocess."
+            "then run the pipeline. With incremental mode, combine with --all for a full reprocess."
         ),
     )
     clean_group.add_argument(

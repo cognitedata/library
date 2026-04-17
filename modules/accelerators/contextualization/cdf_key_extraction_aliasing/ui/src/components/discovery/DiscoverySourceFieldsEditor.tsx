@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import YAML from "yaml";
 import type { MessageKey } from "../../i18n/types";
+import { discoveryHandlerKind } from "../../utils/ruleHandlerTemplates";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 /** Keys edited in the form; other keys (except deprecated) are preserved in `extra` per row. */
 const FORM_KEYS = new Set([
   "field_name",
+  "variable",
+  "regex",
+  "max_matches_per_field",
   "table_id",
   "required",
   "priority",
@@ -16,10 +20,18 @@ const FORM_KEYS = new Set([
 ]);
 
 /** Removed from schema — stripped on emit so old configs lose these on save. */
-const DEPRECATED_SOURCE_FIELD_KEYS = new Set(["field_type", "separator", "join_fields"]);
+const DEPRECATED_SOURCE_FIELD_KEYS = new Set([
+  "field_type",
+  "separator",
+  "join_fields",
+  "fixed_width",
+]);
 
 export type SourceFieldForm = {
   field_name: string;
+  variable: string;
+  regex: string;
+  max_matches_per_field: string;
   table_id: string;
   required: boolean;
   priority: string;
@@ -33,11 +45,14 @@ export type RowState = { form: SourceFieldForm; extra: Record<string, unknown> }
 function defaultForm(): SourceFieldForm {
   return {
     field_name: "name",
+    variable: "name",
+    regex: "",
+    max_matches_per_field: "",
     table_id: "",
     required: true,
     priority: "1",
     max_length: "500",
-    role: "target",
+    role: "",
     preprocessingCsv: "trim",
   };
 }
@@ -58,11 +73,14 @@ function parseOne(raw: unknown): RowState {
   if (Array.isArray(prep)) preprocessingCsv = prep.map(String).join(", ");
   else if (typeof prep === "string" && prep.trim()) preprocessingCsv = prep;
 
-  const role = o.role != null && String(o.role).trim() !== "" ? String(o.role) : "target";
+  const role = o.role != null && String(o.role).trim() !== "" ? String(o.role) : "";
 
   return {
     form: {
       field_name: String(o.field_name ?? ""),
+      variable: o.variable != null ? String(o.variable) : "",
+      regex: o.regex != null ? String(o.regex) : "",
+      max_matches_per_field: o.max_matches_per_field != null ? String(o.max_matches_per_field) : "",
       table_id: o.table_id != null ? String(o.table_id) : "",
       required: o.required === true,
       priority: o.priority != null ? String(o.priority) : "1",
@@ -92,13 +110,22 @@ function emitOne(row: RowState): Record<string, unknown> {
   o.required = form.required;
   const pr = Number(form.priority);
   o.priority = Number.isFinite(pr) ? pr : 1;
+  if (form.variable.trim()) o.variable = form.variable.trim();
+  else delete o.variable;
+  if (form.regex.trim()) o.regex = form.regex.trim();
+  else delete o.regex;
+  if (form.max_matches_per_field.trim()) {
+    const mm = Number(form.max_matches_per_field);
+    if (Number.isFinite(mm)) o.max_matches_per_field = mm;
+  } else delete o.max_matches_per_field;
   if (form.table_id.trim()) o.table_id = form.table_id.trim();
   else delete o.table_id;
   if (form.max_length.trim()) {
     const ml = Number(form.max_length);
     if (Number.isFinite(ml)) o.max_length = ml;
   } else delete o.max_length;
-  o.role = form.role;
+  if (form.role.trim()) o.role = form.role.trim();
+  else delete o.role;
   const steps = form.preprocessingCsv
     .split(",")
     .map((s) => s.trim())
@@ -114,12 +141,15 @@ export function emitSourceFieldsYaml(rows: RowState[]): string {
 }
 
 type Props = {
+  /** Key extraction handler — controls which per-field inputs are emphasized. */
+  handler: string;
   sourceFieldsYaml: string;
   onChange: (nextYaml: string) => void;
   t: TFn;
 };
 
-export function DiscoverySourceFieldsEditor({ sourceFieldsYaml, onChange, t }: Props) {
+export function DiscoverySourceFieldsEditor({ handler, sourceFieldsYaml, onChange, t }: Props) {
+  const kind = discoveryHandlerKind(handler);
   const [rows, setRows] = useState<RowState[]>(() => parseSourceFieldsToRows(sourceFieldsYaml));
 
   useEffect(() => {
@@ -148,8 +178,15 @@ export function DiscoverySourceFieldsEditor({ sourceFieldsYaml, onChange, t }: P
     commit(rows.filter((_, i) => i !== index));
   };
 
+  const showRegex = kind !== "heuristic";
+
   return (
     <div className="kea-handler-fields kea-source-fields">
+      {kind === "heuristic" && (
+        <p className="kea-hint" style={{ marginBottom: "0.5rem" }}>
+          {t("discoveryRules.sourceFields.heuristicFieldsHint")}
+        </p>
+      )}
       <div className="kea-source-fields__toolbar" style={{ marginBottom: "0.5rem" }}>
         <button type="button" className="kea-btn kea-btn--sm" onClick={addRow}>
           {t("discoveryRules.sourceFields.addField")}
@@ -167,13 +204,22 @@ export function DiscoverySourceFieldsEditor({ sourceFieldsYaml, onChange, t }: P
             background: "var(--kea-bg-elevated)",
           }}
         >
-          <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr auto", alignItems: "end" }}>
+          <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr minmax(5rem,auto) auto", alignItems: "end", gap: "0.35rem" }}>
             <label className="kea-label">
               {t("discoveryRules.sourceFields.fieldName")}
               <input
                 className="kea-input"
                 value={row.form.field_name}
                 onChange={(e) => updateRow(i, { field_name: e.target.value })}
+              />
+            </label>
+            <label className="kea-label">
+              {t("discoveryRules.sourceFields.variable")}
+              <input
+                className="kea-input"
+                placeholder={t("discoveryRules.sourceFields.variablePlaceholder")}
+                value={row.form.variable}
+                onChange={(e) => updateRow(i, { variable: e.target.value })}
               />
             </label>
             <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", paddingTop: "0.35rem" }}>
@@ -193,6 +239,32 @@ export function DiscoverySourceFieldsEditor({ sourceFieldsYaml, onChange, t }: P
               {t("discoveryRules.sourceFields.removeField")}
             </button>
           </div>
+          {showRegex && (
+            <label className="kea-label kea-label--block" style={{ marginTop: "0.45rem" }}>
+              {t("discoveryRules.sourceFields.regex")}
+              <input
+                className="kea-input"
+                style={{ fontFamily: "ui-monospace, monospace" }}
+                placeholder={t("discoveryRules.sourceFields.regexPlaceholder")}
+                value={row.form.regex}
+                onChange={(e) => updateRow(i, { regex: e.target.value })}
+                spellCheck={false}
+              />
+            </label>
+          )}
+          {showRegex && (
+            <label className="kea-label kea-label--block" style={{ marginTop: "0.45rem" }}>
+              {t("discoveryRules.sourceFields.maxMatchesPerField")}
+              <input
+                className="kea-input"
+                type="number"
+                min={1}
+                placeholder="100"
+                value={row.form.max_matches_per_field}
+                onChange={(e) => updateRow(i, { max_matches_per_field: e.target.value })}
+              />
+            </label>
+          )}
           <div
             className="kea-filter-row"
             style={{ gridTemplateColumns: "1fr 1fr 1fr", marginTop: "0.45rem", gap: "0.35rem" }}
@@ -221,7 +293,7 @@ export function DiscoverySourceFieldsEditor({ sourceFieldsYaml, onChange, t }: P
               <input
                 className="kea-input"
                 autoComplete="off"
-                placeholder="target"
+                placeholder="—"
                 value={row.form.role}
                 onChange={(e) => updateRow(i, { role: e.target.value })}
               />
@@ -238,7 +310,11 @@ export function DiscoverySourceFieldsEditor({ sourceFieldsYaml, onChange, t }: P
               />
             </label>
           </div>
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.45rem" }}>
+          <label
+            className="kea-label kea-label--block"
+            style={{ marginTop: "0.45rem" }}
+            title={t("discoveryRules.sourceFields.preprocessingCsv.tooltip")}
+          >
             {t("discoveryRules.sourceFields.preprocessingCsv")}
             <input
               className="kea-input"

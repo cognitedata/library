@@ -12,6 +12,7 @@ export const en: Messages = {
   "tabs.sourceViews": "Source Views",
   "tabs.keyExtraction": "Key Discovery",
   "tabs.aliasing": "Aliasing",
+  "tabs.runPipeline": "Run pipeline",
   "tabs.configure": "Configure",
   "tabs.build": "Build",
   "tabs.artifacts": "Artifacts",
@@ -35,6 +36,7 @@ export const en: Messages = {
   "btn.refreshList": "Refresh List",
   "btn.runBuild": "Run Build",
   "btn.runBuildForce": "Run Build (Force)",
+  "btn.runPipeline": "Run pipeline",
   "btn.dryRun": "Dry Run",
   "status.loading": "Loading…",
   "status.saving": "Saving…",
@@ -70,6 +72,15 @@ export const en: Messages = {
   "build.confirmForce": "Overwrite Generated Workflow Files With --force?",
   "build.outputPlaceholder": "Build Output Appears Here.",
   "build.panelTitle": "Offline Build",
+  "run.contextWorkflowLocal": "Uses workflow.local.config.yaml (saved on disk).",
+  "run.contextWorkflowTemplate": "Uses workflow_template/workflow.template.config.yaml (saved on disk).",
+  "run.contextWorkflowTrigger":
+    "Uses input.configuration from the saved WorkflowTrigger file ({path}). Save the file before running to pick up editor changes.",
+  "run.triggerUnsaved": "You have unsaved changes in this trigger — the run uses the last saved file on disk.",
+  "run.runAll": "Run All (--all)",
+  "run.runAllHint":
+    "When incremental mode is on, processes the full scope (same as workflow input run_all). No effect if incremental mode is off.",
+  "run.outputPlaceholder": "Pipeline output appears here.",
   "scope.levelsLabel": "Levels (Comma-Separated)",
   "scope.levelsLabel.tooltip":
     "Ordered labels for each depth in the hierarchy (e.g. site, unit, system). Comma-separated.",
@@ -156,14 +167,12 @@ export const en: Messages = {
   "keyExtraction.addParam": "Add Parameter",
   "keyExtraction.dataYaml": "config.data — rules & strategy (YAML)",
   "keyExtraction.dataYamlHint":
-    "extraction_rules, field_selection_strategy, and other keys except validation — under key_extraction.config.data",
+    "extraction_rules (fields[], handler, field_results_mode, …) and other keys except validation — under key_extraction.config.data",
   "keyExtraction.validationYaml": "config.data.validation (YAML)",
   "keyExtraction.validationYamlHint":
     "Global validation for extracted keys (min_confidence, max_keys_per_type, confidence_match_rules, …).",
   "keyExtraction.advancedRulesYaml": "Edit rules & strategy as YAML (advanced)",
-  "discoveryRules.fieldSelectionStrategy": "Default field selection (field_selection_strategy)",
-  "discoveryRules.fieldSelectionInherit": "Unset (use per-rule or engine default)",
-  "discoveryRules.compositeStrategyUnset": "None (single-field / default behavior)",
+  "discoveryRules.fieldResultsModeInherit": "Unset (engine default merge_all)",
   "discoveryRules.extraKeysPreserved": "Other keys in config.data are preserved: {keys}",
   "discoveryRules.rule.name": "Rule name",
   "discoveryRules.rule.enabled": "Enabled",
@@ -171,12 +180,16 @@ export const en: Messages = {
   "discoveryRules.rule.moveDown": "Move rule down",
   "discoveryRules.rule.remove": "Remove rule",
   "discoveryRules.rule.handler": "Handler",
+  "discoveryRules.handlerOption.regex_handler": "Regex handler",
+  "discoveryRules.handlerOption.field_rule_fixed_width": "Field rule (fixed width)",
+  "discoveryRules.handlerOption.heuristic": "Heuristic",
   "discoveryRules.rule.extractionType": "Extraction type",
   "discoveryRules.rule.priority": "Priority",
-  "discoveryRules.rule.fieldSelectionStrategy": "Field selection (per rule)",
-  "discoveryRules.rule.compositeStrategy": "Composite strategy (cross-field)",
-  "discoveryRules.rule.compositeStrategyHint":
-    "concatenate: join multiple source fields (role: target) with field_separator and optional field_order in parameters. token_reassembly: use handler token reassembly and tokenization in parameters. context_aware: extract from targets with context fields (role: context) passed to the handler.",
+  "discoveryRules.rule.orderSetsPriority":
+    "List order sets rule priority (top runs first). Use ↑ and ↓ when “All rules” is selected.",
+  "discoveryRules.rule.fieldResultsMode": "Field results mode (field_results_mode)",
+  "discoveryRules.rule.resultTemplate": "Result template (result_template)",
+  "discoveryRules.rule.maxTemplateCombinations": "Max template combinations (max_template_combinations)",
   "discoveryRules.rule.description": "Description",
   "discoveryRules.rule.entityTypesCsv": "Entity types (comma-separated)",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
@@ -187,45 +200,62 @@ export const en: Messages = {
   "discoveryRules.handlerFields.maxMatchesPerField": "max_matches_per_field",
   "discoveryRules.handlerFields.earlyTermination": "early_termination",
   "discoveryRules.handlerFields.regexOptions": "regex_options",
-  "discoveryRules.handlerFields.encoding": "encoding",
-  "discoveryRules.handlerFields.fieldDefinitions": "field_definitions",
-  "discoveryRules.handlerFields.addFieldDefinition": "Add field",
-  "discoveryRules.handlerFields.separatorPatternsCsv": "Separator patterns (comma-separated)",
-  "discoveryRules.handlerFields.assemblyRulesYaml": "assembly_rules (YAML list)",
-  "discoveryRules.handlerFields.scoringMinConfidence": "scoring.min_confidence",
-  "discoveryRules.handlerFields.heuristicStrategiesYaml": "heuristic_strategies (YAML list)",
   "discoveryRules.rule.parametersYamlHint":
-    "parameters (YAML) — the template below matches the selected handler; changing handler reloads this template.",
-  "discoveryRules.handlerDoc.passthrough":
-    "Passthrough: set min_confidence (often 1.0). The processed field value is emitted as the key.",
-  "discoveryRules.handlerDoc.regex":
-    "Regex: pattern, regex_options, and optional validation_pattern, capture_groups, reassemble_format, max_matches_per_field.",
-  "discoveryRules.handlerDoc.fixedWidth":
-    "Fixed width: field_definitions (positions), plus encoding, line/record options as needed.",
-  "discoveryRules.handlerDoc.tokenReassembly":
-    "Token reassembly: tokenization (separators, token_patterns) and assembly_rules to rebuild tags.",
+    "parameters (YAML) — required for heuristic (strategies, max_candidates_per_field); optional hints for regex_handler.",
+  "discoveryRules.rule.parametersYamlHintHeuristic":
+    "parameters (YAML) — strategies, weights, and max_candidates_per_field (required for heuristic).",
+  "discoveryRules.handlerDoc.regex_handler":
+    "regex_handler: declarative fields[] with optional regex / regex_options per field; optional result_template and field_results_mode.",
+  "discoveryRules.handlerDoc.field_rule_fixed_width":
+    "field_rule_fixed_width: same as regex_handler plus fixed_width segments on fields (e.g. {0:3}-{7:13}).",
   "discoveryRules.handlerDoc.heuristic":
-    "Heuristic: heuristic_strategies (each nested strategy has its own method/config) and scoring.",
-  "discoveryRules.rule.sourceFieldsYamlHint":
-    "source_fields — which view properties feed key discovery (one or more rows). Unknown keys can be edited as raw YAML.",
-  "discoveryRules.rawSourceFieldsYaml": "Raw source_fields (YAML)",
+    "heuristic: parameters.strategies (delimiter_split, sliding_token, …) and max_candidates_per_field; list fields to scan.",
+  "discoveryRules.handlerFields.fieldRuleParametersHint":
+    "Per-field regex, variable, and limits are edited below. Use Raw fields YAML for regex_options or other keys.",
+  "discoveryRules.handlerFields.fieldRuleFixedWidthHint":
+    "Use fixed_width on each field row (e.g. {0:3}-{7:13}); other fields in the same rule may still use regex or trim-only.",
+  "discoveryRules.handlerFields.heuristicParametersHint":
+    "Edit heuristic strategies and caps in parameters YAML below (or Raw parameters).",
+  "discoveryRules.rule.fieldsYamlHint":
+    "fields — view properties for this rule (one or more rows). Add regex, fixed_width, variable, or raw keys in YAML.",
+  "discoveryRules.rawFieldsYaml": "Raw fields (YAML)",
   "discoveryRules.sourceFields.addField": "Add source field",
   "discoveryRules.sourceFields.removeField": "Remove",
   "discoveryRules.sourceFields.fieldName": "field_name",
+  "discoveryRules.sourceFields.variable": "variable (for result_template)",
+  "discoveryRules.sourceFields.variablePlaceholder": "omit to use field_name",
+  "discoveryRules.sourceFields.regex": "regex (blank = passthrough)",
+  "discoveryRules.sourceFields.regexPlaceholder": "Pattern; leave empty for passthrough (trimmed field value)",
+  "discoveryRules.sourceFields.fixedWidth": "fixed_width",
+  "discoveryRules.sourceFields.maxMatchesPerField": "max_matches_per_field",
+  "discoveryRules.sourceFields.heuristicFieldsHint":
+    "List the view properties to scan (field_name). Candidates are produced from heuristic parameters, not per-field regex.",
   "discoveryRules.sourceFields.required": "required",
   "discoveryRules.sourceFields.priority": "priority",
   "discoveryRules.sourceFields.maxLength": "max_length",
   "discoveryRules.sourceFields.role": "role",
   "discoveryRules.sourceFields.tableId": "table_id (optional)",
   "discoveryRules.sourceFields.preprocessingCsv": "preprocessing (comma-separated steps)",
+  "discoveryRules.sourceFields.preprocessingCsv.tooltip":
+    "Steps run in order; step names are case-sensitive (use trim, not Trim).\n\nStep | Effect | Description\n" +
+    "trim | strip() | Remove leading and trailing whitespace.\n" +
+    "lowercase | lower() | Normalize to lowercase.\n" +
+    "uppercase | upper() | Normalize to uppercase.\n" +
+    "remove_special_chars | remove chars | Drop characters except letters, digits, underscore, whitespace, and hyphen (regex [^\\w\\s-]).\n\n" +
+    "After all steps, the value is truncated to max_length (see field above).",
   "discoveryRules.rule.add": "Add extraction rule",
   "rulesEntity.sidebarTitle": "Entity type",
   "rulesEntity.sidebarAria": "Filter rules by entity type",
-  "rulesEntity.bucket.unscoped": "Unscoped",
+  "rulesEntity.bucket.global": "Global",
   "rulesEntity.bucket.all": "All rules",
   "rulesEntity.reorderHint":
-    "Use “All rules” in the list on the left to move rules up or down in the global order.",
+    "↑ / ↓ change order in the full rule list (priority). While filtering by entity type, a move may swap with a rule not shown here—open **All rules** to see every row.",
   "rulesEntity.emptyForBucket": "No rules for this selection. Add a rule or pick another entity type.",
+  "rulesEntity.ruleExpandDetails": "Expand rule — full editor",
+  "rulesEntity.ruleCollapseDetails": "Collapse rule — name and description only",
+  "rulesEntity.dragReorderRules":
+    "Drag rules to set priority order. Collapse (▶) shows only name and description; expand for the full form.",
+  "rulesEntity.dragHandle": "Drag to reorder rule priority",
   "editor.subtab.rules": "Rules",
   "editor.subtab.validation": "Validation",
   "editor.subtab.settings": "Settings",
@@ -335,6 +365,8 @@ export const en: Messages = {
   "validationEditor.rule.modifierOffset": "offset (add to confidence)",
   "validationEditor.rule.modifierExplicit": "explicit (set confidence)",
   "validationEditor.rule.modifierValue": "Value",
+  "validationEditor.orderSetsPriority":
+    "List order sets evaluation order. Drag a card or use ↑ / ↓ (numeric priority on each rule still applies when present).",
   "validationEditor.rule.addRule": "Add rule",
   "validationEditor.advancedYaml": "Edit validation as YAML (advanced)",
   "validationEditor.rulesYamlInvalidMerge":
@@ -364,7 +396,7 @@ export const en: Messages = {
   "artifacts.sub.views": "Source Views",
   "artifacts.sub.extraction": "Key Discovery",
   "artifacts.sub.aliasing": "Aliasing",
-  "artifacts.fullRescan": "Full Rescan",
+  "artifacts.runAll": "Run All",
   "artifacts.runId": "Run ID",
   "artifacts.plainEditor": "Plain YAML Editor",
   "artifacts.treeExpand": "Expand",

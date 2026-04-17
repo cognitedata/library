@@ -1,6 +1,6 @@
 # Configuration layout
 
-**Documentation index:** [docs/README.md](../docs/README.md) (maps specs, guides, examples, and workflows). **Scoped build and deploy walkthrough:** [Scoped deployment how-to](../docs/guides/howto_scoped_deployment.md).
+**Documentation index:** [docs/README.md](../docs/README.md) (maps specs, guides, examples, and workflows). **Authoring walkthroughs:** [How to build configuration with YAML](../docs/guides/howto_config_yaml.md), [How to build configuration with the UI](../docs/guides/howto_config_ui.md). **Scoped build and deploy walkthrough:** [Scoped deployment how-to](../docs/guides/howto_scoped_deployment.md).
 
 Configs for this module are the **authoring source** for **`module.py`** / **`local_runner`** and for **CDF workflow** payloads. CDF functions receive **`workflow.input.configuration`** (v1 scope mapping) from schedule triggers built by **`scripts/build_scopes.py`** — scope YAML is **not** uploaded as Cognite File for this pipeline.
 

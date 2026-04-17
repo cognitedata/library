@@ -295,7 +295,7 @@ def get_iso_standard_assets() -> List[Dict[str, Any]]:
 
 
 def get_fixed_width_timeseries() -> List[Dict[str, Any]]:
-    """Get sample timeseries records with fixed width format for testing."""
+    """Sample timeseries with padded name lines (legacy function name)."""
     return [
         {
             "externalId": "TS-FIC-1001-VALUE",
@@ -325,7 +325,7 @@ def get_fixed_width_timeseries() -> List[Dict[str, Any]]:
 
 
 def get_token_reassembly_timeseries() -> List[Dict[str, Any]]:
-    """Get sample timeseries records for token reassembly testing."""
+    """Sample timeseries for externalId regex tests (legacy name preserved)."""
     return [
         {
             "externalId": "TS-FIC-1001-VALUE",

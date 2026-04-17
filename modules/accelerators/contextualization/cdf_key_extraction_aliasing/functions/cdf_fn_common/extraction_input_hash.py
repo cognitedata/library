@@ -15,6 +15,84 @@ from .incremental_scope import scope_key_from_view_dict
 from .property_path import get_value_by_property_path
 
 
+def _norm_entity_type_value(et: Any) -> str:
+    if et is None:
+        return ""
+    if hasattr(et, "value"):
+        return str(et.value).strip().lower()
+    return str(et).strip().lower()
+
+
+def _view_entity_type_normalized(entity_view_config: Any) -> Optional[str]:
+    """Lowercase entity_type string from a source view config (dict or model)."""
+    et = getattr(entity_view_config, "entity_type", None)
+    if et is None and isinstance(entity_view_config, dict):
+        et = entity_view_config.get("entity_type")
+    s = _norm_entity_type_value(et)
+    return s or None
+
+
+def _entity_types_from_rule(rule: Any) -> Optional[List[Any]]:
+    """``scope_filters.entity_type`` or top-level ``entity_types`` (list of strings)."""
+    et_list: Optional[List[Any]] = None
+    sf = getattr(rule, "scope_filters", None)
+    if sf is None and isinstance(rule, dict):
+        sf = rule.get("scope_filters")
+    if isinstance(sf, dict):
+        raw = sf.get("entity_type")
+        if raw is not None:
+            et_list = raw if isinstance(raw, list) else [raw]
+    if et_list is None:
+        top = getattr(rule, "entity_types", None)
+        if top is None and isinstance(rule, dict):
+            top = rule.get("entity_types")
+        if top:
+            et_list = top if isinstance(top, list) else [top]
+    return et_list
+
+
+def _rule_matches_view_entity_type(rule: Any, view_et: Optional[str]) -> bool:
+    """
+    When a rule declares ``scope_filters.entity_type`` or ``entity_types``, only include
+    matching views. Rules with no such declaration apply to every view.
+    """
+    if view_et is None:
+        return True
+    et_list = _entity_types_from_rule(rule)
+    if not et_list:
+        return True
+    allowed = {
+        _norm_entity_type_value(x) for x in et_list if x is not None and str(x).strip()
+    }
+    if not allowed:
+        return True
+    return view_et in allowed
+
+
+def _rule_field_rows(rule: Any) -> Any:
+    """``fields`` or ``source_fields`` from a rule (engine accepts both)."""
+    rows = getattr(rule, "fields", None) or getattr(rule, "source_fields", None)
+    if rows is None and isinstance(rule, dict):
+        rows = rule.get("fields") or rule.get("source_fields")
+    return rows
+
+
+def _dedupe_wanted_fields(
+    wanted: List[Tuple[str, bool, List[str]]],
+) -> List[Tuple[str, bool, List[str]]]:
+    """One entry per field_name; ``required`` is True if any contributing row required it."""
+    acc: Dict[str, Tuple[bool, List[str]]] = {}
+    for fn, req, pre in wanted:
+        if not fn:
+            continue
+        if fn not in acc:
+            acc[fn] = (req, pre)
+        else:
+            r0, p0 = acc[fn]
+            acc[fn] = (r0 or req, pre if req else p0)
+    return [(k, acc[k][0], acc[k][1]) for k in sorted(acc.keys())]
+
+
 def apply_preprocessing(field_value: str, preprocessing: List[str]) -> str:
     """Apply preprocessing steps to a string field value (same contract as key extraction)."""
     for task in preprocessing:
@@ -45,14 +123,16 @@ def resolve_key_discovery_hash_field_paths(
     elif isinstance(entity_view_config, dict):
         raw_paths = entity_view_config.get("key_discovery_hash_property_paths")
 
+    view_et = _view_entity_type_normalized(entity_view_config)
+
     if raw_paths:
         wanted: List[Tuple[str, bool, List[str]]] = []
         rule_fields: Dict[str, List[str]] = {}
         if isinstance(extraction_rules, list) and extraction_rules:
             for rule in extraction_rules:
-                source_fields = getattr(rule, "source_fields", None)
-                if source_fields is None and isinstance(rule, dict):
-                    source_fields = rule.get("source_fields")
+                if not _rule_matches_view_entity_type(rule, view_et):
+                    continue
+                source_fields = _rule_field_rows(rule)
                 if not source_fields:
                     continue
                 if not isinstance(source_fields, list):
@@ -82,18 +162,25 @@ def iter_wanted_fields(
     """
     Field names, required flags, and preprocessing lists used to populate extraction entities.
 
+    Only fields from extraction rules whose ``scope_filters.entity_type`` matches the
+    source view's ``entity_type`` are included (when the rule declares entity types).
+
     Matches cohort loading in fn_dm_key_extraction ``_load_incremental_cohort_entities``.
     """
+    view_et = _view_entity_type_normalized(entity_view_config)
     wanted_fields: List[Tuple[str, bool, List[str]]] = []
     if isinstance(extraction_rules, list) and extraction_rules:
-        if hasattr(extraction_rules[0], "source_fields"):
+        first = extraction_rules[0]
+        if hasattr(first, "fields") or hasattr(first, "source_fields"):
             for rule in extraction_rules:
-                source_fields = getattr(rule, "source_fields", None)
-                if source_fields is None:
+                if not _rule_matches_view_entity_type(rule, view_et):
                     continue
-                if not isinstance(source_fields, list):
-                    source_fields = [source_fields]
-                for sf in source_fields:
+                rows = _rule_field_rows(rule)
+                if rows is None:
+                    continue
+                if not isinstance(rows, list):
+                    rows = [rows]
+                for sf in rows:
                     wanted_fields.append(
                         (
                             str(getattr(sf, "field_name", "") or ""),
@@ -101,9 +188,11 @@ def iter_wanted_fields(
                             list(getattr(sf, "preprocessing", []) or []),
                         )
                     )
-        elif isinstance(extraction_rules[0], dict):
+        elif isinstance(first, dict):
             for rule in extraction_rules:
-                for sf in (rule.get("source_fields", []) or []):
+                if not _rule_matches_view_entity_type(rule, view_et):
+                    continue
+                for sf in (rule.get("fields") or rule.get("source_fields") or []):
                     if not isinstance(sf, dict):
                         continue
                     wanted_fields.append(
@@ -115,10 +204,14 @@ def iter_wanted_fields(
                     )
 
     if not wanted_fields:
-        for p in list(getattr(entity_view_config, "include_properties", []) or []):
+        if isinstance(entity_view_config, dict):
+            props = list(entity_view_config.get("include_properties") or [])
+        else:
+            props = list(getattr(entity_view_config, "include_properties", []) or [])
+        for p in props:
             wanted_fields.append((str(p or ""), False, []))
 
-    return [(fn, req, pre) for fn, req, pre in wanted_fields if fn]
+    return _dedupe_wanted_fields([(fn, req, pre) for fn, req, pre in wanted_fields if fn])
 
 
 def _normalize_json_leaf(value: Any) -> Any:

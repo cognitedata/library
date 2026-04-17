@@ -213,28 +213,11 @@ The key extraction system uses different methods to identify and extract key inf
 
 **Best for:** Structured data with consistent naming conventions
 
-#### 2. Heuristic Extraction ({methods.get('heuristic', 0) / total_methods * 100 if total_methods > 0 else 0:.1f}% of extractions)
+#### 2. Passthrough Extraction
 
-**What it does:** Identifies keys in data that doesn't follow strict patterns, using statistical analysis and context clues.
+**What it does:** Uses the full processed field value as the key without pattern parsing (when `method` is `passthrough` or omitted).
 
-**How it works:**
-- Uses multiple strategies to find identifiers even when formats vary
-- Analyzes text position, character patterns, and surrounding context
-- Learns from examples to identify similar patterns
-
-**Best for:** Inconsistent or legacy data where formats vary across systems
-
-#### 3. Fixed Width Extraction
-
-**What it does:** Extracts information from structured text where data appears in fixed positions (like columns in a table).
-
-**Best for:** Tabular data or fixed-format records from legacy systems
-
-#### 4. Token Reassembly Extraction
-
-**What it does:** Builds complete identifiers by combining pieces of information from multiple fields (like combining site, unit, and equipment codes).
-
-**Best for:** Hierarchical naming systems where tags are constructed from multiple components
+**Best for:** Identifiers already stored whole in a single field (`name`, `externalId`, pre-normalized codes).
 
 
 ---

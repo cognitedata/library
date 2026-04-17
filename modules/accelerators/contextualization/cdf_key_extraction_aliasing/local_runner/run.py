@@ -157,9 +157,6 @@ def _load_cdf_config_and_engine(
                 source_views=sv_parsed,
                 source_view=None,
                 extraction_rules=data_section.get("extraction_rules") or [],
-                field_selection_strategy=data_section.get(
-                    "field_selection_strategy", "first_match"
-                ),
                 validation=data_section.get("validation"),
                 source_tables=data_section.get("source_tables") or [],
             ),
@@ -447,7 +444,7 @@ def _run_workflow_parity(
 
     state_data: Dict[str, Any] = {
         "logLevel": "INFO",
-        "full_rescan": bool(getattr(args, "full_rescan", False)),
+        "run_all": bool(getattr(args, "run_all", False)),
         "configuration": scope_document,
         "instance_space": wf_instance_space,
     }
@@ -487,7 +484,7 @@ def _run_workflow_parity(
     ke_data: Dict[str, Any] = {
         "logLevel": "INFO",
         "run_id": run_id,
-        "full_rescan": bool(getattr(args, "full_rescan", False)),
+        "run_all": bool(getattr(args, "run_all", False)),
         "configuration": scope_document,
         "instance_space": wf_instance_space,
     }
@@ -821,492 +818,33 @@ def run_pipeline(
     scope_yaml_path: Optional[Union[Path, str]] = None,
 ) -> None:
     params = extraction_config.get("parameters") or {}
-    if params.get("incremental_change_processing"):
-        if not scope_yaml_path:
-            raise ValueError(
-                "incremental_change_processing requires a scope YAML path "
-                "(module-root workflow.local.config.yaml with --scope default, or --config-path)."
-            )
-        sp = Path(scope_yaml_path)
-        if getattr(args, "full_rescan", False):
-            logger.info(
-                "--full-rescan: full scope rescan (same as workflow input full_rescan=true)."
-            )
-        _run_workflow_parity(
-            args,
-            logger,
-            client,
-            aliasing_config,
-            source_views,
-            alias_writeback_property,
-            write_foreign_key_references,
-            foreign_key_writeback_property,
-            sp,
+    inc_raw = params.get("incremental_change_processing")
+    incremental = True if inc_raw is None else bool(inc_raw)
+    if not incremental:
+        raise ValueError(
+            "local_runner requires key_extraction.parameters.incremental_change_processing=true "
+            "(default). Direct view listing was removed; use --scope or --config-path for workflow "
+            "parity (incremental state update → key extraction → aliasing → persistence)."
         )
-        return
-    if scope_yaml_path:
-        logger.debug("Scope YAML path: %s", scope_yaml_path)
-
-    progress_every = max(0, int(getattr(args, "progress_every", 0) or 0))
-    pipe_logger = StdlibLoggerAdapter(logger)
-    extraction_engine = KeyExtractionEngine(extraction_config, logger=pipe_logger)
-    aliasing_engine = AliasingEngine(
-        aliasing_config, logger=pipe_logger, client=client
-    )
-
-    all_extraction_items: List[Dict[str, Any]] = []
-    aliasing_items: List[Dict[str, Any]] = []
-    # Data structure for persistence function (matches workflow format)
-    entities_keys_extracted: Dict[str, Dict[str, Any]] = {}
-    aliasing_results: List[Dict[str, Any]] = []
-
-    # Process each source view from config
-    for view_config in source_views:
-        view_space = view_config.get("view_space", "cdf_cdm")
-        view_external_id = view_config.get("view_external_id", "CogniteAsset")
-        view_version = view_config.get("view_version", "v1")
-        instance_space = view_config.get("instance_space")
-        entity_type = view_config.get("entity_type", "asset")
-        batch_size = (
-            view_config.get("batch_size") or view_config.get("limit") or args.limit
+    if not scope_yaml_path:
+        raise ValueError(
+            "incremental_change_processing requires a scope YAML path "
+            "(module-root workflow.local.config.yaml with --scope default, or --config-path)."
         )
-        # 0 means no limit (fetch all instances)
-        effective_limit = batch_size if batch_size > 0 else None
-        filters = view_config.get("filters", [])
-        include_properties = view_config.get("include_properties", [])
-
-        _isp = instance_space if instance_space else "(not set; list space=None or use filters)"
+    sp = Path(scope_yaml_path)
+    if getattr(args, "run_all", False):
         logger.info(
-            f"Processing view {view_space}/{view_external_id}/{view_version} "
-            f"(instance_space: {_isp}, entity_type: {entity_type}, limit: {batch_size if batch_size else 'all'})..."
+            "--all: run entire scope (same as workflow input run_all=true)."
         )
-
-        # Query data modeling instances
-        try:
-            from cognite.client.data_classes.data_modeling.ids import ViewId
-
-            view_id = ViewId(
-                space=view_space, external_id=view_external_id, version=view_version
-            )
-
-            final_filter = build_source_view_query_filter(view_id, filters)
-
-            # Query instances using list method (supports filters)
-            # Try with filters first, fall back to no filters if filter fails
-            logger.info(
-                "  Querying data model instances for view %s/%s/%s ...",
-                view_space,
-                view_external_id,
-                view_version,
-            )
-            try:
-                instances = client.data_modeling.instances.list(
-                    instance_type="node",
-                    space=instance_space if instance_space else None,
-                    sources=[view_id],
-                    filter=final_filter,
-                    limit=effective_limit,
-                )
-            except Exception as filter_error:
-                logger.warning(
-                    f"Filter failed for view {view_external_id}: {filter_error}. "
-                    f"Retrying without filters..."
-                )
-                instances = client.data_modeling.instances.list(
-                    instance_type="node",
-                    space=instance_space if instance_space else None,
-                    sources=[view_id],
-                    limit=effective_limit,
-                )
-        except Exception as e:
-            logger.warning(
-                f"Failed to fetch instances from view {view_external_id}: {e}"
-            )
-            continue
-
-        # Convert instances to dict format expected by extraction engine
-        instances_dicts: List[Dict[str, Any]] = []
-        for instance in instances:
-            # Get instance identifier
-            instance_external_id = getattr(instance, "external_id", None)
-            instance_id = instance_external_id or str(
-                getattr(instance, "instance_id", "")
-            )
-
-            # Extract properties from CDM structure (same as in pipeline)
-            instance_dump = instance.dump()
-            entity_props = (
-                instance_dump.get("properties", {})
-                .get(view_space, {})
-                .get(f"{view_external_id}/{view_version}", {})
-            )
-
-            # Build entity dict with flattened properties
-            # If include_properties is specified, only include those properties
-            node_space = getattr(instance, "space", None)
-            if include_properties:
-                filtered_props = {}
-                for prop in include_properties:
-                    v = get_value_by_property_path(entity_props, str(prop))
-                    if v is not None:
-                        filtered_props[str(prop)] = v
-                entity_dict = {
-                    "id": instance_id,
-                    "externalId": instance_external_id,
-                    "space": node_space,
-                    **filtered_props,
-                }
-            else:
-                # Include all properties if no filter specified
-                entity_dict = {
-                    "id": instance_id,
-                    "externalId": instance_external_id,
-                    "space": node_space,
-                    **entity_props,  # Spread extracted properties at top level
-                }
-            instances_dicts.append(entity_dict)
-
-        logger.info(f"  Fetched {len(instances_dicts)} instances")
-
-        # Run extraction for this view
-        view_extraction_items: List[Dict[str, Any]] = []
-        view_iso = view_config.get("exclude_self_referencing_keys")
-        n_entities = len(instances_dicts)
-        for ent_i, entity in enumerate(instances_dicts, start=1):
-            res = extraction_engine.extract_keys(
-                entity,
-                entity_type=entity_type,
-                exclude_self_referencing_keys=view_iso,
-            )
-            entity_id = res.entity_id
-            if progress_every > 0 and ent_i % progress_every == 0:
-                eid_preview = (str(entity_id)[:120] if entity_id else "")
-                logger.info(
-                    "  Extraction progress %s/%s (view %s/%s) entity_id=%s",
-                    ent_i,
-                    n_entities,
-                    view_external_id,
-                    view_version,
-                    eid_preview,
-                )
-
-            # Build entities_keys_extracted structure for persistence (workflow format)
-            keys_by_field = {}
-            for key in res.candidate_keys:
-                field_name = key.source_field
-                if field_name not in keys_by_field:
-                    keys_by_field[field_name] = {}
-                # Handle both enum and string extraction_type
-                extraction_type_value = (
-                    key.extraction_type.value
-                    if hasattr(key.extraction_type, "value")
-                    else key.extraction_type
-                )
-                keys_by_field[field_name][key.value] = {
-                    "confidence": key.confidence,
-                    "extraction_type": extraction_type_value,
-                }
-
-            fk_refs = _dedupe_foreign_key_references(res)
-            doc_refs = _dedupe_document_references(res)
-            row_instance_space = entity.get("space") or instance_space
-            entities_keys_extracted[entity_id] = {
-                "keys": keys_by_field,
-                "foreign_key_references": fk_refs,
-                "document_references": doc_refs,
-                "view_space": view_space,
-                "view_external_id": view_external_id,
-                "view_version": view_version,
-                "instance_space": row_instance_space,
-                "entity_type": entity_type,
-            }
-
-            view_extraction_items.append(
-                {
-                    "entity": entity,  # Pass entity dict as-is with all properties
-                    "view_external_id": view_external_id,
-                    "extraction_result": {
-                        "entity_id": res.entity_id,
-                        "entity_type": res.entity_type,
-                        "candidate_keys": [
-                            {
-                                "value": k.value,
-                                "confidence": k.confidence,
-                                "source_field": k.source_field,
-                                "method": (
-                                    k.method.value
-                                    if hasattr(k.method, "value")
-                                    else k.method
-                                ),
-                                "rule_id": k.rule_id,
-                            }
-                            for k in res.candidate_keys
-                        ],
-                        "foreign_key_references": [
-                            {
-                                "value": k.value,
-                                "confidence": k.confidence,
-                                "source_field": k.source_field,
-                                "method": (
-                                    k.method.value
-                                    if hasattr(k.method, "value")
-                                    else k.method
-                                ),
-                                "rule_id": k.rule_id,
-                            }
-                            for k in res.foreign_key_references
-                        ],
-                        "document_references": [
-                            {
-                                "value": k.value,
-                                "confidence": k.confidence,
-                                "source_field": k.source_field,
-                                "method": (
-                                    k.method.value
-                                    if hasattr(k.method, "value")
-                                    else k.method
-                                ),
-                                "rule_id": k.rule_id,
-                            }
-                            for k in res.document_references
-                        ],
-                        "metadata": res.metadata,
-                    },
-                }
-            )
-
-        # Run aliasing for each candidate key from this view
-        total_tags = sum(
-            len(item["extraction_result"]["candidate_keys"])
-            for item in view_extraction_items
-        )
-        tag_i = 0
-        logger.info(f"  Running aliasing on extracted candidate keys...")
-        for item in view_extraction_items:
-            entity = item["entity"]
-            entity_id = entity.get("id")
-            row_instance_space = entity.get("space") or instance_space
-            context = {
-                "site": entity.get("site"),
-                "unit": entity.get("unit"),
-                "equipment_type": entity.get("equipmentType")
-                or entity.get("equipment_type"),
-                "instance_space": row_instance_space,
-                "view_external_id": view_external_id,
-                "entity_type": entity_type,
-                "entity_id": entity_id,
-                "entity_external_id": entity.get("externalId"),
-            }
-            for k in item["extraction_result"]["candidate_keys"]:
-                tag_i += 1
-                tag = k["value"]
-                source_field = k.get("source_field")
-                if progress_every > 0 and tag_i % progress_every == 0:
-                    logger.info(
-                        "  Aliasing progress %s/%s (view %s/%s) tag=%s",
-                        tag_i,
-                        total_tags,
-                        view_external_id,
-                        view_version,
-                        (str(tag)[:80]),
-                    )
-                aliases_result = aliasing_engine.generate_aliases(
-                    tag=tag, entity_type=entity_type, context=context
-                )
-                # Sort aliases alphabetically (case-insensitive, then case-sensitive)
-                sorted_aliases = sorted(
-                    aliases_result.aliases, key=lambda x: (x.lower(), x)
-                )
-
-                aliasing_items.append(
-                    {
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "view_external_id": view_external_id,
-                        "base_tag": tag,
-                        "aliases": sorted_aliases,
-                        "metadata": aliases_result.metadata,
-                    }
-                )
-
-                # Build aliasing_results structure for persistence (workflow format)
-                aliasing_results.append(
-                    {
-                        "original_tag": tag,
-                        "aliases": sorted_aliases,
-                        "metadata": aliases_result.metadata,
-                        "entities": [
-                            {
-                                "entity_id": entity_id,
-                                "field_name": source_field,
-                                "view_space": view_space,
-                                "view_external_id": view_external_id,
-                                "view_version": view_version,
-                                "instance_space": row_instance_space,
-                                "entity_type": entity_type,
-                            }
-                        ],
-                    }
-                )
-
-        all_extraction_items.extend(view_extraction_items)
-
-    rollup_noninc = _rollup_extraction_from_entities(entities_keys_extracted)
-    total_aliases_noninc = sum(
-        len(r.get("aliases") or []) for r in aliasing_results
+    _run_workflow_parity(
+        args,
+        logger,
+        client,
+        aliasing_config,
+        source_views,
+        alias_writeback_property,
+        write_foreign_key_references,
+        foreign_key_writeback_property,
+        sp,
     )
-    logger.info(
-        "✓ Key extraction (non-incremental): entities=%s, candidate_key_values=%s, "
-        "fk_refs=%s, doc_refs=%s, extraction_failed=%s",
-        rollup_noninc["entity_count"],
-        rollup_noninc["candidate_key_count"],
-        rollup_noninc["fk_ref_count"],
-        rollup_noninc["doc_ref_count"],
-        rollup_noninc["extraction_failed_count"],
-    )
-    logger.info(
-        "✓ Aliasing (non-incremental): aliasing_results=%s, aliases_generated=%s",
-        len(aliasing_results),
-        total_aliases_noninc,
-    )
-
-    if not getattr(args, "skip_reference_index", False):
-        logger.info(
-            "Reference index step not run: non-incremental CLI path does not write key-extraction RAW; "
-            "enable incremental_change_processing in scope for workflow parity (including RAW reference index)."
-        )
-
-    # Write results
-    results_dir = ensure_results_dir()
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    extraction_path = results_dir / f"{ts}_cdf_extraction.json"
-    aliasing_path = results_dir / f"{ts}_cdf_aliasing.json"
-
-    with extraction_path.open("w", encoding="utf-8") as f:
-        json.dump({"results": all_extraction_items}, f, indent=2)
-
-    # Sort aliasing results by entity_id, then base_tag
-    sorted_aliasing_items = sorted(
-        aliasing_items, key=lambda x: (x.get("entity_id", ""), x.get("base_tag", ""))
-    )
-
-    with aliasing_path.open("w", encoding="utf-8") as f:
-        json.dump({"results": sorted_aliasing_items}, f, indent=2)
-
-    logger.info(f"✓ Wrote extraction results: {extraction_path}")
-    logger.info(f"✓ Wrote aliasing results:   {aliasing_path}")
-
-    extracted_fk_count = sum(
-        len(item.get("extraction_result", {}).get("foreign_key_references") or [])
-        for item in all_extraction_items
-    )
-    entities_with_fk = sum(
-        1
-        for item in all_extraction_items
-        if item.get("extraction_result", {}).get("foreign_key_references")
-    )
-    logger.info(
-        f"Extraction: {extracted_fk_count} foreign key reference(s) in JSON across "
-        f"{entities_with_fk} entities (extracted, not yet written to the data model)."
-    )
-
-    wfk = write_foreign_key_references or args.write_foreign_keys
-    fk_prop = foreign_key_writeback_property
-    if args.foreign_key_writeback_property:
-        fk_prop = args.foreign_key_writeback_property.strip() or fk_prop
-
-    def _noninc_summary_paths(
-        persistence: Dict[str, Any],
-    ) -> None:
-        _log_cli_run_summary(
-            logger,
-            {
-                "incremental": False,
-                "rollup": rollup_noninc,
-                "reference_index": {"status": "n_a"},
-                "aliasing": {
-                    "tags": len(aliasing_results),
-                    "aliases": total_aliases_noninc,
-                    "workflow_rows_updated": None,
-                },
-                "persistence": persistence,
-                "paths": {
-                    "extraction": str(extraction_path),
-                    "aliasing": str(aliasing_path),
-                },
-            },
-        )
-
-    # Persist aliases to CogniteDescribable view (unless dry-run)
-    if args.dry_run:
-        logger.info(
-            "Dry-run mode: Skipping alias persistence to CDF. "
-            f"Would persist {len(aliasing_results)} aliasing results to {len(entities_keys_extracted)} entities"
-        )
-        if extracted_fk_count and not wfk:
-            logger.info(
-                "FK write-back to DM is off (set write_foreign_key_references in scope YAML, "
-                "env WRITE_FOREIGN_KEY_REFERENCES, or run with --write-foreign-keys)."
-            )
-        logger.info("✓ Persistence: skipped (dry-run)")
-        _noninc_summary_paths(
-            {
-                "dry_run": True,
-                "entities": len(entities_keys_extracted),
-                "aliasing_results": len(aliasing_results),
-            }
-        )
-    else:
-        logger.info("Persisting aliases to CogniteDescribable view...")
-        try:
-            persistence_data = {
-                "aliasing_results": aliasing_results,
-                "entities_keys_extracted": entities_keys_extracted,
-                "logLevel": "INFO",
-            }
-            if alias_writeback_property:
-                persistence_data["alias_writeback_property"] = alias_writeback_property
-            if wfk:
-                persistence_data["write_foreign_key_references"] = True
-                if fk_prop:
-                    persistence_data["foreign_key_writeback_property"] = fk_prop
-            persist_aliases_to_entities(
-                client=client,
-                logger=logger,
-                data=persistence_data,
-            )
-            fk_written = int(persistence_data.get("foreign_keys_persisted", 0))
-            persist_msg = (
-                f"✓ Persisted to data model: {persistence_data.get('entities_updated', 0)} entities updated, "
-                f"{persistence_data.get('aliases_persisted', 0)} alias value(s) written, "
-                f"{fk_written} foreign key value(s) written"
-            )
-            if not wfk and extracted_fk_count:
-                persist_msg += (
-                    f" (extraction had {extracted_fk_count} FK ref(s) in JSON; "
-                    "enable FK write-back to persist them to DM)"
-                )
-            elif not wfk:
-                persist_msg += " (FK write-back disabled for this run)"
-            logger.info(persist_msg)
-            logger.info(
-                "✓ Persistence: entities_updated=%s, aliases_persisted=%s, fk_values_persisted=%s",
-                persistence_data.get("entities_updated", 0),
-                persistence_data.get("aliases_persisted", 0),
-                fk_written,
-            )
-            _noninc_summary_paths(
-                {
-                    "completed": True,
-                    "entities_updated": int(
-                        persistence_data.get("entities_updated", 0) or 0
-                    ),
-                    "aliases_persisted": int(
-                        persistence_data.get("aliases_persisted", 0) or 0
-                    ),
-                    "fk_persisted": fk_written,
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to persist aliases: {e}", exc_info=True)
-            _noninc_summary_paths({"error": str(e)[:500]})
+    return

@@ -37,6 +37,27 @@ def _module_root() -> Path:
                 "cdf deploy",
             ],
         ),
+        (
+            "howto_config_yaml.md",
+            [
+                "# How to build configuration with YAML",
+                "## 1. Know the three layers",
+                "workflow.local.config.yaml",
+                "module.py build",
+                "module.py run",
+            ],
+        ),
+        (
+            "howto_config_ui.md",
+            [
+                "# How to build configuration with the UI",
+                "## 2. Start the API and the frontend",
+                "module.py ui",
+                "CDF_KEY_EXTRACTION_ALIASING_ROOT",
+                "POST /api/run",
+                "run_all",
+            ],
+        ),
     ],
 )
 def test_howto_guide_exists_with_expected_sections(name: str, needles: list[str]) -> None:

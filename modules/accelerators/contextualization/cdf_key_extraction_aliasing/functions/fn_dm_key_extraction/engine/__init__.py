@@ -5,19 +5,19 @@ This module provides the core key extraction functionality for CDF.
 """
 
 from ..common.config_utils import load_config_from_yaml
-from .key_extraction_engine import (
+from .handlers import (
+    ExtractionMethodHandler,
+    FieldRuleExtractionHandler,
+    HeuristicExtractionHandler,
+)
+from .key_extraction_engine import KeyExtractionEngine
+from ..utils.DataStructures import (
     ExtractedKey,
     ExtractionMethod,
-    ExtractionMethodHandler,
     ExtractionResult,
     ExtractionRule,
     ExtractionType,
-    FixedWidthExtractionHandler,
-    HeuristicExtractionHandler,
-    KeyExtractionEngine,
-    RegexExtractionHandler,
     SourceField,
-    TokenReassemblyExtractionHandler,
 )
 
 __all__ = [
@@ -28,9 +28,7 @@ __all__ = [
     "ExtractedKey",
     "ExtractionResult",
     "ExtractionMethodHandler",
-    "RegexExtractionHandler",
-    "FixedWidthExtractionHandler",
-    "TokenReassemblyExtractionHandler",
+    "FieldRuleExtractionHandler",
     "HeuristicExtractionHandler",
     "KeyExtractionEngine",
     "load_config_from_yaml",

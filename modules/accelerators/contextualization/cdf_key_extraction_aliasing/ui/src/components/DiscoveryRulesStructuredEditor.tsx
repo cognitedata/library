@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { MessageKey } from "../i18n/types";
@@ -6,7 +6,9 @@ import type { JsonObject } from "../types/scopeConfig";
 import { nextSequentialRuleName, ruleNameOrDefault } from "../utils/ruleNaming";
 import { EXTRACTION_RULES_KEY, mergeRulesList, splitRulesList } from "../utils/rulesDataSplit";
 import {
+  canonicalDiscoveryHandlerForUi,
   defaultParametersYamlForDiscoveryHandler,
+  discoveryHandlerKind,
   discoveryParametersDocKey,
 } from "../utils/ruleHandlerTemplates";
 import {
@@ -18,6 +20,7 @@ import {
   ruleMatchesEntityBucket,
 } from "../utils/scopeEntityTypeBuckets";
 import { mergeScopeFiltersYaml, scopeFiltersYamlFromParts, splitScopeFiltersYaml } from "../utils/scopeFiltersParts";
+import { reorderListAtIndex } from "../utils/ruleListReorder";
 import { DiscoveryHandlerParameters } from "./discovery/DiscoveryHandlerParameters";
 import { DiscoverySourceFieldsEditor } from "./discovery/DiscoverySourceFieldsEditor";
 
@@ -26,30 +29,25 @@ type Props = {
   onChange: (next: JsonObject) => void;
 };
 
-const METHOD_OPTIONS = [
-  "passthrough",
-  "regex",
-  "fixed width",
-  "fixed_width",
-  "token reassembly",
-  "token_reassembly",
-  "heuristic",
-] as const;
+/** Registered KeyExtractionEngine handlers (values match YAML `handler:`). */
+const METHOD_OPTIONS = ["regex_handler", "heuristic"] as const;
+
+const HANDLER_LABEL_KEYS: Record<(typeof METHOD_OPTIONS)[number], MessageKey> = {
+  regex_handler: "discoveryRules.handlerOption.regex_handler",
+  heuristic: "discoveryRules.handlerOption.heuristic",
+};
 
 const EXTRACTION_TYPE_OPTIONS = ["candidate_key", "foreign_key_reference", "document_reference"] as const;
 
-const FIELD_STRATEGY_OPTIONS = ["", "first_match", "merge_all"] as const;
-
-/** Matches KeyExtractionEngine composite_strategy values. */
-const COMPOSITE_STRATEGY_OPTIONS = ["", "concatenate", "token_reassembly", "context_aware"] as const;
-
-const DEFAULT_SOURCE_FIELDS_YAML = `- field_name: name
+const DEFAULT_FIELDS_YAML = `- field_name: name
+  variable: name
   required: true
   max_length: 500
   priority: 1
-  role: target
   preprocessing:
     - trim
+  # regex: "\\\\bP[-_]?\\\\d+\\\\b"
+  # max_matches_per_field: 10
 `;
 
 type UiRule = {
@@ -58,24 +56,15 @@ type UiRule = {
   extractionType: string;
   description: string;
   enabled: boolean;
-  priority: string;
-  fieldSelectionStrategy: string;
-  /** Rule-level composite_strategy (cross-field merge); empty = disabled */
-  compositeStrategy: string;
+  resultTemplate: string;
+  maxTemplateCombinations: string;
   entityTypesCsv: string;
   scopeFiltersOtherYaml: string;
   parametersYaml: string;
   sourceFieldsYaml: string;
 };
 
-const KNOWN_REST = new Set(["field_selection_strategy"]);
-
-/** Options for composite strategy dropdown; preserves unknown YAML values as extra options. */
-function compositeStrategySelectOptions(current: string): string[] {
-  const base: string[] = [...(COMPOSITE_STRATEGY_OPTIONS as readonly string[])];
-  if (current && !base.includes(current)) base.push(current);
-  return base;
-}
+const KNOWN_REST = new Set<string>([]);
 
 function extrasRest(rest: JsonObject): JsonObject {
   const o: JsonObject = {};
@@ -88,24 +77,25 @@ function extrasRest(rest: JsonObject): JsonObject {
 function parseUiRule(raw: unknown, idx: number): UiRule {
   const rule = raw !== null && typeof raw === "object" && !Array.isArray(raw) ? (raw as JsonObject) : {};
   const params = rule.parameters;
-  const sf = rule.source_fields;
+  const sf = rule.fields ?? rule.source_fields;
   const sc = rule.scope_filters;
   let parametersYaml: string;
   let sourceFieldsYaml: string;
   let scopeFiltersYaml: string;
+  const handlerRaw = String(rule.handler ?? "regex_handler");
   try {
     parametersYaml =
       params !== undefined && params !== null
         ? YAML.stringify(params, { lineWidth: 0 })
-        : defaultParametersYamlForDiscoveryHandler(String(rule.handler ?? "regex"));
+        : defaultParametersYamlForDiscoveryHandler(handlerRaw);
   } catch {
-    parametersYaml = defaultParametersYamlForDiscoveryHandler(String(rule.handler ?? "regex"));
+    parametersYaml = defaultParametersYamlForDiscoveryHandler(handlerRaw);
   }
   try {
     const sfl = Array.isArray(sf) ? sf : sf != null ? [sf] : [];
-    sourceFieldsYaml = sfl.length ? YAML.stringify(sfl, { lineWidth: 0 }) : DEFAULT_SOURCE_FIELDS_YAML;
+    sourceFieldsYaml = sfl.length ? YAML.stringify(sfl, { lineWidth: 0 }) : DEFAULT_FIELDS_YAML;
   } catch {
-    sourceFieldsYaml = DEFAULT_SOURCE_FIELDS_YAML;
+    sourceFieldsYaml = DEFAULT_FIELDS_YAML;
   }
   try {
     scopeFiltersYaml =
@@ -120,16 +110,13 @@ function parseUiRule(raw: unknown, idx: number): UiRule {
 
   return {
     name: ruleNameOrDefault(String(rule.name ?? ""), idx + 1, "extraction_rule"),
-    handler: String(rule.handler ?? "regex"),
+    handler: canonicalDiscoveryHandlerForUi(handlerRaw),
     extractionType: String(rule.extraction_type ?? "candidate_key"),
     description: String(rule.description ?? ""),
     enabled: rule.enabled !== false,
-    priority: String(rule.priority ?? 100),
-    fieldSelectionStrategy:
-      rule.field_selection_strategy != null && rule.field_selection_strategy !== ""
-        ? String(rule.field_selection_strategy)
-        : "",
-    compositeStrategy: String(rule.composite_strategy ?? "").trim(),
+    resultTemplate: rule.result_template != null ? String(rule.result_template) : "",
+    maxTemplateCombinations:
+      rule.max_template_combinations != null ? String(rule.max_template_combinations) : "",
     entityTypesCsv: scopeParts.entityTypesCsv,
     scopeFiltersOtherYaml: scopeParts.otherYaml,
     parametersYaml,
@@ -139,7 +126,7 @@ function parseUiRule(raw: unknown, idx: number): UiRule {
 
 function serializeUiRule(r: UiRule, idx: number): { ok: true; rule: JsonObject } | { ok: false; message: string } {
   let parameters: unknown;
-  let sourceFields: unknown;
+  let fields: unknown;
   let scopeFilters: unknown;
   try {
     parameters = YAML.parse(r.parametersYaml);
@@ -147,9 +134,9 @@ function serializeUiRule(r: UiRule, idx: number): { ok: true; rule: JsonObject }
     return { ok: false, message: `parameters: ${String(e)}` };
   }
   try {
-    sourceFields = YAML.parse(r.sourceFieldsYaml);
+    fields = YAML.parse(r.sourceFieldsYaml);
   } catch (e) {
-    return { ok: false, message: `source_fields: ${String(e)}` };
+    return { ok: false, message: `fields: ${String(e)}` };
   }
   try {
     const mergedScope = mergeScopeFiltersYaml(r.entityTypesCsv, r.scopeFiltersOtherYaml);
@@ -162,16 +149,22 @@ function serializeUiRule(r: UiRule, idx: number): { ok: true; rule: JsonObject }
     parameters !== null && typeof parameters === "object" && !Array.isArray(parameters) ? parameters : {};
   const out: JsonObject = {
     name: ruleNameOrDefault(r.name, idx + 1, "extraction_rule"),
-    handler: r.handler,
+    handler: canonicalDiscoveryHandlerForUi(r.handler),
     extraction_type: r.extractionType,
     enabled: r.enabled,
-    priority: Number(r.priority) || 0,
-    parameters: paramsObj,
+    priority: (idx + 1) * 10,
   };
   if (r.description.trim()) out.description = r.description.trim();
-  if (r.fieldSelectionStrategy) out.field_selection_strategy = r.fieldSelectionStrategy;
-  if (r.compositeStrategy.trim()) out.composite_strategy = r.compositeStrategy.trim();
-  if (sourceFields !== undefined) out.source_fields = sourceFields;
+  if (r.resultTemplate.trim()) out.result_template = r.resultTemplate.trim();
+  if (r.maxTemplateCombinations.trim()) {
+    const n = Number(r.maxTemplateCombinations);
+    if (Number.isFinite(n) && n > 0) out.max_template_combinations = n;
+  }
+  const isHeuristic = canonicalDiscoveryHandlerForUi(r.handler) === "heuristic";
+  if (isHeuristic && paramsObj && Object.keys(paramsObj as object).length > 0) {
+    out.parameters = paramsObj;
+  }
+  if (fields !== undefined) out.fields = fields;
   out.scope_filters =
     scopeFilters !== null && typeof scopeFilters === "object" && !Array.isArray(scopeFilters) ? scopeFilters : {};
   return { ok: true, rule: out };
@@ -181,22 +174,21 @@ function defaultUiRule(existing: UiRule[], entityBucket: string): UiRule {
   const scopeParts = splitScopeFiltersYaml(defaultScopeFiltersYamlForBucket(entityBucket, "asset"));
   return {
     name: nextSequentialRuleName("extraction_rule", existing),
-    handler: "regex",
+    handler: "regex_handler",
     extractionType: "candidate_key",
     description: "",
     enabled: true,
-    priority: "100",
-    fieldSelectionStrategy: "first_match",
-    compositeStrategy: "",
+    resultTemplate: "{unit}-{name}",
+    maxTemplateCombinations: "",
     entityTypesCsv: scopeParts.entityTypesCsv,
     scopeFiltersOtherYaml: scopeParts.otherYaml,
-    parametersYaml: defaultParametersYamlForDiscoveryHandler("regex"),
-    sourceFieldsYaml: DEFAULT_SOURCE_FIELDS_YAML,
+    parametersYaml: defaultParametersYamlForDiscoveryHandler("regex_handler"),
+    sourceFieldsYaml: DEFAULT_FIELDS_YAML,
   };
 }
 
 function bucketLabel(t: (k: MessageKey) => string, id: string): string {
-  if (id === ENTITY_BUCKET_UNSCOPED) return t("rulesEntity.bucket.unscoped");
+  if (id === ENTITY_BUCKET_UNSCOPED) return t("rulesEntity.bucket.global");
   if (id === ENTITY_BUCKET_ALL) return t("rulesEntity.bucket.all");
   return id;
 }
@@ -205,9 +197,31 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
   const { t } = useAppSettings();
   const [serializeError, setSerializeError] = useState<string | null>(null);
   const [selectedEntityBucket, setSelectedEntityBucket] = useState<string>("asset");
+  /** Preserves trailing commas while typing; mergeScopeFiltersYaml drops empty CSV segments on commit. */
+  const [entityTypesCsvDraft, setEntityTypesCsvDraft] = useState<Record<string, string>>({});
+  const entityTypesCsvDraftRef = useRef<Record<string, string>>({});
+  const lastCommitFingerprintRef = useRef<string | null>(null);
+  /** Collapsed = name + description only; new rules start expanded. */
+  const [ruleCardExpanded, setRuleCardExpanded] = useState<Record<string, boolean>>({});
+  const [dragRuleFrom, setDragRuleFrom] = useState<number | null>(null);
+  const [dragRuleOver, setDragRuleOver] = useState<number | null>(null);
+
+  useEffect(() => {
+    entityTypesCsvDraftRef.current = entityTypesCsvDraft;
+  }, [entityTypesCsvDraft]);
 
   useEffect(() => {
     setSerializeError(null);
+  }, [value]);
+
+  useEffect(() => {
+    const fp = JSON.stringify(value);
+    if (lastCommitFingerprintRef.current !== null && fp === lastCommitFingerprintRef.current) {
+      lastCommitFingerprintRef.current = null;
+      return;
+    }
+    setEntityTypesCsvDraft({});
+    setRuleCardExpanded({});
   }, [value]);
 
   const { rest, uiRules } = useMemo(() => {
@@ -256,9 +270,17 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
   const extras = useMemo(() => extrasRest(rest), [rest]);
 
   const commit = (nextRest: JsonObject, nextUiRules: UiRule[]) => {
+    const draft = entityTypesCsvDraftRef.current;
+    const mergedUiRules =
+      Object.keys(draft).length === 0
+        ? nextUiRules
+        : nextUiRules.map((r) => {
+            const p = draft[r.name];
+            return p === undefined ? r : { ...r, entityTypesCsv: p };
+          });
     const built: JsonObject[] = [];
-    for (let i = 0; i < nextUiRules.length; i++) {
-      const ser = serializeUiRule(nextUiRules[i], i);
+    for (let i = 0; i < mergedUiRules.length; i++) {
+      const ser = serializeUiRule(mergedUiRules[i], i);
       if (!ser.ok) {
         setSerializeError(ser.message);
         return;
@@ -266,35 +288,13 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
       built.push(ser.rule);
     }
     setSerializeError(null);
-    onChange(mergeRulesList(nextRest, EXTRACTION_RULES_KEY, built));
+    const merged = mergeRulesList(nextRest, EXTRACTION_RULES_KEY, built);
+    lastCommitFingerprintRef.current = JSON.stringify(merged);
+    onChange(merged);
   };
-
-  const globalStrategy =
-    typeof rest.field_selection_strategy === "string" ? rest.field_selection_strategy : "";
 
   return (
     <div className="kea-discovery-rules-editor">
-      <div className="kea-filter-row" style={{ marginBottom: "0.75rem", maxWidth: "24rem" }}>
-        <label className="kea-label">
-          {t("discoveryRules.fieldSelectionStrategy")}
-          <select
-            className="kea-input"
-            value={globalStrategy}
-            onChange={(e) => {
-              const v = e.target.value;
-              const nextRest = { ...rest };
-              if (v) nextRest.field_selection_strategy = v;
-              else delete nextRest.field_selection_strategy;
-              commit(nextRest, uiRules);
-            }}
-          >
-            <option value="">{t("discoveryRules.fieldSelectionInherit")}</option>
-            <option value="first_match">first_match</option>
-            <option value="merge_all">merge_all</option>
-          </select>
-        </label>
-      </div>
-
       {Object.keys(extras).length > 0 && (
         <p className="kea-hint" style={{ marginBottom: "0.75rem" }}>
           {t("discoveryRules.extraKeysPreserved", { keys: Object.keys(extras).join(", ") })}
@@ -306,6 +306,11 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
       {!showGlobalReorder && (
         <p className="kea-hint" style={{ marginBottom: "0.75rem" }}>
           {t("rulesEntity.reorderHint")}
+        </p>
+      )}
+      {showGlobalReorder && (
+        <p className="kea-hint" style={{ marginBottom: "0.75rem" }}>
+          {t("rulesEntity.dragReorderRules")}
         </p>
       )}
 
@@ -336,10 +341,20 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
           {t("rulesEntity.emptyForBucket")}
         </p>
       )}
-      {visibleRuleEntries.map(({ rule, idx }) => (
+      {visibleRuleEntries.map(({ rule, idx }) => {
+        const isCardExpanded = ruleCardExpanded[rule.name] === true;
+        const dropActive = showGlobalReorder && dragRuleOver === idx;
+        const cardClass = [
+          "kea-validation-rule",
+          dropActive ? "kea-validation-rule--drop" : "",
+          dragRuleFrom === idx ? "kea-validation-rule--dragging" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return (
         <div
-          key={idx}
-          className="kea-validation-rule"
+          key={`${rule.name}-${idx}`}
+          className={cardClass}
           style={{
             border: "1px solid var(--kea-border)",
             borderRadius: "var(--kea-radius-sm)",
@@ -347,8 +362,78 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
             marginBottom: "0.75rem",
             background: "var(--kea-surface)",
           }}
+          onDragOver={
+            showGlobalReorder
+              ? (e: DragEvent<HTMLDivElement>) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setDragRuleOver(idx);
+                }
+              : undefined
+          }
+          onDragLeave={(e) => {
+            if (!showGlobalReorder) return;
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+              setDragRuleOver(null);
+            }
+          }}
+          onDrop={
+            showGlobalReorder
+              ? (e: DragEvent<HTMLDivElement>) => {
+                  e.preventDefault();
+                  const raw = e.dataTransfer.getData("text/plain");
+                  const from = parseInt(raw, 10);
+                  if (Number.isNaN(from) || from === idx) {
+                    setDragRuleFrom(null);
+                    setDragRuleOver(null);
+                    return;
+                  }
+                  commit(rest, reorderListAtIndex(uiRules, from, idx));
+                  setDragRuleFrom(null);
+                  setDragRuleOver(null);
+                }
+              : undefined
+          }
         >
-          <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr auto", gap: "0.5rem", alignItems: "end" }}>
+          <div
+            className="kea-filter-row"
+            style={{
+              gridTemplateColumns: showGlobalReorder ? "auto auto 1fr auto" : "auto 1fr auto",
+              gap: "0.5rem",
+              alignItems: "end",
+            }}
+          >
+            {showGlobalReorder && (
+              <span
+                className="kea-drag-handle"
+                draggable
+                onDragStart={(e: DragEvent<HTMLSpanElement>) => {
+                  e.dataTransfer.setData("text/plain", String(idx));
+                  e.dataTransfer.effectAllowed = "move";
+                  setDragRuleFrom(idx);
+                }}
+                onDragEnd={() => {
+                  setDragRuleFrom(null);
+                  setDragRuleOver(null);
+                }}
+                aria-label={t("rulesEntity.dragHandle")}
+                title={t("rulesEntity.dragHandle")}
+              >
+                <span className="kea-drag-handle__grip" aria-hidden>
+                  ⋮⋮
+                </span>
+              </span>
+            )}
+            <button
+              type="button"
+              className="kea-btn kea-btn--ghost kea-btn--sm"
+              aria-expanded={isCardExpanded}
+              aria-label={isCardExpanded ? t("rulesEntity.ruleCollapseDetails") : t("rulesEntity.ruleExpandDetails")}
+              onClick={() => setRuleCardExpanded((m) => ({ ...m, [rule.name]: !isCardExpanded }))}
+              style={{ minWidth: 36 }}
+            >
+              <span aria-hidden>{isCardExpanded ? "▼" : "▶"}</span>
+            </button>
             <label className="kea-label">
               {t("discoveryRules.rule.name")}
               <input
@@ -358,20 +443,43 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
                 aria-required={true}
                 value={rule.name}
                 onChange={(e) => {
+                  const newName = e.target.value;
+                  setEntityTypesCsvDraft((d) => {
+                    if (!(rule.name in d)) return d;
+                    const v = d[rule.name]!;
+                    const { [rule.name]: _, ...rest } = d;
+                    return { ...rest, [newName]: v };
+                  });
+                  setRuleCardExpanded((m) => {
+                    if (!(rule.name in m)) return m;
+                    const v = m[rule.name]!;
+                    const { [rule.name]: _, ...rest } = m;
+                    return { ...rest, [newName]: v };
+                  });
                   const next = [...uiRules];
-                  next[idx] = { ...rule, name: e.target.value };
+                  next[idx] = { ...rule, name: newName };
                   commit(rest, next);
                 }}
                 onBlur={() => {
                   if (!rule.name.trim()) {
+                    const newName = ruleNameOrDefault("", idx + 1, "extraction_rule");
+                    setRuleCardExpanded((m) => {
+                      if (!(rule.name in m)) return m;
+                      const v = m[rule.name]!;
+                      const { [rule.name]: _, ...rest } = m;
+                      return { ...rest, [newName]: v };
+                    });
                     const next = [...uiRules];
-                    next[idx] = { ...rule, name: ruleNameOrDefault("", idx + 1, "extraction_rule") };
+                    next[idx] = { ...rule, name: newName };
                     commit(rest, next);
                   }
                 }}
               />
             </label>
-            <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              className="kea-label"
+              style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: 0, whiteSpace: "nowrap" }}
+            >
               <input
                 type="checkbox"
                 checked={rule.enabled}
@@ -383,11 +491,39 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
               />
               {t("discoveryRules.rule.enabled")}
             </label>
+          </div>
+
+          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+            {t("discoveryRules.rule.description")}
+            <textarea
+              className="kea-textarea"
+              style={{ minHeight: 52 }}
+              value={rule.description}
+              onChange={(e) => {
+                const next = [...uiRules];
+                next[idx] = { ...rule, description: e.target.value };
+                commit(rest, next);
+              }}
+            />
+          </label>
+
+          {isCardExpanded && (
+            <>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+              marginTop: "0.5rem",
+            }}
+          >
             <div style={{ display: "flex", gap: "0.25rem" }}>
               <button
                 type="button"
                 className="kea-btn kea-btn--ghost kea-btn--sm"
-                disabled={!showGlobalReorder || idx === 0}
+                disabled={idx === 0}
                 onClick={() => {
                   const next = [...uiRules];
                   [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
@@ -400,7 +536,7 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
               <button
                 type="button"
                 className="kea-btn kea-btn--ghost kea-btn--sm"
-                disabled={!showGlobalReorder || idx >= uiRules.length - 1}
+                disabled={idx >= uiRules.length - 1}
                 onClick={() => {
                   const next = [...uiRules];
                   [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
@@ -419,31 +555,13 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
               </button>
             </div>
           </div>
+          {showGlobalReorder && (
+            <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+              {t("discoveryRules.rule.orderSetsPriority")}
+            </p>
+          )}
 
           <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
-            <label className="kea-label">
-              {t("discoveryRules.rule.handler")}
-              <select
-                className="kea-input"
-                value={rule.handler}
-                onChange={(e) => {
-                  const h = e.target.value;
-                  const next = [...uiRules];
-                  next[idx] = {
-                    ...rule,
-                    handler: h,
-                    parametersYaml: defaultParametersYamlForDiscoveryHandler(h),
-                  };
-                  commit(rest, next);
-                }}
-              >
-                {METHOD_OPTIONS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </label>
             <label className="kea-label">
               {t("discoveryRules.rule.extractionType")}
               <select
@@ -462,78 +580,67 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
                 ))}
               </select>
             </label>
+            <label className="kea-label">
+              {t("discoveryRules.rule.handler")}
+              <select
+                className="kea-input"
+                value={rule.handler}
+                onChange={(e) => {
+                  const h = e.target.value;
+                  const next = [...uiRules];
+                  next[idx] = {
+                    ...rule,
+                    handler: h,
+                    parametersYaml: defaultParametersYamlForDiscoveryHandler(h),
+                  };
+                  commit(rest, next);
+                }}
+              >
+                {METHOD_OPTIONS.map((m) => (
+                  <option key={m} value={m}>
+                    {t(HANDLER_LABEL_KEYS[m])}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
-            {t("discoveryRules.rule.priority")}
-            <input
-              className="kea-input"
-              type="number"
-              value={rule.priority}
-              onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, priority: e.target.value };
-                commit(rest, next);
-              }}
-            />
-          </label>
-
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
-            {t("discoveryRules.rule.fieldSelectionStrategy")}
-            <select
-              className="kea-input"
-              value={rule.fieldSelectionStrategy}
-              onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, fieldSelectionStrategy: e.target.value };
-                commit(rest, next);
-              }}
+          {discoveryHandlerKind(rule.handler) !== "heuristic" && (
+            <div
+              className="kea-filter-row"
+              style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}
             >
-              {FIELD_STRATEGY_OPTIONS.map((m) => (
-                <option key={m || "inherit"} value={m}>
-                  {m || t("discoveryRules.fieldSelectionInherit")}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
-            {t("discoveryRules.rule.compositeStrategy")}
-            <select
-              className="kea-input"
-              value={rule.compositeStrategy}
-              onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, compositeStrategy: e.target.value };
-                commit(rest, next);
-              }}
-            >
-              {compositeStrategySelectOptions(rule.compositeStrategy).map((m) => (
-                <option key={m || "none"} value={m}>
-                  {m || t("discoveryRules.compositeStrategyUnset")}
-                </option>
-              ))}
-            </select>
-          </label>
-          {rule.compositeStrategy ? (
-            <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
-              {t("discoveryRules.rule.compositeStrategyHint")}
-            </p>
-          ) : null}
-
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
-            {t("discoveryRules.rule.description")}
-            <textarea
-              className="kea-textarea"
-              style={{ minHeight: 52 }}
-              value={rule.description}
-              onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, description: e.target.value };
-                commit(rest, next);
-              }}
-            />
-          </label>
+              <label className="kea-label">
+                {t("discoveryRules.rule.resultTemplate")}
+                <input
+                  className="kea-input"
+                  placeholder='{unit}-{name}'
+                  value={rule.resultTemplate}
+                  onChange={(e) => {
+                    const next = [...uiRules];
+                    next[idx] = { ...rule, resultTemplate: e.target.value };
+                    commit(rest, next);
+                  }}
+                  spellCheck={false}
+                />
+              </label>
+              <label className="kea-label">
+                {t("discoveryRules.rule.maxTemplateCombinations")}
+                <input
+                  className="kea-input"
+                  type="number"
+                  min={1}
+                  placeholder="10000"
+                  value={rule.maxTemplateCombinations}
+                  onChange={(e) => {
+                    const next = [...uiRules];
+                    next[idx] = { ...rule, maxTemplateCombinations: e.target.value };
+                    commit(rest, next);
+                  }}
+                />
+              </label>
+            </div>
+          )}
 
           <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
             {t("discoveryRules.rule.entityTypesCsv")}
@@ -541,10 +648,23 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
               className="kea-input"
               type="text"
               placeholder="asset, file, timeseries"
-              value={rule.entityTypesCsv}
+              value={entityTypesCsvDraft[rule.name] ?? rule.entityTypesCsv}
               onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, entityTypesCsv: e.target.value };
+                const v = e.target.value;
+                setEntityTypesCsvDraft((d) => ({ ...d, [rule.name]: v }));
+              }}
+              onBlur={() => {
+                const pending = entityTypesCsvDraftRef.current[rule.name];
+                if (pending === undefined) return;
+                const next = uiRules.map((r) =>
+                  r.name === rule.name ? { ...r, entityTypesCsv: pending } : r
+                );
+                setEntityTypesCsvDraft((d) => {
+                  if (!(rule.name in d)) return d;
+                  const { [rule.name]: _, ...rest } = d;
+                  return rest;
+                });
+                delete entityTypesCsvDraftRef.current[rule.name];
                 commit(rest, next);
               }}
             />
@@ -564,43 +684,46 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
             spellCheck={false}
           />
 
-          <p className="kea-hint" style={{ marginTop: "0.5rem" }}>
-            {t("discoveryRules.rule.parametersYamlHint")}
-          </p>
-          <p className="kea-hint" style={{ marginTop: "0.25rem", opacity: 0.92 }}>
-            {t(discoveryParametersDocKey(rule.handler))}
-          </p>
-          <DiscoveryHandlerParameters
-            handler={rule.handler}
-            parametersYaml={rule.parametersYaml}
-            onChange={(nextYaml) => {
-              const next = [...uiRules];
-              next[idx] = { ...rule, parametersYaml: nextYaml };
-              commit(rest, next);
-            }}
-            t={t}
-          />
-          <details className="kea-advanced-details" style={{ marginTop: "0.5rem" }}>
-            <summary className="kea-hint" style={{ cursor: "pointer" }}>
-              {t("discoveryRules.rawParametersYaml")}
-            </summary>
-            <textarea
-              className="kea-textarea"
-              style={{ minHeight: 100, fontFamily: "ui-monospace, monospace", marginTop: "0.35rem" }}
-              value={rule.parametersYaml}
-              onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, parametersYaml: e.target.value };
-                commit(rest, next);
-              }}
-              spellCheck={false}
-            />
-          </details>
+          {discoveryHandlerKind(rule.handler) === "heuristic" ? (
+            <>
+              <p className="kea-hint" style={{ marginTop: "0.5rem" }}>
+                {t("discoveryRules.rule.parametersYamlHintHeuristic")}
+              </p>
+              <p className="kea-hint" style={{ marginTop: "0.25rem", opacity: 0.92 }}>
+                {t(discoveryParametersDocKey(rule.handler))}
+              </p>
+              <DiscoveryHandlerParameters handler={rule.handler} t={t} />
+              <details className="kea-advanced-details" style={{ marginTop: "0.5rem" }}>
+                <summary className="kea-hint" style={{ cursor: "pointer" }}>
+                  {t("discoveryRules.rawParametersYaml")}
+                </summary>
+                <textarea
+                  className="kea-textarea"
+                  style={{ minHeight: 100, fontFamily: "ui-monospace, monospace", marginTop: "0.35rem" }}
+                  value={rule.parametersYaml}
+                  onChange={(e) => {
+                    const next = [...uiRules];
+                    next[idx] = { ...rule, parametersYaml: e.target.value };
+                    commit(rest, next);
+                  }}
+                  spellCheck={false}
+                />
+              </details>
+            </>
+          ) : (
+            <>
+              <p className="kea-hint" style={{ marginTop: "0.5rem" }}>
+                {t(discoveryParametersDocKey(rule.handler))}
+              </p>
+              <DiscoveryHandlerParameters handler={rule.handler} t={t} />
+            </>
+          )}
 
           <p className="kea-hint" style={{ marginTop: "0.5rem" }}>
-            {t("discoveryRules.rule.sourceFieldsYamlHint")}
+            {t("discoveryRules.rule.fieldsYamlHint")}
           </p>
           <DiscoverySourceFieldsEditor
+            handler={rule.handler}
             sourceFieldsYaml={rule.sourceFieldsYaml}
             onChange={(nextYaml) => {
               const next = [...uiRules];
@@ -611,7 +734,7 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
           />
           <details className="kea-advanced-details" style={{ marginTop: "0.5rem" }}>
             <summary className="kea-hint" style={{ cursor: "pointer" }}>
-              {t("discoveryRules.rawSourceFieldsYaml")}
+              {t("discoveryRules.rawFieldsYaml")}
             </summary>
             <textarea
               className="kea-textarea"
@@ -625,13 +748,20 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
               spellCheck={false}
             />
           </details>
+            </>
+          )}
         </div>
-      ))}
+        );
+      })}
 
       <button
         type="button"
         className="kea-btn kea-btn--sm"
-        onClick={() => commit(rest, [...uiRules, defaultUiRule(uiRules, selectedEntityBucket)])}
+        onClick={() => {
+          const nr = defaultUiRule(uiRules, selectedEntityBucket);
+          setRuleCardExpanded((m) => ({ ...m, [nr.name]: true }));
+          commit(rest, [...uiRules, nr]);
+        }}
       >
         {t("discoveryRules.rule.add")}
       </button>

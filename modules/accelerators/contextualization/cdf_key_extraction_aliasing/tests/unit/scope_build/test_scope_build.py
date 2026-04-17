@@ -29,6 +29,7 @@ from scope_build.hierarchy import (
     collect_leaves,
     path_step_level_name,
     slugify_display_name,
+    workflow_display_name_from_path,
 )
 from scope_build.orchestrate import (
     main as build_scopes_main,
@@ -41,6 +42,35 @@ from scope_build.scope_document_patch import prepare_scope_document_for_context
 
 def test_slugify_display_name_spaces() -> None:
     assert slugify_display_name("  South   Plant  ") == "South_Plant"
+
+
+def test_workflow_display_name_from_path_single_segment() -> None:
+    from scope_build.context import PathStep
+
+    p = [
+        PathStep(level="site", name="B", description=None, segment_id="b", node={}),
+    ]
+    assert workflow_display_name_from_path(p) == "B"
+
+
+def test_workflow_display_name_from_path_multi_segment() -> None:
+    from scope_build.context import PathStep
+
+    p = [
+        PathStep(level="site", name="Site One", description=None, segment_id="s1", node={}),
+        PathStep(level="plant", name="Plant A", description=None, segment_id="p1", node={}),
+    ]
+    assert workflow_display_name_from_path(p) == "Site One - Plant A"
+
+
+def test_workflow_display_name_from_path_duplicate_first_leaf() -> None:
+    from scope_build.context import PathStep
+
+    p = [
+        PathStep(level="site", name="Same", description=None, segment_id="s", node={}),
+        PathStep(level="plant", name="Same", description=None, segment_id="p", node={}),
+    ]
+    assert workflow_display_name_from_path(p) == "Same"
 
 
 def test_collect_leaves_name_only_one_level() -> None:
@@ -194,7 +224,7 @@ authentication:
   clientId: '{{functionClientId}}'
   clientSecret: '{{functionClientSecret}}'
 input:
-  full_rescan: false
+  run_all: false
   run_id: ''
 """
 
@@ -223,7 +253,7 @@ version: 'v4'
 workflowDefinition:
   description: 'test'
   input:
-    full_rescan: false
+    run_all: false
     run_id: ''
     configuration: {}
   tasks: []
@@ -888,6 +918,48 @@ aliasing_scope_hierarchy:
     assert t["workflowExternalId"] == "key_extraction_aliasing.b"
     wf = yaml.safe_load((scope_dir / "key_extraction_aliasing.b.Workflow.yaml").read_text(encoding="utf-8"))
     assert wf["externalId"] == "key_extraction_aliasing.b"
+    assert wf["name"] == "B"
+
+
+def test_full_mode_workflow_name_uses_first_and_leaf(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_full_named"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    sd = _install_minimal_scope_document(mod)
+    _install_minimal_workflow_definition_templates(mod)
+    hier = tmp_path / "hier_full_named.yaml"
+    hier.write_text(
+        """
+workflow: key_extraction_aliasing
+scope_build_mode: full
+aliasing_scope_hierarchy:
+  levels: [site, plant]
+  locations:
+    - id: s1
+      name: Site One
+      locations:
+        - id: p1
+          name: Plant A
+""",
+        encoding="utf-8",
+    )
+    doc = yaml.safe_load(hier.read_text(encoding="utf-8"))
+    run_build(
+        module_root=mod,
+        hierarchy_path=hier,
+        builders=default_builders(
+            scope_build_mode=scope_build_mode_from_doc(doc),
+            workflow_base=workflow_external_id_from_hierarchy(doc),
+            scope_document_path=sd,
+        ),
+        dry_run=False,
+    )
+    scope_dir = mod / "workflows" / "s1_p1"
+    wf = yaml.safe_load(
+        (scope_dir / "key_extraction_aliasing.s1_p1.Workflow.yaml").read_text(encoding="utf-8")
+    )
+    assert wf["externalId"] == "key_extraction_aliasing.s1_p1"
+    assert wf["name"] == "Site One - Plant A"
 
 
 def test_workflow_triggers_builder_full_mode_paths(tmp_path: Path) -> None:

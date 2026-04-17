@@ -11,11 +11,8 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.config import (
     EntityType,
     ExtractionRuleConfig,
-    SourceFieldParameter,
+    FieldExtractionSpec,
     SourceViewConfig,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.PassthroughMethodParameter import (
-    PassthroughMethodParameter,
 )
 
 
@@ -37,18 +34,20 @@ def test_apply_preprocessing_trim_and_case():
 def test_rules_fingerprint_stable_for_same_rules():
     r1 = ExtractionRuleConfig(
         rule_id="r1",
-        parameters=PassthroughMethodParameter(),
-        source_fields=[
-            SourceFieldParameter(
+        handler="regex_handler",
+        parameters=None,
+        fields=[
+            FieldExtractionSpec(
                 field_name="name", required=False, preprocessing=["trim"]
             )
         ],
     )
     r2 = ExtractionRuleConfig(
         rule_id="r1",
-        parameters=PassthroughMethodParameter(),
-        source_fields=[
-            SourceFieldParameter(
+        handler="regex_handler",
+        parameters=None,
+        fields=[
+            FieldExtractionSpec(
                 field_name="name", required=False, preprocessing=["trim"]
             )
         ],
@@ -59,13 +58,15 @@ def test_rules_fingerprint_stable_for_same_rules():
 def test_rules_fingerprint_changes_when_rule_changes():
     r1 = ExtractionRuleConfig(
         rule_id="r1",
-        parameters=PassthroughMethodParameter(),
-        source_fields=[SourceFieldParameter(field_name="name", required=False)],
+        handler="regex_handler",
+        parameters=None,
+        fields=[FieldExtractionSpec(field_name="name", required=False)],
     )
     r2 = ExtractionRuleConfig(
         rule_id="r2",
-        parameters=PassthroughMethodParameter(),
-        source_fields=[SourceFieldParameter(field_name="name", required=False)],
+        handler="regex_handler",
+        parameters=None,
+        fields=[FieldExtractionSpec(field_name="name", required=False)],
     )
     assert rules_fingerprint([r1]) != rules_fingerprint([r2])
 
@@ -126,9 +127,10 @@ def test_resolve_key_discovery_hash_uses_explicit_paths():
     rules = [
         ExtractionRuleConfig(
             rule_id="r1",
-            parameters=PassthroughMethodParameter(),
-            source_fields=[
-                SourceFieldParameter(
+            handler="regex_handler",
+            parameters=None,
+            fields=[
+                FieldExtractionSpec(
                     field_name="title",
                     required=False,
                     preprocessing=["trim"],
@@ -155,9 +157,10 @@ def test_build_field_map_matches_preprocessing():
         [
             ExtractionRuleConfig(
                 rule_id="r1",
-                parameters=PassthroughMethodParameter(),
-                source_fields=[
-                    SourceFieldParameter(
+                handler="regex_handler",
+                parameters=None,
+                fields=[
+                    FieldExtractionSpec(
                         field_name="title",
                         required=False,
                         preprocessing=["trim", "uppercase"],
@@ -169,4 +172,91 @@ def test_build_field_map_matches_preprocessing():
     )
     m = build_field_map_for_hash({"title": "  hi  "}, wanted)
     assert m["title"] == "HI"
+
+
+def test_iter_wanted_fields_filters_by_scope_entity_type():
+    """Workflow-style config: multiple rules with scope_filters.entity_type — hash fields per view."""
+    rules = [
+        {
+            "name": "asset_only",
+            "fields": [
+                {
+                    "field_name": "name",
+                    "required": True,
+                    "preprocessing": ["trim"],
+                }
+            ],
+            "scope_filters": {"entity_type": ["asset"]},
+        },
+        {
+            "name": "file_only",
+            "fields": [
+                {
+                    "field_name": "name",
+                    "required": True,
+                    "preprocessing": ["trim"],
+                }
+            ],
+            "scope_filters": {"entity_type": ["file"]},
+        },
+    ]
+    asset_view = {
+        "view_external_id": "CogniteAsset",
+        "entity_type": "asset",
+        "include_properties": [],
+    }
+    file_view = {
+        "view_external_id": "CogniteFile",
+        "entity_type": "file",
+        "include_properties": [],
+    }
+    a = iter_wanted_fields(rules, asset_view)
+    f = iter_wanted_fields(rules, file_view)
+    assert [x[0] for x in a] == ["name"]
+    assert [x[0] for x in f] == ["name"]
+    assert a[0][1] is True and f[0][1] is True
+
+
+def test_iter_wanted_fields_rule_without_scope_applies_to_all_views():
+    rules = [
+        {
+            "fields": [{"field_name": "description", "required": False}],
+            "scope_filters": {},
+        },
+        {
+            "fields": [{"field_name": "name", "required": True}],
+            "scope_filters": {"entity_type": ["asset"]},
+        },
+    ]
+    ts_view = {"entity_type": "timeseries", "include_properties": []}
+    wanted = iter_wanted_fields(rules, ts_view)
+    names = [w[0] for w in wanted]
+    assert "description" in names
+    assert "name" not in names
+
+
+def test_resolve_key_discovery_hash_respects_entity_type_for_rule_preprocessing():
+    rules = [
+        {
+            "fields": [
+                {"field_name": "title", "required": False, "preprocessing": ["trim"]}
+            ],
+            "scope_filters": {"entity_type": ["asset"]},
+        },
+        {
+            "fields": [
+                {"field_name": "title", "required": False, "preprocessing": ["uppercase"]}
+            ],
+            "scope_filters": {"entity_type": ["file"]},
+        },
+    ]
+    asset_view = {
+        "entity_type": "asset",
+        "key_discovery_hash_property_paths": ["title"],
+        "include_properties": [],
+    }
+    wanted = resolve_key_discovery_hash_field_paths(rules, asset_view)
+    assert len(wanted) == 1
+    assert wanted[0][0] == "title"
+    assert wanted[0][2] == ["trim"]
 

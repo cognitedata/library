@@ -4,7 +4,7 @@ This guide is for developers who need behavior that existing YAML-driven rules c
 
 ## Before you write code
 
-- **Prefer configuration:** Regex, fixed width, token reassembly, heuristics (extraction) and the built-in aliasing `type` values cover most naming variants. Compose multiple rules with `priority` and `preserve_original`.
+- **Prefer configuration:** Regex, heuristics (extraction) and the built-in aliasing `type` values cover most naming variants. Compose multiple rules with `priority` and `preserve_original`.
 - **Know the contracts:** Handlers are plain Python classes called by the engines; they must return the shapes described below. The CDF functions (`fn_dm_key_extraction`, `fn_dm_aliasing`) construct the same engines as `module.py`—after you change handler code, **redeploy** the affected functions.
 
 ---
@@ -14,9 +14,9 @@ This guide is for developers who need behavior that existing YAML-driven rules c
 ### Contract
 
 1. Subclass [`ExtractionMethodHandler`](../../functions/fn_dm_key_extraction/engine/handlers/ExtractionMethodHandler.py).
-2. Implement **`extract(self, text: str, rule, context: dict | None) -> list[ExtractedKey]`**  
-   - `text` is already preprocessed per `source_fields` (trim, etc.) when applicable.  
-   - `rule` is a loaded [`ExtractionRule`](../../functions/fn_dm_key_extraction/utils/DataStructures.py)-like object (attributes or dict-shaped); use [`rule_utils`](../../functions/fn_dm_key_extraction/utils/rule_utils.py) for portable access.  
+2. Implement **`extract_from_entity(self, entity, rule, context, get_field_value=...) -> list[ExtractedKey]`**  
+   - Resolve field text via **`get_field_value(field_spec, entity, context)`** (or equivalent) for each entry in the rule’s **`fields`** list; apply preprocessing as configured.  
+   - `rule` is a loaded [`ExtractionRuleConfig`](../../functions/fn_dm_key_extraction/config.py)-backed object; use [`rule_utils`](../../functions/fn_dm_key_extraction/utils/rule_utils.py) for portable access.  
    - Return **empty list** when there is nothing to emit.
 3. Build each [`ExtractedKey`](../../functions/fn_dm_key_extraction/utils/DataStructures.py) with at least: `value`, `extraction_type`, `source_field`, `confidence`, `method`, `rule_id`, optional `metadata`. Use **`common_extracted_key_attrs`** and **`get_min_confidence`** from `rule_utils` so `extraction_type` and `rule_id` stay aligned with YAML.
 
@@ -24,13 +24,13 @@ The engine assigns **`source_field`** on each key to the field that was actually
 
 ### Register the handler
 
-1. Add a new member to **`ExtractionMethod`** in [`DataStructures.py`](../../functions/fn_dm_key_extraction/utils/DataStructures.py) (string value is what appears in YAML `method:` after normalization).
-2. Extend **`normalize_method`** in [`rule_utils.py`](../../functions/fn_dm_key_extraction/utils/rule_utils.py) so your YAML string resolves to that enum. **Important:** any unknown `method` string today falls through to **`regex`**—if you skip this step, the wrong handler runs.
-3. In [`KeyExtractionEngine._initialize_method_handlers`](../../functions/fn_dm_key_extraction/engine/key_extraction_engine.py), map **`YourMethod.value`** → your handler instance (same pattern as `PassthroughExtractionHandler`, `RegexExtractionHandler`, …).
+1. Add a new member to **`ExtractionMethod`** in [`DataStructures.py`](../../functions/fn_dm_key_extraction/utils/DataStructures.py) (string value is what appears in YAML `handler:` after normalization).
+2. Extend **`normalize_method`** in [`rule_utils.py`](../../functions/fn_dm_key_extraction/utils/rule_utils.py) so your YAML string resolves to that enum. Unknown handler strings map to **`UNSUPPORTED`**—if you skip this step, rules are skipped or misrouted.
+3. In [`KeyExtractionEngine._initialize_method_handlers`](../../functions/fn_dm_key_extraction/engine/key_extraction_engine.py), map **`YourMethod.value`** → your handler instance (same pattern as **`FieldRuleExtractionHandler`**, **`HeuristicExtractionHandler`**, …).
 4. Export the class from [`engine/handlers/__init__.py`](../../functions/fn_dm_key_extraction/engine/handlers/__init__.py) if other code imports it.
-5. Add **unit tests** under `tests/unit/key_extraction/` (or next to similar handler tests) covering your `extract()` outputs and edge cases.
+5. Add **unit tests** under `tests/unit/key_extraction/` (or next to similar handler tests) covering your **`extract_from_entity`** outputs and edge cases.
 
-**Reference implementation:** [`PassthroughExtractionHandler.py`](../../functions/fn_dm_key_extraction/engine/handlers/PassthroughExtractionHandler.py) (minimal) and [`RegexExtractionHandler.py`](../../functions/fn_dm_key_extraction/engine/handlers/RegexExtractionHandler.py).
+**Reference implementation:** [`field_rule_extraction_handler.py`](../../functions/fn_dm_key_extraction/engine/handlers/field_rule_extraction_handler.py) (declarative `fields`, templates) and [`heuristic_extraction_handler.py`](../../functions/fn_dm_key_extraction/engine/handlers/heuristic_extraction_handler.py).
 
 ---
 
@@ -73,6 +73,7 @@ Run **`module.py`** with a scope YAML that references your new `method` or `type
 
 ## Related reading
 
+- [How to build configuration with YAML](howto_config_yaml.md) · [How to build configuration with the UI](howto_config_ui.md)
 - [Quickstart — local run with `module.py`](howto_quickstart.md) (`.env`, results under `tests/results/`)
 - [Scoped deployment — hierarchy and Toolkit](howto_scoped_deployment.md) (`--build`, WorkflowTrigger `configuration`, `cdf deploy`)
 - [Module functional document — handlers overview](../module_functional_document.md) (sections 3.1 and 3.2)

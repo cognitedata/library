@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 
 import yaml
 from fastapi import Body, FastAPI, HTTPException, Query
@@ -21,6 +21,8 @@ MODULE_ROOT = Path(
 DEFAULT_CONFIG_REL = "default.config.yaml"
 DEFAULT_SCOPE_DOCUMENT_REL = "workflow.local.config.yaml"
 TEMPLATE_WORKFLOW_CONFIG_REL = "workflow_template/workflow.template.config.yaml"
+# Snapshot of input.configuration from the last operator run against a WorkflowTrigger (optional .gitignore).
+OPERATOR_RUN_SCOPE_SNAPSHOT = ".operator_run_scope.yaml"
 
 app = FastAPI(title="Key discovery & aliasing operator API", version="1.0.0")
 app.add_middleware(
@@ -58,6 +60,17 @@ class YamlBody(BaseModel):
 class BuildBody(BaseModel):
     force: bool = False
     dry_run: bool = False
+
+
+RunTarget = Literal["workflow_local", "workflow_template", "workflow_trigger"]
+
+
+class RunBody(BaseModel):
+    run_all: bool = False
+    target: RunTarget = "workflow_local"
+    """Which scope document to pass to ``module.py run`` (see /api/run handler)."""
+    workflow_trigger_rel: str | None = None
+    """Module-relative path to a WorkflowTrigger YAML when ``target`` is ``workflow_trigger``."""
 
 
 class FileBody(BaseModel):
@@ -273,10 +286,87 @@ def run_build(body: BuildBody) -> dict:
     }
 
 
+@app.post("/api/run")
+def run_pipeline(body: RunBody) -> dict:
+    """Invoke ``python module.py run --config-path …`` (local CDF pipeline; requires credentials in env)."""
+    if body.target == "workflow_local":
+        config_rel = DEFAULT_SCOPE_DOCUMENT_REL
+    elif body.target == "workflow_template":
+        config_rel = TEMPLATE_WORKFLOW_CONFIG_REL
+    else:
+        wr = (body.workflow_trigger_rel or "").strip()
+        if not wr:
+            raise HTTPException(
+                status_code=400,
+                detail="workflow_trigger_rel is required when target is workflow_trigger",
+            )
+        config_rel = _write_scope_yaml_from_workflow_trigger(wr)
+
+    cmd = [
+        sys.executable,
+        str(MODULE_ROOT / "module.py"),
+        "run",
+        "--config-path",
+        config_rel,
+    ]
+    if body.run_all:
+        cmd.append("--all")
+    proc = subprocess.run(
+        cmd,
+        cwd=str(MODULE_ROOT),
+        capture_output=True,
+        text=True,
+        env={**os.environ},
+    )
+    return {
+        "exit_code": proc.returncode,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+    }
+
+
 def _is_workflow_trigger_path(rel: str) -> bool:
     return rel.lower().endswith(".workflowtrigger.yaml") or rel.lower().endswith(
         ".workflowtrigger.yml"
     )
+
+
+def _write_scope_yaml_from_workflow_trigger(rel: str) -> str:
+    """Extract ``input.configuration`` to :data:`OPERATOR_RUN_SCOPE_SNAPSHOT`; return relative path."""
+    if not _is_workflow_trigger_path(rel):
+        raise HTTPException(
+            status_code=400,
+            detail="workflow_trigger_rel must be a WorkflowTrigger YAML path",
+        )
+    path = _safe_rel_path(rel)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="WorkflowTrigger file not found")
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="WorkflowTrigger root must be a mapping")
+    inp = data.get("input")
+    if not isinstance(inp, dict):
+        raise HTTPException(status_code=400, detail="WorkflowTrigger missing input mapping")
+    cfg = inp.get("configuration")
+    if not isinstance(cfg, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="WorkflowTrigger missing input.configuration mapping",
+        )
+    out_path = MODULE_ROOT / OPERATOR_RUN_SCOPE_SNAPSHOT
+    out_path.write_text(
+        yaml.safe_dump(
+            cfg,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+        ),
+        encoding="utf-8",
+    )
+    return OPERATOR_RUN_SCOPE_SNAPSHOT
 
 
 @app.get("/api/workflow-trigger-meta")

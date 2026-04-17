@@ -3,7 +3,7 @@
 from .cdf_utils import create_table_if_not_exists
 from .clean_state_tables import clean_state_tables_from_scope_yaml
 from .config_utils import load_config_from_yaml
-from .full_rescan import resolve_full_rescan
+from .run_all import resolve_run_all
 from .function_logging import (
     StdlibLoggerAdapter,
     cognite_function_logger,
@@ -24,6 +24,6 @@ __all__ = [
     "function_logger_from_data",
     "load_config_from_yaml",
     "reference_index_raw_table_from_key_extraction_table",
-    "resolve_full_rescan",
+    "resolve_run_all",
     "resolve_function_logger",
 ]

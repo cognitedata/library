@@ -1,20 +1,16 @@
 """
 Key Extraction Engine for Cognite Data Fusion (CDF)
 
-This module implements the core key extraction functionality as described in the
-key_extraction.md specification. It provides methods for extracting candidate keys
-and foreign key references from entity metadata using regex, fixed width parsing,
-token reassembly, and heuristic approaches.
+Extracts candidate keys and foreign key references using regex_handler
+and heuristic handlers (extract_from_entity).
 
 Features:
-- 5 extraction methods: passthrough (default when omitted), regex, fixed width, token reassembly, heuristic
-- Support for candidate keys and foreign key references
+- Declarative fields[], optional result_template (Cartesian cap); all field specs are merged
+- Shared validation (confidence_match_rules, min_confidence) aligned with aliasing
 - Configurable extraction rules with priority ordering
-- Integration with CDF data model views
-- Comprehensive validation and error handling
 
 Author: Darren Downtain
-Version: 1.0.1
+Version: 2.0.0
 """
 
 import re
@@ -22,28 +18,19 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 
-from ..utils.TokenReassemblyMethodParameter import (
-    AssemblyRule,
-    TokenReassemblyMethodParameter,
-)
-
 from ...cdf_fn_common.confidence_match_eval import apply_confidence_match_rules_mutating
 from ..common.logger import CogniteFunctionLogger
 from ..config import Config, ExtractionRuleConfig
 from ..utils.DataStructures import *
 from ..utils.rule_utils import (
     get_extraction_type_from_rule,
-    get_handler_from_rule,
     normalize_extraction_type,
     normalize_method,
 )
 from .handlers import (
     ExtractionMethodHandler,
-    FixedWidthExtractionHandler,
+    FieldRuleExtractionHandler,
     HeuristicExtractionHandler,
-    PassthroughExtractionHandler,
-    RegexExtractionHandler,
-    TokenReassemblyExtractionHandler,
 )
 
 
@@ -63,7 +50,6 @@ class KeyExtractionEngine:
                 params = SimpleNamespace(min_key_length=params.get("min_key_length", 3), **params)
             data = SimpleNamespace(
                 extraction_rules=config.get("extraction_rules", []),
-                field_selection_strategy=config.get("field_selection_strategy", "first_match"),
             )
             self.config = SimpleNamespace(parameters=params, data=data)
             vd = dict(config.get("validation") or {})
@@ -78,23 +64,24 @@ class KeyExtractionEngine:
                 validation_default.confidence_match_rules = []
             self._data_validation = validation_default
             self._source_views = list(config.get("source_views") or [])
-            _defaults = {"scope_filters": {}, "validation": validation_default}
+            _defaults = {"scope_filters": {}, "validation": validation_default, "handler": "regex_handler"}
             _sf_defaults = {"table_id": None, "role": "target", "field_name": "", "required": False, "priority": 1}
             self.rules = []
             for r in config.get("extraction_rules", []):
                 if isinstance(r, dict):
                     r = dict(_defaults, **r)
                     r.setdefault("validation", validation_default)
-                    # Normalize handler name for handler lookup (e.g. fixed_width -> fixed width)
-                    handler = r.get("handler", "")
-                    if handler == "fixed_width":
-                        r["handler"] = ExtractionMethod.FIXED_WIDTH.value
-                    elif handler == "token_reassembly":
-                        r["handler"] = ExtractionMethod.TOKEN_REASSEMBLY.value
-                    sf = r.get("source_fields", [])
-                    if sf and isinstance(sf[0], dict):
-                        r["source_fields"] = [SimpleNamespace(**{**_sf_defaults, **f}) for f in sf]
-                    # Scope / UI YAML uses `parameters`; handlers and composite strategies use `rule.config`.
+                    if not str(r.get("handler") or "").strip():
+                        r["handler"] = "regex_handler"
+                    if not r.get("rule_id") and r.get("name"):
+                        r["rule_id"] = str(r["name"])
+                    if r.get("name") is None and r.get("rule_id"):
+                        r["name"] = str(r["rule_id"])
+                    flds = r.get("fields")
+                    if flds and isinstance(flds, list) and flds and isinstance(flds[0], dict):
+                        r["fields"] = [SimpleNamespace(**{**_sf_defaults, **f}) for f in flds]
+                    elif not flds:
+                        r["fields"] = []
                     if r.get("config") is None and r.get("parameters") is not None:
                         p = r["parameters"]
                         r["config"] = dict(p) if isinstance(p, dict) else p
@@ -125,7 +112,6 @@ class KeyExtractionEngine:
             else:
                 self._source_views = []
         self.method_handlers = self._initialize_method_handlers()
-        self.field_selection_strategy = self.config.data.field_selection_strategy
 
     def _categorize_keys_into_result(
         self,
@@ -148,12 +134,7 @@ class KeyExtractionEngine:
     ) -> Dict[ExtractionMethod, ExtractionMethodHandler]:
         """Initialize method handler instances."""
         return {
-            ExtractionMethod.PASSTHROUGH.value: PassthroughExtractionHandler(self.logger),
-            ExtractionMethod.REGEX.value: RegexExtractionHandler(self.logger),
-            ExtractionMethod.FIXED_WIDTH.value: FixedWidthExtractionHandler(self.logger),
-            ExtractionMethod.TOKEN_REASSEMBLY.value: TokenReassemblyExtractionHandler(
-                self.logger
-            ),
+            ExtractionMethod.REGEX_HANDLER.value: FieldRuleExtractionHandler(self.logger),
             ExtractionMethod.HEURISTIC.value: HeuristicExtractionHandler(self.logger),
         }
 
@@ -184,93 +165,58 @@ class KeyExtractionEngine:
         # Build context for extraction
         context = self._build_context(entity, entity_type)
 
-        # Apply each rule
-        for rule in self.rules:
-            if not getattr(rule, "enabled", True):
-                continue
+        sorted_rules = sorted(
+            [r for r in self.rules if getattr(r, "enabled", True)],
+            key=lambda r: getattr(r, "priority", 100),
+        )
 
-            # Handle composite field extraction (cross-field merging)
-            if getattr(rule, "composite_strategy", None):
-                extracted_keys = self._extract_from_composite_fields(
-                    entity, rule, context, result
-                )
-                if extracted_keys:
-                    self._categorize_keys_into_result(extracted_keys, rule, result)
-                continue
-
-            # Check scope filters
+        for rule in sorted_rules:
             if not self._check_scope_filters(rule, context):
                 continue
 
-            # Extract from source fields honoring field_selection_strategy
-            strategy = self.field_selection_strategy
+            method_enum = normalize_method(getattr(rule, "handler", None))
+            method_key = method_enum.value
+            if method_key == ExtractionMethod.UNSUPPORTED.value:
+                self.logger.warning(
+                    f"Skipping rule {getattr(rule, 'rule_id', getattr(rule, 'name', '?'))}: "
+                    f"unsupported or legacy handler {getattr(rule, 'handler', None)!r}"
+                )
+                continue
 
-            # Normalize source_fields to list (can be single SourceFieldParameter or list)
-            source_fields_list = (
-                list(rule.source_fields)
-                if isinstance(rule.source_fields, list)
-                else ([rule.source_fields] if rule.source_fields else [])
-            )
-            fields = sorted(
-                source_fields_list, key=lambda f: getattr(f, "priority", 1)
-            )
+            method_handler = self.method_handlers.get(method_key)
+            if not method_handler:
+                self.logger.warning(f"No handler registered for method {method_key}")
+                continue
 
-            collected_for_rule: List[ExtractedKey] = []
+            rule_label = getattr(rule, "name", None) or getattr(rule, "rule_id", None)
+            rule_id_for_lookup = getattr(rule, "rule_id", None) or getattr(rule, "name", None)
 
-            for source_field in fields:
-                field_value = self._get_field_value(entity, source_field, rule.name)
-                if not isinstance(field_value, str) or field_value == "":
-                    if getattr(source_field, "required", False):
-                        self.logger.verbose(
-                            "DEBUG",
-                            f"Required field '{source_field.field_name}' missing for entity {result.entity_id}",
-                        )
-                        continue
-                    else:
-                        continue
+            def _gv(
+                ent: Dict[str, Any],
+                spec: Any,
+                rule_name: Optional[str] = None,
+            ) -> Optional[str]:
+                raw = self._get_field_value(ent, spec, rule_name or rule_id_for_lookup)
+                if raw is None:
+                    return None
+                return self._preprocess_field_value(str(raw), spec)
 
-                if getattr(source_field, "preprocessing", None):
-                    processed_value = self._preprocess_field_value(
-                        field_value, source_field
-                    )
-                else:
-                    processed_value = field_value
+            try:
+                extracted_keys = method_handler.extract_from_entity(
+                    entity,
+                    rule,
+                    context,
+                    get_field_value=_gv,
+                )
+            except Exception as e:
+                self.logger.verbose(
+                    "ERROR",
+                    f"Error extracting keys with rule '{rule_label}': {e}",
+                )
+                continue
 
-                # Extract keys using appropriate method (canonical method name from one place)
-                method_key = normalize_method(
-                    getattr(rule, "handler", None)
-                ).value
-                method_handler = self.method_handlers.get(method_key)
-                if not method_handler:
-                    self.logger.warning(f"No handler for method {method_key}")
-                    continue
-
-                try:
-                    extracted_keys = method_handler.extract(
-                        processed_value, rule, context
-                    )
-
-                    # Attribute extracted keys to the specific field we extracted from.
-                    # Handlers may not know which field produced the match.
-                    for k in extracted_keys:
-                        if getattr(source_field, "field_name", None):
-                            k.source_field = source_field.field_name
-
-                    collected_for_rule.extend(extracted_keys)
-
-                    # field selection strategies short-circuiting
-                    # first_match: stop at first field (in priority order) that produces results
-                    if strategy == "first_match" and extracted_keys:
-                        break
-
-                except Exception as e:
-                    self.logger.verbose(
-                        "ERROR", f"Error extracting keys with rule '{rule.name}': {e}"
-                    )
-
-            # Post-process collected keys per strategy
-            if collected_for_rule:
-                self._categorize_keys_into_result(collected_for_rule, rule, result)
+            if extracted_keys:
+                self._categorize_keys_into_result(extracted_keys, rule, result)
 
         # Apply validation using last rule's validation + optional source_view overlay
         rule_ref = self.rules[-1] if self.rules else None
@@ -329,267 +275,15 @@ class KeyExtractionEngine:
 
         return context
 
-    def _extract_from_composite_fields(
-        self,
-        entity: Dict[str, Any],
-        rule: ExtractionRuleConfig,
-        context: Dict[str, Any],
-        result: ExtractionResult,
-    ) -> List[ExtractedKey]:
-        """
-        Extract keys by merging multiple source fields based on composite_strategy.
-
-        Args:
-            entity: Entity data with metadata fields
-            rule: Extraction rule with composite_strategy configured
-            context: Extraction context
-            result: Current extraction result (for metadata)
-
-        Returns:
-            List of extracted keys from merged fields
-        """
-        extracted_keys = []
-
-        # Separate fields by role (target/context used by composite strategies below)
-        target_fields = [f for f in rule.source_fields if f.role == "target"]
-        context_fields = [f for f in rule.source_fields if f.role == "context"]
-
-        # Collect field values
-        field_values = {}
-        _rnm = getattr(rule, "name", None) or getattr(rule, "rule_id", None)
-        for source_field in rule.source_fields:
-            field_value = self._get_field_value(entity, source_field, _rnm)
-            if field_value:
-                # Apply preprocessing
-                processed_value = self._preprocess_field_value(
-                    field_value, source_field
-                )
-                field_values[source_field.field_name] = {
-                    "value": processed_value,
-                    "field": source_field,
-                }
-            elif source_field.required:
-                # Required field missing, skip this rule
-                self.logger.verbose(
-                    "WARNING",
-                    f"Required field '{source_field.field_name}' missing for composite extraction in rule '{rule.name}'",
-                )
-                return []
-
-        # Apply composite strategy
-        if rule.composite_strategy == "concatenate":
-            # Simple concatenation of fields
-            separator = rule.config.get("field_separator", "-")
-            field_order = rule.config.get(
-                "field_order", [f.field_name for f in target_fields]
-            )
-
-            composite_value_parts = []
-            for field_name in field_order:
-                if field_name in field_values:
-                    composite_value_parts.append(field_values[field_name]["value"])
-
-            if composite_value_parts:
-                composite_value = separator.join(composite_value_parts)
-
-                # Extract using the configured method (canonical method name)
-                method_key = normalize_method(getattr(rule, "handler", None)).value
-                method_handler = self.method_handlers.get(method_key)
-                if method_handler:
-                    try:
-                        extracted_keys = method_handler.extract(
-                            composite_value, rule, context
-                        )
-                        # Update source_field metadata to indicate composite extraction
-                        for key in extracted_keys:
-                            key.source_field = "+".join(field_order)
-                            key.metadata["composite_extraction"] = True
-                            key.metadata["composite_fields"] = field_order
-                            key.metadata["composite_strategy"] = "concatenate"
-                    except Exception as e:
-                        self.logger.verbose(
-                            "ERROR",
-                            f"Error in composite extraction for rule '{rule.name}': {e}",
-                        )
-
-        elif rule.composite_strategy == "token_reassembly":
-            # Cross-field token reassembly
-            extracted_keys = self._extract_cross_field_token_reassembly(
-                field_values, rule, context
-            )
-
-        elif rule.composite_strategy == "context_aware":
-            # Use context fields to inform extraction from target fields
-            # Merge context into context dict and extract from target fields
-            enhanced_context = context.copy()
-            for context_field in context_fields:
-                if context_field.field_name in field_values:
-                    enhanced_context[context_field.field_name] = field_values[
-                        context_field.field_name
-                    ]["value"]
-
-            # Extract from target fields with enhanced context
-            method_key = normalize_method(getattr(rule, "handler", None)).value
-            method_handler = self.method_handlers.get(method_key)
-            if method_handler:
-                for target_field in target_fields:
-                    if target_field.field_name in field_values:
-                        try:
-                            field_keys = method_handler.extract(
-                                field_values[target_field.field_name]["value"],
-                                rule,
-                                enhanced_context,
-                            )
-                            for key in field_keys:
-                                key.metadata["context_aware"] = True
-                                key.metadata["context_fields"] = [
-                                    f.field_name for f in context_fields
-                                ]
-                            extracted_keys.extend(field_keys)
-                        except Exception as e:
-                            self.logger.verbose(
-                                "ERROR",
-                                f"Error in context-aware extraction for rule '{rule.name}': {e}",
-                            )
-
-        return extracted_keys
-
-    def _extract_cross_field_token_reassembly(
-        self,
-        field_values: Dict[str, Dict[str, Any]],
-        rule: ExtractionRule,
-        context: Dict[str, Any],
-    ) -> List[ExtractedKey]:
-        """
-        Extract tokens from multiple fields and reassemble them into complete tags.
-
-        Args:
-            field_values: Dictionary mapping field names to their processed values
-            rule: Extraction rule with token_reassembly method
-            context: Extraction context
-
-        Returns:
-            List of extracted and reassembled keys
-        """
-        extracted_keys = []
-        config = rule.config
-        tokenization = config.get("tokenization", {})
-
-        extract_from_multiple_fields = tokenization.get(
-            "extract_from_multiple_fields", []
-        )
-
-        if not extract_from_multiple_fields:
-            # Fallback: tokenize each field separately and combine
-            # Use first token from each field as potential components
-            separator_patterns = tokenization.get(
-                "separator_patterns", ["-", "_", "/", " "]
-            )
-            all_tokens = {}
-
-            for field_name, field_data in field_values.items():
-                tokens = self._tokenize_field_value(
-                    field_data["value"], separator_patterns
-                )
-                # Store tokens keyed by field name (for assembly format like {siteCode}-{unitNumber})
-                if tokens:
-                    all_tokens[field_name] = [
-                        {
-                            "value": tokens[0],  # Use first token from field
-                            "field": field_name,
-                            "position": 0,
-                            "required": True,
-                        }
-                    ]
-        else:
-            # Extract tokens from specific fields based on configuration
-            all_tokens = {}
-            separator_patterns = tokenization.get(
-                "separator_patterns", ["-", "_", "/", " "]
-            )
-            token_patterns = tokenization.get("token_patterns", [])
-
-            # Map token types to fields
-            for field_config in rule.source_fields:
-                field_name = field_config.field_name
-                token_type = field_config.role
-
-                if field_name in field_values:
-                    field_value = field_values[field_name]["value"]
-                    tokens = self._tokenize_field_value(field_value, separator_patterns)
-
-                    # Match tokens against patterns if specified
-                    for token_pattern in token_patterns:
-                        pattern_name = token_pattern.get("name")
-                        pattern_regex = token_pattern.get("pattern")
-                        component_type = token_pattern.get("component_type", "")
-
-                        if component_type == token_type and pattern_regex:
-                            try:
-                                compiled_pattern = re.compile(pattern_regex)
-                                for i, token in enumerate(tokens):
-                                    if compiled_pattern.match(token):
-                                        if pattern_name not in all_tokens:
-                                            all_tokens[pattern_name] = []
-                                        all_tokens[pattern_name].append(
-                                            {
-                                                "value": token,
-                                                "field": field_name,
-                                                "position": i,
-                                                "component_type": component_type,
-                                                "required": token_pattern.get(
-                                                    "required", False
-                                                ),
-                                            }
-                                        )
-                            except re.error as e:
-                                self.logger.verbose(
-                                    "ERROR",
-                                    f"Invalid token pattern '{pattern_regex}': {e}",
-                                )
-
-        # Apply assembly rules
-        assembly_rules = config.get("assembly_rules", [])
-        handler = TokenReassemblyExtractionHandler()
-        tkr_param = TokenReassemblyMethodParameter(**rule.config)
-
-        for assembly_rule in assembly_rules:
-            assembled_keys = handler._assemble_tokens(
-                all_tokens,
-                AssemblyRule(**assembly_rule),
-                tkr_param,
-                get_extraction_type_from_rule(rule),
-                get_handler_from_rule(rule),
-                context,
-            )
-            if assembled_keys:
-                for assembled_key in assembled_keys:
-                    assembled_key.metadata["cross_field_extraction"] = True
-                    assembled_key.metadata["source_fields"] = list(field_values.keys())
-                    assembled_key.source_field = "+".join(field_values.keys())
-                    assembled_key.extraction_type = config.get(
-                        "extraction_type", rule.extraction_type
-                    )
-                extracted_keys.append(assembled_key)
-
-        return extracted_keys
-
-    def _tokenize_field_value(
-        self, text: str, separator_patterns: List[str]
-    ) -> List[str]:
-        """Tokenize text using separator patterns."""
-        separator_regex = "|".join(re.escape(sep) for sep in separator_patterns)
-        tokens = re.split(separator_regex, text)
-        return [token.strip() for token in tokens if token.strip()]
-
     def _check_scope_filters(
-        self, rule: ExtractionRuleConfig, context: Dict[str, Any]
+        self, rule: Any, context: Dict[str, Any]
     ) -> bool:
         """Check if rule scope filters are satisfied."""
-        if not rule.scope_filters:
+        scope_filters = getattr(rule, "scope_filters", None) or {}
+        if not scope_filters:
             return True
 
-        for filter_key, filter_values in rule.scope_filters.items():
+        for filter_key, filter_values in scope_filters.items():
             context_value = context.get(filter_key)
             if isinstance(filter_values, list):
                 if context_value not in filter_values:
@@ -953,47 +647,50 @@ class KeyExtractionEngine:
 def main():
     """Example usage of the KeyExtractionEngine."""
 
-    # Example configuration
     config = {
         "extraction_rules": [
             {
-                "name": "standard_pump_tag",
+                "rule_id": "standard_pump_tag",
                 "description": "Extracts standard pump tags from equipment descriptions",
                 "extraction_type": "candidate_key",
-                "handler": "regex",
-                "pattern": r"\bP[-_]?\d{2,4}[A-Z]?\b",
+                "handler": "regex_handler",
                 "priority": 50,
                 "enabled": True,
-                "min_confidence": 0.7,
-                "case_sensitive": False,
-                "source_fields": [
+                "field_results_mode": "merge_all",
+                "fields": [
                     {
                         "field_name": "name",
                         "required": True,
                         "priority": 1,
+                        "regex": r"\bP[-_]?\d{2,4}[A-Z]?\b",
+                        "regex_options": {"ignore_case": True},
                     },
                     {
                         "field_name": "description",
                         "required": False,
                         "priority": 2,
+                        "regex": r"\bP[-_]?\d{2,4}[A-Z]?\b",
+                        "regex_options": {"ignore_case": True},
                     },
                 ],
+                "validation": {"min_confidence": 0.7},
             },
             {
-                "name": "flow_instrument_tag",
+                "rule_id": "flow_instrument_tag",
                 "description": "Extracts ISA flow instrument tags",
                 "extraction_type": "foreign_key_reference",
-                "handler": "regex",
-                "pattern": r"\bFIC[-_]?\d{4}[A-Z]?\b",
+                "handler": "regex_handler",
                 "priority": 30,
                 "enabled": True,
-                "min_confidence": 0.8,
-                "source_fields": [
+                "field_results_mode": "merge_all",
+                "fields": [
                     {
                         "field_name": "description",
-                        "required": False,
+                        "regex": r"\bFIC[-_]?\d{4}[A-Z]?\b",
+                        "regex_options": {"ignore_case": True},
                     }
                 ],
+                "validation": {"min_confidence": 0.8},
             },
         ],
         "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},

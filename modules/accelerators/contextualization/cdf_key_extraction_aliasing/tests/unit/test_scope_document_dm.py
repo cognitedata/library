@@ -18,7 +18,8 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 
 def test_build_key_extraction_merges_runtime() -> None:
     doc = {
-        "source_views": [{"view_external_id": "CogniteFile", "instance_space": "old"}],
+        # Runtime instance_space is merged only when the view omits instance_space
+        "source_views": [{"view_external_id": "CogniteFile"}],
         "key_extraction": {
             "externalId": "ctx_key_extraction_x",
             "config": {
@@ -35,14 +36,14 @@ def test_build_key_extraction_merges_runtime() -> None:
     }
     out = build_key_extraction_workflow_config(
         doc,
-        full_rescan=True,
+        run_all=True,
         instance_space="sp1",
         incremental_change_processing=True,
     )
     assert out["externalId"] == "ctx_key_extraction_x"
     inner = out["config"]
     assert inner["parameters"]["raw_table_key"] == "my_suffix_key_extraction_state"
-    assert inner["parameters"]["full_rescan"] is True
+    assert inner["parameters"]["run_all"] is True
     assert inner["parameters"]["incremental_change_processing"] is True
     assert inner["data"]["source_views"][0]["instance_space"] == "sp1"
 

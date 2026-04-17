@@ -46,7 +46,7 @@ graph TD
 - **Component**: `fn_dm_key_extraction` CDF Function
 - **Input**: CDF data model entities from configured source views
 - **Process**:
-  - Applies extraction rules from config (**regex**, fixed width, token reassembly, heuristic — the **default CDM scope** uses **regex only**)
+  - Applies extraction rules from config (**regex**, heuristic — the **default CDM scope** uses **regex only**)
   - Extracts candidate keys, foreign key references, and document references
   - Validates and filters results by confidence
 - **Output**: `ExtractionResult` containing:

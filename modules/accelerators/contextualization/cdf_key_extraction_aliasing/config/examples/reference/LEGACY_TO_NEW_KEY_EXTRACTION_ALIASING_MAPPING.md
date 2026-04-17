@@ -2,6 +2,8 @@
 
 This document maps **legacy** extraction and aliasing functions from `celanese-data-pipelines-main/src/filters/jinja2_filters.py` to the **new** key discovery and aliasing configuration handlers (extraction methods and aliasing rule types).
 
+**Note:** The `token_reassembly` and **`fixed width`** extraction methods were **removed** from the engine. Table rows that still name removed handlers are **historical**; prefer **regex**, **heuristic**, and **aliasing** for new configs.
+
 ---
 
 ## 1. Extraction: Legacy Functions → New Extraction Handlers
@@ -116,7 +118,7 @@ New aliasing is configured via **aliasing rule types** under the aliasing engine
 | Method (config value) | Handler class |
 |------------------------|----------------|
 | `regex` | `RegexExtractionHandler` |
-| `fixed_width` | `FixedWidthExtractionHandler` |
+| `fixed_width` | *(removed)* — use **`regex_handler`** with patterns that capture positional segments, or trim-only fields |
 | `token_reassembly` | `TokenReassemblyExtractionHandler` |
 | `heuristic` | `HeuristicExtractionHandler` |
 

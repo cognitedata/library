@@ -19,13 +19,13 @@ There is **one** workflow external id for all scopes (in **`trigger_only`** mode
 
 **Removing generated files:** **`python module.py build --clean`** deletes matching Workflow / WorkflowVersion / WorkflowTrigger YAML under **`workflows/`** (scoped by the hierarchy **`workflow`** id; independent of **`scope_build_mode`**). It shows a summary, warns the change cannot be undone, and asks you to type **`yes`** unless you pass **`--yes`** (needed for non-interactive runs). **`--dry-run --clean`** lists paths only. **No rebuild runs after clean**—run **`module.py build`** again to regenerate. **`workflow_template/`** and **`workflows/README.md`** are not removed. Do not confuse this with **`module.py run --clean-state`**, which clears RAW pipeline tables, not these manifests.
 
-**Configuration:** v4 passes the full v1 scope document on **`workflow.input.configuration`** into every function task (see generated **`workflows/.../key_extraction_aliasing*.WorkflowVersion.yaml`** after **`--build`**). Functions resolve **`config`** from that object; there is **no** Cognite Files download for scope YAML. **RAW table keys** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`, reference index target) are read from **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`**. **`workflow.input`** supplies optional **`run_id`** and optional **`full_rescan`**; DM **`instance_space`** for handlers is taken from **`configuration`** (first **`source_views[].instance_space`**, or a single-value node **`space`** filter) unless a task explicitly passes **`instance_space`** on function **`data`**.
+**Configuration:** v4 passes the full v1 scope document on **`workflow.input.configuration`** into every function task (see generated **`workflows/.../key_extraction_aliasing*.WorkflowVersion.yaml`** after **`--build`**). Functions resolve **`config`** from that object; there is **no** Cognite Files download for scope YAML. **RAW table keys** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`, reference index target) are read from **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`**. **`workflow.input`** supplies optional **`run_id`** and optional **`run_all`**; DM **`instance_space`** for handlers is taken from **`configuration`** (first **`source_views[].instance_space`**, or a single-value node **`space`** filter) unless a task explicitly passes **`instance_space`** on function **`data`**.
 
 For a leaf in [`default.config.yaml`](../default.config.yaml), **`key_extraction.externalId`** / **`aliasing.externalId`** and node **`space`** filters use **`cdf_external_id_suffix(scope_id)`** from [`scripts/scope_build/naming.py`](../scripts/scope_build/naming.py) when **`build_scopes`** patches each trigger’s **`configuration`**.
 
 #### Workflow inputs (v4)
 
-- **`full_rescan`** (bool, default `false`): when sent on **`workflow.input`**, overrides **`key_extraction.config.parameters.full_rescan`** after the scope document is applied; same semantics as before for incremental + key extraction (see configuration guide).
+- **`run_all`** (bool, default `false`): when sent on **`workflow.input`**, overrides **`key_extraction.config.parameters.run_all`** after the scope document is applied; same semantics as before for incremental + key extraction (see configuration guide).
 - **`run_id`** (string, optional): reserved for operator/trigger use when wiring task outputs; when unset, downstream tasks may use `incremental_auto_run_id` to discover a single active `RUN_ID` in RAW (single-run deployments only).
 - **`configuration`**: v1 scope mapping (`key_extraction`, `aliasing`, optional `scope` metadata) — **required** for deployed runs; generated triggers embed the full tree per leaf. **`instance_space`** for DM/RAW is derived from top-level **`source_views`** in **`configuration`** when not set on task **`data`**.
 - **RAW keys** (extraction, aliasing, reference index): authored under **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`; optional **`reference_index_raw_table_key`**, otherwise derived from `raw_table_key` by replacing the `_key_extraction_state` suffix with `_reference_index`).
@@ -139,6 +139,8 @@ workflows/
 - [Documentation map](../docs/README.md)
 - [Module README](../README.md)
 - [Quickstart — local `module.py`](../docs/guides/howto_quickstart.md)
+- [Build configuration with YAML](../docs/guides/howto_config_yaml.md)
+- [Build configuration with the UI](../docs/guides/howto_config_ui.md)
 - [Scoped deployment — hierarchy and Toolkit](../docs/guides/howto_scoped_deployment.md)
 - [Configuration guide](../docs/guides/configuration_guide.md)
 - [CDF Toolkit](https://github.com/cognitedata/cdf-toolkit)

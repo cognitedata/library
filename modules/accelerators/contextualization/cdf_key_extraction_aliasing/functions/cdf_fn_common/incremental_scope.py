@@ -395,9 +395,17 @@ def list_all_instances(
     sources: List[Any],
     filter: Any,
     limit_per_page: int = 1000,
+    logger: Optional[Any] = None,
+    progress_context: str = "",
 ) -> Iterable[Any]:
-    """Page through instances.list until cursor exhausted."""
+    """Page through instances.list until cursor exhausted.
+
+    When ``logger`` is set, logs after each API page completes: batch index, instances
+    in that page, and cumulative instance count.
+    """
     cursor = None
+    batch_no = 0
+    total = 0
     while True:
         kwargs: Dict[str, Any] = dict(
             instance_type=instance_type,
@@ -411,8 +419,21 @@ def list_all_instances(
         batch = client.data_modeling.instances.list(**kwargs)
         if not batch:
             break
+        batch_no += 1
+        n_in_page = 0
         for node in batch:
+            n_in_page += 1
+            total += 1
             yield node
+        if logger is not None and hasattr(logger, "info"):
+            ctx = f" {progress_context}" if progress_context else ""
+            logger.info(
+                "instances.list batch %s complete%s: %s instance(s) this page, %s cumulative",
+                batch_no,
+                ctx,
+                n_in_page,
+                total,
+            )
         cursor = getattr(batch, "cursor", None)
         if not cursor:
             break

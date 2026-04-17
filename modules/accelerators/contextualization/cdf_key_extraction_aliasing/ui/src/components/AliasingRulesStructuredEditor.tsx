@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
@@ -19,6 +19,7 @@ import {
   ruleMatchesEntityBucket,
 } from "../utils/scopeEntityTypeBuckets";
 import { mergeScopeFiltersYaml, scopeFiltersYamlFromParts, splitScopeFiltersYaml } from "../utils/scopeFiltersParts";
+import { reorderListAtIndex } from "../utils/ruleListReorder";
 import { AliasingHandlerConfigFields } from "./aliasing/AliasingHandlerConfigFields";
 
 type Props = {
@@ -139,6 +140,10 @@ function serializeUiRule(r: UiRule, idx: number): { ok: true; rule: JsonObject }
   return { ok: true, rule: out };
 }
 
+function withListOrderPriority(rules: UiRule[]): UiRule[] {
+  return rules.map((r, i) => ({ ...r, priority: String((i + 1) * 10) }));
+}
+
 function defaultUiRule(existing: UiRule[], entityBucket: string): UiRule {
   const scopeParts = splitScopeFiltersYaml(defaultScopeFiltersYamlForBucket(entityBucket, "asset"));
   return {
@@ -146,7 +151,7 @@ function defaultUiRule(existing: UiRule[], entityBucket: string): UiRule {
     handler: "character_substitution",
     description: "",
     enabled: true,
-    priority: "50",
+    priority: String((existing.length + 1) * 10),
     preserveOriginal: true,
     configYaml: defaultConfigYamlForAliasingHandler("character_substitution"),
     conditionsYaml: EMPTY_YAML,
@@ -156,7 +161,7 @@ function defaultUiRule(existing: UiRule[], entityBucket: string): UiRule {
 }
 
 function bucketLabel(t: (k: MessageKey) => string, id: string): string {
-  if (id === ENTITY_BUCKET_UNSCOPED) return t("rulesEntity.bucket.unscoped");
+  if (id === ENTITY_BUCKET_UNSCOPED) return t("rulesEntity.bucket.global");
   if (id === ENTITY_BUCKET_ALL) return t("rulesEntity.bucket.all");
   return id;
 }
@@ -165,9 +170,30 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
   const { t } = useAppSettings();
   const [serializeError, setSerializeError] = useState<string | null>(null);
   const [selectedEntityBucket, setSelectedEntityBucket] = useState<string>("asset");
+  /** Preserves trailing commas while typing; mergeScopeFiltersYaml drops empty CSV segments on commit. */
+  const [entityTypesCsvDraft, setEntityTypesCsvDraft] = useState<Record<string, string>>({});
+  const entityTypesCsvDraftRef = useRef<Record<string, string>>({});
+  const lastCommitFingerprintRef = useRef<string | null>(null);
+  const [ruleCardExpanded, setRuleCardExpanded] = useState<Record<string, boolean>>({});
+  const [dragRuleFrom, setDragRuleFrom] = useState<number | null>(null);
+  const [dragRuleOver, setDragRuleOver] = useState<number | null>(null);
+
+  useEffect(() => {
+    entityTypesCsvDraftRef.current = entityTypesCsvDraft;
+  }, [entityTypesCsvDraft]);
 
   useEffect(() => {
     setSerializeError(null);
+  }, [value]);
+
+  useEffect(() => {
+    const fp = JSON.stringify(value);
+    if (lastCommitFingerprintRef.current !== null && fp === lastCommitFingerprintRef.current) {
+      lastCommitFingerprintRef.current = null;
+      return;
+    }
+    setEntityTypesCsvDraft({});
+    setRuleCardExpanded({});
   }, [value]);
 
   const { rest, uiRules } = useMemo(() => {
@@ -216,9 +242,17 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
   const extras = useMemo(() => extrasRest(rest), [rest]);
 
   const commit = (nextRest: JsonObject, nextUiRules: UiRule[]) => {
+    const draft = entityTypesCsvDraftRef.current;
+    const mergedUiRules =
+      Object.keys(draft).length === 0
+        ? nextUiRules
+        : nextUiRules.map((r) => {
+            const p = draft[r.name];
+            return p === undefined ? r : { ...r, entityTypesCsv: p };
+          });
     const built: JsonObject[] = [];
-    for (let i = 0; i < nextUiRules.length; i++) {
-      const ser = serializeUiRule(nextUiRules[i], i);
+    for (let i = 0; i < mergedUiRules.length; i++) {
+      const ser = serializeUiRule(mergedUiRules[i], i);
       if (!ser.ok) {
         setSerializeError(ser.message);
         return;
@@ -226,7 +260,9 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
       built.push(ser.rule);
     }
     setSerializeError(null);
-    onChange(mergeRulesList(nextRest, ALIASING_RULES_KEY, built));
+    const merged = mergeRulesList(nextRest, ALIASING_RULES_KEY, built);
+    lastCommitFingerprintRef.current = JSON.stringify(merged);
+    onChange(merged);
   };
 
   return (
@@ -242,6 +278,11 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
       {!showGlobalReorder && (
         <p className="kea-hint" style={{ marginBottom: "0.75rem" }}>
           {t("rulesEntity.reorderHint")}
+        </p>
+      )}
+      {showGlobalReorder && (
+        <p className="kea-hint" style={{ marginBottom: "0.75rem" }}>
+          {t("rulesEntity.dragReorderRules")}
         </p>
       )}
 
@@ -272,10 +313,20 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
           {t("rulesEntity.emptyForBucket")}
         </p>
       )}
-      {visibleRuleEntries.map(({ rule, idx }) => (
+      {visibleRuleEntries.map(({ rule, idx }) => {
+        const isCardExpanded = ruleCardExpanded[rule.name] === true;
+        const dropActive = showGlobalReorder && dragRuleOver === idx;
+        const cardClass = [
+          "kea-validation-rule",
+          dropActive ? "kea-validation-rule--drop" : "",
+          dragRuleFrom === idx ? "kea-validation-rule--dragging" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return (
         <div
-          key={idx}
-          className="kea-validation-rule"
+          key={`${rule.name}-${idx}`}
+          className={cardClass}
           style={{
             border: "1px solid var(--kea-border)",
             borderRadius: "var(--kea-radius-sm)",
@@ -283,8 +334,78 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
             marginBottom: "0.75rem",
             background: "var(--kea-surface)",
           }}
+          onDragOver={
+            showGlobalReorder
+              ? (e: DragEvent<HTMLDivElement>) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setDragRuleOver(idx);
+                }
+              : undefined
+          }
+          onDragLeave={(e) => {
+            if (!showGlobalReorder) return;
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+              setDragRuleOver(null);
+            }
+          }}
+          onDrop={
+            showGlobalReorder
+              ? (e: DragEvent<HTMLDivElement>) => {
+                  e.preventDefault();
+                  const raw = e.dataTransfer.getData("text/plain");
+                  const from = parseInt(raw, 10);
+                  if (Number.isNaN(from) || from === idx) {
+                    setDragRuleFrom(null);
+                    setDragRuleOver(null);
+                    return;
+                  }
+                  commit(rest, withListOrderPriority(reorderListAtIndex(uiRules, from, idx)));
+                  setDragRuleFrom(null);
+                  setDragRuleOver(null);
+                }
+              : undefined
+          }
         >
-          <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr auto", gap: "0.5rem", alignItems: "end" }}>
+          <div
+            className="kea-filter-row"
+            style={{
+              gridTemplateColumns: showGlobalReorder ? "auto auto 1fr auto" : "auto 1fr auto",
+              gap: "0.5rem",
+              alignItems: "end",
+            }}
+          >
+            {showGlobalReorder && (
+              <span
+                className="kea-drag-handle"
+                draggable
+                onDragStart={(e: DragEvent<HTMLSpanElement>) => {
+                  e.dataTransfer.setData("text/plain", String(idx));
+                  e.dataTransfer.effectAllowed = "move";
+                  setDragRuleFrom(idx);
+                }}
+                onDragEnd={() => {
+                  setDragRuleFrom(null);
+                  setDragRuleOver(null);
+                }}
+                aria-label={t("rulesEntity.dragHandle")}
+                title={t("rulesEntity.dragHandle")}
+              >
+                <span className="kea-drag-handle__grip" aria-hidden>
+                  ⋮⋮
+                </span>
+              </span>
+            )}
+            <button
+              type="button"
+              className="kea-btn kea-btn--ghost kea-btn--sm"
+              aria-expanded={isCardExpanded}
+              aria-label={isCardExpanded ? t("rulesEntity.ruleCollapseDetails") : t("rulesEntity.ruleExpandDetails")}
+              onClick={() => setRuleCardExpanded((m) => ({ ...m, [rule.name]: !isCardExpanded }))}
+              style={{ minWidth: 36 }}
+            >
+              <span aria-hidden>{isCardExpanded ? "▼" : "▶"}</span>
+            </button>
             <label className="kea-label">
               {t("aliasingRules.rule.name")}
               <input
@@ -294,20 +415,43 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
                 aria-required={true}
                 value={rule.name}
                 onChange={(e) => {
+                  const newName = e.target.value;
+                  setEntityTypesCsvDraft((d) => {
+                    if (!(rule.name in d)) return d;
+                    const v = d[rule.name]!;
+                    const { [rule.name]: _, ...rest } = d;
+                    return { ...rest, [newName]: v };
+                  });
+                  setRuleCardExpanded((m) => {
+                    if (!(rule.name in m)) return m;
+                    const v = m[rule.name]!;
+                    const { [rule.name]: _, ...rest } = m;
+                    return { ...rest, [newName]: v };
+                  });
                   const next = [...uiRules];
-                  next[idx] = { ...rule, name: e.target.value };
+                  next[idx] = { ...rule, name: newName };
                   commit(rest, next);
                 }}
                 onBlur={() => {
                   if (!rule.name.trim()) {
+                    const newName = ruleNameOrDefault("", idx + 1, "aliasing_rule");
+                    setRuleCardExpanded((m) => {
+                      if (!(rule.name in m)) return m;
+                      const v = m[rule.name]!;
+                      const { [rule.name]: _, ...rest } = m;
+                      return { ...rest, [newName]: v };
+                    });
                     const next = [...uiRules];
-                    next[idx] = { ...rule, name: ruleNameOrDefault("", idx + 1, "aliasing_rule") };
+                    next[idx] = { ...rule, name: newName };
                     commit(rest, next);
                   }
                 }}
               />
             </label>
-            <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}>
+            <label
+              className="kea-label"
+              style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", marginBottom: 0, whiteSpace: "nowrap" }}
+            >
               <input
                 type="checkbox"
                 checked={rule.enabled}
@@ -319,15 +463,43 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
               />
               {t("aliasingRules.rule.enabled")}
             </label>
+          </div>
+
+          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+            {t("aliasingRules.rule.description")}
+            <textarea
+              className="kea-textarea"
+              style={{ minHeight: 52 }}
+              value={rule.description}
+              onChange={(e) => {
+                const next = [...uiRules];
+                next[idx] = { ...rule, description: e.target.value };
+                commit(rest, next);
+              }}
+            />
+          </label>
+
+          {isCardExpanded && (
+            <>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+              marginTop: "0.5rem",
+            }}
+          >
             <div style={{ display: "flex", gap: "0.25rem" }}>
               <button
                 type="button"
                 className="kea-btn kea-btn--ghost kea-btn--sm"
-                disabled={!showGlobalReorder || idx === 0}
+                disabled={idx === 0}
                 onClick={() => {
                   const next = [...uiRules];
                   [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-                  commit(rest, next);
+                  commit(rest, withListOrderPriority(next));
                 }}
                 aria-label={t("aliasingRules.rule.moveUp")}
               >
@@ -336,11 +508,11 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
               <button
                 type="button"
                 className="kea-btn kea-btn--ghost kea-btn--sm"
-                disabled={!showGlobalReorder || idx >= uiRules.length - 1}
+                disabled={idx >= uiRules.length - 1}
                 onClick={() => {
                   const next = [...uiRules];
                   [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-                  commit(rest, next);
+                  commit(rest, withListOrderPriority(next));
                 }}
                 aria-label={t("aliasingRules.rule.moveDown")}
               >
@@ -349,12 +521,17 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
               <button
                 type="button"
                 className="kea-btn kea-btn--ghost kea-btn--sm"
-                onClick={() => commit(rest, uiRules.filter((_, i) => i !== idx))}
+                onClick={() => commit(rest, withListOrderPriority(uiRules.filter((_, i) => i !== idx)))}
               >
                 {t("aliasingRules.rule.remove")}
               </button>
             </div>
           </div>
+          {showGlobalReorder && (
+            <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
+              {t("discoveryRules.rule.orderSetsPriority")}
+            </p>
+          )}
 
           <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginTop: "0.5rem" }}>
             <label className="kea-label">
@@ -406,20 +583,6 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
               }}
             />
             {t("aliasingRules.rule.preserveOriginal")}
-          </label>
-
-          <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
-            {t("aliasingRules.rule.description")}
-            <textarea
-              className="kea-textarea"
-              style={{ minHeight: 52 }}
-              value={rule.description}
-              onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, description: e.target.value };
-                commit(rest, next);
-              }}
-            />
           </label>
 
           <p className="kea-hint" style={{ marginTop: "0.5rem" }}>
@@ -492,10 +655,23 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
               className="kea-input"
               type="text"
               placeholder="asset, file, timeseries"
-              value={rule.entityTypesCsv}
+              value={entityTypesCsvDraft[rule.name] ?? rule.entityTypesCsv}
               onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, entityTypesCsv: e.target.value };
+                const v = e.target.value;
+                setEntityTypesCsvDraft((d) => ({ ...d, [rule.name]: v }));
+              }}
+              onBlur={() => {
+                const pending = entityTypesCsvDraftRef.current[rule.name];
+                if (pending === undefined) return;
+                const next = uiRules.map((r) =>
+                  r.name === rule.name ? { ...r, entityTypesCsv: pending } : r
+                );
+                setEntityTypesCsvDraft((d) => {
+                  if (!(rule.name in d)) return d;
+                  const { [rule.name]: _, ...rest } = d;
+                  return rest;
+                });
+                delete entityTypesCsvDraftRef.current[rule.name];
                 commit(rest, next);
               }}
             />
@@ -514,13 +690,20 @@ export function AliasingRulesStructuredEditor({ value, onChange }: Props) {
             }}
             spellCheck={false}
           />
+            </>
+          )}
         </div>
-      ))}
+        );
+      })}
 
       <button
         type="button"
         className="kea-btn kea-btn--sm"
-        onClick={() => commit(rest, [...uiRules, defaultUiRule(uiRules, selectedEntityBucket)])}
+        onClick={() => {
+          const nr = defaultUiRule(uiRules, selectedEntityBucket);
+          setRuleCardExpanded((m) => ({ ...m, [nr.name]: true }));
+          commit(rest, [...uiRules, nr]);
+        }}
       >
         {t("aliasingRules.rule.add")}
       </button>

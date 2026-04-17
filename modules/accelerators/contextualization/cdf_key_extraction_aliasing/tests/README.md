@@ -19,7 +19,7 @@ tests/
 │   ├── local_runner/         # scope YAML loading for module.py
 │   └── scope_build/
 ├── integration/
-│   ├── key_extraction/       # scenarios (regex, fixed-width, heuristics, …)
+│   ├── key_extraction/       # scenarios (regex, heuristics, …)
 │   ├── aliasing/             # handlers, tag_pattern_library
 │   ├── contextualization/    # configuration_manager, full workflow, edge cases
 │   └── ...
@@ -71,4 +71,5 @@ Shared sample entities and tags live under `fixtures/`. Prefer importing from `t
 - [Documentation map](../docs/README.md)
 - [Module README](../README.md) (CLI and architecture overview)
 - [Quickstart — `.env` and `module.py`](../docs/guides/howto_quickstart.md)
+- [Build configuration with YAML](../docs/guides/howto_config_yaml.md) · [Build configuration with the UI](../docs/guides/howto_config_ui.md)
 - [Scoped deployment — `--build`, triggers, Toolkit](../docs/guides/howto_scoped_deployment.md)

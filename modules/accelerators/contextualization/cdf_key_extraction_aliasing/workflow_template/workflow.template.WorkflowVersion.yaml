@@ -1,15 +1,19 @@
 # v4: Scope rules live in workflow.input.configuration (v1 mapping). Each function receives it via
 # parameters.function.data; no Cognite File upload for scope config. instance_space is derived from
 # that object (source_views instance_space or node space filter) when not passed on task data.
-# Optional run_id, full_rescan on workflow.input. Authoring: workflow_template/
+# Optional run_id, run_all on workflow.input. Authoring: workflow_template/
 # workflow.template.config.yaml + scripts/build_scopes.py.
 # Template: __KEA_WORKFLOW_EXTERNAL_ID__ → must match sibling Workflow externalId.
 workflowExternalId: __KEA_WORKFLOW_EXTERNAL_ID__
 version: 'v4'
 workflowDefinition:
-  description: 'Run key extraction, aliasing, and alias persistence (config from workflow.input.configuration)'
+  description: >-
+    Key extraction and tag aliasing driven by workflow.input.configuration (source_views, extraction_rules, aliasing_rules):
+    incremental cohort when key_extraction incremental_change_processing is true; extract candidate keys and FK references to RAW;
+    optional RAW reference index when key_extraction enable_reference_index is true; apply aliasing rules to RAW results;
+    persist aliases (and optional FK strings) to Cognite describable properties per aliasing.config.parameters.
   input:
-    full_rescan: false
+    run_all: false
     run_id: ''
     configuration: {}
   tasks:
@@ -20,10 +24,12 @@ workflowDefinition:
           externalId: 'fn_dm_incremental_state_update'
           data:
             logLevel: 'INFO'
-            full_rescan: ${workflow.input.full_rescan}
+            run_all: ${workflow.input.run_all}
             configuration: ${workflow.input.configuration}
       name: 'Incremental state (cohort)'
-      description: 'Detect changes and write cohort rows to RAW (WORKFLOW_STATUS=detected)'
+      description: >-
+        Detect changed CDM instances per source_views in configuration and write incremental cohort rows to RAW (RUN_ID, WORKFLOW_STATUS).
+        Requires key_extraction.config.parameters.incremental_change_processing: true (task fails if false).
       retries: 3
       timeout: 7200
       onFailure: 'abortWorkflow'
@@ -35,10 +41,12 @@ workflowDefinition:
           externalId: 'fn_dm_key_extraction'
           data:
             logLevel: 'INFO'
-            full_rescan: ${workflow.input.full_rescan}
+            run_all: ${workflow.input.run_all}
             configuration: ${workflow.input.configuration}
       name: 'Key extraction'
-      description: 'Extract candidate keys from scoped files and write to RAW'
+      description: >-
+        Extract candidate keys and foreign-key references from assets, files, and timeseries per extraction_rules and scope_filters;
+        write key-extraction RAW rows (honors run_all, skip_entity_policy, and validation in configuration).
       retries: 3
       timeout: 7200
       onFailure: 'abortWorkflow'
@@ -63,7 +71,9 @@ workflowDefinition:
             reference_index_fk_entity_type: asset
             reference_index_document_entity_type: file
       name: 'Reference index'
-      description: 'RAW inverted index for FK and document references (parallel to aliasing)'
+      description: >-
+        Build RAW inverted index for FK and document references from key-extraction output.
+        Persists index rows only when key_extraction.config.parameters.enable_reference_index is true; otherwise completes without writing the index.
       retries: 3
       timeout: 7200
       onFailure: 'abortWorkflow'
@@ -87,7 +97,9 @@ workflowDefinition:
             source_entity_type: file
             configuration: ${workflow.input.configuration}
       name: 'Aliasing'
-      description: 'Generate aliases from extracted candidate keys and write aliasing results to RAW'
+      description: >-
+        Apply aliasing_rules to extracted keys: read key-extraction RAW, run AliasingEngine, write tag-aliasing RAW
+        (raw_db / tables from aliasing.config.parameters in configuration).
       retries: 3
       timeout: 7200
       onFailure: 'abortWorkflow'
@@ -116,7 +128,9 @@ workflowDefinition:
       dependsOn:
         - externalId: 'fn_dm_aliasing'
       name: 'Alias persistence'
-      description: 'Persist aliases to cdf_cdm:CogniteDescribable:v1'
+      description: >-
+        Read aliasing RAW and write aliases onto source instances (alias_writeback_property, default aliases).
+        Writes foreign-key reference strings only when aliasing.config.parameters.write_foreign_key_references is true (foreign_key_writeback_property).
       retries: 3
       timeout: 3600
       onFailure: 'abortWorkflow'

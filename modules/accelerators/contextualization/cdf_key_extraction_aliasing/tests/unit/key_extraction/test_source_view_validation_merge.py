@@ -34,25 +34,22 @@ class TestSourceViewValidationMerge(unittest.TestCase):
     def _passthrough_rule(self, entity_types):
         return {
             "name": "pt",
-            "handler": "passthrough",
+            "rule_id": "pt",
+            "handler": "regex_handler",
             "extraction_type": "candidate_key",
             "enabled": True,
             "priority": 50,
-            "min_confidence": 1.0,
-            "scope_filters": {"entity_type": entity_types},
-            "config": {},
-            "source_fields": [
+            "field_results_mode": "merge_all",
+            "fields": [
                 {
                     "field_name": "name",
                     "required": True,
                     "max_length": 500,
-                    "field_type": "string",
                     "priority": 1,
-                    "role": "target",
                     "preprocessing": ["trim"],
                 }
             ],
-            "field_selection_strategy": "first_match",
+            "scope_filters": {"entity_type": entity_types},
         }
 
     def test_no_source_views_uses_global_only(self):

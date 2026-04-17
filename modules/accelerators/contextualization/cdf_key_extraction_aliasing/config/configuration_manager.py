@@ -51,15 +51,15 @@ class ExtractionRuleSettings:
     name: str
     description: str = ""
     extraction_type: str = "candidate_key"
-    handler: str = "regex"
-    pattern: str = ""
+    handler: str = "regex_handler"
     priority: int = 50
     enabled: bool = True
     scope_filters: Dict[str, Any] = field(default_factory=dict)
-    min_confidence: float = 0.7
-    case_sensitive: bool = False
     aliasing_rules: List[Dict[str, Any]] = field(default_factory=list)
-    source_fields: List[Dict[str, Any]] = field(default_factory=list)
+    fields: List[Dict[str, Any]] = field(default_factory=list)
+    field_results_mode: str = "merge_all"
+    parameters: Optional[Dict[str, Any]] = None
+    validation: Optional[Dict[str, Any]] = None
     config: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -121,16 +121,10 @@ class ConfigurationValidator:
                     "handler": {
                         "type": "string",
                         "enum": [
-                            "passthrough",
-                            "regex",
-                            "fixed_width",
-                            "fixed width",
-                            "token_reassembly",
-                            "token reassembly",
+                            "regex_handler",
                             "heuristic",
                         ],
                     },
-                    "pattern": {"type": "string"},
                     "priority": {"type": "integer", "minimum": 1, "maximum": 1000},
                     "enabled": {"type": "boolean"},
                     "min_confidence": {
@@ -139,7 +133,10 @@ class ConfigurationValidator:
                         "maximum": 1.0,
                     },
                     "case_sensitive": {"type": "boolean"},
-                    "source_fields": {"type": "array", "items": {"type": "object"}},
+                    "fields": {"type": "array", "items": {"type": "object"}},
+                    "field_results_mode": {"type": "string"},
+                    "parameters": {"type": "object"},
+                    "validation": {"type": "object"},
                 },
             },
             "aliasing_rule": {
@@ -183,22 +180,11 @@ class ConfigurationValidator:
 
         # Additional validation for method-specific requirements
         handler = rule_config.get("handler")
-        if handler in (None, "", "passthrough"):
-            return errors
-        if handler == "regex" and not rule_config.get("pattern"):
-            errors.append("Regex handler requires a pattern")
-        elif handler == "fixed_width" and not rule_config.get("config", {}).get(
-            "field_definitions"
-        ):
-            errors.append("Fixed width handler requires field_definitions in config")
-        elif handler == "token_reassembly" and not rule_config.get("config", {}).get(
-            "tokenization"
-        ):
-            errors.append("Token reassembly handler requires tokenization config")
-        elif handler == "heuristic" and not rule_config.get("config", {}).get(
-            "heuristic_strategies"
-        ):
-            errors.append("Heuristic handler requires heuristic_strategies in config")
+        if handler == "heuristic":
+            if not rule_config.get("parameters"):
+                errors.append("heuristic handler requires parameters")
+            if not rule_config.get("fields"):
+                errors.append("heuristic handler requires fields")
 
         return errors
 
@@ -375,15 +361,16 @@ class ConfigurationManager:
                 name=rule_data["name"],
                 description=rule_data.get("description", ""),
                 extraction_type=rule_data.get("extraction_type", "candidate_key"),
-                handler=rule_data.get("handler") or "passthrough",
-                pattern=rule_data.get("pattern", ""),
+                handler=rule_data.get("handler") or "regex_handler",
                 priority=rule_data.get("priority", 50),
                 enabled=rule_data.get("enabled", True),
                 scope_filters=rule_data.get("scope_filters", {}),
-                min_confidence=rule_data.get("min_confidence", 0.7),
-                case_sensitive=rule_data.get("case_sensitive", False),
                 aliasing_rules=rule_data.get("aliasing_rules", []),
-                source_fields=rule_data.get("source_fields", []),
+                fields=rule_data.get("fields")
+                or rule_data.get("source_fields", []),
+                field_results_mode=rule_data.get("field_results_mode", "merge_all"),
+                parameters=rule_data.get("parameters"),
+                validation=rule_data.get("validation"),
                 config=rule_data.get("config", {}),
             )
             extraction_rules.append(extraction_rule)
@@ -425,14 +412,14 @@ class ConfigurationManager:
                     "description": rule.description,
                     "extraction_type": rule.extraction_type,
                     "handler": rule.handler,
-                    "pattern": rule.pattern,
                     "priority": rule.priority,
                     "enabled": rule.enabled,
                     "scope_filters": rule.scope_filters,
-                    "min_confidence": rule.min_confidence,
-                    "case_sensitive": rule.case_sensitive,
                     "aliasing_rules": rule.aliasing_rules,
-                    "source_fields": rule.source_fields,
+                    "fields": rule.fields,
+                    "field_results_mode": rule.field_results_mode,
+                    "parameters": rule.parameters,
+                    "validation": rule.validation,
                     "config": rule.config,
                 }
                 for rule in config.extraction_rules
@@ -491,47 +478,49 @@ class ConfigurationManager:
                     "name": "standard_pump_tag",
                     "description": "Extracts standard pump tags from equipment descriptions",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d{2,4}[A-Z]?\b",
+                    "handler": "regex_handler",
+                    "field_results_mode": "merge_all",
                     "priority": 50,
                     "enabled": True,
                     "scope_filters": {"equipment_type": ["pump"]},
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
                     "aliasing_rules": [],
-                    "source_fields": [
+                    "fields": [
                         {
                             "field_name": "name",
                             "required": True,
                             "priority": 1,
+                            "regex": r"\bP[-_]?\d{2,4}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
                         },
                         {
                             "field_name": "description",
                             "required": False,
                             "priority": 2,
+                            "regex": r"\bP[-_]?\d{2,4}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
                         },
                     ],
-                    "config": {"pattern": r"P[-_]?\d{2,4}[A-Z]?"},
+                    "validation": {"min_confidence": 0.7},
                 },
                 {
                     "name": "flow_instrument_tag",
                     "description": "Extracts ISA flow instrument tags",
                     "extraction_type": "foreign_key_reference",
-                    "handler": "regex",
-                    "pattern": r"\bFIC[-_]?\d{4}[A-Z]?\b",
+                    "handler": "regex_handler",
+                    "field_results_mode": "merge_all",
                     "priority": 30,
                     "enabled": True,
                     "scope_filters": {},
-                    "min_confidence": 0.8,
-                    "case_sensitive": False,
                     "aliasing_rules": [],
-                    "source_fields": [
+                    "fields": [
                         {
                             "field_name": "description",
                             "required": False,
+                            "regex": r"\bFIC[-_]?\d{4}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
                         }
                     ],
-                    "config": {"pattern": r"FIC[-_]?\d{4}[A-Z]?"},
+                    "validation": {"min_confidence": 0.8},
                 },
             ],
             "aliasing": {
@@ -671,8 +660,8 @@ def main():
             "extraction_rules": [
                 {
                     "name": "test_rule",
-                    "handler": "passthrough",
-                    "source_fields": [{"field_name": "name", "required": True}],
+                    "handler": "regex_handler",
+                    "fields": [{"field_name": "name", "required": True}],
                 }
             ],
         }

@@ -1,5 +1,7 @@
 # Comprehensive Configuration Guide
 
+**Step-by-step authoring:** [How to build configuration with YAML](howto_config_yaml.md) (files and CLI) · [How to build configuration with the UI](howto_config_ui.md) (local operator UI). This document is the **detailed field reference** for pipeline YAML.
+
 ## Table of Contents
 
 1. [Overview](#overview) (includes [Default CDM scope](#default-cdm-scope))
@@ -39,7 +41,7 @@ See `config/README.md` in the module for layout and CLI behavior (`module.py run
 
 **Authoring file (local default):** `workflow.local.config.yaml` at module root; **CDF template:** `workflow_template/workflow.template.config.yaml`.
 
-The committed **default** scope is a slim **CDM template** (CogniteAsset, CogniteFile, CogniteTimeSeries). It differs from richer **examples** under `config/examples/` (which demonstrate fixed width, heuristics, many aliasing transforms, etc.).
+The committed **default** scope is a slim **CDM template** (CogniteAsset, CogniteFile, CogniteTimeSeries). It differs from richer **examples** under `config/examples/` (which demonstrate heuristics, many aliasing transforms, etc.).
 
 **Key extraction (regex only):**
 
@@ -77,12 +79,13 @@ key_extraction:
   config:
     parameters:
       debug: true                          # Enable debug logging
-      full_rescan: true                    # When false, instances may be skipped per skip_entity_policy using RAW
+      run_all: true                    # When false, instances may be skipped per skip_entity_policy using RAW
       raw_db: db_key_extraction            # RAW database name
       raw_table_key: key_extraction_state # Entity rows + per-entity status + run summaries (RECORD_KIND)
-      skip_entity_policy: successful_only  # successful_only | none (when full_rescan is false)
+      skip_entity_policy: successful_only  # successful_only | none (when run_all is false)
       write_empty_extraction_rows: false   # If true, write EXTRACTION_STATUS=empty when no keys/FKs
       raw_skip_scan_chunk_size: 5000       # Chunk size when scanning raw_table_key for skip policy
+      incremental_change_processing: true  # Required for CDF runs; cohort from fn_dm_incremental_state_update
     data:
       validation:                          # Global validation settings
         min_confidence: 0.5                # Minimum confidence score (0.0-1.0)
@@ -99,11 +102,15 @@ key_extraction:
         # ... extraction rule configurations
 ```
 
-**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Key extraction writes **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** (when rules produce FKs / document refs). **Per–source-field candidate lists** are stored under column names equal to the rule’s **`source_field`** string **uppercased** (e.g. `description` → `DESCRIPTION`; `metadata.code` → `METADATA.CODE`, including any dots). **`fn_dm_reference_index`** reads only the FK/document JSON columns (not these candidate-key list columns) and maintains a separate inverted index RAW table (e.g. `{site}_reference_index`). **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `full_rescan: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
+**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Key extraction writes **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** (when rules produce FKs / document refs). **Per–source-field candidate lists** are stored under column names equal to the rule’s **`source_field`** string **uppercased** (e.g. `description` → `DESCRIPTION`; `metadata.code` → `METADATA.CODE`, including any dots). **`fn_dm_reference_index`** reads only the FK/document JSON columns (not these candidate-key list columns) and maintains a separate inverted index RAW table (e.g. `{site}_reference_index`). **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `run_all: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
 
 #### Incremental mode, Key Discovery FDM, and RAW cohort
 
-When **`incremental_change_processing`** is **`true`**, **`fn_dm_incremental_state_update`** runs first: it lists source instances above a per-scope watermark, optionally skips unchanged inputs using a content hash, and writes **cohort** rows to RAW (`WORKFLOW_STATUS=detected`, `RUN_ID`). The **work queue stays on RAW** (high volume).
+**`fn_dm_key_extraction` (CDF / workflow) requires `incremental_change_processing: true`** (the default on `Parameters`). Direct Data Modeling view listing was removed; **`fn_dm_incremental_state_update` must run first** so cohort rows exist. The local module CLI always uses this incremental workflow parity path.
+
+When **`incremental_change_processing`** is **`true`**, **`fn_dm_incremental_state_update`** runs first: it **paginates** `instances.list` (cursor pages) over source instances matching filters (and time watermark when ``run_all`` is false), optionally skips unchanged inputs using a content hash, and writes **cohort** rows to RAW (`WORKFLOW_STATUS=detected`, `RUN_ID`). The **work queue stays on RAW** (high volume).
+
+**`run_all: true`:** watermark / time filter is not applied; input-hash skipping is disabled; every instance matching **`source_views` filters** is visited (still paginated). **`batch_size`** on each source view sets the **page size** for that listing (`min` with 1000), not a cap on total instances across pages.
 
 **Watermark and skip hash state** can live in **Key Discovery** data model views (**`KeyDiscoveryScopeCheckpoint`**, **`KeyDiscoveryProcessingState`**) when **`key_discovery_instance_space`** is set and the views are **deployed** (`data_modeling/` under this module; verify with Toolkit **`cdf build` / `cdf deploy`**). Parameters:
 
@@ -134,7 +141,7 @@ source_views:
     # When omitted, listing uses space=None (all spaces) — narrow with filters (see below).
     instance_space: sp_enterprise_schema
     entity_type: asset                     # Entity type: asset|file|timeseries
-    batch_size: 1000                       # Number of instances per batch (schema default)
+    batch_size: 1000                       # Page size for incremental listing (min with 1000); not a total cap
 
     # Optional: Filter instances (view properties and/or node metadata)
     filters:
@@ -300,27 +307,26 @@ Pipeline order: **dedupe** → **`confidence_match_rules`** (including length / 
 
 ```yaml
 extraction_rules:
-  - name: "rule_name"                     # Unique rule identifier
-    method: "regex"                       # optional; omit → passthrough (default). Or: passthrough|regex|fixed width|token reassembly|heuristic
-    extraction_type: "candidate_key"      # candidate_key|foreign_key_reference|document_reference
-    description: "Rule description"       # Human-readable description
-    enabled: true                         # Enable/disable rule
+  - name: rule_name                       # Unique rule identifier (also accepted: rule_id)
+    handler: regex_handler                   # regex_handler | heuristic
+    extraction_type: candidate_key        # candidate_key|foreign_key_reference|document_reference
+    description: Rule description
+    enabled: true
     priority: 50                          # Lower = runs first (1-1000)
-
-    parameters:                           # Method-specific parameters
-      # ... method-specific config
-
-    source_fields:                        # Fields to extract from
-      - field_name: "name"
-        required: true                    # Field must exist
-        max_length: 500                   # Maximum field length
-        field_type: string                # Expected field type
-        priority: 1                       # Field priority
-        role: target                      # Field role
-        preprocessing:                    # Preprocessing steps
-          - trim                          # trim|lowercase|uppercase
-
-    field_selection_strategy: "first_match" # first_match|merge_all
+    field_results_mode: merge_all         # optional; all field specs are merged
+    fields:                               # Fields to read (per-field regex or trim-only)
+      - field_name: name
+        regex: '\bP[-_]?\d{1,6}[A-Z]?\b'  # omit regex for trim-only “passthrough”
+        max_matches_per_field: 10
+        regex_options:
+          ignore_case: false
+        required: true
+        max_length: 500
+        priority: 1
+        preprocessing:
+          - trim
+    validation:                           # optional; same ValidationConfig pattern as aliasing
+      min_confidence: 0.5
 ```
 
 **Dotted `field_name` (nested view properties):** You may use dot paths such as `metadata.primaryTag` or `payload.identifier`. The pipeline resolves them against nested **object** properties on the instance for that view. If a segment’s value is a **JSON string**, it is parsed and the path continues into the decoded object (see [Key extraction specification — Nested property paths](../specifications/1.%20key_extraction.md#nested-property-paths-dot-separated-field_name)). **`source_tables`** `join_fields.view_field` supports the same path rules. RAW columns for candidate keys use the uppercased `field_name` as the column name (dots preserved).
@@ -337,239 +343,25 @@ extraction_rules:
 - Standard rules: 21-50
 - Fallback rules: 51-100
 
-### Extraction Methods
+### Extraction handlers (summary)
 
-**Default:** If `method` is omitted, null, or blank, the rule uses **passthrough** (trimmed whole field value as the key).
+- **`regex_handler`**: Default. Per-field **`regex`** (or omit for trim-only), optional **`result_template`**, **`validation`** / **`confidence_match_rules`** (aligned with aliasing). Multiple **`fields`** entries are always merged; legacy `field_results_mode: first_match` is treated as **`merge_all`**.
+- **`heuristic`**: **`parameters`** with strategy ids and weights; list **`fields`** to read; same post-extraction validation as **`regex_handler`**.
 
-#### 1. Passthrough Method
-
-Uses the entire field value as the extracted key with no pattern matching or parsing. Equivalent to omitting `method`.
-
-```yaml
-- name: "name_as_candidate_key"
-  extraction_type: "candidate_key"
-  enabled: true
-  priority: 50
-  parameters:
-    min_confidence: 1.0   # optional; default 1.0
-  source_fields:
-    - field_name: "name"
-      required: true
-  field_selection_strategy: "first_match"
-```
-
-**Use cases:** Field value is already the identifier (e.g. asset `name` = tag); external IDs as candidate keys as-is.
-
-#### 2. Regex Method
-
-Uses regular expressions to match patterns in text fields.
-
-**Default shared equipment tag (CDM scope)** — use the same pattern for candidates and FKs via a YAML anchor, or copy from `config/tag_patterns.yaml` → `alphanumeric_tag`:
+**Default shared equipment tag (CDM scope)** — reuse via anchor or copy from `config/tag_patterns.yaml` → `alphanumeric_tag`:
 
 ```text
 (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
 ```
 
-**Narrow example (pump-only):**
+**Trim-only (identifier already in the field):** use `handler: regex_handler` and omit **`regex`** on that field spec.
+
+### Field results mode
+
+Only **`merge_all`** is supported: every **`fields`** entry contributes (see the key extraction spec for merge + **`result_template`** semantics). If older YAML sets **`field_results_mode: first_match`**, it is coerced to **`merge_all`**.
 
 ```yaml
-- name: "pump_tag_extraction"
-  method: "regex"
-  extraction_type: "candidate_key"
-  enabled: true
-  priority: 50
-  parameters:
-    pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'  # Regex pattern (Python regex syntax)
-    max_matches_per_field: 10            # Maximum matches per field
-    regex_options:
-      ignore_case: false                  # Case-sensitive matching
-      multiline: false                    # ^ and $ match line boundaries
-      dotall: false                       # . matches newline
-      unicode: true                       # Unicode character classes
-    early_termination: false              # Stop after first match
-  source_fields:
-    - field_name: "name"
-      required: true
-  field_selection_strategy: "first_match"
-```
-
-**Common Regex Patterns:**
-- `\bP[-_]?\d{1,6}[A-Z]?\b` - Pump tags: P-101, P101A, P_10001
-- `\b([A-Z]{2,4})-(\d{3,4})\b` - ISA instruments: FIC-2001, PIC-3002
-- `\bT[-_]?\d{1,6}[A-Z]?\b` - Tank references: T-301, T301A
-- `\b(PID|P&ID|P_ID)[-_\s]?(\d{4,6})\b` - Document references: PID-2001, P&ID_3002
-
-**Named Capture Groups:**
-You can use named groups to extract specific components:
-```yaml
-pattern: '\b(?P<type>[A-Z]{2,3})(?P<number>\d{3,4})\b'
-```
-
-#### 3. Fixed Width Method
-
-Extracts values from fixed-width formatted text using position-based parsing.
-
-```yaml
-- name: "fixed_width_tags"
-  method: "fixed width"
-  extraction_type: "candidate_key"
-  enabled: true
-  priority: 45
-  parameters:
-    field_definitions:
-      - name: tag_id                      # Field name for extracted value
-        start_position: 0                 # Start position (0-indexed)
-        end_position: 11                  # End position (exclusive)
-        trim: true                        # Trim whitespace
-        required: true                    # Field is required
-      - name: description
-        start_position: 13
-        end_position: 59
-        trim: true
-        required: false
-      - name: equipment_type
-        start_position: 60
-        end_position: 68
-        trim: true
-        required: false
-    line_pattern: '^\s*[A-Z0-9]'         # Pattern to match valid lines
-    skip_lines: 2                         # Skip first N lines (headers)
-    stop_on_empty: true                   # Stop on empty line
-    early_termination: false
-  source_fields:
-    - field_name: "name"
-      required: true
-  field_selection_strategy: "first_match"
-```
-
-**Use Cases:**
-- Legacy system exports
-- Fixed-width report formats
-- Columnar data files
-
-**Example Input:**
-```
-P-10001     Feed Pump              PUMP
-P-10002     Discharge Pump         PUMP
-V-2001      Control Valve           VALVE
-```
-
-#### 4. Token Reassembly Method
-
-Reassembles hierarchical tags from tokenized components.
-
-```yaml
-- name: "hierarchical_tag_assembly"
-  method: "token reassembly"
-  extraction_type: "candidate_key"
-  enabled: true
-  priority: 40
-  parameters:
-    tokenization:
-      token_patterns:
-        - name: site_code               # Token name
-          pattern: '\b[A-Z]{2,4}\b'     # Pattern to match token
-          position: 0                    # Token position in input
-          required: true                 # Token is required
-          component_type: site          # Component type
-        - name: unit_code
-          pattern: '\b\d{3}\b'
-          position: 1
-          required: true
-          component_type: unit
-        - name: equipment_type
-          pattern: '\b[A-Z]{1,2}\b'
-          position: 2
-          required: true
-          component_type: equipment
-        - name: equipment_number
-          pattern: '\b\d{2,4}\b'
-          position: 3
-          required: true
-          component_type: number
-      separator_patterns:                # Separators between tokens
-        - "-"
-        - "_"
-        - "/"
-        - " "
-      case_sensitive: false
-    assembly_rules:
-      - format: "{site_code}-{unit_code}-{equipment_type}-{equipment_number}"
-        confidence: 0.9
-        description: "Full hierarchical format"
-      - format: "{equipment_type}-{equipment_number}"
-        confidence: 0.7
-        description: "Short format"
-  source_fields:
-    - field_name: "name"
-      required: true
-  field_selection_strategy: "first_match"
-```
-
-**Use Cases:**
-- Hierarchical tag structures: `SITE-UNIT-TYPE-NUMBER`
-- Multi-component identifiers
-- Decomposed tag formats
-
-**Example:**
-Input: `PLANT-A-100-P-101` → Output: `PLANT-A-100-P-101`, `P-101`
-
-#### 5. Heuristic Method
-
-Uses rule-based heuristics for extraction when patterns are inconsistent.
-
-```yaml
-- name: "heuristic_fallback_extraction"
-  method: "heuristic"
-  extraction_type: "candidate_key"
-  enabled: true
-  priority: 80
-  parameters:
-    heuristics:
-      - name: "alphanumeric_with_hyphen"
-        pattern: '\b[A-Z]{1,4}-?\d{2,6}[A-Z]?\b'
-        confidence: 0.6
-        description: "Alphanumeric with optional hyphen"
-      - name: "numeric_suffix"
-        pattern: '\b[A-Z]+-\d+\b'
-        confidence: 0.7
-        description: "Letter prefix with numeric suffix"
-      - name: "isa_format"
-        pattern: '\b[A-Z]{2,3}-\d{3,4}\b'
-        confidence: 0.8
-        description: "ISA standard format"
-    fallback_rules:
-      - extract_all_alphanumeric: true
-      - min_length: 3
-      - max_length: 20
-      - exclude_patterns:
-          - "TEST"
-          - "TEMP"
-    min_confidence: 0.5
-  source_fields:
-    - field_name: "name"
-      required: true
-  field_selection_strategy: "merge_all"
-```
-
-**Use Cases:**
-- Inconsistent naming conventions
-- Legacy systems with varied formats
-- Fallback for unmatched patterns
-
-### Field Selection Strategies
-
-When multiple keys are extracted from the same field or entity:
-
-- **`first_match`**: Use the first matching key (for `candidate_key` types)
-- **`merge_all`**: Combine all matching keys (for `foreign_key_reference` and `document_reference` types)
-
-```yaml
-# For candidate keys - use first match
-field_selection_strategy: "first_match"
-
-# For foreign key references - merge all matches
-field_selection_strategy: "merge_all"
+field_results_mode: merge_all   # optional; default
 ```
 
 ---
@@ -1172,17 +964,16 @@ The following YAML snippets are **illustrative** (narrow rules or large aliasing
 ```yaml
 extraction_rules:
   - name: "pump_tag_extraction"
-    method: "regex"
+    handler: regex_handler
     extraction_type: "candidate_key"
     enabled: true
     priority: 50
-    parameters:
-      pattern: '\bP[-_]?\d{1,6}[A-Z]?\b'
-      max_matches_per_field: 10
-    source_fields:
-      - field_name: "name"
+    field_results_mode: merge_all
+    fields:
+      - field_name: name
+        regex: '\bP[-_]?\d{1,6}[A-Z]?\b'
+        max_matches_per_field: 10
         required: true
-    field_selection_strategy: "first_match"
 ```
 
 **Example:**
@@ -1219,17 +1010,16 @@ aliasing_rules:
 ```yaml
 extraction_rules:
   - name: "tank_reference_extraction"
-    method: "regex"
+    handler: regex_handler
     extraction_type: "foreign_key_reference"
     enabled: true
     priority: 60
-    parameters:
-      pattern: '\bT[-_]?\d{1,6}[A-Z]?\b'
-      max_matches_per_field: 10
-    source_fields:
-      - field_name: "description"
+    field_results_mode: merge_all
+    fields:
+      - field_name: description
+        regex: '\bT[-_]?\d{1,6}[A-Z]?\b'
+        max_matches_per_field: 10
         required: false
-    field_selection_strategy: "merge_all"
 ```
 
 **Example:**
@@ -1263,45 +1053,28 @@ aliasing_rules:
 - Input: `P-101`
 - Output: `P-101`, `FIC-101`, `PIC-101`
 
-### Use Case 5: Hierarchical Tag Assembly
+### Use Case 5: Hierarchical-style tags (regex)
 
-**Goal**: Assemble hierarchical tags from components.
+**Goal**: Extract hierarchical-looking tags (e.g. site-unit-equipment) with **regex** (and optional **aliasing** to combine fields), replacing the former token-reassembly workflow.
 
 **Configuration:**
 ```yaml
 extraction_rules:
-  - name: "hierarchical_tag_assembly"
-    method: "token reassembly"
+  - name: "hierarchical_tag_regex"
+    handler: regex_handler
     extraction_type: "candidate_key"
     enabled: true
     priority: 40
-    parameters:
-      tokenization:
-        token_patterns:
-          - name: site_code
-            pattern: '\b[A-Z]{2,4}\b'
-            position: 0
-            required: true
-          - name: unit_code
-            pattern: '\b\d{3}\b'
-            position: 1
-            required: true
-          - name: equipment_type
-            pattern: '\b[A-Z]{1,2}\b'
-            position: 2
-            required: true
-          - name: equipment_number
-            pattern: '\b\d{2,4}\b'
-            position: 3
-            required: true
-        separator_patterns: ["-", "_"]
-      assembly_rules:
-        - format: "{site_code}-{unit_code}-{equipment_type}-{equipment_number}"
+    fields:
+      - field_name: name
+        regex: '\b[A-Z]{2,4}-\d{3}-[A-Z]{1,2}\d{2,4}[A-Z]?\b'
+        max_matches_per_field: 10
+        required: true
 ```
 
 **Example:**
 - Input: `"PLANT-A-100-P-101"`
-- Output: `PLANT-A-100-P-101`, `P-101`
+- Output: `PLANT-A-100-P-101` (when it matches the pattern)
 
 ---
 

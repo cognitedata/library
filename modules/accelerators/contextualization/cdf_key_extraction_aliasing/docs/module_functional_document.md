@@ -1,6 +1,6 @@
 # Module functional document — `cdf_key_extraction_aliasing`
 
-This document describes **what the module does** in operational terms: scope, behaviors, components, data flows, and interfaces. Detailed rule semantics live in the [key extraction](specifications/1.%20key_extraction.md) and [aliasing](specifications/2.%20aliasing.md) specifications; step-by-step authoring is in the [configuration guide](guides/configuration_guide.md) and [workflows README](../workflows/README.md). **Run locally:** [Quickstart — `module.py`](guides/howto_quickstart.md). **Multi-scope Toolkit deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
+This document describes **what the module does** in operational terms: scope, behaviors, components, data flows, and interfaces. Detailed rule semantics live in the [key extraction](specifications/1.%20key_extraction.md) and [aliasing](specifications/2.%20aliasing.md) specifications; step-by-step authoring is in the [configuration guide](guides/configuration_guide.md) and [workflows README](../workflows/README.md). **Authoring entry points:** [How to build configuration with YAML](guides/howto_config_yaml.md), [How to build configuration with the UI](guides/howto_config_ui.md). **Run locally:** [Quickstart — `module.py`](guides/howto_quickstart.md). **Multi-scope Toolkit deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ---
 
@@ -30,7 +30,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 
 | Actor | Role |
 | ----- | ---- |
-| **Config author** | Maintains v1 scope YAML at module root / trigger template (`workflow_template/workflow.template.config.yaml`) and runs `build_scopes` for multi-site triggers. |
+| **Config author** | Maintains v1 scope YAML at module root / trigger template (`workflow_template/workflow.template.config.yaml`) and runs `build_scopes` for multi-site triggers (via editor, git, or the [local operator UI](guides/howto_config_ui.md)). |
 | **CDF operator** | Deploys Toolkit manifests, monitors workflow runs and RAW/DM outcomes. |
 | **Application / search** | Consumes **`aliases`** (and optional FK list properties) on describable instances. |
 | **Downstream jobs** | May read **reference index** RAW for “who references tag X” style queries. |
@@ -43,25 +43,20 @@ For **adding new method or transformation `type` implementations in Python** (su
 
 ### 3.1 Key extraction
 
-**Engine:** `KeyExtractionEngine` dispatches each rule’s `method` to a **method handler** (`functions/fn_dm_key_extraction/engine/handlers/`). Rules declare `extraction_type` (`candidate_key`, `foreign_key_reference`, `document_reference`); the engine sorts extracted keys into the matching lists on `ExtractionResult`.
+**Engine:** `KeyExtractionEngine` dispatches each rule’s **`handler`** (`regex_handler`, `heuristic`, or a registered custom id) to a **method handler** (`functions/fn_dm_key_extraction/engine/handlers/`). Rules declare `extraction_type` (`candidate_key`, `foreign_key_reference`, `document_reference`); the engine sorts extracted keys into the matching lists on `ExtractionResult`.
 
 **Outputs per instance:** validated **candidate keys**, **foreign key references**, and **document references**, each with confidence, rule id, source field, and metadata. **Source binding** uses `source_views` plus `extraction_rules` (priority, `enabled`, `scope_filters`, validation).
 
-**YAML note:** `fixed_width` and `token_reassembly` in config are normalized to the enum values **`fixed width`** and **`token reassembly`** before lookup.
-
 #### 3.1.1 Extraction method handlers
 
-| Handler (class) | Config `method` | Purpose | Typical usage |
-| ----------------- | --------------- | -------- | -------------- |
-| **PassthroughExtractionHandler** | `passthrough` | Returns the **entire** (trimmed) field value as a single `ExtractedKey`; no pattern parsing. | Use when the identifier is already stored whole (`name`, `externalId`, pre-normalized code). At runtime, **`normalize_method`** treats a **missing or blank** `method` as **passthrough** (`rule_utils.normalize_method`); still set `method: passthrough` in YAML for readability. |
-| **RegexExtractionHandler** | `regex` | Compiles `parameters.pattern` (with optional flags); finds all matches; uses **group 1** if present, else full match. Scores confidence via `compute_confidence` vs `min_confidence`. | Primary workhorse for tag-like substrings in free text (`alphanumeric_tag` anchors, P&ID names, etc.). Capture groups control what becomes the key value. |
-| **FixedWidthExtractionHandler** | `fixed width` | Parses lines/records using **`field_definitions`** or **`positions`** in `parameters`, optional `record_delimiter`, `line_pattern`, `skip_lines`, and optional byte decoding. Converts layout to regex internally where needed. | Legacy mainframe/flat-file style fields, fixed-column exports, or line-oriented logs where position matters more than delimiters. |
-| **TokenReassemblyExtractionHandler** | `token reassembly` | Tokenizes text using configured **token patterns**, then applies **assembly rules** with conditions (`all_required_present`, `*_missing`, `context_match`, …) to build candidate strings from token combinations. | Tags built from multiple fragments (site + unit + equipment), or when you must validate token presence before accepting a composed key. |
-| **HeuristicExtractionHandler** | `heuristic` | Runs one or more **`heuristic_strategies`** in `parameters` (`positional_detection`, `frequency_analysis`, `context_inference`, `example_based_learning`), each with a **weight**. Merges scores, applies **`confidence_modifiers`**, keeps candidates above `min_confidence`. | Noisy or inconsistent text where rigid regex is brittle; exploratory extraction; combining weak signals. Unknown strategy names are skipped with a log warning. |
+| Handler (class) | Config `handler` | Purpose | Typical usage |
+| ----------------- | ----------------- | -------- | -------------- |
+| **FieldRuleExtractionHandler** | `regex_handler` | Declarative **`fields`** list: per-field **trim-only** (no `regex`), **regex** extraction (find all matches; group 1 if present), optional **`result_template`**. All field specs are merged (`merge_all`); legacy `field_results_mode: first_match` in YAML is coerced to `merge_all`. Shared **`validation`** / **`confidence_match_rules`** after extraction. | Default for pattern-based and trim-as-key rules; compose variables with templates when needed. |
+| **HeuristicExtractionHandler** | `heuristic` | **`parameters`** with strategy ids and weights (`delimiter_split`, `sliding_token`, …), **`max_candidates_per_field`**, minimal **`fields`**; emits scored candidates; same **`validation`** pipeline as field rules. | Noisy or inconsistent text where declarative regex alone is brittle. |
 
 For field-level behavior (required vs optional fields, preprocessing, `max_matches_per_field`), see the [key extraction specification](specifications/1.%20key_extraction.md).
 
-**Source field paths:** `source_fields[].field_name` may be a single view property name or a **dot path** through nested object properties returned for that view. If an intermediate value is a **JSON string**, it is parsed so inner keys remain addressable. Limitations (no array indices, no escaped dots in names) are documented in the spec. **RAW:** candidate-key list columns are named with the **`source_field` uppercased**, so dotted paths yield column names that still contain dots (e.g. `METADATA.CODE`).
+**Source field paths:** `fields[].field_name` may be a single view property name or a **dot path** through nested object properties returned for that view. If an intermediate value is a **JSON string**, it is parsed so inner keys remain addressable. Limitations (no array indices, no escaped dots in names) are documented in the spec. **RAW:** candidate-key list columns are named with the **`source_field` uppercased**, so dotted paths yield column names that still contain dots (e.g. `METADATA.CODE`).
 
 ### 3.2 Aliasing
 
@@ -108,7 +103,7 @@ When **`incremental_change_processing`** is enabled in scope parameters:
 - **Detection** (`fn_dm_incremental_state_update`) advances the **listing watermark** (Key Discovery **`KeyDiscoveryScopeCheckpoint`** in FDM when **`key_discovery_instance_space`** is set **and** the Key Discovery views exist in the project; otherwise legacy RAW **`scope_wm_*`** rows). If FDM reads or checkpoint writes fail at runtime, the function falls back to RAW for that pass.
 - **Skip unchanged** (`incremental_skip_unchanged_source_inputs`): digest of source inputs + rules can suppress redundant cohort rows while watermarks still advance; latest digest is read from **`KeyDiscoveryProcessingState`** in FDM when that path is active, otherwise from RAW **`EXTRACTION_INPUTS_HASH`** on completed rows.
 - **`workflow_scope`**: set per leaf by scope build (same as **`scope.id`**) for FDM grouping; required when **`key_discovery_instance_space`** is set **and** Key Discovery FDM is available (after the view-existence check). If the views are not deployed, the pipeline uses RAW state and does not require **`workflow_scope`** for that fallback path.
-- **`full_rescan`**: overrides incremental narrowing (workflow input or scope); local runner mirrors this via `module.py --full-rescan`.
+- **`run_all`**: overrides incremental narrowing (workflow input or scope); local runner mirrors this via `module.py --all`.
 - **Deployable artifacts:** Key Discovery view/container YAML is under [`data_modeling/`](../data_modeling/) (`KeyDiscoveryProcessingState`, `KeyDiscoveryScopeCheckpoint`); deploy with Cognite Toolkit alongside functions. **FDM** = listing cursor + per-record hash state; **RAW** = high-volume cohort queue (`WORKFLOW_STATUS=detected`).
 
 ### 3.5 Reference index
@@ -193,7 +188,7 @@ Validation: Pydantic models in `fn_dm_key_extraction/config.py`, `fn_dm_aliasing
 
 ### 5.2 Workflow v4 runtime config
 
-Workflow YAML does **not** embed full rule sets inline. Each function task receives **`configuration`** (v1 mapping) from **`workflow.input`**, optional **`full_rescan`** / **`run_id`**, and RAW wiring. **`instance_space`** for DM handlers is taken from **`configuration`** (`source_views`) when not set on task **`data`**. Functions resolve **`config`** from **`configuration`** in memory.
+Workflow YAML does **not** embed full rule sets inline. Each function task receives **`configuration`** (v1 mapping) from **`workflow.input`**, optional **`run_all`** / **`run_id`**, and RAW wiring. **`instance_space`** for DM handlers is taken from **`configuration`** (`source_views`) when not set on task **`data`**. Functions resolve **`config`** from **`configuration`** in memory.
 
 Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflow_template/workflow.template.config.yaml`** (template embedded into triggers by **`build_scopes`**).
 
@@ -239,16 +234,20 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 | Field | Role |
 | ----- | ---- |
 | `configuration` | Full v1 scope mapping (`key_extraction`, `aliasing`, optional `scope`). |
-| `full_rescan` | Bool override for incremental behavior. |
+| `run_all` | Bool override for incremental behavior. |
 | `run_id` | Optional operator/run correlation; auto-discovery paths exist for single-run setups. |
 
 ### 7.2 CLI (`module.py`)
 
-**`module.py run`** carries the pipeline (limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, full-rescan, skip reference index for incremental parity). **`module.py build`** runs the scope builder; bare **`module.py`** prints help. Documented in the [module README](../README.md). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
+**`module.py run`** carries the pipeline (limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, `--all` (run all), skip reference index for incremental parity). **`module.py build`** runs the scope builder; bare **`module.py`** prints help. Documented in the [module README](../README.md). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ### 7.3 Python API (minimal)
 
 `KeyExtractionEngine` and `AliasingEngine` accept dict configs; RAW-backed rules need a Cognite client where applicable. See [module README — Python API](../README.md#python-api).
+
+### 7.4 Operator UI (local)
+
+A **React + Vite** frontend under **`ui/`** talks to a **FastAPI** app in **`ui/server/`** on **localhost**. It reads and writes YAML under the module root ( **`default.config.yaml`**, **`workflow.local.config.yaml`**, **`workflow_template/workflow.template.config.yaml`**, **`workflows/**/*.yaml`** ), invokes **`module.py build`**, and runs **`module.py run`** with optional **`run_all`** (CLI **`--all`**). There is **no authentication**; it is intended for trusted developer workstations only. Setup and behavior: [How to build configuration with the UI](guides/howto_config_ui.md).
 
 ---
 
@@ -259,7 +258,7 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 | **Idempotency** | Re-runs rewrite RAW rows for the same keys; DM alias lists reflect latest aggregated persistence behavior. |
 | **Performance** | Rule count, view filters, `raw_read_limit` on functions, and batch sizes affect runtime; tune per deployment. |
 | **Observability** | Structured logging; **`logLevel: DEBUG`** in workflow task `data` for verbose traces. See [logging guide](guides/logging_cdf_functions.md). |
-| **Security** | Standard CDF credentials; scope files may contain patterns but not secrets—keep secrets in env / OIDC. |
+| **Security** | Standard CDF credentials; scope files may contain patterns but not secrets—keep secrets in env / OIDC. The operator UI has no auth; do not expose its API on untrusted networks. |
 
 ---
 
@@ -270,7 +269,8 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 | Documentation index | [docs/README.md](README.md) |
 | Operator / developer entry | [Module README](../README.md) |
 | Workflow task graph and v4 behavior | [workflows/README.md](../workflows/README.md) |
-| YAML authoring | [guides/configuration_guide.md](guides/configuration_guide.md), [config/README.md](../config/README.md) |
+| YAML authoring (how-tos) | [guides/howto_config_yaml.md](guides/howto_config_yaml.md), [guides/howto_config_ui.md](guides/howto_config_ui.md) |
+| YAML reference | [guides/configuration_guide.md](guides/configuration_guide.md), [config/README.md](../config/README.md) |
 | Extraction rules reference | [specifications/1. key_extraction.md](specifications/1.%20key_extraction.md) |
 | Aliasing rules reference | [specifications/2. aliasing.md](specifications/2.%20aliasing.md) |
 | Default scope narrative | [key_extraction_aliasing_report.md](key_extraction_aliasing_report.md) |

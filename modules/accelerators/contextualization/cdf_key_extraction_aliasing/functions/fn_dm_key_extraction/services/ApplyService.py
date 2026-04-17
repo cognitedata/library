@@ -77,7 +77,7 @@ class GeneralApplyService(IApplyService):
                         ext_id = row.key
                         row_data = row.columns
                         self._process_row(ext_id, row_data, rule_id)
-                        if not self.config.parameters.full_rescan:
+                        if not self.config.parameters.run_all:
                             processed_node_ids.append(
                                 NodeId(target_view_config.instance_space, ext_id)
                             )

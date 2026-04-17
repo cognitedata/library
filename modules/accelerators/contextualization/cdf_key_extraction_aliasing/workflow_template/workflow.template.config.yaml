@@ -1,4 +1,3 @@
-# Optional root `name`: display label in the Configure sidebar.
 name: ''
 schemaVersion: 1
 source_views:
@@ -11,10 +10,6 @@ source_views:
     target_property: tags
     values:
     - asset_tag
-  - operator: EQUALS
-    property_scope: node
-    target_property: space
-    values: REPLACE_ME
   include_properties:
   - externalId
   - name
@@ -85,11 +80,6 @@ source_views:
     target_property: mimeType
     values:
     - application/pdf
-  - operator: EQUALS
-    property_scope: node
-    target_property: space
-    values:
-    - '{{instance_space}}'
   include_properties:
   - externalId
   - name
@@ -102,12 +92,6 @@ source_views:
   view_version: v1
   entity_type: timeseries
   batch_size: 200
-  filters:
-  - operator: EQUALS
-    property_scope: node
-    target_property: space
-    values:
-    - '{{instance_space}}'
   include_properties:
   - externalId
   - name
@@ -173,8 +157,8 @@ key_extraction:
   externalId: ctx_key_extraction_default
   config:
     parameters:
-      debug: false
-      full_rescan: false
+      debug: true
+      run_all: false
       raw_db: db_key_extraction
       raw_table_key: key_extraction_state
       skip_entity_policy: successful_only
@@ -185,205 +169,136 @@ key_extraction:
       key_discovery_schema_space: dm_key_discovery
       key_discovery_dm_version: v1
       cdm_view_version: v1
+      workflow_scope: SITE_01__PLANT_A__AREA_01__COOLING_SYS
       incremental_skip_unchanged_source_inputs: true
-      enable_reference_index: true
+      enable_reference_index: false
       exclude_self_referencing_keys: true
     data:
       extraction_rules:
-      - name: asset_equipment_tag_candidate
-        handler: regex
+      - name: asset_tag_candidate
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Equipment tags — optional hyphens; optional numeric tail segments
-          (e.g. ...-92529-02).
         enabled: true
         priority: 10
-        scope_filters:
-          entity_type:
-          - asset
-        parameters:
-          pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+        description: Equipment tags — optional hyphens; optional numeric tail segments
+          (e.g. ...-92529-02).
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
           max_matches_per_field: 10
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
-      - name: asset_description_asset_fk
-        handler: regex
-        extraction_type: foreign_key_reference
-        description: Equipment tag references in asset description (values matching
-          candidate keys removed when exclude_self_referencing_keys is true for the
-          view).
-        enabled: true
-        priority: 15
         scope_filters:
           entity_type:
           - asset
-        parameters:
-          pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-          max_matches_per_field: 10
-          regex_options:
-            ignore_case: false
-            multiline: false
-            dotall: false
-            unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: description
-          required: false
-          max_length: 1000
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: merge_all
       - name: file_basename_candidate
-        handler: regex
+        handler: regex_handler
         extraction_type: candidate_key
-        description: Basename (with extension) as candidate key for files.
         enabled: true
         priority: 20
-        scope_filters:
-          entity_type:
-          - file
-        parameters:
-          pattern: (?:^|[/\\])([^/\\]+)$
+        description: Basename (with extension) as candidate key for files.
+        fields:
+        - field_name: name
+          regex: (?:^|[/\\])([^/\\]+)$
           max_matches_per_field: 1
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: true
-        source_fields:
-        - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: first_match
-      - name: timeseries_instrument_tag_candidate
-        handler: regex
-        extraction_type: candidate_key
-        description: Same *alphanumeric_tag as timeseries FK rules on name/description
-          (and asset candidate).
-        enabled: true
-        priority: 30
-        scope_filters:
-          entity_type:
-          - timeseries
-        parameters:
-          pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-          max_matches_per_field: 10
-          regex_options:
-            ignore_case: false
-            multiline: false
-            dotall: false
-            unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: name
-          required: true
-          max_length: 500
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: first_match
-      - name: file_description_asset_fk
-        handler: regex
-        extraction_type: foreign_key_reference
-        description: Extract asset-tag references from file description for linking
-          to assets.
-        enabled: true
-        priority: 40
         scope_filters:
           entity_type:
           - file
-        parameters:
-          pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
-          max_matches_per_field: 10
-          regex_options:
-            ignore_case: false
-            multiline: false
-            dotall: false
-            unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: description
-          required: false
-          max_length: 1000
-          priority: 1
-          role: target
-          preprocessing:
-          - trim
-        field_selection_strategy: merge_all
-      - name: timeseries_name_asset_fk
-        handler: regex
-        extraction_type: foreign_key_reference
-        description: Extract asset-tag references embedded in timeseries name.
+      - name: timeseries_instrument_tag_candidate
+        handler: heuristic
+        extraction_type: candidate_key
         enabled: true
-        priority: 50
-        scope_filters:
-          entity_type:
-          - timeseries
+        priority: 30
+        description: Same *alphanumeric_tag as timeseries FK rules on name/description
+          (and asset candidate).
         parameters:
-          pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          strategies:
+          - id: delimiter_split
+            weight: 1
+          - id: sliding_token
+            weight: 0.5
+          max_candidates_per_field: 20
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
           max_matches_per_field: 10
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: false
-        source_fields:
-        - field_name: name
           required: true
           max_length: 500
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: merge_all
-      - name: timeseries_description_asset_fk
-        handler: regex
-        extraction_type: foreign_key_reference
-        description: Extract asset-tag references from timeseries description.
-        enabled: true
-        priority: 60
         scope_filters:
           entity_type:
           - timeseries
-        parameters:
-          pattern: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+      - name: instance_name_asset_fk
+        handler: regex_handler
+        extraction_type: foreign_key_reference
+        enabled: true
+        priority: 40
+        description: Extract asset-tag references embedded in timeseries name.
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
           max_matches_per_field: 10
           regex_options:
             ignore_case: false
             multiline: false
             dotall: false
             unicode: true
-          early_termination: false
-        source_fields:
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+        scope_filters:
+          entity_type:
+          - file
+          - timeseries
+      - name: instance_description_asset_fk
+        handler: regex_handler
+        extraction_type: foreign_key_reference
+        enabled: true
+        priority: 50
+        description: Extract asset-tag references from file description for linking
+          to assets.
+        fields:
         - field_name: description
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
           required: false
           max_length: 1000
           priority: 1
-          role: target
           preprocessing:
           - trim
-        field_selection_strategy: merge_all
+        scope_filters: {}
       validation:
         min_confidence: 0.5
         max_keys_per_type: 1000
@@ -575,6 +490,7 @@ aliasing:
             - INSTRUMENT
           format_templates:
           - '{type}-{tag}'
+          - '{type}_{tag}'
           auto_detect: true
         conditions: {}
         scope_filters:
@@ -672,8 +588,8 @@ aliasing:
           expression_match: fullmatch
           match:
             expressions:
-            - pattern: ^.{0,1}$
-              description: Alias too short (length under 2) or empty
+            - pattern: ^.{0,3}$
+              description: Alias too short (length under 4) or empty
             - pattern: ^.{81,}$
               description: Alias exceeds maximum length 80
             - pattern: '[^A-Za-z0-9-_/. ]'

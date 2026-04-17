@@ -44,7 +44,7 @@ class TestBuildEntityPayloadPropertyPath(unittest.TestCase):
             instance=Inst(),
             merged_columns=None,
             extraction_rules=[
-                {"name": "rule1", "source_fields": [{"field_name": "meta.code"}]}
+                {"name": "rule1", "fields": [{"field_name": "meta.code"}]}
             ],
             entity_view_id=vid,
             entity_view_config=evc,
@@ -75,7 +75,7 @@ class TestBuildEntityPayloadPropertyPath(unittest.TestCase):
             instance=Inst(),
             merged_columns=None,
             extraction_rules=[
-                {"name": "r2", "source_fields": [{"field_name": "payload.tag"}]}
+                {"name": "r2", "fields": [{"field_name": "payload.tag"}]}
             ],
             entity_view_id=vid,
             entity_view_config=evc,

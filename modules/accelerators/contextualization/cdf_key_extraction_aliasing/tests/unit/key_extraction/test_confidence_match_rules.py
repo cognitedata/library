@@ -16,25 +16,28 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 
 def _base_rule(name: str, pattern: str) -> dict:
     return {
+        "rule_id": name,
         "name": name,
         "extraction_type": "candidate_key",
-        "handler": "regex",
+        "handler": "regex_handler",
         "priority": 10,
         "enabled": True,
-        "source_fields": [{"field_name": "name", "required": True}],
-        "config": {"pattern": pattern},
+        "field_results_mode": "merge_all",
+        "fields": [
+            {
+                "field_name": "name",
+                "required": True,
+                "regex": pattern,
+                "regex_options": {"ignore_case": True},
+            }
+        ],
     }
 
 
 class TestConfidenceMatchRules(unittest.TestCase):
     def test_explicit_zero_then_min_confidence_drops(self):
         config = {
-            "extraction_rules": [
-                {
-                    **_base_rule("tag", r"(?P<tag>\S+)"),
-                    "pattern": r"(?P<tag>\S+)",
-                }
-            ],
+            "extraction_rules": [_base_rule("tag", r"(?P<tag>\S+)")],
             "validation": {
                 "min_confidence": 0.5,
                 "confidence_match_rules": [
@@ -55,12 +58,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
 
     def test_offset_rules_chain_isa_then_catch_all(self):
         config = {
-            "extraction_rules": [
-                {
-                    **_base_rule("pump", r"\bP[-_]?\d+\b"),
-                    "pattern": r"\bP[-_]?\d+\b",
-                }
-            ],
+            "extraction_rules": [_base_rule("pump", r"\bP[-_]?\d+\b")],
             "validation": {
                 "min_confidence": 0.1,
                 "confidence_match_rules": [
@@ -88,12 +86,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
 
     def test_explicit_modifier_stops_further_rules(self):
         config = {
-            "extraction_rules": [
-                {
-                    **_base_rule("pump", r"\bP[-_]?\d+\b"),
-                    "pattern": r"\bP[-_]?\d+\b",
-                }
-            ],
+            "extraction_rules": [_base_rule("pump", r"\bP[-_]?\d+\b")],
             "validation": {
                 "min_confidence": 0.1,
                 "confidence_match_rules": [
@@ -119,12 +112,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
 
     def test_catch_all_penalty_when_no_earlier_match(self):
         config = {
-            "extraction_rules": [
-                {
-                    **_base_rule("word", r"[A-Za-z]+"),
-                    "pattern": r"[A-Za-z]+",
-                }
-            ],
+            "extraction_rules": [_base_rule("word", r"[A-Za-z]+")],
             "validation": {
                 "min_confidence": 0.1,
                 "confidence_match_rules": [
@@ -151,12 +139,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
 
     def test_keyword_or_expression_match(self):
         config = {
-            "extraction_rules": [
-                {
-                    **_base_rule("any", r"\S+"),
-                    "pattern": r"\S+",
-                }
-            ],
+            "extraction_rules": [_base_rule("any", r"\S+")],
             "validation": {
                 "min_confidence": 0.5,
                 "confidence_match_rules": [
@@ -188,12 +171,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
 
     def test_expression_as_pattern_description_dict(self):
         config = {
-            "extraction_rules": [
-                {
-                    **_base_rule("p", r"\bP[-_]?\d+\b"),
-                    "pattern": r"\bP[-_]?\d+\b",
-                }
-            ],
+            "extraction_rules": [_base_rule("p", r"\bP[-_]?\d+\b")],
             "validation": {
                 "min_confidence": 0.5,
                 "confidence_match_rules": [
@@ -220,12 +198,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
 
     def test_enabled_false_skipped(self):
         config = {
-            "extraction_rules": [
-                {
-                    **_base_rule("any", r"\S+"),
-                    "pattern": r"\S+",
-                }
-            ],
+            "extraction_rules": [_base_rule("any", r"\S+")],
             "validation": {
                 "min_confidence": 0.5,
                 "confidence_match_rules": [

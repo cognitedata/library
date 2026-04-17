@@ -87,6 +87,7 @@ Open the newest files to inspect keys, aliases, and metadata. The directory is o
 
 ## Next steps
 
+- **Author configuration (pick one path):** [Build configuration with YAML](howto_config_yaml.md), [Build configuration with the UI](howto_config_ui.md)
 - **Tune rules and views:** [Configuration guide](configuration_guide.md), [config/README.md](../../config/README.md)
 - **Multiple sites and Toolkit manifests:** [Scoped deployment how-to](howto_scoped_deployment.md)
 - **Custom Python handlers:** [How to add a custom handler](howto_custom_handlers.md)

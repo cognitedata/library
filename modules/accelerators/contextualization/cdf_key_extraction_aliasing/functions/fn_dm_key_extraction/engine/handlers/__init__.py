@@ -5,17 +5,11 @@ This module provides specialized handlers for different extraction methods.
 """
 
 from .ExtractionMethodHandler import ExtractionMethodHandler
-from .FixedWidthExtractionHandler import FixedWidthExtractionHandler
-from .HeuristicExtractionHandler import HeuristicExtractionHandler
-from .PassthroughExtractionHandler import PassthroughExtractionHandler
-from .RegexExtractionHandler import RegexExtractionHandler
-from .TokenReassemblyExtractionHandler import TokenReassemblyExtractionHandler
+from .field_rule_extraction_handler import FieldRuleExtractionHandler
+from .heuristic_extraction_handler import HeuristicExtractionHandler
 
 __all__ = [
     "ExtractionMethodHandler",
-    "RegexExtractionHandler",
-    "FixedWidthExtractionHandler",
-    "TokenReassemblyExtractionHandler",
+    "FieldRuleExtractionHandler",
     "HeuristicExtractionHandler",
-    "PassthroughExtractionHandler",
 ]

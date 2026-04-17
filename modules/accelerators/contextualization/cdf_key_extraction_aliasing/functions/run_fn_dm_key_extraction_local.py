@@ -6,8 +6,7 @@ What it does:
 1) Loads extraction config YAML
 2) Queries entities from CDF using source_views in the config
 3) Caches queried entities to a local JSON file
-4) Runs fn_dm_key_extraction.handler.handle() in standalone mode
-   (config + entities passed directly; no RAW writes)
+4) Runs ``key_extraction`` in standalone mode (``cdf_config=None``; entities only; no RAW writes)
 5) Writes extraction results to a local JSON file
 
 Usage (from repo root):
@@ -21,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 from datetime import datetime
@@ -33,6 +33,10 @@ from dotenv import load_dotenv
 REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(REPO_ROOT))
 
+_FETCH_LOG = logging.getLogger(
+    "cdf_key_extraction.run_fn_dm_key_extraction_local.fetch"
+)
+
 from cognite.client import CogniteClient
 from cognite.client.config import ClientConfig
 from cognite.client.credentials import OAuthClientCredentials
@@ -41,8 +45,17 @@ from cognite.client.data_classes.data_modeling.ids import ViewId
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
     load_config_from_yaml,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.handler import (
-    handle,
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.function_logging import (
+    StdlibLoggerAdapter,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
+    KeyExtractionEngine,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
+    key_extraction,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.incremental_scope import (
+    list_all_instances,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.source_view_filter_build import (
     build_source_view_query_filter,
@@ -97,7 +110,7 @@ def _fetch_entities_from_cdf(
     limit_override: int | None = None,
     total_samples: int | None = None,
 ) -> Dict[str, Dict[str, Any]]:
-    """Fetch entities from CDF instances.list based on engine config source_views."""
+    """Fetch entities from CDF using paginated ``instances.list`` (via ``list_all_instances``)."""
     entities: Dict[str, Dict[str, Any]] = {}
     source_views = engine_config.get("source_views", []) or []
 
@@ -111,31 +124,38 @@ def _fetch_entities_from_cdf(
         instance_space = view_cfg.get("instance_space")
         entity_type = view_cfg.get("entity_type", "asset")
         include_properties = view_cfg.get("include_properties", []) or []
-        batch_size = int(view_cfg.get("batch_size", 1000))
+        batch_size = int(view_cfg.get("batch_size", 1000) or 1000)
 
         if not view_external_id:
             continue
 
         view_id = ViewId(space=view_space, external_id=view_external_id, version=view_version)
         filter_expr = _build_view_filter(view_cfg, view_id)
-        per_view_limit = limit_override if limit_override is not None else batch_size
-        if total_samples is not None:
-            remaining = total_samples - len(entities)
-            if remaining <= 0:
-                break
-            limit = min(per_view_limit, remaining)
-        else:
-            limit = per_view_limit
+        per_view_cap = limit_override if limit_override is not None else batch_size
+        if per_view_cap is not None and per_view_cap <= 0:
+            per_view_cap = None
 
-        rows = client.data_modeling.instances.list(
+        n_this_view = 0
+        limit_per_page = min(1000, batch_size) if batch_size > 0 else 1000
+
+        for inst in list_all_instances(
+            client,
             instance_type="node",
             space=instance_space if instance_space else None,
             sources=[view_id],
             filter=filter_expr,
-            limit=limit,
-        )
+            limit_per_page=limit_per_page,
+            logger=_FETCH_LOG,
+            progress_context=(
+                f"view={view_space}/{view_external_id}/{view_version} "
+                f"limit_per_page={limit_per_page}"
+            ),
+        ):
+            if per_view_cap is not None and n_this_view >= per_view_cap:
+                break
+            if total_samples is not None and len(entities) >= total_samples:
+                break
 
-        for inst in rows:
             ext_id = getattr(inst, "external_id", None)
             if not ext_id:
                 continue
@@ -155,6 +175,8 @@ def _fetch_entities_from_cdf(
             for p in include_properties:
                 if p in props:
                     entity_data[p] = props[p]
+
+            n_this_view += 1
 
             if total_samples is not None and len(entities) >= total_samples:
                 break
@@ -230,15 +252,14 @@ def main() -> int:
         )
         print(f"Wrote cache: {cache_path}")
 
-    # Run fn_dm_key_extraction handler in standalone mode with fetched entities.
-    data = {
-        "config": engine_config,
-        "entities": entities,
-        "logLevel": "DEBUG",
-        "verbose": False,
-    }
-    print("Running fn_dm_key_extraction.handler.handle() locally...")
-    result = handle(data, client=None)
+    # Standalone pipeline (cdf_config=None): dev sampling only; production uses workflow + incremental cohort.
+    log = StdlibLoggerAdapter(logging.getLogger("fn_dm_key_extraction_local"))
+    logging.basicConfig(level=logging.DEBUG)
+    engine = KeyExtractionEngine(engine_config)
+    data: Dict[str, Any] = {"entities": entities, "logLevel": "DEBUG"}
+    print("Running key_extraction pipeline in standalone mode (entities from CDF fetch/cache)...")
+    key_extraction(client=None, logger=log, data=data, engine=engine, cdf_config=None)
+    result = {"status": "succeeded"}
 
     results_path.parent.mkdir(parents=True, exist_ok=True)
     results_path.write_text(

@@ -1,83 +1,40 @@
-# Optional root `name`: display label in the Configure sidebar (omit or clear for default text).
 name: ''
-function_version: '1.0.0'
+function_version: 1.0.0
 organization: YourOrg
-
-# Update LOC to your location
 location_name: LOC
-
-# specify the name of the source making it possible to identify where the data originates from, ex: 'workmate', 'sap', 'oracle',..
-# Update SOURCE to your source
 source_name: SOURCE
 files_dataset: ingestion
-
 schemaSpace: cdf_cdm
 viewVersion: v1
-
 functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
-functionVersion: 'v1'
-
+functionVersion: v1
 workflow: key_extraction_aliasing
-
-# Scope artifact layout for python module.py build / scripts/build_scopes.py:
-# trigger_only — one root {workflow}.Workflow.yaml + {workflow}.WorkflowVersion.yaml (created if missing);
-#   flat workflows/{workflow}.<scope>.WorkflowTrigger.yaml per leaf. full — per leaf under workflows/<scope>/
-#   with {workflow}.<scope>.Workflow.yaml, WorkflowVersion, WorkflowTrigger (no root workflow pair).
 scope_build_mode: full
-
-# Remove generated Workflow/WorkflowVersion/WorkflowTrigger YAML under workflows/ (for the `workflow` id above):
-#   python module.py build --clean  (type yes to confirm; --yes if stdin is not a TTY; --dry-run --clean to list only).
-#   Does not run a build afterward. Unrelated to module.py --clean-state (RAW tables).
-
-# Schedule (UTC cron) applied to each generated workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml (or under workflows/<scope>/ in full mode).
-key_extraction_aliasing_schedule: "0 2 * * *"
-
-# source ID from Azure AD for the corresponding groups, ex 'c74797ce-9191-4a4a-9186-8fe21c54c3de'
+key_extraction_aliasing_schedule: 0 2 * * *
 files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
-
-# --- Multi-site scope tree (scripts/build_scopes.py) ---
-# Same structural pattern as cdf_access_control ``dimensions.<dimension_id>`` with ``type: hierarchy``:
-# optional ``order`` + ``type: hierarchy``, ``levels`` (tier labels), and nested ``locations`` on each node.
-# Tier labels follow the access-control scope tree style (``site``, ``unit``, …) — not generic ``level_1`` names.
-# Each node uses ``id`` (or ``name`` slug) for scope_id segments; nest children under ``locations``.
-# Regenerates workflows/.../key_extraction_aliasing.<scope>.WorkflowTrigger.yaml per leaf with
-# input.configuration patched from workflow_template/workflow.template.config.yaml.
-# Override scope body: --scope-document <path> (default workflow_template/workflow.template.config.yaml).
-# Override trigger shell: --workflow-trigger-template <path>.
-# See config/README.md. Override hierarchy file: scripts/build_scopes.py --hierarchy <file>
 aliasing_scope_hierarchy:
   order: 0
   type: hierarchy
   levels:
-    - site
-    - unit
-    - area
-    - system
+  - site
+  - unit
+  - area
+  - system
   locations:
-    # - id: global
-    #   name: Global Configuration
-    #   description: The configuration applies to all CogniteAsset, CogniteFile, and CogniteTimeSeries.  If you have multiple sites configurations, delete this scope and create a new scope for each site.
-    # Uncomment to add more levels, e.g.:
-    - id: SITE_01
-      name: First Manufacturing Site
-      description: First site (display name may contain spaces; id is the stable segment)
+  - id: SITE_01
+    name: First Manufacturing Site
+    description: First site (display name may contain spaces; id is the stable segment)
+  - id: SITE_02
+    name: Second Manufacturing Site
+    description: Second site (display name may contain spaces; id is the stable segment)
+    locations:
+    - id: PLANT_A
+      name: Production Plant A
       locations:
-        - id: PLANT_A
-          name: Production Plant A
-          locations:
-            - id: AREA_01
-              name: Production Area 1
-              locations:
-                - id: COOLING_SYS
-                  name: Cooling System
-                  description: Cooling system scope leaf
-    - id: SITE_04
-      name: Fourth Manufacturing Site
-      description: Second site (display name may contain spaces; id is the stable segment)
-    - id: SITE_02
-      name: Second Manufacturing Site
-      description: Second site (display name may contain spaces; id is the stable segment)
-    - id: SITE_03
-      name: Third Manufacturing Site
-      description: Third site (display name may contain spaces; id is the stable segment)
+      - id: AREA_01
+        name: Production Area 1
+        locations:
+        - id: COOLING_SYS
+          name: Cooling System
+          description: Cooling system scope leaf

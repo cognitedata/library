@@ -2,11 +2,8 @@
 Shared confidence scoring for key extraction.
 
 Handler usage:
-- RegexExtractionHandler: uses compute_confidence() for substring/token parity.
-- FixedWidthExtractionHandler: uses compute_fixed_width_confidence() for position-based parsing.
-- HeuristicExtractionHandler: inline weighted strategies and modifiers (no shared function).
-- TokenReassemblyExtractionHandler: uses assembly rule priority for confidence.
-- PassthroughExtractionHandler: uses rule min_confidence only (no content-based scoring).
+- Field-rule regex: uses compute_confidence() for substring/token parity vs source text.
+- Trim-only field rows: confidence 1.0 before validation / confidence_match_rules.
 
 Post-extraction confidence: ``validation.confidence_match_rules`` in the engine
 (``_validate_extraction_result``) may set or offset confidence per key before
@@ -98,25 +95,3 @@ def compute_confidence(
     matches = sum(1 for t in ext_tokens if t in src_tokens)
     ratio = matches / len(ext_tokens)
     return min(ratio, 0.70)
-
-
-def compute_fixed_width_confidence(
-    value: str,
-    field_type: str,
-    required: bool,
-    validate_fn=None,
-) -> float:
-    """
-    Confidence for fixed-width field extraction (position-based parsing).
-
-    Base 0.9; +0.05 if value passes field-type validation; +0.05 if required and present.
-    Capped at 1.0. Pass validate_fn from fixed_width_utils.validate_field_type to share logic.
-    """
-    if validate_fn is None:
-        from .fixed_width_utils import validate_field_type as validate_fn
-    base = 0.9
-    if validate_fn(value, field_type):
-        base += 0.05
-    if required:
-        base += 0.05
-    return min(base, 1.0)

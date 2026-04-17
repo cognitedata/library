@@ -530,10 +530,14 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
               </label>
               <label className="kea-label" title={t("scope.field.description.tooltip")}>
                 {t("scope.field.description")}
-                <input
-                  className="kea-input"
+                <textarea
+                  className="kea-textarea"
+                  rows={3}
                   value={selected.description ?? ""}
                   onChange={(e) => updateNode({ description: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  spellCheck={true}
+                  style={{ minHeight: "4.5rem", fontFamily: "inherit" }}
                 />
               </label>
               <p className="kea-hint" style={{ marginBottom: 0 }}>

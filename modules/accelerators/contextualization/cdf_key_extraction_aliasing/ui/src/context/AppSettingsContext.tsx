@@ -25,7 +25,18 @@ function readStoredTheme(): Theme | null {
 function readStoredLocale(): Locale | null {
   try {
     const v = localStorage.getItem(LOCALE_KEY);
-    if (v === "en" || v === "es" || v === "nb" || v === "ja" || v === "pt") return v;
+    if (
+      v === "en" ||
+      v === "es" ||
+      v === "nb" ||
+      v === "ja" ||
+      v === "pt" ||
+      v === "fr" ||
+      v === "de" ||
+      v === "zh" ||
+      v === "hi"
+    )
+      return v;
   } catch {
     /* ignore */
   }
@@ -77,7 +88,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useLayoutEffect(() => {
-    document.documentElement.lang = locale === "nb" ? "nb" : locale;
+    document.documentElement.lang = locale === "nb" ? "nb" : locale === "zh" ? "zh-CN" : locale;
   }, [locale]);
 
   const t = useMemo(() => createTranslator(locale), [locale]);

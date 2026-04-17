@@ -53,23 +53,20 @@ def test_scope_doc_omitted_aliasing_identity_passthrough():
         extraction_rules=[
             {
                 "name": "r1",
-                "handler": "passthrough",
+                "handler": "regex_handler",
                 "extraction_type": "candidate_key",
                 "enabled": True,
                 "priority": 1,
                 "scope_filters": {"entity_type": ["asset"]},
-                "parameters": {"min_confidence": 1.0},
-                "source_fields": [
+                "field_results_mode": "merge_all",
+                "fields": [
                     {
                         "field_name": "name",
                         "required": True,
-                        "field_type": "string",
                         "priority": 1,
-                        "role": "target",
                         "preprocessing": ["trim"],
                     }
                 ],
-                "field_selection_strategy": "first_match",
             }
         ],
     )
@@ -127,7 +124,7 @@ def test_scope_doc_empty_extraction_injects_per_entity_type():
     assert {v["entity_type"] for v in views} == {"asset", "timeseries"}
     assert len(ext["extraction_rules"]) == 2
     for r in ext["extraction_rules"]:
-        assert r.get("handler") == "passthrough"
+        assert r.get("handler") == "regex_handler"
 
 
 def test_load_configs_from_explicit_path(tmp_path: Path):

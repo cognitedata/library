@@ -14,7 +14,7 @@ import { matchConfigSearch } from "./utils/configPanelSearch";
 
 type Tab = "scope" | "configure" | "build" | "artifacts";
 
-type ConfigSubTab = "sourceViews" | "keyExtraction" | "aliasing";
+type ConfigSubTab = "sourceViews" | "keyExtraction" | "aliasing" | "runPipeline";
 
 type TriggerTopTab = "triggerAuth" | "schedule" | "pipeline";
 
@@ -70,9 +70,9 @@ type UnsavedPrompt =
 export default function App() {
   const { t, theme, setTheme, locale, setLocale } = useAppSettings();
 
-  const [tab, setTab] = useState<Tab>("scope");
+  const [tab, setTab] = useState<Tab>("configure");
   const [configureTarget, setConfigureTarget] = useState<ConfigureTarget>({ id: "workflowLocal" });
-  const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>("sourceViews");
+  const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>("aliasing");
   const [triggerTopTab, setTriggerTopTab] = useState<TriggerTopTab>("pipeline");
   const [configSearchQuery, setConfigSearchQuery] = useState("");
 
@@ -99,6 +99,8 @@ export default function App() {
   const [savedConfigTriggerSnap, setSavedConfigTriggerSnap] = useState("");
 
   const [buildLog, setBuildLog] = useState("");
+  const [runLog, setRunLog] = useState("");
+  const [runAll, setRunAll] = useState(false);
   const [artifactPaths, setArtifactPaths] = useState<string[]>([]);
   const [artifactPath, setArtifactPath] = useState<string | null>(null);
   const [artifactText, setArtifactText] = useState("");
@@ -323,6 +325,8 @@ export default function App() {
         return isConfigureDirty;
       case "artifacts":
         return isArtifactDirty;
+      case "build":
+        return false;
       default:
         return false;
     }
@@ -490,6 +494,39 @@ export default function App() {
     setArtifactPaths(art.paths ?? []);
   };
 
+  const runLocalPipeline = async () => {
+    setRunLog(`${t("status.running")}\n`);
+    const body: {
+      run_all: boolean;
+      target: "workflow_local" | "workflow_template" | "workflow_trigger";
+      workflow_trigger_rel?: string;
+    } = { run_all: runAll, target: "workflow_local" };
+    if (configureTarget.id === "workflowTemplate") {
+      body.target = "workflow_template";
+    } else if (configureTarget.id === "trigger") {
+      body.target = "workflow_trigger";
+      body.workflow_trigger_rel = configureTarget.path;
+    }
+    try {
+      const d = await api<{ exit_code: number; stdout: string; stderr: string }>("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      setRunLog(
+        `exit_code: ${d.exit_code}\n\n--- stdout ---\n${d.stdout}\n--- stderr ---\n${d.stderr}`
+      );
+    } catch (e) {
+      setRunLog(String(e));
+    }
+    try {
+      const art = await api<{ paths: string[] }>("/api/artifacts");
+      setArtifactPaths(art.paths ?? []);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const openArtifact = async (rel: string) => {
     setArtifactPath(rel);
     setArtifactPhase("status.loading");
@@ -607,13 +644,13 @@ export default function App() {
     [parsedConfigTrigger, mergeParsedTriggerDoc]
   );
 
-  const setTriggerFullRescan = (v: boolean) => {
+  const setTriggerRunAll = (v: boolean) => {
     if (!parsedConfigTrigger) return;
     const ti =
       triggerInput && typeof triggerInput === "object" && !Array.isArray(triggerInput)
         ? (triggerInput as JsonObject)
         : {};
-    const nextInput = { ...ti, full_rescan: v };
+    const nextInput = { ...ti, run_all: v };
     const nextDoc = { ...parsedConfigTrigger, input: nextInput };
     setConfigTriggerText(YAML.stringify(nextDoc, { lineWidth: 0 }));
   };
@@ -883,10 +920,61 @@ export default function App() {
     }
   };
 
+  const runContextLine = useMemo(() => {
+    if (configureTarget.id === "workflowLocal") return t("run.contextWorkflowLocal");
+    if (configureTarget.id === "workflowTemplate") return t("run.contextWorkflowTemplate");
+    const short = configureTarget.path.replace(/^workflows\//, "");
+    return t("run.contextWorkflowTrigger", { path: short });
+  }, [configureTarget, t]);
+
+  const configureRunPipelineSubpanel = (
+    <div className="kea-config-run">
+      <p className="kea-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
+        {runContextLine}
+      </p>
+      {configureTarget.id === "trigger" && isConfigTriggerDirty && (
+        <p className="kea-hint kea-hint--warn" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
+          {t("run.triggerUnsaved")}
+        </p>
+      )}
+      <div
+        className="kea-toolbar"
+        style={{
+          flexWrap: "wrap",
+          gap: "0.75rem",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+        }}
+      >
+        <button type="button" className="kea-btn kea-btn--primary" onClick={() => void runLocalPipeline()}>
+          {t("btn.runPipeline")}
+        </button>
+        <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}>
+          <input
+            type="checkbox"
+            checked={runAll}
+            onChange={(e) => setRunAll(e.target.checked)}
+          />
+          {t("run.runAll")}
+        </label>
+      </div>
+      <p className="kea-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
+        {t("run.runAllHint")}
+      </p>
+      <textarea
+        readOnly
+        className="kea-textarea kea-textarea--readonly"
+        value={runLog}
+        placeholder={t("run.outputPlaceholder")}
+        style={{ minHeight: 160, width: "100%" }}
+      />
+    </div>
+  );
+
   const tabs: { id: Tab; labelKey: MessageKey }[] = [
+    { id: "configure", labelKey: "tabs.configure" },
     { id: "scope", labelKey: "tabs.scope" },
     { id: "build", labelKey: "tabs.build" },
-    { id: "configure", labelKey: "tabs.configure" },
     { id: "artifacts", labelKey: "tabs.artifacts" },
   ];
 
@@ -894,6 +982,7 @@ export default function App() {
     { id: "sourceViews", labelKey: "tabs.sourceViews" },
     { id: "keyExtraction", labelKey: "tabs.keyExtraction" },
     { id: "aliasing", labelKey: "tabs.aliasing" },
+    { id: "runPipeline", labelKey: "tabs.runPipeline" },
   ];
 
   return (
@@ -1286,6 +1375,7 @@ export default function App() {
                     onChange={(v) => setWorkflowDoc((d) => ({ ...d, aliasing: v }))}
                   />
                 )}
+                {configSubTab === "runPipeline" && configureRunPipelineSubpanel}
                 <AdvancedYamlPanel
                   initialContent={workflowRawYaml}
                   onSaveRaw={async (content) => {
@@ -1431,11 +1521,11 @@ export default function App() {
                           {t("triggerEditor.section.input")}
                         </p>
                         <label className="kea-label">
-                          {t("artifacts.fullRescan")}
+                          {t("artifacts.runAll")}
                           <input
                             type="checkbox"
-                            checked={Boolean((triggerInput as JsonObject | undefined)?.full_rescan)}
-                            onChange={(e) => setTriggerFullRescan(e.target.checked)}
+                            checked={Boolean((triggerInput as JsonObject | undefined)?.run_all)}
+                            onChange={(e) => setTriggerRunAll(e.target.checked)}
                           />
                         </label>
                         <label className="kea-label">
@@ -1517,6 +1607,7 @@ export default function App() {
                             onChange={(v) => setTriggerAliasing(v)}
                           />
                         )}
+                        {configSubTab === "runPipeline" && configureRunPipelineSubpanel}
                       </>
                     )}
                   </>

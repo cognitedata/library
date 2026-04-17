@@ -79,13 +79,12 @@ class SourceFieldParameter(BaseModel):
 
 
 class ExtractionMethod(Enum):
-    """Enumeration of available extraction methods (passthrough is the default when omitted)."""
+    """Handler ids registered on KeyExtractionEngine (extract_from_entity)."""
 
-    PASSTHROUGH = "passthrough"  # Use entire field value as key (no regex/parsing)
-    REGEX = "regex"
-    FIXED_WIDTH = "fixed width"
-    TOKEN_REASSEMBLY = "token reassembly"
+    REGEX_HANDLER = "regex_handler"
     HEURISTIC = "heuristic"
+    # Legacy / unknown config values map here until migrated
+    UNSUPPORTED = "unsupported"
 
 
 class ExtractionType(Enum):
@@ -110,26 +109,18 @@ class SourceField:
 
 @dataclass
 class ExtractionRule:
-    """Configuration for an individual extraction rule."""
+    """Configuration for an individual extraction rule (informative; runtime uses Pydantic ExtractionRuleConfig)."""
 
     name: str
     description: str = ""
     extraction_type: ExtractionType = ExtractionType.CANDIDATE_KEY
-    handler: ExtractionMethod = ExtractionMethod.REGEX
-    pattern: str = ""
+    handler: ExtractionMethod = ExtractionMethod.REGEX_HANDLER
     priority: int = 50
     enabled: bool = True
     scope_filters: Dict[str, Any] = field(default_factory=dict)
-    min_confidence: float = 0.3
-    case_sensitive: bool = False
-    aliasing_rules: List[Dict[str, Any]] = field(default_factory=list)
-    source_fields: List[SourceField] = field(default_factory=list)
+    fields: List[SourceField] = field(default_factory=list)
     config: Dict[str, Any] = field(default_factory=dict)
-    composite_strategy: Optional[
-        str
-    ] = None  # "concatenate", "token_reassembly", "context_aware"
-    # How to handle multiple source fields for a single rule: first_match, merge_all
-    field_selection_strategy: Optional[str] = None
+    field_results_mode: str = "merge_all"
 
 
 class ExtractedKey:
@@ -144,6 +135,7 @@ class ExtractedKey:
         method: ExtractionMethod,
         rule_id: str,
         metadata: Optional[Dict[str, Any]] = None,
+        source_inputs: Optional[Dict[str, str]] = None,
     ):
         self.value = value
         # Normalize to enum if passed as string (e.g. from handlers)
@@ -153,10 +145,17 @@ class ExtractedKey:
         self.source_field = source_field
         self._confidence = round(confidence, 2)  # Truncate to 2 decimal places
         if isinstance(method, str) and method in [e.value for e in ExtractionMethod]:
-            method = ExtractionMethod(method)
+            try:
+                method = ExtractionMethod(method)
+            except ValueError:
+                method = ExtractionMethod.UNSUPPORTED
         self.method = method
         self.rule_id = rule_id
         self.metadata = metadata if metadata is not None else {}
+        # Full field text(s) read from the entity that this key was derived from (variable/field_name -> text).
+        self.source_inputs: Dict[str, str] = (
+            dict(source_inputs) if source_inputs else {}
+        )
 
     @property
     def confidence(self) -> float:
@@ -169,10 +168,11 @@ class ExtractedKey:
         self._confidence = round(value, 2)
 
     def __repr__(self) -> str:
+        si = f", source_inputs={self.source_inputs!r}" if self.source_inputs else ""
         return (
             f"ExtractedKey(value={self.value!r}, extraction_type={self.extraction_type!r}, "
             f"source_field={self.source_field!r}, confidence={self._confidence}, "
-            f"method={self.method!r}, rule_id={self.rule_id!r})"
+            f"method={self.method!r}, rule_id={self.rule_id!r}{si})"
         )
 
 

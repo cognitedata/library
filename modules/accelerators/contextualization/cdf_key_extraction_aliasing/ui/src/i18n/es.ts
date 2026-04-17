@@ -12,6 +12,7 @@ export const es: Messages = {
   "tabs.sourceViews": "Vistas de origen",
   "tabs.keyExtraction": "Descubrimiento de claves",
   "tabs.aliasing": "Alias",
+  "tabs.runPipeline": "Ejecutar pipeline",
   "tabs.configure": "Configurar",
   "tabs.build": "Compilar",
   "tabs.artifacts": "Artefactos",
@@ -35,6 +36,7 @@ export const es: Messages = {
   "btn.refreshList": "Actualizar lista",
   "btn.runBuild": "Ejecutar compilación",
   "btn.runBuildForce": "Ejecutar compilación (forzar)",
+  "btn.runPipeline": "Ejecutar pipeline",
   "btn.dryRun": "Simulación en seco",
   "status.loading": "Cargando…",
   "status.saving": "Guardando…",
@@ -70,6 +72,15 @@ export const es: Messages = {
   "build.confirmForce": "¿Sobrescribir los archivos del flujo generados con --force?",
   "build.outputPlaceholder": "La salida de compilación aparecerá aquí.",
   "build.panelTitle": "Compilación sin conexión",
+  "run.contextWorkflowLocal": "Usa workflow.local.config.yaml (guardado en disco).",
+  "run.contextWorkflowTemplate": "Usa workflow_template/workflow.template.config.yaml (guardado en disco).",
+  "run.contextWorkflowTrigger":
+    "Usa input.configuration del archivo WorkflowTrigger guardado ({path}). Guarde el archivo antes de ejecutar para aplicar los cambios del editor.",
+  "run.triggerUnsaved": "Hay cambios sin guardar en este disparador: la ejecución usa el último archivo guardado en disco.",
+  "run.runAll": "Ejecutar todo (--all)",
+  "run.runAllHint":
+    "Si el modo incremental está activo, procesa el alcance completo (equivalente a run_all en el workflow). Sin efecto si el modo incremental está desactivado.",
+  "run.outputPlaceholder": "Aquí aparecerá la salida del pipeline.",
   "scope.levelsLabel": "Niveles (separados por comas)",
   "scope.levelsLabel.tooltip":
     "Etiquetas ordenadas para cada profundidad (p. ej. site, unit, system). Separadas por comas.",
@@ -156,14 +167,12 @@ export const es: Messages = {
   "keyExtraction.addParam": "Añadir parámetro",
   "keyExtraction.dataYaml": "config.data — reglas y estrategia (YAML)",
   "keyExtraction.dataYamlHint":
-    "extraction_rules, field_selection_strategy y demás claves excepto validation — en key_extraction.config.data",
+    "extraction_rules (fields[], handler, field_results_mode, …) y demás claves excepto validation — en key_extraction.config.data",
   "keyExtraction.validationYaml": "config.data.validation (YAML)",
   "keyExtraction.validationYamlHint":
     "Validación global de claves extraídas (min_confidence, max_keys_per_type, confidence_match_rules, …).",
   "keyExtraction.advancedRulesYaml": "Editar reglas y estrategia como YAML (avanzado)",
-  "discoveryRules.fieldSelectionStrategy": "Selección de campo por defecto (field_selection_strategy)",
-  "discoveryRules.fieldSelectionInherit": "Sin definir (por regla o motor)",
-  "discoveryRules.compositeStrategyUnset": "Ninguna (campo único / comportamiento por defecto)",
+  "discoveryRules.fieldResultsModeInherit": "Sin definir (predeterminado del motor: merge_all)",
   "discoveryRules.extraKeysPreserved": "Se conservan otras claves en config.data: {keys}",
   "discoveryRules.rule.name": "Nombre de regla",
   "discoveryRules.rule.enabled": "Activada",
@@ -171,12 +180,16 @@ export const es: Messages = {
   "discoveryRules.rule.moveDown": "Bajar regla",
   "discoveryRules.rule.remove": "Eliminar regla",
   "discoveryRules.rule.handler": "Handler",
+  "discoveryRules.handlerOption.regex_handler": "Regex handler",
+  "discoveryRules.handlerOption.field_rule_fixed_width": "Field rule (anchura fija)",
+  "discoveryRules.handlerOption.heuristic": "Heurística",
   "discoveryRules.rule.extractionType": "Tipo de extracción",
   "discoveryRules.rule.priority": "Prioridad",
-  "discoveryRules.rule.fieldSelectionStrategy": "Selección de campo (por regla)",
-  "discoveryRules.rule.compositeStrategy": "Estrategia compuesta (multiples campos)",
-  "discoveryRules.rule.compositeStrategyHint":
-    "concatenate: unir varios source_fields (role: target) con field_separator y field_order opcional en parameters. token_reassembly: handler token reassembly y tokenization en parameters. context_aware: extraer de targets con campos de contexto (role: context) en el handler.",
+  "discoveryRules.rule.orderSetsPriority":
+    "El orden de la lista define la prioridad (arriba se ejecuta primero). Use ↑ y ↓ con «Todas las reglas».",
+  "discoveryRules.rule.fieldResultsMode": "Modo de resultados por campo (field_results_mode)",
+  "discoveryRules.rule.resultTemplate": "Plantilla de resultado (result_template)",
+  "discoveryRules.rule.maxTemplateCombinations": "Máx. combinaciones de plantilla (max_template_combinations)",
   "discoveryRules.rule.description": "Descripción",
   "discoveryRules.rule.entityTypesCsv": "Tipos de entidad (separados por comas)",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
@@ -187,45 +200,63 @@ export const es: Messages = {
   "discoveryRules.handlerFields.maxMatchesPerField": "max_matches_per_field",
   "discoveryRules.handlerFields.earlyTermination": "early_termination",
   "discoveryRules.handlerFields.regexOptions": "regex_options",
-  "discoveryRules.handlerFields.encoding": "encoding",
-  "discoveryRules.handlerFields.fieldDefinitions": "field_definitions",
-  "discoveryRules.handlerFields.addFieldDefinition": "Añadir campo",
-  "discoveryRules.handlerFields.separatorPatternsCsv": "Patrones separadores (separados por comas)",
-  "discoveryRules.handlerFields.assemblyRulesYaml": "assembly_rules (lista YAML)",
-  "discoveryRules.handlerFields.scoringMinConfidence": "scoring.min_confidence",
-  "discoveryRules.handlerFields.heuristicStrategiesYaml": "heuristic_strategies (lista YAML)",
   "discoveryRules.rule.parametersYamlHint":
-    "parameters (YAML) — la plantilla coincide con el handler seleccionado; al cambiarlo se recarga.",
-  "discoveryRules.handlerDoc.passthrough":
-    "Passthrough: set min_confidence (often 1.0). The processed field value is emitted as the key.",
-  "discoveryRules.handlerDoc.regex":
-    "Regex: pattern, regex_options, and optional validation_pattern, capture_groups, reassemble_format, max_matches_per_field.",
-  "discoveryRules.handlerDoc.fixedWidth":
-    "Fixed width: field_definitions (positions), plus encoding, line/record options as needed.",
-  "discoveryRules.handlerDoc.tokenReassembly":
-    "Token reassembly: tokenization (separators, token_patterns) and assembly_rules to rebuild tags.",
+    "parameters (YAML) — obligatorio para heuristic (strategies, max_candidates_per_field); opcional para regex_handler.",
+  "discoveryRules.rule.parametersYamlHintHeuristic":
+    "parameters (YAML) — strategies, pesos y max_candidates_per_field (obligatorio para heuristic).",
+  "discoveryRules.handlerDoc.regex_handler":
+    "regex_handler: fields[] declarativos con regex / regex_options por campo; opcional result_template y field_results_mode.",
+  "discoveryRules.handlerDoc.field_rule_fixed_width":
+    "field_rule_fixed_width: igual que regex_handler más fixed_width en campos (p. ej. {0:3}-{7:13}).",
   "discoveryRules.handlerDoc.heuristic":
-    "Heuristic: heuristic_strategies (each nested strategy has its own method/config) and scoring.",
-  "discoveryRules.rule.sourceFieldsYamlHint":
-    "source_fields — propiedades de vista que alimentan el descubrimiento (una o más filas). Las claves desconocidas se pueden editar en YAML bruto.",
-  "discoveryRules.rawSourceFieldsYaml": "source_fields en bruto (YAML)",
+    "heuristic: parameters.strategies (delimiter_split, sliding_token, …) y max_candidates_per_field; liste fields a escanear.",
+  "discoveryRules.handlerFields.fieldRuleParametersHint":
+    "Regex, variable y límites por campo se editan abajo. Use YAML en bruto para regex_options u otras claves.",
+  "discoveryRules.handlerFields.fieldRuleFixedWidthHint":
+    "Use fixed_width en cada fila (p. ej. {0:3}-{7:13}); otros campos pueden seguir con regex o solo trim.",
+  "discoveryRules.handlerFields.heuristicParametersHint":
+    "Edite strategies y límites en parameters YAML abajo (o Raw parameters).",
+  "discoveryRules.rule.fieldsYamlHint":
+    "fields — propiedades de vista para esta regla (una o más filas). Añada regex, fixed_width, variable o claves en YAML.",
+  "discoveryRules.rawFieldsYaml": "fields en bruto (YAML)",
   "discoveryRules.sourceFields.addField": "Añadir campo de origen",
   "discoveryRules.sourceFields.removeField": "Eliminar",
   "discoveryRules.sourceFields.fieldName": "field_name",
+  "discoveryRules.sourceFields.variable": "variable (para result_template)",
+  "discoveryRules.sourceFields.variablePlaceholder": "omitir para usar field_name",
+  "discoveryRules.sourceFields.regex": "regex (vacío = passthrough)",
+  "discoveryRules.sourceFields.regexPlaceholder": "Patrón; vacío = passthrough (valor recortado)",
+  "discoveryRules.sourceFields.fixedWidth": "fixed_width",
+  "discoveryRules.sourceFields.maxMatchesPerField": "max_matches_per_field",
+  "discoveryRules.sourceFields.heuristicFieldsHint":
+    "Liste las propiedades a escanear (field_name); los candidatos salen de heuristic parameters, no de regex por campo.",
   "discoveryRules.sourceFields.required": "required",
   "discoveryRules.sourceFields.priority": "priority",
   "discoveryRules.sourceFields.maxLength": "max_length",
   "discoveryRules.sourceFields.role": "role",
   "discoveryRules.sourceFields.tableId": "table_id (opcional)",
   "discoveryRules.sourceFields.preprocessingCsv": "preprocessing (pasos separados por comas)",
+  "discoveryRules.sourceFields.preprocessingCsv.tooltip":
+    "Los pasos se ejecutan en orden; los nombres distinguen mayúsculas (use trim, no Trim).\n\n" +
+    "Paso | Efecto | Descripción\n" +
+    "trim | strip() | Quitar espacios al inicio y al final.\n" +
+    "lowercase | lower() | Pasar a minúsculas.\n" +
+    "uppercase | upper() | Pasar a mayúsculas.\n" +
+    "remove_special_chars | quitar caracteres | Elimina todo salvo letras, dígitos, guion bajo, espacios y guion (regex [^\\w\\s-]).\n\n" +
+    "Después se trunca el valor a max_length (campo de arriba).",
   "discoveryRules.rule.add": "Añadir regla de extracción",
   "rulesEntity.sidebarTitle": "Tipo de entidad",
   "rulesEntity.sidebarAria": "Filtrar reglas por tipo de entidad",
-  "rulesEntity.bucket.unscoped": "Sin ámbito",
+  "rulesEntity.bucket.global": "Global",
   "rulesEntity.bucket.all": "Todas las reglas",
   "rulesEntity.reorderHint":
-    "Use «Todas las reglas» a la izquierda para subir o bajar el orden global.",
+    "↑ / ↓ cambian el orden de la lista completa (prioridad). Si filtra por tipo de entidad, el movimiento puede intercambiar con una regla no visible—abra **Todas las reglas** para ver todas.",
   "rulesEntity.emptyForBucket": "No hay reglas para esta selección. Añada una o elija otro tipo.",
+  "rulesEntity.ruleExpandDetails": "Expandir regla — editor completo",
+  "rulesEntity.ruleCollapseDetails": "Contraer regla — solo nombre y descripción",
+  "rulesEntity.dragReorderRules":
+    "Arrastre reglas para el orden de prioridad. Contraída (▶) muestra solo nombre y descripción; expanda para el formulario completo.",
+  "rulesEntity.dragHandle": "Arrastrar para reordenar la prioridad de la regla",
   "editor.subtab.rules": "Reglas",
   "editor.subtab.validation": "Validación",
   "editor.subtab.settings": "Configuración",
@@ -336,6 +367,8 @@ export const es: Messages = {
   "validationEditor.rule.modifierOffset": "offset (sumar a la confianza)",
   "validationEditor.rule.modifierExplicit": "explicit (fijar confianza)",
   "validationEditor.rule.modifierValue": "Valor",
+  "validationEditor.orderSetsPriority":
+    "El orden de la lista define el orden de evaluación. Arrastre una tarjeta o use ↑ / ↓ (la prioridad numérica de cada regla sigue aplicándose si está definida).",
   "validationEditor.rule.addRule": "Añadir regla",
   "validationEditor.advancedYaml": "Editar validation como YAML (avanzado)",
   "validationEditor.rulesYamlInvalidMerge":
@@ -365,7 +398,7 @@ export const es: Messages = {
   "artifacts.sub.views": "Vistas de origen",
   "artifacts.sub.extraction": "Descubrimiento de claves",
   "artifacts.sub.aliasing": "Alias",
-  "artifacts.fullRescan": "Reexploración completa",
+  "artifacts.runAll": "Ejecutar todo",
   "artifacts.runId": "Id. de ejecución",
   "artifacts.plainEditor": "Editor YAML plano",
   "artifacts.treeExpand": "Expandir",

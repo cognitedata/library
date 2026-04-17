@@ -11,6 +11,8 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 | [Module functional document](module_functional_document.md) | Everyone                      | End-to-end scope, behaviors, components, data flows, interfaces (points to deep specs) |
 | [Module README](../README.md)                              | Everyone                      | What the module does, prerequisites, [Local runs (module.py)](../README.md#local-runs-modulepy), [Python API](../README.md#python-api), [custom handlers how-to](guides/howto_custom_handlers.md), pointers to deeper docs |
 | [Quickstart — local `module.py`](guides/howto_quickstart.md) | Everyone                      | `.env` at repo root, `PYTHONPATH=.`, run `module.py`, read outputs under `tests/results/` |
+| [Build configuration (YAML)](guides/howto_config_yaml.md)   | Authors                       | v1 scope files, `default.config.yaml` hierarchy, template alignment, `module.py build` / `run`, deploy pointers |
+| [Build configuration (UI)](guides/howto_config_ui.md)      | Authors / operators           | Local operator UI + API: edit scope/template/triggers, run build and pipeline, `run_all` / `--all`, security notes |
 | [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `aliasing_scope_hierarchy`, `module.py build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
 | [Logging (CDF functions)](guides/logging_cdf_functions.md) | Developers / workflow authors | `logLevel` / `verbose`, required logger methods, optional handler injection           |
 | [Config layout](../config/README.md)                       | Authors                       | Module-root scope YAML (`workflow.local.config.yaml`), `default.config.yaml` `aliasing_scope_hierarchy`, `tag_patterns.yaml`, `config/examples/`, v1 scope shape, `build_scopes.py`, `module.py build` (create missing triggers), `build --clean` (remove generated `workflows/` YAML), `--check-workflow-triggers` |
@@ -34,11 +36,13 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 **See also:** [Module functional document](module_functional_document.md) (§3.4 Incremental processing), [Configuration guide](guides/configuration_guide.md) (subsection *Incremental mode, Key Discovery FDM, and RAW cohort*), [Workflows README](../workflows/README.md) (incremental state task), [module README](../README.md) (*Incremental cohort processing*), [Scoped deployment](guides/howto_scoped_deployment.md) (*Key Discovery data model*).
 
 
-## Configuration (YAML and parameters)
+## Configuration (YAML, UI, and parameters)
 
 
 | Document                                                                                    | Contents                                                                                             |
 | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [How to build configuration (YAML)](guides/howto_config_yaml.md)                          | File-based authoring: scope vs `default.config.yaml` vs template, build, run, deploy                 |
+| [How to build configuration (UI)](guides/howto_config_ui.md)                               | Operator UI + API: dev setup, tabs, sync template, run targets, `run_all`                            |
 | [Configuration guide](guides/configuration_guide.md)                                        | Pipeline YAML, `source_views`, filters, validation, aliasing parameters, `alias_mapping_table` (RAW) |
 | [Reference YAML (flat)](../config/examples/reference/config_example_complete.yaml)          | Exhaustive field listing                                                                             |
 | [Reference scope YAML](../config/examples/reference/reference_key_extraction_aliasing.yaml) | Same fields as above in `key_extraction_aliasing` document shape                                     |
@@ -101,7 +105,7 @@ Additional design notes may exist alongside this tree in git history or team wik
 
 ## Package entry points (code)
 
-- **CLI**: `module.py` — [Quickstart](guides/howto_quickstart.md), [module README](../README.md) (*Local runs*), [Scoped deployment](guides/howto_scoped_deployment.md) for `--build` / triggers
+- **CLI**: `module.py` — [Quickstart](guides/howto_quickstart.md), [module README](../README.md) (*Local runs*), [Scoped deployment](guides/howto_scoped_deployment.md) for `--build` / triggers; **UI**: [How to build configuration with the UI](guides/howto_config_ui.md)
 - **Engines**: `functions/fn_dm_key_extraction/engine/`, `functions/fn_dm_aliasing/engine/`
 - **CDF handlers**: `functions/fn_dm_key_extraction/handler.py`, `functions/fn_dm_aliasing/handler.py`, `functions/fn_dm_alias_persistence/handler.py`
 - **Scope tooling**: `scripts/build_scopes.py`, `scripts/scope_build/registry.py`
