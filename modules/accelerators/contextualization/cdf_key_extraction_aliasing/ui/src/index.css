@@ -638,6 +638,27 @@ code {
   flex-wrap: wrap;
 }
 
+.kea-modal-backdrop--flow-node-editor {
+  z-index: 1200;
+}
+
+.kea-modal--flow-node-editor {
+  width: 100%;
+  max-width: min(96vw, 960px);
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.25rem;
+}
+
+.kea-modal__body--scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  max-height: min(68vh, 640px);
+  padding-right: 0.25rem;
+}
+
 /* —— Toolbar —— */
 
 .kea-toolbar {
@@ -2181,4 +2202,433 @@ code {
 .kea-drag-handle__grip {
   letter-spacing: -0.12em;
   font-weight: 600;
+}
+
+/* Workflow flow canvas (React Flow) */
+.kea-flow-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: var(--kea-bg);
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
+}
+
+.kea-flow-fullscreen__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-flow-fullscreen__title-row {
+  min-width: 0;
+  flex: 1;
+}
+
+.kea-flow-fullscreen__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.kea-flow-fullscreen__config-name {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(40rem, 70vw);
+}
+
+.kea-flow-fullscreen__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* No right padding so the inspector column can sit flush with the viewport edge */
+  padding: 0.75rem 0 1rem 1rem;
+  overflow: hidden;
+}
+
+.kea-flow-fullscreen .kea-flow-shell {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+
+/* Dock the right panel to the screen edge (avoid double gap from radius + body padding) */
+.kea-flow-fullscreen .kea-flow-shell__right {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.kea-flow-fullscreen .kea-flow-palette,
+.kea-flow-fullscreen .kea-flow-inspector {
+  max-height: none;
+}
+
+.kea-flow-fullscreen .kea-flow-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.kea-flow-fullscreen .kea-flow-canvas-wrap .react-flow {
+  min-height: 0;
+}
+
+.kea-flow-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+  margin-bottom: 0.75rem;
+}
+
+.kea-flow-preview__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.kea-flow-preview__canvas {
+  height: min(52vh, 520px);
+  min-height: 280px;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  overflow: hidden;
+}
+
+.kea-flow-preview__canvas .react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+.kea-flow-shell {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  min-height: min(70vh, 720px);
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.kea-flow-shell__left,
+.kea-flow-shell__right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-surface);
+}
+
+.kea-flow-shell__left--collapsed,
+.kea-flow-shell__right--collapsed {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.25rem 0;
+}
+
+.kea-flow-shell__panel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.35rem 0.45rem 0.3rem;
+  border-bottom: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-flow-shell__panel-bar--end {
+  flex-direction: row;
+}
+
+.kea-flow-shell__panel-bar-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--kea-text-muted);
+}
+
+.kea-flow-shell__panel-bar-btn {
+  min-width: 1.65rem;
+  padding: 0.15rem 0.35rem !important;
+  line-height: 1.2;
+}
+
+.kea-flow-shell__resize {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  align-self: stretch;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  margin: 0 1px;
+  border-radius: 3px;
+  touch-action: none;
+}
+
+.kea-flow-shell__resize:hover,
+.kea-flow-shell__resize:focus-visible {
+  background: color-mix(in srgb, var(--kea-primary) 25%, transparent);
+  outline: none;
+}
+
+.kea-flow-shell__reveal {
+  border: none;
+  background: transparent;
+  color: var(--kea-text);
+  cursor: pointer;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.75rem 0.2rem;
+  border-radius: var(--kea-radius-sm);
+  width: 100%;
+  flex: 1;
+  min-height: 5rem;
+}
+
+.kea-flow-shell__reveal:hover {
+  background: var(--kea-bg-elevated);
+}
+
+.kea-flow-shell__left .kea-flow-palette,
+.kea-flow-shell__right .kea-flow-inspector {
+  flex: 1;
+  min-height: 0;
+}
+
+.kea-flow-palette {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.65rem 0.5rem;
+  overflow: auto;
+  max-height: none;
+}
+
+.kea-flow-palette__heading {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--kea-text-muted);
+  margin: 0.5rem 0 0.35rem;
+}
+
+.kea-flow-palette__heading:first-child {
+  margin-top: 0;
+}
+
+.kea-flow-palette__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kea-flow-palette__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.kea-flow-palette__list--scroll {
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.kea-flow-palette__item {
+  width: 100%;
+  text-align: left;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+  color: var(--kea-text);
+  cursor: grab;
+}
+
+.kea-flow-palette__item:hover {
+  border-color: var(--kea-border-strong);
+}
+
+.kea-flow-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.kea-flow-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.kea-flow-canvas-wrap {
+  flex: 1;
+  min-height: 420px;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  overflow: hidden;
+}
+
+.kea-flow-canvas-wrap .react-flow {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.kea-flow-minimap {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.kea-flow-inspector {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.65rem 0.75rem 0.75rem;
+  overflow: auto;
+  max-height: none;
+}
+
+.kea-flow-inspector__title {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+.kea-flow-node {
+  min-width: 8.5rem;
+  max-width: 12rem;
+  padding: 0.45rem 0.55rem 0.55rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border-strong);
+  background: var(--kea-bg-elevated);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  box-shadow: var(--kea-shadow);
+}
+
+.kea-flow-node--selected {
+  outline: 2px solid var(--kea-primary-ring);
+  border-color: var(--kea-primary);
+}
+
+.kea-flow-node__badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kea-text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.kea-flow-node__title {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.kea-flow-node__meta {
+  font-size: 0.72rem;
+  color: var(--kea-text-muted);
+  font-family: ui-monospace, monospace;
+  margin-top: 0.2rem;
+  word-break: break-all;
+}
+
+.kea-flow-node--source {
+  border-left: 3px solid var(--kea-accent);
+}
+
+.kea-flow-node--start {
+  border-left: 3px solid #15803d;
+}
+
+.kea-flow-node--end {
+  border-left: 3px solid #be123c;
+}
+
+.kea-flow-node--extract {
+  border-left: 3px solid var(--kea-primary);
+}
+
+.kea-flow-node--alias {
+  border-left: 3px solid #b45309;
+}
+
+.kea-flow-node--validation {
+  border-left: 3px solid #7c3aed;
+}
+
+.kea-flow-node--validation-rule {
+  border-left: 3px solid #a855f7;
+}
+
+.kea-flow-node--persist-alias {
+  border-left: 3px solid #0d9488;
+}
+
+.kea-flow-node--ref-index {
+  border-left: 3px solid #0369a1;
+}
+
+@media (max-width: 1100px) {
+  .kea-flow-shell {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .kea-flow-shell__resize {
+    display: none;
+  }
+
+  .kea-flow-shell__left:not(.kea-flow-shell__left--collapsed),
+  .kea-flow-shell__right:not(.kea-flow-shell__right--collapsed) {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    max-height: 18rem;
+  }
+
+  .kea-flow-palette {
+    max-height: 14rem;
+  }
+
+  .kea-flow-inspector {
+    max-height: 20rem;
+  }
 }

@@ -53,6 +53,27 @@ def _scope_document_path(rel: str | None) -> Path:
     return _safe_rel_path(r)
 
 
+def _canvas_document_path(scope_rel: str | None) -> Path:
+    """Sibling layout file: workflow.local.config.yaml -> workflow.local.canvas.yaml."""
+    scope = _scope_document_path(scope_rel)
+    name = scope.name
+    parent = scope.parent
+    lower = name.lower()
+    if lower.endswith(".config.yaml"):
+        stem = name[: -len(".config.yaml")]
+        return parent / f"{stem}.canvas.yaml"
+    if lower.endswith(".config.yml"):
+        stem = name[: -len(".config.yml")]
+        return parent / f"{stem}.canvas.yml"
+    if lower.endswith(".yaml"):
+        stem = name[: -len(".yaml")]
+        return parent / f"{stem}.canvas.yaml"
+    if lower.endswith(".yml"):
+        stem = name[: -len(".yml")]
+        return parent / f"{stem}.canvas.yml"
+    return parent / f"{name}.canvas.yaml"
+
+
 class YamlBody(BaseModel):
     content: str = Field(..., description="Full YAML text")
 
@@ -184,6 +205,89 @@ def put_scope_document_model(
     rel: str | None = Query(None, description="Path under module root"),
 ) -> dict:
     path = _scope_document_path(rel)
+    try:
+        text = yaml.safe_dump(
+            model,
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True,
+        )
+        yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML structure: {e}") from e
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    r = str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
+    return {"ok": True, "path": r}
+
+
+@app.get("/api/canvas-document")
+def get_canvas_document(
+    rel: str | None = Query(
+        None,
+        description="Scope document path under module root (canvas sibling is derived)",
+    ),
+) -> dict:
+    """Layout-only canvas YAML paired with the scope document (e.g. workflow.local.canvas.yaml)."""
+    path = _canvas_document_path(rel)
+    r = str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
+    if not path.is_file():
+        return {"path": r, "scope_rel": str(_scope_document_path(rel).relative_to(MODULE_ROOT)).replace("\\", "/"), "content": ""}
+    return {
+        "path": r,
+        "scope_rel": str(_scope_document_path(rel).relative_to(MODULE_ROOT)).replace("\\", "/"),
+        "content": path.read_text(encoding="utf-8"),
+    }
+
+
+@app.put("/api/canvas-document")
+def put_canvas_document(
+    body: YamlBody,
+    rel: str | None = Query(
+        None,
+        description="Scope document path under module root (canvas sibling is derived)",
+    ),
+) -> dict:
+    path = _canvas_document_path(rel)
+    try:
+        yaml.safe_load(body.content)
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML: {e}") from e
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body.content, encoding="utf-8")
+    r = str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
+    return {"ok": True, "path": r}
+
+
+@app.get("/api/canvas-document/model")
+def get_canvas_document_model(
+    rel: str | None = Query(
+        None,
+        description="Scope document path under module root",
+    ),
+) -> Dict[str, Any]:
+    path = _canvas_document_path(rel)
+    if not path.is_file():
+        return {}
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=500, detail="Canvas document root must be a mapping")
+    return data
+
+
+@app.put("/api/canvas-document/model")
+def put_canvas_document_model(
+    model: Dict[str, Any] = Body(...),
+    rel: str | None = Query(
+        None,
+        description="Scope document path under module root",
+    ),
+) -> dict:
+    path = _canvas_document_path(rel)
     try:
         text = yaml.safe_dump(
             model,

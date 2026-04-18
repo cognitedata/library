@@ -12,7 +12,7 @@ export type TreeCtxMenuItem = {
 export function useTreeContextMenuState() {
   const [menu, setMenu] = useState<null | { x: number; y: number; items: TreeCtxMenuItem[] }>(null);
   const close = useCallback(() => setMenu(null), []);
-  const open = useCallback((e: MouseEvent, items: TreeCtxMenuItem[]) => {
+  const open = useCallback((e: MouseEvent | globalThis.MouseEvent, items: TreeCtxMenuItem[]) => {
     e.preventDefault();
     e.stopPropagation();
     setMenu({ x: e.clientX, y: e.clientY, items });

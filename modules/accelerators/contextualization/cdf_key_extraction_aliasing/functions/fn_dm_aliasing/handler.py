@@ -20,6 +20,7 @@ from cdf_fn_common.scope_document_dm import ensure_aliasing_config_from_scope_dm
 from cdf_adapter import (
     _DEFAULT_ALIASING_VALIDATION,
     _convert_yaml_direct_to_aliasing_config,
+    scope_has_key_extraction_rules,
 )
 from dependencies import create_client, get_env_variables
 from .engine.tag_aliasing_engine import AliasingEngine
@@ -68,14 +69,25 @@ def handle(
             if isinstance(provided_config, dict):
                 unwrapped = provided_config.get("config", provided_config)
                 # CDF/workflow-shaped aliasing config
-                if (
-                    isinstance(unwrapped, dict)
-                    and "data" in unwrapped
-                    and isinstance(unwrapped.get("data"), dict)
-                    and "aliasing_rules" in unwrapped.get("data", {})
-                ):
+                al_data = (
+                    unwrapped.get("data", {})
+                    if isinstance(unwrapped, dict) and isinstance(unwrapped.get("data"), dict)
+                    else {}
+                )
+                scope_doc = data.get("configuration") or data.get("scope_document")
+                use_workflow_yaml = isinstance(unwrapped, dict) and isinstance(
+                    unwrapped.get("data"), dict
+                ) and (
+                    "aliasing_rules" in al_data
+                    or "pathways" in al_data
+                    or scope_has_key_extraction_rules(
+                        scope_doc if isinstance(scope_doc, dict) else None
+                    )
+                )
+                if use_workflow_yaml:
                     aliasing_config = _convert_yaml_direct_to_aliasing_config(
-                        {"config": unwrapped}
+                        {"config": unwrapped},
+                        scope_document=scope_doc if isinstance(scope_doc, dict) else None,
                     )
                     log.info("Using workflow-provided aliasing config")
 

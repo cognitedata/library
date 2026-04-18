@@ -111,7 +111,9 @@ class _ViewConfigAdapter:
             version=self.view_version,
         )
 
-    def model_dump(self) -> Dict[str, Any]:
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
+        # Call sites use Pydantic-style ``model_dump(mode="python")``; we only wrap a dict.
+        del kwargs
         return dict(self._raw)
 
     def build_filter(self) -> Any:

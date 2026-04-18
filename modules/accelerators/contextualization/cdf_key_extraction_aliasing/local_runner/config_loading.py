@@ -13,6 +13,12 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     _DEFAULT_ALIASING_VALIDATION,
     _convert_yaml_direct_to_aliasing_config,
 )
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.aliasing_rule_refs import (
+    resolve_aliasing_pipeline_refs_in_scope_document,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.confidence_match_rule_refs import (
+    resolve_confidence_match_rule_refs_in_scope_document,
+)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.scope_document_dm import (
     resolve_scope_document_source_views,
 )
@@ -96,6 +102,8 @@ def _load_from_scope_document(
     bool,
     Optional[str],
 ]:
+    resolve_confidence_match_rule_refs_in_scope_document(doc)
+    resolve_aliasing_pipeline_refs_in_scope_document(doc)
     ke = doc.get("key_extraction")
     if not isinstance(ke, dict):
         raise ValueError("Scope YAML requires key_extraction mapping")
@@ -178,7 +186,17 @@ def _load_from_scope_document(
             rules_raw = []
         if not isinstance(rules_raw, list):
             raise ValueError("aliasing_rules must be a list")
-        if len(rules_raw) == 0:
+        pw = al_data.get("pathways")
+        has_pathways = (
+            isinstance(pw, dict)
+            and isinstance(pw.get("steps"), list)
+            and len(pw["steps"]) > 0
+        )
+        has_ext_pipe = any(
+            isinstance(r, dict) and r.get("aliasing_pipeline")
+            for r in (config_data.get("extraction_rules") or [])
+        )
+        if len(rules_raw) == 0 and not has_pathways and not has_ext_pipe:
             logger.info("Empty aliasing_rules; using identity passthrough")
             val = dict(_DEFAULT_ALIASING_VALIDATION)
             av = al_data.get("validation")
@@ -186,7 +204,10 @@ def _load_from_scope_document(
                 val.update(av)
             aliasing_config = {"rules": [], "validation": val}
         else:
-            aliasing_config = _convert_yaml_direct_to_aliasing_config({"config": al_cfg})
+            aliasing_config = _convert_yaml_direct_to_aliasing_config(
+                {"config": al_cfg},
+                scope_document=doc,
+            )
 
     env_wfk = (os.getenv("WRITE_FOREIGN_KEY_REFERENCES") or "").strip().lower()
     if env_wfk in ("1", "true", "yes", "on"):
@@ -197,9 +218,26 @@ def _load_from_scope_document(
 
     logger.info("Total extraction rules loaded: %s", len(all_extraction_rules))
     logger.info("Total source views: %s", len(source_views))
+    acfg_rules = len(aliasing_config.get("rules") or [])
+    pw_n = aliasing_config.get("pathways")
+    extra = 0
+    if isinstance(pw_n, dict) and isinstance(pw_n.get("steps"), list):
+        for st in pw_n["steps"]:
+            if not isinstance(st, dict):
+                continue
+            m = str(st.get("mode") or "sequential").strip().lower()
+            if m == "sequential":
+                extra += len(st.get("rules") or [])
+            elif m == "parallel":
+                for br in st.get("branches") or []:
+                    if isinstance(br, dict):
+                        extra += len(br.get("rules") or [])
+                    elif isinstance(br, list):
+                        extra += len(br)
     logger.info(
-        "Aliasing rules loaded: %s",
-        len(aliasing_config.get("rules") or []),
+        "Aliasing rules loaded: %s (flat) + %s (pathways-only)",
+        acfg_rules,
+        extra,
     )
 
     return (

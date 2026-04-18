@@ -5,11 +5,36 @@ from __future__ import annotations
 import copy
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
+from .aliasing_rule_refs import resolve_aliasing_pipeline_refs_in_scope_document
+from .confidence_match_rule_refs import resolve_confidence_match_rule_refs_in_scope_document
+
+
+def materialize_scope_confidence_refs_on_task_data(data: MutableMapping[str, Any]) -> None:
+    """Expand confidence-match and extraction aliasing pipeline refs on task ``configuration`` / ``scope_document``.
+
+    Mutates *data* in place so workflow and function handlers share one resolved v1 document
+    (string refs, ``sequence:`` entries, and ``confidence_match_rule_targets`` become concrete
+    rule dicts; ``aliasing_rule_definitions`` / ``aliasing_rule_sequences`` expand
+    ``extraction_rules[].aliasing_pipeline``). Safe to call more than once on the same mapping.
+    """
+    for key in ("configuration", "scope_document"):
+        raw = data.get(key)
+        if isinstance(raw, dict) and raw:
+            doc = copy.deepcopy(raw)
+            resolve_confidence_match_rule_refs_in_scope_document(doc)
+            resolve_aliasing_pipeline_refs_in_scope_document(doc)
+            data[key] = doc
+
+
 from .reference_index_naming import reference_index_raw_table_from_key_extraction_table
 
 
 def _workflow_v1_from_task_data(data: Mapping[str, Any]) -> Dict[str, Any]:
-    """Read v1 scope mapping from task ``data`` (``configuration`` preferred; ``scope_document`` legacy)."""
+    """Read v1 scope mapping from task ``data`` (``configuration`` preferred; ``scope_document`` legacy).
+
+    Callers must run :func:`materialize_scope_confidence_refs_on_task_data` on *data* first when
+    the task may carry ``confidence_match_rule_definitions`` / ``sequence`` indirections.
+    """
     for key in ("configuration", "scope_document"):
         raw = data.get(key)
         if isinstance(raw, dict) and raw:
@@ -85,6 +110,8 @@ def ensure_instance_space_from_scope_document(
         data["instance_space"] = space
         return space
     if doc is None:
+        if isinstance(data, MutableMapping):
+            materialize_scope_confidence_refs_on_task_data(data)
         doc = _workflow_v1_from_task_data(data)
     space = resolve_instance_space_from_scope_document(doc)
     data["instance_space"] = space
@@ -238,6 +265,7 @@ def ensure_key_extraction_config_from_scope_dm(
 ) -> None:
     """Mutate ``data`` with ``config`` from v1 ``configuration`` when ``config`` not already set."""
     del client  # unused; kept for handler signature compatibility
+    materialize_scope_confidence_refs_on_task_data(data)
     existing = data.get("config")
     if isinstance(existing, dict) and existing:
         return
@@ -260,6 +288,7 @@ def ensure_key_extraction_config_from_scope_dm(
 
 def ensure_aliasing_config_from_scope_dm(data: MutableMapping[str, Any], client: Any) -> None:
     del client
+    materialize_scope_confidence_refs_on_task_data(data)
     existing = data.get("config")
     if isinstance(existing, dict) and existing:
         return
@@ -288,6 +317,7 @@ def apply_reference_index_scope_document(
     if data.get("enable_reference_index") is False:
         return
     try:
+        materialize_scope_confidence_refs_on_task_data(data)
         doc = _workflow_v1_from_task_data(data)
     except ValueError:
         return
@@ -327,6 +357,7 @@ def ensure_alias_persistence_from_scope_dm(data: MutableMapping[str, Any], clien
     ) and data.get("source_raw_table_key"):
         return
     try:
+        materialize_scope_confidence_refs_on_task_data(data)
         doc = _workflow_v1_from_task_data(data)
     except ValueError:
         return

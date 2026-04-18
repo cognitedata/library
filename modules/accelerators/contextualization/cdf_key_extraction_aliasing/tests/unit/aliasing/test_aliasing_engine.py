@@ -35,6 +35,38 @@ def _test_aliasing_validation(**overrides: Any) -> Dict[str, Any]:
     return v
 
 
+class TestPerRuleValidationMerge(unittest.TestCase):
+    """Global + per-rule validation merge (aligned with key extraction)."""
+
+    def test_overlay_appends_confidence_rules_in_application_order(self):
+        penalty = {
+            "name": "drop_x",
+            "priority": 99,
+            "match": {"expressions": ["^X$"]},
+            "confidence_modifier": {"mode": "explicit", "value": 0.0},
+        }
+        config: Dict[str, Any] = {
+            "validation": {
+                "min_confidence": 0.5,
+                "confidence_match_rules": [],
+            },
+            "rules": [
+                {
+                    "name": "noop",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {"substitutions": {}},
+                    "validation": {"confidence_match_rules": [penalty]},
+                }
+            ],
+        }
+        eng = AliasingEngine(config)
+        res = eng.generate_aliases("X", "asset")
+        self.assertNotIn("X", res.aliases)
+
+
 class TestAliasingRuleTypes(unittest.TestCase):
     """Test different aliasing rule types."""
 

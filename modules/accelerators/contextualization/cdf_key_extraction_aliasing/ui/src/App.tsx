@@ -5,16 +5,32 @@ import { AliasingControls } from "./components/AliasingControls";
 import { ArtifactTree } from "./components/ArtifactTree";
 import { KeyExtractionControls } from "./components/KeyExtractionControls";
 import { ScopeHierarchyEditor } from "./components/ScopeHierarchyEditor";
+import { WorkflowFlowCanvasPreview } from "./components/flow/WorkflowFlowCanvasPreview";
+import { WorkflowFlowPanel } from "./components/flow/WorkflowFlowPanel";
+import { syncWorkflowScopeFromCanvas } from "./components/flow/canvasScopeSync";
+import { canvasDocWithScopeSeedIfEmpty } from "./components/flow/seedCanvasFromScope";
+import { MatchDefinitionsScopePanel } from "./components/MatchDefinitionsScopePanel";
 import { SourceViewsControls } from "./components/SourceViewsControls";
 import { useAppSettings } from "./context/AppSettingsContext";
 import { LOCALES, type MessageKey } from "./i18n";
 import type { AliasingScopeHierarchy, JsonObject } from "./types/scopeConfig";
+import {
+  emptyWorkflowCanvasDocument,
+  parseWorkflowCanvasDocument,
+  type WorkflowCanvasDocument,
+} from "./types/workflowCanvas";
 import { displayNameFromRoot } from "./utils/configDisplayName";
 import { matchConfigSearch } from "./utils/configPanelSearch";
 
 type Tab = "scope" | "configure" | "build" | "artifacts";
 
-type ConfigSubTab = "sourceViews" | "keyExtraction" | "aliasing" | "runPipeline";
+type ConfigSubTab =
+  | "sourceViews"
+  | "matchDefinitions"
+  | "keyExtraction"
+  | "aliasing"
+  | "flowCanvas"
+  | "runPipeline";
 
 type TriggerTopTab = "triggerAuth" | "schedule" | "pipeline";
 
@@ -72,7 +88,8 @@ export default function App() {
 
   const [tab, setTab] = useState<Tab>("configure");
   const [configureTarget, setConfigureTarget] = useState<ConfigureTarget>({ id: "workflowLocal" });
-  const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>("aliasing");
+  const [configSubTab, setConfigSubTab] = useState<ConfigSubTab>("flowCanvas");
+  const [flowCanvasEditorOpen, setFlowCanvasEditorOpen] = useState(false);
   const [triggerTopTab, setTriggerTopTab] = useState<TriggerTopTab>("pipeline");
   const [configSearchQuery, setConfigSearchQuery] = useState("");
 
@@ -93,6 +110,18 @@ export default function App() {
   const [templatePhase, setTemplatePhase] = useState<PhaseKey | null>("status.loading");
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [savedTemplateSnap, setSavedTemplateSnap] = useState("");
+
+  const [scopeCanvasDoc, setScopeCanvasDoc] = useState<WorkflowCanvasDocument>(() =>
+    emptyWorkflowCanvasDocument()
+  );
+  const [savedScopeCanvasSnap, setSavedScopeCanvasSnap] = useState("");
+  const [scopeCanvasReloadNonce, setScopeCanvasReloadNonce] = useState(0);
+
+  const [templateCanvasDoc, setTemplateCanvasDoc] = useState<WorkflowCanvasDocument>(() =>
+    emptyWorkflowCanvasDocument()
+  );
+  const [savedTemplateCanvasSnap, setSavedTemplateCanvasSnap] = useState("");
+  const [templateCanvasReloadNonce, setTemplateCanvasReloadNonce] = useState(0);
 
   const [configTriggerText, setConfigTriggerText] = useState("");
   const [configTriggerPhase, setConfigTriggerPhase] = useState<PhaseKey | null>(null);
@@ -117,6 +146,12 @@ export default function App() {
   useEffect(() => {
     if (configureTarget.id !== "trigger") setTriggerTopTab("pipeline");
   }, [configureTarget.id]);
+
+  useEffect(() => {
+    if (configureTarget.id === "trigger" && configSubTab === "flowCanvas") {
+      setConfigSubTab("sourceViews");
+    }
+  }, [configureTarget.id, configSubTab]);
 
   const api = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const r = await fetch(path, init);
@@ -169,16 +204,19 @@ export default function App() {
     setScopeError(null);
     setTemplateError(null);
     try {
-      const [dDef, rawDef, dScope, rawScope, dTpl, rawTpl, arts, trigMeta] = await Promise.all([
-        api<Record<string, unknown>>("/api/default-config/model"),
-        api<{ content: string }>("/api/default-config"),
-        api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
-        api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`),
-        api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
-        api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`),
-        api<{ paths: string[] }>("/api/artifacts"),
-        api<{ entries: { path: string; name: string | null }[] }>("/api/workflow-trigger-meta"),
-      ]);
+      const [dDef, rawDef, dScope, rawScope, dTpl, rawTpl, dScopeCanvas, dTplCanvas, arts, trigMeta] =
+        await Promise.all([
+          api<Record<string, unknown>>("/api/default-config/model"),
+          api<{ content: string }>("/api/default-config"),
+          api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
+          api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`),
+          api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+          api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+          api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
+          api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+          api<{ paths: string[] }>("/api/artifacts"),
+          api<{ entries: { path: string; name: string | null }[] }>("/api/workflow-trigger-meta"),
+        ]);
       setDefaultDoc(dDef && typeof dDef === "object" ? dDef : {});
       setDefaultRawYaml(rawDef.content ?? "");
       setSavedDefaultSnap(JSON.stringify(dDef));
@@ -188,6 +226,20 @@ export default function App() {
       setTemplateDoc(dTpl && typeof dTpl === "object" ? dTpl : {});
       setTemplateRawYaml(rawTpl.content ?? "");
       setSavedTemplateSnap(JSON.stringify(dTpl));
+      {
+        const scopeModel = dScope && typeof dScope === "object" ? dScope : {};
+        const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(dScopeCanvas), scopeModel);
+        setScopeCanvasDoc(c);
+        setSavedScopeCanvasSnap(JSON.stringify(c));
+        setScopeCanvasReloadNonce((n) => n + 1);
+      }
+      {
+        const tplModel = dTpl && typeof dTpl === "object" ? dTpl : {};
+        const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(dTplCanvas), tplModel);
+        setTemplateCanvasDoc(c);
+        setSavedTemplateCanvasSnap(JSON.stringify(c));
+        setTemplateCanvasReloadNonce((n) => n + 1);
+      }
       setArtifactPaths(arts.paths ?? []);
       const nm: Record<string, string> = {};
       for (const e of trigMeta.entries ?? []) {
@@ -285,15 +337,72 @@ export default function App() {
     return JSON.stringify(defaultDoc) !== savedDefaultSnap;
   }, [defaultDoc, savedDefaultSnap]);
 
-  const isScopeDirty = useMemo(() => {
+  const isScopeDocDirty = useMemo(() => {
     if (!savedScopeSnap) return false;
     return JSON.stringify(scopeDoc) !== savedScopeSnap;
   }, [scopeDoc, savedScopeSnap]);
 
-  const isTemplateDirty = useMemo(() => {
+  const isScopeCanvasDirty = useMemo(() => {
+    if (!savedScopeCanvasSnap) return false;
+    return JSON.stringify(scopeCanvasDoc) !== savedScopeCanvasSnap;
+  }, [scopeCanvasDoc, savedScopeCanvasSnap]);
+
+  const isScopeDirty = useMemo(
+    () => isScopeDocDirty || isScopeCanvasDirty,
+    [isScopeDocDirty, isScopeCanvasDirty]
+  );
+
+  const isTemplateDocDirty = useMemo(() => {
     if (!savedTemplateSnap) return false;
     return JSON.stringify(templateDoc) !== savedTemplateSnap;
   }, [templateDoc, savedTemplateSnap]);
+
+  const isTemplateCanvasDirty = useMemo(() => {
+    if (!savedTemplateCanvasSnap) return false;
+    return JSON.stringify(templateCanvasDoc) !== savedTemplateCanvasSnap;
+  }, [templateCanvasDoc, savedTemplateCanvasSnap]);
+
+  const isTemplateDirty = useMemo(
+    () => isTemplateDocDirty || isTemplateCanvasDirty,
+    [isTemplateDocDirty, isTemplateCanvasDirty]
+  );
+
+  const flowFullscreenOpen = useMemo(
+    () =>
+      tab === "configure" &&
+      (configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate") &&
+      flowCanvasEditorOpen,
+    [tab, configureTarget.id, flowCanvasEditorOpen]
+  );
+
+  useEffect(() => {
+    if (tab !== "configure") setFlowCanvasEditorOpen(false);
+  }, [tab]);
+
+  useEffect(() => {
+    if (configSubTab !== "flowCanvas") setFlowCanvasEditorOpen(false);
+  }, [configSubTab]);
+
+  useEffect(() => {
+    setFlowCanvasEditorOpen(false);
+  }, [configureTarget]);
+
+  useEffect(() => {
+    if (!flowFullscreenOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setFlowCanvasEditorOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [flowFullscreenOpen]);
 
   const isConfigTriggerDirty = useMemo(() => {
     return configTriggerText !== savedConfigTriggerSnap;
@@ -362,9 +471,15 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(scopeDoc),
       });
+      await api(`/api/canvas-document/model?rel=${encodeURIComponent(SCOPE_REL)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(scopeCanvasDoc),
+      });
       const raw = await api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`);
       setScopeRawYaml(raw.content ?? "");
       setSavedScopeSnap(JSON.stringify(scopeDoc));
+      setSavedScopeCanvasSnap(JSON.stringify(scopeCanvasDoc));
       setScopePhase("status.saved");
       return true;
     } catch (e) {
@@ -383,9 +498,15 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(templateDoc),
       });
+      await api(`/api/canvas-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(templateCanvasDoc),
+      });
       const raw = await api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`);
       setTemplateRawYaml(raw.content ?? "");
       setSavedTemplateSnap(JSON.stringify(templateDoc));
+      setSavedTemplateCanvasSnap(JSON.stringify(templateCanvasDoc));
       setTemplatePhase("status.saved");
       return true;
     } catch (e) {
@@ -422,13 +543,21 @@ export default function App() {
         setScopePhase("status.loading");
         setScopeError(null);
         try {
-          const [model, raw] = await Promise.all([
+          const [model, raw, cModel] = await Promise.all([
             api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
             api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`),
+            api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
           ]);
-          setScopeDoc(model && typeof model === "object" ? model : {});
+          const scopeModel = model && typeof model === "object" ? model : {};
+          setScopeDoc(scopeModel);
           setScopeRawYaml(raw.content ?? "");
           setSavedScopeSnap(JSON.stringify(model));
+          {
+            const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(cModel), scopeModel);
+            setScopeCanvasDoc(c);
+            setSavedScopeCanvasSnap(JSON.stringify(c));
+            setScopeCanvasReloadNonce((n) => n + 1);
+          }
           setScopePhase("status.loaded");
         } catch (e) {
           setScopeError(String(e));
@@ -440,13 +569,21 @@ export default function App() {
         setTemplatePhase("status.loading");
         setTemplateError(null);
         try {
-          const [model, raw] = await Promise.all([
+          const [model, raw, cModel] = await Promise.all([
             api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
             api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+            api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
           ]);
-          setTemplateDoc(model && typeof model === "object" ? model : {});
+          const tplModel = model && typeof model === "object" ? model : {};
+          setTemplateDoc(tplModel);
           setTemplateRawYaml(raw.content ?? "");
           setSavedTemplateSnap(JSON.stringify(model));
+          {
+            const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(cModel), tplModel);
+            setTemplateCanvasDoc(c);
+            setSavedTemplateCanvasSnap(JSON.stringify(c));
+            setTemplateCanvasReloadNonce((n) => n + 1);
+          }
           setTemplatePhase("status.loaded");
         } catch (e) {
           setTemplateError(String(e));
@@ -979,7 +1116,9 @@ export default function App() {
   ];
 
   const configSubtabs: { id: ConfigSubTab; labelKey: MessageKey }[] = [
+    { id: "flowCanvas", labelKey: "tabs.flowCanvas" },
     { id: "sourceViews", labelKey: "tabs.sourceViews" },
+    { id: "matchDefinitions", labelKey: "tabs.matchDefinitions" },
     { id: "keyExtraction", labelKey: "tabs.keyExtraction" },
     { id: "aliasing", labelKey: "tabs.aliasing" },
     { id: "runPipeline", labelKey: "tabs.runPipeline" },
@@ -1357,22 +1496,47 @@ export default function App() {
                     </button>
                   ))}
                 </nav>
+                {configSubTab === "flowCanvas" && (
+                  <WorkflowFlowCanvasPreview
+                    t={t}
+                    document={
+                      configureTarget.id === "workflowTemplate" ? templateCanvasDoc : scopeCanvasDoc
+                    }
+                    reloadNonce={
+                      configureTarget.id === "workflowTemplate"
+                        ? templateCanvasReloadNonce
+                        : scopeCanvasReloadNonce
+                    }
+                    onEdit={() => setFlowCanvasEditorOpen(true)}
+                  />
+                )}
                 {configSubTab === "sourceViews" && (
                   <SourceViewsControls
                     value={workflowDoc.source_views}
                     onChange={(v) => setWorkflowDoc((d) => ({ ...d, source_views: v }))}
+                    scopeDocument={workflowDoc as Record<string, unknown>}
+                  />
+                )}
+                {configSubTab === "matchDefinitions" && (
+                  <MatchDefinitionsScopePanel
+                    scopeDocument={workflowDoc as Record<string, unknown>}
+                    onPatch={(recipe) =>
+                      setWorkflowDoc((d) => recipe({ ...(d as Record<string, unknown>) }) as typeof d)
+                    }
                   />
                 )}
                 {configSubTab === "keyExtraction" && (
                   <KeyExtractionControls
                     value={workflowDoc.key_extraction}
                     onChange={(v) => setWorkflowDoc((d) => ({ ...d, key_extraction: v }))}
+                    scopeDocument={workflowDoc as Record<string, unknown>}
                   />
                 )}
                 {configSubTab === "aliasing" && (
                   <AliasingControls
                     value={workflowDoc.aliasing}
                     onChange={(v) => setWorkflowDoc((d) => ({ ...d, aliasing: v }))}
+                    scopeDocument={workflowDoc as Record<string, unknown>}
                   />
                 )}
                 {configSubTab === "runPipeline" && configureRunPipelineSubpanel}
@@ -1390,20 +1554,37 @@ export default function App() {
                   onAfterSave={async () => {
                     const rel =
                       configureTarget.id === "workflowTemplate" ? TEMPLATE_REL : SCOPE_REL;
-                    const [model, raw] = await Promise.all([
+                    const [model, raw, cModel] = await Promise.all([
                       api<Record<string, unknown>>(
                         `/api/scope-document/model?rel=${encodeURIComponent(rel)}`
                       ),
                       api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(rel)}`),
+                      api<Record<string, unknown>>(
+                        `/api/canvas-document/model?rel=${encodeURIComponent(rel)}`
+                      ),
                     ]);
                     if (configureTarget.id === "workflowTemplate") {
-                      setTemplateDoc(model && typeof model === "object" ? model : {});
+                      const tplModel = model && typeof model === "object" ? model : {};
+                      setTemplateDoc(tplModel);
                       setTemplateRawYaml(raw.content ?? "");
                       setSavedTemplateSnap(JSON.stringify(model));
+                      {
+                        const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(cModel), tplModel);
+                        setTemplateCanvasDoc(c);
+                        setSavedTemplateCanvasSnap(JSON.stringify(c));
+                        setTemplateCanvasReloadNonce((n) => n + 1);
+                      }
                     } else {
-                      setScopeDoc(model && typeof model === "object" ? model : {});
+                      const scopeModel = model && typeof model === "object" ? model : {};
+                      setScopeDoc(scopeModel);
                       setScopeRawYaml(raw.content ?? "");
                       setSavedScopeSnap(JSON.stringify(model));
+                      {
+                        const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(cModel), scopeModel);
+                        setScopeCanvasDoc(c);
+                        setSavedScopeCanvasSnap(JSON.stringify(c));
+                        setScopeCanvasReloadNonce((n) => n + 1);
+                      }
                     }
                   }}
                 />
@@ -1578,7 +1759,9 @@ export default function App() {
                           className="kea-tabs kea-tabs--sub kea-trigger-pipeline-sub"
                           aria-label={t("nav.subtabs")}
                         >
-                          {configSubtabs.map(({ id, labelKey }) => (
+                          {configSubtabs
+                            .filter((s) => s.id !== "flowCanvas")
+                            .map(({ id, labelKey }) => (
                             <button
                               key={id}
                               type="button"
@@ -1593,18 +1776,32 @@ export default function App() {
                           <SourceViewsControls
                             value={pipelineConfiguration.source_views}
                             onChange={(v) => setTriggerSourceViews(v)}
+                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                          />
+                        )}
+                        {configSubTab === "matchDefinitions" && (
+                          <MatchDefinitionsScopePanel
+                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                            onPatch={(recipe) => {
+                              const next = recipe({
+                                ...(pipelineConfiguration as Record<string, unknown>),
+                              });
+                              updateTriggerConfiguration(next as Partial<JsonObject>);
+                            }}
                           />
                         )}
                         {configSubTab === "keyExtraction" && (
                           <KeyExtractionControls
                             value={pipelineConfiguration.key_extraction}
                             onChange={(v) => setTriggerKeyExtraction(v)}
+                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
                           />
                         )}
                         {configSubTab === "aliasing" && (
                           <AliasingControls
                             value={pipelineConfiguration.aliasing}
                             onChange={(v) => setTriggerAliasing(v)}
+                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
                           />
                         )}
                         {configSubTab === "runPipeline" && configureRunPipelineSubpanel}
@@ -1714,6 +1911,96 @@ export default function App() {
             />
           </div>
         </section>
+      )}
+
+      {flowFullscreenOpen && (
+        <div
+          className="kea-flow-fullscreen"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="kea-flow-fullscreen-title"
+          aria-describedby="kea-flow-fullscreen-config"
+        >
+          <div className="kea-flow-fullscreen__bar">
+            <div className="kea-flow-fullscreen__title-row">
+              <h2 id="kea-flow-fullscreen-title" className="kea-flow-fullscreen__title">
+                {t("tabs.flowCanvas")}
+              </h2>
+              <p id="kea-flow-fullscreen-config" className="kea-flow-fullscreen__config-name">
+                {configureTarget.id === "workflowTemplate"
+                  ? workflowTemplateNavPrimary
+                  : workflowLocalNavPrimary}
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+              {(configureTarget.id === "workflowLocal" ? isScopeCanvasDirty : isTemplateCanvasDirty) && (
+                <span className="kea-hint kea-hint--warn" role="status">
+                  {t("status.unsavedChanges")}
+                </span>
+              )}
+              <button
+                type="button"
+                className="kea-btn kea-btn--primary"
+                disabled={
+                  configureTarget.id === "workflowLocal"
+                    ? scopePhase === "status.saving"
+                    : templatePhase === "status.saving"
+                }
+                onClick={() => {
+                  void (configureTarget.id === "workflowLocal" ? saveScope() : saveTemplate());
+                }}
+              >
+                {(configureTarget.id === "workflowLocal"
+                  ? scopePhase === "status.saving"
+                  : templatePhase === "status.saving")
+                  ? t("status.saving")
+                  : t("flow.save")}
+              </button>
+              <button
+                type="button"
+                className="kea-btn"
+                onClick={() => setFlowCanvasEditorOpen(false)}
+              >
+                {t("flow.close")}
+              </button>
+            </div>
+          </div>
+          <div className="kea-flow-fullscreen__body">
+            {configureTarget.id === "workflowLocal" ? (
+              <WorkflowFlowPanel
+                t={t}
+                initialDocument={scopeCanvasDoc}
+                reloadNonce={scopeCanvasReloadNonce}
+                workflowScopeDoc={workflowDoc as Record<string, unknown>}
+                onPatchWorkflowScope={(recipe) =>
+                  setWorkflowDoc((d) => recipe({ ...(d as Record<string, unknown>) }))
+                }
+                onChange={setScopeCanvasDoc}
+                onSyncScopeFromCanvas={(canvas) =>
+                  setScopeDoc((d) =>
+                    syncWorkflowScopeFromCanvas(canvas, { ...(d as Record<string, unknown>) })
+                  )
+                }
+              />
+            ) : (
+              <WorkflowFlowPanel
+                t={t}
+                initialDocument={templateCanvasDoc}
+                reloadNonce={templateCanvasReloadNonce}
+                workflowScopeDoc={workflowDoc as Record<string, unknown>}
+                onPatchWorkflowScope={(recipe) =>
+                  setWorkflowDoc((d) => recipe({ ...(d as Record<string, unknown>) }))
+                }
+                onChange={setTemplateCanvasDoc}
+                onSyncScopeFromCanvas={(canvas) =>
+                  setTemplateDoc((d) =>
+                    syncWorkflowScopeFromCanvas(canvas, { ...(d as Record<string, unknown>) })
+                  )
+                }
+              />
+            )}
+          </div>
+        </div>
       )}
 
       {unsavedPrompt && (

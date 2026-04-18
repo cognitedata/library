@@ -9,6 +9,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     build_key_extraction_workflow_config,
     build_reference_index_config_block,
     ensure_instance_space_from_scope_document,
+    ensure_key_extraction_config_from_scope_dm,
     read_enable_reference_index,
     reference_index_raw_table_key_from_scope,
     resolve_instance_space_from_scope_document,
@@ -197,6 +198,40 @@ def test_build_reference_index_config_block() -> None:
     blk = build_reference_index_config_block(doc)
     assert "config" in blk
     assert blk["config"]["data"]["aliasing_rules"] == []
+
+def test_ensure_key_extraction_materializes_configuration_when_config_preset() -> None:
+    """Embedded ``config`` on the task must not block expanding ``configuration`` confidence refs."""
+    data = {
+        "configuration": {
+            "source_views": [{"view_external_id": "CogniteAsset", "instance_space": "sp1"}],
+            "confidence_match_rule_definitions": {
+                "bl": {
+                    "name": "bl",
+                    "priority": 1,
+                    "match": {"keywords": ["bad"]},
+                    "confidence_modifier": {"mode": "explicit", "value": 0},
+                },
+            },
+            "key_extraction": {
+                "externalId": "ke",
+                "config": {
+                    "parameters": {"raw_db": "d", "raw_table_key": "k"},
+                    "data": {
+                        "extraction_rules": [],
+                        "validation": {"confidence_match_rules": ["bl"]},
+                    },
+                },
+            },
+        },
+        "config": {"prebuilt": True},
+    }
+    ensure_key_extraction_config_from_scope_dm(data, None, incremental_change_processing=True)
+    conf = data["configuration"]
+    assert "confidence_match_rule_definitions" not in conf
+    rules = conf["key_extraction"]["config"]["data"]["validation"]["confidence_match_rules"]
+    assert isinstance(rules[0], dict)
+    assert rules[0].get("name") == "bl"
+
 
 def test_resolve_scope_document_source_views_requires_non_empty_list() -> None:
     with pytest.raises(ValueError, match="top-level source_views"):

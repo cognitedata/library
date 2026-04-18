@@ -3,12 +3,23 @@ import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
 import { mergeDataWithValidation, splitDataByValidation } from "../utils/splitConfigData";
+import { DeferredCommitInput } from "./DeferredCommitTextField";
 import { AliasingRulesStructuredEditor } from "./AliasingRulesStructuredEditor";
 import { ValidationStructuredEditor } from "./ValidationStructuredEditor";
+
+type EditorSub = "settings" | "rules" | "validation";
 
 type Props = {
   value: unknown;
   onChange: (next: unknown) => void;
+  /** Full scope document for match-rule refs (definitions / sequences at root). */
+  scopeDocument?: Record<string, unknown>;
+  /** Sub-tab on first mount (e.g. flow canvas double-click). */
+  initialEditorSub?: EditorSub;
+  /** Focus this aliasing rule on the Rules tab. */
+  initialFocusedAliasingRuleName?: string;
+  /** Scroll to this match rule on the Validation tab (inline rules only). */
+  initialFocusedMatchRuleName?: string;
 };
 
 type AliasingBlock = {
@@ -52,11 +63,16 @@ function editorSubtabClass(active: boolean): string {
   return `kea-tab${active ? " kea-tab--active" : ""}`;
 }
 
-type EditorSub = "settings" | "rules" | "validation";
-
-export function AliasingControls({ value, onChange }: Props) {
+export function AliasingControls({
+  value,
+  onChange,
+  scopeDocument,
+  initialEditorSub,
+  initialFocusedAliasingRuleName,
+  initialFocusedMatchRuleName,
+}: Props) {
   const { t } = useAppSettings();
-  const [editorSub, setEditorSub] = useState<EditorSub>("rules");
+  const [editorSub, setEditorSub] = useState<EditorSub>(() => initialEditorSub ?? "rules");
   const al = useMemo(() => normalize(value), [value]);
   const params = (al.config.parameters as JsonObject) ?? {};
 
@@ -222,7 +238,11 @@ export function AliasingControls({ value, onChange }: Props) {
         <div role="tabpanel">
           <label className="kea-label kea-label--block">
             {t("aliasing.externalId")}
-            <input className="kea-input" value={String(al.externalId ?? "")} onChange={(e) => setExternalId(e.target.value)} />
+            <DeferredCommitInput
+              className="kea-input"
+              committedValue={String(al.externalId ?? "")}
+              onCommit={setExternalId}
+            />
           </label>
           <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
             {t("aliasing.parameters")}
@@ -266,7 +286,11 @@ export function AliasingControls({ value, onChange }: Props) {
           </h4>
           <p className="kea-hint">{t("aliasing.dataYamlHint")}</p>
           {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
-          <AliasingRulesStructuredEditor value={rulesDataObject} onChange={commitRulesData} />
+          <AliasingRulesStructuredEditor
+            value={rulesDataObject}
+            onChange={commitRulesData}
+            initialFocusedRuleName={initialFocusedAliasingRuleName}
+          />
           <details style={{ marginTop: "1rem" }}>
             <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("aliasing.advancedRulesYaml")}</summary>
             <textarea
@@ -288,7 +312,13 @@ export function AliasingControls({ value, onChange }: Props) {
           <p className="kea-hint">{t("aliasing.validationYamlHint")}</p>
           {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
           {validationMergeHint && <p className="kea-hint kea-hint--warn">{validationMergeHint}</p>}
-          <ValidationStructuredEditor variant="aliasing" value={validationObject} onChange={commitValidation} />
+          <ValidationStructuredEditor
+            variant="aliasing"
+            value={validationObject}
+            onChange={commitValidation}
+            scopeDocument={scopeDocument}
+            initialFocusedMatchRuleName={initialFocusedMatchRuleName}
+          />
           <details style={{ marginTop: "1rem" }}>
             <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("validationEditor.advancedYaml")}</summary>
             {validationError && <p className="kea-hint kea-hint--warn">{validationError}</p>}

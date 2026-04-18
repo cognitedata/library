@@ -8,7 +8,7 @@ and generates aliases using the AliasingEngine.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 try:
     from cognite.client import CogniteClient
@@ -265,6 +265,9 @@ def tag_aliasing(
                                     tags.append(key_value)
                                     tag_to_entity_map[key_value] = []
                                 # Store entity info for this tag
+                                rn = None
+                                if isinstance(key_info, dict):
+                                    rn = key_info.get("rule_name")
                                 tag_to_entity_map[key_value].append(
                                     {
                                         "entity_id": entity_id,
@@ -274,6 +277,7 @@ def tag_aliasing(
                                         "view_version": view_version,
                                         "instance_space": instance_space,
                                         "entity_type": entity_type,
+                                        "rule_name": rn,
                                     }
                                 )
 
@@ -370,33 +374,79 @@ def tag_aliasing(
 
         for i, tag in enumerate(tags):
             # Get context from corresponding entity if available
-            context = None
+            context: Optional[Dict[str, Any]] = None
             entity_type = None
             entity_info_list = tag_to_entity_map.get(tag, [])
 
             if entities and i < len(entities):
                 entity = entities[i]
                 entity_type = entity.get("entity_type")
-                context = entity.get("context", {})
+                context = dict(entity.get("context") or {})
                 # Also include entity metadata as context
                 if "metadata" in entity:
                     context.update(entity["metadata"])
+                rn = entity.get("extraction_rule_name") or entity.get("rule_name")
+                if rn:
+                    context.setdefault("extraction_rule_name", str(rn).strip())
+                    context.setdefault("rule_name", str(rn).strip())
             elif entity_info_list:
                 # Use first entity info for context
                 first_entity_info = entity_info_list[0]
                 entity_type = first_entity_info.get("entity_type")
+                context = dict(first_entity_info.get("context") or {})
 
-            # Generate aliases
-            result = engine.generate_aliases(
-                tag=tag, entity_type=entity_type, context=context
-            )
+            ext_pipes = getattr(engine, "_extraction_aliasing_pipelines", None) or {}
+            rule_name_set: List[str] = []
+            for e in entity_info_list:
+                if not isinstance(e, dict):
+                    continue
+                rn = e.get("rule_name")
+                if rn is not None and str(rn).strip():
+                    rule_name_set.append(str(rn).strip())
+            rule_name_set = sorted(set(rule_name_set))
 
-            # Build result with entity mapping information
-            aliasing_result = {
-                "original_tag": result.original_tag,
-                "aliases": result.aliases,
-                "metadata": result.metadata,
-            }
+            if ext_pipes:
+                if not rule_name_set:
+                    rule_iter: List[Optional[str]] = [None]
+                else:
+                    rule_iter = rule_name_set
+                merged_aliases: List[str] = []
+                seen_alias: Set[str] = set()
+                applied_rules_acc: List[str] = []
+                meta_ctx: Any = None
+                for rk in rule_iter:
+                    ctx = dict(context or {})
+                    if rk:
+                        ctx["extraction_rule_name"] = rk
+                        ctx["rule_name"] = rk
+                    result = engine.generate_aliases(
+                        tag=tag, entity_type=entity_type, context=ctx
+                    )
+                    meta_ctx = result.metadata
+                    for ar in result.metadata.get("applied_rules") or []:
+                        if ar not in applied_rules_acc:
+                            applied_rules_acc.append(ar)
+                    for a in result.aliases:
+                        if a not in seen_alias:
+                            seen_alias.add(a)
+                            merged_aliases.append(a)
+                result_metadata = dict(meta_ctx) if isinstance(meta_ctx, dict) else {}
+                result_metadata["applied_rules"] = applied_rules_acc
+                result_metadata["context"] = context
+                aliasing_result = {
+                    "original_tag": tag,
+                    "aliases": merged_aliases,
+                    "metadata": result_metadata,
+                }
+            else:
+                result = engine.generate_aliases(
+                    tag=tag, entity_type=entity_type, context=context
+                )
+                aliasing_result = {
+                    "original_tag": result.original_tag,
+                    "aliases": result.aliases,
+                    "metadata": result.metadata,
+                }
 
             # Include entity information for persistence
             if entity_info_list:
@@ -404,7 +454,11 @@ def tag_aliasing(
 
             aliasing_results.append(aliasing_result)
 
-            logger.debug(f"Generated {len(result.aliases)} aliases for tag '{tag}'")
+            logger.debug(
+                "Generated %s aliases for tag %r",
+                len(aliasing_result.get("aliases") or []),
+                tag,
+            )
 
             tag_n = i + 1
             if progress_every > 0 and tag_n % progress_every == 0:

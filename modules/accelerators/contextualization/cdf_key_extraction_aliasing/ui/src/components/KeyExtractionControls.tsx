@@ -4,12 +4,23 @@ import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
 import { mergeDataWithValidation, splitDataByValidation } from "../utils/splitConfigData";
 import { withoutRegexpMatch } from "../utils/validationConfig";
+import { DeferredCommitInput } from "./DeferredCommitTextField";
 import { DiscoveryRulesStructuredEditor } from "./DiscoveryRulesStructuredEditor";
 import { ValidationStructuredEditor } from "./ValidationStructuredEditor";
+
+type EditorSub = "settings" | "rules" | "validation";
 
 type Props = {
   value: unknown;
   onChange: (next: unknown) => void;
+  /** Full workflow scope document (definitions + sequences live at root). */
+  scopeDocument: Record<string, unknown>;
+  /** Sub-tab on first mount (e.g. flow canvas double-click). */
+  initialEditorSub?: EditorSub;
+  /** Focus this discovery rule on the Rules tab (entity bucket + expand + scroll). */
+  initialFocusedExtractionRuleName?: string;
+  /** Scroll to this match rule on the Validation tab (inline rules only). */
+  initialFocusedMatchRuleName?: string;
 };
 
 type KeyExtractionBlock = {
@@ -53,11 +64,16 @@ function editorSubtabClass(active: boolean): string {
   return `kea-tab${active ? " kea-tab--active" : ""}`;
 }
 
-type EditorSub = "settings" | "rules" | "validation";
-
-export function KeyExtractionControls({ value, onChange }: Props) {
+export function KeyExtractionControls({
+  value,
+  onChange,
+  scopeDocument,
+  initialEditorSub,
+  initialFocusedExtractionRuleName,
+  initialFocusedMatchRuleName,
+}: Props) {
   const { t } = useAppSettings();
-  const [editorSub, setEditorSub] = useState<EditorSub>("rules");
+  const [editorSub, setEditorSub] = useState<EditorSub>(() => initialEditorSub ?? "rules");
   const ke = useMemo(() => normalize(value), [value]);
   const params = (ke.config.parameters as JsonObject) ?? {};
 
@@ -226,7 +242,11 @@ export function KeyExtractionControls({ value, onChange }: Props) {
         <div role="tabpanel">
           <label className="kea-label kea-label--block">
             {t("keyExtraction.externalId")}
-            <input className="kea-input" value={String(ke.externalId ?? "")} onChange={(e) => setExternalId(e.target.value)} />
+            <DeferredCommitInput
+              className="kea-input"
+              committedValue={String(ke.externalId ?? "")}
+              onCommit={setExternalId}
+            />
           </label>
           <h4 className="kea-section-title" style={{ fontSize: "0.95rem" }}>
             {t("keyExtraction.parameters")}
@@ -270,7 +290,12 @@ export function KeyExtractionControls({ value, onChange }: Props) {
           </h4>
           <p className="kea-hint">{t("keyExtraction.dataYamlHint")}</p>
           {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
-          <DiscoveryRulesStructuredEditor value={rulesDataObject} onChange={commitRulesData} />
+          <DiscoveryRulesStructuredEditor
+            value={rulesDataObject}
+            onChange={commitRulesData}
+            scopeDocument={scopeDocument}
+            initialFocusedRuleName={initialFocusedExtractionRuleName}
+          />
           <details style={{ marginTop: "1rem" }}>
             <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("keyExtraction.advancedRulesYaml")}</summary>
             <textarea
@@ -292,7 +317,13 @@ export function KeyExtractionControls({ value, onChange }: Props) {
           <p className="kea-hint">{t("keyExtraction.validationYamlHint")}</p>
           {rulesError && <p className="kea-hint kea-hint--warn">{rulesError}</p>}
           {validationMergeHint && <p className="kea-hint kea-hint--warn">{validationMergeHint}</p>}
-          <ValidationStructuredEditor variant="keyExtraction" value={validationObject} onChange={commitValidation} />
+          <ValidationStructuredEditor
+            variant="keyExtraction"
+            value={validationObject}
+            onChange={commitValidation}
+            scopeDocument={scopeDocument}
+            initialFocusedMatchRuleName={initialFocusedMatchRuleName}
+          />
           <details style={{ marginTop: "1rem" }}>
             <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("validationEditor.advancedYaml")}</summary>
             {validationError && <p className="kea-hint kea-hint--warn">{validationError}</p>}

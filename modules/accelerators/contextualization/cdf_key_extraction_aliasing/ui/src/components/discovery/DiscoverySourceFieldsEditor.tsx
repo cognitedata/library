@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import YAML from "yaml";
 import type { MessageKey } from "../../i18n/types";
 import { discoveryHandlerKind } from "../../utils/ruleHandlerTemplates";
+import { DeferredCommitInput } from "../DeferredCommitTextField";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -207,19 +208,21 @@ export function DiscoverySourceFieldsEditor({ handler, sourceFieldsYaml, onChang
           <div className="kea-filter-row" style={{ gridTemplateColumns: "1fr 1fr minmax(5rem,auto) auto", alignItems: "end", gap: "0.35rem" }}>
             <label className="kea-label">
               {t("discoveryRules.sourceFields.fieldName")}
-              <input
+              <DeferredCommitInput
                 className="kea-input"
-                value={row.form.field_name}
-                onChange={(e) => updateRow(i, { field_name: e.target.value })}
+                committedValue={row.form.field_name}
+                syncKey={i}
+                onCommit={(v) => updateRow(i, { field_name: v })}
               />
             </label>
             <label className="kea-label">
               {t("discoveryRules.sourceFields.variable")}
-              <input
+              <DeferredCommitInput
                 className="kea-input"
                 placeholder={t("discoveryRules.sourceFields.variablePlaceholder")}
-                value={row.form.variable}
-                onChange={(e) => updateRow(i, { variable: e.target.value })}
+                committedValue={row.form.variable}
+                syncKey={i}
+                onCommit={(v) => updateRow(i, { variable: v })}
               />
             </label>
             <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem", paddingTop: "0.35rem" }}>

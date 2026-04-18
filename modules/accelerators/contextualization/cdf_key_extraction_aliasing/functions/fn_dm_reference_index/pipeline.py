@@ -50,10 +50,14 @@ DOCUMENT_REFERENCES_JSON_COLUMN = "DOCUMENT_REFERENCES_JSON"
 
 try:
     # Optional: if an AliasingEngine is vendored into this function folder.
-    from cdf_adapter import _convert_yaml_direct_to_aliasing_config  # type: ignore
+    from cdf_adapter import (  # type: ignore
+        _convert_yaml_direct_to_aliasing_config,
+        scope_has_key_extraction_rules,
+    )
     from engine.tag_aliasing_engine import AliasingEngine  # type: ignore
 except Exception:  # pragma: no cover
     _convert_yaml_direct_to_aliasing_config = None
+    scope_has_key_extraction_rules = None
     AliasingEngine = None
 
 REFERENCE_KIND_FOREIGN_KEY = "foreign_key"
@@ -224,13 +228,30 @@ def _build_aliasing_engine(data: Dict[str, Any], logger: Any) -> Any:
     if not isinstance(provided, dict):
         raise ValueError("reference index requires config with aliasing rules (data.config)")
     unwrapped = provided.get("config", provided)
-    if (
+    scope_doc = data.get("configuration") or data.get("scope_document")
+    al_data = (
+        unwrapped.get("data", {})
+        if isinstance(unwrapped, dict) and isinstance(unwrapped.get("data"), dict)
+        else {}
+    )
+    use_yaml = (
         isinstance(unwrapped, dict)
-        and "data" in unwrapped
-        and isinstance(unwrapped.get("data"), dict)
-        and "aliasing_rules" in unwrapped["data"]
-    ):
-        aliasing_config = _convert_yaml_direct_to_aliasing_config({"config": unwrapped})
+        and isinstance(al_data, dict)
+        and (
+            "aliasing_rules" in al_data
+            or "pathways" in al_data
+            or (
+                callable(scope_has_key_extraction_rules)
+                and isinstance(scope_doc, dict)
+                and scope_has_key_extraction_rules(scope_doc)
+            )
+        )
+    )
+    if use_yaml and _convert_yaml_direct_to_aliasing_config:
+        aliasing_config = _convert_yaml_direct_to_aliasing_config(
+            {"config": unwrapped},
+            scope_document=scope_doc if isinstance(scope_doc, dict) else None,
+        )
     else:
         aliasing_config = provided
     return AliasingEngine(aliasing_config, logger)

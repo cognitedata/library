@@ -11,6 +11,7 @@ sys.path.insert(0, str(project_root))
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.confidence_match_eval import (  # noqa: E402
     apply_confidence_match_rules_to_float_scores,
+    normalize_confidence_match_step,
     resolve_expression_match_for_rule,
     value_matches_confidence_rule,
 )
@@ -95,6 +96,73 @@ class TestApplyRulesChaining(unittest.TestCase):
             [("x", 0.5)], rules_raw=rules
         )
         self.assertAlmostEqual(out[0][1], 1.0, places=4)
+
+    def test_concurrent_sorts_by_priority_vs_flat_list_order(self):
+        """``hierarchy`` concurrent applies children by ascending priority; flat list uses YAML order."""
+        rules = [
+            {
+                "name": "strict_foo",
+                "priority": 100,
+                "match": {"expressions": [r"^foo$"]},
+                "confidence_modifier": {"mode": "explicit", "value": 0.9},
+            },
+            {
+                "name": "broad_f",
+                "priority": 10,
+                "match": {"expressions": [r"f.*"]},
+                "confidence_modifier": {"mode": "explicit", "value": 0.1},
+            },
+        ]
+        out_conc = apply_confidence_match_rules_to_float_scores(
+            [("foo", 1.0)],
+            rules_raw=[{"hierarchy": {"mode": "concurrent", "children": rules}}],
+        )
+        out_list = apply_confidence_match_rules_to_float_scores(
+            [("foo", 1.0)],
+            rules_raw=rules,
+        )
+        self.assertAlmostEqual(out_conc[0][1], 0.1, places=4)
+        self.assertAlmostEqual(out_list[0][1], 0.9, places=4)
+
+    def test_invalid_hierarchy_mode_raises(self):
+        with self.assertRaises(ValueError):
+            apply_confidence_match_rules_to_float_scores(
+                [("x", 1.0)],
+                rules_raw=[{"hierarchy": {"mode": "bogus", "children": []}}],
+            )
+
+    def test_normalize_shorthand_to_hierarchy(self):
+        n = normalize_confidence_match_step({"blacklist": ["isa_compliant", "not_isa_penalty"]})
+        self.assertEqual(
+            n,
+            {
+                "hierarchy": {
+                    "mode": "ordered",
+                    "children": ["blacklist", "isa_compliant", "not_isa_penalty"],
+                }
+            },
+        )
+
+    def test_normalize_nested_shorthand_right_associative(self):
+        nested = {"blacklist": [{"isa_compliant": ["not_isa_penalty"]}]}
+        n = normalize_confidence_match_step(nested)
+        self.assertEqual(
+            n,
+            {
+                "hierarchy": {
+                    "mode": "ordered",
+                    "children": [
+                        "blacklist",
+                        {
+                            "hierarchy": {
+                                "mode": "ordered",
+                                "children": ["isa_compliant", "not_isa_penalty"],
+                            }
+                        },
+                    ],
+                }
+            },
+        )
 
 
 if __name__ == "__main__":

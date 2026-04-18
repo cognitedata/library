@@ -3,6 +3,7 @@ import { useAppSettings } from "../context/AppSettingsContext";
 import type { AliasingScopeHierarchy, LocationNode } from "../types/scopeConfig";
 import { emptyLocationNode } from "../types/scopeConfig";
 import { TreeContextMenuPortal, useTreeContextMenuState, type TreeCtxMenuItem } from "./TreeContextMenu";
+import { DeferredCommitInput, DeferredCommitTextarea } from "./DeferredCommitTextField";
 
 type Props = {
   value: AliasingScopeHierarchy;
@@ -514,27 +515,30 @@ export function ScopeHierarchyEditor({ value, onChange }: Props) {
             <div className="kea-stack">
               <label className="kea-label" title={t("scope.field.id.tooltip")}>
                 {t("scope.field.id")}
-                <input
+                <DeferredCommitInput
                   className="kea-input"
-                  value={selected.id ?? ""}
-                  onChange={(e) => updateNode({ id: e.target.value })}
+                  committedValue={selected.id ?? ""}
+                  syncKey={selectedPath.join("/")}
+                  onCommit={(v) => updateNode({ id: v })}
                 />
               </label>
               <label className="kea-label" title={t("scope.field.name.tooltip")}>
                 {t("scope.field.name")}
-                <input
+                <DeferredCommitInput
                   className="kea-input"
-                  value={selected.name ?? ""}
-                  onChange={(e) => updateNode({ name: e.target.value })}
+                  committedValue={selected.name ?? ""}
+                  syncKey={selectedPath.join("/")}
+                  onCommit={(v) => updateNode({ name: v })}
                 />
               </label>
               <label className="kea-label" title={t("scope.field.description.tooltip")}>
                 {t("scope.field.description")}
-                <textarea
+                <DeferredCommitTextarea
                   className="kea-textarea"
                   rows={3}
-                  value={selected.description ?? ""}
-                  onChange={(e) => updateNode({ description: e.target.value })}
+                  committedValue={selected.description ?? ""}
+                  syncKey={selectedPath.join("/")}
+                  onCommit={(v) => updateNode({ description: v })}
                   onKeyDown={(e) => e.stopPropagation()}
                   spellCheck={true}
                   style={{ minHeight: "4.5rem", fontFamily: "inherit" }}

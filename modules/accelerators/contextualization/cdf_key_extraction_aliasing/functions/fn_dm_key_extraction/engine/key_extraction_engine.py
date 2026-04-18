@@ -18,9 +18,15 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 
-from ...cdf_fn_common.confidence_match_eval import apply_confidence_match_rules_mutating
+from ...cdf_fn_common.confidence_match_eval import (
+    apply_confidence_match_rules_mutating,
+)
+from ...cdf_fn_common.confidence_match_rule_refs import (
+    dedupe_confidence_match_rules_by_name,
+)
+from ...cdf_fn_common.pipeline_io import pipeline_io_dict_for_engine
 from ..common.logger import CogniteFunctionLogger
-from ..config import Config, ExtractionRuleConfig
+from ..config import Config
 from ..utils.DataStructures import *
 from ..utils.rule_utils import (
     get_extraction_type_from_rule,
@@ -32,6 +38,71 @@ from .handlers import (
     FieldRuleExtractionHandler,
     HeuristicExtractionHandler,
 )
+
+
+def _validation_dict_from_any(validation: Any) -> Dict[str, Any]:
+    """Normalize validation (dict, SimpleNamespace, Pydantic) to a plain dict."""
+    if validation is None:
+        return {}
+    if hasattr(validation, "model_dump"):
+        return dict(validation.model_dump(mode="python"))
+    if isinstance(validation, SimpleNamespace):
+        return {
+            k: getattr(validation, k)
+            for k in vars(validation)
+            if not k.startswith("_")
+        }
+    if isinstance(validation, dict):
+        return dict(validation)
+    return {}
+
+
+def _validation_ns_from_flat_dict(d: Dict[str, Any]) -> SimpleNamespace:
+    """Build SimpleNamespace for validation (same shape as ``_validation_shallow_copy_ns``)."""
+    rules = d.get("confidence_match_rules")
+    if rules is None:
+        rules = []
+    elif not isinstance(rules, list):
+        rules = list(rules)
+    else:
+        rules = list(rules)
+    ns = SimpleNamespace(
+        min_confidence=d.get("min_confidence", 0.1),
+        regexp_match=d.get("regexp_match"),
+        expression_match=d.get("expression_match"),
+        confidence_match_rules=rules,
+    )
+    for k, v in d.items():
+        if k in (
+            "min_confidence",
+            "regexp_match",
+            "expression_match",
+            "confidence_match_rules",
+        ):
+            continue
+        setattr(ns, k, v)
+    return ns
+
+
+def merge_validation_overlay_onto_global(global_v: Any, overlay: Any) -> SimpleNamespace:
+    """Merge per-extraction-rule ``validation`` YAML onto ``data.validation`` (concatenate ``confidence_match_rules``)."""
+    base_d = _validation_dict_from_any(global_v)
+    over_d = _validation_dict_from_any(overlay)
+    merged = dict(base_d)
+    brules = list(merged.get("confidence_match_rules") or [])
+    orules = over_d.get("confidence_match_rules")
+    if isinstance(orules, list) and orules:
+        merged["confidence_match_rules"] = dedupe_confidence_match_rules_by_name(
+            brules + list(orules)
+        )
+    else:
+        merged["confidence_match_rules"] = dedupe_confidence_match_rules_by_name(brules)
+    for k, v in over_d.items():
+        if k == "confidence_match_rules":
+            continue
+        if v is not None:
+            merged[k] = v
+    return _validation_ns_from_flat_dict(merged)
 
 
 class KeyExtractionEngine:
@@ -64,13 +135,25 @@ class KeyExtractionEngine:
                 validation_default.confidence_match_rules = []
             self._data_validation = validation_default
             self._source_views = list(config.get("source_views") or [])
-            _defaults = {"scope_filters": {}, "validation": validation_default, "handler": "regex_handler"}
+            _defaults = {
+                "scope_filters": {},
+                "validation": validation_default,
+                "handler": "regex_handler",
+                "pipeline_input": "cumulative",
+                "pipeline_output": "merge",
+            }
             _sf_defaults = {"table_id": None, "role": "target", "field_name": "", "required": False, "priority": 1}
             self.rules = []
-            for r in config.get("extraction_rules", []):
-                if isinstance(r, dict):
-                    r = dict(_defaults, **r)
-                    r.setdefault("validation", validation_default)
+            for rule_data in config.get("extraction_rules", []):
+                if isinstance(rule_data, dict):
+                    had_validation = "validation" in rule_data
+                    r = dict(_defaults, **rule_data)
+                    if not had_validation:
+                        r["validation"] = validation_default
+                    else:
+                        r["validation"] = merge_validation_overlay_onto_global(
+                            validation_default, r["validation"]
+                        )
                     if not str(r.get("handler") or "").strip():
                         r["handler"] = "regex_handler"
                     if not r.get("rule_id") and r.get("name"):
@@ -87,6 +170,9 @@ class KeyExtractionEngine:
                         r["config"] = dict(p) if isinstance(p, dict) else p
                     elif r.get("config") is None:
                         r["config"] = {}
+                    _pio = pipeline_io_dict_for_engine(r)
+                    r["pipeline_input"] = _pio["pipeline_input"]
+                    r["pipeline_output"] = _pio["pipeline_output"]
                     self.rules.append(SimpleNamespace(**r))
                 else:
                     self.rules.append(r)
@@ -218,26 +304,20 @@ class KeyExtractionEngine:
             if extracted_keys:
                 self._categorize_keys_into_result(extracted_keys, rule, result)
 
-        # Apply validation using last rule's validation + optional source_view overlay
-        rule_ref = self.rules[-1] if self.rules else None
-        base_validation = self._resolve_validation(rule_ref)
-        merged_validation = self._merge_validation_for_entity(
-            entity, base_validation, entity_type
+        # Apply validation per key: global + per-extraction-rule + optional source_views overlay
+        rule_by_id: Dict[str, Any] = {}
+        for rule in self.rules:
+            rid = getattr(rule, "rule_id", None) or getattr(rule, "name", None)
+            if rid is not None:
+                rule_by_id[str(rid)] = rule
+
+        result = self._validate_extraction_result(
+            result,
+            entity,
+            entity_type,
+            rule_by_id,
+            exclude_self_referencing_keys=exclude_self_referencing_keys,
         )
-        if self.rules:
-            result = self._validate_extraction_result(
-                rule_ref,
-                result,
-                exclude_self_referencing_keys=exclude_self_referencing_keys,
-                validation_override=merged_validation,
-            )
-        else:
-            result = self._validate_extraction_result(
-                None,
-                result,
-                exclude_self_referencing_keys=exclude_self_referencing_keys,
-                validation_override=merged_validation,
-            )
 
         return result
 
@@ -388,11 +468,6 @@ class KeyExtractionEngine:
             k for k in result.foreign_key_references if k.value not in candidate_values
         ]
 
-    def _resolve_validation(self, rule: Optional[Any]) -> Optional[Any]:
-        if rule is not None and getattr(rule, "validation", None) is not None:
-            return rule.validation
-        return getattr(self, "_data_validation", None)
-
     @staticmethod
     def _source_view_entry_as_dict(entry: Any) -> Dict[str, Any]:
         if isinstance(entry, dict):
@@ -492,7 +567,9 @@ class KeyExtractionEngine:
             vrules = view_d["confidence_match_rules"]
             base_rules = list(merged.confidence_match_rules or [])
             if isinstance(vrules, list) and len(vrules) > 0:
-                merged.confidence_match_rules = base_rules + list(vrules)
+                merged.confidence_match_rules = dedupe_confidence_match_rules_by_name(
+                    base_rules + list(vrules)
+                )
 
         for key, val in view_d.items():
             if key == "confidence_match_rules":
@@ -551,13 +628,14 @@ class KeyExtractionEngine:
 
     def _validate_extraction_result(
         self,
-        rule: Optional[ExtractionRuleConfig],
         result: ExtractionResult,
+        entity: Dict[str, Any],
+        entity_type: str,
+        rule_by_id: Dict[str, Any],
         *,
         exclude_self_referencing_keys: Optional[bool] = None,
-        validation_override: Optional[Any] = None,
     ) -> ExtractionResult:
-        """Apply validation to extraction result (uses rule.validation and config.parameters)."""
+        """Apply confidence_match_rules and min_confidence per key (global + rule + source_views)."""
         result.candidate_keys = self._remove_duplicate_keys(result.candidate_keys)
         result.foreign_key_references = self._remove_duplicate_keys(
             result.foreign_key_references
@@ -566,10 +644,6 @@ class KeyExtractionEngine:
             result.document_references
         )
 
-        if validation_override is not None:
-            validation = validation_override
-        else:
-            validation = self._resolve_validation(rule)
         if not self.rules:
             self._exclude_self_referencing_keys(
                 result, source_override=exclude_self_referencing_keys
@@ -582,36 +656,33 @@ class KeyExtractionEngine:
             }
             return result
 
-        if validation is None:
-            validation = SimpleNamespace(
-                min_confidence=0.1,
-                regexp_match=None,
-                expression_match=None,
-                confidence_match_rules=[],
-            )
+        def _filter_keys(keys: List[ExtractedKey]) -> List[ExtractedKey]:
+            out: List[ExtractedKey] = []
+            for key in keys:
+                rule = rule_by_id.get(key.rule_id)
+                base_rv = self._data_validation
+                if rule is not None and getattr(rule, "validation", None) is not None:
+                    base_rv = getattr(rule, "validation")
+                val = self._merge_validation_for_entity(
+                    entity, base_rv, entity_type
+                )
+                self._apply_validation_confidence_rules(val, [key])
+                mc = float(getattr(val, "min_confidence", 0) or 0)
+                if key.confidence >= mc:
+                    out.append(key)
+            return out
 
-        self._apply_validation_confidence_rules(validation, result.candidate_keys)
-        self._apply_validation_confidence_rules(
-            validation, result.foreign_key_references
-        )
-        self._apply_validation_confidence_rules(
-            validation, result.document_references
-        )
+        result.candidate_keys = _filter_keys(result.candidate_keys)
+        result.foreign_key_references = _filter_keys(result.foreign_key_references)
+        result.document_references = _filter_keys(result.document_references)
 
-        min_confidence = getattr(validation, "min_confidence", 0) or 0
-        result.candidate_keys = [
-            k for k in result.candidate_keys if k.confidence >= min_confidence
-        ]
-        result.foreign_key_references = [
-            k for k in result.foreign_key_references if k.confidence >= min_confidence
-        ]
-        result.document_references = [
-            k for k in result.document_references if k.confidence >= min_confidence
-        ]
         self._exclude_self_referencing_keys(
             result, source_override=exclude_self_referencing_keys
         )
-        validation_config_dict = self._validation_to_metadata_dict(validation)
+        meta_val = self._merge_validation_for_entity(
+            entity, self._data_validation, entity_type
+        )
+        validation_config_dict = self._validation_to_metadata_dict(meta_val)
         result.metadata = {
             "extraction_timestamp": datetime.now().isoformat(),
             "total_candidate_keys": len(result.candidate_keys),

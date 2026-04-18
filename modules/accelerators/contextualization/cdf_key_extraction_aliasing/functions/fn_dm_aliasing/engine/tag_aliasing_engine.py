@@ -22,12 +22,20 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 import yaml
 
 from cdf_fn_common.confidence_match_eval import (
+    _parse_group_node,
+    _sort_concurrent_children,
     apply_confidence_match_rules_to_float_scores,
+    normalize_confidence_match_step,
+)
+from cdf_fn_common.confidence_match_rule_refs import merge_validation_dict_overlay
+from cdf_fn_common.pipeline_io import (
+    normalize_pipeline_input,
+    parse_rule_pipeline_io,
 )
 from ..common.logger import CogniteFunctionLogger
 from .transformer_utils import (
@@ -102,10 +110,16 @@ class AliasRule:
     enabled: bool = True
     priority: int = 50
     preserve_original: bool = True
+    #: ``cumulative`` = feed full working set; ``previous`` = feed only last handler output.
+    pipeline_input: str = "cumulative"
+    #: ``merge`` / ``replace`` — informational; merged into ``preserve_original`` at parse time.
+    pipeline_output: str = "merge"
     config: Dict[str, Any] = field(default_factory=dict)
     scope_filters: Dict[str, Any] = field(default_factory=dict)
     conditions: Dict[str, Any] = field(default_factory=dict)
     description: str = ""
+    #: Optional ``validation`` block merged onto global ``data.validation`` when this rule runs (same semantics as extraction).
+    validation: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -115,6 +129,23 @@ class AliasingResult:
     original_tag: str
     aliases: List[str]
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class SequentialPathwayStep:
+    """Ordered rules applied to the current alias set (same semantics as legacy flat rules)."""
+
+    rules: List[AliasRule]
+
+
+@dataclass
+class ParallelPathwayStep:
+    """Independent sequential branches, each starting from the alias set at the fork."""
+
+    branches: List[List[AliasRule]]
+
+
+PathwayStep = Union[SequentialPathwayStep, ParallelPathwayStep]
 
 
 # Transformer classes have been moved to handlers module
@@ -134,16 +165,258 @@ class AliasingEngine:
         self.config = config
         self.logger = logger or CogniteFunctionLogger("INFO", True)
         self.client = client
-        self.rules = self._load_rules()
-        self._hydrate_alias_mapping_table_rules()
+        self.pathway_steps: Optional[List[PathwayStep]] = None
+        self._pathways_config_active = self._config_has_pathways(config)
+        if self._pathways_config_active:
+            if config.get("rules"):
+                self.logger.info(
+                    "Aliasing: `pathways` is set; ignoring legacy flat `rules` for execution"
+                )
+            self.pathway_steps = self._load_pathways(config.get("pathways") or {})
+            self.rules = self._flatten_pathway_rules(self.pathway_steps)
+        else:
+            self.rules = self._load_rules()
         self.transformers = self._initialize_transformers()
         self.validation_config = config.get("validation", {})
+        raw_ep = config.get("extraction_aliasing_pipelines")
+        self._extraction_aliasing_pipelines: Dict[str, List[Any]] = (
+            dict(raw_ep) if isinstance(raw_ep, dict) else {}
+        )
+        self._rule_by_name: Dict[str, AliasRule] = {}
+        for r in self.rules:
+            if r.name not in self._rule_by_name:
+                self._rule_by_name[r.name] = r
+        self._index_rules_from_extraction_pipelines()
+        self._hydrate_alias_mapping_table_rules()
+
+    @staticmethod
+    def _config_has_pathways(config: Dict[str, Any]) -> bool:
+        pw = config.get("pathways")
+        if not isinstance(pw, dict):
+            return False
+        steps = pw.get("steps")
+        return isinstance(steps, list) and len(steps) > 0
+
+    def _flatten_pathway_rules(self, steps: List[PathwayStep]) -> List[AliasRule]:
+        out: List[AliasRule] = []
+        for step in steps:
+            if isinstance(step, SequentialPathwayStep):
+                out.extend(step.rules)
+            elif isinstance(step, ParallelPathwayStep):
+                for branch in step.branches:
+                    out.extend(branch)
+        return out
+
+    def _walk_pipeline_node_leaves(self, node: Any) -> List[Dict[str, Any]]:
+        """Collect leaf transformation dicts from an ``aliasing_pipeline`` subtree."""
+        node = normalize_confidence_match_step(node)
+        grouped = _parse_group_node(node)
+        if grouped is not None:
+            _mode, children = grouped
+            acc: List[Dict[str, Any]] = []
+            for c in children:
+                acc.extend(self._walk_pipeline_node_leaves(c))
+            return acc
+        if isinstance(node, dict) and (node.get("handler") or node.get("type")):
+            return [node]
+        return []
+
+    def _index_rules_from_extraction_pipelines(self) -> None:
+        """Register pipeline leaf rules on ``_rule_by_name`` for validation overlay lookup."""
+        for nodes in self._extraction_aliasing_pipelines.values():
+            if not isinstance(nodes, list):
+                continue
+            for n in nodes:
+                for leaf in self._walk_pipeline_node_leaves(n):
+                    ar = self._parse_rule_dict(leaf)
+                    if ar and ar.name not in self._rule_by_name:
+                        self._rule_by_name[ar.name] = ar
+
+    def _exec_pipeline_node(
+        self,
+        node: Any,
+        aliases: Set[str],
+        entity_type: Optional[str],
+        context: Optional[Dict[str, Any]],
+        applied_rules: List[str],
+        applied_rules_set: Set[str],
+    ) -> Set[str]:
+        """Execute one pipeline node: ``hierarchy`` ordered|concurrent or a single transform leaf."""
+        node = normalize_confidence_match_step(node)
+        grouped = _parse_group_node(node)
+        if grouped is not None:
+            mode, children = grouped
+            if mode == "concurrent":
+                merged: Set[str] = set()
+                fork = set(aliases)
+                for child in _sort_concurrent_children(children):
+                    merged.update(
+                        self._exec_pipeline_node(
+                            child,
+                            fork,
+                            entity_type,
+                            context,
+                            applied_rules,
+                            applied_rules_set,
+                        )
+                    )
+                return merged
+            cur = set(aliases)
+            for child in children:
+                cur = self._exec_pipeline_node(
+                    child,
+                    cur,
+                    entity_type,
+                    context,
+                    applied_rules,
+                    applied_rules_set,
+                )
+            return cur
+        if isinstance(node, dict) and (node.get("handler") or node.get("type")):
+            pr = self._parse_rule_dict(node)
+            if not pr:
+                return set(aliases)
+            return self._apply_rules_sequential(
+                [pr],
+                aliases,
+                entity_type,
+                context,
+                applied_rules,
+                applied_rules_set,
+            )
+        return set(aliases)
+
+    def _run_extraction_aliasing_pipeline(
+        self,
+        nodes: List[Any],
+        tag: str,
+        entity_type: Optional[str],
+        context: Optional[Dict[str, Any]],
+        applied_rules: List[str],
+        applied_rules_set: Set[str],
+    ) -> Set[str]:
+        """Top-level pipeline: sequential chain (each item feeds the next)."""
+        cur: Set[str] = {tag}
+        for item in nodes:
+            cur = self._exec_pipeline_node(
+                item,
+                cur,
+                entity_type,
+                context,
+                applied_rules,
+                applied_rules_set,
+            )
+        return cur
+
+    def _parse_rule_dict(self, rule_config: Dict[str, Any]) -> Optional[AliasRule]:
+        """Parse a single rule mapping into AliasRule (list order preserved; no priority sort)."""
+        try:
+            handler_key = rule_config.get("handler") or rule_config.get("type")
+            if not handler_key:
+                self.logger.error(
+                    f"Invalid rule configuration (missing handler/type): {rule_config!r}"
+                )
+                return None
+            pin, pout, preserve = parse_rule_pipeline_io(rule_config)
+            val = rule_config.get("validation")
+            validation = val if isinstance(val, dict) else {}
+            rname = (
+                rule_config.get("name")
+                or rule_config.get("rule_id")
+                or "unnamed_aliasing_rule"
+            )
+            return AliasRule(
+                name=str(rname),
+                handler=TransformationType(handler_key),
+                enabled=rule_config.get("enabled", True),
+                priority=rule_config.get("priority", 50),
+                preserve_original=preserve,
+                pipeline_input=pin,
+                pipeline_output=pout,
+                config=rule_config.get("config", {}),
+                scope_filters=rule_config.get("scope_filters", {}),
+                conditions=rule_config.get("conditions", {}),
+                description=rule_config.get("description", ""),
+                validation=validation,
+            )
+        except (KeyError, ValueError, TypeError) as e:
+            self.logger.error(f"Invalid rule configuration: {e}")
+            return None
+
+    def _parse_rule_dict_list(self, rules_config: List[Dict[str, Any]]) -> List[AliasRule]:
+        rules: List[AliasRule] = []
+        for rule_config in rules_config:
+            if not isinstance(rule_config, dict):
+                self.logger.error(f"Skipping non-dict aliasing rule: {rule_config!r}")
+                continue
+            r = self._parse_rule_dict(rule_config)
+            if r:
+                rules.append(r)
+        return rules
+
+    def _load_pathways(self, pathways_cfg: Dict[str, Any]) -> List[PathwayStep]:
+        """Build sequential/parallel steps from ``pathways.steps`` (see module docs)."""
+        raw_steps = pathways_cfg.get("steps")
+        if not isinstance(raw_steps, list):
+            self.logger.error("pathways.steps must be a list; using empty pipeline")
+            return []
+        out: List[PathwayStep] = []
+        for i, step in enumerate(raw_steps):
+            if not isinstance(step, dict):
+                self.logger.error(f"pathways.steps[{i}] must be a mapping; skipping")
+                continue
+            mode = str(step.get("mode") or "sequential").strip().lower()
+            if mode == "sequential":
+                rules_raw = step.get("rules")
+                if not isinstance(rules_raw, list):
+                    self.logger.error(
+                        f"pathways.steps[{i}] sequential requires `rules` list; skipping"
+                    )
+                    continue
+                rules = self._parse_rule_dict_list(rules_raw)
+                if rules:
+                    out.append(SequentialPathwayStep(rules=rules))
+            elif mode == "parallel":
+                branches_raw = step.get("branches")
+                if not isinstance(branches_raw, list) or not branches_raw:
+                    self.logger.error(
+                        f"pathways.steps[{i}] parallel requires non-empty `branches`; skipping"
+                    )
+                    continue
+                branches: List[List[AliasRule]] = []
+                for j, br in enumerate(branches_raw):
+                    rules_raw: List[Dict[str, Any]] = []
+                    if isinstance(br, dict):
+                        rr = br.get("rules")
+                        if isinstance(rr, list):
+                            rules_raw = rr
+                    elif isinstance(br, list):
+                        rules_raw = br
+                    else:
+                        self.logger.error(
+                            f"pathways.steps[{i}].branches[{j}] must be a mapping "
+                            f"with `rules` or a rules list; skipping branch"
+                        )
+                        continue
+                    parsed = self._parse_rule_dict_list(rules_raw)
+                    if parsed:
+                        branches.append(parsed)
+                if branches:
+                    out.append(ParallelPathwayStep(branches=branches))
+            else:
+                self.logger.error(
+                    f"pathways.steps[{i}] has unknown mode {mode!r}; "
+                    f"expected 'sequential' or 'parallel'"
+                )
+        if not out:
+            self.logger.warning("pathways produced no executable steps; aliasing is a no-op")
+        return out
 
     def _hydrate_alias_mapping_table_rules(self) -> None:
         """Load RAW mapping rows for alias_mapping_table rules (or use injected resolved_rows)."""
         from .alias_mapping_table_raw_loader import load_alias_mapping_table_from_client
 
-        for rule in self.rules:
+        for rule in self._rule_by_name.values():
             if rule.handler != TransformationType.ALIAS_MAPPING_TABLE:
                 continue
             cfg = rule.config
@@ -193,28 +466,71 @@ class AliasingEngine:
             cfg["resolved_rows"] = rows
 
     def _load_rules(self) -> List[AliasRule]:
-        """Load and parse aliasing rules from configuration."""
-        rules = []
+        """Load and parse flat ``rules``; execution order is ascending ``priority``."""
         rules_config = self.config.get("rules", [])
+        if not isinstance(rules_config, list):
+            self.logger.error("config.rules must be a list")
+            return []
+        parsed = self._parse_rule_dict_list(rules_config)
+        return sorted(parsed, key=lambda r: r.priority)
 
-        for rule_config in rules_config:
-            try:
-                rule = AliasRule(
-                    name=rule_config["name"],
-                    handler=TransformationType(rule_config["handler"]),
-                    enabled=rule_config.get("enabled", True),
-                    priority=rule_config.get("priority", 50),
-                    preserve_original=rule_config.get("preserve_original", True),
-                    config=rule_config.get("config", {}),
-                    scope_filters=rule_config.get("scope_filters", {}),
-                    conditions=rule_config.get("conditions", {}),
-                    description=rule_config.get("description", ""),
+    def _record_applied_rule(
+        self,
+        rule: AliasRule,
+        applied_rules: List[str],
+        applied_rules_set: Set[str],
+    ) -> None:
+        if rule.name not in applied_rules_set:
+            applied_rules.append(rule.name)
+            applied_rules_set.add(rule.name)
+
+    def _apply_rules_sequential(
+        self,
+        rules: List[AliasRule],
+        aliases: Set[str],
+        entity_type: Optional[str],
+        context: Optional[Dict[str, Any]],
+        applied_rules: List[str],
+        applied_rules_set: Set[str],
+    ) -> Set[str]:
+        """Apply an ordered rule list to an alias set (legacy semantics per rule)."""
+        initial = set(aliases)
+        out = set(initial)
+        prev_transform_output: Optional[Set[str]] = None
+
+        for rule in rules:
+            if not rule.enabled:
+                continue
+            if not self._check_conditions(rule, entity_type, context):
+                continue
+            transformer = self.transformers.get(rule.handler)
+            if not transformer:
+                self.logger.verbose(
+                    "WARNING", f"No transformer for rule handler {rule.handler}"
                 )
-                rules.append(rule)
-            except (KeyError, ValueError) as e:
-                self.logger.error(f"Invalid rule configuration: {e}")
-
-        return sorted(rules, key=lambda r: r.priority)
+                continue
+            pin = normalize_pipeline_input(getattr(rule, "pipeline_input", None))
+            try:
+                if pin == "previous":
+                    aliases_in = (
+                        set(prev_transform_output)
+                        if prev_transform_output is not None
+                        else set(initial)
+                    )
+                else:
+                    aliases_in = set(out)
+                new_aliases = transformer.transform(
+                    aliases_in, rule.config, context
+                )
+                prev_transform_output = set(new_aliases)
+                if rule.preserve_original:
+                    out.update(new_aliases)
+                else:
+                    out = set(new_aliases)
+                self._record_applied_rule(rule, applied_rules, applied_rules_set)
+            except Exception as e:
+                self.logger.verbose("ERROR", f"Error applying rule {rule.name}: {e}")
+        return out
 
     def _initialize_transformers(
         self,
@@ -279,47 +595,76 @@ class AliasingEngine:
             AliasingResult with generated aliases and metadata
         """
         aliases = {tag}  # Start with original
-        applied_rules = []  # Use list to preserve order
-        applied_rules_set = set()  # Track unique rule names
+        applied_rules: List[str] = []
+        applied_rules_set: Set[str] = set()
+        ctx = context or {}
+        ext_key = (
+            ctx.get("extraction_rule_name")
+            or ctx.get("rule_name")
+            or ctx.get("extraction_rule_id")
+        )
 
-        for rule in self.rules:
-            if not rule.enabled:
-                continue
-
-            # Check if rule conditions are met
-            if not self._check_conditions(rule, entity_type, context):
-                continue
-
-            # Get appropriate transformer
-            transformer = self.transformers.get(rule.handler)
-            if not transformer:
-                self.logger.verbose(
-                    "WARNING", f"No transformer for rule handler {rule.handler}"
-                )
-                continue
-
-            # Apply transformer
-            try:
-                current_aliases = set(aliases)
-                new_aliases = transformer.transform(
-                    current_aliases, rule.config, context
-                )
-
-                if rule.preserve_original:
-                    aliases.update(new_aliases)
+        if self._extraction_aliasing_pipelines:
+            if ext_key:
+                rid = str(ext_key).strip()
+                nodes = self._extraction_aliasing_pipelines.get(rid)
+                if isinstance(nodes, list):
+                    aliases = self._run_extraction_aliasing_pipeline(
+                        nodes,
+                        tag,
+                        entity_type,
+                        context,
+                        applied_rules,
+                        applied_rules_set,
+                    )
                 else:
-                    aliases = new_aliases
+                    self.logger.warning(
+                        "Aliasing: no aliasing_pipeline for extraction rule %r; identity only",
+                        rid,
+                    )
+            else:
+                self.logger.warning(
+                    "Aliasing: extraction_aliasing_pipelines configured but context missing "
+                    "extraction_rule_name / rule_name; identity only"
+                )
+        elif self._pathways_config_active:
+            for step in self.pathway_steps or []:
+                if isinstance(step, SequentialPathwayStep):
+                    aliases = self._apply_rules_sequential(
+                        step.rules,
+                        aliases,
+                        entity_type,
+                        context,
+                        applied_rules,
+                        applied_rules_set,
+                    )
+                elif isinstance(step, ParallelPathwayStep):
+                    fork = set(aliases)
+                    merged = set(fork)
+                    for branch in step.branches:
+                        branch_out = self._apply_rules_sequential(
+                            branch,
+                            fork,
+                            entity_type,
+                            context,
+                            applied_rules,
+                            applied_rules_set,
+                        )
+                        merged.update(branch_out)
+                    aliases = merged
+        else:
+            aliases = self._apply_rules_sequential(
+                self.rules,
+                aliases,
+                entity_type,
+                context,
+                applied_rules,
+                applied_rules_set,
+            )
 
-                # Only add rule name if not already added (remove duplicates)
-                if rule.name not in applied_rules_set:
-                    applied_rules.append(rule.name)
-                    applied_rules_set.add(rule.name)
-
-            except Exception as e:
-                self.logger.verbose("ERROR", f"Error applying rule {rule.name}: {e}")
-
-        # Apply validation
-        validated_aliases = self._validate_aliases(list(aliases))
+        validated_aliases = self._validate_aliases(
+            list(aliases), self._effective_validation(applied_rules)
+        )
 
         return AliasingResult(
             original_tag=tag,
@@ -335,18 +680,8 @@ class AliasingEngine:
     def _check_conditions(
         self, rule: AliasRule, entity_type: str, context: Dict[str, Any]
     ) -> bool:
-        """Check if rule conditions are satisfied."""
-        # Check scope filters first (aligned with key extraction)
+        """Check optional non-entity_type scope_filters / conditions against *context*."""
         if rule.scope_filters:
-            # Check entity_type in scope_filters (primary method, aligned with key extraction)
-            if "entity_type" in rule.scope_filters:
-                allowed_types = rule.scope_filters["entity_type"]
-                if isinstance(allowed_types, str):
-                    allowed_types = [allowed_types]
-                if entity_type not in allowed_types:
-                    return False
-
-            # Check other scope filters
             if context:
                 for key, expected_value in rule.scope_filters.items():
                     if key == "entity_type":
@@ -359,17 +694,7 @@ class AliasingEngine:
                         if actual_value != expected_value:
                             return False
 
-        # Fallback to conditions for backward compatibility
         if rule.conditions:
-            # Check entity_type in conditions (backward compatibility)
-            if "entity_type" in rule.conditions:
-                allowed_types = rule.conditions["entity_type"]
-                if isinstance(allowed_types, str):
-                    allowed_types = [allowed_types]
-                if entity_type not in allowed_types:
-                    return False
-
-            # Check other context conditions
             if context:
                 for key, expected_value in rule.conditions.items():
                     if key == "entity_type":
@@ -385,17 +710,31 @@ class AliasingEngine:
 
         return True
 
-    def _validate_aliases(self, aliases: List[str]) -> List[str]:
+    def _effective_validation(self, applied_rule_names: List[str]) -> Dict[str, Any]:
+        """Global ``data.validation`` merged with each applied rule's ``validation`` (order = first rule first)."""
+        base: Dict[str, Any] = (
+            dict(self.validation_config) if isinstance(self.validation_config, dict) else {}
+        )
+        for nm in applied_rule_names:
+            rule = self._rule_by_name.get(nm)
+            if not rule:
+                continue
+            ov = getattr(rule, "validation", None)
+            if isinstance(ov, dict) and ov:
+                base = merge_validation_dict_overlay(base, ov)
+        return base
+
+    def _validate_aliases(self, aliases: List[str], validation: Dict[str, Any]) -> List[str]:
         """Apply confidence_match_rules, min_confidence, dedupe, and max_aliases_per_tag."""
-        max_aliases = int(self.validation_config.get("max_aliases_per_tag", 50) or 50)
-        min_confidence = float(self.validation_config.get("min_confidence", 0.0) or 0.0)
-        rules_raw = self.validation_config.get("confidence_match_rules") or []
+        max_aliases = int(validation.get("max_aliases_per_tag", 50) or 50)
+        min_confidence = float(validation.get("min_confidence", 0.0) or 0.0)
+        rules_raw = validation.get("confidence_match_rules") or []
 
         scored = [(str(a), 1.0) for a in aliases if a]
         scored = apply_confidence_match_rules_to_float_scores(
             scored,
             rules_raw=list(rules_raw) if isinstance(rules_raw, list) else list(rules_raw),
-            default_expression_match=self.validation_config,
+            default_expression_match=validation,
             log_warning=self.logger.warning,
             log_verbose=self.logger.verbose,
         )

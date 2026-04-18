@@ -61,6 +61,7 @@ def _pydantic_aliasing_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
         conditions = data.get("conditions")
         if conditions is None:
             conditions = getattr(cdf_rule, "conditions", None) or {}
+        val = data.get("validation")
         return {
             "name": name,
             "handler": data.get("handler", "character_substitution"),
@@ -71,8 +72,10 @@ def _pydantic_aliasing_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
             "conditions": conditions if isinstance(conditions, dict) else {},
             "description": data.get("description", ""),
             "scope_filters": scope if isinstance(scope, dict) else {},
+            "validation": val if isinstance(val, dict) else {},
         }
 
+    val = getattr(cdf_rule, "validation", None)
     return {
         "name": getattr(cdf_rule, "name", "unnamed_rule"),
         "handler": getattr(cdf_rule, "handler", "character_substitution"),
@@ -83,6 +86,7 @@ def _pydantic_aliasing_rule_to_rule_data(cdf_rule: Any) -> Dict[str, Any]:
         "conditions": getattr(cdf_rule, "conditions", {}) or {},
         "description": getattr(cdf_rule, "description", ""),
         "scope_filters": getattr(cdf_rule, "scope_filters", {}) or {},
+        "validation": val if isinstance(val, dict) else {},
     }
 
 
@@ -265,19 +269,27 @@ def _convert_aliasing_rule_dict_to_engine_format(
 ) -> Optional[Dict[str, Any]]:
     """Convert an aliasing rule dictionary directly to engine format without Pydantic."""
     try:
+        from cdf_fn_common.pipeline_io import pipeline_io_dict_for_engine
+
         # Only convert if rule is enabled (or if enabled is not specified, default to True)
         enabled = rule_data.get("enabled", True)
 
+        handler = rule_data.get("handler") or rule_data.get("type") or "character_substitution"
+        io = pipeline_io_dict_for_engine(rule_data)
+        val = rule_data.get("validation")
         engine_rule = {
             "name": rule_data.get("name", "unnamed_rule"),
-            "handler": rule_data.get("handler", "character_substitution"),
+            "handler": handler,
             "enabled": enabled,
             "priority": rule_data.get("priority", 50),
-            "preserve_original": rule_data.get("preserve_original", True),
+            "preserve_original": io["preserve_original"],
+            "pipeline_input": io["pipeline_input"],
+            "pipeline_output": io["pipeline_output"],
             "config": rule_data.get("config", {}),
             "scope_filters": rule_data.get("scope_filters", {}),
             "conditions": rule_data.get("conditions", {}),
             "description": rule_data.get("description", ""),
+            "validation": val if isinstance(val, dict) else {},
         }
         return engine_rule
     except Exception as e:
@@ -287,8 +299,105 @@ def _convert_aliasing_rule_dict_to_engine_format(
         return None
 
 
+def _convert_pathways_rules_for_engine(data_section: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Normalize ``pathways.steps`` rule dicts to engine format (same as ``aliasing_rules``)."""
+    pw = data_section.get("pathways")
+    if not isinstance(pw, dict):
+        return None
+    steps_in = pw.get("steps")
+    if not isinstance(steps_in, list):
+        return None
+    steps_out: List[Dict[str, Any]] = []
+    for step in steps_in:
+        if not isinstance(step, dict):
+            continue
+        mode = str(step.get("mode") or "sequential").strip().lower()
+        if mode == "sequential":
+            rules_raw = step.get("rules") or []
+            converted: List[Dict[str, Any]] = []
+            if isinstance(rules_raw, list):
+                for r in rules_raw:
+                    if isinstance(r, dict):
+                        er = _convert_aliasing_rule_dict_to_engine_format(r)
+                        if er:
+                            converted.append(er)
+            steps_out.append({"mode": "sequential", "rules": converted})
+        elif mode == "parallel":
+            branches_out: List[Dict[str, Any]] = []
+            for br in step.get("branches") or []:
+                rules_raw: List[Any] = []
+                if isinstance(br, dict):
+                    rules_raw = br.get("rules") or []
+                elif isinstance(br, list):
+                    rules_raw = br
+                converted = []
+                if isinstance(rules_raw, list):
+                    for r in rules_raw:
+                        if isinstance(r, dict):
+                            er = _convert_aliasing_rule_dict_to_engine_format(r)
+                            if er:
+                                converted.append(er)
+                branches_out.append({"rules": converted})
+            steps_out.append({"mode": "parallel", "branches": branches_out})
+    return {"steps": steps_out}
+
+
+def scope_has_key_extraction_rules(scope_document: Optional[Dict[str, Any]]) -> bool:
+    """True when scope includes non-empty ``key_extraction.config.data.extraction_rules`` (for attaching pipelines)."""
+    if not isinstance(scope_document, dict):
+        return False
+    ke = scope_document.get("key_extraction")
+    if not isinstance(ke, dict):
+        return False
+    kcfg = ke.get("config")
+    if not isinstance(kcfg, dict):
+        return False
+    data = kcfg.get("data")
+    if not isinstance(data, dict):
+        return False
+    er = data.get("extraction_rules")
+    return isinstance(er, list) and len(er) > 0
+
+
+def attach_extraction_aliasing_pipelines(
+    aliasing_config: Dict[str, Any],
+    scope_document: Optional[Dict[str, Any]],
+) -> None:
+    """Populate ``extraction_aliasing_pipelines`` on *aliasing_config* from scope ``key_extraction``."""
+    if not isinstance(scope_document, dict):
+        return
+    ke = scope_document.get("key_extraction")
+    if not isinstance(ke, dict):
+        return
+    kcfg = ke.get("config")
+    if not isinstance(kcfg, dict):
+        return
+    data = kcfg.get("data")
+    if not isinstance(data, dict):
+        return
+    erules = data.get("extraction_rules")
+    if not isinstance(erules, list):
+        return
+    pipelines: Dict[str, List[Any]] = {}
+    for rule in erules:
+        if not isinstance(rule, dict):
+            continue
+        rid = rule.get("rule_id") or rule.get("name")
+        if rid is None or not str(rid).strip():
+            continue
+        ap = rule.get("aliasing_pipeline")
+        if ap is None:
+            pipelines[str(rid).strip()] = []
+        elif isinstance(ap, list):
+            pipelines[str(rid).strip()] = ap
+    if pipelines:
+        aliasing_config["extraction_aliasing_pipelines"] = pipelines
+
+
 def _convert_yaml_direct_to_aliasing_config(
-    config_data: Dict[str, Any]
+    config_data: Dict[str, Any],
+    *,
+    scope_document: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Convert YAML config data directly to aliasing engine format.
@@ -322,8 +431,14 @@ def _convert_yaml_direct_to_aliasing_config(
             # The engine will check the enabled flag during execution
             aliasing_config["rules"].append(engine_rule)
 
+    pw_engine = _convert_pathways_rules_for_engine(data_section)
+    if pw_engine is not None and pw_engine.get("steps"):
+        aliasing_config["pathways"] = pw_engine
+
     # Add validation if present
     if "validation" in data_section:
         aliasing_config["validation"].update(data_section["validation"])
+
+    attach_extraction_aliasing_pipelines(aliasing_config, scope_document)
 
     return aliasing_config

@@ -16,8 +16,6 @@ SkipEntityPolicy = Literal["successful_only", "none"]
 
 ExtractionHandlerId = Literal["regex_handler", "heuristic"]
 FieldResultsMode = Literal["merge_all"]
-
-
 # Configuration classes
 class Parameters(BaseModel):
     debug: bool = Field(False, description="Enable debug mode")
@@ -399,8 +397,30 @@ class ConfidenceMatchRule(BaseModel):
             "fullmatch (re.fullmatch). Omit to use validation.expression_match, then search."
         ),
     )
+    pipeline_input: Literal["cumulative", "previous"] = Field(
+        "cumulative",
+        description=(
+            "Flow/canvas: cumulative uses full key state for this validation block; "
+            "previous is reserved for future use (evaluator currently applies rules per key in order)."
+        ),
+    )
+    pipeline_output: Literal["merge", "replace"] = Field(
+        "merge",
+        description="Flow/canvas: merge/replace semantics for downstream wiring (informational for match rules).",
+    )
     match: ConfidenceMatchSpec
     confidence_modifier: ConfidenceModifier
+
+    @model_validator(mode="before")
+    @classmethod
+    def _pipeline_io_yaml_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            data = dict(data)
+            if data.get("pipeline_input") is None and data.get("input") is not None:
+                data["pipeline_input"] = data["input"]
+            if data.get("pipeline_output") is None and data.get("output") is not None:
+                data["pipeline_output"] = data["output"]
+        return data
 
 
 class FieldExtractionSpec(BaseModel):
@@ -488,12 +508,15 @@ class ValidationConfig(BaseModel):
             "accept config but post-processing should use rules only."
         ),
     )
-    confidence_match_rules: List[ConfidenceMatchRule] = Field(
+    confidence_match_rules: List[Any] = Field(
         default_factory=list,
         description=(
-            "Ordered confidence adjustments per key (priority, then list order). "
-            "For each key, each rule: if match succeeds, apply modifier — offset chains with "
-            "later rules; explicit sets confidence and stops further rules for that key."
+            "Hierarchical pipeline: top-level list order is strict. Shorthand "
+            "``{ rule_id: [ tail... ] }`` or "
+            "``hierarchy: { mode: ordered | concurrent, children: [...] }`` — "
+            "``ordered`` runs children in list order; ``concurrent`` runs children by ascending "
+            "``priority``. Each leaf rule: if match succeeds, apply modifier — offset chains; "
+            "explicit sets confidence and stops further rules for that key."
         ),
     )
 
@@ -550,6 +573,24 @@ class ExtractionRuleConfig(BaseModel):
         None,
         description="Validation configuration for the extraction rule.",
     )
+    pipeline_input: Literal["cumulative", "previous"] = Field(
+        "cumulative",
+        description=(
+            "Flow/canvas: cumulative = each rule reads entity fields independently (default). "
+            "previous = reserved for chained extraction (feed prior rule outputs); not yet applied in engine."
+        ),
+    )
+    pipeline_output: Literal["merge", "replace"] = Field(
+        "merge",
+        description="Flow/canvas: how this rule's keys merge into the extraction result set (informational until chaining lands).",
+    )
+    aliasing_pipeline: List[Any] = Field(
+        default_factory=list,
+        description=(
+            "Per-extraction-rule tag aliasing transform tree (same YAML shape as confidence_match_rules): "
+            "ordered list, hierarchy ordered|concurrent, refs via aliasing_rule_definitions / sequences."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -566,6 +607,10 @@ class ExtractionRuleConfig(BaseModel):
                 data["handler"] = "regex_handler"
             if str(data.get("field_results_mode") or "").strip().lower() == "first_match":
                 data["field_results_mode"] = "merge_all"
+            if data.get("pipeline_input") is None and data.get("input") is not None:
+                data["pipeline_input"] = data["input"]
+            if data.get("pipeline_output") is None and data.get("output") is not None:
+                data["pipeline_output"] = data["output"]
         return data
 
     @field_validator("parameters", mode="before")

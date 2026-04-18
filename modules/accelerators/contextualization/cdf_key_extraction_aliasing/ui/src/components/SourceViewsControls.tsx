@@ -19,6 +19,12 @@ type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 type Props = {
   value: unknown;
   onChange: (next: unknown) => void;
+  /** When set, selects this row in the view list (e.g. flow canvas node double-click). */
+  initialViewIndex?: number;
+  /** Full scope document for match-rule refs (`confidence_match_rule_definitions` / sequences). */
+  scopeDocument?: Record<string, unknown>;
+  /** Scroll to this match rule in per-view validation (inline rules only). */
+  initialFocusedMatchRuleName?: string;
 };
 
 function asViewList(v: unknown): JsonObject[] {
@@ -43,7 +49,13 @@ function viewListLabel(view: JsonObject, vi: number, t: TFn): string {
   return t("sourceViews.unnamedView", { index: String(vi + 1) });
 }
 
-export function SourceViewsControls({ value, onChange }: Props) {
+export function SourceViewsControls({
+  value,
+  onChange,
+  initialViewIndex,
+  scopeDocument,
+  initialFocusedMatchRuleName,
+}: Props) {
   const { t } = useAppSettings();
   const views = asViewList(value);
   const [selectedVi, setSelectedVi] = useState(0);
@@ -54,6 +66,12 @@ export function SourceViewsControls({ value, onChange }: Props) {
       return Math.min(Math.max(0, sel), views.length - 1);
     });
   }, [views.length]);
+
+  useEffect(() => {
+    if (initialViewIndex === undefined || views.length === 0) return;
+    const clamped = Math.min(Math.max(0, initialViewIndex), views.length - 1);
+    setSelectedVi(clamped);
+  }, [initialViewIndex, views.length]);
 
   const setViews = (next: JsonObject[]) => onChange(next);
 
@@ -356,7 +374,13 @@ export function SourceViewsControls({ value, onChange }: Props) {
                 <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
                   {t("sourceViews.perViewValidationHint")}
                 </p>
-                <ValidationStructuredEditor variant="keyExtraction" value={validationObject} onChange={commitStructuredValidation} />
+                <ValidationStructuredEditor
+                  variant="keyExtraction"
+                  value={validationObject}
+                  onChange={commitStructuredValidation}
+                  scopeDocument={scopeDocument}
+                  initialFocusedMatchRuleName={initialFocusedMatchRuleName}
+                />
                 <details style={{ marginTop: "1rem" }}>
                   <summary style={{ cursor: "pointer", color: "var(--kea-text-muted)" }}>{t("validationEditor.advancedYaml")}</summary>
                   {validationError && <p className="kea-hint kea-hint--warn">{validationError}</p>}

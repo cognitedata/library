@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { flushSync } from "react-dom";
 import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { MessageKey } from "../i18n/types";
@@ -20,13 +21,19 @@ import {
   ruleMatchesEntityBucket,
 } from "../utils/scopeEntityTypeBuckets";
 import { mergeScopeFiltersYaml, scopeFiltersYamlFromParts, splitScopeFiltersYaml } from "../utils/scopeFiltersParts";
+import { focusTargetDomId } from "../utils/focusTargetDomId";
 import { reorderListAtIndex } from "../utils/ruleListReorder";
+import { DeferredCommitInput, DeferredCommitTextarea } from "./DeferredCommitTextField";
 import { DiscoveryHandlerParameters } from "./discovery/DiscoveryHandlerParameters";
 import { DiscoverySourceFieldsEditor } from "./discovery/DiscoverySourceFieldsEditor";
+import { MatchValidationRefsEditor } from "./MatchValidationRefsEditor";
 
 type Props = {
   value: JsonObject;
   onChange: (next: JsonObject) => void;
+  scopeDocument?: Record<string, unknown>;
+  /** Scroll to / expand this extraction rule (e.g. flow node double-click). */
+  initialFocusedRuleName?: string;
 };
 
 /** Registered KeyExtractionEngine handlers (values match YAML `handler:`). */
@@ -62,6 +69,8 @@ type UiRule = {
   scopeFiltersOtherYaml: string;
   parametersYaml: string;
   sourceFieldsYaml: string;
+  /** Per-rule `validation` block (match rules / order). */
+  validation: JsonObject;
 };
 
 const KNOWN_REST = new Set<string>([]);
@@ -107,6 +116,9 @@ function parseUiRule(raw: unknown, idx: number): UiRule {
   }
 
   const scopeParts = splitScopeFiltersYaml(scopeFiltersYaml);
+  const val = rule.validation;
+  const validation =
+    val !== null && typeof val === "object" && !Array.isArray(val) ? (val as JsonObject) : {};
 
   return {
     name: ruleNameOrDefault(String(rule.name ?? ""), idx + 1, "extraction_rule"),
@@ -121,6 +133,7 @@ function parseUiRule(raw: unknown, idx: number): UiRule {
     scopeFiltersOtherYaml: scopeParts.otherYaml,
     parametersYaml,
     sourceFieldsYaml,
+    validation,
   };
 }
 
@@ -167,6 +180,7 @@ function serializeUiRule(r: UiRule, idx: number): { ok: true; rule: JsonObject }
   if (fields !== undefined) out.fields = fields;
   out.scope_filters =
     scopeFilters !== null && typeof scopeFilters === "object" && !Array.isArray(scopeFilters) ? scopeFilters : {};
+  if (Object.keys(r.validation).length > 0) out.validation = { ...r.validation };
   return { ok: true, rule: out };
 }
 
@@ -184,6 +198,7 @@ function defaultUiRule(existing: UiRule[], entityBucket: string): UiRule {
     scopeFiltersOtherYaml: scopeParts.otherYaml,
     parametersYaml: defaultParametersYamlForDiscoveryHandler("regex_handler"),
     sourceFieldsYaml: DEFAULT_FIELDS_YAML,
+    validation: {},
   };
 }
 
@@ -193,7 +208,12 @@ function bucketLabel(t: (k: MessageKey) => string, id: string): string {
   return id;
 }
 
-export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
+export function DiscoveryRulesStructuredEditor({
+  value,
+  onChange,
+  scopeDocument,
+  initialFocusedRuleName,
+}: Props) {
   const { t } = useAppSettings();
   const [serializeError, setSerializeError] = useState<string | null>(null);
   const [selectedEntityBucket, setSelectedEntityBucket] = useState<string>("asset");
@@ -205,6 +225,7 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
   const [ruleCardExpanded, setRuleCardExpanded] = useState<Record<string, boolean>>({});
   const [dragRuleFrom, setDragRuleFrom] = useState<number | null>(null);
   const [dragRuleOver, setDragRuleOver] = useState<number | null>(null);
+  const lastAppliedInitialFocusRef = useRef<string | null>(null);
 
   useEffect(() => {
     entityTypesCsvDraftRef.current = entityTypesCsvDraft;
@@ -248,6 +269,31 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
       setSelectedEntityBucket(pickInitialEntityBucket(entitySidebarRows));
     }
   }, [entitySidebarRows, selectedEntityBucket]);
+
+  useEffect(() => {
+    const t = initialFocusedRuleName?.trim();
+    if (!t) return;
+    if (lastAppliedInitialFocusRef.current === t) return;
+    const rule = uiRules.find((r) => r.name === t);
+    if (!rule) return;
+    lastAppliedInitialFocusRef.current = t;
+    const yml = scopeFiltersYamlFromParts({
+      entityTypesCsv: rule.entityTypesCsv,
+      otherYaml: rule.scopeFiltersOtherYaml,
+    });
+    const bucketRow = entitySidebarRows.find((row) => ruleMatchesEntityBucket(yml, row.id));
+    const bucket = bucketRow?.id ?? pickInitialEntityBucket(entitySidebarRows);
+    flushSync(() => {
+      setSelectedEntityBucket(bucket);
+      setRuleCardExpanded((m) => ({ ...m, [t]: true }));
+    });
+    requestAnimationFrame(() => {
+      document.getElementById(focusTargetDomId("kea-discovery-rule", t))?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    });
+  }, [initialFocusedRuleName, uiRules, entitySidebarRows]);
 
   const visibleRuleEntries = useMemo(
     () =>
@@ -354,6 +400,7 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
         return (
         <div
           key={`${rule.name}-${idx}`}
+          id={focusTargetDomId("kea-discovery-rule", rule.name)}
           className={cardClass}
           style={{
             border: "1px solid var(--kea-border)",
@@ -436,43 +483,33 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
             </button>
             <label className="kea-label">
               {t("discoveryRules.rule.name")}
-              <input
+              <DeferredCommitInput
                 className="kea-input"
                 type="text"
                 required
                 aria-required={true}
-                value={rule.name}
-                onChange={(e) => {
-                  const newName = e.target.value;
+                committedValue={rule.name}
+                syncKey={idx}
+                onCommit={(raw) => {
+                  const trimmed = raw.trim();
+                  const newName = trimmed ? trimmed : ruleNameOrDefault("", idx + 1, "extraction_rule");
+                  if (newName === rule.name) return;
+                  const oldName = rule.name;
                   setEntityTypesCsvDraft((d) => {
-                    if (!(rule.name in d)) return d;
-                    const v = d[rule.name]!;
-                    const { [rule.name]: _, ...rest } = d;
+                    if (!(oldName in d)) return d;
+                    const v = d[oldName]!;
+                    const { [oldName]: _, ...rest } = d;
                     return { ...rest, [newName]: v };
                   });
                   setRuleCardExpanded((m) => {
-                    if (!(rule.name in m)) return m;
-                    const v = m[rule.name]!;
-                    const { [rule.name]: _, ...rest } = m;
+                    if (!(oldName in m)) return m;
+                    const v = m[oldName]!;
+                    const { [oldName]: _, ...rest } = m;
                     return { ...rest, [newName]: v };
                   });
                   const next = [...uiRules];
                   next[idx] = { ...rule, name: newName };
                   commit(rest, next);
-                }}
-                onBlur={() => {
-                  if (!rule.name.trim()) {
-                    const newName = ruleNameOrDefault("", idx + 1, "extraction_rule");
-                    setRuleCardExpanded((m) => {
-                      if (!(rule.name in m)) return m;
-                      const v = m[rule.name]!;
-                      const { [rule.name]: _, ...rest } = m;
-                      return { ...rest, [newName]: v };
-                    });
-                    const next = [...uiRules];
-                    next[idx] = { ...rule, name: newName };
-                    commit(rest, next);
-                  }
                 }}
               />
             </label>
@@ -495,14 +532,15 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
 
           <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
             {t("discoveryRules.rule.description")}
-            <textarea
+            <DeferredCommitTextarea
               className="kea-textarea"
               style={{ minHeight: 52 }}
-              value={rule.description}
-              onChange={(e) => {
-                const next = [...uiRules];
-                next[idx] = { ...rule, description: e.target.value };
-                commit(rest, next);
+              committedValue={rule.description}
+              syncKey={idx}
+              onCommit={(next) => {
+                const nu = [...uiRules];
+                nu[idx] = { ...rule, description: next };
+                commit(rest, nu);
               }}
             />
           </label>
@@ -683,6 +721,24 @@ export function DiscoveryRulesStructuredEditor({ value, onChange }: Props) {
             }}
             spellCheck={false}
           />
+
+          {scopeDocument && (
+            <div style={{ marginTop: "0.85rem" }}>
+              <h4 className="kea-section-title" style={{ fontSize: "0.9rem" }}>
+                {t("discoveryRules.rule.matchValidation")}
+              </h4>
+              <p className="kea-hint">{t("discoveryRules.rule.matchValidationHint")}</p>
+              <MatchValidationRefsEditor
+                value={rule.validation}
+                onChange={(nextVal) => {
+                  const next = [...uiRules];
+                  next[idx] = { ...rule, validation: nextVal };
+                  commit(rest, next);
+                }}
+                scopeDocument={scopeDocument}
+              />
+            </div>
+          )}
 
           {discoveryHandlerKind(rule.handler) === "heuristic" ? (
             <>
