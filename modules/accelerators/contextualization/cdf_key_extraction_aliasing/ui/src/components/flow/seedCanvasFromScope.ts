@@ -137,6 +137,80 @@ function parseExtractionRules(scopeDoc: Record<string, unknown>): ExtractionRule
   return out;
 }
 
+/** Raw `key_extraction.config.data.extraction_rules[]` row for pipeline seeding. */
+function getExtractionRuleRow(
+  scopeDoc: Record<string, unknown>,
+  ruleName: string
+): Record<string, unknown> | null {
+  const ke = scopeDoc.key_extraction as Record<string, unknown> | undefined;
+  const config = ke?.config as Record<string, unknown> | undefined;
+  const data = config?.data as Record<string, unknown> | undefined;
+  const rules = data?.extraction_rules;
+  if (!Array.isArray(rules)) return null;
+  for (const r of rules) {
+    if (!r || typeof r !== "object" || Array.isArray(r)) continue;
+    const row = r as Record<string, unknown>;
+    if (String(row.name ?? "").trim() === ruleName) return row;
+  }
+  return null;
+}
+
+/**
+ * Linear order of aliasing rule ids for canvas wiring (DFS; enough for typical list / hierarchy seeds).
+ */
+function linearAliasingRuleNamesFromPipeline(pipeline: unknown): string[] {
+  if (!pipeline) return [];
+  if (!Array.isArray(pipeline)) return [];
+  const out: string[] = [];
+  for (const item of pipeline) {
+    walkAliasingPipelineItem(item, out);
+  }
+  return out;
+}
+
+function walkAliasingPipelineItem(item: unknown, out: string[]): void {
+  if (item === null || item === undefined) return;
+  if (typeof item === "string") {
+    const s = item.trim();
+    if (s) out.push(s);
+    return;
+  }
+  if (Array.isArray(item)) {
+    for (const x of item) walkAliasingPipelineItem(x, out);
+    return;
+  }
+  if (typeof item !== "object") return;
+  const o = item as Record<string, unknown>;
+  if (typeof o.ref === "string" && o.ref.trim()) {
+    out.push(o.ref.trim());
+    return;
+  }
+  const seq = o.sequence;
+  if (typeof seq === "string" && seq.trim()) {
+    out.push(seq.trim());
+    return;
+  }
+  const h = o.hierarchy;
+  if (h && typeof h === "object" && !Array.isArray(h)) {
+    const children = (h as Record<string, unknown>).children;
+    if (Array.isArray(children)) {
+      for (const c of children) walkAliasingPipelineItem(c, out);
+    }
+    return;
+  }
+  for (const k of Object.keys(o)) {
+    if (k === "ref" || k === "hierarchy" || k === "sequence") continue;
+    const v = o[k];
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") continue;
+    out.push(k.trim());
+    if (Array.isArray(v)) {
+      for (const x of v) walkAliasingPipelineItem(x, out);
+    } else if (v && typeof v === "object" && !Array.isArray(v)) {
+      walkAliasingPipelineItem(v, out);
+    }
+  }
+}
+
 function parseAliasingRules(scopeDoc: Record<string, unknown>): AliasingRuleSeed[] {
   const al = scopeDoc.aliasing as Record<string, unknown> | undefined;
   const config = al?.config as Record<string, unknown> | undefined;
@@ -593,31 +667,53 @@ export function seedCanvasFromScope(scopeDoc: Record<string, unknown>): Workflow
     }
   }
 
-  // Extraction → first aliasing (data); then aliasing sequence
-  if (alIds.length > 0) {
-    const firstAl = alIds[0];
-    for (const extId of extIds) {
-      edges.push({
-        id: `e_${extId}_${firstAl}`,
-        source: extId,
-        target: firstAl,
-        kind: "data",
-      });
-    }
-    for (let i = 0; i < alIds.length - 1; i++) {
-      edges.push({
-        id: `e_${alIds[i]}_${alIds[i + 1]}`,
-        source: alIds[i],
-        target: alIds[i + 1],
-        kind: "sequence",
-      });
-    }
+  // Extraction → aliasing: use each extraction rule's `aliasing_pipeline` for data + sequence edges
+  // (not a single global chain — tag-aliasing routes via extraction_rules[].aliasing_pipeline).
+  const seededEdgeSig = new Set<string>();
+  const addSeedEdge = (
+    source: string,
+    target: string,
+    kind: WorkflowCanvasEdge["kind"]
+  ): void => {
+    const sig = `${source}\0${target}\0${kind}`;
+    if (seededEdgeSig.has(sig)) return;
+    seededEdgeSig.add(sig);
     edges.push({
-      id: `e_${alIds[alIds.length - 1]}_${ID_END}`,
-      source: alIds[alIds.length - 1],
-      target: ID_END,
-      kind: "data",
+      id: `e_${source}_${target}_${edges.length}`,
+      source,
+      target,
+      kind,
     });
+  };
+
+  if (alIds.length > 0) {
+    const nameToAlId = new Map<string, string>();
+    for (let i = 0; i < aliasingRules.length; i++) {
+      nameToAlId.set(aliasingRules[i].name, alIds[i]!);
+    }
+
+    for (const er of extractionRules) {
+      const extId = `ext_${canvasIdSlug(er.name)}`;
+      const row = getExtractionRuleRow(scopeDoc, er.name);
+      const pipeline = row?.aliasing_pipeline;
+      const orderedNames = linearAliasingRuleNamesFromPipeline(pipeline ?? []);
+      const fallbackFirst = alIds[0]!;
+      let firstAlId = fallbackFirst;
+      if (orderedNames.length > 0) {
+        firstAlId = nameToAlId.get(orderedNames[0]!) ?? fallbackFirst;
+      }
+      addSeedEdge(extId, firstAlId, "data");
+
+      for (let i = 0; i < orderedNames.length - 1; i++) {
+        const fromN = orderedNames[i]!;
+        const toN = orderedNames[i + 1]!;
+        const a = nameToAlId.get(fromN);
+        const b = nameToAlId.get(toN);
+        if (a && b) addSeedEdge(a, b, "sequence");
+      }
+    }
+
+    addSeedEdge(alIds[alIds.length - 1]!, ID_END, "data");
   } else if (extIds.length > 0) {
     for (const extId of extIds) {
       edges.push({

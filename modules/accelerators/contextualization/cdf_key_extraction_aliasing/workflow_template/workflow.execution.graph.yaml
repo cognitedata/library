@@ -1,0 +1,31 @@
+# Macro Kahn-style execution graph for cdf_key_extraction_aliasing.
+# SSOT for task DAG (aligned with workflow.template.WorkflowVersion.yaml dependsOn).
+# Channel semantics: see workflow_channel_contracts.md
+schemaVersion: 1
+description: >-
+  Cognite function nodes; edges are control order plus RAW/run_id channel contracts
+  (CDF does not pass payloads between tasks — see workflow_diagram.md).
+nodes:
+  - id: fn_dm_incremental_state_update
+    role: incremental_cohort
+  - id: fn_dm_key_extraction
+    role: key_extraction
+  - id: fn_dm_reference_index
+    role: reference_index
+  - id: fn_dm_aliasing
+    role: aliasing
+  - id: fn_dm_alias_persistence
+    role: alias_persistence
+edges:
+  - from: fn_dm_incremental_state_update
+    to: fn_dm_key_extraction
+    channel: cohort_raw_and_run_id
+  - from: fn_dm_key_extraction
+    to: fn_dm_reference_index
+    channel: key_extraction_raw_fk_doc_json
+  - from: fn_dm_key_extraction
+    to: fn_dm_aliasing
+    channel: key_extraction_raw_candidate_keys
+  - from: fn_dm_aliasing
+    to: fn_dm_alias_persistence
+    channel: tag_aliasing_raw

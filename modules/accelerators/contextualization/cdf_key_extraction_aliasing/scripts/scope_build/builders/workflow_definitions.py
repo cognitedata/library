@@ -250,6 +250,28 @@ def expected_scoped_workflow_documents(
     return wf_doc, wv_doc
 
 
+def _verify_kahn_graph_matches_workflow_version_template(
+    module_root: Path,
+    workflow_version_template_path: Path | None,
+) -> None:
+    """Ensure workflow.execution.graph.yaml agrees with WorkflowVersion template dependsOn."""
+    from functions.cdf_fn_common.workflow_execution_graph import (
+        validate_template_workflow_version_matches_execution_graph,
+    )
+
+    tpl = (
+        workflow_version_template_path
+        if workflow_version_template_path is not None
+        else (module_root / DEFAULT_WORKFLOW_VERSION_TEMPLATE_REL)
+    )
+    errs = validate_template_workflow_version_matches_execution_graph(module_root, tpl)
+    if errs:
+        raise SystemExit(
+            "workflow.execution.graph.yaml does not match WorkflowVersion template dependsOn:\n"
+            + "\n".join(f"  - {e}" for e in errs)
+        )
+
+
 def verify_root_workflow_bundle(
     module_root: Path,
     workflow_base: str,
@@ -258,6 +280,9 @@ def verify_root_workflow_bundle(
     workflow_version_template_path: Path | None,
 ) -> None:
     """Raise SystemExit(1) if root Workflow / WorkflowVersion are missing or differ from templates."""
+    _verify_kahn_graph_matches_workflow_version_template(
+        module_root, workflow_version_template_path
+    )
     workflows_dir = module_root / WORKFLOW_ARTIFACTS_REL
     exp_wf, exp_wv = expected_root_workflow_documents(
         module_root,
@@ -295,6 +320,9 @@ def verify_scoped_workflow_bundle(
     workflow_version_template_path: Path | None,
 ) -> None:
     """Raise SystemExit(1) if scoped Workflow / WorkflowVersion are missing or differ."""
+    _verify_kahn_graph_matches_workflow_version_template(
+        module_root, workflow_version_template_path
+    )
     suffix = cdf_external_id_suffix(ctx.scope_id)
     scope_dir = module_root / WORKFLOW_ARTIFACTS_REL / suffix
     exp_wf, exp_wv = expected_scoped_workflow_documents(

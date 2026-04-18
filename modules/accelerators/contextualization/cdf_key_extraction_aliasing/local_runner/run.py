@@ -13,50 +13,32 @@ import yaml
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_alias_persistence.pipeline import (
     persist_aliases_to_entities,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
-    AliasingEngine,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.pipeline import tag_aliasing
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_incremental_state_update.pipeline import (
-    incremental_state_update,
-)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
     _convert_yaml_direct_to_engine_config,
     convert_cdf_config_to_engine_config,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.config import Config
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
-    KeyExtractionEngine,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
-    _dedupe_document_references,
-    _dedupe_foreign_key_references,
-    key_extraction,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline import (
-    persist_reference_index,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.reference_index_naming import (
-    reference_index_raw_table_from_key_extraction_table,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.dm_filter_utils import (
-    property_reference_for_filter,
-)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.utils.source_view_filter_build import (
     build_source_view_query_filter,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.function_logging import (
     StdlibLoggerAdapter,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.property_path import (
-    get_value_by_property_path,
-)
 
+from .kahn_run_context import KahnRunContext
+from .kahn_workflow_executor import (
+    run_post_extraction_parallel,
+    step_incremental_state_update,
+    step_key_extraction,
+    validate_execution_graph_at_startup,
+)
 from .report import ensure_results_dir
 from .workflow_payload import (
     merged_scope_document_for_local_run,
     workflow_instance_space_for_local,
 )
+
+_MODULE_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _build_dm_filter_from_view_dict(
@@ -404,9 +386,12 @@ def _run_workflow_parity(
     scope_yaml_path: Path,
 ) -> None:
     """
-    Same order as deployed workflow: incremental state update → key extraction →
-    aliasing → persist (when not dry-run).
+    Kahn-style macro DAG: incremental → key extraction → (reference index ∥ aliasing) → persist.
+
+    Matches deployed WorkflowVersion dependsOn; post-extraction branches run concurrently locally.
     """
+    validate_execution_graph_at_startup(_MODULE_ROOT, logger)
+
     pipe_logger: Any = StdlibLoggerAdapter(logger)
     cdf_config, engine_config = _load_cdf_config_and_engine(
         scope_yaml_path, source_views, logger
@@ -439,63 +424,39 @@ def _run_workflow_parity(
     )
 
     logger.info(
-        "Incremental mode: running workflow parity "
-        "(state update → extraction → reference index → aliasing → persistence)"
+        "Incremental mode: Kahn macro run "
+        "(state → extraction → reference_index ∥ aliasing → persistence)"
     )
     progress_every = max(0, int(getattr(args, "progress_every", 0) or 0))
 
-    state_data: Dict[str, Any] = {
-        "logLevel": "INFO",
-        "run_all": bool(getattr(args, "run_all", False)),
-        "configuration": scope_document,
-        "instance_space": wf_instance_space,
-    }
-    incremental_state_update(client, pipe_logger, state_data, cdf_config)
-    run_id = state_data.get("run_id")
-    if not run_id:
-        raise RuntimeError("incremental_state_update did not set run_id")
+    ctx = KahnRunContext(
+        args=args,
+        logger=logger,
+        client=client,
+        pipe_logger=pipe_logger,
+        scope_yaml_path=scope_yaml_path,
+        scope_document=scope_document,
+        wf_instance_space=wf_instance_space,
+        source_views=source_views,
+        cdf_config=cdf_config,
+        engine_config=engine_config,
+        aliasing_config=aliasing_config,
+        alias_writeback_property=alias_writeback_property,
+        write_foreign_key_references=write_foreign_key_references,
+        foreign_key_writeback_property=foreign_key_writeback_property,
+        progress_every=progress_every,
+    )
 
-    cohort_rows: Optional[int] = None
-    cohort_skipped_hash: Optional[int] = None
-    if str(state_data.get("status") or "") == "success":
-        try:
-            msg_raw = state_data.get("message")
-            if isinstance(msg_raw, str) and msg_raw.strip():
-                st_msg = json.loads(msg_raw)
-                if isinstance(st_msg, dict):
-                    cohort_rows = int(st_msg.get("cohort_rows_written", 0) or 0)
-                    cohort_skipped_hash = int(
-                        st_msg.get("cohort_rows_skipped_unchanged_hash", 0) or 0
-                    )
-        except Exception:
-            pass
-    if cohort_rows is not None:
-        logger.info(
-            "✓ State update: run_id=%s, cohort_rows=%s%s",
-            run_id,
-            cohort_rows,
-            (
-                f", skipped_unchanged_hash={cohort_skipped_hash}"
-                if cohort_skipped_hash
-                else ""
-            ),
-        )
-    else:
-        logger.info("✓ State update: run_id=%s", run_id)
+    step_incremental_state_update(ctx)
+    run_id = ctx.run_id
+    cohort_rows = ctx.cohort_rows
+    cohort_skipped_hash = ctx.cohort_skipped_hash
 
-    ke_data: Dict[str, Any] = {
-        "logLevel": "INFO",
-        "run_id": run_id,
-        "run_all": bool(getattr(args, "run_all", False)),
-        "configuration": scope_document,
-        "instance_space": wf_instance_space,
-    }
-    engine = KeyExtractionEngine(engine_config)
-    key_extraction(client, pipe_logger, ke_data, engine, cdf_config)
-
-    entities_keys_extracted = ke_data.get("entities_keys_extracted") or {}
+    step_key_extraction(ctx)
+    entities_keys_extracted = ctx.entities_keys_extracted
     rollup = _rollup_extraction_from_entities(entities_keys_extracted)
-    keys_extracted = int(ke_data.get("keys_extracted") or 0)
+    ctx.rollup = rollup
+    keys_extracted = ctx.keys_extracted
     logger.info(
         "✓ Key extraction: run_id=%s, keys_extracted=%s, entities=%s, "
         "candidate_key_values=%s, fk_refs=%s, doc_refs=%s, extraction_failed=%s",
@@ -507,124 +468,10 @@ def _run_workflow_parity(
         rollup["doc_ref_count"],
         rollup["extraction_failed_count"],
     )
-    raw_db = str(getattr(cdf_config.parameters, "raw_db", "") or "")
-    raw_table_key = str(getattr(cdf_config.parameters, "raw_table_key", "") or "")
-    v0 = source_views[0]
-    fallback_instance_space = next(
-        (str(v.get("instance_space")) for v in source_views if v.get("instance_space")),
-        "all_spaces",
-    )
 
-    ref_summary: Optional[Dict[str, Any]] = None
-    ref_from_scope = bool(getattr(cdf_config.parameters, "enable_reference_index", False))
-    if getattr(args, "skip_reference_index", False):
-        logger.info("Skipping reference index (--skip-reference-index).")
-        ref_summary = {"status": "skipped", "reason": "skip_reference_index"}
-    elif not ref_from_scope:
-        logger.info(
-            "Skipping reference index: enable_reference_index is false in scope "
-            "(set key_extraction.config.parameters.enable_reference_index: true)."
-        )
-        ref_summary = {"status": "skipped", "reason": "enable_reference_index_false"}
-    else:
-        if args.dry_run:
-            logger.info(
-                "Dry-run: skipping reference index RAW writes (same as alias persistence)."
-            )
-            ref_summary = {"status": "skipped", "reason": "dry_run"}
-        elif not raw_db or not raw_table_key:
-            logger.warning(
-                "Reference index skipped: raw_db or raw_table_key missing in key_extraction parameters."
-            )
-            ref_summary = {"status": "skipped", "reason": "missing_raw_db_or_table"}
-        else:
-            ref_data: Dict[str, Any] = {
-                "logLevel": "INFO",
-                "configuration": scope_document,
-                "instance_space": wf_instance_space,
-                "progress_every": progress_every,
-                "source_run_id": run_id,
-                "source_raw_db": raw_db,
-                "source_raw_table_key": raw_table_key,
-                "source_raw_read_limit": 10000,
-                "incremental_auto_run_id": True,
-                "reference_index_raw_db": raw_db,
-                "reference_index_raw_table": reference_index_raw_table_from_key_extraction_table(
-                    raw_table_key
-                ),
-                "source_instance_space": str(
-                    v0.get("instance_space") or fallback_instance_space
-                ),
-                "source_view_space": v0.get("view_space", "cdf_cdm"),
-                "source_view_external_id": v0.get("view_external_id", "CogniteAsset"),
-                "source_view_version": v0.get("view_version", "v1"),
-                "reference_index_fk_entity_type": "asset",
-                "reference_index_document_entity_type": "file",
-                "config": {
-                    "config": {
-                        "parameters": {"debug": True},
-                        "data": {
-                            "aliasing_rules": aliasing_config.get("rules") or [],
-                            "validation": aliasing_config.get("validation") or {},
-                        },
-                    },
-                },
-            }
-            try:
-                persist_reference_index(client, pipe_logger, ref_data)
-                logger.info(
-                    "✓ Reference index: %s entities processed, %s inverted writes, %s postings "
-                    "(%s foreign_key, %s document)",
-                    ref_data.get("reference_index_entities_processed", 0),
-                    ref_data.get("reference_index_inverted_writes", 0),
-                    ref_data.get("reference_index_posting_events", 0),
-                    ref_data.get("reference_index_fk_posting_events", 0),
-                    ref_data.get("reference_index_document_posting_events", 0),
-                )
-                ref_summary = {
-                    "status": "ok",
-                    "entities": int(ref_data.get("reference_index_entities_processed", 0) or 0),
-                    "inverted_writes": int(
-                        ref_data.get("reference_index_inverted_writes", 0) or 0
-                    ),
-                    "postings": int(ref_data.get("reference_index_posting_events", 0) or 0),
-                    "fk_postings": int(
-                        ref_data.get("reference_index_fk_posting_events", 0) or 0
-                    ),
-                    "doc_postings": int(
-                        ref_data.get("reference_index_document_posting_events", 0) or 0
-                    ),
-                }
-            except Exception as e:
-                logger.error("Reference index failed: %s", e, exc_info=True)
-                ref_summary = {"status": "failed", "error": str(e)[:500]}
-
-    alias_data: Dict[str, Any] = {
-        "logLevel": "INFO",
-        "configuration": scope_document,
-        "instance_space": wf_instance_space,
-        "progress_every": progress_every,
-        "entities_keys_extracted": entities_keys_extracted,
-        "source_run_id": ke_data.get("run_id"),
-        "source_raw_db": raw_db,
-        "source_raw_table_key": raw_table_key,
-        "source_raw_read_limit": 10000,
-        "incremental_auto_run_id": True,
-        "incremental_transition": True,
-        "source_instance_space": str(v0.get("instance_space") or fallback_instance_space),
-        "source_view_space": v0.get("view_space", "cdf_cdm"),
-        "source_view_external_id": v0.get("view_external_id", "CogniteAsset"),
-        "source_view_version": v0.get("view_version", "v1"),
-        "source_entity_type": str(v0.get("entity_type", "asset")),
-    }
-    aliasing_engine = AliasingEngine(aliasing_config, client=client)
-    tag_aliasing(client, pipe_logger, alias_data, aliasing_engine)
-    logger.info(
-        "✓ Aliasing: tags=%s, aliases_generated=%s, raw_workflow_rows_updated=%s",
-        alias_data.get("total_tags_processed", 0),
-        alias_data.get("total_aliases_generated", 0),
-        alias_data.get("key_extraction_workflow_rows_updated", "n/a"),
-    )
+    run_post_extraction_parallel(ctx)
+    ref_summary = ctx.ref_summary
+    alias_data = ctx.alias_data
 
     aliasing_results = alias_data.get("aliasing_results") or []
     all_extraction_items = _extraction_json_items_from_entities(entities_keys_extracted)
@@ -826,7 +673,7 @@ def run_pipeline(
         raise ValueError(
             "local_runner requires key_extraction.parameters.incremental_change_processing=true "
             "(default). Direct view listing was removed; use --scope or --config-path for workflow "
-            "parity (incremental state update → key extraction → aliasing → persistence)."
+            "parity (incremental state update → key extraction → reference index ∥ aliasing → persistence)."
         )
     if not scope_yaml_path:
         raise ValueError(

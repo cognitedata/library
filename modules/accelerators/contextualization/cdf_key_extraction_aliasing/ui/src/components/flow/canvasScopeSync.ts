@@ -4,6 +4,7 @@ import type {
   WorkflowCanvasEdge,
   WorkflowCanvasNode,
 } from "../../types/workflowCanvas";
+import { patchExtractionRuleAliasingPipeline } from "./workflowScopePatch";
 /**
  * Merge flow canvas structure into the workflow scope document (YAML model).
  *
@@ -15,13 +16,18 @@ import type {
  *
  * Also reorders `aliasing.config.data.aliasing_rules` using the **same composition edges** as validation
  * (`sequence` / `parallel_group` between `kind: "aliasing"` nodes; not plain `data` edges).
+ *
+ * Writes `key_extraction.config.data.extraction_rules[].aliasing_pipeline` from **data** edges
+ * (extraction → first `kind: "aliasing"` node(s)) plus composition edges among aliasing nodes — the
+ * tag-aliasing engine routes transforms per extraction rule using this field (not global `aliasing_rules` order).
  */
 export function syncWorkflowScopeFromCanvas(
   canvas: WorkflowCanvasDocument,
   scopeDoc: Record<string, unknown>
 ): Record<string, unknown> {
   const wired = applyCanvasMatchWiring(canvas, scopeDoc);
-  return applyAliasingRulesOrderFromCanvas(canvas, wired);
+  const withPipelines = applyExtractionAliasingPipelinesFromCanvas(canvas, wired);
+  return applyAliasingRulesOrderFromCanvas(canvas, withPipelines);
 }
 
 function isDataEdge(e: WorkflowCanvasEdge): boolean {
@@ -254,6 +260,145 @@ function aliasingRuleNameFromNode(n: WorkflowCanvasNode | undefined): string | n
 
 const acceptAliasingCompositionNode: ChainTargetAccept = (tn) =>
   Boolean(tn && tn.kind === "aliasing" && aliasingRuleNameFromNode(tn));
+
+/** Same structure as `buildMatchSubtree` / `buildMatchTopLevelSteps` but for `kind: "aliasing"` transform nodes. */
+function buildAliasingTransformSubtree(
+  nodeId: string,
+  byId: Map<string, WorkflowCanvasNode>,
+  outgoing: Map<string, WorkflowCanvasEdge[]>,
+  visited: Set<string>
+): unknown {
+  const parts: unknown[] = [];
+  let cur: string | null = nodeId;
+  while (cur) {
+    if (visited.has(cur)) break;
+    visited.add(cur);
+    const n = byId.get(cur);
+    if (!n || !acceptAliasingCompositionNode(n)) break;
+    const nm = aliasingRuleNameFromNode(n);
+    const { seq, par } = partitionChainOut(cur, outgoing, byId, acceptAliasingCompositionNode);
+    if (par.length > 0) {
+      if (nm) parts.push(nm);
+      parts.push(
+        hierarchyConcurrent(
+          sortEdgesByTarget(par).map((e) =>
+            buildAliasingTransformSubtree(e.target, byId, outgoing, visited)
+          )
+        )
+      );
+      if (seq.length === 1) {
+        cur = seq[0]!.target;
+        continue;
+      }
+      break;
+    }
+    if (nm) parts.push(nm);
+    if (seq.length === 1) {
+      cur = seq[0]!.target;
+      continue;
+    }
+    break;
+  }
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return parts[0];
+  if (parts.every((p) => typeof p === "string")) {
+    return linearChainToShorthand(parts as string[]);
+  }
+  return hierarchyOrdered(parts);
+}
+
+function buildAliasingTransformTopLevelSteps(
+  headId: string,
+  byId: Map<string, WorkflowCanvasNode>,
+  outgoing: Map<string, WorkflowCanvasEdge[]>
+): unknown[] {
+  const steps: unknown[] = [];
+  const visited = new Set<string>();
+  let cur: string | null = headId;
+  while (cur) {
+    if (visited.has(cur)) break;
+    visited.add(cur);
+    const n = byId.get(cur);
+    if (!n || !acceptAliasingCompositionNode(n)) break;
+    const nm = aliasingRuleNameFromNode(n);
+    const { seq, par } = partitionChainOut(cur, outgoing, byId, acceptAliasingCompositionNode);
+    if (par.length > 0) {
+      if (nm) steps.push(nm);
+      steps.push(
+        hierarchyConcurrent(
+          sortEdgesByTarget(par).map((e) =>
+            buildAliasingTransformSubtree(e.target, byId, outgoing, visited)
+          )
+        )
+      );
+      if (seq.length === 1) {
+        cur = seq[0]!.target;
+        continue;
+      }
+      break;
+    }
+    if (nm) steps.push(nm);
+    if (seq.length === 1) {
+      cur = seq[0]!.target;
+      continue;
+    }
+    break;
+  }
+  return steps;
+}
+
+/**
+ * Persist per-extraction `aliasing_pipeline` from extraction → aliasing **data** edges and
+ * aliasing composition edges (matches engine `extraction_aliasing_pipelines`).
+ */
+function applyExtractionAliasingPipelinesFromCanvas(
+  canvas: WorkflowCanvasDocument,
+  scopeDoc: Record<string, unknown>
+): Record<string, unknown> {
+  const byId = nodesById(canvas);
+  const outgoing = buildOutgoing(canvas);
+  let doc: Record<string, unknown> = { ...scopeDoc };
+
+  for (const n of canvas.nodes) {
+    if (n.kind !== "extraction") continue;
+    const ruleName = refStr(n.data.ref, "extraction_rule_name");
+    if (!ruleName) continue;
+
+    const heads: string[] = [];
+    for (const e of outgoing.get(n.id) ?? []) {
+      if (!isDataEdge(e)) continue;
+      const t = byId.get(e.target);
+      if (!t || !acceptAliasingCompositionNode(t)) continue;
+      heads.push(e.target);
+    }
+    sortAliasingHeadIdsByRuleName(heads, byId);
+
+    if (heads.length === 0) {
+      doc = patchExtractionRuleAliasingPipeline(doc, ruleName, []);
+      continue;
+    }
+
+    const topParts: unknown[] = [];
+    for (const hid of heads) {
+      const raw = buildAliasingTransformTopLevelSteps(hid, byId, outgoing);
+      const one = shapeMatchStepsLinearOne(raw);
+      if (one !== null) topParts.push(one);
+    }
+
+    let pipeline: unknown[];
+    if (topParts.length === 0) {
+      pipeline = [];
+    } else if (topParts.length === 1) {
+      pipeline = [topParts[0]!];
+    } else {
+      pipeline = [hierarchyConcurrent(topParts)];
+    }
+
+    doc = patchExtractionRuleAliasingPipeline(doc, ruleName, pipeline);
+  }
+
+  return doc;
+}
 
 function sortAliasingHeadIdsByRuleName(heads: string[], byId: Map<string, WorkflowCanvasNode>): void {
   heads.sort((a, b) => {

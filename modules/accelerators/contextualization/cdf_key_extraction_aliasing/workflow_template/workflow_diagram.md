@@ -40,6 +40,8 @@ graph TD
     style RawRefIdx fill:#fff9c4,stroke:#f57f17,stroke-width:2px
 ```
 
+**Macro execution graph (Kahn network, `dependsOn` SSOT):** [`workflow.execution.graph.yaml`](workflow.execution.graph.yaml) and [`workflow_channel_contracts.md`](workflow_channel_contracts.md).
+
 ## Detailed Flow Description
 
 ### 1. Key Extraction Phase

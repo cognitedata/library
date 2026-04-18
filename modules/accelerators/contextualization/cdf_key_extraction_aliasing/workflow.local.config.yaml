@@ -106,6 +106,251 @@ aliasing_rule_definitions:
     config:
       substitutions:
         /: '-'
+  cogniteasset_explicit_aliases_from_raw:
+    name: cogniteasset_explicit_aliases_from_raw
+    handler: alias_mapping_table
+    description: Apply explicit alias mappings for CogniteAsset from RAW lookup rows.
+    enabled: true
+    priority: 5
+    preserve_original: true
+    config:
+      source_match: exact
+      case_insensitive: false
+      raw_table:
+        database_name: db_tag_aliasing
+        table_name: explicit_asset_aliases
+        key_column: source_tag
+        alias_columns:
+        - aliases
+        alias_delimiter: ','
+        scope_column: scope
+        scope_value_column: scope_value
+        source_match_column: source_match
+        columns:
+        - source_tag
+        - aliases
+        - scope
+        - scope_value
+        - source_match
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  semantic_expansion:
+    name: semantic_expansion
+    handler: semantic_expansion
+    description: Expand equipment type letter codes to full words (e.g. P-101 → PUMP-101).
+    enabled: true
+    priority: 10
+    preserve_original: true
+    config:
+      type_mappings:
+        P:
+        - PUMP
+        - PMP
+        CP:
+        - CENTRIFUGAL_PUMP
+        - PUMP
+        - PMP
+        FWP:
+        - FEEDWATER_PUMP
+        - PUMP
+        - PMP
+        CWP:
+        - COOLING_WATER_PUMP
+        - PUMP
+        - PMP
+        BWP:
+        - BOILER_WATER_PUMP
+        - PUMP
+        - PMP
+        C:
+        - COMPRESSOR
+        - COMP
+        AC:
+        - AIR_COMPRESSOR
+        - COMPRESSOR
+        - COMP
+        RC:
+        - RECIPROCATING_COMPRESSOR
+        - COMPRESSOR
+        - COMP
+        CC:
+        - CENTRIFUGAL_COMPRESSOR
+        - COMPRESSOR
+        - COMP
+        FCV:
+        - FLOW_CONTROL_VALVE
+        - VALVE
+        - VLV
+        PCV:
+        - PRESSURE_CONTROL_VALVE
+        - VALVE
+        - VLV
+        TCV:
+        - TEMPERATURE_CONTROL_VALVE
+        - VALVE
+        - VLV
+        LCV:
+        - LEVEL_CONTROL_VALVE
+        - VALVE
+        - VLV
+        PSV:
+        - PRESSURE_SAFETY_VALVE
+        - SAFETY_VALVE
+        - VALVE
+        - VLV
+        TSV:
+        - TEMPERATURE_SAFETY_VALVE
+        - SAFETY_VALVE
+        - VALVE
+        - VLV
+        FSV:
+        - FLOW_SAFETY_VALVE
+        - SAFETY_VALVE
+        - VALVE
+        - VLV
+        V:
+        - VALVE
+        - VLV
+        T:
+        - TANK
+        - TNK
+        R:
+        - REACTOR
+        - REAC
+        E:
+        - HEAT_EXCHANGER
+        - EXCHANGER
+        - EXCH
+        HE:
+        - HEAT_EXCHANGER
+        - EXCHANGER
+        - EXCH
+        CE:
+        - CONDENSER_EXCHANGER
+        - HEAT_EXCHANGER
+        - EXCH
+        DC:
+        - DISTILLATION_COLUMN
+        - COLUMN
+        - COL
+        FIC:
+        - FLOW_INDICATOR_CONTROLLER
+        - FLOW_CONTROLLER
+        - INSTRUMENT
+        FIT:
+        - FLOW_INDICATOR_TRANSMITTER
+        - FLOW_TRANSMITTER
+        - INSTRUMENT
+        FE:
+        - FLOW_ELEMENT
+        - INSTRUMENT
+        PIC:
+        - PRESSURE_INDICATOR_CONTROLLER
+        - PRESSURE_CONTROLLER
+        - INSTRUMENT
+        PIT:
+        - PRESSURE_INDICATOR_TRANSMITTER
+        - PRESSURE_TRANSMITTER
+        - INSTRUMENT
+        PE:
+        - PRESSURE_ELEMENT
+        - INSTRUMENT
+        TIC:
+        - TEMPERATURE_INDICATOR_CONTROLLER
+        - TEMPERATURE_CONTROLLER
+        - INSTRUMENT
+        TIT:
+        - TEMPERATURE_INDICATOR_TRANSMITTER
+        - TEMPERATURE_TRANSMITTER
+        - INSTRUMENT
+        TE:
+        - TEMPERATURE_ELEMENT
+        - INSTRUMENT
+        LIC:
+        - LEVEL_INDICATOR_CONTROLLER
+        - LEVEL_CONTROLLER
+        - INSTRUMENT
+        LIT:
+        - LEVEL_INDICATOR_TRANSMITTER
+        - LEVEL_TRANSMITTER
+        - INSTRUMENT
+        LE:
+        - LEVEL_ELEMENT
+        - INSTRUMENT
+        AIC:
+        - ANALYTICAL_INDICATOR_CONTROLLER
+        - ANALYTICAL_CONTROLLER
+        - INSTRUMENT
+        AIT:
+        - ANALYTICAL_INDICATOR_TRANSMITTER
+        - ANALYTICAL_TRANSMITTER
+        - INSTRUMENT
+        ACV:
+        - ANALYTICAL_CONTROL_VALVE
+        - INSTRUMENT
+      format_templates:
+      - '{type}-{tag}'
+      - '{type}_{tag}'
+      auto_detect: true
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  strip_numeric_unit_prefix:
+    name: strip_numeric_unit_prefix
+    handler: regex_substitution
+    description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match tags
+      already starting with type (P-1234).'
+    enabled: true
+    priority: 10
+    preserve_original: true
+    config:
+      patterns:
+      - pattern: ^\d+-
+        replacement: ''
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  leading_zero_normalization:
+    name: leading_zero_normalization
+    handler: leading_zero_normalization
+    description: Normalize leading zeros in numeric tokens within tags (assets only).
+    enabled: true
+    priority: 20
+    preserve_original: true
+    config:
+      preserve_single_zero: true
+      min_length: 4
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  document_aliases:
+    name: document_aliases
+    handler: document_aliases
+    description: P&ID / drawing / file-name variants for file candidate keys.
+    enabled: true
+    priority: 30
+    preserve_original: true
+    config:
+      pid_rules:
+        remove_ampersand: true
+        add_spaces: true
+        revision_variants: true
+      drawing_rules:
+        zero_padding:
+          enabled: true
+          target_length: 6
+        sheet_variants: true
+      file_rules:
+        remove_revision_numbers: true
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - file
 source_views:
 - view_external_id: CogniteFile
   view_space: cdf_cdm
@@ -180,15 +425,9 @@ key_extraction:
           (e.g. ...-92529-02).
         validation:
           confidence_match_rules:
-          - hierarchy:
-              mode: ordered
-              children:
-              - blacklist
-              - hierarchy:
-                  mode: concurrent
-                  children:
-                  - whitelist:
-                    - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
         fields:
         - regex_options:
             ignore_case: false
@@ -207,7 +446,10 @@ key_extraction:
           entity_type:
           - asset
         aliasing_pipeline:
-        - local_demo_alias
+        - cogniteasset_explicit_aliases_from_raw:
+          - semantic_expansion:
+            - strip_numeric_unit_prefix:
+              - leading_zero_normalization
       - name: file_basename_candidate
         handler: regex_handler
         extraction_type: candidate_key
@@ -234,6 +476,8 @@ key_extraction:
         scope_filters:
           entity_type:
           - file
+        aliasing_pipeline:
+        - document_aliases
       - name: timeseries_instrument_tag_candidate
         handler: regex_handler
         extraction_type: candidate_key
@@ -243,15 +487,9 @@ key_extraction:
           (and asset candidate).
         validation:
           confidence_match_rules:
-          - hierarchy:
-              mode: ordered
-              children:
-              - blacklist
-              - hierarchy:
-                  mode: concurrent
-                  children:
-                  - whitelist:
-                    - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
         fields:
         - field_name: name
           regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
@@ -269,6 +507,11 @@ key_extraction:
         scope_filters:
           entity_type:
           - timeseries
+        aliasing_pipeline:
+        - cogniteasset_explicit_aliases_from_raw:
+          - semantic_expansion:
+            - strip_numeric_unit_prefix:
+              - leading_zero_normalization
       - name: instance_name_asset_fk
         handler: regex_handler
         extraction_type: foreign_key_reference
@@ -277,15 +520,9 @@ key_extraction:
         description: Extract asset-tag references embedded in timeseries name.
         validation:
           confidence_match_rules:
-          - hierarchy:
-              mode: ordered
-              children:
-              - blacklist
-              - hierarchy:
-                  mode: concurrent
-                  children:
-                  - whitelist:
-                    - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
         fields:
         - field_name: name
           regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
@@ -304,6 +541,11 @@ key_extraction:
           entity_type:
           - file
           - timeseries
+        aliasing_pipeline:
+        - cogniteasset_explicit_aliases_from_raw:
+          - semantic_expansion:
+            - strip_numeric_unit_prefix:
+              - leading_zero_normalization
       - name: instance_description_asset_fk
         handler: regex_handler
         extraction_type: foreign_key_reference
@@ -313,15 +555,9 @@ key_extraction:
           to assets.
         validation:
           confidence_match_rules:
-          - hierarchy:
-              mode: ordered
-              children:
-              - blacklist
-              - hierarchy:
-                  mode: concurrent
-                  children:
-                  - whitelist:
-                    - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
         fields:
         - field_name: description
           regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
@@ -337,6 +573,11 @@ key_extraction:
           preprocessing:
           - trim
         scope_filters: {}
+        aliasing_pipeline:
+        - cogniteasset_explicit_aliases_from_raw:
+          - semantic_expansion:
+            - strip_numeric_unit_prefix:
+              - leading_zero_normalization
       validation:
         min_confidence: 0.5
         max_keys_per_type: 1000
