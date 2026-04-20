@@ -1,3 +1,14 @@
+/** Normalize a string for use as the leading segment of `name_N` rule ids (snake_case, safe chars). */
+export function sanitizeRuleNamePrefix(raw: string, fallback: string): string {
+  const t = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+  return t || fallback;
+}
+
 /** Next unused `prefix_N` name from existing rules (for required rule names). */
 export function nextSequentialRuleName(prefix: string, existing: readonly { name: string }[]): string {
   const used = new Set(existing.map((r) => r.name.trim().toLowerCase()).filter(Boolean));

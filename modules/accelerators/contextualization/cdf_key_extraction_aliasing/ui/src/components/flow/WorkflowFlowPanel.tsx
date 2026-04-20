@@ -24,11 +24,17 @@ import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowPalette, getPaletteDropPayload } from "./FlowPalette";
 import { seedCanvasFromScope } from "./seedCanvasFromScope";
 import { mergeSourceViewEntityTypeIntoExtractionRule } from "./workflowScopePatch";
+import { appendAliasingRuleForHandler } from "./ensureAliasingRuleForPaletteDrop";
+import {
+  appendUniqueMatchDefinitionStub,
+  ensureConfidenceMatchRuleDefinitionStub,
+} from "./ensureMatchDefinitionStub";
 import { useFlowPanelLayout } from "./useFlowPanelLayout";
 import { layoutFlowNodes } from "./autoLayoutFlow";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
 import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { TreeContextMenuPortal, useTreeContextMenuState, type TreeCtxMenuItem } from "../TreeContextMenu";
+import { sanitizeRuleNamePrefix } from "../../utils/ruleNaming";
 
 /** React Flow types for `confidence_match_rules` layout nodes. */
 const MATCH_RULE_NODE_TYPES = new Set<string>([
@@ -253,7 +259,48 @@ function FlowCanvasBody({
         }
         return;
       }
-      const node = createNodeFromPalette(payload, pos);
+      let node = createNodeFromPalette(payload, pos);
+      const rfType = node.type ?? "";
+      if (MATCH_RULE_NODE_TYPES.has(rfType)) {
+        const data = (node.data ?? {}) as Record<string, unknown>;
+        const cm =
+          data.confidence_match_rule_name != null ? String(data.confidence_match_rule_name).trim() : "";
+        if (!cm) {
+          const ctxRaw =
+            data.validation_rule_context != null ? String(data.validation_rule_context) : "extraction";
+          const matchPrefix = sanitizeRuleNamePrefix(`match_${ctxRaw}`, "match");
+          const { doc: nextDoc, newId } = appendUniqueMatchDefinitionStub(workflowScopeDoc, matchPrefix);
+          patchWorkflowScopeRef.current(() => nextDoc);
+          node = {
+            ...node,
+            data: {
+              ...data,
+              confidence_match_rule_name: newId,
+              label: newId,
+            },
+          };
+        } else {
+          patchWorkflowScopeRef.current((doc) => ensureConfidenceMatchRuleDefinitionStub(doc, cm));
+        }
+      }
+      if (payload.kind === "aliasing") {
+        const { doc: nextDoc, ruleName } = appendAliasingRuleForHandler(workflowScopeDoc, payload.handlerId);
+        patchWorkflowScopeRef.current(() => nextDoc);
+        const data = (node.data ?? {}) as Record<string, unknown>;
+        const prevRef =
+          data.ref && typeof data.ref === "object" && !Array.isArray(data.ref)
+            ? { ...(data.ref as Record<string, unknown>) }
+            : {};
+        prevRef.aliasing_rule_name = ruleName;
+        node = {
+          ...node,
+          data: {
+            ...data,
+            label: ruleName,
+            ref: prevRef,
+          },
+        };
+      }
       setNodes((nds) => nds.concat(node));
     },
     [screenToFlowPosition, setNodes, setEdges, nodes, edges, workflowScopeDoc, getNode]
