@@ -4,21 +4,21 @@ nodes:
   kind: start
   position:
     x: 0
-    y: -29
+    y: 43.5
   data:
     label: Start
 - id: flow_end
   kind: end
   position:
-    x: 1652
-    y: -93
+    x: 1566
+    y: -29
   data:
     label: End
 - id: sv_0
   kind: source_view
   position:
-    x: 198
-    y: -151.5
+    x: 254
+    y: -95
   data:
     label: CogniteFile
     ref:
@@ -30,8 +30,8 @@ nodes:
 - id: sv_1
   kind: source_view
   position:
-    x: 198
-    y: -38.5
+    x: 254
+    y: 18
   data:
     label: CogniteTimeSeries
     ref:
@@ -43,8 +43,8 @@ nodes:
 - id: sv_2
   kind: source_view
   position:
-    x: 198
-    y: 74.5
+    x: 254
+    y: 131
   data:
     label: CogniteAsset
     ref:
@@ -56,7 +56,7 @@ nodes:
 - id: ext_asset_tag_candidate
   kind: extraction
   position:
-    x: 400
+    x: 504
     y: -281.5
   data:
     label: asset_tag_candidate
@@ -67,7 +67,7 @@ nodes:
 - id: ext_file_basename_candidate
   kind: extraction
   position:
-    x: 400
+    x: 504
     y: -168.5
   data:
     label: file_basename_candidate
@@ -78,7 +78,7 @@ nodes:
 - id: ext_timeseries_instrument_tag_candidate
   kind: extraction
   position:
-    x: 400
+    x: 504
     y: 187.5
   data:
     label: timeseries_instrument_tag_candidate
@@ -89,7 +89,7 @@ nodes:
 - id: ext_instance_name_asset_fk
   kind: extraction
   position:
-    x: 400
+    x: 504
     y: 74.5
   data:
     label: instance_name_asset_fk
@@ -100,7 +100,7 @@ nodes:
 - id: ext_instance_description_asset_fk
   kind: extraction
   position:
-    x: 400
+    x: 504
     y: -55.5
   data:
     label: instance_description_asset_fk
@@ -111,7 +111,7 @@ nodes:
 - id: al_cogniteasset_explicit_aliases_from_raw
   kind: aliasing
   position:
-    x: 654
+    x: 758
     y: -216.5
   data:
     label: cogniteasset_explicit_aliases_from_raw
@@ -122,7 +122,7 @@ nodes:
 - id: al_semantic_expansion
   kind: aliasing
   position:
-    x: 908
+    x: 1012
     y: -95
   data:
     label: semantic_expansion
@@ -133,8 +133,8 @@ nodes:
 - id: al_strip_numeric_unit_prefix
   kind: aliasing
   position:
-    x: 1144
-    y: -102.5
+    x: 254
+    y: -208
   data:
     label: strip_numeric_unit_prefix
     handler_id: regex_substitution
@@ -144,8 +144,8 @@ nodes:
 - id: al_leading_zero_normalization
   kind: aliasing
   position:
-    x: 1398
-    y: -54.5
+    x: 0
+    y: -101.5
   data:
     label: leading_zero_normalization
     handler_id: leading_zero_normalization
@@ -155,7 +155,7 @@ nodes:
 - id: al_document_aliases
   kind: aliasing
   position:
-    x: 654
+    x: 758
     y: -86.5
   data:
     label: document_aliases
@@ -166,7 +166,7 @@ nodes:
 - id: vrule_ke_h1c10330_blacklist
   kind: match_validation_extraction
   position:
-    x: 654
+    x: 758
     y: 26.5
   data:
     label: blacklist
@@ -183,7 +183,7 @@ nodes:
 - id: vrule_ke_h1c10330_whitelist
   kind: match_validation_extraction
   position:
-    x: 908
+    x: 1012
     y: 18
   data:
     label: whitelist
@@ -200,8 +200,8 @@ nodes:
 - id: vrule_ke_h1c10330_not_isa_penalty
   kind: match_validation_extraction
   position:
-    x: 1144
-    y: 10.5
+    x: 1248
+    y: 18
   data:
     label: not_isa_penalty
     validation_rule_context: extraction
@@ -217,7 +217,7 @@ nodes:
 - id: vrule_ke_hda310940_blacklist
   kind: match_validation_extraction
   position:
-    x: 654
+    x: 758
     y: 139.5
   data:
     label: blacklist
@@ -228,8 +228,8 @@ nodes:
 - id: vrule_al_data_alias_shape_invalid
   kind: match_validation_aliasing
   position:
-    x: 1652
-    y: 1
+    x: 1248
+    y: -110
   data:
     label: alias_shape_invalid
     notes: aliasing.config.data.validation
@@ -376,63 +376,45 @@ edges:
   source_handle: null
   target_handle: null
   kind: data
-- id: e_ext_asset_tag_candidate_al_cogniteasset_explicit_aliases_from_raw_23
+- id: e_ext_asset_tag_candidate_al_cogniteasset_explicit_aliases_from_raw_24
   source: ext_asset_tag_candidate
   target: al_cogniteasset_explicit_aliases_from_raw
   source_handle: null
   target_handle: null
   kind: data
-- id: e_al_cogniteasset_explicit_aliases_from_raw_al_semantic_expansion_24
+- id: e_al_cogniteasset_explicit_aliases_from_raw_al_semantic_expansion_25
   source: al_cogniteasset_explicit_aliases_from_raw
   target: al_semantic_expansion
   source_handle: null
   target_handle: null
   kind: sequence
-- id: e_al_semantic_expansion_al_strip_numeric_unit_prefix_25
-  source: al_semantic_expansion
+- id: e_al_leading_zero_normalization_al_strip_numeric_unit_prefix_28
+  source: al_leading_zero_normalization
   target: al_strip_numeric_unit_prefix
   source_handle: null
   target_handle: null
   kind: sequence
-- id: e_al_strip_numeric_unit_prefix_al_leading_zero_normalization_26
-  source: al_strip_numeric_unit_prefix
-  target: al_leading_zero_normalization
-  source_handle: null
-  target_handle: null
-  kind: sequence
-- id: e_ext_file_basename_candidate_al_document_aliases_27
+- id: e_ext_file_basename_candidate_al_document_aliases_29
   source: ext_file_basename_candidate
   target: al_document_aliases
   source_handle: null
   target_handle: null
   kind: data
-- id: e_ext_timeseries_instrument_tag_candidate_al_cogniteasset_explicit_aliases_from_raw_28
+- id: e_ext_timeseries_instrument_tag_candidate_al_cogniteasset_explicit_aliases_from_raw_30
   source: ext_timeseries_instrument_tag_candidate
   target: al_cogniteasset_explicit_aliases_from_raw
   source_handle: null
   target_handle: null
   kind: data
-- id: e_ext_instance_name_asset_fk_al_cogniteasset_explicit_aliases_from_raw_29
+- id: e_ext_instance_name_asset_fk_al_cogniteasset_explicit_aliases_from_raw_31
   source: ext_instance_name_asset_fk
   target: al_cogniteasset_explicit_aliases_from_raw
   source_handle: null
   target_handle: null
   kind: data
-- id: e_ext_instance_description_asset_fk_al_cogniteasset_explicit_aliases_from_raw_30
+- id: e_ext_instance_description_asset_fk_al_cogniteasset_explicit_aliases_from_raw_32
   source: ext_instance_description_asset_fk
   target: al_cogniteasset_explicit_aliases_from_raw
   source_handle: null
   target_handle: null
-  kind: data
-- id: e_al_document_aliases_flow_end_31
-  source: al_document_aliases
-  target: flow_end
-  source_handle: null
-  target_handle: null
-  kind: data
-- id: xy-edge__al_leading_zero_normalizationout-flow_endin
-  source: al_leading_zero_normalization
-  target: flow_end
-  source_handle: out
-  target_handle: in
   kind: data

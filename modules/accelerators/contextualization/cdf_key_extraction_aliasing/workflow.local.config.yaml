@@ -447,9 +447,7 @@ key_extraction:
           - asset
         aliasing_pipeline:
         - cogniteasset_explicit_aliases_from_raw:
-          - semantic_expansion:
-            - strip_numeric_unit_prefix:
-              - leading_zero_normalization
+          - semantic_expansion
       - name: file_basename_candidate
         handler: regex_handler
         extraction_type: candidate_key
@@ -509,9 +507,7 @@ key_extraction:
           - timeseries
         aliasing_pipeline:
         - cogniteasset_explicit_aliases_from_raw:
-          - semantic_expansion:
-            - strip_numeric_unit_prefix:
-              - leading_zero_normalization
+          - semantic_expansion
       - name: instance_name_asset_fk
         handler: regex_handler
         extraction_type: foreign_key_reference
@@ -543,9 +539,7 @@ key_extraction:
           - timeseries
         aliasing_pipeline:
         - cogniteasset_explicit_aliases_from_raw:
-          - semantic_expansion:
-            - strip_numeric_unit_prefix:
-              - leading_zero_normalization
+          - semantic_expansion
       - name: instance_description_asset_fk
         handler: regex_handler
         extraction_type: foreign_key_reference
@@ -575,9 +569,7 @@ key_extraction:
         scope_filters: {}
         aliasing_pipeline:
         - cogniteasset_explicit_aliases_from_raw:
-          - semantic_expansion:
-            - strip_numeric_unit_prefix:
-              - leading_zero_normalization
+          - semantic_expansion
       validation:
         min_confidence: 0.5
         max_keys_per_type: 1000
@@ -596,8 +588,6 @@ aliasing:
       aliasing_rules:
       - name: cogniteasset_explicit_aliases_from_raw
         handler: alias_mapping_table
-        description: Apply explicit alias mappings for CogniteAsset from RAW lookup
-          rows.
         enabled: true
         priority: 5
         preserve_original: true
@@ -624,10 +614,10 @@ aliasing:
         scope_filters:
           entity_type:
           - asset
+        description: Apply explicit alias mappings for CogniteAsset from RAW lookup
+          rows.
       - name: semantic_expansion
         handler: semantic_expansion
-        description: Expand equipment type letter codes to full words (e.g. P-101
-          → PUMP-101).
         enabled: true
         priority: 10
         preserve_original: true
@@ -786,38 +776,10 @@ aliasing:
         scope_filters:
           entity_type:
           - asset
-      - name: strip_numeric_unit_prefix
-        handler: regex_substitution
-        description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match
-          tags already starting with type (P-1234).'
-        enabled: true
-        priority: 10
-        preserve_original: true
-        config:
-          patterns:
-          - pattern: ^\d+-
-            replacement: ''
-        conditions: {}
-        scope_filters:
-          entity_type:
-          - asset
-      - name: leading_zero_normalization
-        handler: leading_zero_normalization
-        description: Normalize leading zeros in numeric tokens within tags (assets
-          only).
-        enabled: true
-        priority: 20
-        preserve_original: true
-        config:
-          preserve_single_zero: true
-          min_length: 4
-        conditions: {}
-        scope_filters:
-          entity_type:
-          - asset
+        description: Expand equipment type letter codes to full words (e.g. P-101
+          → PUMP-101).
       - name: document_aliases
         handler: document_aliases
-        description: P&ID / drawing / file-name variants for file candidate keys.
         enabled: true
         priority: 30
         preserve_original: true
@@ -837,6 +799,82 @@ aliasing:
         scope_filters:
           entity_type:
           - file
+        description: P&ID / drawing / file-name variants for file candidate keys.
+      - name: leading_zero_normalization
+        handler: leading_zero_normalization
+        enabled: true
+        priority: 20
+        preserve_original: true
+        config:
+          preserve_single_zero: true
+          min_length: 4
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
+        description: Normalize leading zeros in numeric tokens within tags (assets
+          only).
+      - name: strip_numeric_unit_prefix
+        handler: regex_substitution
+        enabled: true
+        priority: 10
+        preserve_original: true
+        config:
+          patterns:
+          - pattern: ^\d+-
+            replacement: ''
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
+        description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match
+          tags already starting with type (P-1234).'
+      - name: aliasing_rule_2
+        handler: prefix_suffix
+        enabled: true
+        priority: 70
+        preserve_original: true
+        config:
+          operation: add_prefix
+          prefix: ''
+          suffix: ''
+        conditions: {}
+        scope_filters: {}
+      - name: prefix_suffix_2
+        handler: prefix_suffix
+        enabled: true
+        priority: 90
+        preserve_original: true
+        config:
+          operation: add_prefix
+          prefix: ''
+          suffix: ''
+        conditions: {}
+        scope_filters: {}
+      - name: prefix_suffix_1
+        handler: prefix_suffix
+        enabled: true
+        priority: 80
+        preserve_original: true
+        config:
+          operation: add_prefix
+          prefix: ''
+          suffix: ''
+        conditions: {}
+        scope_filters: {}
+      - name: aliasing_rule_1
+        handler: prefix_suffix
+        enabled: true
+        priority: 60
+        preserve_original: true
+        config:
+          operation: add_prefix
+          prefix: ''
+          suffix: ''
+        conditions: {}
+        scope_filters:
+          entity_type:
+          - asset
       validation:
         max_aliases_per_tag: 100
         min_confidence: 0.01
