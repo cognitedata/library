@@ -45,7 +45,7 @@ promoteFunctionVersion: v1.0.0
 
 # used in /workflows (single v1 version runs: prepare → launch → finalize → promote)
 workflowExternalId: wf_file_annotation
-workflowSchedule: "0 0 29 2 *"
+workflowSchedule: "0 5 * * MON"
 
 # used in /transformations
 fileToAssetTransformationExternalId: tr_file_to_asset_from_annotations
