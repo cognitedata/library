@@ -14,7 +14,7 @@ instanceSpaces:
   - springfield_instances
   - cdf_cdm_units
 
-runWorkflowSchedule: "0 0 29 2 *"
+runWorkflowSchedule: "0 3 * * MON"
 timeseriesTransformationExternalId: pi_timeseries_springfield_aveva_pi
 assetTransformationExternalId: sap_assets_springfield_s4hana
 equipmentTransformationExternalId: sap_equipment_springfield_s4hana

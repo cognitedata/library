@@ -1,7 +1,7 @@
 externalId: {{ workflow }}_trigger
 triggerRule:
   triggerType: schedule
-  cronExpression: "0 4 * * *"
+  cronExpression: "0 5 * * MON"
 workflowExternalId: {{ workflow }}
 workflowVersion: v1
 authentication:
