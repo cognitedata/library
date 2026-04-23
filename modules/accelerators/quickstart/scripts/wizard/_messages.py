@@ -9,7 +9,7 @@ from __future__ import annotations
 # Section / banner titles
 
 SEC_CDF_PROJECT      = "CDF Project"
-SEC_APP_OWNER        = "File Annotation: ApplicationOwner"
+SEC_APP_OWNER        = "File Annotation: Streamlit Application Owner"
 SEC_GROUP_SOURCE_IDS = "Group Source IDs"
 SEC_OPENID_SECRET    = "OpenID Client Secret"
 SEC_POST_VERIFY      = "Post-write verification"
@@ -19,7 +19,7 @@ BANNER_PENDING       = "PENDING CHANGES — review before applying"
 
 PROMPT_ENV           = "Target environment"
 PROMPT_PROJECT       = "CDF project name"
-PROMPT_APP_OWNER     = "ApplicationOwner email(s)"
+PROMPT_APP_OWNER     = "Streamlit Application Owner email(s)"
 PROMPT_SHARED_GROUP  = "Use the same GROUP_SOURCE_ID for all modules?"
 PROMPT_APPLY         = "Apply all changes above?"
 
