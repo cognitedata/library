@@ -14,7 +14,7 @@ dataModels:
     externalId: InFieldOnCDM
     version: v1 # should be latest version of the data model
 instanceSpaces: # InField only support getting data from 1 source space and the app space. Source space must be defined first in the list.
-  - sp_asset_{{first_location}}_source
+  - sp_asset_{{first_location}}_source  #The actual asset data lives in a pre-existing space.
   - sp_infield_{{first_location}}_app_data
 views: # Views can be replaced with customer extentions of these views.
   - externalId: CogniteMaintenanceOrder
