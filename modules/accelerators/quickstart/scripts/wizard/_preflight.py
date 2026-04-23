@@ -75,6 +75,7 @@ def check_toolkit_version() -> tuple[int, int, int] | None:
         )
         sys.exit(1)
 
+    style.success(f"Toolkit version {cur_s} — OK (minimum: {min_s}).")
     return parsed
 
 

@@ -115,12 +115,10 @@ def run_post_write_verification(
     style.success(VERIFY_BUILD_OK)
 
     # --- Step 2: cdf deploy --dry-run ---------------------------------------
-    deploy_env_args = _cdf_env_args(env, config_arg, toolkit_version)
-    dry_cmd = "cdf deploy --dry-run " + " ".join(deploy_env_args)
     style.hint(VERIFY_DRY_START)
-    style.hint(f"        Running: {dry_cmd}")
+    style.hint("        Running: cdf deploy --dry-run")
     dry = subprocess.run(
-        ["cdf", "deploy", "--dry-run"] + deploy_env_args,
+        ["cdf", "deploy", "--dry-run"],
         capture_output=True, text=True, cwd=str(repo_root),
     )
     if dry.stdout:
