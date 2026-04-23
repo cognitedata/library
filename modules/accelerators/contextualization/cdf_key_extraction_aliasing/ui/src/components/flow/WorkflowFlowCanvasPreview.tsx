@@ -9,10 +9,10 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import type { MessageKey } from "../../i18n";
-import type { WorkflowCanvasDocument } from "../../types/workflowCanvas";
+import { normalizeWorkflowCanvasHandleOrientation, type WorkflowCanvasDocument } from "../../types/workflowCanvas";
 import { canvasToFlowEdges, canvasToFlowNodes } from "./flowDocumentBridge";
+import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
 import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
@@ -33,29 +33,34 @@ function PreviewInner({ doc, reloadNonce }: { doc: WorkflowCanvasDocument; reloa
     setEdges(canvasToFlowEdges(doc.edges));
   }, [doc, reloadNonce, setNodes, setEdges]);
 
+  const orient = normalizeWorkflowCanvasHandleOrientation(doc.handle_orientation);
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      nodeTypes={KEA_FLOW_NODE_TYPES}
-      nodesDraggable={false}
-      nodesConnectable={false}
-      edgesReconnectable={false}
-      elementsSelectable={false}
-      panOnScroll
-      zoomOnScroll
-      zoomOnPinch
-      minZoom={0.15}
-      maxZoom={1.5}
-      fitView
-      proOptions={{ hideAttribution: true }}
-    >
-      <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-      <Controls />
-      <MiniMap zoomable pannable className="kea-flow-minimap" />
-    </ReactFlow>
+    <FlowHandleOrientationProvider value={orient}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={KEA_FLOW_NODE_TYPES}
+        defaultEdgeOptions={{ animated: true }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        edgesReconnectable={false}
+        elementsSelectable={false}
+        panOnScroll
+        zoomOnScroll
+        zoomOnPinch
+        minZoom={0.2}
+        maxZoom={1.5}
+        deleteKeyCode={null}
+        fitView
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+        <Controls />
+        <MiniMap zoomable pannable className="kea-flow-minimap" />
+      </ReactFlow>
+    </FlowHandleOrientationProvider>
   );
 }
 

@@ -4,7 +4,11 @@ import YAML from "yaml";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
 import { nextSequentialRuleName, ruleNameOrDefault } from "../utils/ruleNaming";
-import { ALIASING_RULES_KEY, mergeRulesList, splitRulesList } from "../utils/rulesDataSplit";
+import {
+  getAliasingTransformRuleRows,
+  replaceAliasingTransformRulesInData,
+  withoutTransformRuleRows,
+} from "./flow/aliasingScopeData";
 import {
   aliasingConfigDocKey,
   aliasingStructuredKind,
@@ -217,10 +221,10 @@ export function AliasingRulesStructuredEditor({
   }, [value]);
 
   const { rest, uiRules } = useMemo(() => {
-    const s = splitRulesList(value, ALIASING_RULES_KEY);
+    const list = getAliasingTransformRuleRows(value as Record<string, unknown>);
     return {
-      rest: s.rest,
-      uiRules: s.list.map((x, i) => parseUiRule(x, i)),
+      rest: withoutTransformRuleRows(value),
+      uiRules: list.map((x, i) => parseUiRule(x, i)),
     };
   }, [value]);
 
@@ -305,7 +309,7 @@ export function AliasingRulesStructuredEditor({
       built.push(ser.rule);
     }
     setSerializeError(null);
-    const merged = mergeRulesList(nextRest, ALIASING_RULES_KEY, built);
+    const merged = replaceAliasingTransformRulesInData({ ...nextRest } as Record<string, unknown>, built);
     lastCommitFingerprintRef.current = JSON.stringify(merged);
     onChange(merged);
   };

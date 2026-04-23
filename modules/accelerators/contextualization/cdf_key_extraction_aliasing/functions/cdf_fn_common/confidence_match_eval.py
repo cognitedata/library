@@ -1,10 +1,10 @@
 """
-Shared confidence_match_rules evaluation for key discovery and aliasing.
+Shared validation_rules evaluation for key discovery and aliasing.
 
 Resolves expression_match per rule (rule -> validation default -> search).
 offset modifiers chain; explicit modifier then stops further rules for that value.
 
-``confidence_match_rules`` is a **hierarchy**:
+``validation_rules`` is a **hierarchy**:
 
 - A **top-level YAML list** is an **ordered** pipeline (strict list order).
 - **Shorthand** for a linear chain: ``{ "first_rule_id": [ tail... ] }`` — one mapping per segment.
@@ -204,11 +204,11 @@ def _parse_group_node(node: Any) -> Optional[Tuple[str, List[Any]]]:
         return None
     ch = _hierarchy_children_list(hi)
     if ch is None:
-        raise ValueError("confidence_match_rules hierarchy requires children: [...]")
+        raise ValueError("validation_rules hierarchy requires children: [...]")
     raw_mode = str(hi.get("mode") or "ordered").strip().lower()
     if raw_mode not in ("ordered", "concurrent"):
         raise ValueError(
-            "confidence_match_rules hierarchy.mode must be 'ordered' or 'concurrent', "
+            "validation_rules hierarchy.mode must be 'ordered' or 'concurrent', "
             f"not {raw_mode!r}"
         )
     if raw_mode == "concurrent":
@@ -438,7 +438,7 @@ def apply_confidence_match_rules_mutating(
     log_verbose: Optional[Callable[[str, str], None]] = None,
 ) -> None:
     """
-    Mutate each item's confidence using hierarchical ``confidence_match_rules``.
+    Mutate each item's confidence using hierarchical ``validation_rules``.
     offset: apply and continue; explicit: apply and break for that item.
     """
     steps = [normalize_confidence_match_step(s) for s in list(rules_raw or [])]

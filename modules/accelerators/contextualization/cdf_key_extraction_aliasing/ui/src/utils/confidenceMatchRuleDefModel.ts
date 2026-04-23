@@ -1,5 +1,5 @@
 /**
- * Shared model for `confidence_match_rules` inline rule bodies (YAML objects with match, confidence_modifier, …).
+ * Shared model for `validation_rules` inline rule bodies (YAML objects with match, confidence_modifier, …).
  */
 import type { JsonObject } from "../types/scopeConfig";
 import { commaJoinSegments, splitCommaSegments } from "./commaDelimited";
@@ -84,7 +84,7 @@ export function parseMatchRuleDefinitionsArray(raw: unknown): MatchRuleDefinitio
   });
 }
 
-/** Parse a single inline rule object (e.g. one entry from `confidence_match_rule_definitions`). */
+/** Parse a single inline rule object (e.g. one entry from `validation_rule_definitions`). */
 export function parseSingleMatchRuleDefinition(raw: unknown): MatchRuleDefinition {
   const arr = parseMatchRuleDefinitionsArray([raw]);
   return arr[0] ?? defaultMatchRuleDefinition([]);

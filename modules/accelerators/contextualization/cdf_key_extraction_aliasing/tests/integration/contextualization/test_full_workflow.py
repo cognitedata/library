@@ -33,32 +33,56 @@ class TestIntegrationWorkflow(unittest.TestCase):
         """Set up test fixtures."""
         # Create a comprehensive test configuration
         self.workflow_config = {
+            "associations": [
+                {
+                    "kind": "source_view_to_extraction",
+                    "source_view_index": 0,
+                    "extraction_rule_name": "pump_extraction",
+                },
+                {
+                    "kind": "source_view_to_extraction",
+                    "source_view_index": 0,
+                    "extraction_rule_name": "valve_extraction",
+                },
+            ],
             "extraction_rules": [
                 {
                     "name": "pump_extraction",
+                    "rule_id": "pump_extraction",
                     "description": "Extract pump tags",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "P[-_]?\d{1,6}[A-Z]?"},
+                    "field_results_mode": "merge_all",
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\bP[-_]?\d{1,6}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.7},
                 },
                 {
                     "name": "valve_extraction",
+                    "rule_id": "valve_extraction",
                     "description": "Extract valve tags",
                     "extraction_type": "candidate_key",
-                    "handler": "regex",
-                    "pattern": r"\bV[-_]?\d{1,6}[A-Z]?\b",
+                    "handler": "regex_handler",
                     "priority": 50,
                     "enabled": True,
-                    "min_confidence": 0.7,
-                    "case_sensitive": False,
-                    "source_fields": [{"field_name": "name", "required": True}],
-                    "config": {"pattern": "V[-_]?\d{1,6}[A-Z]?"},
+                    "field_results_mode": "merge_all",
+                    "fields": [
+                        {
+                            "field_name": "name",
+                            "required": True,
+                            "regex": r"\bV[-_]?\d{1,6}[A-Z]?\b",
+                            "regex_options": {"ignore_case": True},
+                        }
+                    ],
+                    "validation": {"min_confidence": 0.7},
                 },
             ],
             "validation": {
@@ -97,7 +121,9 @@ class TestIntegrationWorkflow(unittest.TestCase):
         }
 
         # Step 1: Extract keys
-        extraction_result = self.extraction_engine.extract_keys(test_asset, "asset")
+        extraction_result = self.extraction_engine.extract_keys(
+            test_asset, "asset", source_view_index=0
+        )
 
         self.assertIsInstance(extraction_result, ExtractionResult)
         self.assertGreater(len(extraction_result.candidate_keys), 0)
@@ -148,7 +174,9 @@ class TestIntegrationWorkflow(unittest.TestCase):
         results = []
         for asset in test_assets:
             # Extract keys
-            extraction_result = self.extraction_engine.extract_keys(asset, "asset")
+            extraction_result = self.extraction_engine.extract_keys(
+                asset, "asset", source_view_index=0
+            )
 
             # Generate aliases
             aliases = {}

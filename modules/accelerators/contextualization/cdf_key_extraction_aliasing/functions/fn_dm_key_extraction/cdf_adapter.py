@@ -86,6 +86,10 @@ def convert_cdf_config_to_engine_config(cdf_config: Any) -> Dict[str, Any]:
             cdf_config.data.source_view.model_dump(mode="python", exclude_none=False)
         ]
 
+    raw_assoc = getattr(cdf_config.data, "associations", None)
+    if isinstance(raw_assoc, list):
+        engine_config["associations"] = [dict(x) if isinstance(x, dict) else x for x in raw_assoc]
+
     return engine_config
 
 
@@ -135,7 +139,7 @@ def _convert_yaml_direct_to_engine_config(
         if engine_rule:
             engine_config["extraction_rules"].append(engine_rule)
 
-    # Add validation config (min_confidence, regexp_match, confidence_match_rules, …)
+    # Add validation config (min_confidence, regexp_match, validation_rules, …)
     validation_config = data_section.get("validation", {})
     if validation_config:
         engine_config["validation"].update(validation_config)
@@ -144,6 +148,10 @@ def _convert_yaml_direct_to_engine_config(
     source_views = data_section.get("source_views", [])
     if source_views:
         engine_config["source_views"] = source_views
+
+    assoc = data_section.get("associations")
+    if isinstance(assoc, list):
+        engine_config["associations"] = list(assoc)
 
     # key_extraction.config.parameters → engine (min_key_length, exclude_self_referencing_keys, …)
     top_params = config_data.get("parameters")
@@ -231,38 +239,51 @@ def load_config_from_yaml(config_path: str, validate: bool = True) -> Dict[str, 
 
     # Load YAML
     with open(config_file) as f:
-        yaml_data = yaml.safe_load(f)
+        yaml_root = yaml.safe_load(f)
 
-    if not isinstance(yaml_data, dict):
+    if not isinstance(yaml_root, dict):
         raise ValueError("YAML root must be a mapping")
+    # Scope documents often place source_views next to key_extraction (not under config.data).
+    scope_source_views = yaml_root.get("source_views")
+
+    yaml_work = yaml_root
     # v1 scope document: unwrap key_extraction.config when root has key_extraction
-    ke = yaml_data.get("key_extraction")
+    ke = yaml_root.get("key_extraction")
     if isinstance(ke, dict) and isinstance(ke.get("config"), dict):
-        yaml_data = ke
+        yaml_work = ke
 
     # Extract config section (split workflow shape or unwrapped key_extraction)
-    config_data = yaml_data.get("config", yaml_data)
+    config_data = yaml_work.get("config", yaml_work)
 
+    engine_config: Dict[str, Any]
     # Option 1: Validate using Pydantic model (preferred if available)
     if validate and CDF_CONFIG_AVAILABLE:
         try:
             cdf_config = Config.model_validate(config_data)
-            return convert_cdf_config_to_engine_config(cdf_config)
+            engine_config = convert_cdf_config_to_engine_config(cdf_config)
         except Exception as e:
             raise ValueError(f"Invalid config structure: {e}") from e
-
-    # Option 2: Direct conversion without Pydantic validation (fallback)
-    if not validate or not CDF_CONFIG_AVAILABLE:
+    elif not validate or not CDF_CONFIG_AVAILABLE:
+        # Option 2: Direct conversion without Pydantic validation (fallback)
         logger.warning(
             "Loading config without Pydantic validation. "
             "This is less strict but works when fn_dm_key_extraction module is not available."
         )
-        return _convert_yaml_direct_to_engine_config(config_data)
+        engine_config = _convert_yaml_direct_to_engine_config(config_data)
+    else:
+        raise ImportError(
+            "CDF Config models not available and validation is required. "
+            "fn_dm_key_extraction module is required for loading YAML configs with validation."
+        )
 
-    raise ImportError(
-        "CDF Config models not available and validation is required. "
-        "fn_dm_key_extraction module is required for loading YAML configs with validation."
-    )
+    if (
+        isinstance(scope_source_views, list)
+        and scope_source_views
+        and not engine_config.get("source_views")
+    ):
+        engine_config["source_views"] = list(scope_source_views)
+
+    return engine_config
 
 
 __all__ = [

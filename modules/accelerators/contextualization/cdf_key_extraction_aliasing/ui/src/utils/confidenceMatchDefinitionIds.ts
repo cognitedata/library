@@ -1,11 +1,11 @@
 import type { JsonObject } from "../types/scopeConfig";
 
 /**
- * Normalized id → rule body for `confidence_match_rule_definitions`
+ * Normalized id → rule body for `validation_rule_definitions`
  * (mapping or list-of-objects), aligned with backend `_definitions_as_lookup`.
  */
 export function confidenceMatchDefinitionsAsMap(doc: Record<string, unknown>): Record<string, JsonObject> {
-  const raw = doc.confidence_match_rule_definitions;
+  const raw = doc.validation_rule_definitions;
   const out: Record<string, JsonObject> = {};
   if (raw !== null && typeof raw === "object" && !Array.isArray(raw)) {
     for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
@@ -34,7 +34,7 @@ export function confidenceMatchDefinitionsAsMap(doc: Record<string, unknown>): R
 }
 
 /**
- * List definition ids from top-level `confidence_match_rule_definitions`
+ * List definition ids from top-level `validation_rule_definitions`
  * (mapping or list-of-objects form), sorted for stable palette order.
  * Ids match runtime lookup (resolved `name`, defaulting map key when `name` is absent).
  */

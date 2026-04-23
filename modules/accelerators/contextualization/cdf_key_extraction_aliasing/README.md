@@ -25,7 +25,7 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 
 ## Capabilities
 
-- **Extraction handlers:** `regex_handler` (default) and `heuristic` — configured per rule with a shared `fields` list and optional `validation` / `confidence_match_rules`
+- **Extraction handlers:** `regex_handler` (default) and `heuristic` — configured per rule with a shared `fields` list and optional `validation` / `validation_rules`
 - **Extraction types:** candidate keys, foreign key references, document references
 - **Aliasing transformation types:** character substitution, prefix/suffix, regex, case, **semantic expansion** (`type: semantic_expansion`), related instruments, hierarchical expansion, document aliases, leading zero normalization, pattern recognition, pattern-based expansion, composite, **`alias_mapping_table`** (RAW-backed tag→alias catalog when configured)
 - **Config:** v1 scope document at module root (`workflow.local.config.yaml`) and examples under `config/examples/` (see [config/README.md](config/README.md))

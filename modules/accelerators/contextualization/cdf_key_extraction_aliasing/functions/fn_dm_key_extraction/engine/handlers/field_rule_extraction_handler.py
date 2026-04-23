@@ -100,13 +100,9 @@ class FieldRuleExtractionHandler(ExtractionMethodHandler):
         outputs = self._build_output_strings(rule, var_lists)
         return self._to_extracted_keys(rule, outputs, context, field_text_by_variable)
 
-    def _rule_applies_to_entity_types(self, rule: Any, context: Dict[str, Any]) -> bool:
-        et = _rule_attr(rule, "entity_types") or []
-        if not et:
-            return True
-        ctx_et = (context.get("entity_type") or "").strip().lower()
-        allowed = {str(x).strip().lower() for x in et}
-        return ctx_et in allowed
+    def _rule_applies_to_entity_types(self, rule: Any, _context: Dict[str, Any]) -> bool:
+        """Rule applicability is graph-driven (associations); ``entity_types`` on rules is ignored."""
+        return True
 
     def _extract_values_for_spec(self, text: str, spec: Any, rule: Any) -> List[str]:
         """regex_handler: regex or trim passthrough."""

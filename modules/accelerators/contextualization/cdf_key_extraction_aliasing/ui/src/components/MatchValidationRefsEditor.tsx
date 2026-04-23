@@ -326,11 +326,11 @@ export function MatchValidationRefsEditor({ value, onChange, scopeDocument }: Pr
   const defKeys = useMemo(() => confidenceMatchDefinitionIds(scopeDocument), [scopeDocument]);
   const seqKeys = useMemo(() => sequenceKeys(scopeDocument), [scopeDocument]);
 
-  const rows = useMemo(() => parseRows(value.confidence_match_rules), [value.confidence_match_rules]);
+  const rows = useMemo(() => parseRows(value.validation_rules), [value.validation_rules]);
 
   const setRows = useCallback(
     (nextRows: RefRow[]) => {
-      const next: JsonObject = { ...value, confidence_match_rules: serializeRows(nextRows) as unknown[] };
+      const next: JsonObject = { ...value, validation_rules: serializeRows(nextRows) as unknown[] };
       onChange(next);
     },
     [value, onChange]
@@ -339,13 +339,13 @@ export function MatchValidationRefsEditor({ value, onChange, scopeDocument }: Pr
   return (
     <div className="kea-match-validation-refs">
       <p className="kea-hint" style={{ marginTop: "0" }}>
-        {t("validationEditor.matchRulesHierarchyHint")}
+        {t("validationEditor.validationRulesHierarchyHint")}
       </p>
 
       <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "1rem" }}>
-        {t("validationEditor.matchRulesSteps")}
+        {t("validationEditor.validationRulesSteps")}
       </h4>
-      <p className="kea-hint">{t("validationEditor.matchRulesStepsHint")}</p>
+      <p className="kea-hint">{t("validationEditor.validationRulesStepsHint")}</p>
       <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
         {t("rulesEntity.dragReorderRules")}
       </p>

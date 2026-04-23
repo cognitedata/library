@@ -51,7 +51,7 @@ For **adding new method or transformation `type` implementations in Python** (su
 
 | Handler (class) | Config `handler` | Purpose | Typical usage |
 | ----------------- | ----------------- | -------- | -------------- |
-| **FieldRuleExtractionHandler** | `regex_handler` | Declarative **`fields`** list: per-field **trim-only** (no `regex`), **regex** extraction (find all matches; group 1 if present), optional **`result_template`**. All field specs are merged (`merge_all`); legacy `field_results_mode: first_match` in YAML is coerced to `merge_all`. Shared **`validation`** / **`confidence_match_rules`** after extraction. | Default for pattern-based and trim-as-key rules; compose variables with templates when needed. |
+| **FieldRuleExtractionHandler** | `regex_handler` | Declarative **`fields`** list: per-field **trim-only** (no `regex`), **regex** extraction (find all matches; group 1 if present), optional **`result_template`**. All field specs are merged (`merge_all`); legacy `field_results_mode: first_match` in YAML is coerced to `merge_all`. Shared **`validation`** / **`validation_rules`** after extraction. | Default for pattern-based and trim-as-key rules; compose variables with templates when needed. |
 | **HeuristicExtractionHandler** | `heuristic` | **`parameters`** with strategy ids and weights (`delimiter_split`, `sliding_token`, …), **`max_candidates_per_field`**, minimal **`fields`**; emits scored candidates; same **`validation`** pipeline as field rules. | Noisy or inconsistent text where declarative regex alone is brittle. |
 
 For field-level behavior (required vs optional fields, preprocessing, `max_matches_per_field`), see the [key extraction specification](specifications/1.%20key_extraction.md).
@@ -60,7 +60,7 @@ For field-level behavior (required vs optional fields, preprocessing, `max_match
 
 ### 3.2 Aliasing
 
-**Engine:** `AliasingEngine` walks **sorted-by-priority** rules. For each rule it resolves `type` → **transformer handler** (`functions/fn_dm_aliasing/engine/handlers/`), calls `transform` on the current alias **set**, then merges or replaces the set per `preserve_original`. **`scope_filters`** / **`conditions`** gate rules (e.g. `entity_type`, context keys). Final output passes **`validation`**: **`confidence_match_rules`** (regex / keywords, same shape as key extraction), optional **`validation.expression_match`** default for rules that omit it, **`min_confidence`**, then dedupe, sort, and **`max_aliases_per_tag`**.
+**Engine:** `AliasingEngine` walks **sorted-by-priority** rules. For each rule it resolves `type` → **transformer handler** (`functions/fn_dm_aliasing/engine/handlers/`), calls `transform` on the current alias **set**, then merges or replaces the set per `preserve_original`. **`scope_filters`** / **`conditions`** gate rules (e.g. `entity_type`, context keys). Final output passes **`validation`**: **`validation_rules`** (regex / keywords, same shape as key extraction), optional **`validation.expression_match`** default for rules that omit it, **`min_confidence`**, then dedupe, sort, and **`max_aliases_per_tag`**.
 
 **Input:** candidate key strings from extraction (workflow reads RAW) or direct `generate_aliases(tag, entity_type, context)` in Python.
 
@@ -195,6 +195,16 @@ Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflo
 ### 5.3 Multi-site generation
 
 **`default.config.yaml`** defines **`aliasing_scope_hierarchy`** (`levels` + root **`locations`**) (multi-site tree) and **`scripts/build_scopes.py`** (or **`module.py build`**) **creates missing** **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** for each current leaf (**`input.configuration`** patched from the scope template). Existing files are not overwritten. **`module.py build`** does not remove trigger files for scopes no longer in the tree; **`module.py build --clean`** deletes generated workflow YAML under **`workflows/`** (scoped by hierarchy **`workflow`** id) with confirmation, without running a rebuild. **`--check-workflow-triggers`** verifies only that required files exist and match (extra files are ignored). **Operator walkthrough:** [Scoped deployment](guides/howto_scoped_deployment.md).
+
+### 5.4 Macro workflow vs aliasing pathways
+
+The **CDF workflow graph** (see §4.2) is fixed: Cognite does not pass arbitrary payloads between function tasks; stages hand off via RAW tables, **`RUN_ID`**, and **`workflow.input.configuration`**.
+
+**Aliasing pathways** (`aliasing.config.data.pathways`) describe *in-function* execution order: sequential steps and parallel branches over transformation rules. When **`pathways`** is present, **`AliasingEngine`** runs that graph and does not use the legacy flat **`aliasing_rules`** list for execution.
+
+Shared **`aliasing_rule_definitions`** / **`aliasing_rule_sequences`** at the top of the scope document apply to both **`extraction_rules[].aliasing_pipeline`** and **`pathways`** rule lists. **`materialize_scope_confidence_refs_on_task_data`** (via **`cdf_fn_common.aliasing_rule_refs.resolve_aliasing_pipeline_refs_in_scope_document`**) builds the ref lookup from **`aliasing_rule_definitions`** plus any **inline** transform rules named under **`aliasing.config.data.pathways`** (and legacy **`aliasing_rules`**), so extraction pipelines can reference a rule id that exists only as a pathway step body. It expands string refs, **`ref:`**, **`sequence:`**, and nested **`hierarchy.children`**, then removes the definition / sequence keys so the deployed document matches what the engines consume.
+
+**Associations:** optional top-level **`associations`** list (`kind: source_view_to_extraction`, `source_view_index`, `extraction_rule_name`) is the explicit view→rule binding. When present, the UI seeds canvas edges from it; Python **`cdf_fn_common.workflow_associations`** reconciles **`extraction_rules[].scope_filters.entity_type`** after ref materialization (same semantics as the UI). See [Workflow associations](guides/workflow_associations.md).
 
 ---
 

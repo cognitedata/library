@@ -13,7 +13,7 @@ function serializedStubForId(id: string): JsonObject {
 }
 
 /**
- * Next unique id of the form `{namePrefix}_n` not present as a key in `confidence_match_rule_definitions`.
+ * Next unique id of the form `{namePrefix}_n` not present as a key in `validation_rule_definitions`.
  * Default prefix `rule` yields `rule_1`, `rule_2`, …
  */
 export function nextUniqueMatchDefinitionId(
@@ -35,7 +35,7 @@ export function nextUniqueMatchDefinitionId(
 }
 
 /**
- * Ensure `confidence_match_rule_definitions[id]` exists with a minimal editable stub.
+ * Ensure `validation_rule_definitions[id]` exists with a minimal editable stub.
  * If a definition for `id` already exists, returns `doc` unchanged.
  */
 export function ensureConfidenceMatchRuleDefinitionStub(
@@ -48,7 +48,7 @@ export function ensureConfidenceMatchRuleDefinitionStub(
   if (defMap[trimmed]) return doc;
   return {
     ...doc,
-    confidence_match_rule_definitions: {
+    validation_rule_definitions: {
       ...defMap,
       [trimmed]: serializedStubForId(trimmed),
     },

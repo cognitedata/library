@@ -134,7 +134,6 @@ export const hi: Messages = {
   "sourceViews.viewExternalId": "व्यू बाहरी ID",
   "sourceViews.viewSpace": "व्यू स्पेस",
   "sourceViews.viewVersion": "व्यू संस्करण",
-  "sourceViews.entityType": "इकाई प्रकार",
   "sourceViews.batchSize": "बैच आकार",
   "sourceViews.instanceSpace": "इंस्टेंस स्पेस (वैकल्पिक)",
   "sourceViews.filters": "फ़िल्टर",
@@ -164,10 +163,16 @@ export const hi: Messages = {
   "sourceViews.filterTargetProperty": "लक्ष्य गुण",
   "sourceViews.filterPropertyScope": "गुण स्कोप",
   "sourceViews.filterValues": "मान (अल्पविराम से अलग या एकल)",
-  "sourceViews.perViewValidationTitle": "सत्यापन (यह स्रोत दृश्य)",
-  "sourceViews.perViewValidationHint":
-    "Key Discovery की वैश्विक सत्यापन के ऊपर मिलाया जाता है। confidence_match_rules जोड़े जाते हैं; अन्य फ़ील्ड (जैसे min_confidence) सेट होने पर ओवरराइड करते हैं। ओवरले हटाने के लिए «केवल वैश्विक सत्यापन» उपयोग करें।",
-  "sourceViews.perViewValidationClear": "केवल वैश्विक सत्यापन",
+  "sourceViews.cdfReloadSpaces": "स्पेस पुनः लोड करें",
+  "sourceViews.cdfReloadDataModels": "डेटा मॉडल पुनः लोड करें",
+  "sourceViews.cdfPickDataModel": "डेटा मॉडल (CDF)",
+  "sourceViews.cdfPickDataModelPlaceholder": "एक डेटा मॉडल चुनें…",
+  "sourceViews.cdfPickDataModelHint":
+    "व्यू स्पेस को मॉडल के स्पेस पर सेट करता है। मॉड्यूल डिफ़ॉल्ट में स्कीमा स्पेस सेट होने पर केवल उसी स्पेस के मॉडल दिखते हैं।",
+  "sourceViews.cdfReloadViews": "व्यू पुनः लोड करें",
+  "sourceViews.cdfPickView": "CDF से व्यू चुनें",
+  "sourceViews.cdfPickPlaceholder": "एक व्यू चुनें…",
+  "sourceViews.cdfError": "CDF से लोड नहीं हो सका",
   "keyExtraction.title": "कुंजी खोज",
   "keyExtraction.externalId": "बाहरी ID",
   "keyExtraction.parameters": "पैरामीटर",
@@ -177,7 +182,7 @@ export const hi: Messages = {
     "extraction_rules (fields[], handler, field_results_mode, …) व अन्य कुंजियाँ validation को छोड़कर — key_extraction.config.data के अंतर्गत",
   "keyExtraction.validationYaml": "config.data.validation (YAML)",
   "keyExtraction.validationYamlHint":
-    "निकाली गई कुंजियों के लिए वैश्विक सत्यापन (min_confidence, max_keys_per_type, confidence_match_rules, …)।",
+    "निकाली गई कुंजियों के लिए वैश्विक सत्यापन (min_confidence, max_keys_per_type, validation_rules, …)।",
   "keyExtraction.advancedRulesYaml": "नियम व रणनीति YAML के रूप में संपादित करें (उन्नत)",
   "discoveryRules.fieldResultsModeInherit": "अनसेट (इंजन डिफ़ॉल्ट merge_all)",
   "discoveryRules.extraKeysPreserved": "config.data में अन्य कुंजियाँ संरक्षित: {keys}",
@@ -200,7 +205,7 @@ export const hi: Messages = {
   "discoveryRules.rule.description": "विवरण",
   "discoveryRules.rule.matchValidation": "Match validation (confidence rules)",
   "discoveryRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "discoveryRules.rule.entityTypesCsv": "इकाई प्रकार (अल्पविराम से अलग)",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
     "अतिरिक्त scope_filters कुंजियाँ (YAML ऑब्जेक्ट) — ऊपर इकाई प्रकारों के साथ मिलती हैं; केवल इकाई प्रकारों के लिए खाली छोड़ें।",
@@ -278,7 +283,7 @@ export const hi: Messages = {
   "aliasing.dataYamlHint": "aliasing_rules व अन्य कुंजियाँ validation को छोड़कर — aliasing.config.data के अंतर्गत",
   "aliasing.validationYaml": "config.data.validation (YAML)",
   "aliasing.validationYamlHint":
-    "उपनामों के लिए वैश्विक सत्यापन (min_confidence, max_aliases_per_tag, confidence_match_rules, …)।",
+    "उपनामों के लिए वैश्विक सत्यापन (min_confidence, max_aliases_per_tag, validation_rules, …)।",
   "aliasing.advancedRulesYaml": "aliasing नियम व अतिरिक्त डेटा YAML के रूप में (उन्नत)",
   "aliasingRules.extraKeysPreserved": "config.data में अन्य कुंजियाँ संरक्षित: {keys}",
   "aliasingRules.rule.name": "नियम नाम",
@@ -292,7 +297,7 @@ export const hi: Messages = {
   "aliasingRules.rule.description": "विवरण",
   "aliasingRules.rule.matchValidation": "Match validation (confidence rules)",
   "aliasingRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "aliasingRules.rule.entityTypesCsv": "इकाई प्रकार (अल्पविराम से अलग)",
   "aliasingRules.rule.scopeFiltersOtherYamlHint":
     "अतिरिक्त scope_filters कुंजियाँ (YAML ऑब्जेक्ट) — ऊपर इकाई प्रकारों के साथ मिलती हैं।",
@@ -361,12 +366,12 @@ export const hi: Messages = {
   "validationEditor.extraKeysPreserved": "सत्यापन पर अन्य कुंजियाँ संरक्षित: {keys}",
   "validationEditor.rulesHint":
     "प्रत्येक मिलान नियम एक स्वतंत्र परिभाषा है। मूल्यांकन पर वे प्राथमिकता (फिर सूची क्रम) से संयोजित होते हैं: ऑफ़सेट संशोधक श्रृंखला; स्पष्ट विश्वास निर्धारित करता है और उस मान के लिए आगे नियम रोकता है।",
-  "validationEditor.matchRulesHierarchyHint":
+  "validationEditor.validationRulesHierarchyHint":
     "Top-level steps run in list order. Use a parallel group to run its children sorted by each rule’s priority field; use a sequential group for an explicit nested chain.",
   "validationEditor.parallelGroup": "Parallel group (by priority)",
   "validationEditor.sequentialGroup": "Sequential group",
-  "validationEditor.matchRulesSteps": "Match steps",
-  "validationEditor.matchRulesStepsHint":
+  "validationEditor.validationRulesSteps": "Match steps",
+  "validationEditor.validationRulesStepsHint":
     "Each step references a standalone definition id or a named sequence (expands to an ordered list). Drag to set composition order.",
   "validationEditor.matchStepKind": "Step type",
   "validationEditor.matchStepRule": "Rule definition",
@@ -377,12 +382,12 @@ export const hi: Messages = {
   "validationEditor.matchStepSelectSequence": "(select sequence)",
   "validationEditor.addMatchStep": "Add step",
   "validationEditor.scopeRefsModeHint":
-    "स्कोप-स्तर की confidence_match_rule_definitions और confidence_match_rule_sequences का उपयोग करता है। स्रोत दृश्यों के बाद सत्यापन टैब पर नियम मुख्य भाग संपादित करें।",
+    "स्कोप-स्तर की validation_rule_definitions और confidence_match_rule_sequences का उपयोग करता है। स्रोत दृश्यों के बाद सत्यापन टैब पर नियम मुख्य भाग संपादित करें।",
   "validationEditor.inlineRulesModeHint":
     "Inline rule bodies stored in this validation block (no scope-level definitions required). Suitable for compact or trigger-only configs.",
   "matchDefinitions.title": "मिलान सत्यापन नियम",
   "matchDefinitions.definitionsHint":
-    "स्कोप मैप confidence_match_rule_definitions संपादित करें: नामित मिलान सत्यापन नियमों की मास्टर सूची। कुंजी निष्कर्षण, उपनाम और स्रोत दृश्य इन ID या नीचे confidence_match_rule_sequences की प्रविष्टियों को संदर्भित करते हैं।",
+    "स्कोप मैप validation_rule_definitions संपादित करें: नामित मिलान सत्यापन नियमों की मास्टर सूची। कुंजी निष्कर्षण, उपनाम और स्रोत दृश्य इन ID या नीचे confidence_match_rule_sequences की प्रविष्टियों को संदर्भित करते हैं।",
   "matchDefinitions.newDefinitionId": "New definition id",
   "matchDefinitions.addDefinition": "Add definition",
   "matchDefinitions.selectDefinition": "Edit definition",
@@ -479,25 +484,55 @@ export const hi: Messages = {
   "flow.resizePanels": "पैनल आकार बदलने के लिए खींचें",
   "flow.paletteStructural": "पाइपलाइन संरचना",
   "flow.structuralSourceView": "स्रोत दृश्य",
+  "flow.structuralSubflow": "उप-प्रवाह",
+  "flow.structuralSubgraph": "उप-ग्राफ़",
   "flow.structuralExtraction": "निष्कर्षण",
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "उपनाम वापस लेखन",
   "flow.structuralReferenceIndex": "संदर्भ अनुक्रमणिका",
-  "flow.matchValidationRuleSourceView": "मिलान नियम (स्रोत दृश्य)",
-  "flow.matchValidationRuleExtraction": "मिलान नियम (निष्कर्षण)",
-  "flow.matchValidationRuleAliasing": "मिलान नियम (उपनाम)",
-  "flow.paletteMatchDefinitions": "सत्यापन",
-  "flow.paletteMatchDefinitionsEmpty":
+  "flow.paletteWriteback": "Writeback",
+  "flow.structuralWritebackRaw": "Writeback (RAW)",
+  "flow.structuralWritebackDataModeling": "Writeback (डेटा मॉडलिंग)",
+  "flow.validationRuleLayoutSourceView": "मिलान नियम (स्रोत दृश्य)",
+  "flow.validationRuleLayoutExtraction": "मिलान नियम (निष्कर्षण)",
+  "flow.validationRuleLayoutAliasing": "मिलान नियम (उपनाम)",
+  "flow.paletteValidationRuleDefinitions": "सत्यापन",
+  "flow.paletteValidationRuleDefinitionsEmpty":
     "अभी कोई परिभाषा नहीं — कॉन्फ़िगर में सत्यापन टैब (स्रोत दृश्यों के बाद) पर जोड़ें।",
   "flow.paletteExtractionHandlers": "निष्कर्षण हैंडलर",
   "flow.paletteAliasingHandlers": "Aliasing हैंडलर",
   "flow.paletteAnnotations": "टिप्पणियाँ",
-  "flow.seedFromScope": "स्कोप से स्रोत दृश्य भरें",
+  "flow.seedFromScope": "रीसेट",
+  "flow.alignLeft": "चयनित नोड बाएँ संरेखित करें",
+  "flow.alignCenterHorizontal": "चयनित नोड क्षैतिज केंद्र पर संरेखित करें",
+  "flow.alignRight": "चयनित नोड दाएँ संरेखित करें",
+  "flow.alignTop": "चयनित नोड ऊपर संरेखित करें",
+  "flow.alignCenterVertical": "चयनित नोड ऊर्ध्वाधर केंद्र पर संरेखित करें",
+  "flow.alignBottom": "चयनित नोड नीचे संरेखित करें",
+  "flow.alignSelectionGroup": "चयन संरेखित करें",
   "flow.canvasHint":
-    "लेआउट .canvas.yaml में सहेजा जाता है। स्कोप सहेजें। पैलेट से कैनवास पर खींचें।",
+    "लेआउट .canvas.yaml में सहेजा जाता है। स्कोप सहेजें। पैलेट से कैनवास पर खींचें। नोड को सबफ़्लो फ़्रेम में छोड़कर उसे जोड़ें; सबफ़्लो चुनकर कोनों या किनारे की पट्टियों से क्षैतिज और ऊर्ध्वाधर आकार बदलें।",
+  "flow.handleOrientationLabel": "हैंडल",
+  "flow.handleOrientationLr": "बाएँ → दाएँ",
+  "flow.handleOrientationTb": "ऊपर → नीचे",
+  "flow.connectEndMenuAria": "नया नोड बनाएँ और जोड़ें",
   "flow.ctxMenuFitView": "दृश्य फिट करें",
   "flow.ctxMenuAutoLayout": "स्वचालित लेआउट",
   "flow.ctxMenuRemoveNode": "नोड हटाएँ",
+  "flow.confirmSubgraphDeleteLift":
+    "इस सबग्राफ में आंतरिक वर्कफ़्लो चरण हैं।\n\nठीक — उन्हें मूल कैनवास पर ले जाएँ और सबग्राफ फ़्रेम हटाएँ।\nरद्द करें — सबग्राफ हटाएँ और आंतरिक चरण छोड़ दें।",
+  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
+  "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
+  "flow.ctxMenuConvertSubflowToSubgraph": "सबफ़्लो को सबग्राफ में बदलें (ड्रिल-इन)",
+  "flow.ctxMenuConvertSubgraphToSubflow": "सबग्राफ को सबफ़्लो में बदलें (समूह)",
+  "flow.subgraphDrillTitle": "Subgraph",
+  "flow.subgraphBack": "Save & close",
+  "flow.subgraphDrillHint":
+    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+  "flow.inspectorOpenSubgraph": "Open inner graph…",
+  "flow.inspectorSubgraphHint":
+    "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
   "flow.ctxMenuRemoveEdge": "एज हटाएँ",
   "flow.nodeEditorTitle": "स्कोप संपादक",
   "flow.nodeEditorTitleSourceViews": "स्रोत दृश्य (कॉन्फ़िगर टैब)",
@@ -510,6 +545,12 @@ export const hi: Messages = {
   "flow.nodeEditorDone": "हो गया",
   "flow.nodeEditorPipelineStubBody":
     "प्रारंभ/अंत नोड केवल लेआउट हैं। स्रोत दृश्य, निष्कर्षण और उपनाम अन्य नोड या कॉन्फ़िगर टैब से संपादित करें।",
+  "flow.nodeEditorSubflowBody":
+    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
+  "flow.nodeEditorSubgraphBody":
+    "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
+  "flow.nodeEditorGraphHubBody":
+    "Fixed interface node for this subgraph. Edit port names on the parent subflow in the inspector; wire the parent frame handles and inner nodes to these hubs.",
   "flow.nodeEditorUnsupported": "इस नोड प्रकार के लिए कोई कॉन्फ़िगर संपादक नहीं।",
   "flow.close": "बंद करें",
   "flow.save": "सहेजें",
@@ -519,18 +560,45 @@ export const hi: Messages = {
   "flow.inspectorStartHint":
     "पाइपलाइन प्रवेश। स्रोत दृश्यों से जोड़ें (यदि कोई स्रोत दृश्य नहीं तो निष्कर्षण से)।",
   "flow.inspectorEndHint":
-    "पाइपलाइन निकास। निष्करण, उपनाम, सत्यापन, उपनाम वापस लेखन या संदर्भ अनुक्रमणिका नोड से जोड़ें।",
+    "पाइपलाइन निकास। निष्करण, उपनाम, सत्यापन, उपनाम वापस लेखन, RAW या डेटा मॉडलिंग writeback लेआउट नोड, या संदर्भ अनुक्रमणिका नोड से जोड़ें।",
   "flow.inspectorAliasPersistenceHint":
     "fn_dm_alias_persistence से मेल: aliasing RAW पढ़कर describable इंस्टेंस पर उपनाम सूचियाँ (वैकल्पिक FK स्ट्रिंग) लिखता है। स्कोप या टास्क डेटा में वापस लेखन सेट करें।",
   "flow.inspectorReferenceIndexHint":
     "fn_dm_reference_index से मेल: कुंजी-निष्कर्षण स्टोर में FOREIGN_KEY_REFERENCES_JSON व DOCUMENT_REFERENCES_JSON से उलटा RAW अनुक्रमणिका बनाए रखता है। स्कोप में सक्षम करें (जैसे enable_reference_index)।",
+  "flow.inspectorWritebackRawHint":
+    "Cognite RAW (डेटाबेस, टेबल, इनजेस्ट) में परिणामों के लिए लेआउट नोड। स्कोप या टास्क डेटा में RAW लक्ष्य और हैंडलर I/O कॉन्फ़िगर करें; कैनवास नोड दस्तावेज़ी है।",
+  "flow.inspectorWritebackDataModelingHint":
+    "CDF Data Modeling (इंस्टेंस, व्यू) में writeback के लिए लेआउट नोड। स्कोप या टास्क डेटा में स्पेस, बाहरी ID और प्रक्षेपण चरण (जैसे fn_dm_alias_persistence) कॉन्फ़िगर करें; कैनवास नोड दस्तावेज़ी है।",
   "flow.inspectorValidationRuleHint":
-    "स्कोप में confidence_match_rules प्रविष्टि से जोड़ता है: स्रोत दृश्य सूची (source_views[].validation), कुंजी निष्कर्षण (extraction_rules[].validation) या उपनाम (aliasing_rules[].validation) पर मूल्यांकन। नियम स्वतंत्र परिभाषाएँ हैं। YAML सूची, संक्षिप्त { rule_id: [ tail... ] }, या hierarchy: { mode: ordered | concurrent, children: [...] } उपयोग करें। कैनवास पर निष्कर्षण/उपनाम से पहले मिलान-नियम तक डेटा किनारे; आगे मिलान-नियमों को sequence या parallel_group किनारों से जोड़ें।",
+    "स्कोप में validation_rules प्रविष्टि से जोड़ता है: कुंजी स्कोरिंग (वैश्विक key_extraction data.validation और extraction_rules[].validation) या उपनाम सत्यापन (aliasing_rules[].validation) के दौरान उपयोग। स्रोत दृश्य पंक्तियों में validation नहीं होता। नियम स्वतंत्र परिभाषाएँ हैं। YAML सूची, संक्षिप्त { rule_id: [ tail... ] }, या hierarchy: { mode: ordered | concurrent, children: [...] } उपयोग करें। कैनवास पर निष्कर्षण/उपनाम से पहले मिलान-नियम तक डेटा किनारे; आगे मिलान-नियमों को sequence या parallel_group किनारों से जोड़ें।",
   "flow.inspectorValidationRuleContext": "नियम दायरा",
   "flow.inspectorConfidenceRuleName": "विश्वास नियम नाम",
   "flow.validationContextSourceView": "स्रोत दृश्य (सूची)",
   "flow.validationContextExtraction": "कुंजी निष्कर्षण नियम",
   "flow.validationContextAliasing": "उपनाम नियम",
+  "flow.inspectorSubflowHint":
+    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
+  "flow.inspectorSubflowOrganizationalHint":
+    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
+  "flow.inspectorSubflowPorts": "Subgraph ports",
+  "flow.inspectorSubflowInputs": "Inputs",
+  "flow.inspectorSubflowOutputs": "Outputs",
+  "flow.inspectorSubflowAddInputPort": "Add input port",
+  "flow.inspectorSubflowAddOutputPort": "Add output port",
+  "flow.inspectorSubflowRemovePort": "Remove",
+  "flow.inspectorSubflowMovePortUp": "पोर्ट ऊपर ले जाएँ",
+  "flow.inspectorSubflowMovePortDown": "पोर्ट नीचे ले जाएँ",
+  "flow.inspectorDrillBoundaryPortsHint":
+    "इस सबग्राफ के इनपुट/आउटपुट पोर्ट यहाँ संपादित करें, या कैनवास पर ग्राफ इनपुट या ग्राफ आउटपुट हब चुनें।",
+  "flow.inspectorSubflowPortInnerIn":
+    "Outer sources allowed here are the same as for a data edge into {type} (in handle).",
+  "flow.inspectorSubflowPortInnerOut":
+    "Outer targets allowed here are the same as for a data edge from {type} (out handle).",
+  "flow.inspectorSubflowGraphInHint":
+    "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
+  "flow.inspectorSubflowGraphOutHint":
+    "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
+  "flow.inspectorParentSubflow": "मूल उप-प्रवाह",
   "flow.inspectorNodeTitle": "नोड",
   "flow.inspectorEdgeTitle": "एज",
   "flow.inspectorEdgeKind": "एज प्रकार",
@@ -538,6 +606,16 @@ export const hi: Messages = {
   "flow.edgeKindSequence": "रचना क्रम",
   "flow.edgeKindParallel": "शाखा (विभाजन / विलय)",
   "flow.inspectorLabel": "लेबल",
+  "flow.inspectorNodeAccent": "कार्ड एक्सेंट",
+  "flow.inspectorNodeAccentHint":
+    "कैनवास नोड पर वैकल्पिक बायाँ बॉर्डर रंग (केवल लेआउट; वर्कफ़्लो इंजन इसका उपयोग नहीं करता)।",
+  "flow.inspectorNodeAccentReset": "रीसेट",
+  "flow.inspectorNodeAccentCustom": "कस्टम",
+  "flow.inspectorNodeBg": "कार्ड पृष्ठभूमि",
+  "flow.inspectorNodeBgHint":
+    "नोड कार्ड के पीछे वैकल्पिक भरण (केवल लेआउट; वर्कफ़्लो इंजन इसका उपयोग नहीं करता)।",
+  "flow.inspectorNodeBgReset": "रीसेट",
+  "flow.inspectorNodeBgCustom": "कस्टम",
   "flow.inspectorHandler": "हैंडलर",
   "flow.inspectorHandlerUnset": "(चुनें)",
   "flow.inspectorAnnotationKind": "टिप्पणी प्रकार",
@@ -552,7 +630,6 @@ export const hi: Messages = {
   "flow.inspectorSourceViewSpace": "view_space",
   "flow.inspectorSourceViewExternalId": "view_external_id",
   "flow.inspectorSourceViewVersion": "view_version",
-  "flow.inspectorSourceViewEntityType": "entity_type",
   "flow.inspectorSourceViewFillFromScope": "स्कोप से भरें…",
   "flow.inspectorSourceViewIndexInvalid": "source_view_index वर्तमान स्कोप की सीमा से बाहर है।",
   "flow.inspectorRefNone": "(कोई नहीं)",

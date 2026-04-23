@@ -1,4 +1,4 @@
-"""Tests for shared ``confidence_match_rule_definitions`` resolution."""
+"""Tests for shared ``validation_rule_definitions`` resolution."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 
 def test_definitions_map_and_list_form() -> None:
     doc_map = {
-        "confidence_match_rule_definitions": {
+        "validation_rule_definitions": {
             "r1": {"match": {"x": 1}, "priority": 1},
             "r2": {"name": "custom_name", "priority": 2},
         }
@@ -31,7 +31,7 @@ def test_definitions_map_and_list_form() -> None:
     assert "custom_name" in m and m["custom_name"]["priority"] == 2
 
     doc_list = {
-        "confidence_match_rule_definitions": [
+        "validation_rule_definitions": [
             {"name": "from_list", "priority": 3},
         ]
     }
@@ -133,7 +133,7 @@ def test_dedupe_by_name() -> None:
 
 def test_targets_merged_into_rules() -> None:
     doc = {
-        "confidence_match_rule_definitions": {
+        "validation_rule_definitions": {
             "r1": {"name": "r1", "priority": 1, "match": {"keywords": ["a"]}},
             "r2": {"name": "r2", "priority": 2, "match": {"keywords": ["b"]}},
         },
@@ -141,7 +141,7 @@ def test_targets_merged_into_rules() -> None:
             "config": {
                 "data": {
                     "validation": {
-                        "confidence_match_rules": ["r1"],
+                        "validation_rules": ["r1"],
                         "confidence_match_rule_targets": ["r2"],
                     }
                 }
@@ -149,31 +149,24 @@ def test_targets_merged_into_rules() -> None:
         },
     }
     resolve_confidence_match_rule_refs_in_scope_document(doc)
-    rules = doc["key_extraction"]["config"]["data"]["validation"]["confidence_match_rules"]
+    rules = doc["key_extraction"]["config"]["data"]["validation"]["validation_rules"]
     assert [r["name"] for r in rules] == ["r1", "r2"]
 
 
 def test_resolve_full_scope_nested_paths() -> None:
     doc = {
-        "confidence_match_rule_definitions": {
+        "validation_rule_definitions": {
             "vr": {"name": "vr", "priority": 1},
         },
-        "source_views": [
-            {
-                "validation": {
-                    "confidence_match_rules": ["vr"],
-                }
-            }
-        ],
         "key_extraction": {
             "config": {
                 "data": {
-                    "validation": {"confidence_match_rules": ["vr"]},
+                    "validation": {"validation_rules": ["vr"]},
                     "extraction_rules": [
-                        {"validation": {"confidence_match_rules": [{"ref": "vr", "priority": 2}]}}
+                        {"validation": {"validation_rules": [{"ref": "vr", "priority": 2}]}}
                     ],
                     "source_views": [
-                        {"validation": {"confidence_match_rules": ["vr"]}},
+                        {"view_external_id": "CogniteFile", "view_space": "cdf_cdm", "view_version": "v1"},
                     ],
                 }
             }
@@ -181,9 +174,9 @@ def test_resolve_full_scope_nested_paths() -> None:
         "aliasing": {
             "config": {
                 "data": {
-                    "validation": {"confidence_match_rules": ["vr"]},
+                    "validation": {"validation_rules": ["vr"]},
                     "aliasing_rules": [
-                        {"validation": {"confidence_match_rules": ["vr"]}},
+                        {"validation": {"validation_rules": ["vr"]}},
                     ],
                 }
             }
@@ -191,17 +184,16 @@ def test_resolve_full_scope_nested_paths() -> None:
     }
     orig = copy.deepcopy(doc)
     resolve_confidence_match_rule_refs_in_scope_document(doc)
-    assert "confidence_match_rule_definitions" not in doc
-    assert doc["source_views"][0]["validation"]["confidence_match_rules"][0]["priority"] == 1
+    assert "validation_rule_definitions" not in doc
     ke_data = doc["key_extraction"]["config"]["data"]
-    assert ke_data["validation"]["confidence_match_rules"][0]["name"] == "vr"
-    assert ke_data["extraction_rules"][0]["validation"]["confidence_match_rules"][0]["priority"] == 2
-    assert ke_data["source_views"][0]["validation"]["confidence_match_rules"][0]["name"] == "vr"
+    assert ke_data["validation"]["validation_rules"][0]["name"] == "vr"
+    assert ke_data["extraction_rules"][0]["validation"]["validation_rules"][0]["priority"] == 2
+    assert "validation" not in ke_data["source_views"][0]
     al_data = doc["aliasing"]["config"]["data"]
-    assert al_data["validation"]["confidence_match_rules"][0]["name"] == "vr"
-    assert al_data["aliasing_rules"][0]["validation"]["confidence_match_rules"][0]["name"] == "vr"
+    assert al_data["validation"]["validation_rules"][0]["name"] == "vr"
+    assert al_data["aliasing_rules"][0]["validation"]["validation_rules"][0]["name"] == "vr"
     # Original untouched (deepcopy check)
-    assert "confidence_match_rule_definitions" in orig
+    assert "validation_rule_definitions" in orig
 
 
 def test_resolve_no_definitions_strips_key_only_when_present() -> None:
@@ -213,19 +205,19 @@ def test_resolve_no_definitions_strips_key_only_when_present() -> None:
 def test_sequences_stripped_after_resolve() -> None:
     doc = {
         "confidence_match_rule_sequences": {"s": ["a"]},
-        "confidence_match_rule_definitions": {
+        "validation_rule_definitions": {
             "a": {"name": "a", "match": {"keywords": ["z"]}},
         },
         "key_extraction": {
             "config": {
                 "data": {
-                    "validation": {"confidence_match_rules": [{"sequence": "s"}]},
+                    "validation": {"validation_rules": [{"sequence": "s"}]},
                 }
             }
         },
     }
     resolve_confidence_match_rule_refs_in_scope_document(doc)
     assert "confidence_match_rule_sequences" not in doc
-    rules = doc["key_extraction"]["config"]["data"]["validation"]["confidence_match_rules"]
+    rules = doc["key_extraction"]["config"]["data"]["validation"]["validation_rules"]
     assert rules[0]["name"] == "a"
 

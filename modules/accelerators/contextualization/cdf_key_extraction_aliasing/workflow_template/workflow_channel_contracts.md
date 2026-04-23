@@ -11,4 +11,6 @@ This document describes **data edges** between macro pipeline stages ([`workflow
 
 Parallelism: after key extraction, **`fn_dm_reference_index`** and **`fn_dm_aliasing`** are independent (both depend only on `fn_dm_key_extraction`). Deployed CDF workflow runs them in parallel; the local runner executes them concurrently to match.
 
+Inside **`fn_dm_aliasing`**, optional **`aliasing.config.data.pathways`** defines sequential and parallel *rule* execution; top-level **`aliasing_rule_definitions`** / **`aliasing_rule_sequences`** are expanded onto both **`extraction_rules[].aliasing_pipeline`** and pathway rule lists before the function runs (see `cdf_fn_common.aliasing_rule_refs`).
+
 See also: [`workflow_diagram.md`](workflow_diagram.md), [`workflows/README.md`](../workflows/README.md).

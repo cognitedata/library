@@ -4,7 +4,7 @@ Authoring inputs for **`python module.py build`** / [`scripts/build_scopes.py`](
 
 | File | Role |
 |------|------|
-| [`workflow.template.config.yaml`](workflow.template.config.yaml) | Scope body template; patched into each generated trigger’s **`input.configuration`**. Includes **Key Discovery** incremental parameters (`key_discovery_*`, **`workflow_scope`** injected per leaf, **`cdm_view_version`**, **`incremental_skip_unchanged_source_inputs`**) — see [workflows/README.md](../workflows/README.md) and [configuration guide](../docs/guides/configuration_guide.md). |
+| [`workflow.template.config.yaml`](workflow.template.config.yaml) | Scope body template; patched into each generated trigger’s **`input.configuration`**. Aliasing transforms live under **`aliasing.config.data.pathways`** (sequential macro step mirroring the former flat **`aliasing_rules`** list); **`aliasing_rules`** is kept empty for tooling compatibility. Same **Key Discovery** / incremental fields as before — see [workflows/README.md](../workflows/README.md) and [configuration guide](../docs/guides/configuration_guide.md). |
 | [`workflow.template.WorkflowTrigger.yaml`](workflow.template.WorkflowTrigger.yaml) | Schedule trigger shell (`__KEA_CDF_SUFFIX__`, placeholders). |
 | [`workflow.template.Workflow.yaml`](workflow.template.Workflow.yaml) | Workflow container template. |
 | [`workflow.template.WorkflowVersion.yaml`](workflow.template.WorkflowVersion.yaml) | WorkflowVersion **`v4`** template. |

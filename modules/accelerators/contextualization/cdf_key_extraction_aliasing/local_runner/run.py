@@ -35,6 +35,7 @@ from .kahn_workflow_executor import (
 from .report import ensure_results_dir
 from .workflow_payload import (
     merged_scope_document_for_local_run,
+    remap_associations_for_filtered_source_views,
     workflow_instance_space_for_local,
 )
 
@@ -124,6 +125,17 @@ def _load_cdf_config_and_engine(
     data = copy.deepcopy(data)
     data["source_views"] = source_views
     data["source_view"] = None
+    _root_assoc = doc.get("associations")
+    _orig_svs = doc.get("source_views")
+    if (
+        isinstance(_root_assoc, list)
+        and _root_assoc
+        and isinstance(_orig_svs, list)
+        and _orig_svs
+    ):
+        data["associations"] = remap_associations_for_filtered_source_views(
+            _root_assoc, _orig_svs, source_views
+        )
     merged["data"] = data
 
     try:
@@ -143,6 +155,7 @@ def _load_cdf_config_and_engine(
                 extraction_rules=data_section.get("extraction_rules") or [],
                 validation=data_section.get("validation"),
                 source_tables=data_section.get("source_tables") or [],
+                associations=data_section.get("associations"),
             ),
         )
         return cdf_config, engine_config

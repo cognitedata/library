@@ -204,7 +204,7 @@ def test_ensure_key_extraction_materializes_configuration_when_config_preset() -
     data = {
         "configuration": {
             "source_views": [{"view_external_id": "CogniteAsset", "instance_space": "sp1"}],
-            "confidence_match_rule_definitions": {
+            "validation_rule_definitions": {
                 "bl": {
                     "name": "bl",
                     "priority": 1,
@@ -218,7 +218,7 @@ def test_ensure_key_extraction_materializes_configuration_when_config_preset() -
                     "parameters": {"raw_db": "d", "raw_table_key": "k"},
                     "data": {
                         "extraction_rules": [],
-                        "validation": {"confidence_match_rules": ["bl"]},
+                        "validation": {"validation_rules": ["bl"]},
                     },
                 },
             },
@@ -227,8 +227,8 @@ def test_ensure_key_extraction_materializes_configuration_when_config_preset() -
     }
     ensure_key_extraction_config_from_scope_dm(data, None, incremental_change_processing=True)
     conf = data["configuration"]
-    assert "confidence_match_rule_definitions" not in conf
-    rules = conf["key_extraction"]["config"]["data"]["validation"]["confidence_match_rules"]
+    assert "validation_rule_definitions" not in conf
+    rules = conf["key_extraction"]["config"]["data"]["validation"]["validation_rules"]
     assert isinstance(rules[0], dict)
     assert rules[0].get("name") == "bl"
 

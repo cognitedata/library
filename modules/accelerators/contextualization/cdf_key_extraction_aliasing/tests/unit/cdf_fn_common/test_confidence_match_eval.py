@@ -1,4 +1,4 @@
-"""Tests for shared confidence_match_rules evaluation."""
+"""Tests for shared validation_rules evaluation."""
 
 from __future__ import annotations
 

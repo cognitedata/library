@@ -133,7 +133,6 @@ export const ja: Messages = {
   "sourceViews.viewExternalId": "ビューの外部 ID",
   "sourceViews.viewSpace": "ビュー スペース",
   "sourceViews.viewVersion": "ビューのバージョン",
-  "sourceViews.entityType": "エンティティ種別",
   "sourceViews.batchSize": "バッチ サイズ",
   "sourceViews.instanceSpace": "インスタンス スペース（任意）",
   "sourceViews.filters": "フィルター",
@@ -163,10 +162,16 @@ export const ja: Messages = {
   "sourceViews.filterTargetProperty": "対象プロパティ",
   "sourceViews.filterPropertyScope": "プロパティのスコープ",
   "sourceViews.filterValues": "値（カンマ区切りまたは単一値）",
-  "sourceViews.perViewValidationTitle": "検証（このソースビュー）",
-  "sourceViews.perViewValidationHint":
-    "Key Discovery の全体検証にマージされます。confidence_match_rules は追加され、その他（min_confidence など）は設定時に上書きします。「全体の検証のみ」でこのオーバーレイを外します。",
-  "sourceViews.perViewValidationClear": "全体の検証のみ",
+  "sourceViews.cdfReloadSpaces": "スペースを再読み込み",
+  "sourceViews.cdfReloadDataModels": "データモデルを再読み込み",
+  "sourceViews.cdfPickDataModel": "データモデル (CDF)",
+  "sourceViews.cdfPickDataModelPlaceholder": "データモデルを選択…",
+  "sourceViews.cdfPickDataModelHint":
+    "ビュー スペースをモデルのスペースに設定します。モジュールの既定スキーマ スペースが設定されている場合、そのスペース内のモデルのみが表示されます。",
+  "sourceViews.cdfReloadViews": "ビューを再読み込み",
+  "sourceViews.cdfPickView": "CDF からビューを選択",
+  "sourceViews.cdfPickPlaceholder": "ビューを選択…",
+  "sourceViews.cdfError": "CDF から読み込めませんでした",
   "keyExtraction.title": "キー探索",
   "keyExtraction.externalId": "外部 ID",
   "keyExtraction.parameters": "パラメータ",
@@ -176,7 +181,7 @@ export const ja: Messages = {
     "extraction_rules（fields[]、handler、field_results_mode など）と validation 以外のキー — key_extraction.config.data 内",
   "keyExtraction.validationYaml": "config.data.validation（YAML）",
   "keyExtraction.validationYamlHint":
-    "抽出キー全体の検証（min_confidence、max_keys_per_type、confidence_match_rules など）。",
+    "抽出キー全体の検証（min_confidence、max_keys_per_type、validation_rules など）。",
   "keyExtraction.advancedRulesYaml": "ルールと戦略を YAML で編集（上級）",
   "discoveryRules.fieldResultsModeInherit": "未設定（エンジン既定 merge_all）",
   "discoveryRules.extraKeysPreserved": "config.data の他のキーは保持されます: {keys}",
@@ -199,7 +204,7 @@ export const ja: Messages = {
   "discoveryRules.rule.description": "説明",
   "discoveryRules.rule.matchValidation": "Match validation (confidence rules)",
   "discoveryRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "discoveryRules.rule.entityTypesCsv": "エンティティ種別（カンマ区切り）",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
     "scope_filters の追加キー（YAML オブジェクト）。上の種別とマージ。空なら種別のみ。",
@@ -278,7 +283,7 @@ export const ja: Messages = {
   "aliasing.dataYamlHint": "aliasing_rules と validation 以外のキー — aliasing.config.data 内",
   "aliasing.validationYaml": "config.data.validation（YAML）",
   "aliasing.validationYamlHint":
-    "エイリアス全体の検証（min_confidence、max_aliases_per_tag、confidence_match_rules など）。",
+    "エイリアス全体の検証（min_confidence、max_aliases_per_tag、validation_rules など）。",
   "aliasing.advancedRulesYaml": "エイリアスルールと追加データを YAML で編集（上級）",
   "aliasingRules.extraKeysPreserved": "config.data の他のキーは保持されます: {keys}",
   "aliasingRules.rule.name": "ルール名",
@@ -292,7 +297,7 @@ export const ja: Messages = {
   "aliasingRules.rule.description": "説明",
   "aliasingRules.rule.matchValidation": "Match validation (confidence rules)",
   "aliasingRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "aliasingRules.rule.entityTypesCsv": "エンティティ種別（カンマ区切り）",
   "aliasingRules.rule.scopeFiltersOtherYamlHint":
     "scope_filters の追加キー（YAML オブジェクト）。上の種別とマージ。",
@@ -361,12 +366,12 @@ export const ja: Messages = {
   "validationEditor.extraKeysPreserved": "validation の他のキーは保持されます: {keys}",
   "validationEditor.rulesHint":
     "各マッチルールは独立した定義です。評価時は優先度（次にリスト順）で合成されます：offset は連鎖、explicit は信頼度を設定しその値では以降のルールを止めます。",
-  "validationEditor.matchRulesHierarchyHint":
+  "validationEditor.validationRulesHierarchyHint":
     "Top-level steps run in list order. Use a parallel group to run its children sorted by each rule’s priority field; use a sequential group for an explicit nested chain.",
   "validationEditor.parallelGroup": "Parallel group (by priority)",
   "validationEditor.sequentialGroup": "Sequential group",
-  "validationEditor.matchRulesSteps": "Match steps",
-  "validationEditor.matchRulesStepsHint":
+  "validationEditor.validationRulesSteps": "Match steps",
+  "validationEditor.validationRulesStepsHint":
     "Each step references a standalone definition id or a named sequence (expands to an ordered list). Drag to set composition order.",
   "validationEditor.matchStepKind": "Step type",
   "validationEditor.matchStepRule": "Rule definition",
@@ -377,12 +382,12 @@ export const ja: Messages = {
   "validationEditor.matchStepSelectSequence": "(select sequence)",
   "validationEditor.addMatchStep": "Add step",
   "validationEditor.scopeRefsModeHint":
-    "スコープの confidence_match_rule_definitions と confidence_match_rule_sequences を使用します。ルール本体は「検証」タブ（ソースビューの後）で編集してください。",
+    "スコープの validation_rule_definitions と confidence_match_rule_sequences を使用します。ルール本体は「検証」タブ（ソースビューの後）で編集してください。",
   "validationEditor.inlineRulesModeHint":
     "Inline rule bodies stored in this validation block (no scope-level definitions required). Suitable for compact or trigger-only configs.",
   "matchDefinitions.title": "マッチ検証ルール",
   "matchDefinitions.definitionsHint":
-    "スコープのマップ confidence_match_rule_definitions を編集します（名前付きマッチ検証ルール本体のマスター一覧）。キー抽出・エイリアス・ソースビューはこれらの ID、または下の confidence_match_rule_sequences の名前付きエントリを参照します。",
+    "スコープのマップ validation_rule_definitions を編集します（名前付きマッチ検証ルール本体のマスター一覧）。キー抽出・エイリアス・ソースビューはこれらの ID、または下の confidence_match_rule_sequences の名前付きエントリを参照します。",
   "matchDefinitions.newDefinitionId": "New definition id",
   "matchDefinitions.addDefinition": "Add definition",
   "matchDefinitions.selectDefinition": "Edit definition",
@@ -479,25 +484,55 @@ export const ja: Messages = {
   "flow.resizePanels": "ドラッグしてパネル幅を変更",
   "flow.paletteStructural": "パイプライン構成",
   "flow.structuralSourceView": "ソースビュー",
+  "flow.structuralSubflow": "サブフロー",
+  "flow.structuralSubgraph": "サブグラフ",
   "flow.structuralExtraction": "抽出",
   "flow.structuralAliasing": "エイリアス",
   "flow.structuralAliasPersistence": "エイリアス書き戻し",
   "flow.structuralReferenceIndex": "参照インデックス",
-  "flow.matchValidationRuleSourceView": "マッチ規則（ソースビュー）",
-  "flow.matchValidationRuleExtraction": "マッチ規則（抽出）",
-  "flow.matchValidationRuleAliasing": "マッチ規則（エイリアス）",
-  "flow.paletteMatchDefinitions": "検証",
-  "flow.paletteMatchDefinitionsEmpty":
+  "flow.paletteWriteback": "Writeback",
+  "flow.structuralWritebackRaw": "Writeback（RAW）",
+  "flow.structuralWritebackDataModeling": "Writeback（データモデリング）",
+  "flow.validationRuleLayoutSourceView": "マッチ規則（ソースビュー）",
+  "flow.validationRuleLayoutExtraction": "マッチ規則（抽出）",
+  "flow.validationRuleLayoutAliasing": "マッチ規則（エイリアス）",
+  "flow.paletteValidationRuleDefinitions": "検証",
+  "flow.paletteValidationRuleDefinitionsEmpty":
     "定義がありません — 構成の「検証」タブ（ソースビューの後）で追加してください。",
   "flow.paletteExtractionHandlers": "抽出ハンドラー",
   "flow.paletteAliasingHandlers": "エイリアスハンドラー",
   "flow.paletteAnnotations": "注釈",
-  "flow.seedFromScope": "スコープからソースビューを配置",
+  "flow.seedFromScope": "リセット",
+  "flow.alignLeft": "選択ノードを左揃え",
+  "flow.alignCenterHorizontal": "選択ノードを水平方向の中央揃え",
+  "flow.alignRight": "選択ノードを右揃え",
+  "flow.alignTop": "選択ノードを上揃え",
+  "flow.alignCenterVertical": "選択ノードを垂直方向の中央揃え",
+  "flow.alignBottom": "選択ノードを下揃え",
+  "flow.alignSelectionGroup": "選択範囲を揃える",
   "flow.canvasHint":
-    "レイアウトは対になる .canvas.yaml に保存されます。スコープを保存し、パレットからドラッグしてください。",
+    "レイアウトは対になる .canvas.yaml に保存されます。スコープを保存し、パレットからドラッグしてください。ノードをサブフローの枠内にドロップすると関連付けます。サブフローを選択し、角や辺のバーをドラッグして横方向・縦方向にリサイズできます。",
+  "flow.handleOrientationLabel": "ハンドル",
+  "flow.handleOrientationLr": "左 → 右",
+  "flow.handleOrientationTb": "上 → 下",
+  "flow.connectEndMenuAria": "新しいノードを作成して接続",
   "flow.ctxMenuFitView": "表示を合わせる",
   "flow.ctxMenuAutoLayout": "自動レイアウト",
   "flow.ctxMenuRemoveNode": "ノードを削除",
+  "flow.confirmSubgraphDeleteLift":
+    "このサブグラフには内部のワークフロー手順があります。\n\nOK — 親キャンバスへ移動し、サブグラフ枠を削除します。\nキャンセル — サブグラフを削除し、内部手順を破棄します。",
+  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
+  "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "親グラフへ昇格",
+  "flow.ctxMenuConvertSubflowToSubgraph": "サブフローをサブグラフに変換（ドリルイン）",
+  "flow.ctxMenuConvertSubgraphToSubflow": "サブグラフをサブフローに変換（グループ）",
+  "flow.subgraphDrillTitle": "Subgraph",
+  "flow.subgraphBack": "Save & close",
+  "flow.subgraphDrillHint":
+    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+  "flow.inspectorOpenSubgraph": "Open inner graph…",
+  "flow.inspectorSubgraphHint":
+    "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
   "flow.ctxMenuRemoveEdge": "エッジを削除",
   "flow.nodeEditorTitle": "スコープ編集",
   "flow.nodeEditorTitleSourceViews": "ソースビュー（設定タブ）",
@@ -510,6 +545,12 @@ export const ja: Messages = {
   "flow.nodeEditorDone": "完了",
   "flow.nodeEditorPipelineStubBody":
     "開始・終了ノードはレイアウトのみです。ソースビュー・抽出・エイリアスは他のノードまたは設定タブで編集してください。",
+  "flow.nodeEditorSubflowBody":
+    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
+  "flow.nodeEditorSubgraphBody":
+    "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
+  "flow.nodeEditorGraphHubBody":
+    "Fixed interface node for this subgraph. Edit port names on the parent subflow in the inspector; wire the parent frame handles and inner nodes to these hubs.",
   "flow.nodeEditorUnsupported": "このノード種別に対応する設定エディターがありません。",
   "flow.close": "閉じる",
   "flow.save": "保存",
@@ -519,18 +560,45 @@ export const ja: Messages = {
   "flow.inspectorStartHint":
     "パイプラインの開始。ソースビューへ接続（ソースビューがない場合は抽出へ）。",
   "flow.inspectorEndHint":
-    "パイプラインの終了。抽出・エイリアス・検証・エイリアス書き戻し・参照インデックスの各ノードから接続。",
+    "パイプラインの終了。抽出・エイリアス・検証・エイリアス書き戻し・RAW／データモデリングの Writeback レイアウトノード・参照インデックスの各ノードから接続。",
   "flow.inspectorAliasPersistenceHint":
     "fn_dm_alias_persistence に対応: エイリアス用 RAW を読み、Describable インスタンスへエイリアス一覧（任意で FK 参照文字列）を書き込みます。書き戻しはスコープまたはタスク data で設定。",
   "flow.inspectorReferenceIndexHint":
     "fn_dm_reference_index に対応: キー抽出ストアの FOREIGN_KEY_REFERENCES_JSON と DOCUMENT_REFERENCES_JSON から逆引き RAW インデックスを更新します。スコープで有効化（例: enable_reference_index）。",
+  "flow.inspectorWritebackRawHint":
+    "Cognite RAW（データベース・テーブル・インジェスト）へ結果を書き込むレイアウト用ノードです。RAW の宛先とハンドラ I/O はスコープまたはタスク data で設定します。キャンバス上のノードはドキュメント用です。",
+  "flow.inspectorWritebackDataModelingHint":
+    "CDF Data Modeling（インスタンス・ビュー）への writeback 用レイアウトノードです。スペース、external id、fn_dm_alias_persistence などの投影手順はスコープまたはタスク data で設定します。キャンバス上のノードはドキュメント用です。",
   "flow.inspectorValidationRuleHint":
-    "スコープの confidence_match_rules エントリに対応: ソースビュー一覧（source_views[].validation）、キー抽出（extraction_rules[].validation）、エイリアス（aliasing_rules[].validation）で評価。ルール本体は独立した定義です。YAML リスト、簡略形 { rule_id: [ tail... ] }、または hierarchy: { mode: ordered | concurrent, children: [...] } を使用します。キャンバスでは抽出／エイリアスから最初のマッチルールノードへデータエッジ、その後のマッチルールノード同士は sequence または parallel_group エッジで連鎖します。",
+    "スコープの validation_rules エントリに対応: キー採点（グローバルな key_extraction の data.validation と extraction_rules[].validation）またはエイリアス検証（aliasing_rules[].validation）で使用。ソースビュー行には validation はありません。ルール本体は独立した定義です。YAML リスト、簡略形 { rule_id: [ tail... ] }、または hierarchy: { mode: ordered | concurrent, children: [...] } を使用します。キャンバスでは抽出／エイリアスから最初のマッチルールノードへデータエッジ、その後のマッチルールノード同士は sequence または parallel_group エッジで連鎖します。",
   "flow.inspectorValidationRuleContext": "ルールの適用範囲",
   "flow.inspectorConfidenceRuleName": "信頼度ルール名",
   "flow.validationContextSourceView": "ソースビュー（一覧）",
   "flow.validationContextExtraction": "キー抽出ルール",
   "flow.validationContextAliasing": "エイリアスルール",
+  "flow.inspectorSubflowHint":
+    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
+  "flow.inspectorSubflowOrganizationalHint":
+    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
+  "flow.inspectorSubflowPorts": "Subgraph ports",
+  "flow.inspectorSubflowInputs": "Inputs",
+  "flow.inspectorSubflowOutputs": "Outputs",
+  "flow.inspectorSubflowAddInputPort": "Add input port",
+  "flow.inspectorSubflowAddOutputPort": "Add output port",
+  "flow.inspectorSubflowRemovePort": "Remove",
+  "flow.inspectorSubflowMovePortUp": "ポートを上へ",
+  "flow.inspectorSubflowMovePortDown": "ポートを下へ",
+  "flow.inspectorDrillBoundaryPortsHint":
+    "ここでこのサブグラフの入出力ポートを編集するか、キャンバス上のグラフ入力またはグラフ出力ハブを選択してください。",
+  "flow.inspectorSubflowPortInnerIn":
+    "Outer sources allowed here are the same as for a data edge into {type} (in handle).",
+  "flow.inspectorSubflowPortInnerOut":
+    "Outer targets allowed here are the same as for a data edge from {type} (out handle).",
+  "flow.inspectorSubflowGraphInHint":
+    "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
+  "flow.inspectorSubflowGraphOutHint":
+    "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
+  "flow.inspectorParentSubflow": "親サブフロー",
   "flow.inspectorNodeTitle": "ノード",
   "flow.inspectorEdgeTitle": "エッジ",
   "flow.inspectorEdgeKind": "エッジの種類",
@@ -538,6 +606,16 @@ export const ja: Messages = {
   "flow.edgeKindSequence": "合成順",
   "flow.edgeKindParallel": "分岐（分割／合流）",
   "flow.inspectorLabel": "ラベル",
+  "flow.inspectorNodeAccent": "カードのアクセント",
+  "flow.inspectorNodeAccentHint":
+    "キャンバス上のノードの左枠線の色（任意・レイアウトのみ。ワークフローエンジンでは使用されません）。",
+  "flow.inspectorNodeAccentReset": "リセット",
+  "flow.inspectorNodeAccentCustom": "カスタム",
+  "flow.inspectorNodeBg": "カードの背景",
+  "flow.inspectorNodeBgHint":
+    "ノードカード背面の塗りつぶし（任意・レイアウトのみ。ワークフローエンジンでは使用されません）。",
+  "flow.inspectorNodeBgReset": "リセット",
+  "flow.inspectorNodeBgCustom": "カスタム",
   "flow.inspectorHandler": "ハンドラー",
   "flow.inspectorHandlerUnset": "（選択）",
   "flow.inspectorAnnotationKind": "注釈の種類",
@@ -552,7 +630,6 @@ export const ja: Messages = {
   "flow.inspectorSourceViewSpace": "view_space",
   "flow.inspectorSourceViewExternalId": "view_external_id",
   "flow.inspectorSourceViewVersion": "view_version",
-  "flow.inspectorSourceViewEntityType": "entity_type",
   "flow.inspectorSourceViewFillFromScope": "スコープから入力…",
   "flow.inspectorSourceViewIndexInvalid": "source_view_index が現在のスコープの範囲外です。",
   "flow.inspectorRefNone": "（なし）",

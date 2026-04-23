@@ -2,6 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { FlowEdgeData } from "./flowDocumentBridge";
 import type { PaletteDragPayload } from "./FlowPalette";
 import { resolveConfidenceMatchRuleNames } from "../../utils/confidenceMatchRuleNames";
+import { getAliasingTransformRuleRows } from "./aliasingScopeData";
 
 /** Squared distance threshold in flow coordinates (same units as node positions). */
 const MAX_REUSE_DIST_SQ = 520 * 520;
@@ -26,7 +27,7 @@ function isChainEdge(e: Edge): boolean {
 }
 
 function ruleLabel(n: Node): string {
-  const c = (n.data as Record<string, unknown> | undefined)?.confidence_match_rule_name;
+  const c = (n.data as Record<string, unknown> | undefined)?.validation_rule_name;
   return c != null && String(c).trim() ? String(c).trim() : "";
 }
 
@@ -290,7 +291,7 @@ function getAliasingRuleValidationNames(scope: Record<string, unknown>, ruleName
   const al = scope.aliasing as Record<string, unknown> | undefined;
   const data = al?.config as Record<string, unknown> | undefined;
   const d = data?.data as Record<string, unknown> | undefined;
-  const rules = d?.aliasing_rules;
+  const rules = d ? getAliasingTransformRuleRows(d) : [];
   if (!Array.isArray(rules)) return [];
   for (const r of rules) {
     if (!r || typeof r !== "object" || Array.isArray(r)) continue;
@@ -321,21 +322,21 @@ function hasDataEdgeBetween(edges: Edge[], fromId: string, toId: string): boolea
   return edges.some((e) => e.source === fromId && e.target === toId && isDataEdge(e));
 }
 
-export type MatchValidationReuseResult =
+export type ValidationRuleLayoutReuseResult =
   | { action: "reuse"; headId: string; connectFromId?: string }
   | { action: "create" };
 
 /**
- * When dropping a structural match-validation node from the palette, reuse an existing
+ * When dropping a structural validation-rule layout node from the palette, reuse an existing
  * chain head if scope defines the same ordered rule list and the canvas already has that chain.
  */
-export function matchValidationReuseOnDrop(
+export function validationRuleLayoutReuseOnDrop(
   payload: PaletteDragPayload,
   position: { x: number; y: number },
   nodes: Node[],
   edges: Edge[],
   scopeDoc: Record<string, unknown>
-): MatchValidationReuseResult {
+): ValidationRuleLayoutReuseResult {
   if (payload.kind === "match_definition") {
     return { action: "create" };
   }

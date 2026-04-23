@@ -33,7 +33,7 @@ def _sample_aliasing_validation(
     return {
         "max_aliases_per_tag": max_aliases_per_tag,
         "min_confidence": 0.01,
-        "confidence_match_rules": [
+        "validation_rules": [
             {
                 "name": "alias_shape_invalid",
                 "priority": 0,
@@ -54,6 +54,52 @@ def _sample_aliasing_validation(
                 "confidence_modifier": {"mode": "explicit", "value": 0.0},
             },
         ],
+    }
+
+
+def _assoc_rows_sv0(*rule_names: str) -> list:
+    return [
+        {
+            "kind": "source_view_to_extraction",
+            "source_view_index": 0,
+            "extraction_rule_name": n,
+        }
+        for n in rule_names
+    ]
+
+
+def _migrate_legacy_regex_rule(r: dict) -> dict:
+    """Map legacy handler regex + source_fields to regex_handler + fields[]."""
+    if r.get("fields"):
+        out = dict(r)
+        out["handler"] = "regex_handler"
+        if out.get("rule_id") is None and out.get("name"):
+            out["rule_id"] = out["name"]
+        return out
+    pat = r.get("pattern") or (r.get("config") or {}).get("pattern", "")
+    sfs = r.get("source_fields") or [{"field_name": "name", "required": False}]
+    fields = []
+    for sf in sfs:
+        fields.append(
+            {
+                "field_name": sf["field_name"],
+                "required": bool(sf.get("required", False)),
+                "regex": pat,
+                "regex_options": {"ignore_case": not r.get("case_sensitive", False)},
+            }
+        )
+    name = r.get("name") or r.get("rule_id", "rule")
+    return {
+        "name": name,
+        "rule_id": r.get("rule_id", name),
+        "description": r.get("description", ""),
+        "extraction_type": r.get("extraction_type", "candidate_key"),
+        "handler": "regex_handler",
+        "priority": r.get("priority", 100),
+        "enabled": r.get("enabled", True),
+        "field_results_mode": r.get("field_results_mode", "merge_all"),
+        "fields": fields,
+        "validation": {"min_confidence": r.get("min_confidence", 0.5)},
     }
 
 
@@ -223,6 +269,12 @@ def generate_key_extraction_results():
             "max_keys_per_type": 10,
         },
     }
+    extraction_config["extraction_rules"] = [
+        _migrate_legacy_regex_rule(r) for r in extraction_config["extraction_rules"]
+    ]
+    extraction_config["associations"] = _assoc_rows_sv0(
+        *(r["name"] for r in extraction_config["extraction_rules"])
+    )
 
     # For files, extract document names as candidate keys (with and without revisions)
     # and extract references from descriptions as foreign keys
@@ -272,6 +324,12 @@ def generate_key_extraction_results():
         ],
         "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
     }
+    document_config["extraction_rules"] = [
+        _migrate_legacy_regex_rule(r) for r in document_config["extraction_rules"]
+    ]
+    document_config["associations"] = _assoc_rows_sv0(
+        *(r["name"] for r in document_config["extraction_rules"])
+    )
 
     # Timeseries extraction config — regex rules on externalId and name
     timeseries_config = {
@@ -318,6 +376,12 @@ def generate_key_extraction_results():
         ],
         "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
     }
+    timeseries_config["extraction_rules"] = [
+        _migrate_legacy_regex_rule(r) for r in timeseries_config["extraction_rules"]
+    ]
+    timeseries_config["associations"] = _assoc_rows_sv0(
+        *(r["name"] for r in timeseries_config["extraction_rules"])
+    )
 
     # Initialize extraction engine
     engine = KeyExtractionEngine(extraction_config)
@@ -327,7 +391,7 @@ def generate_key_extraction_results():
     # Extract keys from all assets
     results = []
     for asset in sample_assets:
-        extraction_result = engine.extract_keys(asset, "asset")
+        extraction_result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # Format result - use entity_type from extraction result dynamically
         result_data = {
@@ -388,7 +452,7 @@ def generate_key_extraction_results():
 
     # Extract keys from all files
     for file in sample_files:
-        extraction_result = document_engine.extract_keys(file, "file")
+        extraction_result = document_engine.extract_keys(file, "file", source_view_index=0)
 
         # Format result - use entity_type from extraction result dynamically
         result_data = {
@@ -464,7 +528,9 @@ def generate_key_extraction_results():
 
     # Extract keys from all timeseries
     for timeseries in sample_timeseries:
-        extraction_result = timeseries_engine.extract_keys(timeseries, "timeseries")
+        extraction_result = timeseries_engine.extract_keys(
+            timeseries, "timeseries", source_view_index=0
+        )
 
         # Format result - use entity_type from extraction result dynamically
         result_data = {

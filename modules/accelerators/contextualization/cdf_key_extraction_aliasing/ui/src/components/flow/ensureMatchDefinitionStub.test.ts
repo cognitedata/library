@@ -38,7 +38,7 @@ describe("ensureMatchDefinitionStub", () => {
 
   it("nextUniqueMatchDefinitionId skips occupied keys case-insensitively", () => {
     const doc = {
-      confidence_match_rule_definitions: {
+      validation_rule_definitions: {
         RULE_1: { name: "RULE_1" },
       },
     };

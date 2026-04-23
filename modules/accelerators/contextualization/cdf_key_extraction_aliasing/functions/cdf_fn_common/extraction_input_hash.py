@@ -9,64 +9,52 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
 from .incremental_scope import scope_key_from_view_dict
 from .property_path import get_value_by_property_path
+from .workflow_associations import parse_source_view_to_extraction_pairs
 
 
-def _norm_entity_type_value(et: Any) -> str:
-    if et is None:
-        return ""
-    if hasattr(et, "value"):
-        return str(et.value).strip().lower()
-    return str(et).strip().lower()
-
-
-def _view_entity_type_normalized(entity_view_config: Any) -> Optional[str]:
-    """Lowercase entity_type string from a source view config (dict or model)."""
-    et = getattr(entity_view_config, "entity_type", None)
-    if et is None and isinstance(entity_view_config, dict):
-        et = entity_view_config.get("entity_type")
-    s = _norm_entity_type_value(et)
-    return s or None
-
-
-def _entity_types_from_rule(rule: Any) -> Optional[List[Any]]:
-    """``scope_filters.entity_type`` or top-level ``entity_types`` (list of strings)."""
-    et_list: Optional[List[Any]] = None
-    sf = getattr(rule, "scope_filters", None)
-    if sf is None and isinstance(rule, dict):
-        sf = rule.get("scope_filters")
-    if isinstance(sf, dict):
-        raw = sf.get("entity_type")
-        if raw is not None:
-            et_list = raw if isinstance(raw, list) else [raw]
-    if et_list is None:
-        top = getattr(rule, "entity_types", None)
-        if top is None and isinstance(rule, dict):
-            top = rule.get("entity_types")
-        if top:
-            et_list = top if isinstance(top, list) else [top]
-    return et_list
-
-
-def _rule_matches_view_entity_type(rule: Any, view_et: Optional[str]) -> bool:
-    """
-    When a rule declares ``scope_filters.entity_type`` or ``entity_types``, only include
-    matching views. Rules with no such declaration apply to every view.
-    """
-    if view_et is None:
-        return True
-    et_list = _entity_types_from_rule(rule)
-    if not et_list:
-        return True
-    allowed = {
-        _norm_entity_type_value(x) for x in et_list if x is not None and str(x).strip()
+def association_pairs_set_from_scope_mapping(doc: Mapping[str, Any]) -> Set[Tuple[int, str]]:
+    """(source_view_index, extraction_rule_name) pairs from top-level ``associations``."""
+    raw = doc.get("associations")
+    if not isinstance(raw, list):
+        return set()
+    return {
+        (int(i), str(n).strip())
+        for i, n in parse_source_view_to_extraction_pairs(doc)
+        if str(n).strip()
     }
-    if not allowed:
-        return True
-    return view_et in allowed
+
+
+def _rule_name_for_association(rule: Any) -> str:
+    n = getattr(rule, "name", None) or getattr(rule, "rule_id", None)
+    if n is None and isinstance(rule, dict):
+        n = rule.get("name") or rule.get("rule_id")
+    return str(n or "").strip()
+
+
+def _rule_applies_to_source_view_index(
+    rule: Any,
+    *,
+    association_pairs: Optional[Set[Tuple[int, str]]],
+    source_view_index: Optional[int],
+) -> bool:
+    """
+    Graph SSOT: only rules listed in ``association_pairs`` for the current
+    ``source_view_index`` contribute. Missing or empty ``association_pairs`` means no
+    rules apply (``include_properties`` fallback in :func:`iter_wanted_fields` only).
+    """
+    pairs = association_pairs if association_pairs is not None else set()
+    if not pairs:
+        return False
+    if source_view_index is None:
+        return False
+    rn = _rule_name_for_association(rule)
+    if not rn:
+        return False
+    return (int(source_view_index), rn) in pairs
 
 
 def _rule_field_rows(rule: Any) -> Any:
@@ -109,6 +97,9 @@ def apply_preprocessing(field_value: str, preprocessing: List[str]) -> str:
 def resolve_key_discovery_hash_field_paths(
     extraction_rules: Any,
     entity_view_config: Any,
+    *,
+    association_pairs: Optional[Set[Tuple[int, str]]] = None,
+    source_view_index: Optional[int] = None,
 ) -> List[Tuple[str, bool, List[str]]]:
     """
     Fields participating in incremental content hash.
@@ -123,14 +114,16 @@ def resolve_key_discovery_hash_field_paths(
     elif isinstance(entity_view_config, dict):
         raw_paths = entity_view_config.get("key_discovery_hash_property_paths")
 
-    view_et = _view_entity_type_normalized(entity_view_config)
-
     if raw_paths:
         wanted: List[Tuple[str, bool, List[str]]] = []
         rule_fields: Dict[str, List[str]] = {}
         if isinstance(extraction_rules, list) and extraction_rules:
             for rule in extraction_rules:
-                if not _rule_matches_view_entity_type(rule, view_et):
+                if not _rule_applies_to_source_view_index(
+                    rule,
+                    association_pairs=association_pairs,
+                    source_view_index=source_view_index,
+                ):
                     continue
                 source_fields = _rule_field_rows(rule)
                 if not source_fields:
@@ -152,28 +145,39 @@ def resolve_key_discovery_hash_field_paths(
         if wanted:
             return wanted
 
-    return iter_wanted_fields(extraction_rules, entity_view_config)
+    return iter_wanted_fields(
+        extraction_rules,
+        entity_view_config,
+        association_pairs=association_pairs,
+        source_view_index=source_view_index,
+    )
 
 
 def iter_wanted_fields(
     extraction_rules: Any,
     entity_view_config: Any,
+    *,
+    association_pairs: Optional[Set[Tuple[int, str]]] = None,
+    source_view_index: Optional[int] = None,
 ) -> List[Tuple[str, bool, List[str]]]:
     """
     Field names, required flags, and preprocessing lists used to populate extraction entities.
 
-    Only fields from extraction rules whose ``scope_filters.entity_type`` matches the
-    source view's ``entity_type`` are included (when the rule declares entity types).
-
-    Matches cohort loading in fn_dm_key_extraction ``_load_incremental_cohort_entities``.
+    When the scope document defines ``associations`` (source view → extraction edges),
+    only extraction rules bound to the current ``source_view_index`` contribute fields.
+    With no compiled pairs, rule ``fields`` are not used (only ``include_properties`` on the view).
     """
-    view_et = _view_entity_type_normalized(entity_view_config)
+
     wanted_fields: List[Tuple[str, bool, List[str]]] = []
     if isinstance(extraction_rules, list) and extraction_rules:
         first = extraction_rules[0]
         if hasattr(first, "fields") or hasattr(first, "source_fields"):
             for rule in extraction_rules:
-                if not _rule_matches_view_entity_type(rule, view_et):
+                if not _rule_applies_to_source_view_index(
+                    rule,
+                    association_pairs=association_pairs,
+                    source_view_index=source_view_index,
+                ):
                     continue
                 rows = _rule_field_rows(rule)
                 if rows is None:
@@ -190,7 +194,11 @@ def iter_wanted_fields(
                     )
         elif isinstance(first, dict):
             for rule in extraction_rules:
-                if not _rule_matches_view_entity_type(rule, view_et):
+                if not _rule_applies_to_source_view_index(
+                    rule,
+                    association_pairs=association_pairs,
+                    source_view_index=source_view_index,
+                ):
                     continue
                 for sf in (rule.get("fields") or rule.get("source_fields") or []):
                     if not isinstance(sf, dict):
@@ -308,12 +316,26 @@ def compute_extraction_inputs_hash_from_entity_row(
     workflow_scope: Optional[str] = None,
     source_view_fingerprint: Optional[str] = None,
     logger: Any = None,
+    association_pairs: Optional[Set[Tuple[int, str]]] = None,
+    source_view_index: Optional[int] = None,
 ) -> str:
     """
     Hash from a key-extraction entity metadata dict (includes source field keys copied
     onto the entity before ``extract_keys``).
     """
-    wanted = resolve_key_discovery_hash_field_paths(extraction_rules, entity_view_config)
+    sv_ix = source_view_index
+    if sv_ix is None:
+        raw = entity_metadata.get("source_view_index")
+        if isinstance(raw, int):
+            sv_ix = int(raw)
+        elif isinstance(raw, float) and float(raw).is_integer():
+            sv_ix = int(raw)
+    wanted = resolve_key_discovery_hash_field_paths(
+        extraction_rules,
+        entity_view_config,
+        association_pairs=association_pairs,
+        source_view_index=sv_ix,
+    )
     field_map = build_field_map_for_hash(entity_metadata, wanted, logger=logger)
     if hasattr(entity_view_config, "model_dump"):
         view_dict = entity_view_config.model_dump()

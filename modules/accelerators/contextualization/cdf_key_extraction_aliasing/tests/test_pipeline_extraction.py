@@ -209,8 +209,8 @@ def query_entities_from_cdf(
 
     all_entities = []
 
-    # Process each source view
-    for view_config in source_views:
+    # Process each source view (index aligns with canvas associations / extract_keys)
+    for view_index, view_config in enumerate(source_views):
         view_external_id = view_config.get("view_external_id")
         view_space = view_config.get("view_space", "cdf_cdm")
         view_version = view_config.get("view_version", "v1")
@@ -252,6 +252,7 @@ def query_entities_from_cdf(
                     "externalId": instance.external_id,
                     "space": getattr(instance, "space", None),
                     "entity_type": entity_type,  # Store entity type for later use
+                    "source_view_index": view_index,
                 }
 
                 # Add properties to entity
@@ -292,6 +293,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Main feed pump for Tank T-301, controlled by FIC-2001",  # Should extract T-301 (Rule 2) and FIC-2001 (Rule 3)
                 "equipmentType": "pump",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_002",
@@ -300,6 +302,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Pump P-10001 connected to P-10002 and P-10003",  # Should extract multiple pump tags
                 "equipmentType": "pump",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_003",
@@ -308,6 +311,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Flow Indicator Controller for process line P-101 feeding Tank T-201",  # Should extract P-101, T-201
                 "equipmentType": "instrument",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_004",
@@ -316,6 +320,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Reactor with temperature control TIC-4001 and pressure control PIC-4002",  # Should extract TIC-4001, PIC-4002
                 "equipmentType": "instrument",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_005",
@@ -324,6 +329,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Test pump",
                 "equipmentType": "pump",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_006",
@@ -332,6 +338,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Flow Indicator Controller for Unit A, process line A-P-101",  # Should extract A-P-101
                 "equipmentType": "instrument",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_007",
@@ -340,6 +347,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Main feed pump",
                 "equipmentType": "pump",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_008",
@@ -348,6 +356,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Flow control valve",
                 "equipmentType": "valve",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
             {
                 "id": "test_009",
@@ -356,6 +365,7 @@ def create_test_entities(test_type: str = "regex"):
                 "description": "Generic equipment without standard tag format",
                 "equipmentType": "equipment",
                 "entity_type": "asset",
+                "source_view_index": 0,
             },
         ]
 
@@ -572,7 +582,11 @@ Examples:
 
         try:
             # Extract keys
-            result = engine.extract_keys(entity, entity_type=entity_type)
+            result = engine.extract_keys(
+                entity,
+                entity_type,
+                source_view_index=int(entity.get("source_view_index", 0)),
+            )
 
             # Format result for detailed output
             formatted_result = format_extraction_result(entity, result, engine_config)

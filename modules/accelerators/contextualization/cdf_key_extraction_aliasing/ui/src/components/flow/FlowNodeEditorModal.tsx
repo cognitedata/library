@@ -15,6 +15,8 @@ type Props = {
   onPatchWorkflowScope: (recipe: (doc: Record<string, unknown>) => Record<string, unknown>) => void;
   onClose: () => void;
   t: TFn;
+  /** From module ``default.config.yaml`` ``schemaSpace`` (CDF view pickers). */
+  schemaSpace?: string;
 };
 
 function readRef(data: Record<string, unknown>): Record<string, unknown> {
@@ -41,24 +43,37 @@ function modalTitleKey(kind: string | undefined): MessageKey {
       return "flow.nodeEditorTitleSourceViews";
     case "keaExtraction":
     case "keaReferenceIndex":
+    case "keaWritebackRaw":
       return "flow.nodeEditorTitleKeyExtraction";
     case "keaMatchValidationRuleExtraction":
     case "keaValidation":
       return "flow.nodeEditorTitleMatchDefinitions";
     case "keaAliasing":
     case "keaAliasPersistence":
+    case "keaWritebackDataModeling":
       return "flow.nodeEditorTitleAliasing";
     case "keaMatchValidationRuleAliasing":
       return "flow.nodeEditorTitleMatchDefinitions";
     case "keaStart":
     case "keaEnd":
+    case "keaSubflow":
+    case "keaSubgraph":
+    case "keaSubflowGraphIn":
+    case "keaSubflowGraphOut":
       return "flow.nodeEditorTitlePipelineStub";
     default:
       return "flow.nodeEditorTitle";
   }
 }
 
-export function FlowNodeEditorModal({ node, workflowDoc, onPatchWorkflowScope, onClose, t }: Props) {
+export function FlowNodeEditorModal({
+  node,
+  workflowDoc,
+  onPatchWorkflowScope,
+  onClose,
+  t,
+  schemaSpace,
+}: Props) {
   useEffect(() => {
     if (!node) return;
     const onKey = (e: KeyboardEvent) => {
@@ -71,13 +86,13 @@ export function FlowNodeEditorModal({ node, workflowDoc, onPatchWorkflowScope, o
   if (!node) return null;
 
   const kind = node.type;
-  const data = (node.data ?? {}) as Record<string, unknown>;
-  const ref = readRef(data);
+  const nodeData = (node.data ?? {}) as Record<string, unknown>;
+  const ref = readRef(nodeData);
+  const matchRuleFocus = strOpt(nodeData.validation_rule_name);
 
   const extractionRuleFocus =
     strOpt(ref.extraction_rule_name) ?? firstStrInArray(ref.extraction_rule_names);
   const aliasingRuleFocus = strOpt(ref.aliasing_rule_name) ?? firstStrInArray(ref.aliasing_rule_names);
-  const matchRuleFocus = strOpt(data.confidence_match_rule_name);
 
   const patch = (recipe: (doc: Record<string, unknown>) => Record<string, unknown>) => {
     onPatchWorkflowScope(recipe);
@@ -111,13 +126,13 @@ export function FlowNodeEditorModal({ node, workflowDoc, onPatchWorkflowScope, o
           value={workflowDoc.source_views}
           initialViewIndex={initialSv}
           onChange={(v) => patch((d) => ({ ...d, source_views: v }))}
-          scopeDocument={workflowDoc}
-          initialFocusedMatchRuleName={matchRuleFocus}
+          schemaSpace={schemaSpace}
         />
       );
       break;
     case "keaExtraction":
     case "keaReferenceIndex":
+    case "keaWritebackRaw":
       body = (
         <KeyExtractionControls
           key={node.id}
@@ -141,6 +156,7 @@ export function FlowNodeEditorModal({ node, workflowDoc, onPatchWorkflowScope, o
       break;
     case "keaAliasing":
     case "keaAliasPersistence":
+    case "keaWritebackDataModeling":
       body = (
         <AliasingControls
           key={node.id}
@@ -164,6 +180,16 @@ export function FlowNodeEditorModal({ node, workflowDoc, onPatchWorkflowScope, o
     case "keaStart":
     case "keaEnd":
       body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorPipelineStubBody")}</p>;
+      break;
+    case "keaSubflow":
+      body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorSubflowBody")}</p>;
+      break;
+    case "keaSubgraph":
+      body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorSubgraphBody")}</p>;
+      break;
+    case "keaSubflowGraphIn":
+    case "keaSubflowGraphOut":
+      body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorGraphHubBody")}</p>;
       break;
     default:
       body = <p className="kea-hint kea-hint--warn">{t("flow.nodeEditorUnsupported")}</p>;

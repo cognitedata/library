@@ -1,6 +1,8 @@
 import type { Node } from "@xyflow/react";
+import { emptyWorkflowCanvasDocument } from "../../types/workflowCanvas";
 import type { PaletteDragPayload } from "./FlowPalette";
 import { newNodeId } from "./flowDocumentBridge";
+import { DEFAULT_SUBGRAPH_FRAME_PORTS } from "./subgraphInnerBoundaryHubs";
 
 export function createNodeFromPalette(
   payload: PaletteDragPayload,
@@ -16,19 +18,24 @@ export function createNodeFromPalette(
           position,
           data: { label: "Source view" },
         };
-      case "extraction":
+      case "subflow":
         return {
           id,
-          type: "keaExtraction",
+          type: "keaSubflow",
           position,
-          data: { label: "Extraction", handler_family: "extraction" },
+          data: { label: "Subflow" },
+          style: { width: 380, height: 260 },
         };
-      case "aliasing":
+      case "subgraph":
         return {
           id,
-          type: "keaAliasing",
+          type: "keaSubgraph",
           position,
-          data: { label: "Aliasing", handler_family: "aliasing" },
+          data: {
+            label: "Subgraph",
+            subflow_ports: DEFAULT_SUBGRAPH_FRAME_PORTS,
+            inner_canvas: emptyWorkflowCanvasDocument(),
+          },
         };
       case "match_validation_source_view":
         return {
@@ -38,7 +45,7 @@ export function createNodeFromPalette(
           data: {
             label: "Match validation",
             validation_rule_context: "source_view",
-            confidence_match_rule_name: "",
+            validation_rule_name: "",
             ref: {},
           },
         };
@@ -50,7 +57,7 @@ export function createNodeFromPalette(
           data: {
             label: "Match validation",
             validation_rule_context: "extraction",
-            confidence_match_rule_name: "",
+            validation_rule_name: "",
             ref: {},
           },
         };
@@ -62,16 +69,31 @@ export function createNodeFromPalette(
           data: {
             label: "Match validation",
             validation_rule_context: "aliasing",
-            confidence_match_rule_name: "",
+            validation_rule_name: "",
             ref: {},
           },
         };
-      default:
+      case "writeback_raw":
         return {
           id,
-          type: "keaExtraction",
+          type: "keaWritebackRaw",
           position,
-          data: { label: "Extraction" },
+          data: {
+            label: "Writeback (RAW)",
+            handler_family: "persistence",
+            writeback_sink: "raw",
+          },
+        };
+      case "writeback_data_modeling":
+        return {
+          id,
+          type: "keaWritebackDataModeling",
+          position,
+          data: {
+            label: "Writeback (Data modeling)",
+            handler_family: "persistence",
+            writeback_sink: "data_modeling",
+          },
         };
     }
   }
@@ -110,7 +132,7 @@ export function createNodeFromPalette(
       data: {
         label: rid,
         validation_rule_context: "extraction",
-        confidence_match_rule_name: rid,
+        validation_rule_name: rid,
         ref: {},
         preset_from_palette: true,
       },

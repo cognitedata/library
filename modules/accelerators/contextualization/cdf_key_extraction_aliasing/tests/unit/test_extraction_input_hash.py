@@ -169,13 +169,15 @@ def test_build_field_map_matches_preprocessing():
             )
         ],
         v,
+        association_pairs={(0, "r1")},
+        source_view_index=0,
     )
     m = build_field_map_for_hash({"title": "  hi  "}, wanted)
     assert m["title"] == "HI"
 
 
-def test_iter_wanted_fields_filters_by_scope_entity_type():
-    """Workflow-style config: multiple rules with scope_filters.entity_type — hash fields per view."""
+def test_iter_wanted_fields_filters_by_associations():
+    """Non-empty associations: only rules wired to the current source_view_index contribute fields."""
     rules = [
         {
             "name": "asset_only",
@@ -186,7 +188,7 @@ def test_iter_wanted_fields_filters_by_scope_entity_type():
                     "preprocessing": ["trim"],
                 }
             ],
-            "scope_filters": {"entity_type": ["asset"]},
+            "scope_filters": {},
         },
         {
             "name": "file_only",
@@ -197,7 +199,7 @@ def test_iter_wanted_fields_filters_by_scope_entity_type():
                     "preprocessing": ["trim"],
                 }
             ],
-            "scope_filters": {"entity_type": ["file"]},
+            "scope_filters": {},
         },
     ]
     asset_view = {
@@ -210,20 +212,23 @@ def test_iter_wanted_fields_filters_by_scope_entity_type():
         "entity_type": "file",
         "include_properties": [],
     }
-    a = iter_wanted_fields(rules, asset_view)
-    f = iter_wanted_fields(rules, file_view)
+    assoc = {(0, "asset_only"), (1, "file_only")}
+    a = iter_wanted_fields(rules, asset_view, association_pairs=assoc, source_view_index=0)
+    f = iter_wanted_fields(rules, file_view, association_pairs=assoc, source_view_index=1)
     assert [x[0] for x in a] == ["name"]
     assert [x[0] for x in f] == ["name"]
     assert a[0][1] is True and f[0][1] is True
 
 
-def test_iter_wanted_fields_rule_without_scope_applies_to_all_views():
+def test_iter_wanted_fields_without_associations_yields_no_rule_fields():
     rules = [
         {
+            "name": "r_open",
             "fields": [{"field_name": "description", "required": False}],
             "scope_filters": {},
         },
         {
+            "name": "r_assetish",
             "fields": [{"field_name": "name", "required": True}],
             "scope_filters": {"entity_type": ["asset"]},
         },
@@ -231,23 +236,24 @@ def test_iter_wanted_fields_rule_without_scope_applies_to_all_views():
     ts_view = {"entity_type": "timeseries", "include_properties": []}
     wanted = iter_wanted_fields(rules, ts_view)
     names = [w[0] for w in wanted]
-    assert "description" in names
-    assert "name" not in names
+    assert names == []
 
 
-def test_resolve_key_discovery_hash_respects_entity_type_for_rule_preprocessing():
+def test_resolve_key_discovery_hash_respects_associations_for_rule_preprocessing():
     rules = [
         {
+            "name": "r_asset",
             "fields": [
                 {"field_name": "title", "required": False, "preprocessing": ["trim"]}
             ],
-            "scope_filters": {"entity_type": ["asset"]},
+            "scope_filters": {},
         },
         {
+            "name": "r_file",
             "fields": [
                 {"field_name": "title", "required": False, "preprocessing": ["uppercase"]}
             ],
-            "scope_filters": {"entity_type": ["file"]},
+            "scope_filters": {},
         },
     ]
     asset_view = {
@@ -255,7 +261,12 @@ def test_resolve_key_discovery_hash_respects_entity_type_for_rule_preprocessing(
         "key_discovery_hash_property_paths": ["title"],
         "include_properties": [],
     }
-    wanted = resolve_key_discovery_hash_field_paths(rules, asset_view)
+    wanted = resolve_key_discovery_hash_field_paths(
+        rules,
+        asset_view,
+        association_pairs={(0, "r_asset")},
+        source_view_index=0,
+    )
     assert len(wanted) == 1
     assert wanted[0][0] == "title"
     assert wanted[0][2] == ["trim"]

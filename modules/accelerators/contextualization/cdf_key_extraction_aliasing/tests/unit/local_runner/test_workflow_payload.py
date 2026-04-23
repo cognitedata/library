@@ -9,8 +9,75 @@ import yaml
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_runner.workflow_payload import (
     merged_scope_document_for_local_run,
+    remap_associations_for_filtered_source_views,
     workflow_instance_space_for_local,
 )
+
+
+def test_remap_associations_after_source_view_filter(tmp_path: Path) -> None:
+    """Filtered ``source_views`` reorders indices; associations must follow view identity."""
+    scope = tmp_path / "scope.yaml"
+    scope.write_text(
+        yaml.dump(
+            {
+                "schemaVersion": 1,
+                "source_views": [
+                    {
+                        "view_space": "s",
+                        "view_external_id": "File",
+                        "view_version": "v1",
+                    },
+                    {
+                        "view_space": "s",
+                        "view_external_id": "Asset",
+                        "view_version": "v1",
+                    },
+                ],
+                "associations": [
+                    {
+                        "kind": "source_view_to_extraction",
+                        "source_view_index": 1,
+                        "extraction_rule_name": "only_asset_rule",
+                    }
+                ],
+                "key_extraction": {"config": {"data": {}}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    filtered = [
+        {
+            "view_space": "s",
+            "view_external_id": "Asset",
+            "view_version": "v1",
+        },
+    ]
+    doc = merged_scope_document_for_local_run(scope, filtered)
+    assert len(doc["source_views"]) == 1
+    assert doc["associations"][0]["source_view_index"] == 0
+
+
+def test_remap_associations_accepts_string_numeric_source_view_index() -> None:
+    """JSON-style string indices must remap like integers (same view identity)."""
+    original = [
+        {"view_space": "s", "view_external_id": "A", "view_version": "v1"},
+        {"view_space": "s", "view_external_id": "B", "view_version": "v1"},
+    ]
+    filtered = [
+        {"view_space": "s", "view_external_id": "B", "view_version": "v1"},
+    ]
+    associations = [
+        {
+            "kind": "source_view_to_extraction",
+            "source_view_index": "1",
+            "extraction_rule_name": "r1",
+        }
+    ]
+    out = remap_associations_for_filtered_source_views(
+        associations, original, filtered
+    )
+    assert len(out) == 1
+    assert out[0]["source_view_index"] == 0
 
 
 def test_merged_scope_document_replaces_source_views(tmp_path: Path) -> None:

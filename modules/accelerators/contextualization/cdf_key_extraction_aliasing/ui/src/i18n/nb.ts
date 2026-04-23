@@ -133,7 +133,6 @@ export const nb: Messages = {
   "sourceViews.viewExternalId": "Ekstern visnings-ID",
   "sourceViews.viewSpace": "Visningsområde",
   "sourceViews.viewVersion": "Visningsversjon",
-  "sourceViews.entityType": "Entitetstype",
   "sourceViews.batchSize": "Batchstørrelse",
   "sourceViews.instanceSpace": "Instansområde (valgfritt)",
   "sourceViews.filters": "Filtre",
@@ -163,10 +162,16 @@ export const nb: Messages = {
   "sourceViews.filterTargetProperty": "Målegenskap",
   "sourceViews.filterPropertyScope": "Egenskapsomfang",
   "sourceViews.filterValues": "Verdier (kommaseparert eller enkeltverdi)",
-  "sourceViews.perViewValidationTitle": "Validering (denne kildevisningen)",
-  "sourceViews.perViewValidationHint":
-    "Slås sammen oppå global Key Discovery-validering. confidence_match_rules legges til; andre felt (f.eks. min_confidence) overstyrer når de er satt. Bruk «Kun global validering» for å fjerne dette laget.",
-  "sourceViews.perViewValidationClear": "Kun global validering",
+  "sourceViews.cdfReloadSpaces": "Last inn rom på nytt",
+  "sourceViews.cdfReloadDataModels": "Last inn datamodeller på nytt",
+  "sourceViews.cdfPickDataModel": "Datamodell (CDF)",
+  "sourceViews.cdfPickDataModelPlaceholder": "Velg en datamodell…",
+  "sourceViews.cdfPickDataModelHint":
+    "Setter visningsrom til modellens rom. Når standardskjemarom er satt i modulen, vises bare modeller i det rommet.",
+  "sourceViews.cdfReloadViews": "Last inn visninger på nytt",
+  "sourceViews.cdfPickView": "Velg visning fra CDF",
+  "sourceViews.cdfPickPlaceholder": "Velg en visning…",
+  "sourceViews.cdfError": "Kunne ikke laste fra CDF",
   "keyExtraction.title": "Nøkkeloppdagelse",
   "keyExtraction.externalId": "Ekstern ID",
   "keyExtraction.parameters": "Parametere",
@@ -176,7 +181,7 @@ export const nb: Messages = {
     "extraction_rules (fields[], handler, field_results_mode, …) og øvrige nøkler unntatt validation — i key_extraction.config.data",
   "keyExtraction.validationYaml": "config.data.validation (YAML)",
   "keyExtraction.validationYamlHint":
-    "Global validering for ekstraherte nøkler (min_confidence, max_keys_per_type, confidence_match_rules, …).",
+    "Global validering for ekstraherte nøkler (min_confidence, max_keys_per_type, validation_rules, …).",
   "keyExtraction.advancedRulesYaml": "Rediger regler og strategi som YAML (avansert)",
   "discoveryRules.fieldResultsModeInherit": "Ikke satt (motorstandard merge_all)",
   "discoveryRules.extraKeysPreserved": "Andre nøkler i config.data beholdes: {keys}",
@@ -199,7 +204,7 @@ export const nb: Messages = {
   "discoveryRules.rule.description": "Beskrivelse",
   "discoveryRules.rule.matchValidation": "Match validation (confidence rules)",
   "discoveryRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "discoveryRules.rule.entityTypesCsv": "Entitetstyper (kommaseparert)",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
     "Tilleggsnøkler for scope_filters (YAML-objekt), slås sammen med typene over; tom = bare typer.",
@@ -278,7 +283,7 @@ export const nb: Messages = {
   "aliasing.dataYamlHint": "aliasing_rules og øvrige nøkler unntatt validation — under aliasing.config.data",
   "aliasing.validationYaml": "config.data.validation (YAML)",
   "aliasing.validationYamlHint":
-    "Global validering for alias (min_confidence, max_aliases_per_tag, confidence_match_rules, …).",
+    "Global validering for alias (min_confidence, max_aliases_per_tag, validation_rules, …).",
   "aliasing.advancedRulesYaml": "Rediger aliasregler og ekstra data som YAML (avansert)",
   "aliasingRules.extraKeysPreserved": "Andre nøkler i config.data beholdes: {keys}",
   "aliasingRules.rule.name": "Regelnavn",
@@ -292,7 +297,7 @@ export const nb: Messages = {
   "aliasingRules.rule.description": "Beskrivelse",
   "aliasingRules.rule.matchValidation": "Match validation (confidence rules)",
   "aliasingRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "aliasingRules.rule.entityTypesCsv": "Entitetstyper (kommaseparert)",
   "aliasingRules.rule.scopeFiltersOtherYamlHint":
     "Tilleggsnøkler for scope_filters (YAML-objekt), slås sammen med typene over.",
@@ -361,12 +366,12 @@ export const nb: Messages = {
   "validationEditor.extraKeysPreserved": "Andre nøkler på validation beholdes: {keys}",
   "validationEditor.rulesHint":
     "Hver match-regel er en frittstående definisjon. Ved evaluering komponeres de etter prioritet (deretter listeorden): offset kjeder; explicit setter tillit og stopper videre regler for den verdien.",
-  "validationEditor.matchRulesHierarchyHint":
+  "validationEditor.validationRulesHierarchyHint":
     "Top-level steps run in list order. Use a parallel group to run its children sorted by each rule’s priority field; use a sequential group for an explicit nested chain.",
   "validationEditor.parallelGroup": "Parallel group (by priority)",
   "validationEditor.sequentialGroup": "Sequential group",
-  "validationEditor.matchRulesSteps": "Match steps",
-  "validationEditor.matchRulesStepsHint":
+  "validationEditor.validationRulesSteps": "Match steps",
+  "validationEditor.validationRulesStepsHint":
     "Each step references a standalone definition id or a named sequence (expands to an ordered list). Drag to set composition order.",
   "validationEditor.matchStepKind": "Step type",
   "validationEditor.matchStepRule": "Rule definition",
@@ -377,12 +382,12 @@ export const nb: Messages = {
   "validationEditor.matchStepSelectSequence": "(select sequence)",
   "validationEditor.addMatchStep": "Add step",
   "validationEditor.scopeRefsModeHint":
-    "Bruker confidence_match_rule_definitions og confidence_match_rule_sequences på områdenivå. Rediger regelinnhold på fanen Validering (etter kildevisninger).",
+    "Bruker validation_rule_definitions og confidence_match_rule_sequences på områdenivå. Rediger regelinnhold på fanen Validering (etter kildevisninger).",
   "validationEditor.inlineRulesModeHint":
     "Inline rule bodies stored in this validation block (no scope-level definitions required). Suitable for compact or trigger-only configs.",
   "matchDefinitions.title": "Match-valideringsregler",
   "matchDefinitions.definitionsHint":
-    "Rediger områdekartet confidence_match_rule_definitions: hovedlisten over navngitte match-valideringsregler. Nøkkeluttrekk, alias og kildevisninger refererer til disse ID-ene eller oppføringer i confidence_match_rule_sequences (under).",
+    "Rediger områdekartet validation_rule_definitions: hovedlisten over navngitte match-valideringsregler. Nøkkeluttrekk, alias og kildevisninger refererer til disse ID-ene eller oppføringer i confidence_match_rule_sequences (under).",
   "matchDefinitions.newDefinitionId": "New definition id",
   "matchDefinitions.addDefinition": "Add definition",
   "matchDefinitions.selectDefinition": "Edit definition",
@@ -479,25 +484,55 @@ export const nb: Messages = {
   "flow.resizePanels": "Dra for å endre panelbredde",
   "flow.paletteStructural": "Pipeline-struktur",
   "flow.structuralSourceView": "Kildevisning",
+  "flow.structuralSubflow": "Underflyt",
+  "flow.structuralSubgraph": "Delgraf",
   "flow.structuralExtraction": "Ekstraksjon",
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "Alias tilbakeskriving",
   "flow.structuralReferenceIndex": "Referanseindeks",
-  "flow.matchValidationRuleSourceView": "Samsvarsregel (kildevisning)",
-  "flow.matchValidationRuleExtraction": "Samsvarsregel (ekstraksjon)",
-  "flow.matchValidationRuleAliasing": "Samsvarsregel (alias)",
-  "flow.paletteMatchDefinitions": "Validering",
-  "flow.paletteMatchDefinitionsEmpty":
+  "flow.paletteWriteback": "Writeback",
+  "flow.structuralWritebackRaw": "Writeback (RAW)",
+  "flow.structuralWritebackDataModeling": "Writeback (datamodellering)",
+  "flow.validationRuleLayoutSourceView": "Samsvarsregel (kildevisning)",
+  "flow.validationRuleLayoutExtraction": "Samsvarsregel (ekstraksjon)",
+  "flow.validationRuleLayoutAliasing": "Samsvarsregel (alias)",
+  "flow.paletteValidationRuleDefinitions": "Validering",
+  "flow.paletteValidationRuleDefinitionsEmpty":
     "Ingen definisjoner ennå — legg dem til på fanen Validering (etter kildevisninger under Konfigurer).",
   "flow.paletteExtractionHandlers": "Ekstraksjonshåndterere",
   "flow.paletteAliasingHandlers": "Aliasing-håndterere",
   "flow.paletteAnnotations": "Annotasjoner",
-  "flow.seedFromScope": "Fyll kildevisninger fra omfang",
+  "flow.seedFromScope": "Tilbakestill",
+  "flow.alignLeft": "Juster valgte noder til venstre",
+  "flow.alignCenterHorizontal": "Juster valgte noder til horisontalt senter",
+  "flow.alignRight": "Juster valgte noder til høyre",
+  "flow.alignTop": "Juster valgte noder til toppen",
+  "flow.alignCenterVertical": "Juster valgte noder til vertikalt senter",
+  "flow.alignBottom": "Juster valgte noder til bunnen",
+  "flow.alignSelectionGroup": "Juster utvalg",
   "flow.canvasHint":
-    "Oppsett lagres i en tilhørende .canvas.yaml. Lagre omfang. Dra fra paletten til lerretet.",
+    "Oppsett lagres i en tilhørende .canvas.yaml. Lagre omfang. Dra fra paletten til lerretet. Slipp en node i en underflytramme for å knytte den til; velg underflyten og dra hjørner eller kantfelt for å endre størrelse vannrett og loddrett.",
+  "flow.handleOrientationLabel": "Håndtak",
+  "flow.handleOrientationLr": "Venstre → høyre",
+  "flow.handleOrientationTb": "Topp → bunn",
+  "flow.connectEndMenuAria": "Opprett og koble til ny node",
   "flow.ctxMenuFitView": "Tilpass visning",
   "flow.ctxMenuAutoLayout": "Automatisk layout",
   "flow.ctxMenuRemoveNode": "Fjern node",
+  "flow.confirmSubgraphDeleteLift":
+    "Denne delgrafen inneholder indre arbeidsflyttrinn.\n\nOK — flytt dem til overordnet lerret og fjern delgraframmen.\nAvbryt — fjern delgrafen og forkast de indre trinnene.",
+  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
+  "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Flytt til overordnet graf",
+  "flow.ctxMenuConvertSubflowToSubgraph": "Gjør om delflyt til delgraf (drill-inn)",
+  "flow.ctxMenuConvertSubgraphToSubflow": "Gjør om delgraf til delflyt (gruppe)",
+  "flow.subgraphDrillTitle": "Subgraph",
+  "flow.subgraphBack": "Save & close",
+  "flow.subgraphDrillHint":
+    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+  "flow.inspectorOpenSubgraph": "Open inner graph…",
+  "flow.inspectorSubgraphHint":
+    "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
   "flow.ctxMenuRemoveEdge": "Fjern kant",
   "flow.nodeEditorTitle": "Omfang-redigerer",
   "flow.nodeEditorTitleSourceViews": "Kildevisninger (Konfigurer-fane)",
@@ -510,6 +545,12 @@ export const nb: Messages = {
   "flow.nodeEditorDone": "Ferdig",
   "flow.nodeEditorPipelineStubBody":
     "Start- og sluttnoder er bare layout. Rediger kildevisninger, ekstraksjon og aliasing via andre noder eller Konfigurer-fanene.",
+  "flow.nodeEditorSubflowBody":
+    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
+  "flow.nodeEditorSubgraphBody":
+    "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
+  "flow.nodeEditorGraphHubBody":
+    "Fixed interface node for this subgraph. Edit port names on the parent subflow in the inspector; wire the parent frame handles and inner nodes to these hubs.",
   "flow.nodeEditorUnsupported": "Ingen konfigurasjonseditor for denne nodetypen.",
   "flow.close": "Lukk",
   "flow.save": "Lagre",
@@ -519,18 +560,45 @@ export const nb: Messages = {
   "flow.inspectorStartHint":
     "Pipeline-inngang. Koble til kildevisninger (eller til ekstraksjon hvis det ikke finnes kilder).",
   "flow.inspectorEndHint":
-    "Pipeline-utgang. Koble fra ekstraksjon, alias, validering, alias tilbakeskriving eller referanseindeks.",
+    "Pipeline-utgang. Koble fra ekstraksjon, alias, validering, alias tilbakeskriving, RAW-/datamodellerings-writeback-noder eller referanseindeks.",
   "flow.inspectorAliasPersistenceHint":
     "Tilsvarer fn_dm_alias_persistence: leser aliasing-RAW og skriver aliaslister (valgfritt FK-strenger) til describable-instanser. Konfigurer tilbakeskriving i scope eller oppgavedata.",
   "flow.inspectorReferenceIndexHint":
     "Tilsvarer fn_dm_reference_index: vedlikeholder en invertert RAW-indeks fra FOREIGN_KEY_REFERENCES_JSON og DOCUMENT_REFERENCES_JSON i nøkkelekstraksjonslageret. Aktiver i scope (f.eks. enable_reference_index).",
+  "flow.inspectorWritebackRawHint":
+    "Layout-node for resultater i Cognite RAW (database, tabell, inntak). Konfigurer RAW-mål og handler I/O i scope eller oppgavedata; lerretsnoden er dokumentasjon.",
+  "flow.inspectorWritebackDataModelingHint":
+    "Layout-node for writeback til CDF Data Modeling (instanser, visninger). Konfigurer mellomrom, eksterne ID-er og projeksjonstrinn (f.eks. fn_dm_alias_persistence) i scope eller oppgavedata; lerretsnoden er dokumentasjon.",
   "flow.inspectorValidationRuleHint":
-    "Lenker til confidence_match_rules i scope: evalueres ved kildevisningsliste (source_views[].validation), nøkkelekstraksjon (extraction_rules[].validation) eller aliasing (aliasing_rules[].validation). Regelkroppene er frittstående definisjoner. Bruk YAML-liste, kortform { rule_id: [ tail... ] }, eller hierarchy: { mode: ordered | concurrent, children: [...] }. På lerretet: datakanter fra ekstraksjon eller aliasing til første match-regelnode; koble videre match-regelnoder med sequence- eller parallel_group-kanter.",
+    "Lenker til validation_rules i scope: brukes ved nøkkelscoring (global key_extraction data.validation pluss extraction_rules[].validation) eller aliasvalidering (aliasing_rules[].validation). Kildevisningsrader har ikke validation. Regelkroppene er frittstående definisjoner. Bruk YAML-liste, kortform { rule_id: [ tail... ] }, eller hierarchy: { mode: ordered | concurrent, children: [...] }. På lerretet: datakanter fra ekstraksjon eller aliasing til første match-regelnode; koble videre match-regelnoder med sequence- eller parallel_group-kanter.",
   "flow.inspectorValidationRuleContext": "Regelomfang",
   "flow.inspectorConfidenceRuleName": "Navn på confidence-regel",
   "flow.validationContextSourceView": "Kildevisning (liste)",
   "flow.validationContextExtraction": "Ekstraksjonsregel",
   "flow.validationContextAliasing": "Alias-regel",
+  "flow.inspectorSubflowHint":
+    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
+  "flow.inspectorSubflowOrganizationalHint":
+    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
+  "flow.inspectorSubflowPorts": "Subgraph ports",
+  "flow.inspectorSubflowInputs": "Inputs",
+  "flow.inspectorSubflowOutputs": "Outputs",
+  "flow.inspectorSubflowAddInputPort": "Add input port",
+  "flow.inspectorSubflowAddOutputPort": "Add output port",
+  "flow.inspectorSubflowRemovePort": "Remove",
+  "flow.inspectorSubflowMovePortUp": "Flytt port opp",
+  "flow.inspectorSubflowMovePortDown": "Flytt port ned",
+  "flow.inspectorDrillBoundaryPortsHint":
+    "Rediger denne undergrafens inn-/utgående porter her, eller velg graf-inndata- eller graf-utdata-hubben på lerretet.",
+  "flow.inspectorSubflowPortInnerIn":
+    "Outer sources allowed here are the same as for a data edge into {type} (in handle).",
+  "flow.inspectorSubflowPortInnerOut":
+    "Outer targets allowed here are the same as for a data edge from {type} (out handle).",
+  "flow.inspectorSubflowGraphInHint":
+    "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
+  "flow.inspectorSubflowGraphOutHint":
+    "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
+  "flow.inspectorParentSubflow": "Overordnet underflyt",
   "flow.inspectorNodeTitle": "Node",
   "flow.inspectorEdgeTitle": "Kant",
   "flow.inspectorEdgeKind": "Kanttype",
@@ -538,6 +606,16 @@ export const nb: Messages = {
   "flow.edgeKindSequence": "Komposisjonsrekkefølge",
   "flow.edgeKindParallel": "Gren (del / samle)",
   "flow.inspectorLabel": "Etikett",
+  "flow.inspectorNodeAccent": "Kortaksent",
+  "flow.inspectorNodeAccentHint":
+    "Valgfri venstrekantfarge på lerretsnoden (kun layout; brukes ikke av arbeidsflytmotoren).",
+  "flow.inspectorNodeAccentReset": "Tilbakestill",
+  "flow.inspectorNodeAccentCustom": "Tilpasset",
+  "flow.inspectorNodeBg": "Kortbakgrunn",
+  "flow.inspectorNodeBgHint":
+    "Valgfritt fyll bak kortnoden (kun layout; brukes ikke av arbeidsflytmotoren).",
+  "flow.inspectorNodeBgReset": "Tilbakestill",
+  "flow.inspectorNodeBgCustom": "Tilpasset",
   "flow.inspectorHandler": "Håndterer",
   "flow.inspectorHandlerUnset": "(velg)",
   "flow.inspectorAnnotationKind": "Annotasjonstype",
@@ -552,7 +630,6 @@ export const nb: Messages = {
   "flow.inspectorSourceViewSpace": "view_space",
   "flow.inspectorSourceViewExternalId": "view_external_id",
   "flow.inspectorSourceViewVersion": "view_version",
-  "flow.inspectorSourceViewEntityType": "entity_type",
   "flow.inspectorSourceViewFillFromScope": "Fyll fra omfang…",
   "flow.inspectorSourceViewIndexInvalid": "source_view_index er utenfor gyldig område for gjeldende omfang.",
   "flow.inspectorRefNone": "(ingen)",

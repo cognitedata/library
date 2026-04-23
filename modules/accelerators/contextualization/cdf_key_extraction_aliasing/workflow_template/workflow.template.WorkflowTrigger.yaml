@@ -1,6 +1,6 @@
 # One schedule trigger per leaf: build_scopes replaces __KEA_CDF_SUFFIX__ with cdf_external_id_suffix(scope_id).
 # Scope rules are under input.configuration (from workflow.template.config.yaml, patched per leaf).
-# confidence_match_rule_definitions / confidence_match_rule_sequences are expanded in functions before engines run.
+# validation_rule_definitions / confidence_match_rule_sequences are expanded in functions before engines run.
 # Toolkit substitutes {{ key_extraction_aliasing_schedule }}, {{functionClientId}}, {{functionClientSecret}},
 # and {{instance_space}} inside configuration (source_views) at deploy time (see default.config.yaml).
 # Optional root `name`: operator UI label in the Configure sidebar (remove if your Toolkit rejects extra keys).

@@ -639,7 +639,7 @@ code {
 }
 
 .kea-modal-backdrop--flow-node-editor {
-  z-index: 1200;
+  z-index: 1285;
 }
 
 .kea-modal--flow-node-editor {
@@ -649,6 +649,26 @@ code {
   display: flex;
   flex-direction: column;
   padding: 1.1rem 1.25rem;
+}
+
+.kea-modal-backdrop--subgraph-drill {
+  z-index: 1250;
+}
+
+.kea-modal--subgraph-drill {
+  width: 100%;
+  max-width: min(98vw, 1680px);
+  max-height: min(94vh, 920px);
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.25rem;
+  min-height: 0;
+}
+
+.kea-modal__body--subgraph-drill-flow.kea-modal__body--scroll {
+  min-height: min(58vh, 520px);
+  max-height: none;
+  overflow: hidden;
 }
 
 .kea-modal__body--scroll {
@@ -2496,6 +2516,38 @@ code {
   margin-bottom: 0.5rem;
 }
 
+.kea-flow-toolbar__orientation {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kea-flow-toolbar__align {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.kea-flow-toolbar__align-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  line-height: 0;
+}
+
+.kea-flow-toolbar__align-btn .kea-flow-align-icon {
+  display: block;
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+.kea-flow-toolbar__align-btn:disabled .kea-flow-align-icon {
+  opacity: 0.45;
+}
+
 .kea-flow-canvas-wrap {
   flex: 1;
   min-height: 420px;
@@ -2509,6 +2561,28 @@ code {
   width: 100%;
   height: 100%;
   min-height: 420px;
+}
+
+.kea-flow-connect-end-menu {
+  min-width: 10rem;
+  max-width: 15rem;
+  max-height: min(70vh, 22rem);
+  overflow: auto;
+  padding: 0.35rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border-strong);
+  background: var(--kea-bg-elevated);
+  box-shadow: var(--kea-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transform: translate(6px, 6px);
+}
+
+.kea-flow-connect-end-menu__item {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .kea-flow-minimap {
@@ -2528,6 +2602,42 @@ code {
 .kea-flow-inspector__title {
   font-size: 0.95rem;
   margin: 0 0 0.5rem;
+}
+
+.kea-flow-inspector__accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.kea-flow-inspector__accent-swatch {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--kea-border-strong);
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.kea-flow-inspector__accent-swatch:hover {
+  filter: brightness(1.08);
+}
+
+.kea-flow-inspector__accent-swatch--active {
+  outline: 2px solid var(--kea-primary-ring);
+  outline-offset: 1px;
+}
+
+.kea-flow-inspector__accent-color-input {
+  width: 2.25rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--kea-border-strong);
+  border-radius: 4px;
+  background: var(--kea-bg-elevated);
+  cursor: pointer;
 }
 
 .kea-flow-node {
@@ -2603,6 +2713,70 @@ code {
 
 .kea-flow-node--ref-index {
   border-left: 3px solid #0369a1;
+}
+
+.kea-flow-node--writeback-raw {
+  border-left: 3px solid #b45309;
+}
+
+.kea-flow-node--writeback-dm {
+  border-left: 3px solid #0f766e;
+}
+
+.kea-flow-node--subflow-graph {
+  border-left: 3px solid #475569;
+  background: color-mix(in srgb, var(--kea-surface) 92%, var(--kea-primary-soft));
+  max-width: 200px;
+  font-size: 0.85rem;
+}
+
+.kea-flow-node--subflow {
+  /* Subflows use NodeResizer + explicit width/height; undo generic card max-width so they can grow horizontally. */
+  max-width: none;
+  border-left: 3px solid #64748b;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--kea-surface) 88%, var(--kea-primary-soft));
+  min-width: 200px;
+  min-height: 140px;
+  height: 100%;
+}
+
+/* Collapsed composite (drill-in inner canvas): card node, solid accent vs dashed subflow frame. */
+.kea-flow-node--subgraph {
+  border-left: 3px solid #7c3aed;
+  border-style: solid;
+  background: color-mix(in srgb, var(--kea-surface) 90%, #7c3aed 14%);
+}
+
+.kea-flow-node--subflow .react-flow__resize-control {
+  z-index: 5;
+}
+
+.kea-flow-node--subflow .react-flow__resize-control.handle {
+  border-radius: 2px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid color-mix(in srgb, var(--kea-primary) 75%, var(--kea-surface));
+  background: var(--kea-surface);
+}
+
+/* Edge lines: horizontal (top/bottom) and vertical (left/right) resize */
+.kea-flow-node--subflow .react-flow__resize-control.line {
+  border-width: 2px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--kea-primary) 70%, var(--kea-surface));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--kea-surface) 55%, transparent);
+}
+
+.kea-flow-node--subflow .react-flow__resize-control.line.horizontal {
+  min-height: 8px;
+  height: 8px;
+}
+
+.kea-flow-node--subflow .react-flow__resize-control.line.vertical {
+  min-width: 8px;
+  width: 8px;
 }
 
 @media (max-width: 1100px) {

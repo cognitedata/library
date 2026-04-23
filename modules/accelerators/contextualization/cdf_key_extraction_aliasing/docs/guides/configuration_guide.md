@@ -90,7 +90,7 @@ key_extraction:
       validation:                          # Global validation settings
         min_confidence: 0.5                # Minimum confidence score (0.0-1.0)
         max_keys_per_type: 1000            # Maximum keys per extraction type
-        confidence_match_rules:            # Optional: first matching rule wins per key (see below)
+        validation_rules:            # Optional: first matching rule wins per key (see below)
           - name: blacklist
             priority: 10
             match:
@@ -176,7 +176,7 @@ source_views:
     # Optional: merge with data.validation for entities from this view only (see “Global vs per–source-view validation”)
     # validation:
     #   min_confidence: 0.6
-    #   confidence_match_rules: []
+    #   validation_rules: []
 ```
 
 **Boolean groups and extra leaf operators:** Composition matches the CDF filter grammar described in [Filtering](https://docs.cognite.com/dev/guides/advanced-query/filtering): use nested mappings with keys **`and`**, **`or`**, and **`not`**. Each top-level entry under `filters` is combined with **AND** together with implicit view membership (`HasData`). Supported leaf operators include **`PREFIX`**, **`RANGE`** (set **`gt`**, **`gte`**, **`lt`**, **`lte`** on the same object as **`operator: RANGE`**), and optional **`negate: true`** on any leaf.
@@ -233,17 +233,15 @@ validation:
   min_confidence: 0.5                    # Minimum confidence (0.0-1.0)
   max_keys_per_type: 1000                # Max keys per extraction type
   expression_match: search                 # Optional default for rules: search | fullmatch (rules may override)
-  confidence_match_rules: []             # Optional ordered list; see “Confidence match rules” below
-  # regexp_match: deprecated — express filters as confidence_match_rules instead
+  validation_rules: []             # Optional ordered list; see “Confidence match rules” below
+  # regexp_match: deprecated — express filters as validation_rules instead
 ```
 
-**Global vs per–extraction-rule vs per–source-view validation**
+**Global vs per–extraction-rule validation**
 
-- **`data.validation`** is the global baseline for every extraction rule. The default scope keeps the shared keyword **blacklist** here so it applies broadly; add ISA-style or other **`confidence_match_rules`** on specific **`extraction_rules[]`** entries when only some handlers should run them.
-- **`extraction_rules[].validation`** (optional) is merged onto **`data.validation`**: **`confidence_match_rules`** lists are concatenated (global first, then rule-specific); other fields from the rule override when set. Confidence scoring runs **per extracted key** using the rule that produced that key, then the optional source-view overlay below.
-- **`source_views[].validation`** is optional. When the pipeline stamps an entity with **`view_space`**, **`view_external_id`**, **`view_version`**, and **`entity_type`**, the engine picks the **first** matching `source_views[]` row and, if that row defines **`validation`**, merges it on top of **global + that key’s extraction-rule validation** for keys from that entity:
-  - **`min_confidence`**, **`expression_match`**, **`max_keys_per_type`**, and other scalar-like keys: the view value overrides when set on the view’s `validation` object.
-  - **`confidence_match_rules`**: if the view **omits** the key or sets **`[]`**, only the per-rule list (plus global) is used. If the view lists rules, the engine uses **`(global + rule) + view_rules`**, then sorts by **`priority`** then list index.
+- **`data.validation`** is the global baseline for every extraction rule. The default scope keeps the shared keyword **blacklist** here so it applies broadly; add ISA-style or other **`validation_rules`** on specific **`extraction_rules[]`** entries when only some handlers should run them.
+- **`extraction_rules[].validation`** (optional) is merged onto **`data.validation`**: **`validation_rules`** lists are concatenated (global first, then rule-specific); other fields from the rule override when set. Confidence scoring runs **per extracted key** using the rule that produced that key.
+- **`source_views[]`** rows do **not** carry **`validation`**; configure match rules on **`key_extraction.config.data.validation`**, on **`extraction_rules[].validation`**, and/or on the flow canvas (data edges into validation-rule nodes) instead.
 - If **`source_views`** is missing on the engine config, or no row matches the entity (including programmatic **`extract_keys`** calls without view metadata), only global and per-extraction-rule validation apply.
 
 **Confidence Scoring:**
@@ -253,7 +251,7 @@ validation:
 
 ### Confidence match rules
 
-After deduplication, the engine walks **`confidence_match_rules`** for **each** extracted key (candidate, foreign key, and document reference). The value is a **list** that defines an **ordered** pipeline: top-level entries run in **YAML list order**. Use **`hierarchy: { mode: ordered | concurrent, children: [...] }`**: **`ordered`** runs children in list order; **`concurrent`** runs children in ascending **`priority`** (then list index). You may use shorthand **`{ rule_id: [ tail... ] }`** for a linear chain. For **each** rule in order, if its **`match`** applies, the engine updates confidence via **`confidence_modifier`**: **`mode: offset`** applies the delta and **continues** to the next rule; **`mode: explicit`** sets confidence and **stops** further rules for that key. Values are clamped to `[0.0, 1.0]` after each step. The same structure applies to **aliasing** `validation` when post-processing alias strings.
+After deduplication, the engine walks **`validation_rules`** for **each** extracted key (candidate, foreign key, and document reference). The value is a **list** that defines an **ordered** pipeline: top-level entries run in **YAML list order**. Use **`hierarchy: { mode: ordered | concurrent, children: [...] }`**: **`ordered`** runs children in list order; **`concurrent`** runs children in ascending **`priority`** (then list index). You may use shorthand **`{ rule_id: [ tail... ] }`** for a linear chain. For **each** rule in order, if its **`match`** applies, the engine updates confidence via **`confidence_modifier`**: **`mode: offset`** applies the delta and **continues** to the next rule; **`mode: explicit`** sets confidence and **stops** further rules for that key. Values are clamped to `[0.0, 1.0]` after each step. The same structure applies to **aliasing** `validation` when post-processing alias strings.
 
 **`expression_match` (per rule or validation default):** Each rule may set **`expression_match: search | fullmatch`**. If omitted, the rule uses **`validation.expression_match`** when present, else **`search`**. **`search`** uses `re.search(pattern, value)`; **`fullmatch`** uses `re.fullmatch`. **`keywords`** are unchanged (substring, case-insensitive).
 
@@ -270,14 +268,14 @@ After deduplication, the engine walks **`confidence_match_rules`** for **each** 
 
 **`priority`:** lower numbers run first. If omitted, the engine uses **`list_index * 10`** so list order is stable.
 
-**Shared definitions (v1 scope YAML):** Optional top-level **`confidence_match_rule_definitions`** holds named rules once: either a mapping **`rule_id: { ... rule body ... }`** (if **`name`** is omitted, the key is used as the name), or a list of rule objects each with a **`name`**. In any **`confidence_match_rules`** list you may use a **string** (`rule_id`), or an object **`{ ref: rule_id, ... }`** with optional fields merged onto the definition (same idea as overrides). Local runs and CDF workflow handlers expand references to full rule objects before validation; the definitions block is removed from the payload after resolution.
+**Shared definitions (v1 scope YAML):** Optional top-level **`validation_rule_definitions`** holds named rules once: either a mapping **`rule_id: { ... rule body ... }`** (if **`name`** is omitted, the key is used as the name), or a list of rule objects each with a **`name`**. In any **`validation_rules`** list you may use a **string** (`rule_id`), or an object **`{ ref: rule_id, ... }`** with optional fields merged onto the definition (same idea as overrides). Local runs and CDF workflow handlers expand references to full rule objects before validation; the definitions block is removed from the payload after resolution.
 
 **Catch-all penalties:** With **`offset`** rules, a broad regex such as `(?s).*` can match **after** more specific rules and stack penalties. To **exclude** keys from later penalties, use an **`explicit`** rule earlier (it stops the chain). Order by **`priority`** so specific rules run before catch-alls when you want offsets to stack.
 
 **Example (keyword wall + ISA-shaped bonus + default penalty):**
 
 ```yaml
-confidence_match_rules:
+validation_rules:
   - name: blacklist
     priority: 10
     match:
@@ -303,7 +301,7 @@ confidence_match_rules:
       value: -0.2
 ```
 
-Pipeline order: **dedupe** → **`confidence_match_rules`** (including length / numeric-shape checks expressed as rules) → **`min_confidence`** → self-referencing FK filter. Legacy **`parameters.min_key_length`** and **`validation.regexp_match`** are not applied by the engine; encode those checks in **`confidence_match_rules`** instead.
+Pipeline order: **dedupe** → **`validation_rules`** (including length / numeric-shape checks expressed as rules) → **`min_confidence`** → self-referencing FK filter. Legacy **`parameters.min_key_length`** and **`validation.regexp_match`** are not applied by the engine; encode those checks in **`validation_rules`** instead.
 
 ### Extraction Rules
 
@@ -331,7 +329,7 @@ extraction_rules:
       min_confidence: 0.5
 ```
 
-**Per-extraction aliasing (`aliasing_pipeline`):** Optional on each extraction rule. Defines **transform steps** for candidate keys produced by **that** rule, using the **same list / hierarchy grammar** as `confidence_match_rules`: strict top-level order; `hierarchy: { mode: ordered | concurrent, children: [...] }`; string ids and `{ ref: id }` resolved from top-level **`aliasing_rule_definitions`**; **`sequence:`** from **`aliasing_rule_sequences`**. **`ordered`** runs a chain (each step’s output feeds the next). **`concurrent`** runs peer branches from the **same** parent alias set only (peers do not cross-feed). The tag-aliasing engine picks the pipeline using the key’s **`rule_name`** from key extraction. Omit **`aliasing_pipeline`** or use `[]` for identity transforms. Routing transforms via **`aliasing_rules[].scope_filters.entity_type`** is replaced by this mechanism.
+**Per-extraction aliasing (`aliasing_pipeline`):** Optional on each extraction rule. Defines **transform steps** for candidate keys produced by **that** rule, using the **same list / hierarchy grammar** as `validation_rules`: strict top-level order; `hierarchy: { mode: ordered | concurrent, children: [...] }`; string ids and `{ ref: id }` resolved from top-level **`aliasing_rule_definitions`**; **`sequence:`** from **`aliasing_rule_sequences`**. **`ordered`** runs a chain (each step’s output feeds the next). **`concurrent`** runs peer branches from the **same** parent alias set only (peers do not cross-feed). The tag-aliasing engine picks the pipeline using the key’s **`rule_name`** from key extraction. Omit **`aliasing_pipeline`** or use `[]` for identity transforms. Routing transforms via **`aliasing_rules[].scope_filters.entity_type`** is replaced by this mechanism.
 
 **Dotted `field_name` (nested view properties):** You may use dot paths such as `metadata.primaryTag` or `payload.identifier`. The pipeline resolves them against nested **object** properties on the instance for that view. If a segment’s value is a **JSON string**, it is parsed and the path continues into the decoded object (see [Key extraction specification — Nested property paths](../specifications/1.%20key_extraction.md#nested-property-paths-dot-separated-field_name)). **`source_tables`** `join_fields.view_field` supports the same path rules. RAW columns for candidate keys use the uppercased `field_name` as the column name (dots preserved).
 
@@ -349,7 +347,7 @@ extraction_rules:
 
 ### Extraction handlers (summary)
 
-- **`regex_handler`**: Default. Per-field **`regex`** (or omit for trim-only), optional **`result_template`**, **`validation`** / **`confidence_match_rules`** (aligned with aliasing). Multiple **`fields`** entries are always merged; legacy `field_results_mode: first_match` is treated as **`merge_all`**.
+- **`regex_handler`**: Default. Per-field **`regex`** (or omit for trim-only), optional **`result_template`**, **`validation`** / **`validation_rules`** (aligned with aliasing). Multiple **`fields`** entries are always merged; legacy `field_results_mode: first_match` is treated as **`merge_all`**.
 - **`heuristic`**: **`parameters`** with strategy ids and weights; list **`fields`** to read; same post-extraction validation as **`regex_handler`**.
 
 **Default shared equipment tag (CDM scope)** — reuse via anchor or copy from `config/tag_patterns.yaml` → `alphanumeric_tag`:
@@ -413,14 +411,14 @@ aliasing_rules:
     # validation: {}                    # Optional; merged onto data.validation when this rule runs (same merge rules as Key Discovery)
 ```
 
-**Validation (global + per rule):** **`aliasing.config.data.validation`** sets defaults for scoring and filtering alias strings after the pipeline runs. Each **`aliasing_rules[]`** row may include its own **`validation`**. The engine merges **global** with **each applied rule’s** overlay in **application order** (concatenate **`confidence_match_rules`** with leaf deduplication; other keys from a later overlay override). This mirrors **`key_extraction.config.data.validation`** plus **`extraction_rules[].validation`**.
+**Validation (global + per rule):** **`aliasing.config.data.validation`** sets defaults for scoring and filtering alias strings after the pipeline runs. Each **`aliasing_rules[]`** row may include its own **`validation`**. The engine merges **global** with **each applied rule’s** overlay in **application order** (concatenate **`validation_rules`** with leaf deduplication; other keys from a later overlay override). This mirrors **`key_extraction.config.data.validation`** plus **`extraction_rules[].validation`**.
 
 **Pathways (`pathways.steps`) and per-rule I/O:** When **`pathways.steps`** is present under **`aliasing.config.data`**, the engine uses that pipeline instead of the flat **`aliasing_rules`** list. Each step is **`mode: sequential`** with a **`rules`** list, or **`mode: parallel`** with **`branches`** (each branch is an ordered rule list). Within a sequential branch, each rule may set:
 
 - **`input`** (or **`pipeline_input`**): **`cumulative`** (default) — the handler receives the full working alias set accumulated so far; **`previous`** — the handler receives only the **output of the immediately preceding** handler (or the initial tag set for the first rule). Use **`previous`** to chain transforms without “polluting” the next step with strings that only existed for earlier cumulative expansion.
 - **`output`** (or **`pipeline_output`**): **`merge`** (default) — extend the working set; **`replace`** — same idea as **`preserve_original: false`** for that step’s contribution to the accumulator (if **`preserve_original`** is set explicitly, it wins).
 
-**Extraction / validation (schema only):** **`extraction_rules[]`** and **`confidence_match_rules[]`** entries may include the same **`input`** / **`output`** keys for alignment with the flow canvas; the key-extraction engine currently still runs rules independently (**`pipeline_input: cumulative`** behavior). Confidence match rules already apply in order per key; extra fields are informational unless extended later.
+**Extraction / validation (schema only):** **`extraction_rules[]`** and **`validation_rules[]`** entries may include the same **`input`** / **`output`** keys for alignment with the flow canvas; the key-extraction engine currently still runs rules independently (**`pipeline_input: cumulative`** behavior). Confidence match rules already apply in order per key; extra fields are informational unless extended later.
 
 **Non-entity routing:** Transform selection for aliasing is driven by **`extraction_rules[].aliasing_pipeline`** (see above), not by **`scope_filters.entity_type`** on **`aliasing_rules[]`**. You may still use **`scope_filters`** / **`conditions`** on an aliasing rule for other context keys (not `entity_type`) when needed.
 
@@ -1099,14 +1097,14 @@ extraction_rules:
 **No keys extracted:**
 - Check pattern syntax
 - Verify source fields exist
-- Review `confidence_match_rules` (e.g. keyword rules with `explicit` 0.0)
+- Review `validation_rules` (e.g. keyword rules with `explicit` 0.0)
 - Check confidence thresholds
 
 **Too many keys extracted:**
 - Tighten regex patterns
 - Increase `min_confidence`
 - Reduce `max_keys_per_type`
-- Add a `confidence_match_rules` entry (e.g. `keywords` + `explicit` 0.0)
+- Add a `validation_rules` entry (e.g. `keywords` + `explicit` 0.0)
 
 **Wrong keys extracted:**
 - Refine patterns to be more specific

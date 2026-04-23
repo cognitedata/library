@@ -26,7 +26,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 _REFERENCE_INDEX_TEST_VALIDATION = {
     "max_aliases_per_tag": 50,
     "min_confidence": 0.01,
-    "confidence_match_rules": [
+    "validation_rules": [
         {
             "name": "alias_shape_invalid",
             "priority": 0,

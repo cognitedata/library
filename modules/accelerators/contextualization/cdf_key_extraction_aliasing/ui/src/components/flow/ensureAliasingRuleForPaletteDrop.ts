@@ -2,6 +2,7 @@ import YAML from "yaml";
 import type { JsonObject } from "../../types/scopeConfig";
 import { defaultConfigYamlForAliasingHandler } from "../../utils/ruleHandlerTemplates";
 import { nextSequentialRuleName, sanitizeRuleNamePrefix } from "../../utils/ruleNaming";
+import { appendAliasingTransformRuleRow, getAliasingTransformRuleRows } from "./aliasingScopeData";
 
 function getAliasingRulesArray(doc: Record<string, unknown>): JsonObject[] {
   const al = doc.aliasing;
@@ -10,79 +11,17 @@ function getAliasingRulesArray(doc: Record<string, unknown>): JsonObject[] {
   if (!config || typeof config !== "object" || Array.isArray(config)) return [];
   const data = (config as Record<string, unknown>).data;
   if (!data || typeof data !== "object" || Array.isArray(data)) return [];
-  const rules = (data as Record<string, unknown>).aliasing_rules;
-  if (!Array.isArray(rules)) return [];
+  const rows = getAliasingTransformRuleRows(data as Record<string, unknown>);
   const out: JsonObject[] = [];
-  for (const r of rules) {
+  for (const r of rows) {
     if (r !== null && typeof r === "object" && !Array.isArray(r)) out.push(r as JsonObject);
   }
   return out;
 }
 
-function patchAliasingRulesArray(doc: Record<string, unknown>, rules: JsonObject[]): Record<string, unknown> {
-  const al = doc.aliasing;
-  if (!al || typeof al !== "object" || Array.isArray(al)) {
-    return {
-      ...doc,
-      aliasing: {
-        config: {
-          data: {
-            aliasing_rules: rules,
-          },
-        },
-      },
-    };
-  }
-  const alObj = al as Record<string, unknown>;
-  const config = alObj.config;
-  if (!config || typeof config !== "object" || Array.isArray(config)) {
-    return {
-      ...doc,
-      aliasing: {
-        ...alObj,
-        config: {
-          data: {
-            aliasing_rules: rules,
-          },
-        },
-      },
-    };
-  }
-  const cfgObj = config as Record<string, unknown>;
-  const data = cfgObj.data;
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    return {
-      ...doc,
-      aliasing: {
-        ...alObj,
-        config: {
-          ...cfgObj,
-          data: {
-            aliasing_rules: rules,
-          },
-        },
-      },
-    };
-  }
-  const dataObj = data as Record<string, unknown>;
-  return {
-    ...doc,
-    aliasing: {
-      ...alObj,
-      config: {
-        ...cfgObj,
-        data: {
-          ...dataObj,
-          aliasing_rules: rules,
-        },
-      },
-    },
-  };
-}
-
 /**
- * Append a new `aliasing.config.data.aliasing_rules[]` row for a palette handler drop
- * (same shape as AliasingRulesStructuredEditor serialization).
+ * Append a new aliasing transform rule row (``aliasing_rules`` or first sequential ``pathways`` step)
+ * for a palette handler drop (same shape as AliasingRulesStructuredEditor serialization).
  */
 export function appendAliasingRuleForHandler(
   doc: Record<string, unknown>,
@@ -118,7 +57,7 @@ export function appendAliasingRuleForHandler(
   };
 
   return {
-    doc: patchAliasingRulesArray(doc, [...existing, newRule]),
+    doc: appendAliasingTransformRuleRow(doc, newRule),
     ruleName,
   };
 }

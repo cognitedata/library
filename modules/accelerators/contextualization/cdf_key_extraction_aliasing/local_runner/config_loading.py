@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 import os
 from pathlib import Path
@@ -55,42 +56,6 @@ def resolve_scope_document_path(scope: Optional[str] = None) -> Path:
     return DEFAULT_SCOPE_DOCUMENT_PATH
 
 
-def _default_passthrough_rules_for_views(
-    source_views: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    entity_types: List[str] = []
-    for v in source_views:
-        et = v.get("entity_type")
-        if isinstance(et, str) and et.strip() and et not in entity_types:
-            entity_types.append(et)
-    if not entity_types:
-        entity_types = ["asset"]
-    rules: List[Dict[str, Any]] = []
-    for et in entity_types:
-        rules.append(
-            {
-                "name": f"default_passthrough_name_{et}",
-                "handler": "regex_handler",
-                "extraction_type": "candidate_key",
-                "description": f"Default trim passthrough on name for {et}",
-                "enabled": True,
-                "priority": 50,
-                "scope_filters": {"entity_type": [et]},
-                "field_results_mode": "merge_all",
-                "fields": [
-                    {
-                        "field_name": "name",
-                        "required": True,
-                        "max_length": 500,
-                        "priority": 1,
-                        "preprocessing": ["trim"],
-                    }
-                ],
-            }
-        )
-    return rules
-
-
 def _load_from_scope_document(
     logger: logging.Logger,
     doc: Dict[str, Any],
@@ -122,10 +87,10 @@ def _load_from_scope_document(
     if not isinstance(extraction_rules_raw, list):
         raise ValueError("extraction_rules must be a list")
     if len(extraction_rules_raw) == 0:
-        logger.info(
-            "Empty extraction_rules; injecting default passthrough on name per entity_type"
+        raise ValueError(
+            "key_extraction.config.data.extraction_rules must be non-empty; "
+            "define rules and top-level associations (source_view_to_extraction) explicitly."
         )
-        extraction_rules_raw = _default_passthrough_rules_for_views(source_views)
 
     all_extraction_rules: List[Any] = []
     for rule in extraction_rules_raw:
@@ -143,6 +108,9 @@ def _load_from_scope_document(
         "validation": validation_config,
         "source_views": source_views,
     }
+    assoc_doc = doc.get("associations")
+    if isinstance(assoc_doc, list):
+        extraction_config["associations"] = copy.deepcopy(assoc_doc)
     ke_params = ke_config.get("parameters")
     if isinstance(ke_params, dict) and ke_params:
         extraction_config["parameters"] = dict(ke_params)

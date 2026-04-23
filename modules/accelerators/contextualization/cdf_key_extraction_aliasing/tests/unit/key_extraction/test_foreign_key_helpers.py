@@ -166,6 +166,7 @@ class TestExcludeSelfReferencingKeys(unittest.TestCase):
         self.assertEqual(out, [])
 
     def test_skips_filter_when_timeseries_disabled_in_parameters(self):
+        """Per-entity_type ``exclude_self_referencing_keys`` maps are no longer honored (``default`` only)."""
         engine = KeyExtractionEngine(
             {
                 "extraction_rules": [],
@@ -204,8 +205,32 @@ class TestExcludeSelfReferencingKeys(unittest.TestCase):
             ],
         )
         engine._exclude_self_referencing_keys(r)
-        self.assertEqual(len(r.foreign_key_references), 1)
-        self.assertEqual(r.foreign_key_references[0].value, tag)
+        self.assertEqual(len(r.foreign_key_references), 0)
+
+        engine2 = KeyExtractionEngine(
+            {
+                "extraction_rules": [],
+                "validation": {},
+                "parameters": {"exclude_self_referencing_keys": {"default": False}},
+            }
+        )
+        r2 = ExtractionResult(
+            entity_id="ts-1",
+            entity_type="timeseries",
+            candidate_keys=list(r.candidate_keys),
+            foreign_key_references=[
+                ExtractedKey(
+                    value=tag,
+                    extraction_type=ExtractionType.FOREIGN_KEY_REFERENCE,
+                    source_field="name",
+                    confidence=0.9,
+                    method=ExtractionMethod.REGEX_HANDLER,
+                    rule_id="fk",
+                )
+            ],
+        )
+        engine2._exclude_self_referencing_keys(r2)
+        self.assertEqual(len(r2.foreign_key_references), 1)
 
     def test_source_override_false_keeps_fk_when_parameters_true(self):
         tag = "45-TT-92506"

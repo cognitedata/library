@@ -133,7 +133,6 @@ export const es: Messages = {
   "sourceViews.viewExternalId": "Id. externo de la vista",
   "sourceViews.viewSpace": "Espacio de la vista",
   "sourceViews.viewVersion": "Versión de la vista",
-  "sourceViews.entityType": "Tipo de entidad",
   "sourceViews.batchSize": "Tamaño de lote",
   "sourceViews.instanceSpace": "Espacio de instancia (opcional)",
   "sourceViews.filters": "Filtros",
@@ -163,10 +162,16 @@ export const es: Messages = {
   "sourceViews.filterTargetProperty": "Propiedad objetivo",
   "sourceViews.filterPropertyScope": "Ámbito de la propiedad",
   "sourceViews.filterValues": "Valores (separados por comas o un solo valor)",
-  "sourceViews.perViewValidationTitle": "Validación (esta vista origen)",
-  "sourceViews.perViewValidationHint":
-    "Se fusiona sobre la validación global de Key Discovery. confidence_match_rules se añaden; otros campos (p. ej. min_confidence) sobrescriben si están definidos. Use «Solo validación global» para quitar esta capa.",
-  "sourceViews.perViewValidationClear": "Solo validación global",
+  "sourceViews.cdfReloadSpaces": "Recargar espacios",
+  "sourceViews.cdfReloadDataModels": "Recargar modelos de datos",
+  "sourceViews.cdfPickDataModel": "Modelo de datos (CDF)",
+  "sourceViews.cdfPickDataModelPlaceholder": "Elija un modelo de datos…",
+  "sourceViews.cdfPickDataModelHint":
+    "Define el espacio de la vista como el espacio del modelo. Si el esquema por defecto del módulo está definido, solo se listan modelos de ese espacio.",
+  "sourceViews.cdfReloadViews": "Recargar vistas",
+  "sourceViews.cdfPickView": "Elegir vista desde CDF",
+  "sourceViews.cdfPickPlaceholder": "Elija una vista…",
+  "sourceViews.cdfError": "No se pudo cargar desde CDF",
   "keyExtraction.title": "Descubrimiento de claves",
   "keyExtraction.externalId": "Id. externo",
   "keyExtraction.parameters": "Parámetros",
@@ -176,7 +181,7 @@ export const es: Messages = {
     "extraction_rules (fields[], handler, field_results_mode, …) y demás claves excepto validation — en key_extraction.config.data",
   "keyExtraction.validationYaml": "config.data.validation (YAML)",
   "keyExtraction.validationYamlHint":
-    "Validación global de claves extraídas (min_confidence, max_keys_per_type, confidence_match_rules, …).",
+    "Validación global de claves extraídas (min_confidence, max_keys_per_type, validation_rules, …).",
   "keyExtraction.advancedRulesYaml": "Editar reglas y estrategia como YAML (avanzado)",
   "discoveryRules.fieldResultsModeInherit": "Sin definir (predeterminado del motor: merge_all)",
   "discoveryRules.extraKeysPreserved": "Se conservan otras claves en config.data: {keys}",
@@ -199,7 +204,7 @@ export const es: Messages = {
   "discoveryRules.rule.description": "Descripción",
   "discoveryRules.rule.matchValidation": "Match validation (confidence rules)",
   "discoveryRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "discoveryRules.rule.entityTypesCsv": "Tipos de entidad (separados por comas)",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
     "Claves adicionales de scope_filters (objeto YAML); se fusionan con los tipos de entidad; vacío = solo tipos.",
@@ -279,7 +284,7 @@ export const es: Messages = {
     "aliasing_rules y demás claves excepto validation — bajo aliasing.config.data",
   "aliasing.validationYaml": "config.data.validation (YAML)",
   "aliasing.validationYamlHint":
-    "Validación global de alias (min_confidence, max_aliases_per_tag, confidence_match_rules, …).",
+    "Validación global de alias (min_confidence, max_aliases_per_tag, validation_rules, …).",
   "aliasing.advancedRulesYaml": "Editar reglas de alias y datos extra como YAML (avanzado)",
   "aliasingRules.extraKeysPreserved": "Se conservan otras claves en config.data: {keys}",
   "aliasingRules.rule.name": "Nombre de regla",
@@ -293,7 +298,7 @@ export const es: Messages = {
   "aliasingRules.rule.description": "Descripción",
   "aliasingRules.rule.matchValidation": "Match validation (confidence rules)",
   "aliasingRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "aliasingRules.rule.entityTypesCsv": "Tipos de entidad (separados por comas)",
   "aliasingRules.rule.scopeFiltersOtherYamlHint":
     "Claves adicionales de scope_filters (objeto YAML); se fusionan con los tipos de entidad.",
@@ -362,12 +367,12 @@ export const es: Messages = {
   "validationEditor.extraKeysPreserved": "Se conservan otras claves en validation: {keys}",
   "validationEditor.rulesHint":
     "Cada regla de coincidencia es una definición independiente. Al evaluarlas se componen por prioridad (luego por orden de lista): los modificadores offset encadenan; explicit fija la confianza y detiene reglas posteriores para ese valor.",
-  "validationEditor.matchRulesHierarchyHint":
+  "validationEditor.validationRulesHierarchyHint":
     "Top-level steps run in list order. Use a parallel group to run its children sorted by each rule’s priority field; use a sequential group for an explicit nested chain.",
   "validationEditor.parallelGroup": "Parallel group (by priority)",
   "validationEditor.sequentialGroup": "Sequential group",
-  "validationEditor.matchRulesSteps": "Match steps",
-  "validationEditor.matchRulesStepsHint":
+  "validationEditor.validationRulesSteps": "Match steps",
+  "validationEditor.validationRulesStepsHint":
     "Each step references a standalone definition id or a named sequence (expands to an ordered list). Drag to set composition order.",
   "validationEditor.matchStepKind": "Step type",
   "validationEditor.matchStepRule": "Rule definition",
@@ -378,12 +383,12 @@ export const es: Messages = {
   "validationEditor.matchStepSelectSequence": "(select sequence)",
   "validationEditor.addMatchStep": "Add step",
   "validationEditor.scopeRefsModeHint":
-    "Usa confidence_match_rule_definitions y confidence_match_rule_sequences a nivel de ámbito. Edite los cuerpos de reglas en la pestaña Validación (después de las vistas de origen).",
+    "Usa validation_rule_definitions y confidence_match_rule_sequences a nivel de ámbito. Edite los cuerpos de reglas en la pestaña Validación (después de las vistas de origen).",
   "validationEditor.inlineRulesModeHint":
     "Inline rule bodies stored in this validation block (no scope-level definitions required). Suitable for compact or trigger-only configs.",
   "matchDefinitions.title": "Reglas de validación de coincidencia",
   "matchDefinitions.definitionsHint":
-    "Edita el mapa del ámbito confidence_match_rule_definitions: la lista maestra de cuerpos de reglas de validación. Descubrimiento de claves, alias y vistas de origen referencian estos id o entradas en confidence_match_rule_sequences (abajo).",
+    "Edita el mapa del ámbito validation_rule_definitions: la lista maestra de cuerpos de reglas de validación. Descubrimiento de claves, alias y vistas de origen referencian estos id o entradas en confidence_match_rule_sequences (abajo).",
   "matchDefinitions.newDefinitionId": "New definition id",
   "matchDefinitions.addDefinition": "Add definition",
   "matchDefinitions.selectDefinition": "Edit definition",
@@ -480,25 +485,55 @@ export const es: Messages = {
   "flow.resizePanels": "Arrastrar para redimensionar paneles",
   "flow.paletteStructural": "Estructura de la canalización",
   "flow.structuralSourceView": "Vista origen",
+  "flow.structuralSubflow": "Subflujo",
+  "flow.structuralSubgraph": "Subgrafo",
   "flow.structuralExtraction": "Extracción",
   "flow.structuralAliasing": "Alias",
   "flow.structuralAliasPersistence": "Escritura de alias",
   "flow.structuralReferenceIndex": "Índice de referencias",
-  "flow.matchValidationRuleSourceView": "Regla de coincidencia (vista origen)",
-  "flow.matchValidationRuleExtraction": "Regla de coincidencia (extracción)",
-  "flow.matchValidationRuleAliasing": "Regla de coincidencia (alias)",
-  "flow.paletteMatchDefinitions": "Validación",
-  "flow.paletteMatchDefinitionsEmpty":
+  "flow.paletteWriteback": "Writeback",
+  "flow.structuralWritebackRaw": "Writeback (RAW)",
+  "flow.structuralWritebackDataModeling": "Writeback (modelado de datos)",
+  "flow.validationRuleLayoutSourceView": "Regla de coincidencia (vista origen)",
+  "flow.validationRuleLayoutExtraction": "Regla de coincidencia (extracción)",
+  "flow.validationRuleLayoutAliasing": "Regla de coincidencia (alias)",
+  "flow.paletteValidationRuleDefinitions": "Validación",
+  "flow.paletteValidationRuleDefinitionsEmpty":
     "Aún no hay definiciones — añádalas en la pestaña Validación (después de las vistas de origen en Configurar).",
   "flow.paletteExtractionHandlers": "Handlers de extracción",
   "flow.paletteAliasingHandlers": "Handlers de alias",
   "flow.paletteAnnotations": "Anotaciones",
-  "flow.seedFromScope": "Rellenar vistas origen desde el ámbito",
+  "flow.seedFromScope": "Restablecer",
+  "flow.alignLeft": "Alinear nodos seleccionados a la izquierda",
+  "flow.alignCenterHorizontal": "Alinear nodos seleccionados al centro horizontal",
+  "flow.alignRight": "Alinear nodos seleccionados a la derecha",
+  "flow.alignTop": "Alinear nodos seleccionados arriba",
+  "flow.alignCenterVertical": "Alinear nodos seleccionados al centro vertical",
+  "flow.alignBottom": "Alinear nodos seleccionados abajo",
+  "flow.alignSelectionGroup": "Alinear selección",
   "flow.canvasHint":
-    "El diseño se guarda en un .canvas.yaml junto al ámbito. Guarde el ámbito. Arrastre desde la paleta.",
+    "El diseño se guarda en un .canvas.yaml junto al ámbito. Guarde el ámbito. Arrastre desde la paleta. Suelte un nodo dentro del marco de un subflujo para asociarlo; seleccione el subflujo y arrastre esquinas o barras de borde para redimensionar en horizontal y vertical.",
+  "flow.handleOrientationLabel": "Handles",
+  "flow.handleOrientationLr": "Izquierda → derecha",
+  "flow.handleOrientationTb": "Arriba → abajo",
+  "flow.connectEndMenuAria": "Crear y conectar un nodo nuevo",
   "flow.ctxMenuFitView": "Ajustar vista",
   "flow.ctxMenuAutoLayout": "Disposición automática",
   "flow.ctxMenuRemoveNode": "Eliminar nodo",
+  "flow.confirmSubgraphDeleteLift":
+    "Este subgrafo contiene pasos de flujo de trabajo internos.\n\nOK — moverlos al lienzo principal y quitar el marco del subgrafo.\nCancelar — quitar el subgrafo y descartar los pasos internos.",
+  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
+  "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
+  "flow.ctxMenuConvertSubflowToSubgraph": "Convertir subflujo en subgrafo (drill-in)",
+  "flow.ctxMenuConvertSubgraphToSubflow": "Convertir subgrafo en subflujo (agrupar)",
+  "flow.subgraphDrillTitle": "Subgraph",
+  "flow.subgraphBack": "Save & close",
+  "flow.subgraphDrillHint":
+    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+  "flow.inspectorOpenSubgraph": "Open inner graph…",
+  "flow.inspectorSubgraphHint":
+    "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
   "flow.ctxMenuRemoveEdge": "Eliminar arista",
   "flow.nodeEditorTitle": "Editor del ámbito",
   "flow.nodeEditorTitleSourceViews": "Vistas de origen (pestaña Configurar)",
@@ -511,6 +546,12 @@ export const es: Messages = {
   "flow.nodeEditorDone": "Listo",
   "flow.nodeEditorPipelineStubBody":
     "Los nodos de inicio y fin son solo diseño. Edite vistas de origen, extracción y alias con otros nodos o las pestañas Configurar.",
+  "flow.nodeEditorSubflowBody":
+    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
+  "flow.nodeEditorSubgraphBody":
+    "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
+  "flow.nodeEditorGraphHubBody":
+    "Fixed interface node for this subgraph. Edit port names on the parent subflow in the inspector; wire the parent frame handles and inner nodes to these hubs.",
   "flow.nodeEditorUnsupported": "No hay editor de configuración para este tipo de nodo.",
   "flow.close": "Cerrar",
   "flow.save": "Guardar",
@@ -520,18 +561,45 @@ export const es: Messages = {
   "flow.inspectorStartHint":
     "Entrada de la canalización. Conecte a las vistas de origen (o a extracción si no hay vistas de origen).",
   "flow.inspectorEndHint":
-    "Salida de la canalización. Conecte desde extracción, alias, validación, escritura de alias o índice de referencias.",
+    "Salida de la canalización. Conecte desde extracción, alias, validación, escritura de alias, nodos de writeback RAW o de modelado de datos, o índice de referencias.",
   "flow.inspectorAliasPersistenceHint":
     "Equivale a fn_dm_alias_persistence: lee RAW de alias y escribe listas de alias (y opcionalmente cadenas FK) en instancias describibles. Configure write-back en el scope o en los datos de la tarea.",
   "flow.inspectorReferenceIndexHint":
     "Equivale a fn_dm_reference_index: mantiene un índice RAW invertido a partir de FOREIGN_KEY_REFERENCES_JSON y DOCUMENT_REFERENCES_JSON en el almacén de extracción. Actívelo en el scope (p. ej. enable_reference_index).",
+  "flow.inspectorWritebackRawHint":
+    "Tarjeta de diseño para resultados en Cognite RAW (base de datos, tabla, ingesta). Configure destinos RAW y E/S del handler en el scope o en los datos de la tarea; el nodo del lienzo es documental.",
+  "flow.inspectorWritebackDataModelingHint":
+    "Tarjeta de diseño para writeback a CDF Data Modeling (instancias, vistas). Configure espacios, external ids y pasos de proyección (p. ej. fn_dm_alias_persistence) en el scope o en los datos de la tarea; el nodo del lienzo es documental.",
   "flow.inspectorValidationRuleHint":
-    "Apunta a una entrada confidence_match_rules en el ámbito: se evalúa al listar vistas (source_views[].validation), en extracción (extraction_rules[].validation) o en alias (aliasing_rules[].validation). Los cuerpos de regla son definiciones independientes. Use una lista YAML, la forma abreviada { rule_id: [ tail... ] }, o hierarchy: { mode: ordered | concurrent, children: [...] }. En el lienzo, use aristas de datos desde extracción o alias al primer nodo de regla de coincidencia; encadene nodos posteriores con aristas sequence o parallel_group.",
+    "Apunta a una entrada validation_rules en el ámbito: se usa al puntuar claves (data.validation global de key_extraction más extraction_rules[].validation) o al validar alias (aliasing_rules[].validation). Las filas de vista origen no llevan validation. Los cuerpos de regla son definiciones independientes. Use una lista YAML, la forma abreviada { rule_id: [ tail... ] }, o hierarchy: { mode: ordered | concurrent, children: [...] }. En el lienzo, use aristas de datos desde extracción o alias al primer nodo de regla de coincidencia; encadene nodos posteriores con aristas sequence o parallel_group.",
   "flow.inspectorValidationRuleContext": "Ámbito de la regla",
   "flow.inspectorConfidenceRuleName": "Nombre de la regla de confianza",
   "flow.validationContextSourceView": "Vista origen (listado)",
   "flow.validationContextExtraction": "Regla de extracción",
   "flow.validationContextAliasing": "Regla de alias",
+  "flow.inspectorSubflowHint":
+    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
+  "flow.inspectorSubflowOrganizationalHint":
+    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
+  "flow.inspectorSubflowPorts": "Subgraph ports",
+  "flow.inspectorSubflowInputs": "Inputs",
+  "flow.inspectorSubflowOutputs": "Outputs",
+  "flow.inspectorSubflowAddInputPort": "Add input port",
+  "flow.inspectorSubflowAddOutputPort": "Add output port",
+  "flow.inspectorSubflowRemovePort": "Remove",
+  "flow.inspectorSubflowMovePortUp": "Subir puerto",
+  "flow.inspectorSubflowMovePortDown": "Bajar puerto",
+  "flow.inspectorDrillBoundaryPortsHint":
+    "Edite los puertos de entrada y salida del subgrafo aquí o seleccione el hub de entrada o salida del grafo en el lienzo.",
+  "flow.inspectorSubflowPortInnerIn":
+    "Outer sources allowed here are the same as for a data edge into {type} (in handle).",
+  "flow.inspectorSubflowPortInnerOut":
+    "Outer targets allowed here are the same as for a data edge from {type} (out handle).",
+  "flow.inspectorSubflowGraphInHint":
+    "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
+  "flow.inspectorSubflowGraphOutHint":
+    "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
+  "flow.inspectorParentSubflow": "Subflujo padre",
   "flow.inspectorNodeTitle": "Nodo",
   "flow.inspectorEdgeTitle": "Arista",
   "flow.inspectorEdgeKind": "Tipo de arista",
@@ -539,6 +607,16 @@ export const es: Messages = {
   "flow.edgeKindSequence": "Orden de composición",
   "flow.edgeKindParallel": "Rama (dividir / unir)",
   "flow.inspectorLabel": "Etiqueta",
+  "flow.inspectorNodeAccent": "Acento de tarjeta",
+  "flow.inspectorNodeAccentHint":
+    "Color opcional del borde izquierdo del nodo en el lienzo (solo diseño; el motor de flujo de trabajo no lo usa).",
+  "flow.inspectorNodeAccentReset": "Restablecer",
+  "flow.inspectorNodeAccentCustom": "Personalizado",
+  "flow.inspectorNodeBg": "Fondo de la tarjeta",
+  "flow.inspectorNodeBgHint":
+    "Relleno opcional detrás de la tarjeta del nodo (solo diseño; el motor de flujo de trabajo no lo usa).",
+  "flow.inspectorNodeBgReset": "Restablecer",
+  "flow.inspectorNodeBgCustom": "Personalizado",
   "flow.inspectorHandler": "Handler",
   "flow.inspectorHandlerUnset": "(elegir)",
   "flow.inspectorAnnotationKind": "Tipo de anotación",
@@ -553,7 +631,6 @@ export const es: Messages = {
   "flow.inspectorSourceViewSpace": "view_space",
   "flow.inspectorSourceViewExternalId": "view_external_id",
   "flow.inspectorSourceViewVersion": "view_version",
-  "flow.inspectorSourceViewEntityType": "entity_type",
   "flow.inspectorSourceViewFillFromScope": "Rellenar desde el ámbito…",
   "flow.inspectorSourceViewIndexInvalid": "source_view_index está fuera del rango del ámbito actual.",
   "flow.inspectorRefNone": "(ninguna)",

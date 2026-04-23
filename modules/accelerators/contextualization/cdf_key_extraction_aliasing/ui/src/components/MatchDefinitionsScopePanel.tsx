@@ -14,7 +14,7 @@ import { MatchRuleDefinitionCard } from "./MatchRuleDefinitionCard";
 type Props = {
   scopeDocument: Record<string, unknown>;
   onPatch: (recipe: (doc: Record<string, unknown>) => Record<string, unknown>) => void;
-  /** When set and the id exists in `confidence_match_rule_definitions`, select it (e.g. canvas double-click). */
+  /** When set and the id exists in `validation_rule_definitions`, select it (e.g. canvas double-click). */
   initialSelectedDefId?: string;
 };
 
@@ -60,7 +60,7 @@ export function MatchDefinitionsScopePanel({ scopeDocument, onPatch, initialSele
   const [dragStepOver, setDragStepOver] = useState<number | null>(null);
 
   const commitDefs = (next: Record<string, JsonObject>) => {
-    onPatch((doc) => ({ ...doc, confidence_match_rule_definitions: next }));
+    onPatch((doc) => ({ ...doc, validation_rule_definitions: next }));
   };
 
   const commitSeqs = (next: Record<string, string[]>) => {

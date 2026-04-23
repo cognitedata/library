@@ -8,7 +8,7 @@ from CDF data model views and extracts keys using the KeyExtractionEngine.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row
@@ -18,6 +18,7 @@ from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 from cdf_fn_common.run_all import resolve_run_all
 from cdf_fn_common.extraction_input_hash import (
     apply_preprocessing,
+    association_pairs_set_from_scope_mapping,
     compute_extraction_inputs_hash_from_entity_row,
     iter_wanted_fields,
     resolve_source_view_config_for_entity,
@@ -28,6 +29,7 @@ from cdf_fn_common.key_discovery_state_fdm import (
     upsert_key_discovery_processing_state_success,
 )
 from cdf_fn_common.property_path import get_value_by_property_path
+from cdf_fn_common.workflow_associations import coerce_association_source_view_index
 from cdf_fn_common.incremental_scope import (
     EXTRACTION_INPUTS_HASH_COLUMN,
     EXTERNAL_ID_COLUMN,
@@ -191,20 +193,74 @@ def _resolve_incremental_run_id(
     )
 
 
+def _view_cfg_attr(svc: Any, key: str) -> Any:
+    if isinstance(svc, dict):
+        return svc.get(key)
+    return getattr(svc, key, None)
+
+
+def _norm_view_id_part(val: Any) -> str:
+    return str(val or "").strip()
+
+
+def _view_triple_from_cols(cols: Dict[str, Any]) -> Tuple[str, str, str]:
+    return (
+        _norm_view_id_part(cols.get("view_space")),
+        _norm_view_id_part(cols.get("view_external_id")),
+        _norm_view_id_part(cols.get("view_version")),
+    )
+
+
+def _view_triple_from_svc(svc: Any) -> Tuple[str, str, str]:
+    return (
+        _norm_view_id_part(_view_cfg_attr(svc, "view_space")),
+        _norm_view_id_part(_view_cfg_attr(svc, "view_external_id")),
+        _norm_view_id_part(_view_cfg_attr(svc, "view_version")),
+    )
+
+
+def _source_view_index_for_extraction_entity(
+    entity_fields: Dict[str, Any], cdf_config: Any
+) -> Optional[int]:
+    raw_idx = entity_fields.get("source_view_index")
+    coerced = coerce_association_source_view_index(raw_idx)
+    if coerced is not None:
+        return int(coerced)
+    if cdf_config is None:
+        return None
+    svs = getattr(getattr(cdf_config, "data", None), "source_views", None) or (
+        [cdf_config.data.source_view] if getattr(cdf_config.data, "source_view", None) else []
+    )
+    if not svs:
+        return None
+    cols = {
+        "view_space": entity_fields.get("view_space"),
+        "view_external_id": entity_fields.get("view_external_id"),
+        "view_version": entity_fields.get("view_version"),
+    }
+    return _find_source_view_index_for_row(svs, cols)
+
+
+def _find_source_view_index_for_row(
+    source_views: List[Any], cols: Dict[str, Any]
+) -> Optional[int]:
+    ct = _view_triple_from_cols(cols)
+    if not all(ct):
+        return None
+    for i, svc in enumerate(source_views):
+        if _view_triple_from_svc(svc) == ct:
+            return int(i)
+    return None
+
+
 def _find_view_config_for_row(
     source_views: List[Any], cols: Dict[str, Any]
 ) -> Optional[Any]:
-    vs = cols.get("view_space")
-    ve = cols.get("view_external_id")
-    vv = cols.get("view_version")
-    if not vs or not ve or not vv:
+    ct = _view_triple_from_cols(cols)
+    if not all(ct):
         return None
     for svc in source_views:
-        if (
-            getattr(svc, "view_space", None) == vs
-            and getattr(svc, "view_external_id", None) == ve
-            and getattr(svc, "view_version", None) == vv
-        ):
+        if _view_triple_from_svc(svc) == ct:
             return svc
     return None
 
@@ -240,6 +296,12 @@ def _load_incremental_cohort_entities(
 
     entities_source: Dict[str, Dict[str, Any]] = {}
     extraction_rules = getattr(getattr(config, "data", None), "extraction_rules", None)
+    _assoc_raw = getattr(config.data, "associations", None)
+    _assoc_set = (
+        association_pairs_set_from_scope_mapping({"associations": _assoc_raw})
+        if isinstance(_assoc_raw, list)
+        else set()
+    )
     source_tables = getattr(config.data, "source_tables", None) or []
 
     # Retrieve instances in batches grouped by view
@@ -303,6 +365,7 @@ def _load_incremental_cohort_entities(
                 )
                 evc = meta["view_config"]
                 if entity_external_id not in entities_source:
+                    sv_idx = meta.get("source_view_index")
                     entities_source[entity_external_id] = {
                         "entity_type": evc.entity_type.value,
                         "view_space": vid.space,
@@ -310,6 +373,7 @@ def _load_incremental_cohort_entities(
                         "view_version": vid.version,
                         "instance_space": getattr(evc, "instance_space", None)
                         or getattr(inst, "space", None),
+                        "source_view_index": sv_idx,
                         "_cohort_columns": dict(meta["cohort_columns"]),
                         "_raw_row_key": meta["raw_row_key"],
                     }
@@ -318,7 +382,12 @@ def _load_incremental_cohort_entities(
                         entities_source[entity_external_id][
                             "_kex_exclude_self_referencing_keys"
                         ] = kex_iso
-                wanted_fields = iter_wanted_fields(extraction_rules, evc)
+                wanted_fields = iter_wanted_fields(
+                    extraction_rules,
+                    evc,
+                    association_pairs=_assoc_set,
+                    source_view_index=meta.get("source_view_index"),
+                )
 
                 tgt = entities_source[entity_external_id]
                 for field_name, required, preprocessing in wanted_fields:
@@ -377,6 +446,7 @@ def _load_incremental_cohort_entities(
                 "view_config": evc,
                 "cohort_columns": cols,
                 "raw_row_key": str(rk) if rk else "",
+                "source_view_index": _find_source_view_index_for_row(source_views, cols),
             }
         )
         if len(batch) >= 100:
@@ -561,10 +631,12 @@ def key_extraction(
                 "_raw_row_key": raw_row_key,
             }
             try:
+                sv_ix = _source_view_index_for_extraction_entity(entity_fields, cdf_config)
                 result = engine.extract_keys(
                     entity,
                     entity_type,
                     exclude_self_referencing_keys=kex_iso,
+                    source_view_index=sv_ix,
                 )
             except Exception as ex:
                 logger.warning(
@@ -639,6 +711,12 @@ def key_extraction(
             )
             extraction_rules_for_hash = getattr(
                 cdf_config.data, "extraction_rules", None
+            )
+            _hash_assoc_list = getattr(cdf_config.data, "associations", None)
+            _hash_assoc_set = (
+                association_pairs_set_from_scope_mapping({"associations": _hash_assoc_list})
+                if isinstance(_hash_assoc_list, list)
+                else set()
             )
 
             key_discovery_fdm_available = True
@@ -759,6 +837,10 @@ def key_extraction(
                             workflow_scope=workflow_scope if use_kd else None,
                             source_view_fingerprint=sv_fp if use_kd else None,
                             logger=logger,
+                            association_pairs=_hash_assoc_set,
+                            source_view_index=_source_view_index_for_extraction_entity(
+                                entity_metadata, cdf_config
+                            ),
                         )
                         if use_kd:
                             if workflow_scope:
@@ -797,6 +879,10 @@ def key_extraction(
                                             workflow_scope=None,
                                             source_view_fingerprint=None,
                                             logger=logger,
+                                            association_pairs=_hash_assoc_set,
+                                            source_view_index=_source_view_index_for_extraction_entity(
+                                                entity_metadata, cdf_config
+                                            ),
                                         )
                                     )
                                     columns[

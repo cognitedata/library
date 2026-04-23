@@ -7,8 +7,6 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
 from .aliasing_rule_refs import resolve_aliasing_pipeline_refs_in_scope_document
 from .confidence_match_rule_refs import resolve_confidence_match_rule_refs_in_scope_document
-
-
 def materialize_scope_confidence_refs_on_task_data(data: MutableMapping[str, Any]) -> None:
     """Expand confidence-match and extraction aliasing pipeline refs on task ``configuration`` / ``scope_document``.
 
@@ -33,7 +31,7 @@ def _workflow_v1_from_task_data(data: Mapping[str, Any]) -> Dict[str, Any]:
     """Read v1 scope mapping from task ``data`` (``configuration`` preferred; ``scope_document`` legacy).
 
     Callers must run :func:`materialize_scope_confidence_refs_on_task_data` on *data* first when
-    the task may carry ``confidence_match_rule_definitions`` / ``sequence`` indirections.
+    the task may carry ``validation_rule_definitions`` / ``sequence`` indirections.
     """
     for key in ("configuration", "scope_document"):
         raw = data.get(key)
@@ -188,6 +186,9 @@ def build_key_extraction_workflow_config(
         inner["data"] = {}
         data = inner["data"]
     data["source_views"] = resolve_scope_document_source_views(doc)
+    raw_assoc = doc.get("associations")
+    if isinstance(raw_assoc, list):
+        data["associations"] = copy.deepcopy(raw_assoc)
     _merge_instance_space_into_source_views(inner, instance_space)
     ext = ke.get("externalId")
     return {"externalId": ext, "config": inner}

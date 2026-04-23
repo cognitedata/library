@@ -4,30 +4,39 @@ import type {
   WorkflowCanvasEdge,
   WorkflowCanvasNode,
 } from "../../types/workflowCanvas";
+import {
+  getAliasingTransformRuleRows,
+  replaceAliasingTransformRulesInDoc,
+} from "./aliasingScopeData";
+import { expandCanvasForScopeSync } from "./subgraphBoundaryVirtualization";
+import { applySourceViewExtractionAssociationsFromCanvas } from "./workflowScopeAssociations";
 import { patchExtractionRuleAliasingPipeline } from "./workflowScopePatch";
 /**
  * Merge flow canvas structure into the workflow scope document (YAML model).
  *
- * Wires `confidence_match_rules` from:
- * - data edges: parent rule / source view → first match-rule node (extraction may also wire to a global
- *   `match_validation_aliasing` head alongside extraction match chains)
- * - sequence edges: parent→child chain as **nested** ordered hierarchies (not flat sibling lists)
- * - parallel_group edges: `{ hierarchy: { mode: concurrent, children } }` with recursive subtrees
+ * **Validation** — ``validation_rules`` on extraction rules, per-rule aliasing, and global
+ * ``key_extraction`` / ``aliasing`` data are derived **only** from match-validation subgraphs wired on
+ * the canvas (data + ``sequence`` / ``parallel_group`` edges). ``source_views[]`` rows do not carry
+ * validation definitions; thresholds on global validation objects (e.g. ``min_confidence``) are
+ * preserved when updating ``validation_rules``.
  *
- * Also reorders `aliasing.config.data.aliasing_rules` using the **same composition edges** as validation
- * (`sequence` / `parallel_group` between `kind: "aliasing"` nodes; not plain `data` edges).
+ * **Aliasing transforms** — ``extraction_rules[].aliasing_pipeline`` is written from extraction →
+ * aliasing **data** edges and composition edges among ``kind: "aliasing"`` nodes (not from prior YAML).
  *
- * Writes `key_extraction.config.data.extraction_rules[].aliasing_pipeline` from **data** edges
- * (extraction → first `kind: "aliasing"` node(s)) plus composition edges among aliasing nodes — the
- * tag-aliasing engine routes transforms per extraction rule using this field (not global `aliasing_rules` order).
+ * **Aliasing rule list order** — ``aliasing_rules[]`` / pathways order follows composition edges among
+ * aliasing nodes when present.
+ *
+ * **Associations** — top-level ``associations`` from source view → extraction **data** edges.
  */
 export function syncWorkflowScopeFromCanvas(
   canvas: WorkflowCanvasDocument,
   scopeDoc: Record<string, unknown>
 ): Record<string, unknown> {
-  const wired = applyCanvasMatchWiring(canvas, scopeDoc);
-  const withPipelines = applyExtractionAliasingPipelinesFromCanvas(canvas, wired);
-  return applyAliasingRulesOrderFromCanvas(canvas, withPipelines);
+  const expanded = expandCanvasForScopeSync(canvas);
+  const wired = applyCanvasMatchWiring(expanded, scopeDoc);
+  const withPipelines = applyExtractionAliasingPipelinesFromCanvas(expanded, wired);
+  const withOrder = applyAliasingRulesOrderFromCanvas(expanded, withPipelines);
+  return applySourceViewExtractionAssociationsFromCanvas(expanded, withOrder);
 }
 
 function isDataEdge(e: WorkflowCanvasEdge): boolean {
@@ -35,7 +44,7 @@ function isDataEdge(e: WorkflowCanvasEdge): boolean {
 }
 
 function ruleNameFromMatchNode(n: WorkflowCanvasNode): string | null {
-  const c = n.data.confidence_match_rule_name;
+  const c = n.data.validation_rule_name;
   return c != null && String(c).trim() ? String(c).trim() : null;
 }
 
@@ -101,33 +110,18 @@ function sortHeadIdsByRuleName(heads: string[], byId: Map<string, WorkflowCanvas
   });
 }
 
-function mergeValidation(
-  prev: unknown,
-  ruleIds: string[],
-  orderMode: "priority" | "sequential"
-): JsonObject {
-  const base =
-    prev !== null && typeof prev === "object" && !Array.isArray(prev)
-      ? { ...(prev as Record<string, unknown>) }
-      : {};
-  if (orderMode === "priority" && ruleIds.length > 0) {
-    base.confidence_match_rules = [hierarchyConcurrent(ruleIds)];
-  } else if (ruleIds.length > 1) {
-    base.confidence_match_rules = [hierarchyOrdered(ruleIds)];
-  } else {
-    base.confidence_match_rules = ruleIds;
-  }
-  return base as JsonObject;
+/** Per-rule / per–source-view: ``validation_rules`` come only from match nodes wired on the canvas. */
+function validationRulesFromCanvasOnly(steps: unknown[]): JsonObject {
+  return { validation_rules: steps } as JsonObject;
 }
 
-/** Writes a hierarchical `confidence_match_rules` list (strings + `hierarchy` groups). */
-function mergeValidationNested(prev: unknown, steps: unknown[]): JsonObject {
-  const base =
+/** Global ``key_extraction.config.data.validation`` / ``aliasing.config.data.validation``: keep non–``validation_rules`` keys (e.g. thresholds), replace rules from canvas. */
+function validationRulesFromCanvasPreserveMeta(prev: unknown, steps: unknown[]): JsonObject {
+  const o =
     prev !== null && typeof prev === "object" && !Array.isArray(prev)
       ? { ...(prev as Record<string, unknown>) }
       : {};
-  base.confidence_match_rules = steps;
-  return base as JsonObject;
+  return { ...o, validation_rules: steps } as JsonObject;
 }
 
 type ChainTargetAccept = (n: WorkflowCanvasNode | undefined) => boolean;
@@ -539,8 +533,8 @@ function patchAliasingRulesArrayOrder(
   if (!config || typeof config !== "object" || Array.isArray(config)) return doc;
   const data = config.data as Record<string, unknown> | undefined;
   if (!data || typeof data !== "object" || Array.isArray(data)) return doc;
-  const rules = data.aliasing_rules;
-  if (!Array.isArray(rules)) return doc;
+  const rules = getAliasingTransformRuleRows(data);
+  if (!Array.isArray(rules) || rules.length === 0) return doc;
 
   const byName = new Map<string, unknown>();
   for (const r of rules) {
@@ -570,19 +564,7 @@ function patchAliasingRulesArrayOrder(
     nextRules.push(r);
   }
 
-  return {
-    ...doc,
-    aliasing: {
-      ...al,
-      config: {
-        ...config,
-        data: {
-          ...data,
-          aliasing_rules: nextRules,
-        },
-      },
-    },
-  };
+  return replaceAliasingTransformRulesInDoc(doc, nextRules);
 }
 
 function applyAliasingRulesOrderFromCanvas(
@@ -683,64 +665,6 @@ function buildMatchNodeAliasingRulesFromDataEdges(
   return m;
 }
 
-function buildMatchNodeSourceViewIndicesFromDataEdges(
-  canvas: WorkflowCanvasDocument,
-  byId: Map<string, WorkflowCanvasNode>
-): Map<string, Set<number>> {
-  const m = new Map<string, Set<number>>();
-  for (const e of canvas.edges) {
-    if (!isDataEdge(e)) continue;
-    const src = byId.get(e.source);
-    const tgt = byId.get(e.target);
-    if (!src || src.kind !== "source_view") continue;
-    if (!tgt || tgt.kind !== "match_validation_source_view") continue;
-    const idx = refNum(src.data.ref, "source_view_index");
-    if (idx === undefined || !Number.isFinite(idx) || idx < 0) continue;
-    const i = Math.floor(idx);
-    let set = m.get(tgt.id);
-    if (!set) {
-      set = new Set<number>();
-      m.set(tgt.id, set);
-    }
-    set.add(i);
-  }
-  return m;
-}
-
-function propagateSourceViewIndexInferenceAlongChains(
-  canvas: WorkflowCanvasDocument,
-  byId: Map<string, WorkflowCanvasNode>,
-  seed: Map<string, Set<number>>
-): Map<string, Set<number>> {
-  const M = new Map<string, Set<number>>();
-  for (const [id, s] of seed) M.set(id, new Set(s));
-
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const e of canvas.edges) {
-      if (edgeCompositionKind(e) == null) continue;
-      const srcNode = byId.get(e.source);
-      const tgtNode = byId.get(e.target);
-      if (!srcNode || !tgtNode) continue;
-      if (srcNode.kind !== "match_validation_source_view") continue;
-      if (tgtNode.kind !== "match_validation_source_view") continue;
-
-      const from = M.get(e.source);
-      if (!from || from.size === 0) continue;
-      let to = M.get(e.target);
-      if (!to) {
-        to = new Set<number>();
-        M.set(e.target, to);
-      }
-      const before = to.size;
-      for (const r of from) to.add(r);
-      if (to.size > before) changed = true;
-    }
-  }
-  return M;
-}
-
 function extractionPerRuleHeadAcceptsTarget(
   target: WorkflowCanvasNode,
   ruleName: string,
@@ -783,26 +707,6 @@ function aliasingPerRuleHeadAcceptsTarget(
     if (Array.isArray(names)) return names.map(String).includes(ruleName);
   }
   return Boolean(inferredAliasingRules.get(target.id)?.has(ruleName));
-}
-
-function sourceViewNodeAppliesToIndex(node: WorkflowCanvasNode, idx: number): boolean {
-  if (node.kind !== "match_validation_source_view") return false;
-  const r = node.data.ref;
-  if (refNum(r, "source_view_index") === idx) return true;
-  if (refBool(r, "shared_source_view_validation_chain")) {
-    const indices = (r as Record<string, unknown> | undefined)?.source_view_indices;
-    if (Array.isArray(indices)) return (indices as number[]).includes(idx);
-  }
-  return false;
-}
-
-function sourceViewHeadAcceptsTarget(
-  target: WorkflowCanvasNode,
-  idx: number,
-  inferredSourceViewIndices: Map<string, Set<number>>
-): boolean {
-  if (sourceViewNodeAppliesToIndex(target, idx)) return true;
-  return Boolean(inferredSourceViewIndices.get(target.id)?.has(idx));
 }
 
 function patchExtractionRuleValidation(
@@ -853,8 +757,8 @@ function patchAliasingRuleValidation(
   if (!config || typeof config !== "object" || Array.isArray(config)) return doc;
   const data = config.data as Record<string, unknown> | undefined;
   if (!data || typeof data !== "object" || Array.isArray(data)) return doc;
-  const rules = data.aliasing_rules;
-  if (!Array.isArray(rules)) return doc;
+  const rules = getAliasingTransformRuleRows(data);
+  if (!Array.isArray(rules) || rules.length === 0) return doc;
   let found = false;
   const nextRules = rules.map((r) => {
     if (!r || typeof r !== "object" || Array.isArray(r)) return r;
@@ -864,19 +768,7 @@ function patchAliasingRuleValidation(
     return { ...row, validation };
   });
   if (!found) return doc;
-  return {
-    ...doc,
-    aliasing: {
-      ...al,
-      config: {
-        ...config,
-        data: {
-          ...data,
-          aliasing_rules: nextRules,
-        },
-      },
-    },
-  };
+  return replaceAliasingTransformRulesInDoc(doc, nextRules);
 }
 
 function patchKeyExtractionDataValidation(doc: Record<string, unknown>, validation: JsonObject): Record<string, unknown> {
@@ -923,21 +815,6 @@ function patchAliasingDataValidation(doc: Record<string, unknown>, validation: J
   };
 }
 
-function patchSourceViewValidation(
-  doc: Record<string, unknown>,
-  index: number,
-  validation: JsonObject
-): Record<string, unknown> {
-  const svs = doc.source_views;
-  if (!Array.isArray(svs) || index < 0 || index >= svs.length) return doc;
-  const nextSvs = svs.map((v, i) => {
-    if (i !== index) return v;
-    if (!v || typeof v !== "object" || Array.isArray(v)) return { validation };
-    return { ...(v as Record<string, unknown>), validation };
-  });
-  return { ...doc, source_views: nextSvs };
-}
-
 function refStr(ref: unknown, key: string): string | undefined {
   if (!ref || typeof ref !== "object" || Array.isArray(ref)) return undefined;
   const v = (ref as Record<string, unknown>)[key];
@@ -947,14 +824,6 @@ function refStr(ref: unknown, key: string): string | undefined {
 function refBool(ref: unknown, key: string): boolean {
   if (!ref || typeof ref !== "object" || Array.isArray(ref)) return false;
   return Boolean((ref as Record<string, unknown>)[key]);
-}
-
-function refNum(ref: unknown, key: string): number | undefined {
-  if (!ref || typeof ref !== "object" || Array.isArray(ref)) return undefined;
-  const v = (ref as Record<string, unknown>)[key];
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string" && v.trim() && !Number.isNaN(Number(v))) return Number(v);
-  return undefined;
 }
 
 function applyCanvasMatchWiring(
@@ -977,11 +846,6 @@ function applyCanvasMatchWiring(
     "match_validation_aliasing",
     (n) => refBool(n.data.ref, "aliasing_global_validation")
   );
-  const inferredSourceViewIndices = propagateSourceViewIndexInferenceAlongChains(
-    canvas,
-    byId,
-    buildMatchNodeSourceViewIndicesFromDataEdges(canvas, byId)
-  );
 
   let doc: Record<string, unknown> = { ...scopeDoc };
 
@@ -990,26 +854,6 @@ function applyCanvasMatchWiring(
     if (n.kind !== "extraction") continue;
     const ruleName = refStr(n.data.ref, "extraction_rule_name");
     if (!ruleName) continue;
-
-    const hasLegacyNode = canvas.nodes.some(
-      (cn) =>
-        cn.kind === "match_validation_extraction" &&
-        !refBool(cn.data.ref, "extraction_global_validation") &&
-        refStr(cn.data.ref, "extraction_rule_name") === ruleName
-    );
-    const hasSharedNode = canvas.nodes.some((cn) => {
-      if (cn.kind !== "match_validation_extraction" || refBool(cn.data.ref, "extraction_global_validation"))
-        return false;
-      if (!refBool(cn.data.ref, "shared_extraction_validation_chain")) return false;
-      const names = (cn.data.ref as Record<string, unknown> | undefined)?.extraction_rule_names;
-      return Array.isArray(names) && names.map(String).includes(ruleName);
-    });
-    const hasDataEdgeToMatch = (outgoing.get(n.id) ?? []).some((e) => {
-      if (!isDataEdge(e)) return false;
-      const t = byId.get(e.target);
-      return Boolean(t && extractionDataEdgeHeadAcceptsTarget(t, ruleName, inferredExtractionRules));
-    });
-    if (!hasLegacyNode && !hasSharedNode && !hasDataEdgeToMatch) continue;
 
     const heads: string[] = [];
     for (const e of outgoing.get(n.id) ?? []) {
@@ -1020,9 +864,8 @@ function applyCanvasMatchWiring(
     }
     sortHeadIdsByRuleName(heads, byId);
 
-    const prevRow = findExtractionRule(doc, ruleName);
     if (heads.length === 0) {
-      doc = patchExtractionRuleValidation(doc, ruleName, mergeValidation(prevRow?.validation, [], "sequential"));
+      doc = patchExtractionRuleValidation(doc, ruleName, validationRulesFromCanvasOnly([]));
     } else {
       const acceptExtraction: ChainTargetAccept = (tn) =>
         Boolean(
@@ -1043,7 +886,7 @@ function applyCanvasMatchWiring(
         const one = shapeMatchStepsLinearOne(raw);
         if (one !== null) topSteps.push(one);
       }
-      doc = patchExtractionRuleValidation(doc, ruleName, mergeValidationNested(prevRow?.validation, topSteps));
+      doc = patchExtractionRuleValidation(doc, ruleName, validationRulesFromCanvasOnly(topSteps));
     }
   }
 
@@ -1084,66 +927,7 @@ function applyCanvasMatchWiring(
       const ke = doc.key_extraction as Record<string, unknown> | undefined;
       const data = ke?.config as Record<string, unknown> | undefined;
       const d = data?.data as Record<string, unknown> | undefined;
-      doc = patchKeyExtractionDataValidation(doc, mergeValidationNested(d?.validation, steps));
-    }
-  }
-
-  // —— Per source view ——
-  for (const n of canvas.nodes) {
-    if (n.kind !== "source_view") continue;
-    const ref = n.data.ref;
-    const svIndex = refNum(ref, "source_view_index");
-    if (svIndex === undefined || svIndex < 0 || !Number.isFinite(svIndex)) continue;
-    const idx = Math.floor(svIndex);
-
-    const hasSvLegacy = canvas.nodes.some(
-      (cn) =>
-        cn.kind === "match_validation_source_view" && refNum(cn.data.ref, "source_view_index") === idx
-    );
-    const hasSvShared = canvas.nodes.some((cn) => {
-      if (cn.kind !== "match_validation_source_view") return false;
-      if (!refBool(cn.data.ref, "shared_source_view_validation_chain")) return false;
-      const indices = (cn.data.ref as Record<string, unknown> | undefined)?.source_view_indices;
-      return Array.isArray(indices) && (indices as number[]).includes(idx);
-    });
-    const hasSvData = (outgoing.get(n.id) ?? []).some((e) => {
-      if (!isDataEdge(e)) return false;
-      const t = byId.get(e.target);
-      return Boolean(t && sourceViewHeadAcceptsTarget(t, idx, inferredSourceViewIndices));
-    });
-    if (!hasSvLegacy && !hasSvShared && !hasSvData) continue;
-
-    const heads: string[] = [];
-    for (const e of outgoing.get(n.id) ?? []) {
-      if (!isDataEdge(e)) continue;
-      const t = byId.get(e.target);
-      if (!t || !sourceViewHeadAcceptsTarget(t, idx, inferredSourceViewIndices)) continue;
-      heads.push(t.id);
-    }
-    sortHeadIdsByRuleName(heads, byId);
-
-    const svs = doc.source_views;
-    const prevSv =
-      Array.isArray(svs) && idx < svs.length && svs[idx] && typeof svs[idx] === "object"
-        ? (svs[idx] as Record<string, unknown>)
-        : undefined;
-
-    if (heads.length === 0) {
-      doc = patchSourceViewValidation(doc, idx, mergeValidation(prevSv?.validation, [], "sequential"));
-    } else {
-      const acceptSv: ChainTargetAccept = (tn) =>
-        Boolean(
-          tn &&
-            tn.kind === "match_validation_source_view" &&
-            sourceViewHeadAcceptsTarget(tn, idx, inferredSourceViewIndices)
-        );
-      const topSteps: unknown[] = [];
-      for (const hid of heads) {
-        const raw = buildMatchTopLevelSteps(hid, byId, outgoing, acceptSv);
-        const one = shapeMatchStepsLinearOne(raw);
-        if (one !== null) topSteps.push(one);
-      }
-      doc = patchSourceViewValidation(doc, idx, mergeValidationNested(prevSv?.validation, topSteps));
+      doc = patchKeyExtractionDataValidation(doc, validationRulesFromCanvasPreserveMeta(d?.validation, steps));
     }
   }
 
@@ -1152,26 +936,6 @@ function applyCanvasMatchWiring(
     if (n.kind !== "aliasing") continue;
     const ruleName = refStr(n.data.ref, "aliasing_rule_name");
     if (!ruleName) continue;
-
-    const hasAlLegacy = canvas.nodes.some(
-      (cn) =>
-        cn.kind === "match_validation_aliasing" &&
-        !refBool(cn.data.ref, "aliasing_global_validation") &&
-        refStr(cn.data.ref, "aliasing_rule_name") === ruleName
-    );
-    const hasAlShared = canvas.nodes.some((cn) => {
-      if (cn.kind !== "match_validation_aliasing" || refBool(cn.data.ref, "aliasing_global_validation"))
-        return false;
-      if (!refBool(cn.data.ref, "shared_aliasing_validation_chain")) return false;
-      const names = (cn.data.ref as Record<string, unknown> | undefined)?.aliasing_rule_names;
-      return Array.isArray(names) && names.map(String).includes(ruleName);
-    });
-    const hasAlData = (outgoing.get(n.id) ?? []).some((e) => {
-      if (!isDataEdge(e)) return false;
-      const t = byId.get(e.target);
-      return Boolean(t && aliasingPerRuleHeadAcceptsTarget(t, ruleName, inferredAliasingRules));
-    });
-    if (!hasAlLegacy && !hasAlShared && !hasAlData) continue;
 
     const heads: string[] = [];
     for (const e of outgoing.get(n.id) ?? []) {
@@ -1182,9 +946,8 @@ function applyCanvasMatchWiring(
     }
     sortHeadIdsByRuleName(heads, byId);
 
-    const prevRow = findAliasingRule(doc, ruleName);
     if (heads.length === 0) {
-      doc = patchAliasingRuleValidation(doc, ruleName, mergeValidation(prevRow?.validation, [], "sequential"));
+      doc = patchAliasingRuleValidation(doc, ruleName, validationRulesFromCanvasOnly([]));
     } else {
       const acceptAl: ChainTargetAccept = (tn) =>
         Boolean(tn && aliasingPerRuleHeadAcceptsTarget(tn, ruleName, inferredAliasingRules));
@@ -1194,7 +957,7 @@ function applyCanvasMatchWiring(
         const one = shapeMatchStepsLinearOne(raw);
         if (one !== null) topSteps.push(one);
       }
-      doc = patchAliasingRuleValidation(doc, ruleName, mergeValidationNested(prevRow?.validation, topSteps));
+      doc = patchAliasingRuleValidation(doc, ruleName, validationRulesFromCanvasOnly(topSteps));
     }
   }
 
@@ -1235,43 +998,9 @@ function applyCanvasMatchWiring(
       const al = doc.aliasing as Record<string, unknown> | undefined;
       const data = al?.config as Record<string, unknown> | undefined;
       const d = data?.data as Record<string, unknown> | undefined;
-      doc = patchAliasingDataValidation(doc, mergeValidationNested(d?.validation, steps));
+      doc = patchAliasingDataValidation(doc, validationRulesFromCanvasPreserveMeta(d?.validation, steps));
     }
   }
 
   return doc;
-}
-
-function findExtractionRule(
-  doc: Record<string, unknown>,
-  ruleName: string
-): Record<string, unknown> | undefined {
-  const ke = doc.key_extraction as Record<string, unknown> | undefined;
-  const data = ke?.config as Record<string, unknown> | undefined;
-  const d = data?.data as Record<string, unknown> | undefined;
-  const rules = d?.extraction_rules;
-  if (!Array.isArray(rules)) return undefined;
-  for (const r of rules) {
-    if (!r || typeof r !== "object" || Array.isArray(r)) continue;
-    const row = r as Record<string, unknown>;
-    if (String(row.name ?? "").trim() === ruleName) return row;
-  }
-  return undefined;
-}
-
-function findAliasingRule(
-  doc: Record<string, unknown>,
-  ruleName: string
-): Record<string, unknown> | undefined {
-  const al = doc.aliasing as Record<string, unknown> | undefined;
-  const data = al?.config as Record<string, unknown> | undefined;
-  const d = data?.data as Record<string, unknown> | undefined;
-  const rules = d?.aliasing_rules;
-  if (!Array.isArray(rules)) return undefined;
-  for (const r of rules) {
-    if (!r || typeof r !== "object" || Array.isArray(r)) continue;
-    const row = r as Record<string, unknown>;
-    if (String(row.name ?? "").trim() === ruleName) return row;
-  }
-  return undefined;
 }

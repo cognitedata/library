@@ -38,7 +38,3 @@ aliasing_scope_hierarchy:
         - id: COOLING_SYS
           name: Cooling System
           description: Cooling system scope leaf
-  - id: CLK
-    name: Clear Lake
-    description: ''
-    locations: []

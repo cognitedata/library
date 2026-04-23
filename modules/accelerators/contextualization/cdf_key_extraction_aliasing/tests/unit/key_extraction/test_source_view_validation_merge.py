@@ -1,4 +1,4 @@
-"""Tests for merging source_views[].validation with global validation in KeyExtractionEngine."""
+"""Tests that ``source_views[].validation`` is ignored by KeyExtractionEngine (global / rule validation only)."""
 
 import sys
 import unittest
@@ -10,6 +10,14 @@ sys.path.insert(0, str(project_root))
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
     KeyExtractionEngine,
 )
+
+_ASSOC_PT = [
+    {
+        "kind": "source_view_to_extraction",
+        "source_view_index": 0,
+        "extraction_rule_name": "pt",
+    }
+]
 
 
 def _stamped_entity(
@@ -30,7 +38,7 @@ def _stamped_entity(
     }
 
 
-class TestSourceViewValidationMerge(unittest.TestCase):
+class TestSourceViewValidationIgnored(unittest.TestCase):
     def _passthrough_rule(self, entity_types):
         return {
             "name": "pt",
@@ -54,10 +62,11 @@ class TestSourceViewValidationMerge(unittest.TestCase):
 
     def test_no_source_views_uses_global_only(self):
         cfg = {
+            "associations": list(_ASSOC_PT),
             "extraction_rules": [self._passthrough_rule(["file"])],
             "validation": {
                 "min_confidence": 0.1,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "penalty",
                         "priority": 100,
@@ -70,11 +79,11 @@ class TestSourceViewValidationMerge(unittest.TestCase):
         engine = KeyExtractionEngine(cfg)
         self.assertEqual(engine._source_views, [])
         ent = _stamped_entity(name="x.pdf")
-        res = engine.extract_keys(ent, "file")
+        res = engine.extract_keys(ent, "file", source_view_index=0)
         self.assertEqual(len(res.candidate_keys), 1)
         self.assertAlmostEqual(res.candidate_keys[0].confidence, 0.5, places=4)
 
-    def test_view_validation_merges_confidence_rules(self):
+    def test_source_view_validation_rules_do_not_merge(self):
         global_penalty = {
             "name": "global_penalty",
             "priority": 100,
@@ -82,10 +91,11 @@ class TestSourceViewValidationMerge(unittest.TestCase):
             "confidence_modifier": {"mode": "offset", "value": -0.5},
         }
         cfg = {
+            "associations": list(_ASSOC_PT),
             "extraction_rules": [self._passthrough_rule(["file"])],
             "validation": {
                 "min_confidence": 0.1,
-                "confidence_match_rules": [global_penalty],
+                "validation_rules": [global_penalty],
             },
             "source_views": [
                 {
@@ -94,7 +104,7 @@ class TestSourceViewValidationMerge(unittest.TestCase):
                     "view_version": "v1",
                     "entity_type": "file",
                     "validation": {
-                        "confidence_match_rules": [
+                        "validation_rules": [
                             {
                                 "name": "view_first",
                                 "priority": 10,
@@ -108,15 +118,15 @@ class TestSourceViewValidationMerge(unittest.TestCase):
         }
         engine = KeyExtractionEngine(cfg)
         ent = _stamped_entity(name="doc.pdf")
-        res = engine.extract_keys(ent, "file")
+        res = engine.extract_keys(ent, "file", source_view_index=0)
         self.assertEqual(len(res.candidate_keys), 1)
-        # Sorted by priority: view -0.1 then global -0.5; both .* match -> 1.0 - 0.1 - 0.5 = 0.4
-        self.assertAlmostEqual(res.candidate_keys[0].confidence, 0.4, places=4)
+        self.assertAlmostEqual(res.candidate_keys[0].confidence, 0.5, places=4)
 
-    def test_min_confidence_override_on_view(self):
+    def test_source_view_min_confidence_is_ignored(self):
         cfg = {
+            "associations": list(_ASSOC_PT),
             "extraction_rules": [self._passthrough_rule(["asset"])],
-            "validation": {"min_confidence": 0.95, "confidence_match_rules": []},
+            "validation": {"min_confidence": 0.95, "validation_rules": []},
             "source_views": [
                 {
                     "view_external_id": "CogniteAsset",
@@ -133,14 +143,15 @@ class TestSourceViewValidationMerge(unittest.TestCase):
             entity_type="asset",
             view_external_id="CogniteAsset",
         )
-        res = engine.extract_keys(ent, "asset")
+        res = engine.extract_keys(ent, "asset", source_view_index=0)
         self.assertEqual(len(res.candidate_keys), 1)
         self.assertAlmostEqual(res.candidate_keys[0].confidence, 1.0)
 
-    def test_first_source_view_wins_when_both_match(self):
+    def test_multiple_source_view_rows_validation_ignored(self):
         cfg = {
+            "associations": list(_ASSOC_PT),
             "extraction_rules": [self._passthrough_rule(["asset"])],
-            "validation": {"min_confidence": 0.1, "confidence_match_rules": []},
+            "validation": {"min_confidence": 0.1, "validation_rules": []},
             "source_views": [
                 {
                     "view_external_id": "CogniteAsset",
@@ -164,17 +175,18 @@ class TestSourceViewValidationMerge(unittest.TestCase):
             entity_type="asset",
             view_external_id="CogniteAsset",
         )
-        res = engine.extract_keys(ent, "asset")
-        # First matching source_views row wins; min_confidence 1.01 drops the key.
-        self.assertEqual(len(res.candidate_keys), 0)
+        res = engine.extract_keys(ent, "asset", source_view_index=0)
+        self.assertEqual(len(res.candidate_keys), 1)
+        self.assertAlmostEqual(res.candidate_keys[0].confidence, 1.0)
 
     def test_file_without_per_view_rules_no_global_isa_penalty(self):
         cfg = {
+            "associations": list(_ASSOC_PT),
             "extraction_rules": [self._passthrough_rule(["file"])],
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 1000,
-                "confidence_match_rules": [],
+                "validation_rules": [],
             },
             "source_views": [
                 {
@@ -187,11 +199,11 @@ class TestSourceViewValidationMerge(unittest.TestCase):
         }
         engine = KeyExtractionEngine(cfg)
         ent = _stamped_entity(name="drawing-100.pdf")
-        res = engine.extract_keys(ent, "file")
+        res = engine.extract_keys(ent, "file", source_view_index=0)
         self.assertEqual(len(res.candidate_keys), 1)
         self.assertAlmostEqual(res.candidate_keys[0].confidence, 1.0, places=4)
 
-    def test_view_empty_confidence_match_rules_keeps_global(self):
+    def test_view_empty_validation_rules_still_uses_global(self):
         penalty = {
             "name": "penalty",
             "priority": 100,
@@ -199,10 +211,11 @@ class TestSourceViewValidationMerge(unittest.TestCase):
             "confidence_modifier": {"mode": "offset", "value": -0.4},
         }
         cfg = {
+            "associations": list(_ASSOC_PT),
             "extraction_rules": [self._passthrough_rule(["file"])],
             "validation": {
                 "min_confidence": 0.1,
-                "confidence_match_rules": [penalty],
+                "validation_rules": [penalty],
             },
             "source_views": [
                 {
@@ -210,13 +223,13 @@ class TestSourceViewValidationMerge(unittest.TestCase):
                     "view_space": "cdf_cdm",
                     "view_version": "v1",
                     "entity_type": "file",
-                    "validation": {"confidence_match_rules": []},
+                    "validation": {"validation_rules": []},
                 }
             ],
         }
         engine = KeyExtractionEngine(cfg)
         ent = _stamped_entity(name="a.pdf")
-        res = engine.extract_keys(ent, "file")
+        res = engine.extract_keys(ent, "file", source_view_index=0)
         self.assertAlmostEqual(res.candidate_keys[0].confidence, 0.6, places=4)
 
 

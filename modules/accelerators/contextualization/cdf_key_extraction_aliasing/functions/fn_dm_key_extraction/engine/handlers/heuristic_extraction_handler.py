@@ -205,13 +205,9 @@ class HeuristicExtractionHandler(ExtractionMethodHandler):
 
         return keys
 
-    def _rule_applies_to_entity_types(self, rule: Any, context: Dict[str, Any]) -> bool:
-        et = _rule_attr(rule, "entity_types") or []
-        if not et:
-            return True
-        ctx_et = (context.get("entity_type") or "").strip().lower()
-        allowed = {str(x).strip().lower() for x in et}
-        return ctx_et in allowed
+    def _rule_applies_to_entity_types(self, rule: Any, _context: Dict[str, Any]) -> bool:
+        """Rule applicability is graph-driven (associations); ``entity_types`` on rules is ignored."""
+        return True
 
     def _candidates_for_text(self, text: str, weights: Dict[str, float]) -> List[Tuple[str, float]]:
         pairs: List[Tuple[str, str]] = []

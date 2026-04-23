@@ -40,6 +40,13 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 )
 
 
+def _assoc_rows(*rule_names: str, sv: int = 0):
+    return [
+        {"kind": "source_view_to_extraction", "source_view_index": sv, "extraction_rule_name": n}
+        for n in rule_names
+    ]
+
+
 class TestKeyExtractionEngineBasics(unittest.TestCase):
     """Test basic KeyExtractionEngine functionality."""
 
@@ -68,6 +75,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
                 }
             ],
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
+            "associations": _assoc_rows("basic_pump_tag"),
         }
 
     def test_engine_initialization(self):
@@ -82,7 +90,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         engine = KeyExtractionEngine(self.minimal_config)
         asset = get_simple_asset(flatten=True)  # Use flattened version for engine
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         self.assertIsInstance(result, ExtractionResult)
         self.assertEqual(result.entity_id, asset["externalId"])
@@ -92,6 +100,19 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         # Verify extracted tag
         extracted_values = [k.value for k in result.candidate_keys]
         self.assertIn("P-101", extracted_values)
+
+    def test_extract_without_associations_runs_rules(self):
+        """Scope without canvas ``associations`` must still extract keys (local / legacy YAML)."""
+        config = {k: v for k, v in self.minimal_config.items() if k != "associations"}
+        self.assertNotIn("associations", config)
+        engine = KeyExtractionEngine(config)
+        asset = get_simple_asset(flatten=True)
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
+        self.assertGreater(
+            len(result.candidate_keys),
+            0,
+            "empty associations should fall back to all enabled rules, not skip extraction",
+        )
 
     def test_extract_with_description(self):
         """Test extraction from description field."""
@@ -119,7 +140,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
             "description": "Feed pump P-201 connected to tank T-301",
         }
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
         extracted_values = [k.value for k in result.candidate_keys]
 
         # Should extract P-201 from description
@@ -134,7 +155,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         engine = KeyExtractionEngine(config)
         asset = get_simple_asset(flatten=True)  # Use flattened version for engine
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # No extraction should occur
         self.assertEqual(len(result.candidate_keys), 0)
@@ -162,6 +183,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
     def test_trim_passthrough_regex_handler(self):
         """regex_handler without regex emits trimmed field text as one candidate key."""
         passthrough_config = {
+            "associations": _assoc_rows("name_as_key"),
             "extraction_rules": [
                 {
                     "rule_id": "name_as_key",
@@ -182,7 +204,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
         }
         engine = KeyExtractionEngine(passthrough_config)
         asset = {"id": "a1", "name": "P-10001-A", "description": "Main pump"}
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         self.assertIsInstance(result, ExtractionResult)
         self.assertEqual(len(result.candidate_keys), 1)
@@ -197,6 +219,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
     def test_extraction_with_instrument_tags(self):
         """Test extraction of ISA standard instrument tags."""
         config = {
+            "associations": _assoc_rows("instrument_tags"),
             "extraction_rules": [
                 {
                     "rule_id": "instrument_tags",
@@ -228,7 +251,7 @@ class TestKeyExtractionEngineBasics(unittest.TestCase):
             "description": "Main feed pump controlled by FIC-2001 and monitored by LIC-3001",
         }
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # Should extract instrument tags
         extracted_values = [k.value for k in result.foreign_key_references]
@@ -242,6 +265,7 @@ class TestKeyExtractionWithCDFAssets(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.config = {
+            "associations": _assoc_rows("pump_tags", "instrument_tags"),
             "extraction_rules": [
                 {
                     "rule_id": "pump_tags",
@@ -294,7 +318,7 @@ class TestKeyExtractionWithCDFAssets(unittest.TestCase):
 
         results = []
         for asset in assets:
-            result = engine.extract_keys(asset, "asset")
+            result = engine.extract_keys(asset, "asset", source_view_index=0)
             results.append(result)
 
         # Verify all assets processed
@@ -315,6 +339,7 @@ class TestExtractionValidation(unittest.TestCase):
     def test_min_confidence_filtering(self):
         """Test that low confidence extractions are filtered out."""
         config = {
+            "associations": _assoc_rows("low_confidence_test"),
             "extraction_rules": [
                 {
                     "rule_id": "low_confidence_test",
@@ -341,7 +366,7 @@ class TestExtractionValidation(unittest.TestCase):
         engine = KeyExtractionEngine(config)
         asset = {"externalId": "ASSET-TEST", "name": "P-101 Main Pump"}
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # Should have filtered out low confidence matches
         for key in result.candidate_keys:
@@ -350,6 +375,7 @@ class TestExtractionValidation(unittest.TestCase):
     def test_max_keys_per_type_limitation(self):
         """Test max_keys_per_type validation."""
         config = {
+            "associations": _assoc_rows("multiple_tags"),
             "extraction_rules": [
                 {
                     "rule_id": "multiple_tags",
@@ -383,7 +409,7 @@ class TestExtractionValidation(unittest.TestCase):
             "description": "Pump P-101, P-102, P-103, P-104, P-105 are connected",
         }
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # Should not exceed max_keys_per_type
         self.assertLessEqual(len(result.candidate_keys), 5)  # Allow some leniency
@@ -395,6 +421,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
     def test_empty_description(self):
         """Test extraction with empty description."""
         config = {
+            "associations": _assoc_rows("test_rule"),
             "extraction_rules": [
                 {
                     "rule_id": "test_rule",
@@ -425,7 +452,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
             "description": "",  # Empty description
         }
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # Should still extract from name
         self.assertGreater(len(result.candidate_keys), 0)
@@ -433,6 +460,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
     def test_missing_required_field(self):
         """Test handling of missing required fields."""
         config = {
+            "associations": _assoc_rows("test_rule"),
             "extraction_rules": [
                 {
                     "rule_id": "test_rule",
@@ -462,7 +490,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
             "description": "Has P-101 in description but no name",
         }
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # Should not extract since required field is missing
         self.assertEqual(len(result.candidate_keys), 0)
@@ -470,6 +498,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
     def test_special_characters(self):
         """Test extraction with special characters."""
         config = {
+            "associations": _assoc_rows("test_rule"),
             "extraction_rules": [
                 {
                     "rule_id": "test_rule",
@@ -496,7 +525,7 @@ class TestExtractionEdgeCases(unittest.TestCase):
         engine = KeyExtractionEngine(config)
         asset = {"externalId": "ASSET-001", "name": "P-101@#$%"}
 
-        result = engine.extract_keys(asset, "asset")
+        result = engine.extract_keys(asset, "asset", source_view_index=0)
 
         # Should extract P-101 despite special characters
         extracted_values = [k.value for k in result.candidate_keys]
@@ -583,6 +612,7 @@ class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
         # Force filtering for timeseries (default CDM scope sets timeseries: false).
         config = {
             "parameters": {"exclude_self_referencing_keys": True},
+            "associations": _assoc_rows("cand", "fk_same", "fk_other"),
             "extraction_rules": [
                 {
                     "rule_id": "cand",
@@ -646,6 +676,7 @@ class TestSelfReferencingForeignKeyFilter(unittest.TestCase):
                 "description": "See P-101",
             },
             "timeseries",
+            source_view_index=0,
         )
         self.assertIn("45-TT-92506", [k.value for k in result.candidate_keys])
         fk_vals = [k.value for k in result.foreign_key_references]
@@ -732,6 +763,7 @@ class TestFieldSelectionMultiEntity(unittest.TestCase):
 
     def test_field_selection_demo(self):
         sample_config = {
+            "associations": _assoc_rows("FIELD SELECTION DEMO"),
             "extraction_rules": [
                 {
                     "rule_id": "FIELD SELECTION DEMO",
@@ -780,7 +812,9 @@ class TestFieldSelectionMultiEntity(unittest.TestCase):
         engine = KeyExtractionEngine(sample_config)
         results: list[ExtractionResult] = []
         for entity in self.sample_assets:
-            results.append(engine.extract_keys(entity, entity.get("type", "unknown")))
+            results.append(
+                engine.extract_keys(entity, entity.get("type", "unknown"), source_view_index=0)
+            )
         self.assertGreater(
             sum(1 for r in results if len(r.candidate_keys) >= 1),
             0,

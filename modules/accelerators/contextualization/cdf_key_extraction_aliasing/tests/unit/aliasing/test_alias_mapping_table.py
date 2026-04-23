@@ -261,7 +261,7 @@ class TestAliasingEngineAliasMappingTable(unittest.TestCase):
             "validation": {
                 "max_aliases_per_tag": 50,
                 "min_confidence": 0.01,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "alias_shape_invalid",
                         "priority": 0,

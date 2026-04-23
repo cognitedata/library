@@ -9,9 +9,11 @@ export type PaletteDragPayload =
   | {
       kind: "structural";
       nodeKind:
-        | "extraction"
-        | "aliasing"
         | "source_view"
+        | "subflow"
+        | "subgraph"
+        | "writeback_raw"
+        | "writeback_data_modeling"
         | "match_validation_source_view"
         | "match_validation_extraction"
         | "match_validation_aliasing";
@@ -21,7 +23,7 @@ type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 type Props = {
   t: TFn;
-  /** Workflow scope YAML; used to list `confidence_match_rule_definitions` ids. */
+  /** Workflow scope YAML; used to list `validation_rule_definitions` ids. */
   scopeDocument: Record<string, unknown>;
 };
 
@@ -60,23 +62,46 @@ export function FlowPalette({ t, scopeDocument }: Props) {
           type="button"
           className="kea-btn kea-btn--sm"
           draggable
-          onDragStart={(e) => setPaletteDragData(e, { kind: "structural", nodeKind: "extraction" })}
+          onDragStart={(e) => setPaletteDragData(e, { kind: "structural", nodeKind: "subflow" })}
         >
-          {t("flow.structuralExtraction")}
+          {t("flow.structuralSubflow")}
         </button>
         <button
           type="button"
           className="kea-btn kea-btn--sm"
           draggable
-          onDragStart={(e) => setPaletteDragData(e, { kind: "structural", nodeKind: "aliasing" })}
+          onDragStart={(e) => setPaletteDragData(e, { kind: "structural", nodeKind: "subgraph" })}
         >
-          {t("flow.structuralAliasing")}
+          {t("flow.structuralSubgraph")}
         </button>
       </div>
-      <p className="kea-flow-palette__heading">{t("flow.paletteMatchDefinitions")}</p>
+      <p className="kea-flow-palette__heading">{t("flow.paletteWriteback")}</p>
+      <div className="kea-flow-palette__buttons">
+        <button
+          type="button"
+          className="kea-btn kea-btn--sm"
+          draggable
+          onDragStart={(e) =>
+            setPaletteDragData(e, { kind: "structural", nodeKind: "writeback_raw" })
+          }
+        >
+          {t("flow.structuralWritebackRaw")}
+        </button>
+        <button
+          type="button"
+          className="kea-btn kea-btn--sm"
+          draggable
+          onDragStart={(e) =>
+            setPaletteDragData(e, { kind: "structural", nodeKind: "writeback_data_modeling" })
+          }
+        >
+          {t("flow.structuralWritebackDataModeling")}
+        </button>
+      </div>
+      <p className="kea-flow-palette__heading">{t("flow.paletteValidationRuleDefinitions")}</p>
       {matchDefIds.length === 0 ? (
         <p className="kea-hint" style={{ fontSize: "0.8rem", margin: "0 0 0.75rem" }}>
-          {t("flow.paletteMatchDefinitionsEmpty")}
+          {t("flow.paletteValidationRuleDefinitionsEmpty")}
         </p>
       ) : (
         <ul className="kea-flow-palette__list kea-flow-palette__list--scroll">

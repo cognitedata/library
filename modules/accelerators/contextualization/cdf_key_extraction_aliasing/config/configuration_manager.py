@@ -80,7 +80,7 @@ class ValidationSettings:
 
     min_confidence: float = 0.5
     max_keys_per_type: int = 10
-    confidence_match_rules: List[Dict[str, Any]] = field(default_factory=list)
+    validation_rules: List[Dict[str, Any]] = field(default_factory=list)
     expression_match: Optional[str] = None
 
 
@@ -390,8 +390,10 @@ class ConfigurationManager:
         validation_settings = ValidationSettings(
             min_confidence=validation_data.get("min_confidence", 0.5),
             max_keys_per_type=validation_data.get("max_keys_per_type", 10),
-            confidence_match_rules=list(
-                validation_data.get("confidence_match_rules") or []
+            validation_rules=list(
+                validation_data.get("validation_rules")
+                or validation_data.get("confidence_match_rules")
+                or []
             ),
             expression_match=validation_data.get("expression_match"),
         )
@@ -434,7 +436,7 @@ class ConfigurationManager:
             "validation": {
                 "min_confidence": config.validation.min_confidence,
                 "max_keys_per_type": config.validation.max_keys_per_type,
-                "confidence_match_rules": config.validation.confidence_match_rules,
+                "validation_rules": config.validation.validation_rules,
                 **(
                     {"expression_match": config.validation.expression_match}
                     if config.validation.expression_match
@@ -576,7 +578,7 @@ class ConfigurationManager:
             "validation": {
                 "min_confidence": 0.5,
                 "max_keys_per_type": 10,
-                "confidence_match_rules": [],
+                "validation_rules": [],
             },
             "metadata": {
                 "version": "1.0.0",
@@ -614,7 +616,7 @@ def load_config_from_env() -> KeyExtractionConfig:
         "validation": {
             "min_confidence": float(os.getenv("VALIDATION_MIN_CONFIDENCE", "0.5")),
             "max_keys_per_type": int(os.getenv("VALIDATION_MAX_KEYS_PER_TYPE", "10")),
-            "confidence_match_rules": [],
+            "validation_rules": [],
         },
         "metadata": {
             "loaded_from": "environment_variables",

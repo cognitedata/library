@@ -7,7 +7,7 @@ import yaml
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import ViewId
 from cognite.client.data_classes.filters import Filter
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 from .utils.DataStructures import ExtractionType, FilterOperator, SourceFieldParameter
 from .utils.RegexMethodParameter import RegexOptions
@@ -292,7 +292,7 @@ class SourceViewConfig(TargetViewConfig):
         None,
         description=(
             "Optional validation overlay merged with global data.validation for entities "
-            "from this view (scalar overrides; confidence_match_rules concatenated then sorted)."
+            "from this view (scalar overrides; validation_rules concatenated then sorted)."
         ),
     )
     key_discovery_hash_property_paths: Optional[List[str]] = Field(
@@ -497,19 +497,20 @@ class ValidationConfig(BaseModel):
     expression_match: Optional[ExpressionMatchMode] = Field(
         None,
         description=(
-            "Default expression match mode for confidence_match_rules that omit expression_match "
+            "Default expression match mode for validation_rules that omit expression_match "
             "(search or fullmatch). If omitted, rules default to search."
         ),
     )
     regexp_match: Union[str, List[str], None] = Field(
         default=None,
         description=(
-            "Deprecated: prefer confidence_match_rules with expressions. If set, engine may still "
+            "Deprecated: prefer validation_rules with expressions. If set, engine may still "
             "accept config but post-processing should use rules only."
         ),
     )
-    confidence_match_rules: List[Any] = Field(
+    validation_rules: List[Any] = Field(
         default_factory=list,
+        validation_alias=AliasChoices("validation_rules", "confidence_match_rules"),
         description=(
             "Hierarchical pipeline: top-level list order is strict. Shorthand "
             "``{ rule_id: [ tail... ] }`` or "
@@ -587,7 +588,7 @@ class ExtractionRuleConfig(BaseModel):
     aliasing_pipeline: List[Any] = Field(
         default_factory=list,
         description=(
-            "Per-extraction-rule tag aliasing transform tree (same YAML shape as confidence_match_rules): "
+            "Per-extraction-rule tag aliasing transform tree (same YAML shape as validation_rules): "
             "ordered list, hierarchy ordered|concurrent, refs via aliasing_rule_definitions / sequences."
         ),
     )
@@ -650,6 +651,12 @@ class ExtractionRuleConfig(BaseModel):
 
 
 class ConfigData(BaseModel):
+    """Optional workflow ``associations`` (canvas-compiled source_view → extraction edges)."""
+
+    associations: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description="When non-empty, extraction rules run only for bound (source_view_index, extraction_rule_name) pairs.",
+    )
     source_view: Optional[SourceViewConfig] = Field(
         None,
         description="Single source view (legacy). Prefer source_views for multi-view scopes.",
@@ -662,7 +669,7 @@ class ConfigData(BaseModel):
     extraction_rules: List[ExtractionRuleConfig]
     validation: Optional[ValidationConfig] = Field(
         None,
-        description="Global validation (min_confidence, regexp_match, confidence_match_rules) merged in engine.",
+        description="Global validation (min_confidence, regexp_match, validation_rules) merged in engine.",
     )
 
     @model_validator(mode="after")

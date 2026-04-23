@@ -3,9 +3,9 @@ Shared confidence scoring for key extraction.
 
 Handler usage:
 - Field-rule regex: uses compute_confidence() for substring/token parity vs source text.
-- Trim-only field rows: confidence 1.0 before validation / confidence_match_rules.
+- Trim-only field rows: confidence 1.0 before validation / validation_rules.
 
-Post-extraction confidence: ``validation.confidence_match_rules`` in the engine
+Post-extraction confidence: ``validation.validation_rules`` in the engine
 (``_validate_extraction_result``) may set or offset confidence per key before
 ``min_confidence`` filtering.
 

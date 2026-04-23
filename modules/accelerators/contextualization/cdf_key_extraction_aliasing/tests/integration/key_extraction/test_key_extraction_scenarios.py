@@ -108,6 +108,18 @@ class TestRegexExtraction(unittest.TestCase):
         ]
 
         self.config = {
+            "associations": [
+                {
+                    "kind": "source_view_to_extraction",
+                    "source_view_index": 0,
+                    "extraction_rule_name": "isa_instrument_tag_extraction",
+                },
+                {
+                    "kind": "source_view_to_extraction",
+                    "source_view_index": 0,
+                    "extraction_rule_name": "pump_tag_extraction",
+                },
+            ],
             "extraction_rules": [
                 {
                     "rule_id": "isa_instrument_tag_extraction",
@@ -159,7 +171,7 @@ class TestRegexExtraction(unittest.TestCase):
 
         results = []
         for asset in self.sample_assets:
-            result = engine.extract_keys(asset, "asset")
+            result = engine.extract_keys(asset, "asset", source_view_index=0)
             results.append((asset, result))
 
         # Check all assets were processed
@@ -184,7 +196,7 @@ class TestRegexExtraction(unittest.TestCase):
         engine = KeyExtractionEngine(self.config)
 
         for asset in self.sample_assets:
-            result = engine.extract_keys(asset, "asset")
+            result = engine.extract_keys(asset, "asset", source_view_index=0)
             extracted_values = [k.value for k in result.candidate_keys]
 
             # The asset's own name should be extracted
@@ -200,7 +212,7 @@ class TestRegexExtraction(unittest.TestCase):
 
         # Test asset with unit prefix
         unit_asset = self.sample_assets[4]  # A-FIC-1001
-        result = engine.extract_keys(unit_asset, "asset")
+        result = engine.extract_keys(unit_asset, "asset", source_view_index=0)
 
         extracted_values = [k.value for k in result.candidate_keys]
 
@@ -209,7 +221,7 @@ class TestRegexExtraction(unittest.TestCase):
 
         # Test another unit-prefixed asset
         unit_asset2 = self.sample_assets[5]  # B-PIC-2001
-        result2 = engine.extract_keys(unit_asset2, "asset")
+        result2 = engine.extract_keys(unit_asset2, "asset", source_view_index=0)
         extracted_values2 = [k.value for k in result2.candidate_keys]
         self.assertIn("B-PIC-2001", extracted_values2)
 
@@ -265,6 +277,13 @@ class TestRegexInstrumentTagFromExternalId(unittest.TestCase):
         ]
 
         self.config = {
+            "associations": [
+                {
+                    "kind": "source_view_to_extraction",
+                    "source_view_index": 0,
+                    "extraction_rule_name": "instrument_tag_from_external_id",
+                }
+            ],
             "extraction_rules": [
                 {
                     "rule_id": "instrument_tag_from_external_id",
@@ -296,7 +315,7 @@ class TestRegexInstrumentTagFromExternalId(unittest.TestCase):
 
         results = []
         for ts in self.timeseries_records:
-            result = engine.extract_keys(ts, "timeseries")
+            result = engine.extract_keys(ts, "timeseries", source_view_index=0)
             results.append((ts, result))
 
         # Check all records were processed
@@ -320,7 +339,9 @@ class TestRegexInstrumentTagFromExternalId(unittest.TestCase):
         """Test that regex extracts tags matching [A-Z]{2,4}-dddd."""
         engine = KeyExtractionEngine(self.config)
 
-        result = engine.extract_keys(self.timeseries_records[0], "timeseries")
+        result = engine.extract_keys(
+            self.timeseries_records[0], "timeseries", source_view_index=0
+        )
 
         # Check that extracted tag matches pattern [A-Z]{2,4}-\d{4}
         for key in result.candidate_keys:

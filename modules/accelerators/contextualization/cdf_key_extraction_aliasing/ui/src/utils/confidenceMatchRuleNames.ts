@@ -1,8 +1,16 @@
 /**
- * Resolve `validation.confidence_match_rules` entries to rule ids for UI / canvas seeding.
+ * Resolve `validation.validation_rules` entries to rule ids for UI / canvas seeding.
  * Handles string refs, `{ ref }`, `{ name }`, `{ sequence: id }`, shorthand
  * `{ first_rule_id: [ tail... ] }`, and nested `{ hierarchy: { mode, children } }`.
  */
+
+function validationRulesArrayFromBlock(v: Record<string, unknown>): unknown[] | undefined {
+  const vr = v.validation_rules;
+  if (Array.isArray(vr)) return vr;
+  const legacy = v.confidence_match_rules;
+  if (Array.isArray(legacy)) return legacy;
+  return undefined;
+}
 
 const SHORTHAND_EXCLUDE_KEYS = new Set([
   "hierarchy",
@@ -63,7 +71,7 @@ function sequencesMap(scopeDoc: Record<string, unknown>): Record<string, unknown
 }
 
 /**
- * Expand a `confidence_match_rules` array using scope-level `confidence_match_rule_sequences`.
+ * Expand a `validation_rules` array using scope-level `confidence_match_rule_sequences`.
  * Walks `hierarchy` subtrees in order; returns leaf rule ids (deduped).
  */
 export function expandConfidenceMatchRulesList(raw: unknown[], scopeDoc: Record<string, unknown>): string[] {
@@ -183,7 +191,7 @@ export function confidenceMatchRulesStructureKey(
   scopeDoc: Record<string, unknown>
 ): string {
   if (!validation || typeof validation !== "object" || Array.isArray(validation)) return "";
-  const raw = (validation as Record<string, unknown>).confidence_match_rules;
+  const raw = validationRulesArrayFromBlock(validation as Record<string, unknown>);
   if (!Array.isArray(raw)) return "";
   try {
     return JSON.stringify(canonicalConfidenceMatchRulesTree(raw, scopeDoc));
@@ -198,7 +206,7 @@ export function resolveConfidenceMatchRuleNames(
   scopeDoc: Record<string, unknown>
 ): string[] {
   if (!validation || typeof validation !== "object" || Array.isArray(validation)) return [];
-  const raw = (validation as Record<string, unknown>).confidence_match_rules;
+  const raw = validationRulesArrayFromBlock(validation as Record<string, unknown>);
   if (!Array.isArray(raw)) return [];
   return expandConfidenceMatchRulesList(raw, scopeDoc);
 }

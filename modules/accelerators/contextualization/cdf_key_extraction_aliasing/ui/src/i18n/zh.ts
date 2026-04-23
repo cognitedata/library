@@ -138,7 +138,6 @@ export const zh: Messages = {
   "sourceViews.viewExternalId": "视图外部 ID",
   "sourceViews.viewSpace": "视图空间",
   "sourceViews.viewVersion": "视图版本",
-  "sourceViews.entityType": "实体类型",
   "sourceViews.batchSize": "批大小",
   "sourceViews.instanceSpace": "实例空间（可选）",
   "sourceViews.filters": "筛选",
@@ -168,10 +167,16 @@ export const zh: Messages = {
   "sourceViews.filterTargetProperty": "目标属性",
   "sourceViews.filterPropertyScope": "属性范围",
   "sourceViews.filterValues": "值（逗号分隔或单个值）",
-  "sourceViews.perViewValidationTitle": "验证（此源视图）",
-  "sourceViews.perViewValidationHint":
-    "叠加在 Key Discovery 的全局验证之上。confidence_match_rules 会追加；其他字段（如 min_confidence）在设置时会覆盖。使用「仅使用全局验证」可移除此覆盖层。",
-  "sourceViews.perViewValidationClear": "仅使用全局验证",
+  "sourceViews.cdfReloadSpaces": "重新加载空间",
+  "sourceViews.cdfReloadDataModels": "重新加载数据模型",
+  "sourceViews.cdfPickDataModel": "数据模型 (CDF)",
+  "sourceViews.cdfPickDataModelPlaceholder": "选择数据模型…",
+  "sourceViews.cdfPickDataModelHint":
+    "将视图空间设为该数据模型的空间。若模块默认中已设置 schema 空间，则仅列出该空间内的模型。",
+  "sourceViews.cdfReloadViews": "重新加载视图",
+  "sourceViews.cdfPickView": "从 CDF 选择视图",
+  "sourceViews.cdfPickPlaceholder": "选择视图…",
+  "sourceViews.cdfError": "无法从 CDF 加载",
   "keyExtraction.title": "键发现",
   "keyExtraction.externalId": "外部 ID",
   "keyExtraction.parameters": "参数",
@@ -181,7 +186,7 @@ export const zh: Messages = {
     "extraction_rules（fields[]、handler、field_results_mode 等）及除 validation 外的其他键 — 位于 key_extraction.config.data",
   "keyExtraction.validationYaml": "config.data.validation（YAML）",
   "keyExtraction.validationYamlHint":
-    "提取键的全局验证（min_confidence、max_keys_per_type、confidence_match_rules 等）。",
+    "提取键的全局验证（min_confidence、max_keys_per_type、validation_rules 等）。",
   "keyExtraction.advancedRulesYaml": "以 YAML 编辑规则与策略（高级）",
   "discoveryRules.fieldResultsModeInherit": "未设置（引擎默认 merge_all）",
   "discoveryRules.extraKeysPreserved": "config.data 中的其他键将保留：{keys}",
@@ -204,7 +209,7 @@ export const zh: Messages = {
   "discoveryRules.rule.description": "描述",
   "discoveryRules.rule.matchValidation": "Match validation (confidence rules)",
   "discoveryRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "discoveryRules.rule.entityTypesCsv": "实体类型（逗号分隔）",
   "discoveryRules.rule.scopeFiltersOtherYamlHint":
     "额外的 scope_filters 键（YAML 对象）— 与上方实体类型合并；仅实体类型时可省略或留空。",
@@ -284,7 +289,7 @@ export const zh: Messages = {
     "aliasing_rules 及除 validation 外的其他键 — 位于 aliasing.config.data",
   "aliasing.validationYaml": "config.data.validation（YAML）",
   "aliasing.validationYamlHint":
-    "别名的全局验证（min_confidence、max_aliases_per_tag、confidence_match_rules 等）。",
+    "别名的全局验证（min_confidence、max_aliases_per_tag、validation_rules 等）。",
   "aliasing.advancedRulesYaml": "以 YAML 编辑别名规则与额外数据（高级）",
   "aliasingRules.extraKeysPreserved": "config.data 中的其他键将保留：{keys}",
   "aliasingRules.rule.name": "规则名称",
@@ -298,7 +303,7 @@ export const zh: Messages = {
   "aliasingRules.rule.description": "描述",
   "aliasingRules.rule.matchValidation": "Match validation (confidence rules)",
   "aliasingRules.rule.matchValidationHint":
-    "Match rules are standalone definitions (scope-level confidence_match_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
+    "Match rules are standalone definitions (scope-level validation_rule_definitions). This section wires them into a flat, non-recursive flow by id or named sequence—same composition idea as the canvas graph.",
   "aliasingRules.rule.entityTypesCsv": "实体类型（逗号分隔）",
   "aliasingRules.rule.scopeFiltersOtherYamlHint":
     "额外的 scope_filters 键（YAML 对象）— 与上方实体类型合并。",
@@ -367,12 +372,12 @@ export const zh: Messages = {
   "validationEditor.extraKeysPreserved": "validation 上的其他键将保留：{keys}",
   "validationEditor.rulesHint":
     "每条匹配规则都是独立定义。评估时按优先级（再按列表顺序）组合：offset 修饰符链式叠加；explicit 设置置信度并停止该值的后续规则。",
-  "validationEditor.matchRulesHierarchyHint":
+  "validationEditor.validationRulesHierarchyHint":
     "Top-level steps run in list order. Use a parallel group to run its children sorted by each rule’s priority field; use a sequential group for an explicit nested chain.",
   "validationEditor.parallelGroup": "Parallel group (by priority)",
   "validationEditor.sequentialGroup": "Sequential group",
-  "validationEditor.matchRulesSteps": "Match steps",
-  "validationEditor.matchRulesStepsHint":
+  "validationEditor.validationRulesSteps": "Match steps",
+  "validationEditor.validationRulesStepsHint":
     "Each step references a standalone definition id or a named sequence (expands to an ordered list). Drag to set composition order.",
   "validationEditor.matchStepKind": "Step type",
   "validationEditor.matchStepRule": "Rule definition",
@@ -383,12 +388,12 @@ export const zh: Messages = {
   "validationEditor.matchStepSelectSequence": "(select sequence)",
   "validationEditor.addMatchStep": "Add step",
   "validationEditor.scopeRefsModeHint":
-    "使用范围内的 confidence_match_rule_definitions 与 confidence_match_rule_sequences（命名的非递归配线列表）。请在「验证」选项卡（源视图之后）编辑规则正文。",
+    "使用范围内的 validation_rule_definitions 与 confidence_match_rule_sequences（命名的非递归配线列表）。请在「验证」选项卡（源视图之后）编辑规则正文。",
   "validationEditor.inlineRulesModeHint":
     "Inline rule bodies stored in this validation block (no scope-level definitions required). Suitable for compact or trigger-only configs.",
   "matchDefinitions.title": "匹配验证规则",
   "matchDefinitions.definitionsHint":
-    "编辑范围映射 confidence_match_rule_definitions：具名的匹配验证规则正文主目录。键发现、别名与源视图通过规则 id（或下方 confidence_match_rule_sequences 中的具名项）引用。",
+    "编辑范围映射 validation_rule_definitions：具名的匹配验证规则正文主目录。键发现、别名与源视图通过规则 id（或下方 confidence_match_rule_sequences 中的具名项）引用。",
   "matchDefinitions.newDefinitionId": "New definition id",
   "matchDefinitions.addDefinition": "Add definition",
   "matchDefinitions.selectDefinition": "Edit definition",
@@ -485,25 +490,55 @@ export const zh: Messages = {
   "flow.resizePanels": "拖动以调整面板宽度",
   "flow.paletteStructural": "管道结构",
   "flow.structuralSourceView": "源视图",
+  "flow.structuralSubflow": "子流程",
+  "flow.structuralSubgraph": "子图",
   "flow.structuralExtraction": "提取",
   "flow.structuralAliasing": "别名",
   "flow.structuralAliasPersistence": "别名写回",
   "flow.structuralReferenceIndex": "引用索引",
-  "flow.matchValidationRuleSourceView": "匹配规则（源视图）",
-  "flow.matchValidationRuleExtraction": "匹配规则（提取）",
-  "flow.matchValidationRuleAliasing": "匹配规则（别名）",
-  "flow.paletteMatchDefinitions": "验证",
-  "flow.paletteMatchDefinitionsEmpty":
+  "flow.paletteWriteback": "回写",
+  "flow.structuralWritebackRaw": "回写（RAW）",
+  "flow.structuralWritebackDataModeling": "回写（数据建模）",
+  "flow.validationRuleLayoutSourceView": "匹配规则（源视图）",
+  "flow.validationRuleLayoutExtraction": "匹配规则（提取）",
+  "flow.validationRuleLayoutAliasing": "匹配规则（别名）",
+  "flow.paletteValidationRuleDefinitions": "验证",
+  "flow.paletteValidationRuleDefinitionsEmpty":
     "尚无定义 — 请在配置页的「验证」选项卡（源视图之后）添加。",
   "flow.paletteExtractionHandlers": "提取处理器",
   "flow.paletteAliasingHandlers": "别名处理器",
   "flow.paletteAnnotations": "注释",
-  "flow.seedFromScope": "从作用域填充源视图",
+  "flow.seedFromScope": "重置",
+  "flow.alignLeft": "将所选节点左对齐",
+  "flow.alignCenterHorizontal": "将所选节点水平居中对齐",
+  "flow.alignRight": "将所选节点右对齐",
+  "flow.alignTop": "将所选节点顶对齐",
+  "flow.alignCenterVertical": "将所选节点垂直居中对齐",
+  "flow.alignBottom": "将所选节点底对齐",
+  "flow.alignSelectionGroup": "对齐所选内容",
   "flow.canvasHint":
-    "布局保存在配对的 .canvas.yaml 中。请保存作用域，并从面板拖到画布。",
+    "布局保存在配对的 .canvas.yaml 中。请保存作用域，并从面板拖到画布。将节点拖入子流程框内可建立从属关系；选中子流程后拖动角点或边缘控制条可横向与纵向调整大小。",
+  "flow.handleOrientationLabel": "连接点",
+  "flow.handleOrientationLr": "左 → 右",
+  "flow.handleOrientationTb": "上 → 下",
+  "flow.connectEndMenuAria": "创建并连接新节点",
   "flow.ctxMenuFitView": "适应视图",
   "flow.ctxMenuAutoLayout": "自动布局",
   "flow.ctxMenuRemoveNode": "删除节点",
+  "flow.confirmSubgraphDeleteLift":
+    "此子图包含内部工作流步骤。\n\n确定 — 将其移到父画布并移除子图框。\n取消 — 删除子图并丢弃内部步骤。",
+  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
+  "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "提升到父图",
+  "flow.ctxMenuConvertSubflowToSubgraph": "将子流程转为子图（钻入）",
+  "flow.ctxMenuConvertSubgraphToSubflow": "将子图转为子流程（分组）",
+  "flow.subgraphDrillTitle": "Subgraph",
+  "flow.subgraphBack": "Save & close",
+  "flow.subgraphDrillHint":
+    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+  "flow.inspectorOpenSubgraph": "Open inner graph…",
+  "flow.inspectorSubgraphHint":
+    "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
   "flow.ctxMenuRemoveEdge": "删除边",
   "flow.nodeEditorTitle": "作用域编辑器",
   "flow.nodeEditorTitleSourceViews": "源视图（配置页签）",
@@ -516,6 +551,12 @@ export const zh: Messages = {
   "flow.nodeEditorDone": "完成",
   "flow.nodeEditorPipelineStubBody":
     "开始与结束节点仅用于布局。请通过其他节点或配置页签编辑源视图、提取与别名。",
+  "flow.nodeEditorSubflowBody":
+    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
+  "flow.nodeEditorSubgraphBody":
+    "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
+  "flow.nodeEditorGraphHubBody":
+    "Fixed interface node for this subgraph. Edit port names on the parent subflow in the inspector; wire the parent frame handles and inner nodes to these hubs.",
   "flow.nodeEditorUnsupported": "此节点类型没有对应的配置编辑器。",
   "flow.close": "关闭",
   "flow.save": "保存",
@@ -523,18 +564,46 @@ export const zh: Messages = {
   "flow.canvasPreviewHint": "只读预览。编辑将打开完整画布编辑器。",
   "flow.inspectorEmpty": "请选择节点或边。",
   "flow.inspectorStartHint": "管道入口。连接到源视图（若无源视图则连到提取）。",
-  "flow.inspectorEndHint": "管道出口。由提取、别名、验证、别名写回或引用索引节点连入。",
+  "flow.inspectorEndHint":
+    "管道出口。由提取、别名、验证、别名写回、RAW 或数据建模回写布局节点，或引用索引节点连入。",
   "flow.inspectorAliasPersistenceHint":
     "对应 fn_dm_alias_persistence：读取别名 RAW，将别名列表（及可选的外键引用字符串）写回可描述实例。在作用域或任务数据中配置写回。",
   "flow.inspectorReferenceIndexHint":
     "对应 fn_dm_reference_index：根据键提取存储中的 FOREIGN_KEY_REFERENCES_JSON 与 DOCUMENT_REFERENCES_JSON 维护倒排 RAW 索引。在作用域中启用（如 enable_reference_index）。",
+  "flow.inspectorWritebackRawHint":
+    "用于将结果落入 Cognite RAW（库、表、接入）的布局节点。在作用域或任务数据中配置 RAW 目标与处理函数 I/O；画布节点仅作说明。",
+  "flow.inspectorWritebackDataModelingHint":
+    "用于向 CDF 数据建模（实例、视图）回写的布局节点。在作用域或任务数据中配置空间、外部 ID 及投影步骤（如 fn_dm_alias_persistence）；画布节点仅作说明。",
   "flow.inspectorValidationRuleHint":
-    "对应作用域中的 confidence_match_rules：在源视图列表（source_views[].validation）、键提取（extraction_rules[].validation）或别名（aliasing_rules[].validation）阶段评估。规则体为独立定义。可使用 YAML 列表、简写 { rule_id: [ tail... ] }，或 hierarchy: { mode: ordered | concurrent, children: [...] }。画布上从提取/别名用数据边连到首个匹配规则节点；后续匹配规则节点之间使用 sequence 或 parallel_group 边链接。",
+    "对应作用域中的 validation_rules：用于键置信度评分（全局 key_extraction 的 data.validation 以及 extraction_rules[].validation）或别名验证（aliasing_rules[].validation）。源视图行不包含 validation。规则体为独立定义。可使用 YAML 列表、简写 { rule_id: [ tail... ] }，或 hierarchy: { mode: ordered | concurrent, children: [...] }。画布上从提取/别名用数据边连到首个匹配规则节点；后续匹配规则节点之间使用 sequence 或 parallel_group 边链接。",
   "flow.inspectorValidationRuleContext": "规则作用域",
   "flow.inspectorConfidenceRuleName": "置信规则名称",
   "flow.validationContextSourceView": "源视图（列表）",
   "flow.validationContextExtraction": "键提取规则",
   "flow.validationContextAliasing": "别名规则",
+  "flow.inspectorSubflowHint":
+    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
+  "flow.inspectorSubflowOrganizationalHint":
+    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
+  "flow.inspectorSubflowPorts": "Subgraph ports",
+  "flow.inspectorSubflowInputs": "Inputs",
+  "flow.inspectorSubflowOutputs": "Outputs",
+  "flow.inspectorSubflowAddInputPort": "Add input port",
+  "flow.inspectorSubflowAddOutputPort": "Add output port",
+  "flow.inspectorSubflowRemovePort": "Remove",
+  "flow.inspectorSubflowMovePortUp": "上移端口",
+  "flow.inspectorSubflowMovePortDown": "下移端口",
+  "flow.inspectorDrillBoundaryPortsHint":
+    "在此编辑该子图的输入/输出端口，或在画布上选择图输入或图输出枢纽节点。",
+  "flow.inspectorSubflowPortInnerIn":
+    "Outer sources allowed here are the same as for a data edge into {type} (in handle).",
+  "flow.inspectorSubflowPortInnerOut":
+    "Outer targets allowed here are the same as for a data edge from {type} (out handle).",
+  "flow.inspectorSubflowGraphInHint":
+    "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
+  "flow.inspectorSubflowGraphOutHint":
+    "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
+  "flow.inspectorParentSubflow": "父级子流程",
   "flow.inspectorNodeTitle": "节点",
   "flow.inspectorEdgeTitle": "边",
   "flow.inspectorEdgeKind": "边类型",
@@ -542,6 +611,14 @@ export const zh: Messages = {
   "flow.edgeKindSequence": "合成顺序",
   "flow.edgeKindParallel": "分支（分岔/合并）",
   "flow.inspectorLabel": "标签",
+  "flow.inspectorNodeAccent": "卡片强调色",
+  "flow.inspectorNodeAccentHint": "画布节点左侧边框的可选颜色（仅布局；工作流引擎不使用）。",
+  "flow.inspectorNodeAccentReset": "重置",
+  "flow.inspectorNodeAccentCustom": "自定义",
+  "flow.inspectorNodeBg": "卡片背景",
+  "flow.inspectorNodeBgHint": "节点卡片背后的可选填充（仅布局；工作流引擎不使用）。",
+  "flow.inspectorNodeBgReset": "重置",
+  "flow.inspectorNodeBgCustom": "自定义",
   "flow.inspectorHandler": "处理器",
   "flow.inspectorHandlerUnset": "（选择）",
   "flow.inspectorAnnotationKind": "注释类型",
@@ -556,7 +633,6 @@ export const zh: Messages = {
   "flow.inspectorSourceViewSpace": "view_space",
   "flow.inspectorSourceViewExternalId": "view_external_id",
   "flow.inspectorSourceViewVersion": "view_version",
-  "flow.inspectorSourceViewEntityType": "entity_type",
   "flow.inspectorSourceViewFillFromScope": "从作用域填充…",
   "flow.inspectorSourceViewIndexInvalid": "source_view_index 超出当前作用域范围。",
   "flow.inspectorRefNone": "（无）",

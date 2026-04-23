@@ -54,15 +54,18 @@ export function TreeContextMenuPortal({ menu, onClose, classPrefix }: MenuProps)
 
   useEffect(() => {
     if (!menu) return;
+    const onDoc = (ev: Event) => {
+      if (rootRef.current?.contains(ev.target as Node)) return;
+      onClose();
+    };
+    /** Defer so the same gesture that opened the menu does not immediately close it. */
     const t = window.setTimeout(() => {
-      const onDoc = (ev: Event) => {
-        if (rootRef.current?.contains(ev.target as Node)) return;
-        onClose();
-      };
-      document.addEventListener("mousedown", onDoc);
-      return () => document.removeEventListener("mousedown", onDoc);
+      document.addEventListener("pointerdown", onDoc, true);
     }, 0);
-    return () => clearTimeout(t);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("pointerdown", onDoc, true);
+    };
   }, [menu, onClose]);
 
   useEffect(() => {

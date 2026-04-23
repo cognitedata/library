@@ -1,0 +1,456 @@
+schemaVersion: 1
+nodes:
+- id: al_cogniteasset_explicit_aliases_from_raw
+  kind: aliasing
+  position:
+    x: 654
+    y: -216.5
+  data:
+    label: cogniteasset_explicit_aliases_from_raw
+    handler_id: alias_mapping_table
+    handler_family: aliasing
+    ref:
+      aliasing_rule_name: cogniteasset_explicit_aliases_from_raw
+- id: al_document_aliases
+  kind: aliasing
+  position:
+    x: 654
+    y: -86.5
+  data:
+    label: document_aliases
+    handler_id: document_aliases
+    handler_family: aliasing
+    ref:
+      aliasing_rule_name: document_aliases
+- id: al_leading_zero_normalization
+  kind: aliasing
+  position:
+    x: 1596
+    y: -54.5
+  data:
+    label: leading_zero_normalization
+    handler_id: leading_zero_normalization
+    handler_family: aliasing
+    ref:
+      aliasing_rule_name: leading_zero_normalization
+- id: al_prefix_suffix_1
+  kind: aliasing
+  position:
+    x: 1398
+    y: -38.5
+  data:
+    label: prefix_suffix_1
+    handler_id: prefix_suffix
+    handler_family: aliasing
+    ref:
+      aliasing_rule_name: prefix_suffix_1
+- id: al_semantic_expansion
+  kind: aliasing
+  position:
+    x: 908
+    y: -95
+  data:
+    label: semantic_expansion
+    handler_id: semantic_expansion
+    handler_family: aliasing
+    ref:
+      aliasing_rule_name: semantic_expansion
+- id: al_strip_numeric_unit_prefix
+  kind: aliasing
+  position:
+    x: 1144
+    y: -102.5
+  data:
+    label: strip_numeric_unit_prefix
+    handler_id: regex_substitution
+    handler_family: aliasing
+    ref:
+      aliasing_rule_name: strip_numeric_unit_prefix
+- id: ext_asset_tag_candidate
+  kind: extraction
+  position:
+    x: 400
+    y: -281.5
+  data:
+    label: asset_tag_candidate
+    handler_id: regex_handler
+    handler_family: extraction
+    ref:
+      extraction_rule_name: asset_tag_candidate
+- id: ext_file_basename_candidate
+  kind: extraction
+  position:
+    x: 400
+    y: -168.5
+  data:
+    label: file_basename_candidate
+    handler_id: regex_handler
+    handler_family: extraction
+    ref:
+      extraction_rule_name: file_basename_candidate
+- id: ext_instance_description_asset_fk
+  kind: extraction
+  position:
+    x: 400
+    y: -55.5
+  data:
+    label: instance_description_asset_fk
+    handler_id: regex_handler
+    handler_family: extraction
+    ref:
+      extraction_rule_name: instance_description_asset_fk
+- id: ext_instance_name_asset_fk
+  kind: extraction
+  position:
+    x: 400
+    y: 74.5
+  data:
+    label: instance_name_asset_fk
+    handler_id: regex_handler
+    handler_family: extraction
+    ref:
+      extraction_rule_name: instance_name_asset_fk
+- id: ext_timeseries_instrument_tag_candidate
+  kind: extraction
+  position:
+    x: 400
+    y: 187.5
+  data:
+    label: timeseries_instrument_tag_candidate
+    handler_id: regex_handler
+    handler_family: extraction
+    ref:
+      extraction_rule_name: timeseries_instrument_tag_candidate
+- id: flow_end
+  kind: end
+  position:
+    x: 2104
+    y: -29
+  data:
+    label: End
+- id: flow_start
+  kind: start
+  position:
+    x: 0
+    y: -29
+  data:
+    label: Start
+- id: sv_0
+  kind: source_view
+  position:
+    x: 198
+    y: -151.5
+  data:
+    label: CogniteFile
+    ref:
+      source_view_index: 0
+      view_space: cdf_cdm
+      view_external_id: CogniteFile
+      view_version: v1
+      entity_type: file
+- id: sv_1
+  kind: source_view
+  position:
+    x: 198
+    y: -38.5
+  data:
+    label: CogniteTimeSeries
+    ref:
+      source_view_index: 1
+      view_space: cdf_cdm
+      view_external_id: CogniteTimeSeries
+      view_version: v1
+      entity_type: timeseries
+- id: sv_2
+  kind: source_view
+  position:
+    x: 198
+    y: 74.5
+  data:
+    label: CogniteAsset
+    ref:
+      source_view_index: 2
+      view_space: cdf_cdm
+      view_external_id: CogniteAsset
+      view_version: v1
+      entity_type: asset
+- id: vrule_al_data_alias_shape_invalid
+  kind: match_validation_aliasing
+  position:
+    x: 1850
+    y: -46
+  data:
+    label: alias_shape_invalid
+    notes: aliasing.config.data.validation
+    validation_rule_context: aliasing
+    validation_rule_name: alias_shape_invalid
+    ref:
+      aliasing_global_validation: true
+- id: vrule_ke_h1c10330_blacklist
+  kind: match_validation_extraction
+  position:
+    x: 654
+    y: 26.5
+  data:
+    label: blacklist
+    validation_rule_context: extraction
+    validation_rule_name: blacklist
+    ref:
+      shared_extraction_validation_chain: true
+      extraction_rule_names:
+      - asset_tag_candidate
+      - instance_description_asset_fk
+      - instance_name_asset_fk
+      - timeseries_instrument_tag_candidate
+      validation_list_key: h1c10330
+- id: vrule_ke_h1c10330_not_isa_penalty
+  kind: match_validation_extraction
+  position:
+    x: 1144
+    y: 10.5
+  data:
+    label: not_isa_penalty
+    validation_rule_context: extraction
+    validation_rule_name: not_isa_penalty
+    ref:
+      shared_extraction_validation_chain: true
+      extraction_rule_names:
+      - asset_tag_candidate
+      - instance_description_asset_fk
+      - instance_name_asset_fk
+      - timeseries_instrument_tag_candidate
+      validation_list_key: h1c10330
+- id: vrule_ke_h1c10330_whitelist
+  kind: match_validation_extraction
+  position:
+    x: 908
+    y: 18
+  data:
+    label: whitelist
+    validation_rule_context: extraction
+    validation_rule_name: whitelist
+    ref:
+      shared_extraction_validation_chain: true
+      extraction_rule_names:
+      - asset_tag_candidate
+      - instance_description_asset_fk
+      - instance_name_asset_fk
+      - timeseries_instrument_tag_candidate
+      validation_list_key: h1c10330
+- id: vrule_ke_hda310940_blacklist
+  kind: match_validation_extraction
+  position:
+    x: 654
+    y: 139.5
+  data:
+    label: blacklist
+    validation_rule_context: extraction
+    validation_rule_name: blacklist
+    ref:
+      extraction_rule_name: file_basename_candidate
+edges:
+- id: e_flow_start_sv_0
+  source: flow_start
+  target: sv_0
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_flow_start_sv_1
+  source: flow_start
+  target: sv_1
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_flow_start_sv_2
+  source: flow_start
+  target: sv_2
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_0_ext_file_basename_candidate
+  source: sv_0
+  target: ext_file_basename_candidate
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_0_ext_instance_name_asset_fk
+  source: sv_0
+  target: ext_instance_name_asset_fk
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_0_ext_instance_description_asset_fk
+  source: sv_0
+  target: ext_instance_description_asset_fk
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_1_ext_timeseries_instrument_tag_candidate
+  source: sv_1
+  target: ext_timeseries_instrument_tag_candidate
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_1_ext_instance_name_asset_fk
+  source: sv_1
+  target: ext_instance_name_asset_fk
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_1_ext_instance_description_asset_fk
+  source: sv_1
+  target: ext_instance_description_asset_fk
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_2_ext_asset_tag_candidate
+  source: sv_2
+  target: ext_asset_tag_candidate
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_sv_2_ext_instance_description_asset_fk
+  source: sv_2
+  target: ext_instance_description_asset_fk
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_ext_asset_tag_candidate_vrule_ke_h1c10330_blacklist
+  source: ext_asset_tag_candidate
+  target: vrule_ke_h1c10330_blacklist
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_ext_instance_description_asset_fk_vrule_ke_h1c10330_blacklist
+  source: ext_instance_description_asset_fk
+  target: vrule_ke_h1c10330_blacklist
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_ext_instance_name_asset_fk_vrule_ke_h1c10330_blacklist
+  source: ext_instance_name_asset_fk
+  target: vrule_ke_h1c10330_blacklist
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_ext_timeseries_instrument_tag_candidate_vrule_ke_h1c10330_blacklist
+  source: ext_timeseries_instrument_tag_candidate
+  target: vrule_ke_h1c10330_blacklist
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_vrule_ke_h1c10330_blacklist_vrule_ke_h1c10330_whitelist
+  source: vrule_ke_h1c10330_blacklist
+  target: vrule_ke_h1c10330_whitelist
+  source_handle: out
+  target_handle: in
+  kind: sequence
+- id: e_vrule_ke_h1c10330_whitelist_vrule_ke_h1c10330_not_isa_penalty
+  source: vrule_ke_h1c10330_whitelist
+  target: vrule_ke_h1c10330_not_isa_penalty
+  source_handle: out
+  target_handle: in
+  kind: sequence
+- id: e_ext_file_basename_candidate_vrule_ke_hda310940_blacklist
+  source: ext_file_basename_candidate
+  target: vrule_ke_hda310940_blacklist
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_al_cogniteasset_explicit_aliases_from_raw_vrule_al_data_alias_shape_invalid
+  source: al_cogniteasset_explicit_aliases_from_raw
+  target: vrule_al_data_alias_shape_invalid
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_al_semantic_expansion_vrule_al_data_alias_shape_invalid
+  source: al_semantic_expansion
+  target: vrule_al_data_alias_shape_invalid
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_al_strip_numeric_unit_prefix_vrule_al_data_alias_shape_invalid
+  source: al_strip_numeric_unit_prefix
+  target: vrule_al_data_alias_shape_invalid
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_al_leading_zero_normalization_vrule_al_data_alias_shape_invalid
+  source: al_leading_zero_normalization
+  target: vrule_al_data_alias_shape_invalid
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_al_document_aliases_vrule_al_data_alias_shape_invalid
+  source: al_document_aliases
+  target: vrule_al_data_alias_shape_invalid
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_al_prefix_suffix_1_vrule_al_data_alias_shape_invalid
+  source: al_prefix_suffix_1
+  target: vrule_al_data_alias_shape_invalid
+  source_handle: validation
+  target_handle: in
+  kind: data
+- id: e_ext_asset_tag_candidate_al_cogniteasset_explicit_aliases_from_raw_24
+  source: ext_asset_tag_candidate
+  target: al_cogniteasset_explicit_aliases_from_raw
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_al_cogniteasset_explicit_aliases_from_raw_al_semantic_expansion_25
+  source: al_cogniteasset_explicit_aliases_from_raw
+  target: al_semantic_expansion
+  source_handle: out
+  target_handle: in
+  kind: sequence
+- id: e_al_semantic_expansion_al_strip_numeric_unit_prefix_26
+  source: al_semantic_expansion
+  target: al_strip_numeric_unit_prefix
+  source_handle: out
+  target_handle: in
+  kind: sequence
+- id: e_al_strip_numeric_unit_prefix_al_prefix_suffix_1_27
+  source: al_strip_numeric_unit_prefix
+  target: al_prefix_suffix_1
+  source_handle: out
+  target_handle: in
+  kind: sequence
+- id: e_al_prefix_suffix_1_al_leading_zero_normalization_28
+  source: al_prefix_suffix_1
+  target: al_leading_zero_normalization
+  source_handle: out
+  target_handle: in
+  kind: sequence
+- id: e_ext_file_basename_candidate_al_document_aliases_29
+  source: ext_file_basename_candidate
+  target: al_document_aliases
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_ext_timeseries_instrument_tag_candidate_al_cogniteasset_explicit_aliases_from_raw_30
+  source: ext_timeseries_instrument_tag_candidate
+  target: al_cogniteasset_explicit_aliases_from_raw
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_ext_instance_name_asset_fk_al_cogniteasset_explicit_aliases_from_raw_31
+  source: ext_instance_name_asset_fk
+  target: al_cogniteasset_explicit_aliases_from_raw
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_ext_instance_description_asset_fk_al_cogniteasset_explicit_aliases_from_raw_32
+  source: ext_instance_description_asset_fk
+  target: al_cogniteasset_explicit_aliases_from_raw
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: e_al_prefix_suffix_1_flow_end_33
+  source: al_prefix_suffix_1
+  target: flow_end
+  source_handle: out
+  target_handle: in
+  kind: data
+handle_orientation: lr

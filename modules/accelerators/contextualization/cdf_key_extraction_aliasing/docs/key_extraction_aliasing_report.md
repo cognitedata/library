@@ -83,7 +83,7 @@ Rules are ordered by **priority**; at equal priority, **YAML order** applies. On
 | 20 | `leading_zero_normalization` | leading_zero_normalization | asset | Normalize long numeric tokens (configurable min length, etc.) |
 | 30 | `document_aliases` | document_aliases | file | P&ID / drawing / file-name variants (revision handling, padding, etc.) |
 
-**Validation (default):** `aliasing.config.data.validation` sets `max_aliases_per_tag`, `min_confidence`, and `confidence_match_rules` (for example `alias_shape_invalid` with `fullmatch` expressions for minimum length, maximum length, and allowed character class — see `workflow.local.config.yaml`).
+**Validation (default):** `aliasing.config.data.validation` sets `max_aliases_per_tag`, `min_confidence`, and `validation_rules` (for example `alias_shape_invalid` with `fullmatch` expressions for minimum length, maximum length, and allowed character class — see `workflow.local.config.yaml`).
 
 ---
 

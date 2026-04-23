@@ -121,6 +121,13 @@ class TestHeuristicHandler(unittest.TestCase):
 class TestEngineIntegration(unittest.TestCase):
     def test_regex_handler_end_to_end(self):
         cfg = {
+            "associations": [
+                {
+                    "kind": "source_view_to_extraction",
+                    "source_view_index": 0,
+                    "extraction_rule_name": "t1",
+                }
+            ],
             "extraction_rules": [
                 {
                     "rule_id": "t1",
@@ -141,7 +148,7 @@ class TestEngineIntegration(unittest.TestCase):
             "validation": {"min_confidence": 0.5, "max_keys_per_type": 10},
         }
         eng = KeyExtractionEngine(cfg)
-        r = eng.extract_keys({"id": "1", "name": "Unit P-101"}, "asset")
+        r = eng.extract_keys({"id": "1", "name": "Unit P-101"}, "asset", source_view_index=0)
         vals = [k.value for k in r.candidate_keys]
         self.assertIn("P-101", vals)
 

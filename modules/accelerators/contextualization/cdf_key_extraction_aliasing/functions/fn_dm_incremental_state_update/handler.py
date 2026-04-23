@@ -52,6 +52,7 @@ def handle(
                 source_views=data_section.get("source_views", []) or [],
                 source_view=data_section.get("source_view"),
                 extraction_rules=data_section.get("extraction_rules", []) or [],
+                associations=data_section.get("associations") or [],
             ),
         )
 

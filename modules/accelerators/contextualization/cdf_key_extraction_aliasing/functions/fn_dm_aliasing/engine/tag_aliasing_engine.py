@@ -725,10 +725,10 @@ class AliasingEngine:
         return base
 
     def _validate_aliases(self, aliases: List[str], validation: Dict[str, Any]) -> List[str]:
-        """Apply confidence_match_rules, min_confidence, dedupe, and max_aliases_per_tag."""
+        """Apply validation_rules, min_confidence, dedupe, and max_aliases_per_tag."""
         max_aliases = int(validation.get("max_aliases_per_tag", 50) or 50)
         min_confidence = float(validation.get("min_confidence", 0.0) or 0.0)
-        rules_raw = validation.get("confidence_match_rules") or []
+        rules_raw = validation.get("validation_rules") or validation.get("confidence_match_rules") or []
 
         scored = [(str(a), 1.0) for a in aliases if a]
         scored = apply_confidence_match_rules_to_float_scores(

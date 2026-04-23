@@ -1,4 +1,4 @@
-"""Unit tests for validation.confidence_match_rules (offset chains; explicit breaks)."""
+"""Unit tests for validation.validation_rules (offset chains; explicit breaks)."""
 
 from __future__ import annotations
 
@@ -34,13 +34,18 @@ def _base_rule(name: str, pattern: str) -> dict:
     }
 
 
+def _sv_ext(rule_name: str):
+    return [{"kind": "source_view_to_extraction", "source_view_index": 0, "extraction_rule_name": rule_name}]
+
+
 class TestConfidenceMatchRules(unittest.TestCase):
     def test_explicit_zero_then_min_confidence_drops(self):
         config = {
+            "associations": _sv_ext("tag"),
             "extraction_rules": [_base_rule("tag", r"(?P<tag>\S+)")],
             "validation": {
                 "min_confidence": 0.5,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "bad",
                         "priority": 5,
@@ -51,17 +56,18 @@ class TestConfidenceMatchRules(unittest.TestCase):
             },
         }
         engine = KeyExtractionEngine(config)
-        r_ok = engine.extract_keys({"id": "1", "name": "P-101"}, "asset")
-        r_bad = engine.extract_keys({"id": "2", "name": "dummy-tag"}, "asset")
+        r_ok = engine.extract_keys({"id": "1", "name": "P-101"}, "asset", source_view_index=0)
+        r_bad = engine.extract_keys({"id": "2", "name": "dummy-tag"}, "asset", source_view_index=0)
         self.assertGreater(len(r_ok.candidate_keys), 0)
         self.assertEqual(len(r_bad.candidate_keys), 0)
 
     def test_offset_rules_chain_isa_then_catch_all(self):
         config = {
+            "associations": _sv_ext("pump"),
             "extraction_rules": [_base_rule("pump", r"\bP[-_]?\d+\b")],
             "validation": {
                 "min_confidence": 0.1,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "isa",
                         "priority": 50,
@@ -78,7 +84,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
             },
         }
         engine = KeyExtractionEngine(config)
-        result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset")
+        result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset", source_view_index=0)
         self.assertEqual(len(result.candidate_keys), 1)
         k = result.candidate_keys[0]
         # Both match: base ~1.0 + 0.05 (clamp 1.0) then -0.5 from catch-all
@@ -86,10 +92,11 @@ class TestConfidenceMatchRules(unittest.TestCase):
 
     def test_explicit_modifier_stops_further_rules(self):
         config = {
+            "associations": _sv_ext("pump"),
             "extraction_rules": [_base_rule("pump", r"\bP[-_]?\d+\b")],
             "validation": {
                 "min_confidence": 0.1,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "isa",
                         "priority": 50,
@@ -106,16 +113,17 @@ class TestConfidenceMatchRules(unittest.TestCase):
             },
         }
         engine = KeyExtractionEngine(config)
-        result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset")
+        result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset", source_view_index=0)
         self.assertEqual(len(result.candidate_keys), 1)
         self.assertGreaterEqual(result.candidate_keys[0].confidence, 0.99)
 
     def test_catch_all_penalty_when_no_earlier_match(self):
         config = {
+            "associations": _sv_ext("word"),
             "extraction_rules": [_base_rule("word", r"[A-Za-z]+")],
             "validation": {
                 "min_confidence": 0.1,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "isa_only",
                         "priority": 50,
@@ -132,17 +140,18 @@ class TestConfidenceMatchRules(unittest.TestCase):
             },
         }
         engine = KeyExtractionEngine(config)
-        result = engine.extract_keys({"id": "1", "name": "ZZZ"}, "asset")
+        result = engine.extract_keys({"id": "1", "name": "ZZZ"}, "asset", source_view_index=0)
         self.assertEqual(len(result.candidate_keys), 1)
         k = result.candidate_keys[0]
         self.assertLess(k.confidence, 0.95)
 
     def test_keyword_or_expression_match(self):
         config = {
+            "associations": _sv_ext("any"),
             "extraction_rules": [_base_rule("any", r"\S+")],
             "validation": {
                 "min_confidence": 0.5,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "either",
                         "priority": 10,
@@ -157,24 +166,25 @@ class TestConfidenceMatchRules(unittest.TestCase):
         }
         engine = KeyExtractionEngine(config)
         self.assertEqual(
-            len(engine.extract_keys({"id": "1", "name": "X-alpha-Y"}, "asset").candidate_keys),
+            len(engine.extract_keys({"id": "1", "name": "X-alpha-Y"}, "asset", source_view_index=0).candidate_keys),
             0,
         )
         self.assertEqual(
-            len(engine.extract_keys({"id": "2", "name": "BETA-1"}, "asset").candidate_keys),
+            len(engine.extract_keys({"id": "2", "name": "BETA-1"}, "asset", source_view_index=0).candidate_keys),
             0,
         )
         self.assertGreater(
-            len(engine.extract_keys({"id": "3", "name": "OKVAL"}, "asset").candidate_keys),
+            len(engine.extract_keys({"id": "3", "name": "OKVAL"}, "asset", source_view_index=0).candidate_keys),
             0,
         )
 
     def test_expression_as_pattern_description_dict(self):
         config = {
+            "associations": _sv_ext("p"),
             "extraction_rules": [_base_rule("p", r"\bP[-_]?\d+\b")],
             "validation": {
                 "min_confidence": 0.5,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "isa",
                         "priority": 10,
@@ -192,16 +202,17 @@ class TestConfidenceMatchRules(unittest.TestCase):
             },
         }
         engine = KeyExtractionEngine(config)
-        result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset")
+        result = engine.extract_keys({"id": "1", "name": "P-101"}, "asset", source_view_index=0)
         self.assertEqual(len(result.candidate_keys), 1)
         self.assertGreaterEqual(result.candidate_keys[0].confidence, 0.99)
 
     def test_enabled_false_skipped(self):
         config = {
+            "associations": _sv_ext("any"),
             "extraction_rules": [_base_rule("any", r"\S+")],
             "validation": {
                 "min_confidence": 0.5,
-                "confidence_match_rules": [
+                "validation_rules": [
                     {
                         "name": "disabled",
                         "enabled": False,
@@ -219,7 +230,7 @@ class TestConfidenceMatchRules(unittest.TestCase):
             },
         }
         engine = KeyExtractionEngine(config)
-        result = engine.extract_keys({"id": "1", "name": "everything"}, "asset")
+        result = engine.extract_keys({"id": "1", "name": "everything"}, "asset", source_view_index=0)
         self.assertGreater(len(result.candidate_keys), 0)
 
 

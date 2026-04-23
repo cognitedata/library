@@ -28,7 +28,7 @@ key_extraction:
       validation:
         min_confidence: 0.5
         max_keys_per_type: 1000
-        confidence_match_rules:
+        validation_rules:
         - name: blacklist
           priority: 10
           match:
@@ -466,7 +466,7 @@ aliasing:
       validation:
         max_aliases_per_tag: 50
         min_confidence: 0.01
-        confidence_match_rules:
+        validation_rules:
         - name: alias_shape_invalid
           priority: 0
           expression_match: fullmatch

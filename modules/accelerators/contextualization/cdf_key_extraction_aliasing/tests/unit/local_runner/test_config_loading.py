@@ -40,6 +40,25 @@ def _minimal_key_extraction_data(
     }
 
 
+_MINIMAL_EXTRACTION_RULE: dict = {
+    "name": "r1",
+    "handler": "regex_handler",
+    "extraction_type": "candidate_key",
+    "enabled": True,
+    "priority": 1,
+    "scope_filters": {},
+    "field_results_mode": "merge_all",
+    "fields": [
+        {
+            "field_name": "name",
+            "required": True,
+            "priority": 1,
+            "preprocessing": ["trim"],
+        }
+    ],
+}
+
+
 def test_scope_doc_omitted_aliasing_identity_passthrough():
     doc = _minimal_key_extraction_data(
         source_views=[
@@ -88,7 +107,7 @@ def test_scope_doc_empty_aliasing_rules():
                 "entity_type": "asset",
             }
         ],
-        extraction_rules=[],
+        extraction_rules=[dict(_MINIMAL_EXTRACTION_RULE)],
     )
     doc["aliasing"] = {
         "externalId": "ctx_al_test",
@@ -102,7 +121,7 @@ def test_scope_doc_empty_aliasing_rules():
     assert alias["rules"] == []
 
 
-def test_scope_doc_empty_extraction_injects_per_entity_type():
+def test_scope_doc_empty_extraction_rules_raises():
     doc = _minimal_key_extraction_data(
         source_views=[
             {
@@ -120,11 +139,8 @@ def test_scope_doc_empty_extraction_injects_per_entity_type():
         ],
         extraction_rules=[],
     )
-    ext, _, views, *_ = cl._load_from_scope_document(_logger(), doc)
-    assert {v["entity_type"] for v in views} == {"asset", "timeseries"}
-    assert len(ext["extraction_rules"]) == 2
-    for r in ext["extraction_rules"]:
-        assert r.get("handler") == "regex_handler"
+    with pytest.raises(ValueError, match="extraction_rules must be non-empty"):
+        cl._load_from_scope_document(_logger(), doc)
 
 
 def test_load_configs_from_explicit_path(tmp_path: Path):
@@ -137,7 +153,7 @@ def test_load_configs_from_explicit_path(tmp_path: Path):
                 "entity_type": "asset",
             }
         ],
-        extraction_rules=[],
+        extraction_rules=[dict(_MINIMAL_EXTRACTION_RULE)],
     )
     p = tmp_path / cl.WORKFLOW_LOCAL_CONFIG_FILENAME
     p.write_text(yaml.safe_dump(doc), encoding="utf-8")
@@ -169,7 +185,7 @@ def test_load_configs_default_uses_module_root_file(
                 "batch_size": 42,
             }
         ],
-        extraction_rules=[],
+        extraction_rules=[dict(_MINIMAL_EXTRACTION_RULE)],
     )
     p.write_text(yaml.safe_dump(doc), encoding="utf-8")
     monkeypatch.setattr(cl, "DEFAULT_SCOPE_DOCUMENT_PATH", p)

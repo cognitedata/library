@@ -29,14 +29,14 @@ const KNOWN_KEY_EXTRACTION = new Set([
   "min_confidence",
   "max_keys_per_type",
   "expression_match",
-  "confidence_match_rules",
+  "validation_rules",
 ]);
 
 const KNOWN_ALIASING = new Set([
   "max_aliases_per_tag",
   "min_confidence",
   "expression_match",
-  "confidence_match_rules",
+  "validation_rules",
 ]);
 
 function extrasFrom(value: JsonObject, known: Set<string>): JsonObject {
@@ -73,7 +73,7 @@ export function ValidationStructuredEditor({
   const useScopeRefs = Boolean(scopeDocument);
 
   const ui = useMemo(() => {
-    const rules = parseMatchRuleDefinitionsArray(value.confidence_match_rules);
+    const rules = parseMatchRuleDefinitionsArray(value.validation_rules);
     return {
       minConfidence: String(numOr(value.min_confidence, variant === "aliasing" ? 0.01 : 0.5)),
       maxKeysPerType:
@@ -114,19 +114,19 @@ export function ValidationStructuredEditor({
         behavior: "smooth",
       });
     });
-  }, [initialFocusedMatchRuleName, ui.rules, useScopeRefs, value.confidence_match_rules]);
+  }, [initialFocusedMatchRuleName, ui.rules, useScopeRefs, value.validation_rules]);
 
   const commitValue = (next: JsonObject) => {
     lastWrittenFingerprintRef.current = JSON.stringify(next);
     onChange(next);
   };
 
-  const push = (patch: Partial<JsonObject> & { confidence_match_rules?: unknown[] }) => {
+  const push = (patch: Partial<JsonObject> & { validation_rules?: unknown[] }) => {
     commitValue({ ...value, ...patch });
   };
 
   const updateRules = (nextRules: MatchRuleDefinition[]) => {
-    commitValue({ ...value, confidence_match_rules: serializeMatchRuleDefinitionsArray(nextRules) as unknown[] });
+    commitValue({ ...value, validation_rules: serializeMatchRuleDefinitionsArray(nextRules) as unknown[] });
   };
 
   useEffect(() => {

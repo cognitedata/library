@@ -14,6 +14,7 @@ from cognite.client.data_classes import Row
 from cognite.client.exceptions import CogniteAPIError, CogniteNotFoundError
 
 from cdf_fn_common.extraction_input_hash import (
+    association_pairs_set_from_scope_mapping,
     build_field_map_for_hash,
     extraction_inputs_hash,
     iter_wanted_fields,
@@ -139,6 +140,13 @@ def incremental_state_update(
     if skip_unchanged_inputs:
         rules_fp = rules_fingerprint(extraction_rules)
 
+    _assoc_list = getattr(getattr(cdf_config, "data", None), "associations", None)
+    _assoc_set = (
+        association_pairs_set_from_scope_mapping({"associations": _assoc_list})
+        if isinstance(_assoc_list, list)
+        else set()
+    )
+
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     create_table_if_not_exists(client, raw_db, raw_table_key, logger)
     raw_uploader = create_raw_upload_queue(client)
@@ -167,7 +175,7 @@ def incremental_state_update(
             "workflow_scope must be set (e.g. via scope build) when key_discovery_instance_space is set"
         )
 
-    for entity_view_config in source_views:
+    for sv_index, entity_view_config in enumerate(source_views):
         view_id = _as_view_id(entity_view_config)
         view_dict = _view_dict(entity_view_config)
         scope_key = scope_key_from_view_dict(view_dict)
@@ -257,10 +265,18 @@ def incremental_state_update(
                 )
             wanted_fields = (
                 resolve_key_discovery_hash_field_paths(
-                    extraction_rules, entity_view_config
+                    extraction_rules,
+                    entity_view_config,
+                    association_pairs=_assoc_set,
+                    source_view_index=sv_index,
                 )
                 if effective_kd
-                else iter_wanted_fields(extraction_rules, entity_view_config)
+                else iter_wanted_fields(
+                    extraction_rules,
+                    entity_view_config,
+                    association_pairs=_assoc_set,
+                    source_view_index=sv_index,
+                )
             )
 
         max_ts: Optional[int] = None

@@ -1,7 +1,7 @@
-"""Resolve ``confidence_match_rules`` list entries that reference a shared definition library.
+"""Resolve ``validation_rules`` list entries that reference a shared definition library.
 
-Scope YAML (v1) may define reusable rules under top-level ``confidence_match_rule_definitions``
-(mapping rule id -> body, or a list of objects with ``name``). Any ``confidence_match_rules``
+Scope YAML (v1) may define reusable rules under top-level ``validation_rule_definitions``
+(mapping rule id -> body, or a list of objects with ``name``). Any ``validation_rules``
 list may then use:
 
 - A string entry: the rule id / name to clone from definitions.
@@ -9,7 +9,7 @@ list may then use:
 - A mapping ``{sequence: <sequence_id>}`` to insert the ordered rule list from
   ``confidence_match_rule_sequences`` (named chains of definition ids for sequential scoring).
 
-Optional ``confidence_match_rule_targets`` is merged with ``confidence_match_rules`` (targets
+Optional ``confidence_match_rule_targets`` is merged with ``validation_rules`` (targets
 after base list) so validation can declare one or more named targets in a separate key.
 
 Hierarchical entries use ``hierarchy: { mode: ordered | concurrent, children: [ ... ] }``.
@@ -23,17 +23,32 @@ Inline rule objects (with ``name`` and ``match`` / etc., no ``ref`` / ``sequence
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, List, MutableMapping, Optional
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
 from cdf_fn_common.confidence_match_eval import normalize_confidence_match_step
 
-_DEFINITIONS_KEY = "confidence_match_rule_definitions"
+_DEFINITIONS_KEY = "validation_rule_definitions"
 _SEQUENCES_KEY = "confidence_match_rule_sequences"
 _TARGETS_KEY = "confidence_match_rule_targets"
 
+_RULES_LIST_KEY = "validation_rules"
+_LEGACY_RULES_LIST_KEY = "confidence_match_rules"
+
+
+def validation_rules_list_get(block: Mapping[str, Any]) -> Any:
+    """Read the validation rule pipeline list (prefers ``validation_rules`` over legacy alias)."""
+    if _RULES_LIST_KEY in block:
+        return block.get(_RULES_LIST_KEY)
+    return block.get(_LEGACY_RULES_LIST_KEY)
+
+
+def validation_rules_list_set(block: MutableMapping[str, Any], rules: List[Any]) -> None:
+    block[_RULES_LIST_KEY] = rules
+    block.pop(_LEGACY_RULES_LIST_KEY, None)
+
 
 def definitions_lookup_from_scope(doc: MutableMapping[str, Any]) -> Dict[str, Dict[str, Any]]:
-    """Build name -> rule dict from ``confidence_match_rule_definitions``."""
+    """Build name -> rule dict from ``validation_rule_definitions``."""
     raw = doc.get(_DEFINITIONS_KEY)
     return _definitions_as_lookup(raw)
 
@@ -66,18 +81,19 @@ def dedupe_confidence_match_rules_by_name(rules: List[Any]) -> List[Any]:
 
 
 def merge_validation_dict_overlay(global_block: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
-    """Merge *overlay* onto *global_block*: concatenate ``confidence_match_rules`` (deduped); other keys from *overlay* win."""
+    """Merge *overlay* onto *global_block*: concatenate ``validation_rules`` (deduped); other keys from *overlay* win."""
     merged = dict(global_block)
-    brules = list(merged.get("confidence_match_rules") or [])
-    orules = overlay.get("confidence_match_rules")
+    brules = list(validation_rules_list_get(merged) or [])
+    orules = validation_rules_list_get(overlay)
     if isinstance(orules, list) and orules:
-        merged["confidence_match_rules"] = dedupe_confidence_match_rules_by_name(
-            brules + list(orules)
+        validation_rules_list_set(
+            merged,
+            dedupe_confidence_match_rules_by_name(brules + list(orules)),
         )
     else:
-        merged["confidence_match_rules"] = dedupe_confidence_match_rules_by_name(brules)
+        validation_rules_list_set(merged, dedupe_confidence_match_rules_by_name(brules))
     for k, v in overlay.items():
-        if k == "confidence_match_rules":
+        if k in (_RULES_LIST_KEY, _LEGACY_RULES_LIST_KEY):
             continue
         if v is not None:
             merged[k] = v
@@ -175,13 +191,13 @@ def _expand_confidence_match_entry(
             return []
         if rid not in lookup:
             raise ValueError(
-                f"{context}confidence_match_rules[{i}]: unknown rule reference {rid!r}; "
+                f"{context}{_RULES_LIST_KEY}[{i}]: unknown rule reference {rid!r}; "
                 f"define it under {_DEFINITIONS_KEY}"
             )
         return [copy.deepcopy(lookup[rid])]
     if not isinstance(item, dict):
         raise ValueError(
-            f"{context}confidence_match_rules[{i}]: expected mapping or string ref, got {type(item).__name__}"
+            f"{context}{_RULES_LIST_KEY}[{i}]: expected mapping or string ref, got {type(item).__name__}"
         )
     item = normalize_confidence_match_step(item)
     if isinstance(item.get("hierarchy"), dict):
@@ -189,13 +205,13 @@ def _expand_confidence_match_entry(
         ch = _hierarchy_children_raw(hi)
         if not isinstance(ch, list):
             raise ValueError(
-                f"{context}confidence_match_rules[{i}].hierarchy: expected `children` list"
+                f"{context}{_RULES_LIST_KEY}[{i}].hierarchy: expected `children` list"
             )
         nested = expand_confidence_match_rules_list(
             ch,
             lookup,
             sequences=seqmap,
-            context=f"{context}confidence_match_rules[{i}].hierarchy.",
+            context=f"{context}{_RULES_LIST_KEY}[{i}].hierarchy.",
         )
         new_hi = copy.deepcopy(hi)
         new_hi["children"] = nested
@@ -204,29 +220,29 @@ def _expand_confidence_match_entry(
     if seq_id is not None and str(seq_id).strip():
         if item.get("ref") is not None:
             raise ValueError(
-                f"{context}confidence_match_rules[{i}]: use either `ref` or `sequence`, not both"
+                f"{context}{_RULES_LIST_KEY}[{i}]: use either `ref` or `sequence`, not both"
             )
         if item.get("match") is not None:
             raise ValueError(
-                f"{context}confidence_match_rules[{i}]: `sequence` entries must not include `match`"
+                f"{context}{_RULES_LIST_KEY}[{i}]: `sequence` entries must not include `match`"
             )
         sid = str(seq_id).strip()
         if sid not in seqmap:
             raise ValueError(
-                f"{context}confidence_match_rules[{i}]: unknown sequence {sid!r}; "
+                f"{context}{_RULES_LIST_KEY}[{i}]: unknown sequence {sid!r}; "
                 f"define it under {_SEQUENCES_KEY}"
             )
         extra_keys = set(item.keys()) - {"sequence"}
         if extra_keys:
             raise ValueError(
-                f"{context}confidence_match_rules[{i}]: sequence object must contain only "
+                f"{context}{_RULES_LIST_KEY}[{i}]: sequence object must contain only "
                 f"`sequence` (got extra keys: {sorted(extra_keys)})"
             )
         out_seq: List[Any] = []
         for rid in seqmap[sid]:
             if rid not in lookup:
                 raise ValueError(
-                    f"{context}confidence_match_rules[{i}]: sequence {sid!r} references "
+                    f"{context}{_RULES_LIST_KEY}[{i}]: sequence {sid!r} references "
                     f"unknown rule {rid!r} (not in {_DEFINITIONS_KEY})"
                 )
             out_seq.append(copy.deepcopy(lookup[rid]))
@@ -236,7 +252,7 @@ def _expand_confidence_match_entry(
         rid = str(ref).strip()
         if rid not in lookup:
             raise ValueError(
-                f"{context}confidence_match_rules[{i}]: unknown ref {rid!r}; "
+                f"{context}{_RULES_LIST_KEY}[{i}]: unknown ref {rid!r}; "
                 f"define it under {_DEFINITIONS_KEY}"
             )
         base = lookup[rid]
@@ -253,7 +269,7 @@ def expand_confidence_match_rules_list(
     sequences: Optional[Dict[str, List[str]]] = None,
     context: str = "",
 ) -> List[Any]:
-    """Expand a ``confidence_match_rules`` value using *lookup* and optional named *sequences*."""
+    """Expand a ``validation_rules`` value using *lookup* and optional named *sequences*."""
     if rules is None:
         return []
     if not isinstance(rules, list):
@@ -277,53 +293,41 @@ def _patch_validation_block(
     if not isinstance(validation, dict):
         return None
     block = dict(validation)
-    has_rules = "confidence_match_rules" in block
+    has_rules = _RULES_LIST_KEY in block or _LEGACY_RULES_LIST_KEY in block
     has_targets = _TARGETS_KEY in block
     if not has_rules and not has_targets:
         return block
     combined: List[Any] = []
-    base = block.get("confidence_match_rules")
+    base = validation_rules_list_get(block)
     if isinstance(base, list):
         combined.extend(base)
     targets = block.get(_TARGETS_KEY)
     if isinstance(targets, list):
         combined.extend(targets)
     if combined:
-        block["confidence_match_rules"] = combined
+        validation_rules_list_set(block, combined)
     block.pop(_TARGETS_KEY, None)
     expanded = expand_confidence_match_rules_list(
-        block.get("confidence_match_rules"),
+        validation_rules_list_get(block),
         lookup,
         sequences=sequences,
         context=context,
     )
-    block["confidence_match_rules"] = dedupe_confidence_match_rules_by_name(expanded)
+    validation_rules_list_set(block, dedupe_confidence_match_rules_by_name(expanded))
     return block
 
 
 def resolve_confidence_match_rule_refs_in_scope_document(doc: MutableMapping[str, Any]) -> None:
-    """Mutate *doc* in place: expand rule refs wherever ``confidence_match_rules`` appears.
+    """Mutate *doc* in place: expand rule refs wherever ``validation_rules`` appears.
 
-    When ``confidence_match_rule_definitions`` is absent, *lookup* is empty: inline rule dicts
+    Top-level ``source_views[]`` rows do not carry ``validation`` (use extraction / global / aliasing
+    validation only). When ``validation_rule_definitions`` is absent, *lookup* is empty: inline rule dicts
     pass through; string or ``ref:`` entries raise unless the id exists in definitions.
     Removes the definitions and sequences keys from *doc* after resolution so downstream
     config matches the legacy shape (definitions are not part of key_extraction Pydantic models).
     """
     lookup = definitions_lookup_from_scope(doc)
     sequences = sequences_lookup_from_scope(doc)
-
-    # Top-level source_views
-    svs = doc.get("source_views")
-    if isinstance(svs, list):
-        for i, v in enumerate(svs):
-            if not isinstance(v, dict):
-                continue
-            val = v.get("validation")
-            patched = _patch_validation_block(
-                val, lookup, sequences, context=f"source_views[{i}].validation."
-            )
-            if patched is not None:
-                v["validation"] = patched
 
     ke = doc.get("key_extraction")
     if isinstance(ke, dict):
@@ -351,20 +355,6 @@ def resolve_confidence_match_rule_refs_in_scope_document(doc: MutableMapping[str
                         )
                         if patched is not None:
                             rule["validation"] = patched
-                sv_nested = data.get("source_views")
-                if isinstance(sv_nested, list):
-                    for i, v in enumerate(sv_nested):
-                        if not isinstance(v, dict):
-                            continue
-                        val = v.get("validation")
-                        patched = _patch_validation_block(
-                            val,
-                            lookup,
-                            sequences,
-                            context=f"key_extraction.config.data.source_views[{i}].validation.",
-                        )
-                        if patched is not None:
-                            v["validation"] = patched
 
     al = doc.get("aliasing")
     if isinstance(al, dict):

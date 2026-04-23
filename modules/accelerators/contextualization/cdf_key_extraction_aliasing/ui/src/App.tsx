@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import "@xyflow/react/dist/style.css";
 import YAML from "yaml";
 import { AdvancedYamlPanel } from "./components/AdvancedYamlPanel";
 import { AliasingControls } from "./components/AliasingControls";
@@ -43,6 +44,9 @@ type ConfigureTarget =
 
 const SCOPE_REL = "workflow.local.config.yaml";
 const TEMPLATE_REL = "workflow_template/workflow.template.config.yaml";
+
+/** Embedded in WorkflowTrigger `input.configuration` (same schema as sibling `.canvas.yaml` for local/template). */
+const TRIGGER_WORKFLOW_CANVAS_KEY = "workflow_canvas";
 
 const MODULE_FORM_KEYS: { key: string; labelKey: MessageKey }[] = [
   { key: "function_version", labelKey: "module.field.function_version" },
@@ -122,6 +126,7 @@ export default function App() {
   );
   const [savedTemplateCanvasSnap, setSavedTemplateCanvasSnap] = useState("");
   const [templateCanvasReloadNonce, setTemplateCanvasReloadNonce] = useState(0);
+  const [triggerCanvasReloadNonce, setTriggerCanvasReloadNonce] = useState(0);
 
   const [configTriggerText, setConfigTriggerText] = useState("");
   const [configTriggerPhase, setConfigTriggerPhase] = useState<PhaseKey | null>(null);
@@ -146,12 +151,6 @@ export default function App() {
   useEffect(() => {
     if (configureTarget.id !== "trigger") setTriggerTopTab("pipeline");
   }, [configureTarget.id]);
-
-  useEffect(() => {
-    if (configureTarget.id === "trigger" && configSubTab === "flowCanvas") {
-      setConfigSubTab("sourceViews");
-    }
-  }, [configureTarget.id, configSubTab]);
 
   const api = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
     const r = await fetch(path, init);
@@ -328,6 +327,12 @@ export default function App() {
     return { levels: [], locations: [] };
   }, [defaultDoc.aliasing_scope_hierarchy]);
 
+  const moduleSchemaSpace = useMemo((): string | undefined => {
+    const v = defaultDoc.schemaSpace;
+    const s = v != null ? String(v).trim() : "";
+    return s || undefined;
+  }, [defaultDoc.schemaSpace]);
+
   const setHierarchy = (next: AliasingScopeHierarchy) => {
     setDefaultDoc((d) => ({ ...d, aliasing_scope_hierarchy: next }));
   };
@@ -370,9 +375,13 @@ export default function App() {
   const flowFullscreenOpen = useMemo(
     () =>
       tab === "configure" &&
-      (configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate") &&
-      flowCanvasEditorOpen,
-    [tab, configureTarget.id, flowCanvasEditorOpen]
+      flowCanvasEditorOpen &&
+      (configureTarget.id === "workflowLocal" ||
+        configureTarget.id === "workflowTemplate" ||
+        (configureTarget.id === "trigger" &&
+          triggerTopTab === "pipeline" &&
+          configSubTab === "flowCanvas")),
+    [tab, configureTarget, flowCanvasEditorOpen, triggerTopTab, configSubTab]
   );
 
   useEffect(() => {
@@ -725,6 +734,18 @@ export default function App() {
   }, [parsedConfigTrigger]);
 
   const pipelineConfiguration: JsonObject = triggerConfiguration ?? {};
+
+  const triggerCanvasDoc = useMemo((): WorkflowCanvasDocument => {
+    if (configureTarget.id !== "trigger") return emptyWorkflowCanvasDocument();
+    const raw = (pipelineConfiguration as Record<string, unknown>)[TRIGGER_WORKFLOW_CANVAS_KEY];
+    const parsed = parseWorkflowCanvasDocument(raw);
+    return canvasDocWithScopeSeedIfEmpty(parsed, pipelineConfiguration as Record<string, unknown>);
+  }, [configureTarget.id, pipelineConfiguration, configTriggerText]);
+
+  useEffect(() => {
+    if (configureTarget.id !== "trigger") return;
+    setTriggerCanvasReloadNonce((n) => n + 1);
+  }, [configureTarget, savedConfigTriggerSnap]);
 
   const updateTriggerConfiguration = (slice: Partial<JsonObject>) => {
     if (!parsedConfigTrigger) return;
@@ -1514,7 +1535,7 @@ export default function App() {
                   <SourceViewsControls
                     value={workflowDoc.source_views}
                     onChange={(v) => setWorkflowDoc((d) => ({ ...d, source_views: v }))}
-                    scopeDocument={workflowDoc as Record<string, unknown>}
+                    schemaSpace={moduleSchemaSpace}
                   />
                 )}
                 {configSubTab === "matchDefinitions" && (
@@ -1759,9 +1780,7 @@ export default function App() {
                           className="kea-tabs kea-tabs--sub kea-trigger-pipeline-sub"
                           aria-label={t("nav.subtabs")}
                         >
-                          {configSubtabs
-                            .filter((s) => s.id !== "flowCanvas")
-                            .map(({ id, labelKey }) => (
+                          {configSubtabs.map(({ id, labelKey }) => (
                             <button
                               key={id}
                               type="button"
@@ -1772,11 +1791,19 @@ export default function App() {
                             </button>
                           ))}
                         </nav>
+                        {configSubTab === "flowCanvas" && (
+                          <WorkflowFlowCanvasPreview
+                            t={t}
+                            document={triggerCanvasDoc}
+                            reloadNonce={triggerCanvasReloadNonce}
+                            onEdit={() => setFlowCanvasEditorOpen(true)}
+                          />
+                        )}
                         {configSubTab === "sourceViews" && (
                           <SourceViewsControls
                             value={pipelineConfiguration.source_views}
                             onChange={(v) => setTriggerSourceViews(v)}
-                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                            schemaSpace={moduleSchemaSpace}
                           />
                         )}
                         {configSubTab === "matchDefinitions" && (
@@ -1929,11 +1956,20 @@ export default function App() {
               <p id="kea-flow-fullscreen-config" className="kea-flow-fullscreen__config-name">
                 {configureTarget.id === "workflowTemplate"
                   ? workflowTemplateNavPrimary
-                  : workflowLocalNavPrimary}
+                  : configureTarget.id === "workflowLocal"
+                    ? workflowLocalNavPrimary
+                    : configureTarget.id === "trigger"
+                      ? triggerNamesByPath[configureTarget.path] ??
+                        configureTarget.path.replace(/^workflows\//, "")
+                      : ""}
               </p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-              {(configureTarget.id === "workflowLocal" ? isScopeCanvasDirty : isTemplateCanvasDirty) && (
+              {(configureTarget.id === "workflowLocal"
+                ? isScopeCanvasDirty
+                : configureTarget.id === "workflowTemplate"
+                  ? isTemplateCanvasDirty
+                  : isConfigTriggerDirty) && (
                 <span className="kea-hint kea-hint--warn" role="status">
                   {t("status.unsavedChanges")}
                 </span>
@@ -1944,15 +1980,21 @@ export default function App() {
                 disabled={
                   configureTarget.id === "workflowLocal"
                     ? scopePhase === "status.saving"
-                    : templatePhase === "status.saving"
+                    : configureTarget.id === "workflowTemplate"
+                      ? templatePhase === "status.saving"
+                      : configTriggerPhase === "status.saving"
                 }
                 onClick={() => {
-                  void (configureTarget.id === "workflowLocal" ? saveScope() : saveTemplate());
+                  if (configureTarget.id === "workflowLocal") void saveScope();
+                  else if (configureTarget.id === "workflowTemplate") void saveTemplate();
+                  else void saveConfigureTrigger();
                 }}
               >
                 {(configureTarget.id === "workflowLocal"
                   ? scopePhase === "status.saving"
-                  : templatePhase === "status.saving")
+                  : configureTarget.id === "workflowTemplate"
+                    ? templatePhase === "status.saving"
+                    : configTriggerPhase === "status.saving")
                   ? t("status.saving")
                   : t("flow.save")}
               </button>
@@ -1981,8 +2023,9 @@ export default function App() {
                     syncWorkflowScopeFromCanvas(canvas, { ...(d as Record<string, unknown>) })
                   )
                 }
+                schemaSpace={moduleSchemaSpace}
               />
-            ) : (
+            ) : configureTarget.id === "workflowTemplate" ? (
               <WorkflowFlowPanel
                 t={t}
                 initialDocument={templateCanvasDoc}
@@ -1997,6 +2040,31 @@ export default function App() {
                     syncWorkflowScopeFromCanvas(canvas, { ...(d as Record<string, unknown>) })
                   )
                 }
+                schemaSpace={moduleSchemaSpace}
+              />
+            ) : (
+              <WorkflowFlowPanel
+                t={t}
+                initialDocument={triggerCanvasDoc}
+                reloadNonce={triggerCanvasReloadNonce}
+                workflowScopeDoc={pipelineConfiguration as Record<string, unknown>}
+                onPatchWorkflowScope={(recipe) => {
+                  const next = recipe({ ...(pipelineConfiguration as Record<string, unknown>) });
+                  updateTriggerConfiguration(next as Partial<JsonObject>);
+                }}
+                onChange={(doc) =>
+                  updateTriggerConfiguration({
+                    [TRIGGER_WORKFLOW_CANVAS_KEY]: doc as unknown as JsonObject,
+                  })
+                }
+                schemaSpace={moduleSchemaSpace}
+                onSyncScopeFromCanvas={(canvas) => {
+                  const next = syncWorkflowScopeFromCanvas(
+                    canvas,
+                    pipelineConfiguration as Record<string, unknown>
+                  );
+                  updateTriggerConfiguration(next as Partial<JsonObject>);
+                }}
               />
             )}
           </div>

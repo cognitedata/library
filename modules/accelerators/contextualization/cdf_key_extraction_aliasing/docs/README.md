@@ -44,6 +44,7 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 | [How to build configuration (YAML)](guides/howto_config_yaml.md)                          | File-based authoring: scope vs `default.config.yaml` vs template, build, run, deploy                 |
 | [How to build configuration (UI)](guides/howto_config_ui.md)                               | Operator UI + API: dev setup, tabs, sync template, run targets, `run_all`                            |
 | [Configuration guide](guides/configuration_guide.md)                                        | Pipeline YAML, `source_views`, filters, validation, aliasing parameters, `alias_mapping_table` (RAW) |
+| [Workflow associations](guides/workflow_associations.md)                                    | Top-level `associations`, view→extraction bindings, Python reconcile, `compile_canvas_associations.py` |
 | [Reference YAML (flat)](../config/examples/reference/config_example_complete.yaml)          | Exhaustive field listing                                                                             |
 | [Reference scope YAML](../config/examples/reference/reference_key_extraction_aliasing.yaml) | Same fields as above in `key_extraction_aliasing` document shape                                     |
 | Migration notes                                                                             | `[LEGACY_TO_NEW_*.md](../config/examples/reference/)` — old pipeline → new config                    |

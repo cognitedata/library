@@ -8,6 +8,63 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.workflow_associations import (
+    KIND_SOURCE_VIEW_TO_EXTRACTION,
+    coerce_association_source_view_index,
+)
+
+
+def _view_identity(v: Dict[str, Any]) -> tuple:
+    return (
+        str(v.get("view_space") or "").strip(),
+        str(v.get("view_external_id") or "").strip(),
+        str(v.get("view_version") or "").strip(),
+    )
+
+
+def remap_associations_for_filtered_source_views(
+    associations: List[Dict[str, Any]],
+    original_source_views: List[Dict[str, Any]],
+    filtered_source_views: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Rewrite ``source_view_index`` on association rows so they still refer to the same
+    logical view after ``source_views`` is replaced (e.g. CLI filter / reorder).
+
+    Rows whose view was dropped from the filtered list are omitted.
+    """
+    if not isinstance(associations, list) or not associations:
+        return []
+    if not isinstance(original_source_views, list) or not original_source_views:
+        return copy.deepcopy(associations)
+    if not isinstance(filtered_source_views, list):
+        return copy.deepcopy(associations)
+
+    orig_keys = [_view_identity(v) for v in original_source_views if isinstance(v, dict)]
+    new_index = {
+        _view_identity(v): i for i, v in enumerate(filtered_source_views) if isinstance(v, dict)
+    }
+    out: List[Dict[str, Any]] = []
+    for row in associations:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("kind") or "").strip() != KIND_SOURCE_VIEW_TO_EXTRACTION:
+            out.append(copy.deepcopy(row))
+            continue
+        ii = coerce_association_source_view_index(row.get("source_view_index"))
+        if ii is None:
+            continue
+        if ii < 0 or ii >= len(orig_keys):
+            continue
+        vk = orig_keys[ii]
+        ni = new_index.get(vk)
+        if ni is None:
+            continue
+        r2 = copy.deepcopy(row)
+        r2["source_view_index"] = ni
+        out.append(r2)
+    return out
+
 
 def merged_scope_document_for_local_run(
     scope_yaml_path: Path,
@@ -26,7 +83,19 @@ def merged_scope_document_for_local_run(
     out = copy.deepcopy(doc)
     if not isinstance(out.get("key_extraction"), dict):
         raise ValueError("Scope YAML requires key_extraction mapping")
-    out["source_views"] = copy.deepcopy(source_views)
+    original_svs = out.get("source_views")
+    filtered_svs = copy.deepcopy(source_views)
+    raw_assoc = out.get("associations")
+    if (
+        isinstance(raw_assoc, list)
+        and raw_assoc
+        and isinstance(original_svs, list)
+        and original_svs
+    ):
+        out["associations"] = remap_associations_for_filtered_source_views(
+            raw_assoc, original_svs, filtered_svs
+        )
+    out["source_views"] = filtered_svs
     return out
 
 

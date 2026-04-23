@@ -14,14 +14,27 @@ except ImportError:
 
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import apply_reference_index_scope_document
-from dependencies import create_client, get_env_variables
-from pipeline import persist_reference_index
+from .dependencies import create_client, get_env_variables
+from .pipeline import persist_reference_index
 
 
 _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
     "max_aliases_per_tag": 50,
     "min_confidence": 0.01,
-    "confidence_match_rules": [],
+    "validation_rules": [
+        {
+            "name": "alias_length_check",
+            "match": {
+                "expressions": [
+                    {},
+                    {
+                        "pattern": r"^.{101,}$",
+                        "description": "Alias exceeds maximum length 100",
+                    },
+                ]
+            },
+        }
+    ],
 }
 
 
@@ -126,9 +139,6 @@ def run_locally() -> Dict[str, Any]:
 
     _ref_validation = deepcopy(_DEFAULT_ALIASING_VALIDATION)
     _ref_validation["max_aliases_per_tag"] = 100
-    _exprs = _ref_validation["confidence_match_rules"][0]["match"]["expressions"]
-    _exprs[1]["pattern"] = r"^.{101,}$"
-    _exprs[1]["description"] = "Alias exceeds maximum length 100"
 
     env = get_env_variables()
     client = create_client(env, debug=False)

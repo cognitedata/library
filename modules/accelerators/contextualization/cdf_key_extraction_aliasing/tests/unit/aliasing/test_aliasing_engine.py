@@ -48,7 +48,7 @@ class TestPerRuleValidationMerge(unittest.TestCase):
         config: Dict[str, Any] = {
             "validation": {
                 "min_confidence": 0.5,
-                "confidence_match_rules": [],
+                "validation_rules": [],
             },
             "rules": [
                 {
@@ -58,7 +58,7 @@ class TestPerRuleValidationMerge(unittest.TestCase):
                     "priority": 10,
                     "preserve_original": True,
                     "config": {"substitutions": {}},
-                    "validation": {"confidence_match_rules": [penalty]},
+                    "validation": {"validation_rules": [penalty]},
                 }
             ],
         }

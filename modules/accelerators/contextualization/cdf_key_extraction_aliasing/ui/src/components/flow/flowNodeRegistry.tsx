@@ -1,16 +1,26 @@
 import {
   KeaAliasingNode,
   KeaAliasPersistenceNode,
+  KeaWritebackRawNode,
+  KeaWritebackDataModelingNode,
   KeaEndNode,
   KeaExtractionNode,
   KeaReferenceIndexNode,
   KeaSourceViewNode,
   KeaStartNode,
+  KeaSubflowGraphInNode,
+  KeaSubflowGraphOutNode,
+  KeaSubflowNode,
+  KeaSubgraphNode,
   KeaValidationNode,
   KeaValidationRuleNode,
 } from "./keaNodes";
 
 export const KEA_FLOW_NODE_TYPES = {
+  keaSubflow: KeaSubflowNode,
+  keaSubgraph: KeaSubgraphNode,
+  keaSubflowGraphIn: KeaSubflowGraphInNode,
+  keaSubflowGraphOut: KeaSubflowGraphOutNode,
   keaStart: KeaStartNode,
   keaEnd: KeaEndNode,
   keaSourceView: KeaSourceViewNode,
@@ -21,5 +31,7 @@ export const KEA_FLOW_NODE_TYPES = {
   keaMatchValidationRuleExtraction: KeaValidationRuleNode,
   keaMatchValidationRuleAliasing: KeaValidationRuleNode,
   keaAliasPersistence: KeaAliasPersistenceNode,
+  keaWritebackRaw: KeaWritebackRawNode,
+  keaWritebackDataModeling: KeaWritebackDataModelingNode,
   keaReferenceIndex: KeaReferenceIndexNode,
 };

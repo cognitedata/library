@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Set
 
 import yaml
 from fastapi import Body, FastAPI, HTTPException, Query
@@ -17,6 +17,10 @@ _MODULE_DEFAULT = str(Path(__file__).resolve().parent.parent.parent)
 MODULE_ROOT = Path(
     os.environ.get("CDF_KEY_EXTRACTION_ALIASING_ROOT") or _MODULE_DEFAULT
 ).resolve()
+# So ``local_runner`` imports work when uvicorn loads this module (same layout as ``module.py ui``).
+_mod_root_str = str(MODULE_ROOT)
+if _mod_root_str not in sys.path:
+    sys.path.insert(0, _mod_root_str)
 
 DEFAULT_CONFIG_REL = "default.config.yaml"
 DEFAULT_SCOPE_DOCUMENT_REL = "workflow.local.config.yaml"
@@ -101,6 +105,142 @@ class FileBody(BaseModel):
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "module_root": str(MODULE_ROOT)}
+
+
+def _cdf_client():
+    """CDF client from ``ClientConfig`` built from env (``.env`` via ``load_env``, same as ``module.py run``)."""
+    try:
+        from local_runner.client import create_cognite_client
+        from local_runner.env import load_env
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"cognite-sdk / local_runner not available: {e}",
+        ) from e
+    load_env()
+    try:
+        return create_cognite_client()
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Could not construct CogniteClient (check .env / COGNITE_* / CDF_* / IDP_*): {e}",
+        ) from e
+
+
+@app.get("/api/cdf/data-modeling/spaces")
+def cdf_data_modeling_spaces(
+    limit: int = Query(2000, ge=1, le=10000),
+    include_global: bool = Query(False),
+) -> dict:
+    """List data modeling space identifiers (optional; UI prefers data-models picker)."""
+    from cognite.client.exceptions import CogniteAPIError
+
+    client = _cdf_client()
+    seen: Set[str] = set()
+    names: List[str] = []
+    try:
+        space_list = client.data_modeling.spaces.list(
+            limit=limit, include_global=include_global
+        )
+        for s in space_list:
+            sid = getattr(s, "space", None) or str(s)
+            if sid not in seen:
+                seen.add(sid)
+                names.append(sid)
+            if len(names) >= limit:
+                break
+    except CogniteAPIError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    names.sort()
+    return {"spaces": names}
+
+
+@app.get("/api/cdf/data-modeling/data-models")
+def cdf_data_modeling_data_models(
+    limit: int = Query(2000, ge=1, le=10000),
+    space: str | None = Query(
+        None,
+        max_length=512,
+        description="Optional filter: only data models in this space (not the same as view ``schemaSpace``).",
+    ),
+    include_global: bool = Query(False),
+    all_versions: bool = Query(False),
+    inline_views: bool = Query(False),
+) -> dict:
+    """List data models; each row includes ``space`` to use as ``view_space`` for source views."""
+    from cognite.client.exceptions import CogniteAPIError
+
+    client = _cdf_client()
+    rows: List[Dict[str, str]] = []
+    space_f = space.strip() if space and space.strip() else None
+    try:
+        dm_list = client.data_modeling.data_models.list(
+            limit=limit,
+            space=space_f,
+            include_global=include_global,
+            all_versions=all_versions,
+            inline_views=inline_views,
+        )
+        for dm in dm_list:
+            rows.append(
+                {
+                    "space": dm.space,
+                    "external_id": dm.external_id,
+                    "version": dm.version,
+                    "name": (dm.name or "").strip(),
+                    "description": ((dm.description or "")[:500]).strip(),
+                }
+            )
+            if len(rows) >= limit:
+                break
+    except CogniteAPIError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    rows.sort(key=lambda r: (r["space"], r["external_id"], r["version"]))
+    return {"data_models": rows}
+
+
+@app.get("/api/cdf/data-modeling/views")
+def cdf_data_modeling_views(
+    space: str = Query(..., min_length=1, max_length=512),
+    limit: int = Query(8000, ge=1, le=20000),
+    include_global: bool = Query(False),
+    all_versions: bool = Query(False),
+) -> dict:
+    """List views in a data modeling space (for view_external_id / view_version pickers)."""
+    from cognite.client.exceptions import CogniteAPIError
+
+    client = _cdf_client()
+    rows: List[Dict[str, str]] = []
+    try:
+        chunk = min(2500, limit)
+        for view_list in client.data_modeling.views(
+            chunk_size=chunk,
+            space=space.strip(),
+            include_global=include_global,
+            all_versions=all_versions,
+        ):
+            for v in view_list:
+                rows.append(
+                    {
+                        "space": v.space,
+                        "external_id": v.external_id,
+                        "version": v.version,
+                    }
+                )
+                if len(rows) >= limit:
+                    break
+            if len(rows) >= limit:
+                break
+    except CogniteAPIError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    rows.sort(key=lambda r: (r["external_id"], r["version"]))
+    return {"views": rows}
 
 
 @app.get("/api/default-config")

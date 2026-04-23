@@ -11,11 +11,11 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Default post-alias validation: confidence_match_rules (regex) + min_confidence + cap.
+# Default post-alias validation: validation_rules (regex) + min_confidence + cap.
 _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
     "max_aliases_per_tag": 50,
     "min_confidence": 0.01,
-    "confidence_match_rules": [
+    "validation_rules": [
         {
             "name": "alias_shape_invalid",
             "priority": 0,

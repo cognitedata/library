@@ -69,7 +69,7 @@ type UiRule = {
   scopeFiltersOtherYaml: string;
   parametersYaml: string;
   sourceFieldsYaml: string;
-  /** Per-rule `validation` block (match rules / order). */
+  /** Per-rule `validation` block (validation rules / order). */
   validation: JsonObject;
 };
 
