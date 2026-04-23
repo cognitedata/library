@@ -1,9 +1,9 @@
 # 3D Contextualization in a DM-Only CDF Project — Setup Guide
 
-> **Project reference:** `cdf-shivam-test` (bluefield cluster)  
-> **Data model:** `upstream-value-chain / upstream_value_chain / v1`  
-> **Asset instance space:** `instance_upstream_value_chain`  
-> **3D instance space:** `rmdm`  
+> **Project reference:** ` (bluefield cluster)  
+> **Data model:** ``  
+> **Asset instance space:** `  
+> **3D instance space:** ``  
 
 ---
 
@@ -63,8 +63,8 @@ CADRevision (rmdm)
 
 ### Critical Rules
 
-- `Cognite3DObject` **must be in the same instance space as Asset** — Industrial Tools scopes
-  queries by the asset's instance space. If it is in the 3D space (`rmdm`), IT will not find it.
+- `CogniteCadNode` **must be in the same instance space as Asset** — Industrial Tools scopes
+  queries by the asset's instance space. If it is in the 3D space , IT will not find it.
 - `cadNodeReference` must use `str(treeIndex)` — **not** `node_id`. They are different values.
 - `treeIndexes` must be `[int]` (a list of integers). The 3D viewer uses this list, not `cadNodeReference`, to match clicked nodes.
 - `revisions` must be a direct-relation list pointing to the `CADRevision` node.
