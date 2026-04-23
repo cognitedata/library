@@ -1,0 +1,2 @@
+# Development / test dependency — not needed to run the wizard itself.
+pytest>=7.0
