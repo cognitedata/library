@@ -88,6 +88,7 @@ def run_post_write_verification(
     env: str,
     config_arg: str,
     toolkit_version: tuple[int, int, int] | None = None,
+    project_name: str | None = None,
 ) -> None:
     """Run ``cdf build`` then offer ``cdf deploy --dry-run`` and live deploy.
 
@@ -130,8 +131,9 @@ def run_post_write_verification(
     style.success(VERIFY_DRY_OK)
 
     # --- Step 3: live deploy (optional) -------------------------------------
-    style.hint(f"\n  [3/3] Live deploy to '{env}' (optional).")
-    if prompt_yes_no(f"  Proceed with live deploy to '{env}'?", default=False):
+    deploy_target = project_name or env
+    style.hint(f"\n  [3/3] Live deploy to '{deploy_target}' (optional).")
+    if prompt_yes_no(f"  Proceed with live deploy to '{deploy_target}'?", default=False):
         live_args = _cdf_env_args(env, config_arg, toolkit_version)
         style.hint("        Running: cdf deploy " + " ".join(live_args))
         subprocess.run(["cdf", "deploy"] + live_args, cwd=str(repo_root))
