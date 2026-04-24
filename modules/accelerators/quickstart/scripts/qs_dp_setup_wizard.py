@@ -215,9 +215,8 @@ def main(
     if current_project:
         current_project = _strip_yaml_quotes(current_project)
         style.hint(HINT_CURRENT_VALUE.format(value=current_project))
-    project_name = quote_yaml_string(
-        prompt_text(PROMPT_PROJECT, default=current_project or None)
-    )
+    plain_project_name = prompt_text(PROMPT_PROJECT, default=current_project or None)
+    project_name = quote_yaml_string(plain_project_name)
 
     # --- ApplicationOwner email(s) ------------------------------------------
     style.section(SEC_APP_OWNER)
@@ -343,7 +342,7 @@ def main(
     style.hint(HINT_BACKUPS)
 
     if not skip_verify:
-        run_post_write_verification(repo_root, env, config_arg, toolkit_version)
+        run_post_write_verification(repo_root, env, config_arg, toolkit_version, plain_project_name)
 
     return 0
 
