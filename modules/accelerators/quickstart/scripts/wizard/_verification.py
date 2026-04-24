@@ -134,9 +134,8 @@ def run_post_write_verification(
     deploy_target = project_name or env
     style.hint(f"\n  [3/3] Live deploy to '{deploy_target}' (optional).")
     if prompt_yes_no(f"  Proceed with live deploy to '{deploy_target}'?", default=False):
-        live_args = _cdf_env_args(env, config_arg, toolkit_version)
-        style.hint("        Running: cdf deploy " + " ".join(live_args))
-        subprocess.run(["cdf", "deploy"] + live_args, cwd=str(repo_root))
+        style.hint("        Running: cdf deploy")
+        subprocess.run(["cdf", "deploy"], cwd=str(repo_root))
         style.success(VERIFY_LIVE_OK)
     else:
         style.hint(VERIFY_LIVE_SKIP)
