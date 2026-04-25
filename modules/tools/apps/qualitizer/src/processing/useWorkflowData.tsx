@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
-import type { LoadState, WorkflowExecutionSummary } from "./types";
+import type { LoadState, ProcessingDataLoadProgress, WorkflowExecutionSummary } from "./types";
 import { useI18n } from "@/shared/i18n";
 
 type WorkflowExecutionsListApiResponse = {
@@ -28,6 +28,7 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
   const [workflowDetails, setWorkflowDetails] = useState<Record<string, unknown> | null>(null);
   const [workflowDetailsStatus, setWorkflowDetailsStatus] = useState<LoadState>("idle");
   const [workflowDetailsError, setWorkflowDetailsError] = useState<string | null>(null);
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
 
   useEffect(() => {
     if (isSdkLoading) return;
@@ -36,6 +37,7 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
       setWorkflowsStatus("loading");
       setWorkflowsError(null);
       setWorkflowExecutionsAll([]);
+      setLoadProgress({ kind: "workflows_executions", loaded: 0 });
       try {
         const executions: WorkflowExecutionSummary[] = [];
         let cursor: string | undefined;
@@ -48,14 +50,19 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
           )) as WorkflowExecutionsListApiResponse;
           executions.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
+          if (!cancelled) {
+            setLoadProgress({ kind: "workflows_executions", loaded: executions.length });
+          }
         } while (cursor);
 
         if (!cancelled) {
           setWorkflowExecutionsAll(executions);
+          setLoadProgress(null);
           setWorkflowsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setWorkflowsError(error instanceof Error ? error.message : t("processing.error.workflows"));
           setWorkflowsStatus("error");
         }
@@ -129,6 +136,7 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
 
   return {
     workflowsStatus,
+    loadProgress,
     workflowsError,
     workflowExecutionsAll,
     filteredWorkflowExecutions,

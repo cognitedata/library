@@ -120,17 +120,92 @@ export function ProcessingChart({
       .attr("fill", "white")
       .attr("stroke", "#e2e8f0");
 
-    const axisGroup = root.append("g");
     const axisColor = "#94a3b8";
     const textColor = "#64748b";
     const axisBottom = height - padding;
     const functionBandTop = padding;
     const functionBandBottom = functionBandTop + lineHeight;
     const bandGap = 12;
+    const dotAreaTop = functionBandBottom + bandGap;
+    const dotAreaBottom = height - padding;
     const yAxisTop = functionBandTop;
     const yAxisBottom = functionBandBottom;
     const axisLeft = padding;
 
+    const MS_5MIN = 5 * 60 * 1000;
+    const utcFloorFiveMinute = (epochMs: number) => {
+      const d = new Date(epochMs);
+      const mins = d.getUTCMinutes() - (d.getUTCMinutes() % 5);
+      return Date.UTC(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate(),
+        d.getUTCHours(),
+        mins,
+        0,
+        0
+      );
+    };
+    const utcFiveMinuteSlotParity = (epochMs: number) => {
+      const f = utcFloorFiveMinute(epochMs);
+      const dayStart = Date.UTC(
+        new Date(f).getUTCFullYear(),
+        new Date(f).getUTCMonth(),
+        new Date(f).getUTCDate(),
+        0,
+        0,
+        0,
+        0
+      );
+      return Math.floor((f - dayStart) / MS_5MIN) % 2;
+    };
+
+    const gridGroup = root.append("g").attr("class", "five-minute-grid");
+    const plotRight = width - padding;
+    let segStart = startTime;
+    while (segStart < endTime) {
+      let nextMark = utcFloorFiveMinute(segStart);
+      if (nextMark <= segStart) nextMark += MS_5MIN;
+      const segEnd = Math.min(endTime, nextMark);
+      if (segEnd <= segStart) break;
+      const mid = segStart + (segEnd - segStart) / 2;
+      if (utcFiveMinuteSlotParity(mid) === 1) {
+        const x0 = toX(segStart);
+        const x1 = toX(segEnd);
+        const w = x1 - x0;
+        if (w > 0.25) {
+          gridGroup
+            .append("rect")
+            .attr("x", x0)
+            .attr("y", functionBandTop)
+            .attr("width", w)
+            .attr("height", dotAreaBottom - functionBandTop)
+            .attr("fill", "rgba(148, 163, 184, 0.09)")
+            .attr("pointer-events", "none");
+        }
+      }
+      segStart = segEnd;
+    }
+    let gridMark = utcFloorFiveMinute(startTime);
+    if (gridMark < startTime) gridMark += MS_5MIN;
+    const gridStroke = "#94a3b8";
+    for (; gridMark <= endTime; gridMark += MS_5MIN) {
+      const x = toX(gridMark);
+      if (x < axisLeft + 0.5 || x > plotRight - 0.5) continue;
+      gridGroup
+        .append("line")
+        .attr("x1", x)
+        .attr("x2", x)
+        .attr("y1", functionBandTop)
+        .attr("y2", dotAreaBottom)
+        .attr("stroke", gridStroke)
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "3 5")
+        .attr("stroke-opacity", 0.55)
+        .attr("pointer-events", "none");
+    }
+
+    const axisGroup = root.append("g");
     axisGroup
       .append("line")
       .attr("x1", axisLeft)
@@ -252,8 +327,6 @@ export function ProcessingChart({
         .attr("stroke-width", 2);
     }
 
-    const dotAreaTop = functionBandBottom + bandGap;
-    const dotAreaBottom = height - padding;
     const dotAreaHeight = dotAreaBottom - dotAreaTop;
     const bandHeight = dotAreaHeight / 4;
     const functionBaseline = dotAreaTop + bandHeight * 0.65;

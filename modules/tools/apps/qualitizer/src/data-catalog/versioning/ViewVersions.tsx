@@ -20,16 +20,26 @@ import {
 } from "@/shared/dms-catalog-cache";
 import {
   getDataModelUrl,
+  getDataModelViewPreviewUrl,
   getTransformationPreviewUrl,
-  getViewUrl,
 } from "@/shared/cdf-browser-url";
+import { formatResourceDisplayLabel } from "@/shared/format-resource-display-label";
 import { useI18n } from "@/shared/i18n";
-import { compareVersionStrings, isChecksumLikeVersion } from "./versioning-utils";
+import {
+  compareVersionStrings,
+  countImplicitViewVersions,
+  cycleLegendFilterState,
+  isChecksumLikeVersion,
+  type LegendFilterState,
+} from "./versioning-utils";
 import { GRID_VERSION_HEADER_HEIGHT, VersioningGridScroll } from "./VersioningGridScroll";
 
 const ROW_HEIGHT = 36;
 const COL_WIDTH = 56;
 const LABEL_WIDTH = 200;
+/** Opaque auto-generated view versions; shown as count only, never as matrix columns. */
+const IMPLICIT_COL_WIDTH = 44;
+const VIEW_VERSION_AREA_START = LABEL_WIDTH + IMPLICIT_COL_WIDTH;
 const PADDING = 20;
 const SMALL_R = 3;
 const LARGE_R = 6;
@@ -96,6 +106,7 @@ type CellDot = {
 } | null;
 
 type ReferrerItem =
+  | { type: "note"; text: string }
   | { type: "view"; label: string; url?: string }
   | { type: "transformation"; id: string; name: string; url?: string }
   | { type: "dataModel"; key: string; baseKey: string; label: string; space: string; externalId: string; version?: string; url?: string };
@@ -126,7 +137,8 @@ type ViewGridLegendFilterId =
   | "olderNotInUse"
   | "otherInUse"
   | "txLatestBorder"
-  | "txOlderBorder";
+  | "txOlderBorder"
+  | "implicitVersions";
 
 function computeViewGridCell(
   row: ViewRow,
@@ -221,6 +233,7 @@ function viewRowLegendFlagUnion(
     );
     if (cell) for (const id of cell.legendFlags) union.add(id);
   }
+  if (countImplicitViewVersions(row.versions.keys()) > 0) union.add("implicitVersions");
   return union;
 }
 
@@ -279,6 +292,15 @@ const VIEW_VERSION_LEGEND_ENTRIES: Array<{
     ),
     label: "Write destination: older view version (red ring)",
   },
+  {
+    id: "implicitVersions",
+    swatch: (
+      <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded border border-amber-600 bg-amber-50 px-1 text-[10px] font-semibold text-amber-800">
+        #
+      </span>
+    ),
+    label: "Has implicit (auto-generated) view versions",
+  },
 ];
 
 const TAB_THRESHOLD = 10;
@@ -333,7 +355,7 @@ function buildMatrixStateFromCatalog(listItems: ViewVersionItem[]): { rows: View
   const rows: ViewRow[] = [];
   for (const [viewKey, verMap] of viewMap) {
     const first = Array.from(verMap.values())[0];
-    const label = first?.name ?? first?.externalId ?? viewKey;
+    const label = formatResourceDisplayLabel(first?.name, first?.externalId, viewKey);
     rows.push({
       key: viewKey,
       label,
@@ -375,6 +397,45 @@ type ViewCellPinIndex = {
 
 type DataModelOption = { key: string; baseKey: string; label: string; viewKeys: Set<string> };
 
+function dataModelRefFromOption(opt: { key: string; baseKey: string }): {
+  space: string;
+  externalId: string;
+  version: string;
+} {
+  const prefix = `${opt.baseKey}:`;
+  const version = opt.key.startsWith(prefix) ? opt.key.slice(prefix.length) : "latest";
+  const colon = opt.baseKey.indexOf(":");
+  const space = colon >= 0 ? opt.baseKey.slice(0, colon) : "";
+  const externalId = colon >= 0 ? opt.baseKey.slice(colon + 1) : opt.baseKey;
+  return { space, externalId, version: version || "latest" };
+}
+
+function modelsContainingView(viewKey: string, options: DataModelOption[]): DataModelOption[] {
+  return options.filter((o) => o.viewKeys.has(viewKey)).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function viewPreviewUrlForRow(
+  project: string,
+  viewKey: string,
+  viewExternalId: string,
+  options: DataModelOption[]
+): { url?: string; models: DataModelOption[] } {
+  const models = modelsContainingView(viewKey, options);
+  const first = models[0];
+  if (!first) return { models, url: undefined };
+  const dm = dataModelRefFromOption(first);
+  return {
+    models,
+    url: getDataModelViewPreviewUrl(
+      project,
+      dm.space,
+      dm.externalId,
+      dm.version,
+      viewExternalId
+    ),
+  };
+}
+
 export function ViewVersions() {
   const { t } = useI18n();
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
@@ -402,6 +463,14 @@ export function ViewVersions() {
   >(new Map());
   const [pinnedBubble, setPinnedBubble] = useState<
     | { type: "view"; viewKey: string; version: string; label: string; space: string; externalId: string }
+    | {
+        type: "implicitVersions";
+        viewKey: string;
+        label: string;
+        space: string;
+        externalId: string;
+        versions: string[];
+      }
     | { type: "model"; baseKey: string; version: string; label: string; space: string; externalId: string }
     | null
   >(null);
@@ -412,9 +481,9 @@ export function ViewVersions() {
     txByCell: new Map(),
     dmByCell: new Map(),
   });
-  const [viewLegendFilter, setViewLegendFilter] = useState<ViewGridLegendFilterId | null>(null);
+  const [viewLegendFilter, setViewLegendFilter] =
+    useState<LegendFilterState<ViewGridLegendFilterId>>(null);
   const [matrixSearch, setMatrixSearch] = useState("");
-  const [showChecksumVersions, setShowChecksumVersions] = useState(false);
   const [selectedModelVersions, setSelectedModelVersions] = useState<
     Array<{ version: string; createdTime?: number }>
   >([]);
@@ -451,7 +520,7 @@ export function ViewVersions() {
         const key =
           `${model.space}:${model.externalId}:${model.version ?? "latest"}` as string;
         const baseKey = `${model.space}:${model.externalId}`;
-        const label = model.name ?? model.externalId ?? key;
+        const label = formatResourceDisplayLabel(model.name, model.externalId, key);
 
         const viewKeys = new Set<string>();
         const modelViews = (model as { views?: Array<{ space: string; externalId: string }> })
@@ -674,10 +743,6 @@ export function ViewVersions() {
     setViewLegendFilter(null);
   }, [selectedModelKey]);
 
-  useEffect(() => {
-    setShowChecksumVersions(false);
-  }, [selectedModelKey]);
-
   const modelFilteredViewRows = useMemo(() => {
     if (!selectedModelKey) return viewRows;
     const opt = modelOptions.find((o) => o.key === selectedModelKey);
@@ -700,15 +765,10 @@ export function ViewVersions() {
     return versions.filter((v) => used.has(v));
   }, [versions, filteredViewRows]);
 
-  const hasChecksumVersions = useMemo(
-    () => filteredVersions.some((v) => isChecksumLikeVersion(v)),
+  const matrixVersions = useMemo(
+    () => filteredVersions.filter((v) => !isChecksumLikeVersion(v)),
     [filteredVersions]
   );
-
-  const matrixVersions = useMemo(() => {
-    if (showChecksumVersions || !hasChecksumVersions) return filteredVersions;
-    return filteredVersions.filter((v) => !isChecksumLikeVersion(v));
-  }, [filteredVersions, showChecksumVersions, hasChecksumVersions]);
 
   const viewRowLegendFlagsByKey = useMemo(() => {
     const m = new Map<string, Set<ViewGridLegendFilterId>>();
@@ -738,9 +798,11 @@ export function ViewVersions() {
 
   const legendFilteredViewRows = useMemo(() => {
     if (!viewLegendFilter) return filteredViewRows;
-    return filteredViewRows.filter((row) =>
-      viewRowLegendFlagsByKey.get(row.key)?.has(viewLegendFilter)
-    );
+    const { id, mode } = viewLegendFilter;
+    return filteredViewRows.filter((row) => {
+      const has = viewRowLegendFlagsByKey.get(row.key)?.has(id) ?? false;
+      return mode === "include" ? has : !has;
+    });
   }, [filteredViewRows, viewLegendFilter, viewRowLegendFlagsByKey]);
 
   const cappedLegendViewRows = useMemo(() => {
@@ -763,15 +825,10 @@ export function ViewVersions() {
     return versions.filter((v) => used.has(v));
   }, [versions, cappedLegendViewRows]);
 
-  const hasChecksumVersionsInMatrix = useMemo(
-    () => versionsUsedByCappedRows.some((v) => isChecksumLikeVersion(v)),
+  const gridVersions = useMemo(
+    () => versionsUsedByCappedRows.filter((v) => !isChecksumLikeVersion(v)),
     [versionsUsedByCappedRows]
   );
-
-  const gridVersions = useMemo(() => {
-    if (showChecksumVersions || !hasChecksumVersionsInMatrix) return versionsUsedByCappedRows;
-    return versionsUsedByCappedRows.filter((v) => !isChecksumLikeVersion(v));
-  }, [versionsUsedByCappedRows, showChecksumVersions, hasChecksumVersionsInMatrix]);
 
   const usedViewLegendIds = useMemo(() => {
     const u = new Set<ViewGridLegendFilterId>();
@@ -797,7 +854,7 @@ export function ViewVersions() {
   }, [usedViewLegendIds]);
 
   useEffect(() => {
-    if (viewLegendFilter != null && !visibleViewLegendIds.has(viewLegendFilter)) {
+    if (viewLegendFilter != null && !visibleViewLegendIds.has(viewLegendFilter.id)) {
       setViewLegendFilter(null);
     }
   }, [viewLegendFilter, visibleViewLegendIds]);
@@ -979,7 +1036,7 @@ export function ViewVersions() {
   }, [isSdkLoading, loadData, sdk.project]);
 
   const { rows, linePath } = useMemo(() => {
-    if (cappedLegendViewRows.length === 0 || gridVersions.length === 0) {
+    if (cappedLegendViewRows.length === 0) {
       return { rows: [], linePath: line<{ x: number; y: number }>() };
     }
 
@@ -987,18 +1044,36 @@ export function ViewVersions() {
       .x((d) => d.x)
       .y((d) => d.y);
 
-    const rows: Array<{ label: string; dots: CellDot[]; connected: Array<{ x: number; y: number }> }> = [];
+    const rows: Array<{
+      label: string;
+      viewKey: string;
+      space: string;
+      externalId: string;
+      implicitCount: number;
+      implicitVersionStrings: string[];
+      dots: CellDot[];
+      connected: Array<{ x: number; y: number }>;
+    }> = [];
     const txByCell = viewCellPinIndex.txByCell;
 
     for (let r = 0; r < cappedLegendViewRows.length; r++) {
       const row = cappedLegendViewRows[r];
+      const implicitCount = countImplicitViewVersions(row.versions.keys());
+      const implicitVersionStrings: string[] = [];
+      for (const v of row.versions.keys()) {
+        if (isChecksumLikeVersion(v)) implicitVersionStrings.push(v);
+      }
+      implicitVersionStrings.sort(compareVersionStrings);
+      const colonIdx = row.key.indexOf(":");
+      const space = colonIdx >= 0 ? row.key.slice(0, colonIdx) : "";
+      const externalId = colonIdx >= 0 ? row.key.slice(colonIdx + 1) : row.key;
       const cy = PADDING + r * ROW_HEIGHT + ROW_HEIGHT / 2;
       const dots: CellDot[] = [];
       const connected: Array<{ x: number; y: number }> = [];
 
       for (let c = 0; c < gridVersions.length; c++) {
         const ver = gridVersions[c];
-        const cx = LABEL_WIDTH + PADDING + c * COL_WIDTH + COL_WIDTH / 2;
+        const cx = VIEW_VERSION_AREA_START + PADDING + c * COL_WIDTH + COL_WIDTH / 2;
 
         const cell = computeViewGridCell(
           row,
@@ -1032,7 +1107,16 @@ export function ViewVersions() {
         connected.push({ x: cx, y: cy });
       }
 
-      rows.push({ label: row.label, dots, connected });
+      rows.push({
+        label: row.label,
+        viewKey: row.key,
+        space,
+        externalId,
+        implicitCount,
+        implicitVersionStrings,
+        dots,
+        connected,
+      });
     }
 
     return { rows, linePath: lineGen };
@@ -1048,11 +1132,71 @@ export function ViewVersions() {
   const referrers = useMemo((): ReferrerItem[] => {
     if (!pinnedBubble) return [];
     const items: ReferrerItem[] = [];
+    if (pinnedBubble.type === "implicitVersions") {
+      const { url: dmPreviewUrl, models } = viewPreviewUrlForRow(
+        sdk.project,
+        pinnedBubble.viewKey,
+        pinnedBubble.externalId,
+        modelOptions
+      );
+      if (models.length > 1) {
+        items.push({
+          type: "note",
+          text: `This view appears on ${models.length} catalog data models. Fusion links use the first (${models[0].label}) as data model context—switch data model in Fusion if you need another.`,
+        });
+      } else if (models.length === 0) {
+        items.push({
+          type: "note",
+          text:
+            "No loaded catalog data model lists this view as an inline view, so a Data management preview URL cannot be built.",
+        });
+      }
+      const seenTx = new Set<string>();
+      const pushDestTxList = (list: Array<{ id: string; name: string }> | undefined) => {
+        for (const tx of list ?? []) {
+          if (seenTx.has(tx.id)) continue;
+          seenTx.add(tx.id);
+          items.push({
+            type: "transformation",
+            id: tx.id,
+            name: tx.name,
+            url: getTransformationPreviewUrl(sdk.project, tx.id),
+          });
+        }
+      };
+      for (const ver of pinnedBubble.versions) {
+        items.push({
+          type: "view",
+          label: `${pinnedBubble.label} · ${ver}`,
+          url: dmPreviewUrl,
+        });
+        pushDestTxList(viewCellPinIndex.txByCell.get(`${pinnedBubble.viewKey}:${ver}`));
+      }
+      return items;
+    }
     if (pinnedBubble.type === "view") {
+      const { url: dmPreviewUrl, models } = viewPreviewUrlForRow(
+        sdk.project,
+        pinnedBubble.viewKey,
+        pinnedBubble.externalId,
+        modelOptions
+      );
+      if (models.length > 1) {
+        items.push({
+          type: "note",
+          text: `This view appears on ${models.length} catalog data models. The Fusion link uses the first (${models[0].label}) as data model context—switch data model in Fusion if you need another.`,
+        });
+      } else if (models.length === 0) {
+        items.push({
+          type: "note",
+          text:
+            "No loaded catalog data model lists this view as an inline view, so a Data management preview URL cannot be built.",
+        });
+      }
       items.push({
         type: "view",
         label: `${pinnedBubble.label} ${pinnedBubble.version}`,
-        url: getViewUrl(sdk.project, pinnedBubble.space, pinnedBubble.externalId, pinnedBubble.version),
+        url: dmPreviewUrl,
       });
       const row = viewRows.find((r) => r.key === pinnedBubble.viewKey);
       const orderedVers = versions.filter((v) => row?.versions.has(v) ?? false);
@@ -1116,6 +1260,7 @@ export function ViewVersions() {
     viewRows,
     versions,
     sdk.project,
+    modelOptions,
   ]);
 
   const handleViewBubbleClick = useCallback((d: NonNullable<CellDot>) => {
@@ -1130,6 +1275,27 @@ export function ViewVersions() {
       });
     }
   }, []);
+
+  const handleImplicitCountClick = useCallback(
+    (d: {
+      viewKey: string;
+      label: string;
+      space: string;
+      externalId: string;
+      implicitVersionStrings: string[];
+    }) => {
+      if (d.implicitVersionStrings.length === 0) return;
+      setPinnedBubble({
+        type: "implicitVersions",
+        viewKey: d.viewKey,
+        label: d.label,
+        space: d.space,
+        externalId: d.externalId,
+        versions: d.implicitVersionStrings,
+      });
+    },
+    []
+  );
 
   const handleModelBubbleClick = useCallback((d: { baseKey: string; version: string; label: string; space: string; externalId: string }) => {
     setPinnedBubble({
@@ -1173,9 +1339,9 @@ export function ViewVersions() {
   }, []);
 
   useEffect(() => {
-    if (!headerSvgRef.current || gridVersions.length === 0) return;
+    if (!headerSvgRef.current) return;
     const versionCount = gridVersions.length;
-    const width = LABEL_WIDTH + PADDING * 2 + versionCount * COL_WIDTH;
+    const width = VIEW_VERSION_AREA_START + PADDING * 2 + versionCount * COL_WIDTH;
     const h = GRID_VERSION_HEADER_HEIGHT;
     const root = select(headerSvgRef.current);
     root.selectAll("*").remove();
@@ -1188,13 +1354,21 @@ export function ViewVersions() {
       .attr("height", h)
       .attr("fill", "skyblue");
     root
+      .append("text")
+      .attr("x", LABEL_WIDTH + IMPLICIT_COL_WIDTH / 2)
+      .attr("y", PADDING - 4)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 10)
+      .attr("fill", "#1e293b")
+      .text("Implicit");
+    root
       .append("g")
       .selectAll("text.version")
       .data(gridVersions)
       .enter()
       .append("text")
       .attr("class", "version")
-      .attr("x", (_, i) => LABEL_WIDTH + PADDING + i * COL_WIDTH + COL_WIDTH / 2)
+      .attr("x", (_, i) => VIEW_VERSION_AREA_START + PADDING + i * COL_WIDTH + COL_WIDTH / 2)
       .attr("y", PADDING - 4)
       .attr("text-anchor", "middle")
       .attr("font-size", 10)
@@ -1205,9 +1379,12 @@ export function ViewVersions() {
   useEffect(() => {
     if (!bodySvgRef.current || rows.length === 0) return;
     const handler = handleViewBubbleClick;
+    const implicitHandler = handleImplicitCountClick;
     const pinned = pinnedBubble?.type === "view" ? pinnedBubble : null;
+    const pinnedImplicit =
+      pinnedBubble?.type === "implicitVersions" ? pinnedBubble : null;
     const versionCount = gridVersions.length;
-    const width = LABEL_WIDTH + PADDING * 2 + versionCount * COL_WIDTH;
+    const width = VIEW_VERSION_AREA_START + PADDING * 2 + versionCount * COL_WIDTH;
     const height = PADDING * 2 + rows.length * ROW_HEIGHT - GRID_VERSION_HEADER_HEIGHT;
     const root = select(bodySvgRef.current);
     root.selectAll("*").remove();
@@ -1232,11 +1409,13 @@ export function ViewVersions() {
       .each(function (rowData) {
         const g = select(this);
 
-        g.append("path")
-          .attr("d", linePath(rowData.connected) ?? "")
-          .attr("fill", "none")
-          .attr("stroke", "rgba(255,255,255,0.8)")
-          .attr("stroke-width", 1);
+        if (rowData.connected.length > 0) {
+          g.append("path")
+            .attr("d", linePath(rowData.connected) ?? "")
+            .attr("fill", "none")
+            .attr("stroke", "rgba(255,255,255,0.8)")
+            .attr("stroke-width", 1);
+        }
 
         const circlesData = rowData.dots.filter((d): d is NonNullable<CellDot> => d !== null);
         g.selectAll("circle")
@@ -1280,7 +1459,42 @@ export function ViewVersions() {
       .attr("overflow", "hidden")
       .attr("text-overflow", "ellipsis")
       .text((d) => d.label);
-  }, [rows, gridVersions, linePath, handleViewBubbleClick, pinnedBubble]);
+
+    main
+      .selectAll("text.implicitCount")
+      .data(rows)
+      .enter()
+      .append("text")
+      .attr("class", "implicitCount")
+      .attr("x", LABEL_WIDTH + IMPLICIT_COL_WIDTH / 2)
+      .attr("y", (_, i) => PADDING + i * ROW_HEIGHT + ROW_HEIGHT / 2 + 4)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 11)
+      .attr("font-weight", (d) =>
+        pinnedImplicit && d.viewKey === pinnedImplicit.viewKey ? "700" : "400"
+      )
+      .attr("text-decoration", (d) =>
+        pinnedImplicit && d.viewKey === pinnedImplicit.viewKey ? "underline" : "none"
+      )
+      .attr("fill", (d) => {
+        if (d.implicitCount <= 0) return "#94a3b8";
+        if (pinnedImplicit && d.viewKey === pinnedImplicit.viewKey) return "#92400e";
+        return "#b45309";
+      })
+      .style("cursor", (d) => (d.implicitCount > 0 ? "pointer" : "default"))
+      .text((d) => String(d.implicitCount))
+      .on("click", (_ev, d) => {
+        if (d.implicitCount > 0) {
+          implicitHandler({
+            viewKey: d.viewKey,
+            label: d.label,
+            space: d.space,
+            externalId: d.externalId,
+            implicitVersionStrings: d.implicitVersionStrings,
+          });
+        }
+      });
+  }, [rows, gridVersions, linePath, handleViewBubbleClick, handleImplicitCountClick, pinnedBubble]);
 
   const modelVersionRow = useMemo(() => {
     if (!selectedModelKey || selectedModelVersions.length === 0) return null;
@@ -1438,7 +1652,7 @@ export function ViewVersions() {
       : 0;
   const hasMoreCatalogOnServer = Boolean(resumeViewsListCursor);
 
-  const viewsContentWidth = LABEL_WIDTH + PADDING * 2 + gridVersions.length * COL_WIDTH;
+  const viewsContentWidth = VIEW_VERSION_AREA_START + PADDING * 2 + gridVersions.length * COL_WIDTH;
   const viewsSvgHeight =
     PADDING * 2 + rows.length * ROW_HEIGHT - GRID_VERSION_HEADER_HEIGHT;
   const modelVersionsContentWidth =
@@ -1689,59 +1903,47 @@ export function ViewVersions() {
                 </div>
               </div>
             ) : null}
-            {gridVersions.length === 0 && hasChecksumVersions ? (
-              <div className="flex flex-col items-start gap-3 bg-sky-50 px-4 py-6 text-sm text-slate-700">
-                <p>{t("dataCatalog.versionMatrix.onlyChecksumColumns")}</p>
-                <label className="flex cursor-pointer items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={showChecksumVersions}
-                    onChange={(e) => setShowChecksumVersions(e.target.checked)}
-                    className="rounded border-slate-300"
-                  />
-                  <span>{t("dataCatalog.versionMatrix.showChecksumVersions")}</span>
-                </label>
-              </div>
-            ) : (
-              <>
-            {hasChecksumVersions ? (
-              <div className="border-b border-slate-200 bg-white px-3 py-2">
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={showChecksumVersions}
-                    onChange={(e) => setShowChecksumVersions(e.target.checked)}
-                    className="rounded border-slate-300"
-                  />
-                  <span>{t("dataCatalog.versionMatrix.showChecksumVersions")}</span>
-                </label>
-              </div>
-            ) : null}
             {visibleViewLegendIds.size > 0 ? (
               <div className="bg-sky-50 px-3 py-2 text-xs text-slate-600">
                 <p className="mb-2 text-[11px] text-slate-500">
-                  Click a legend entry to show only view rows that include at least one such bubble or
-                  destination ring. Click again to clear.
+                  Legend: first click shows only matching rows (include), second click hides those rows
+                  (exclude), third click clears. The Implicit column counts opaque view versions not
+                  shown as matrix columns.
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   {VIEW_VERSION_LEGEND_ENTRIES.filter((e) => visibleViewLegendIds.has(e.id)).map(
                     ({ id, swatch, label }) => {
-                      const active = viewLegendFilter === id;
+                      const isInclude = viewLegendFilter?.id === id && viewLegendFilter.mode === "include";
+                      const isExclude = viewLegendFilter?.id === id && viewLegendFilter.mode === "exclude";
                       return (
                         <button
                           key={id}
                           type="button"
-                          onClick={() =>
-                            setViewLegendFilter((prev) => (prev === id ? null : id))
+                          title={
+                            isInclude
+                              ? "Include: matching rows only. Click again for exclude."
+                              : isExclude
+                                ? "Exclude: hide matching rows. Click again to clear."
+                                : "Click: include → exclude → off"
                           }
+                          onClick={() => setViewLegendFilter((prev) => cycleLegendFilterState(prev, id))}
                           className={`flex max-w-[min(100%,20rem)] cursor-pointer items-center gap-2 rounded-md border-0 py-1 pl-1.5 pr-2 text-left transition ${
-                            active
+                            isInclude
                               ? "bg-white/95 text-slate-900 shadow-sm ring-2 ring-slate-800 ring-offset-1 ring-offset-sky-50"
-                              : "bg-transparent text-slate-600 hover:bg-white/70"
+                              : isExclude
+                                ? "bg-rose-50/95 text-rose-950 shadow-sm ring-2 ring-rose-600 ring-offset-1 ring-offset-sky-50"
+                                : "bg-transparent text-slate-600 hover:bg-white/70"
                           }`}
                         >
                           {swatch}
-                          <span>{label}</span>
+                          <span className="flex min-w-0 flex-col gap-0">
+                            <span>{label}</span>
+                            {isInclude ? (
+                              <span className="text-[10px] font-medium text-slate-600">only matching</span>
+                            ) : isExclude ? (
+                              <span className="text-[10px] font-medium text-rose-800">hide matching</span>
+                            ) : null}
+                          </span>
                         </button>
                       );
                     }
@@ -1751,7 +1953,8 @@ export function ViewVersions() {
             ) : null}
             {legendFilteredViewRows.length === 0 && viewLegendFilter ? (
               <div className="flex min-h-48 items-center justify-center bg-sky-100 px-4 text-center text-sm text-slate-600">
-                No view rows include this case. Click the legend entry again to clear the filter.
+                No rows match this legend setting. Click the same legend entry again to switch include
+                → exclude → off.
               </div>
             ) : (
               <VersioningGridScroll
@@ -1763,8 +1966,6 @@ export function ViewVersions() {
               />
             )}
           </>
-            )}
-          </>
         )}
         </div>
         <div className="w-64 flex flex-col rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 min-h-0 shrink-0">
@@ -1772,9 +1973,11 @@ export function ViewVersions() {
             <>
               <div className="flex items-center justify-between gap-2 shrink-0">
                 <span className="font-semibold">
-                  {pinnedBubble.type === "view"
-                    ? `${pinnedBubble.label} ${pinnedBubble.version}`
-                    : `${pinnedBubble.label} ${pinnedBubble.version}`}
+                  {pinnedBubble.type === "implicitVersions"
+                    ? `${pinnedBubble.label} (${pinnedBubble.versions.length} implicit)`
+                    : pinnedBubble.type === "view"
+                      ? `${pinnedBubble.label} ${pinnedBubble.version}`
+                      : `${pinnedBubble.label} ${pinnedBubble.version}`}
                 </span>
                 <button
                   type="button"
@@ -1784,21 +1987,32 @@ export function ViewVersions() {
                   Unpin
                 </button>
               </div>
-              <p className="mt-1 text-slate-500 shrink-0">Referrers</p>
+              <p className="mt-1 text-slate-500 shrink-0">
+                {pinnedBubble.type === "implicitVersions" ? "Open in CDF" : "Referrers"}
+              </p>
               <ul className="mt-1 flex-1 min-h-0 space-y-1 overflow-auto pl-1">
                 {referrers.length === 0 ? (
                   <li className="text-slate-500">No referrers found.</li>
                 ) : (
                   referrers.map((item, i) => (
-                    <li key={i} className="flex items-center gap-1.5">
-                      {item.type === "view" ? (
+                    <li
+                      key={i}
+                      className={
+                        item.type === "note"
+                          ? "list-none pl-0 text-[11px] leading-snug text-slate-600"
+                          : "flex items-center gap-1.5"
+                      }
+                    >
+                      {item.type === "note" ? (
+                        item.text
+                      ) : item.type === "view" ? (
                         <span className="text-slate-500">View</span>
                       ) : item.type === "dataModel" ? (
                         <span className="text-slate-500">Data model</span>
                       ) : (
                         <span className="text-slate-500">Transformation</span>
                       )}
-                      {item.type === "view" ? (
+                      {item.type === "note" ? null : item.type === "view" ? (
                         item.url ? (
                           <a
                             href={item.url}
@@ -1845,8 +2059,9 @@ export function ViewVersions() {
             </>
           ) : (
             <div className="text-slate-500 flex-1 flex items-center">
-              Click a bubble to see referrers. Pinned cells use an orange ring; indigo rings mark
-              transformation write targets to the latest column.
+              Click a bubble to see referrers, or a non-zero implicit count for Fusion links to those
+              view versions. Pinned cells use an orange ring; indigo rings mark transformation write
+              targets to the latest column.
             </div>
           )}
         </div>

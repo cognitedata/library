@@ -8,6 +8,10 @@ export type IsaManufacturingDerivativeRule = {
   minDistinctiveViewsInOneDataModel: number;
 };
 
+export type CfihosOilAndGasDerivativeRule = {
+  minDistinctiveViewsInOneDataModel: number;
+};
+
 export type DeploymentPackDefinition = {
   id: string;
   name: string;
@@ -24,6 +28,12 @@ export type DeploymentPackDefinition = {
    * view set still resembles the template.
    */
   isaManufacturingDerivative?: IsaManufacturingDerivativeRule;
+  /**
+   * Heuristic: fingerprint customer-space views from the CFIHOS oil & gas extension template
+   * (library `cfihos_oil_and_gas_extension`) — tolerates renamed spaces/data models when the
+   * view set still matches the Hub module.
+   */
+  cfihosOilAndGasDerivative?: CfihosOilAndGasDerivativeRule;
   /**
    * When set to `qualitizer`, this pack is not probed against CDF. It is always reported as
    * in use while scanning from Qualitizer so analytics payloads always include the app.
@@ -52,5 +62,8 @@ export type DeploymentPackProbeContext = {
   hasLocationFilter: (externalId: string) => Promise<boolean>;
   evaluateIsaManufacturingDerivative?: (
     rule: IsaManufacturingDerivativeRule
+  ) => Promise<{ inUse: boolean; matched: DeploymentPackMatch[]; missing: DeploymentPackMatch[] }>;
+  evaluateCfihosOilAndGasDerivative?: (
+    rule: CfihosOilAndGasDerivativeRule
   ) => Promise<{ inUse: boolean; matched: DeploymentPackMatch[]; missing: DeploymentPackMatch[] }>;
 };

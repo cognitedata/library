@@ -3,6 +3,7 @@ import { QUALITIZER_DEPLOYMENT_PACK } from "./qualitizer-deployment-pack";
 
 const HUB_DEPLOYMENT_PACKS_LIBRARY = "https://hub.cognite.com/deployment-packs-472";
 const HUB_ISA_MANUFACTURING_PACK = `${HUB_DEPLOYMENT_PACKS_LIBRARY}/isa-batch-manufacturing-data-model-extension-5821`;
+const HUB_CFIHOS_OIL_AND_GAS_PACK = `${HUB_DEPLOYMENT_PACKS_LIBRARY}/oil-and-gas-data-model-cfihos-iso14224-extension-6211`;
 
 /**
  * Deployment packs: Qualitizer’s own row first, then the Cognite Hub library and `cog-itworks`
@@ -121,6 +122,15 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     description: `ISA-95 / ISA-88 manufacturing domain model from the Hub pack and cognitedata/library \`isa_manufacturing_extension\`. Detection fingerprints the official template view set (customer copies may rename spaces/models). Hub: ${HUB_ISA_MANUFACTURING_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/models/isa_manufacturing_extension`,
     signals: {},
     isaManufacturingDerivative: {
+      minDistinctiveViewsInOneDataModel: 14,
+    },
+  },
+  {
+    id: "dp:models:cfihos_oil_and_gas_extension",
+    name: "Oil and Gas Data Model — CFIHOS & ISO14224 Extension",
+    description: `Tag-centric CFIHOS 2.0 / ISO 14224 oil & gas domain model from the Hub pack and cognitedata/library \`cfihos_oil_and_gas_extension\`. Detection fingerprints customer-space views from the template (renamed spaces/models still match when the view set aligns). Hub: ${HUB_CFIHOS_OIL_AND_GAS_PACK} · Code: https://github.com/cognitedata/library/tree/main/modules/models/cfihos_oil_and_gas_extension`,
+    signals: {},
+    cfihosOilAndGasDerivative: {
       minDistinctiveViewsInOneDataModel: 14,
     },
   },

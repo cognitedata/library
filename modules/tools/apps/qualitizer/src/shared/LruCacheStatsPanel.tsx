@@ -16,6 +16,8 @@ import {
   getDmsViewsListCacheStats,
   getDmsViewsRetrieveCacheStats,
 } from "@/shared/dms-catalog-cache";
+import { getAssetsDiscoveryCacheStats } from "@/shared/assets-discovery-cache";
+import { getSecurityGroupsListCacheStats } from "@/shared/security-groups-cache";
 
 function pct(n: number) {
   return `${(n * 100).toFixed(1)}%`;
@@ -56,6 +58,8 @@ export function LruCacheStatsPanel({ onClose }: { onClose: () => void }) {
     getDmsViewsListCacheStats(),
     getDmsDataModelsRetrieveCacheStats(),
     getDmsViewsRetrieveCacheStats(),
+    getAssetsDiscoveryCacheStats(),
+    getSecurityGroupsListCacheStats(),
   ];
   void tick;
 
@@ -88,7 +92,7 @@ export function LruCacheStatsPanel({ onClose }: { onClose: () => void }) {
             Entry counts refresh every 1.5s. Fill rate is entries relative to{" "}
             <code className="rounded bg-slate-100 px-1">max</code>. When fill approaches 100%,
             older entries are evicted and API traffic may increase. Rows include instance, asset,
-            transformation, and data-model catalog caches.
+            transformation, data-model catalog, assets discovery, and security group list caches.
           </p>
           <table className="w-full border-collapse text-xs">
             <thead>

@@ -1,11 +1,41 @@
 /**
- * Long opaque alphanumeric-only strings (e.g. customer checksum ids) are sorted after
+ * Opaque / auto-generated version tokens (checksum chunks, implicit DMS versions): sorted after
  * normal semver-like versions in grids and lists.
  */
 export function isChecksumLikeVersion(s: string): boolean {
   const t = String(s).trim();
-  if (t.length <= 11) return false;
-  return /^[a-zA-Z0-9]+$/.test(t);
+  if (t.length === 0) return false;
+
+  if (t.length > 11 && /^[a-zA-Z0-9]+$/.test(t)) return true;
+
+  if (/^\d+$/.test(t)) {
+    try {
+      if (t.length >= 4 && BigInt(t) > 1000n) return true;
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+
+  if (
+    t.length >= 8 &&
+    t.length <= 64 &&
+    /^[0-9a-f]+$/i.test(t) &&
+    /[a-f]/i.test(t)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/** Opaque / auto-generated view versions (typical when a data model references a view without an explicit version). */
+export function countImplicitViewVersions(versionKeys: Iterable<string>): number {
+  let n = 0;
+  for (const v of versionKeys) {
+    if (isChecksumLikeVersion(v)) n += 1;
+  }
+  return n;
 }
 
 /** Parse version into comparable parts. Handles v1.0.1, v.0.0.1, 3_1_1 vs 3_12_0, v2, v10, alpha, beta, v1.0-alpha, v2.0-beta, etc. */
@@ -123,3 +153,16 @@ export type ViewWouldBeOrphanedConsolidated = {
   /** Model versions (not in use) that reference these view versions */
   referencedBy: Array<{ space: string; externalId: string; version: string; label: string }>;
 };
+
+export type LegendFilterMode = "include" | "exclude";
+
+export type LegendFilterState<T extends string> = { id: T; mode: LegendFilterMode } | null;
+
+export function cycleLegendFilterState<T extends string>(
+  prev: LegendFilterState<T>,
+  nextId: T
+): LegendFilterState<T> {
+  if (!prev || prev.id !== nextId) return { id: nextId, mode: "include" };
+  if (prev.mode === "include") return { id: nextId, mode: "exclude" };
+  return null;
+}
