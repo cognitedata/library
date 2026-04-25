@@ -33,6 +33,35 @@ export async function detectDeploymentPackUsage(
       continue;
     }
 
+    if (pack.cfihosOilAndGasDerivative) {
+      if (!ctx.evaluateCfihosOilAndGasDerivative) {
+        out.push({
+          packId: pack.id,
+          packName: pack.name,
+          description: pack.description,
+          inUse: false,
+          matched: [],
+          missing: [
+            {
+              kind: "dataModel",
+              detail: "CFIHOS oil & gas derivative probe is not available in this context.",
+            },
+          ],
+        });
+      } else {
+        const r = await ctx.evaluateCfihosOilAndGasDerivative(pack.cfihosOilAndGasDerivative);
+        out.push({
+          packId: pack.id,
+          packName: pack.name,
+          description: pack.description,
+          inUse: r.inUse,
+          matched: r.matched,
+          missing: r.missing,
+        });
+      }
+      continue;
+    }
+
     if (pack.isaManufacturingDerivative) {
       if (!ctx.evaluateIsaManufacturingDerivative) {
         out.push({

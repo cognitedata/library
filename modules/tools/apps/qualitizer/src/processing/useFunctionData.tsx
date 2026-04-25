@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestamp } from "@/shared/time-utils";
-import type { FunctionRunSummary, FunctionSummary, LoadState } from "./types";
+import type {
+  FunctionRunSummary,
+  FunctionSummary,
+  LoadState,
+  ProcessingDataLoadProgress,
+} from "./types";
 import { useI18n } from "@/shared/i18n";
 
 type FunctionCallLogsApiResponse = {
@@ -38,6 +43,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
   const [logMap, setLogMap] = useState<Record<string, Record<string, { message?: string }[]>>>({});
   const [functionNameMap, setFunctionNameMap] = useState<Record<string, string>>({});
   const [functionMetaMap, setFunctionMetaMap] = useState<Record<string, FunctionSummary>>({});
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
 
   const getFailureColor = (run: FunctionRunSummary) => {
     const funcId = run.functionId ?? "";
@@ -122,6 +128,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
       setLogMap({});
       setFunctionNameMap({});
       setFunctionMetaMap({});
+      setLoadProgress({ kind: "functions_list", loaded: 0 });
 
       try {
         const endWindow = windowRange.end;
@@ -136,6 +143,9 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
             })) as FunctionsListApiResponse;
             items.push(...(response.data?.items ?? []));
             cursor = response.data?.nextCursor ?? undefined;
+            if (!cancelled) {
+              setLoadProgress({ kind: "functions_list", loaded: items.length });
+            }
           } while (cursor);
           return items;
         };
@@ -175,7 +185,13 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
           setFunctionMetaMap(metaMap);
         }
 
+        const totalFns = functions.length;
+        if (!cancelled) {
+          setLoadProgress({ kind: "functions_runs", current: 0, total: totalFns });
+        }
+
         const collected: FunctionRunSummary[] = [];
+        let fnIndex = 0;
         for (const fn of functions) {
           let cursor: string | undefined;
           do {
@@ -192,6 +208,10 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
             }
             cursor = response.nextCursor ?? undefined;
           } while (cursor);
+          fnIndex += 1;
+          if (!cancelled && (fnIndex % 3 === 0 || fnIndex === totalFns)) {
+            setLoadProgress({ kind: "functions_runs", current: fnIndex, total: totalFns });
+          }
           if (!cancelled) {
             setRuns([...collected]);
           }
@@ -199,6 +219,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
 
         if (!cancelled) {
           setRuns(collected);
+          setLoadProgress(null);
           setStatus("success");
         }
 
@@ -211,6 +232,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           const message = error instanceof Error ? error.message : t("processing.error.runs");
           setErrorMessage(message);
           if (message.toLowerCase().includes("404")) {
@@ -243,6 +265,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
 
   return {
     status,
+    loadProgress,
     errorMessage,
     availabilityMessage,
     runs,

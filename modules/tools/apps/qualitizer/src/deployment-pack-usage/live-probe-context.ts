@@ -1,4 +1,5 @@
 import type { CogniteClient } from "@cognite/sdk";
+import { evaluateCfihosOilAndGasDerivativeFromModels } from "./cfihos-oil-and-gas-derivative";
 import {
   evaluateIsaManufacturingDerivativeFromModels,
   extractViewExternalIdsFromDataModelViews,
@@ -152,6 +153,9 @@ export async function fetchLiveDeploymentPackProbeContext(
     },
     async evaluateIsaManufacturingDerivative(rule) {
       return evaluateIsaManufacturingDerivativeFromModels(dm.models, rule);
+    },
+    async evaluateCfihosOilAndGasDerivative(rule) {
+      return evaluateCfihosOilAndGasDerivativeFromModels(dm.models, rule);
     },
   };
 }

@@ -8,6 +8,7 @@ import { DataCatalogHelpModal } from "./DataCatalogHelpModal";
 import type { FieldNode, Link, LoadState, ModelNode, SelectedNode, ViewNode } from "./types";
 import { useI18n } from "@/shared/i18n";
 import { ApiError } from "@/shared/ApiError";
+import { formatResourceDisplayLabel } from "@/shared/format-resource-display-label";
 import { cachedInstancesList } from "@/shared/instances-cache";
 import { Loader } from "@/shared/Loader";
 
@@ -179,7 +180,7 @@ export function DataCatalogOverview() {
 
         for (const model of dataModels) {
           const modelKey = `${model.space}:${model.externalId}:${model.version ?? "latest"}`;
-          const modelLabel = model.name ?? model.externalId;
+          const modelLabel = formatResourceDisplayLabel(model.name, model.externalId);
           modelsList.push({ key: modelKey, label: modelLabel });
 
           const modelViews = (model.views ?? []) as Array<{
@@ -193,7 +194,7 @@ export function DataCatalogOverview() {
             if (!viewMap.has(viewKey)) {
               viewMap.set(viewKey, {
                 key: viewKey,
-                label: view.name ?? view.externalId,
+                label: formatResourceDisplayLabel(view.name, view.externalId),
                 space: view.space,
                 externalId: view.externalId,
                 version: view.version,

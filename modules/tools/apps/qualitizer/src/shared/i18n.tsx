@@ -48,6 +48,28 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.loading.transformations": "Loading transformations...",
     "processing.loading.workflows": "Loading workflows...",
     "processing.loading.extractors": "Loading extraction pipelines...",
+    "processing.progress.panelTitle": "Background requests",
+    "processing.progress.functions.list":
+      "Functions · POST /functions/list — {count} definitions loaded so far",
+    "processing.progress.functions.runs":
+      "Functions · POST /functions/…/calls/list — {current} of {total} functions queried ({remaining} remaining)",
+    "processing.progress.transformations.list":
+      "Transformations · GET /transformations — loading catalog",
+    "processing.progress.transformations.jobs":
+      "Transformations · GET /transformations/…/jobs — {current} of {total} transformations ({remaining} remaining)",
+    "processing.progress.workflows.executions":
+      "Workflows · POST /workflows/executions/list — {loaded} executions retrieved (paginating until complete)",
+    "processing.progress.extractors.list":
+      "Extraction pipelines · GET /extpipes — {loaded} configurations loaded",
+    "processing.progress.extractors.runs":
+      "Extraction pipelines · POST /extpipes/runs/list — {current} of {total} pipelines ({remaining} remaining)",
+    "processing.progress.band.functions.list": "fn list · {count}",
+    "processing.progress.band.functions.runs": "fn calls · {current}/{total}",
+    "processing.progress.band.transformations.list": "tx catalog…",
+    "processing.progress.band.transformations.jobs": "tx jobs · {current}/{total}",
+    "processing.progress.band.workflows": "wf exec · {loaded}",
+    "processing.progress.band.extractors.list": "ext list · {loaded}",
+    "processing.progress.band.extractors.runs": "ext runs · {current}/{total}",
     "processing.error.runs": "Failed to load function executions.",
     "processing.function.defaultName": "Function {id}",
     "processing.error.transformations": "Failed to load transformations.",
@@ -119,7 +141,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.legend.panel": "Bubble color legend",
     "processing.card.concurrency.title": "Concurrency diagram",
     "processing.card.concurrency.description":
-      "Parallel function executions per {bucketSeconds}-second bucket.",
+      "Parallel function executions per {bucketSeconds}-second bucket. Dotted vertical lines and light bands mark five-minute boundaries (UTC).",
     "processing.status.error": "error",
     "processing.loader.title": "Loading processing data",
     "processing.unknown.transformation": "Unknown transformation",
@@ -168,6 +190,90 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.modal.extractor.section.run": "Run",
     "permissions.title": "Permissions Troubleshooting",
     "permissions.subtitle": "Capability overview for groups in this project.",
+    "permissions.subNavAria": "Permissions sections",
+    "permissions.subnav.groups": "Group capabilities",
+    "permissions.subnav.compare": "User comparison",
+    "permissions.subnav.spaces": "Space access",
+    "permissions.subnav.datasets": "Data set access",
+    "permissions.subnav.crossProject": "Cross-project checks",
+    "permissions.crossProject.title": "Cross-project membership",
+    "permissions.crossProject.description":
+      "Compare security group memberships across CDF projects, using shared source IDs or names. Expand the access block to upload JSON or view as another user.",
+    "permissions.crossProject.viewAs": "Matrix for",
+    "permissions.crossProject.viewerCollapsedPrefix": "Viewing",
+    "permissions.crossProject.viewerCurrentUser": "Current user",
+    "permissions.crossProject.accessCollapsedHint":
+      "Expand to upload or paste access JSON, or switch to another user.",
+    "permissions.crossProject.accessCollapsedUsers":
+      "{n} access file(s) on record — expand to edit or switch.",
+    "permissions.crossProject.accessBlockExpand": "Expand",
+    "permissions.crossProject.accessBlockCollapse": "Hide",
+    "permissions.crossProject.viewerHint":
+      "Uploaded users use the projects listed in their JSON. Current user uses every project from your live session token.",
+    "permissions.crossProject.loading": "Loading memberships and group definitions…",
+    "permissions.crossProject.noProjects": "Your token has no project list from access info.",
+    "permissions.crossProject.noMemberships": "You have no security group memberships in these projects.",
+    "permissions.crossProject.summaryEmpty": "No group memberships to compare across projects.",
+    "permissions.crossProject.summaryMatch":
+      "The same logical groups appear in every project (matched by source ID, or name when source ID is missing).",
+    "permissions.crossProject.summaryMismatch":
+      "Membership differs across projects: some groups are missing in one or more projects (see highlighted cells).",
+    "permissions.crossProject.idOnlyNote":
+      "Rows tagged “ID” align only within a single project (no shared source ID or name). They are not linked across projects.",
+    "permissions.crossProject.metricLabel": "Cell display:",
+    "permissions.crossProject.metricStatus": "Member",
+    "permissions.crossProject.metricName": "Name",
+    "permissions.crossProject.metricSourceId": "Source ID",
+    "permissions.crossProject.metricId": "Numeric ID",
+    "permissions.crossProject.colGroup": "Group",
+    "permissions.crossProject.memberCount": "{n} groups",
+    "permissions.crossProject.columnCountTitleMatch":
+      "Number of checkmarks in this column ({n}) — same as the number of numeric group IDs for this project in your token.",
+    "permissions.crossProject.columnCountTitleMerged":
+      "Number of checkmarks in this column ({logical}). The token lists {token} numeric group IDs in this project; {merged} of them share a source ID or name with another membership, so they map to one row each.",
+    "permissions.crossProject.idOnlyBadge": "ID",
+    "permissions.crossProject.idOnlyBadgeTitle":
+      "This row is keyed by numeric ID in one project only; cross-project matching is not applied.",
+    "permissions.crossProject.cellGapTitle": "Not a member of this logical group in this project",
+    "permissions.crossProject.cellUnknown": "(unnamed)",
+    "permissions.crossProject.legendMember": "Member of this group in this project",
+    "permissions.crossProject.legendGap": "Missing here but member in another project",
+    "permissions.crossProject.legendOther": "Other / neutral cell",
+    "permissions.crossProject.capabilitiesTitle": "Resolved capabilities",
+    "permissions.crossProject.capabilitiesDescription":
+      "Capabilities granted by your security group memberships in each project. A green check means at least one member group includes that capability. An orange dot means actions or scope differ in a way beyond read-vs-write tier. A small R or W next to the check means this project is read-tier or write-tier while scope matches other environments (often intentional).",
+    "permissions.crossProject.capabilitiesNone":
+      "No capabilities were found on your member groups in these projects.",
+    "permissions.crossProject.colCapability": "Capability",
+    "permissions.crossProject.capCellPresentTitle": "Granted via member group(s) in this project",
+    "permissions.crossProject.capCellDriftTitle":
+      "Granted here, but actions or scope differ from another project (or multiple groups disagree)",
+    "permissions.crossProject.capCellReadWriteDriftTitle":
+      "Same scope; only read vs write tier differs — often intentional across environments",
+    "permissions.crossProject.readWriteDriftBadgeTitle":
+      "Read vs write tier only (same scope). Click to compare JSON.",
+    "permissions.crossProject.legendReadWriteDrift":
+      "R or W: read vs write tier only in this project; scope matches elsewhere",
+    "permissions.crossProject.capCellGapTitle": "Granted in another project but not via your groups here",
+    "permissions.crossProject.scopeDriftDotTitle": "Scope / actions differ across environments or groups",
+    "permissions.crossProject.legendCapPresent": "Granted in this project",
+    "permissions.crossProject.legendCapGap": "Missing here but granted elsewhere",
+    "permissions.crossProject.legendScopeDrift": "Different scoping or actions (orange dot)",
+    "permissions.crossProject.groupDefinitionsForbiddenSummary":
+      "Could not load group definitions for: {projects} (access forbidden for your user). Membership from the viewed access data is still shown; highlighted columns lack full detail.",
+    "permissions.crossProject.columnDefinitionsForbiddenTitle":
+      "Group definitions not available — your token cannot list groups in this project",
+    "permissions.crossProject.membershipForbiddenCellTitle":
+      "Member in this project, but group details are not visible to your user",
+    "permissions.crossProject.capCellDefinitionsForbiddenTitle":
+      "Capabilities unknown — group list is not accessible for this project",
+    "permissions.crossProject.legendDefinitionsForbidden":
+      "Column: definitions not loaded (forbidden)",
+    "permissions.crossProject.legendCapDefinitionsForbidden":
+      "Cell: capabilities unknown for that project",
+    "permissions.crossProject.driftModalTitle": "{capability} · {project}",
+    "permissions.crossProject.driftModalColThis": "This project: {project}",
+    "permissions.crossProject.driftModalColOther": "Compare: {label}",
     "permissions.help.title": "Permissions overview",
     "permissions.help.subtitle": "How to read capabilities, scopes, and group membership.",
     "permissions.help.challenge.title": "Which challenges does this help solve?",
@@ -186,6 +292,11 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.groups.description": "Capability actions and scopes aggregated by security group.",
     "permissions.groups.none": "No groups found.",
     "permissions.loading": "Loading permissions...",
+    "permissions.loadingDetail.groups": "Fetching security groups for this project…",
+    "permissions.loadingDetail.datasets": "Fetching data sets…",
+    "permissions.loadingDetail.spacesStarting": "Loading space definitions (paginated requests)…",
+    "permissions.loadingDetail.spaces": "{count} spaces loaded · {page} request(s) so far",
+    "permissions.loadingDetail.analyzing": "Mapping capabilities and scopes… group {current} of {total}",
     "permissions.error": "Failed to load permissions.",
     "permissions.currentUser": "Current user",
     "permissions.currentSuffix": "(current)",
@@ -193,7 +304,14 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.upload.label": "Upload access info JSON files",
     "permissions.upload.uploading": "Uploading...",
     "permissions.upload.invalid": "Invalid access info in {fileName}",
-    "permissions.upload.empty": "No users available yet. Upload permission export JSON files to compare memberships.",
+    "permissions.upload.empty":
+      "No users available yet. Upload JSON files, paste access info, or drop files onto the paste area below.",
+    "permissions.paste.label": "Paste access info (JSON)",
+    "permissions.paste.placeholder": "Paste JSON here…",
+    "permissions.paste.displayName": "Display name (optional)",
+    "permissions.paste.add": "Add to comparison",
+    "permissions.paste.dropHint": "You can also drop JSON files onto this dashed area.",
+    "permissions.paste.invalid": "Invalid JSON or missing subject and projects array.",
     "permissions.spaces.none": "No spaces found.",
     "permissions.datasets.none": "No data sets found.",
     "permissions.dataset.unnamed": "Unnamed data set",
@@ -217,6 +335,22 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.scopes.dataset.title": "Data set access",
     "permissions.scopes.dataset.description": "Dataset scope entries per security group.",
     "permissions.compare.title": "User comparison",
+    "permissions.compare.searchLabel": "Search",
+    "permissions.compare.searchPlaceholder": "Search groups by name, ID, or source…",
+    "permissions.compare.utilizedOnly": "Only show groups with a member among listed users",
+    "permissions.compare.truncatedSummary":
+      "Showing {shown} of {total} groups (all {pinned} groups your users belong to are included). {hidden} more hidden.",
+    "permissions.compare.showAll": "Show all {total} groups",
+    "permissions.compare.collapseList": "Show summary only",
+    "permissions.compare.noMatches": "No groups match the search or filters.",
+    "permissions.compare.includeOtherProjects":
+      "Include memberships from other CDF projects (from access info)",
+    "permissions.compare.otherProjectLoading": "Loading group name…",
+    "permissions.compare.otherProjectNameError":
+      "Could not load group definitions for one or more projects (check access).",
+    "permissions.compare.otherProjectGroupsForbiddenSummary":
+      "Group definitions are not visible to your user for: {projects}. Rows still show numeric group IDs from the uploaded access info.",
+    "permissions.compare.groupDefinitionForbiddenFallback": "Group {id}",
     "permissions.compare.description": "Compare user access to project groups.",
     "permissions.compare.empty": "No uploaded users. Upload JSON files to compare.",
     "permissions.compare.upload": "Choose files",
@@ -574,6 +708,12 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.versioning.summary.totals": "Totals",
     "healthChecks.versioning.summary.orphanedNote":
       "{count} view version(s) would be orphaned if unused model versions were removed ({pct}% of unused views).",
+    "healthChecks.versioning.implicitViewRefs.title": "Data models with implicit view references",
+    "healthChecks.versioning.implicitViewRefs.description":
+      "These data model versions include at least one inline view without an explicit version. Pin a view version (for example v1) on the model to avoid opaque auto-generated view versions.",
+    "healthChecks.versioning.implicitViewRefs.none":
+      "Every inline view on every data model version specifies an explicit version.",
+    "healthChecks.versioning.implicitViewRefs.missingVersionTag": "no explicit version on model",
     "healthChecks.versioning.modelVersionsNotInUse.title": "Data model versions not in use",
     "healthChecks.versioning.modelVersionsNotInUse.description":
       "Model versions that no transformation references (explicitly or as latest).",
@@ -724,6 +864,28 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.loading.transformations": "変換を読み込み中...",
     "processing.loading.workflows": "ワークフローを読み込み中...",
     "processing.loading.extractors": "抽出パイプラインを読み込み中...",
+    "processing.progress.panelTitle": "バックグラウンドのリクエスト",
+    "processing.progress.functions.list":
+      "関数 · POST /functions/list — これまでに {count} 件の定義を取得",
+    "processing.progress.functions.runs":
+      "関数 · POST /functions/…/calls/list — {total} 件中 {current} 件を取得済み（残り {remaining} 件）",
+    "processing.progress.transformations.list":
+      "変換 · GET /transformations — カタログを読み込み中",
+    "processing.progress.transformations.jobs":
+      "変換 · GET /transformations/…/jobs — {total} 件中 {current} 件を取得済み（残り {remaining} 件）",
+    "processing.progress.workflows.executions":
+      "ワークフロー · POST /workflows/executions/list — {loaded} 件の実行を取得（ページング継続中）",
+    "processing.progress.extractors.list":
+      "抽出パイプライン · GET /extpipes — {loaded} 件の構成を取得",
+    "processing.progress.extractors.runs":
+      "抽出パイプライン · POST /extpipes/runs/list — {total} 件中 {current} 件を取得済み（残り {remaining} 件）",
+    "processing.progress.band.functions.list": "fn 一覧 · {count}",
+    "processing.progress.band.functions.runs": "fn 呼出 · {current}/{total}",
+    "processing.progress.band.transformations.list": "tx 一覧…",
+    "processing.progress.band.transformations.jobs": "tx ジョブ · {current}/{total}",
+    "processing.progress.band.workflows": "wf 実行 · {loaded}",
+    "processing.progress.band.extractors.list": "ext 一覧 · {loaded}",
+    "processing.progress.band.extractors.runs": "ext 実行 · {current}/{total}",
     "processing.error.runs": "関数実行の読み込みに失敗しました。",
     "processing.function.defaultName": "関数 {id}",
     "processing.error.transformations": "変換の読み込みに失敗しました。",
@@ -795,7 +957,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.legend.panel": "バブル色の凡例",
     "processing.card.concurrency.title": "並列実行の可視化",
     "processing.card.concurrency.description":
-      "{bucketSeconds} 秒ごとの関数実行の並列数。",
+      "{bucketSeconds} 秒ごとの関数実行の並列数。点線の縦線と淡い帯は 5 分境界（UTC）です。",
     "processing.status.error": "エラー",
     "processing.loader.title": "処理データを読み込み中",
     "processing.unknown.transformation": "不明な変換",
@@ -844,6 +1006,90 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.modal.extractor.section.run": "実行",
     "permissions.title": "権限トラブルシューティング",
     "permissions.subtitle": "このプロジェクトのグループ権限概要。",
+    "permissions.subNavAria": "権限のセクション",
+    "permissions.subnav.groups": "グループ権限",
+    "permissions.subnav.compare": "ユーザー比較",
+    "permissions.subnav.spaces": "スペースアクセス",
+    "permissions.subnav.datasets": "データセットアクセス",
+    "permissions.subnav.crossProject": "クロスプロジェクト確認",
+    "permissions.crossProject.title": "クロスプロジェクトの所属",
+    "permissions.crossProject.description":
+      "CDF プロジェクト間でセキュリティグループの所属を比較します。共通のソース ID、またはソース ID がない場合は名前で対応付けます。アクセス情報ブロックを開いて JSON を追加するか、別ユーザーとして表示できます。",
+    "permissions.crossProject.viewAs": "表示するユーザー",
+    "permissions.crossProject.viewerCollapsedPrefix": "表示中",
+    "permissions.crossProject.viewerCurrentUser": "現在のユーザー",
+    "permissions.crossProject.accessCollapsedHint":
+      "開くとアクセス情報の JSON をアップロード／貼り付け、または別ユーザーを選べます。",
+    "permissions.crossProject.accessCollapsedUsers":
+      "アクセス情報 {n} 件 — 開いて編集または切り替え",
+    "permissions.crossProject.accessBlockExpand": "開く",
+    "permissions.crossProject.accessBlockCollapse": "閉じる",
+    "permissions.crossProject.viewerHint":
+      "アップロードしたユーザーは JSON に列挙されたプロジェクトのみを使います。現在のユーザーはセッションのトークンに含まれるすべてのプロジェクトを使います。",
+    "permissions.crossProject.loading": "所属とグループ定義を読み込み中…",
+    "permissions.crossProject.noProjects": "トークンにプロジェクト一覧がありません。",
+    "permissions.crossProject.noMemberships": "これらのプロジェクトにセキュリティグループの所属がありません。",
+    "permissions.crossProject.summaryEmpty": "プロジェクト間で比較できるグループ所属がありません。",
+    "permissions.crossProject.summaryMatch":
+      "すべてのプロジェクトで論理的に同じグループが一致しています（ソース ID、またはソース ID がない場合は名前で対応）。",
+    "permissions.crossProject.summaryMismatch":
+      "プロジェクト間で所属が異なります。一部のプロジェクトでグループが欠けている行はセルで強調表示されます。",
+    "permissions.crossProject.idOnlyNote":
+      "「ID」タグの行は単一プロジェクト内の数値 ID のみで対応付けており、プロジェクト間ではリンクしません。",
+    "permissions.crossProject.metricLabel": "セルの表示:",
+    "permissions.crossProject.metricStatus": "所属",
+    "permissions.crossProject.metricName": "名前",
+    "permissions.crossProject.metricSourceId": "ソース ID",
+    "permissions.crossProject.metricId": "数値 ID",
+    "permissions.crossProject.colGroup": "グループ",
+    "permissions.crossProject.memberCount": "{n} 件",
+    "permissions.crossProject.columnCountTitleMatch":
+      "この列のチェック数（{n}）。トークンに含まれるこのプロジェクトの数値グループ ID の件数と一致します。",
+    "permissions.crossProject.columnCountTitleMerged":
+      "この列のチェック数（{logical}）。トークンではこのプロジェクトに {token} 件の数値グループ ID がありますが、そのうち {merged} 件は別の所属とソース ID または名前が共通するため、行がまとめられています。",
+    "permissions.crossProject.idOnlyBadge": "ID",
+    "permissions.crossProject.idOnlyBadgeTitle":
+      "この行はあるプロジェクト内の数値 ID のみをキーにしており、プロジェクト間の対応付けは行いません。",
+    "permissions.crossProject.cellGapTitle": "このプロジェクトではこの論理グループに未所属",
+    "permissions.crossProject.cellUnknown": "（名前なし）",
+    "permissions.crossProject.legendMember": "このプロジェクトでこのグループに所属",
+    "permissions.crossProject.legendGap": "他プロジェクトでは所属だがここでは未所属",
+    "permissions.crossProject.legendOther": "その他 / 中立のセル",
+    "permissions.crossProject.capabilitiesTitle": "解決済みケイパビリティ",
+    "permissions.crossProject.capabilitiesDescription":
+      "各プロジェクトで、所属セキュリティグループから付与されるケイパビリティです。緑のチェックは少なくとも 1 つの所属グループにそのケイパビリティがあることを示します。オレンジの点は、読み取り／書き込みの階層以外でもアクションやスコープが異なる場合です。チェック横の R または W は、このプロジェクトが読み取り階層か書き込み階層かを示し、スコープは他環境と一致している場合（環境間では意図的なことが多い）です。",
+    "permissions.crossProject.capabilitiesNone":
+      "これらのプロジェクトの所属グループにケイパビリティが見つかりませんでした。",
+    "permissions.crossProject.colCapability": "ケイパビリティ",
+    "permissions.crossProject.capCellPresentTitle": "このプロジェクトの所属グループから付与",
+    "permissions.crossProject.capCellDriftTitle":
+      "このプロジェクトでは付与されていますが、他プロジェクトまたは複数グループ間でアクション／スコープが一致しません",
+    "permissions.crossProject.capCellReadWriteDriftTitle":
+      "スコープは同一で、読み取り階層と書き込み階層の違いのみ — 環境間では意図的なことが多いです",
+    "permissions.crossProject.readWriteDriftBadgeTitle":
+      "読み取り／書き込みの階層のみが異なります（スコープは同一）。クリックで JSON を比較。",
+    "permissions.crossProject.legendReadWriteDrift":
+      "R または W: このプロジェクトは読み取り／書き込み階層のみが異なる。スコープは他環境と一致",
+    "permissions.crossProject.capCellGapTitle": "他プロジェクトでは付与されているが、このプロジェクトの所属では付与されない",
+    "permissions.crossProject.scopeDriftDotTitle": "環境間またはグループ間でスコープ／アクションが異なる",
+    "permissions.crossProject.legendCapPresent": "このプロジェクトで付与",
+    "permissions.crossProject.legendCapGap": "他では付与があるがここではなし",
+    "permissions.crossProject.legendScopeDrift": "スコープやアクションの差異（オレンジの点）",
+    "permissions.crossProject.groupDefinitionsForbiddenSummary":
+      "次のプロジェクトではグループ定義を読み込めませんでした: {projects}（お使いのユーザーではアクセスが拒否されました）。表示中のアクセス情報の所属はそのまま表示しますが、強調した列は詳細がありません。",
+    "permissions.crossProject.columnDefinitionsForbiddenTitle":
+      "グループ定義を取得できません — このプロジェクトでグループ一覧にアクセスできません",
+    "permissions.crossProject.membershipForbiddenCellTitle":
+      "このプロジェクトでは所属していますが、お使いのユーザーからはグループ詳細を参照できません",
+    "permissions.crossProject.capCellDefinitionsForbiddenTitle":
+      "ケイパビリティは不明 — このプロジェクトではグループ一覧にアクセスできません",
+    "permissions.crossProject.legendDefinitionsForbidden":
+      "列: 定義を読み込めず（禁止）",
+    "permissions.crossProject.legendCapDefinitionsForbidden":
+      "セル: そのプロジェクトのケイパビリティは不明",
+    "permissions.crossProject.driftModalTitle": "{capability} · {project}",
+    "permissions.crossProject.driftModalColThis": "このプロジェクト: {project}",
+    "permissions.crossProject.driftModalColOther": "比較: {label}",
     "permissions.help.title": "権限の概要",
     "permissions.help.subtitle": "ケイパビリティ、スコープ、グループ所属の読み方。",
     "permissions.help.challenge.title": "このヘルプで解決できる課題は？",
@@ -862,6 +1108,11 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.groups.description": "セキュリティグループ別の権限アクションとスコープ。",
     "permissions.groups.none": "グループが見つかりません。",
     "permissions.loading": "権限を読み込み中...",
+    "permissions.loadingDetail.groups": "このプロジェクトのセキュリティグループを取得中…",
+    "permissions.loadingDetail.datasets": "データセットを取得中…",
+    "permissions.loadingDetail.spacesStarting": "スペース定義を読み込み中（ページ分割）…",
+    "permissions.loadingDetail.spaces": "{count} 件のスペースを取得 · ここまで {page} 回のリクエスト",
+    "permissions.loadingDetail.analyzing": "ケイパビリティとスコープを集計中… {total} 件中 {current} 件目のグループ",
     "permissions.error": "権限の読み込みに失敗しました。",
     "permissions.currentUser": "現在のユーザー",
     "permissions.currentSuffix": "（現在）",
@@ -869,7 +1120,14 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.upload.label": "アクセス情報の JSON ファイルをアップロード",
     "permissions.upload.uploading": "アップロード中...",
     "permissions.upload.invalid": "{fileName} のアクセス情報が不正です",
-    "permissions.upload.empty": "ユーザーがありません。権限エクスポート JSON をアップロードしてください。",
+    "permissions.upload.empty":
+      "ユーザーがありません。JSON ファイルをアップロードするか、アクセス情報を貼り付けるか、下の点線枠にファイルをドロップしてください。",
+    "permissions.paste.label": "アクセス情報を貼り付け（JSON）",
+    "permissions.paste.placeholder": "ここに JSON を貼り付け…",
+    "permissions.paste.displayName": "表示名（任意）",
+    "permissions.paste.add": "比較に追加",
+    "permissions.paste.dropHint": "点線の枠内に JSON ファイルをドロップすることもできます。",
+    "permissions.paste.invalid": "JSON が不正か、subject と projects 配列がありません。",
     "permissions.spaces.none": "スペースが見つかりません。",
     "permissions.datasets.none": "データセットが見つかりません。",
     "permissions.dataset.unnamed": "無名のデータセット",
@@ -894,6 +1152,22 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.scopes.dataset.title": "データセットアクセス",
     "permissions.scopes.dataset.description": "セキュリティグループごとのデータセットスコープ。",
     "permissions.compare.title": "ユーザー比較",
+    "permissions.compare.searchLabel": "検索",
+    "permissions.compare.searchPlaceholder": "グループ名、ID、ソースで検索…",
+    "permissions.compare.utilizedOnly": "一覧ユーザーの誰かが所属しているグループのみ表示",
+    "permissions.compare.truncatedSummary":
+      "{total} 件中 {shown} 件を表示（ユーザーが所属する {pinned} 件のグループはすべて含みます）。あと {hidden} 件は非表示です。",
+    "permissions.compare.showAll": "すべて表示（{total} 件）",
+    "permissions.compare.collapseList": "要約表示に戻す",
+    "permissions.compare.noMatches": "検索・フィルターに一致するグループがありません。",
+    "permissions.compare.includeOtherProjects":
+      "他の CDF プロジェクトの所属も表示（アクセス情報から）",
+    "permissions.compare.otherProjectLoading": "グループ名を読み込み中…",
+    "permissions.compare.otherProjectNameError":
+      "一部のプロジェクトでグループ定義を取得できませんでした（アクセスを確認してください）。",
+    "permissions.compare.otherProjectGroupsForbiddenSummary":
+      "次のプロジェクトでは、お使いのユーザーからグループ定義を参照できません: {projects}。アップロードしたアクセス情報のグループ ID は表示されます。",
+    "permissions.compare.groupDefinitionForbiddenFallback": "グループ {id}",
     "permissions.compare.description": "ユーザーのアクセス権をプロジェクトグループと比較します。",
     "permissions.compare.empty": "アップロード済みのユーザーがありません。JSON をアップロードしてください。",
     "permissions.compare.upload": "ファイルを選択",
@@ -1253,6 +1527,12 @@ const translations: Record<Language, Record<string, string>> = {
     "healthChecks.versioning.summary.totals": "合計",
     "healthChecks.versioning.summary.orphanedNote":
       "未使用のモデルバージョンを削除すると、{count} のビューバージョンが孤立します（未使用ビューの{pct}%）。",
+    "healthChecks.versioning.implicitViewRefs.title": "暗黙のビュー参照があるデータモデル",
+    "healthChecks.versioning.implicitViewRefs.description":
+      "これらのデータモデルバージョンのインラインビューに、明示的なバージョンが付いていないものが含まれています。不透明な自動生成ビューバージョンを避けるため、モデルでビューバージョン（例: v1）を固定してください。",
+    "healthChecks.versioning.implicitViewRefs.none":
+      "すべてのデータモデルバージョンで、インラインビューに明示的なバージョンが指定されています。",
+    "healthChecks.versioning.implicitViewRefs.missingVersionTag": "モデル上で明示バージョンなし",
     "healthChecks.versioning.modelVersionsNotInUse.title": "使用されていないデータモデルバージョン",
     "healthChecks.versioning.modelVersionsNotInUse.description":
       "変換で参照されていないモデルバージョン（明示的または最新として）。",

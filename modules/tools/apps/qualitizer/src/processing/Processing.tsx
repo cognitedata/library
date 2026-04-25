@@ -34,9 +34,79 @@ import type {
   ExtPipeRunSummary,
   FunctionRunSummary,
   LoadState,
+  ProcessingDataLoadProgress,
   TransformationJobSummary,
   WorkflowExecutionSummary,
 } from "./types";
+
+function formatProcessingDataProgress(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  p: ProcessingDataLoadProgress
+): string {
+  switch (p.kind) {
+    case "functions_list":
+      return t("processing.progress.functions.list", { count: p.loaded ?? 0 });
+    case "functions_runs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.functions.runs", { current, total, remaining });
+    }
+    case "transformations_list":
+      return t("processing.progress.transformations.list");
+    case "transformations_jobs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.transformations.jobs", { current, total, remaining });
+    }
+    case "workflows_executions":
+      return t("processing.progress.workflows.executions", { loaded: p.loaded ?? 0 });
+    case "extractors_list":
+      return t("processing.progress.extractors.list", { loaded: p.loaded ?? 0 });
+    case "extractors_runs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.extractors.runs", { current, total, remaining });
+    }
+    default:
+      return "";
+  }
+}
+
+function formatProcessingBandCaption(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  p: ProcessingDataLoadProgress
+): string {
+  switch (p.kind) {
+    case "functions_list":
+      return t("processing.progress.band.functions.list", { count: p.loaded ?? 0 });
+    case "functions_runs":
+      return t("processing.progress.band.functions.runs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    case "transformations_list":
+      return t("processing.progress.band.transformations.list");
+    case "transformations_jobs":
+      return t("processing.progress.band.transformations.jobs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    case "workflows_executions":
+      return t("processing.progress.band.workflows", { loaded: p.loaded ?? 0 });
+    case "extractors_list":
+      return t("processing.progress.band.extractors.list", { loaded: p.loaded ?? 0 });
+    case "extractors_runs":
+      return t("processing.progress.band.extractors.runs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    default:
+      return "";
+  }
+}
 
 const hoursWindow = 1;
 const bucketSeconds = 15;
@@ -99,6 +169,7 @@ export function Processing() {
 
   const {
     status,
+    loadProgress: functionLoadProgress,
     errorMessage,
     availabilityMessage,
     runs,
@@ -112,6 +183,7 @@ export function Processing() {
 
   const {
     transformationsStatus,
+    loadProgress: transformationLoadProgress,
     transformationsError,
     transformationNameMap,
     transformationMetaMap,
@@ -123,6 +195,7 @@ export function Processing() {
 
   const {
     workflowsStatus,
+    loadProgress: workflowLoadProgress,
     workflowsError,
     filteredWorkflowExecutions,
     workflowDetails,
@@ -137,6 +210,7 @@ export function Processing() {
 
   const {
     extractorsStatus,
+    loadProgress: extractorLoadProgress,
     extractorsError,
     extractorConfigMap,
     filteredExtractorRuns,
@@ -149,6 +223,43 @@ export function Processing() {
     transformationsStatus === "loading" ||
     workflowsStatus === "loading" ||
     extractorsStatus === "loading";
+
+  const loaderProgressDetails = useMemo(() => {
+    const lines: string[] = [];
+    if (status === "loading" && functionLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, functionLoadProgress));
+    }
+    if (transformationsStatus === "loading" && transformationLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, transformationLoadProgress));
+    }
+    if (workflowsStatus === "loading" && workflowLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, workflowLoadProgress));
+    }
+    if (extractorsStatus === "loading" && extractorLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, extractorLoadProgress));
+    }
+    if (lines.length === 0) return null;
+    return (
+      <>
+        <p className="text-xs font-medium text-slate-600">{t("processing.progress.panelTitle")}</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-snug text-slate-800">
+          {lines.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }, [
+    t,
+    status,
+    functionLoadProgress,
+    transformationsStatus,
+    transformationLoadProgress,
+    workflowsStatus,
+    workflowLoadProgress,
+    extractorsStatus,
+    extractorLoadProgress,
+  ]);
 
   useEffect(() => {
     const wasLoading = loaderWasLoadingRef.current;
@@ -584,42 +695,70 @@ export function Processing() {
           extractorsStatus !== "success" ? (
             <div className="mb-3 space-y-2 text-xs text-slate-600">
               {status !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.functions")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.functions")}</span>
                   {status === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {functionLoadProgress
+                          ? formatProcessingDataProgress(t, functionLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
               {transformationsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.transformations")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.transformations")}</span>
                   {transformationsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {transformationLoadProgress
+                          ? formatProcessingDataProgress(t, transformationLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
               {workflowsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.workflows")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.workflows")}</span>
                   {workflowsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {workflowLoadProgress
+                          ? formatProcessingDataProgress(t, workflowLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
               {extractorsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.extractors")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.extractors")}</span>
                   {extractorsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {extractorLoadProgress
+                          ? formatProcessingDataProgress(t, extractorLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
@@ -794,7 +933,9 @@ export function Processing() {
                   bandStatusLabels={{
                     functions:
                       status === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? functionLoadProgress
+                          ? formatProcessingBandCaption(t, functionLoadProgress)
+                          : t("processing.bubbles.loading")
                         : status === "error"
                           ? t("processing.status.error")
                           : runs.length === 0
@@ -802,7 +943,9 @@ export function Processing() {
                             : "",
                     transformations:
                       transformationsStatus === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? transformationLoadProgress
+                          ? formatProcessingBandCaption(t, transformationLoadProgress)
+                          : t("processing.bubbles.loading")
                         : transformationsStatus === "error"
                           ? t("processing.status.error")
                           : filteredTransformationJobs.length === 0
@@ -810,7 +953,9 @@ export function Processing() {
                             : "",
                     workflows:
                       workflowsStatus === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? workflowLoadProgress
+                          ? formatProcessingBandCaption(t, workflowLoadProgress)
+                          : t("processing.bubbles.loading")
                         : workflowsStatus === "error"
                           ? t("processing.status.error")
                           : filteredWorkflowExecutions.length === 0
@@ -818,7 +963,9 @@ export function Processing() {
                             : "",
                     extractors:
                       extractorsStatus === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? extractorLoadProgress
+                          ? formatProcessingBandCaption(t, extractorLoadProgress)
+                          : t("processing.bubbles.loading")
                         : extractorsStatus === "error"
                           ? t("processing.status.error")
                           : filteredExtractorRuns.length === 0
@@ -846,7 +993,11 @@ export function Processing() {
         </CardHeader>
         <CardContent>
           {status === "loading" ? (
-            <div className="text-sm text-slate-600">{t("processing.loading.stats")}</div>
+            <div className="text-sm text-slate-600">
+              {functionLoadProgress
+                ? formatProcessingDataProgress(t, functionLoadProgress)
+                : t("processing.loading.stats")}
+            </div>
           ) : null}
           {status === "error" ? (
             <ApiError
@@ -981,8 +1132,10 @@ export function Processing() {
                             return (
                               <div
                                 key={`cell-${minute}-${hour}`}
-                                className={`h-3 w-full rounded-sm border cursor-pointer ${
-                                  isNow ? "border-slate-800 border-dashed" : "border-slate-100"
+                                className={`relative h-3 w-full cursor-pointer rounded-sm border ${
+                                  isNow
+                                    ? "border-slate-800 border-dashed ring-2 ring-inset ring-slate-950/70 z-[1]"
+                                    : "border-slate-100"
                                 }`}
                                 style={{
                                   backgroundColor: getHeatColor(count),
@@ -1041,7 +1194,7 @@ export function Processing() {
                         {t("processing.heatmap.legend.high")}
                       </span>
                       <span className="flex items-center gap-1">
-                        <span className="h-3 w-3 rounded-sm border-2 border-dashed border-slate-700 bg-transparent" />
+                        <span className="relative z-[1] h-3 w-3 rounded-sm border border-dashed border-slate-800 bg-sky-100 ring-2 ring-inset ring-slate-950/70" />
                         {t("processing.heatmap.legend.now")}
                       </span>
                     </div>
@@ -1195,6 +1348,7 @@ export function Processing() {
           setLoaderDismissed(true);
         }}
         title={t("processing.loader.title")}
+        progressDetails={loaderProgressDetails}
       />
       <ProcessingHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <ProcessingHeatmapHelpModal

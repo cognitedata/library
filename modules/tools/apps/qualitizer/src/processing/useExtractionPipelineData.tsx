@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestampLoose } from "@/shared/time-utils";
-import type { ExtPipeConfigSummary, ExtPipeRunSummary, LoadState } from "./types";
+import type {
+  ExtPipeConfigSummary,
+  ExtPipeRunSummary,
+  LoadState,
+  ProcessingDataLoadProgress,
+} from "./types";
 import { useI18n } from "@/shared/i18n";
 
 type ExtPipesListApiResponse = {
@@ -35,6 +40,7 @@ export function useExtractionPipelineData({
   const [extractorRunsAll, setExtractorRunsAll] = useState<
     Array<ExtPipeRunSummary & { externalId: string }>
   >([]);
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
 
   useEffect(() => {
     if (isSdkLoading) return;
@@ -44,6 +50,7 @@ export function useExtractionPipelineData({
       setExtractorsError(null);
       setExtractorConfigs([]);
       setExtractorRunsAll([]);
+      setLoadProgress({ kind: "extractors_list", loaded: 0 });
       try {
         const configs: ExtPipeConfigSummary[] = [];
         let cursor: string | undefined;
@@ -53,14 +60,19 @@ export function useExtractionPipelineData({
           })) as ExtPipesListApiResponse;
           configs.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
+          if (!cancelled) {
+            setLoadProgress({ kind: "extractors_list", loaded: configs.length });
+          }
         } while (cursor);
 
         if (!cancelled) {
           setExtractorConfigs(configs);
+          setLoadProgress(null);
           setExtractorsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setExtractorsError(
             error instanceof Error ? error.message : t("processing.error.extractors")
           );
@@ -86,8 +98,13 @@ export function useExtractionPipelineData({
       setExtractorsStatus("loading");
       setExtractorsError(null);
       setExtractorRunsAll([]);
+      const totalPipelines = extractorConfigs.length;
+      if (totalPipelines > 0) {
+        setLoadProgress({ kind: "extractors_runs", current: 0, total: totalPipelines });
+      }
       try {
         const runs: Array<ExtPipeRunSummary & { externalId: string }> = [];
+        let pipelineIndex = 0;
         for (const config of extractorConfigs) {
           let cursor: string | undefined;
           const seenTimes: number[] = [];
@@ -168,14 +185,24 @@ export function useExtractionPipelineData({
               externalId: config.externalId,
             });
           }
+          pipelineIndex += 1;
+          if (!cancelled && (pipelineIndex % 3 === 0 || pipelineIndex === totalPipelines)) {
+            setLoadProgress({
+              kind: "extractors_runs",
+              current: pipelineIndex,
+              total: totalPipelines,
+            });
+          }
         }
 
         if (!cancelled) {
           setExtractorRunsAll(runs);
+          setLoadProgress(null);
           setExtractorsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setExtractorsError(
             error instanceof Error ? error.message : t("processing.error.extractors")
           );
@@ -224,6 +251,7 @@ export function useExtractionPipelineData({
 
   return {
     extractorsStatus,
+    loadProgress,
     extractorsError,
     extractorConfigs,
     extractorRunsAll,

@@ -32,8 +32,8 @@ const internalPages = [
   { id: "streams", label: "Streams" },
   { id: "edges", label: "Edges" },
   { id: "spaces", label: "Spaces" },
-  { id: "testing", label: "Testing" },
   { id: "dpUsage", label: "DP Usage" },
+  { id: "dpCross", label: "DP Cross Project" },
   { id: "overlap", label: "Overlap" },
   { id: "settings", label: "Settings" },
   { id: "apiConsole", label: "API Console" },
@@ -69,7 +69,19 @@ function AppContent() {
   const initialMode = useMemo(() => {
     const state = loadNavState();
     let stored = state.mode;
-    if (stored === "versioning") {
+    if (stored === "assetsModels") {
+      saveNavState({ mode: "assets", assetsSubView: "dataModels" });
+      stored = "assets";
+    } else if (stored === "assetsViews") {
+      saveNavState({ mode: "assets", assetsSubView: "standaloneViews" });
+      stored = "assets";
+    } else if (stored === "assets") {
+      const st = loadNavState();
+      if (st.assetsSubView !== "dataModels" && st.assetsSubView !== "standaloneViews") {
+        saveNavState({ assetsSubView: "dataModels" });
+      }
+      stored = "assets";
+    } else if (stored === "versioning") {
       const sub =
         state.versioningSubView === "dataModelVersions" ? "dataModelVersions" : "viewVersions";
       saveNavState({ mode: "meta", dataCatalogSubView: sub });
@@ -235,7 +247,7 @@ function AppContent() {
             </div>
           </div>
           {showLruStats ? <LruCacheStatsPanel onClose={() => setShowLruStats(false)} /> : null}
-        <div data-private-mode={isPrivateMode && mode !== "settings" && mode !== "health" && mode !== "processing" && mode !== "permissions" && mode !== "transformations" ? "true" : undefined}>
+        <div data-private-mode={isPrivateMode && mode !== "settings" && mode !== "apiConsole" && mode !== "dpCross" && mode !== "health" && mode !== "processing" && mode !== "permissions" && mode !== "transformations" ? "true" : undefined}>
         {mode === "health" ? <HealthChecks /> : null}
         {mode === "processing" ? <Processing /> : null}
         {mode === "permissions" ? <Permissions /> : null}

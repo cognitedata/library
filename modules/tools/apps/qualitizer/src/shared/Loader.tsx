@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/shared/i18n";
 
 type LoaderProps = {
   open: boolean;
   onClose: () => void;
   title?: string;
+  progressDetails?: ReactNode;
 };
 
-export function Loader({ open, onClose, title }: LoaderProps) {
+export function Loader({ open, onClose, title, progressDetails }: LoaderProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -154,6 +155,11 @@ export function Loader({ open, onClose, title }: LoaderProps) {
             </button>
           </div>
         </div>
+        {progressDetails ? (
+          <div className="mt-4 max-h-40 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            {progressDetails}
+          </div>
+        ) : null}
         <div className="mt-4 h-80 w-full overflow-hidden rounded-md border border-slate-200 bg-black">
           <canvas ref={canvasRef} className="h-full w-full" />
         </div>

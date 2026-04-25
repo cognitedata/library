@@ -15,8 +15,14 @@ import { fetchTransformationsByIds } from "@/transformations/fetchTransformation
 import { cachedTransformationsList } from "@/transformations/transformations-cache";
 import { cachedDataModelsList, cachedDataModelsRetrieve } from "@/shared/dms-catalog-cache";
 import { getDataModelUrl, getTransformationPreviewUrl } from "@/shared/cdf-browser-url";
+import { formatResourceDisplayLabel } from "@/shared/format-resource-display-label";
 import { useI18n } from "@/shared/i18n";
-import { compareVersionStrings, isChecksumLikeVersion } from "./versioning-utils";
+import {
+  compareVersionStrings,
+  cycleLegendFilterState,
+  isChecksumLikeVersion,
+  type LegendFilterState,
+} from "./versioning-utils";
 import { GRID_VERSION_HEADER_HEIGHT, VersioningGridScroll } from "./VersioningGridScroll";
 import { DataCatalogVersionHistory } from "./DataCatalogVersionHistory";
 
@@ -353,7 +359,8 @@ export function DataModelVersions() {
   const [dmTxByCell, setDmTxByCell] = useState<Map<string, Array<{ id: string; name: string }>>>(
     new Map()
   );
-  const [dmLegendFilter, setDmLegendFilter] = useState<DmGridLegendFilterId | null>(null);
+  const [dmLegendFilter, setDmLegendFilter] =
+    useState<LegendFilterState<DmGridLegendFilterId>>(null);
   const [showChecksumVersions, setShowChecksumVersions] = useState(false);
   const [versionHistoryDmKey, setVersionHistoryDmKey] = useState<string | null>(null);
   const [matrixSearch, setMatrixSearch] = useState("");
@@ -375,7 +382,7 @@ export function DataModelVersions() {
         const key =
           `${model.space}:${model.externalId}:${model.version ?? "latest"}` as string;
         const baseKey = `${model.space}:${model.externalId}`;
-        const label = model.name ?? model.externalId ?? key;
+        const label = formatResourceDisplayLabel(model.name, model.externalId, key);
 
         const viewKeys = new Set<string>();
         const modelViews = (model as { views?: Array<{ space: string; externalId: string }> })
@@ -574,7 +581,11 @@ export function DataModelVersions() {
 
   const legendFilteredDmRows = useMemo(() => {
     if (!dmLegendFilter) return filteredDmRows;
-    return filteredDmRows.filter((row) => dmRowLegendFlagsByKey.get(row.key)?.has(dmLegendFilter));
+    const { id, mode } = dmLegendFilter;
+    return filteredDmRows.filter((row) => {
+      const has = dmRowLegendFlagsByKey.get(row.key)?.has(id) ?? false;
+      return mode === "include" ? has : !has;
+    });
   }, [filteredDmRows, dmLegendFilter, dmRowLegendFlagsByKey]);
 
   const usedDmLegendIds = useMemo(() => {
@@ -611,7 +622,7 @@ export function DataModelVersions() {
   }, [usedDmLegendIds]);
 
   useEffect(() => {
-    if (dmLegendFilter != null && !visibleDmLegendIds.has(dmLegendFilter)) {
+    if (dmLegendFilter != null && !visibleDmLegendIds.has(dmLegendFilter.id)) {
       setDmLegendFilter(null);
     }
   }, [dmLegendFilter, visibleDmLegendIds]);
@@ -743,7 +754,7 @@ export function DataModelVersions() {
       const rows: DataModelRow[] = [];
       for (const [dmKey, verMap] of dmMap) {
         const first = Array.from(verMap.values())[0];
-        const label = first?.name ?? first?.externalId ?? dmKey;
+        const label = formatResourceDisplayLabel(first?.name, first?.externalId, dmKey);
         rows.push({
           key: dmKey,
           label,
@@ -1240,25 +1251,51 @@ export function DataModelVersions() {
               {visibleDmLegendIds.size > 0 ? (
                 <div className="bg-sky-50 px-3 py-2 text-xs text-slate-600">
                   <p className="mb-2 text-[11px] text-slate-500">
-                    Click a legend entry to filter rows. Click again to clear.
+                    Legend: first click shows only matching rows (include), second click hides those
+                    rows (exclude), third click clears.
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     {DATA_MODEL_VERSION_LEGEND_ENTRIES.filter((e) => visibleDmLegendIds.has(e.id)).map(
                       ({ id, swatch, label }) => {
-                        const active = dmLegendFilter === id;
+                        const isInclude =
+                          dmLegendFilter?.id === id && dmLegendFilter.mode === "include";
+                        const isExclude =
+                          dmLegendFilter?.id === id && dmLegendFilter.mode === "exclude";
                         return (
                           <button
                             key={id}
                             type="button"
-                            onClick={() => setDmLegendFilter((prev) => (prev === id ? null : id))}
+                            title={
+                              isInclude
+                                ? "Include: matching rows only. Click again for exclude."
+                                : isExclude
+                                  ? "Exclude: hide matching rows. Click again to clear."
+                                  : "Click: include → exclude → off"
+                            }
+                            onClick={() =>
+                              setDmLegendFilter((prev) => cycleLegendFilterState(prev, id))
+                            }
                             className={`flex max-w-[min(100%,20rem)] cursor-pointer items-center gap-2 rounded-md border-0 py-1 pl-1.5 pr-2 text-left transition ${
-                              active
+                              isInclude
                                 ? "bg-white/95 text-slate-900 shadow-sm ring-2 ring-slate-800 ring-offset-1 ring-offset-sky-50"
-                                : "bg-transparent text-slate-600 hover:bg-white/70"
+                                : isExclude
+                                  ? "bg-rose-50/95 text-rose-950 shadow-sm ring-2 ring-rose-600 ring-offset-1 ring-offset-sky-50"
+                                  : "bg-transparent text-slate-600 hover:bg-white/70"
                             }`}
                           >
                             {swatch}
-                            <span>{label}</span>
+                            <span className="flex min-w-0 flex-col gap-0">
+                              <span>{label}</span>
+                              {isInclude ? (
+                                <span className="text-[10px] font-medium text-slate-600">
+                                  only matching
+                                </span>
+                              ) : isExclude ? (
+                                <span className="text-[10px] font-medium text-rose-800">
+                                  hide matching
+                                </span>
+                              ) : null}
+                            </span>
                           </button>
                         );
                       }
@@ -1268,7 +1305,8 @@ export function DataModelVersions() {
               ) : null}
               {legendFilteredDmRows.length === 0 && dmLegendFilter ? (
                 <div className="flex min-h-48 items-center justify-center bg-sky-100 px-4 text-center text-sm text-slate-600">
-                  No rows match this legend filter. Click the legend entry again to clear.
+                  No rows match this legend setting. Click the same legend entry again to switch
+                  include → exclude → off.
                 </div>
               ) : (
                 <VersioningGridScroll

@@ -44,3 +44,7 @@ export type UploadedUser = {
   label: string;
   data: AccessInfo;
 };
+
+export type CompareTableRow =
+  | { scope: "current"; group: GroupSummary }
+  | { scope: "other"; projectUrlName: string; groupId: number };
