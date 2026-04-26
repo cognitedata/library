@@ -11,12 +11,18 @@ import re
 import subprocess
 from pathlib import Path
 
-from ._constants import _CONFIG_FLAG_VERSION
+from . import _style as style
+from ._constants import _CONFIG_FLAG_VERSION, DATA_UPLOAD_DIRS
 from ._messages import (
     SEC_POST_VERIFY,
     VERIFY_BUILD_FAIL,
     VERIFY_BUILD_OK,
     VERIFY_BUILD_START,
+    VERIFY_DATA_FAIL,
+    VERIFY_DATA_INTRO,
+    VERIFY_DATA_OK,
+    VERIFY_DATA_SKIP,
+    VERIFY_DATA_UPLOAD,
     VERIFY_DRY_FAIL,
     VERIFY_DRY_OK,
     VERIFY_DRY_START,
@@ -24,8 +30,6 @@ from ._messages import (
     VERIFY_LIVE_SKIP,
 )
 from ._prompts import prompt_yes_no
-from . import _style as style
-
 
 # Flag selection
 
@@ -89,6 +93,7 @@ def run_post_write_verification(
     config_arg: str,
     toolkit_version: tuple[int, int, int] | None = None,
     project_name: str | None = None,
+    org_dir: str | None = None,
 ) -> None:
     """Run ``cdf build`` then offer ``cdf deploy --dry-run`` and live deploy.
 
@@ -132,10 +137,32 @@ def run_post_write_verification(
 
     # --- Step 3: live deploy (optional) -------------------------------------
     deploy_target = project_name or env
-    style.hint(f"\n  [3/3] Live deploy to '{deploy_target}' (optional).")
+    style.hint(f"\n  [3/4] Live deploy to '{deploy_target}' (optional).")
     if prompt_yes_no(f"  Proceed with live deploy to '{deploy_target}'?", default=False):
         style.hint("        Running: cdf deploy")
         subprocess.run(["cdf", "deploy"], cwd=str(repo_root))
         style.success(VERIFY_LIVE_OK)
     else:
         style.hint(VERIFY_LIVE_SKIP)
+        return
+
+    # --- Step 4: synthetic data upload (optional) ---------------------------
+    style.hint(VERIFY_DATA_INTRO)
+    if prompt_yes_no("\n  Upload synthetic test data now?", default=False):
+        style.hint(VERIFY_DATA_UPLOAD)
+        failed = False
+        for upload_dir in DATA_UPLOAD_DIRS:
+            full_dir = f"{org_dir}/{upload_dir}" if org_dir else upload_dir
+            style.hint(f"        Running: cdf data upload dir {full_dir}")
+            result = subprocess.run(
+                ["cdf", "data", "upload", "dir", full_dir],
+                cwd=str(repo_root),
+            )
+            if result.returncode != 0:
+                failed = True
+        if failed:
+            style.warning(VERIFY_DATA_FAIL)
+        else:
+            style.success(VERIFY_DATA_OK)
+    else:
+        style.hint(VERIFY_DATA_SKIP)

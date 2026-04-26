@@ -39,6 +39,17 @@ SQL_FILE_ANNOTATION_MODE_MARKER = "[FILE_ANNOTATION MODE]"
 SQL_COMMON_BLOCK_ANCHOR = "with parentLookup as ("
 SQL_FILE_ANNOTATION_BLOCK_ANCHOR = "with root as ("
 
+# Synthetic data upload directories
+
+DATA_UPLOAD_DIRS: tuple[str, ...] = (
+    "modules/sourcesystem/cdf_pi/upload_data",
+    "modules/sourcesystem/cdf_sap_assets/upload_data",
+    "modules/sourcesystem/cdf_sap_events/upload_data",
+    "modules/sourcesystem/cdf_sharepoint/upload_data",
+    "modules/accelerators/contextualization/cdf_entity_matching/upload_data",
+    "modules/accelerators/contextualization/cdf_file_annotation/upload_data",
+)
+
 # Compiled regexes
 
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")

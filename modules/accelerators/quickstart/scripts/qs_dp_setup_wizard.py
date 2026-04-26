@@ -342,7 +342,7 @@ def main(
     style.hint(HINT_BACKUPS)
 
     if not skip_verify:
-        run_post_write_verification(repo_root, env, config_arg, toolkit_version, plain_project_name)
+        run_post_write_verification(repo_root, env, config_arg, toolkit_version, plain_project_name, org_dir)
 
     return 0
 
