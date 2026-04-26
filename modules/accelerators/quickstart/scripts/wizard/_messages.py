@@ -58,11 +58,19 @@ MSG_DONE     = "\nDone."
 
 # Post-write verification step labels
 
-VERIFY_BUILD_START = "  [1/3] Verifying build ..."
-VERIFY_BUILD_OK    = "  [1/3] Build succeeded."
-VERIFY_BUILD_FAIL  = "  [1/3] Build FAILED."
-VERIFY_DRY_START   = "\n  [2/3] Running dry-run deploy ..."
-VERIFY_DRY_OK      = "  [2/3] Dry-run deploy succeeded."
-VERIFY_DRY_FAIL    = "  [2/3] Dry-run deploy failed — not proceeding to live deploy."
-VERIFY_LIVE_OK     = "  [3/3] Live deploy complete."
-VERIFY_LIVE_SKIP   = "  [3/3] Live deploy skipped."
+VERIFY_BUILD_START   = "  [1/4] Verifying build ..."
+VERIFY_BUILD_OK      = "  [1/4] Build succeeded."
+VERIFY_BUILD_FAIL    = "  [1/4] Build FAILED."
+VERIFY_DRY_START     = "\n  [2/4] Running dry-run deploy ..."
+VERIFY_DRY_OK        = "  [2/4] Dry-run deploy succeeded."
+VERIFY_DRY_FAIL      = "  [2/4] Dry-run deploy failed — not proceeding to live deploy."
+VERIFY_LIVE_OK       = "  [3/4] Live deploy complete."
+VERIFY_LIVE_SKIP     = "  [3/4] Live deploy skipped."
+VERIFY_DATA_INTRO    = (
+    "\n  This Deployment Pack is bundled with synthetic data to test the file annotation pipeline.\n"
+    "  Uploading it will populate your CDF project with sample assets, events, and documents."
+)
+VERIFY_DATA_UPLOAD   = "\n  [4/4] Uploading synthetic test data ..."
+VERIFY_DATA_OK       = "  [4/4] Data upload complete."
+VERIFY_DATA_SKIP     = "  [4/4] Data upload skipped."
+VERIFY_DATA_FAIL     = "  [4/4] Data upload failed for one or more directories (see output above)."
