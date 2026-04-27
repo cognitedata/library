@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Foundation Deployment Pack** (`dp:foundation`) is a scalable, modular CDF deployment package that gives industrial projects a well-structured starting point. It covers the full stack from source system extraction through contextualization: production-grade extractor configuration templates for PI, OPC-UA, and SAP; the ISA Manufacturing Extension data model; a modular ingestion orchestration workflow; and contextualization capabilities including file annotation and entity matching.
+The **Foundation Deployment Pack** (`dp:foundation`) is a scalable, modular CDF deployment package that gives industrial projects a near zero-configuration starting point. It covers the full stack from source system extraction through contextualization: production-grade extractor configuration templates for PI, OPC-UA, and SAP; the ISA Manufacturing Extension data model; a modular ingestion orchestration workflow; and contextualization capabilities including file annotation and entity matching.
 
 Every module is independently deployable. The package supports `canCherryPick = true`, so teams select only the source systems and capabilities they need. Adding a new source system or contextualization step means adding a module — not modifying existing ones.
 
@@ -12,7 +12,7 @@ Every module is independently deployable. The package supports `canCherryPick = 
 
 ### Who is this for?
 
-The primary users of `dp:foundation` are **Data Engineers (DEs)** and **Cognite partners** who are responsible for standing up CDF environments for industrial customers. Secondary users are **Solutions Architects** who define the project structure before a DE takes over, and — in more self-serve engagements — **technically capable customers** who own their own CDF configuration.
+The primary users of `dp:foundation` are **Data Engineers (DEs)** and **Cognite partners** who are responsible for standing up CDF environments for industrial customers. The DP is also well-suited for **POC and quickstart projects** where speed of deployment matters as much as long-term scalability. Secondary users are **Solutions Architects** who define the project structure before a DE takes over.
 
 ### What is the pain today?
 
@@ -29,8 +29,10 @@ The result is that each new deployment is partially reinvented, slowing delivery
 
 `dp:foundation` gives DEs and partners a single, composable starting point they can deploy to a real customer project on day one:
 
-- Extractor configuration templates for the three most common industrial source systems are bundled and ready — no gss-knowledge-base or other lookup required.
-- The project structure (spaces, datasets, groups, data model, orchestration) is standardised and parameterised by `location` — a new site is a new variable value, not a new set of files.
+- A near **zero-configuration deployment**: the DP deploys and runs without significant initial configuration beyond filling in credentials and a `location` variable.
+- Extractor configuration templates for the three most common industrial source systems are bundled — no gss-knowledge-base lookup required.
+- Transformations are provided as **generalized examples and AI/Cursor scaffolds**, not universally valid production SQL. They are guided by cursor rules (see `.cursor/rules/cdf-transformations.mdc`) so DEs can use them as input to AI tools to generate site-specific SQL rapidly.
+- The project structure is standardised and parameterised by `location` — a new site is a new variable value, not a new set of files.
 - Contextualization is a first-class, deployable capability, not an afterthought.
 - The architecture is open for extension (add a module, set a variable) rather than modification (fork and edit).
 
@@ -38,11 +40,13 @@ The result is that each new deployment is partially reinvented, slowing delivery
 
 ## Goals
 
-- Provide a complete, deployable CDF project structure: spaces, datasets, auth groups, data model, extraction pipelines, transformations, ingestion orchestration, and contextualization.
+- Provide a **near zero-configuration** CDF project foundation: deploy and run with minimal initial setup beyond credentials and a `location` identifier.
 - Ship production-grade extractor configuration templates for **PI**, **OPC-UA**, and **SAP** sourced from gss-knowledge-base, so field engineers get a real starting point with all required parameters documented.
+- Ship transformation SQL as **generalized examples and AI/Cursor scaffolds**, guided by cursor rules (`.cursor/rules/cdf-transformations.mdc`), that DEs can adapt rapidly for site-specific data.
 - Each source system module is self-contained and independently deployable — no module fails to deploy because another is absent.
 - Ingestion orchestration is source-agnostic: configuring which transformations run in which phase is the only customization required when adding or removing a source system.
-- Contextualization modules (file annotation, entity matching, SQL connections) and a contextualization quality dashboard are first-class parts of this DP.
+- Contextualization modules (file annotation, entity matching) and a contextualization quality dashboard are first-class parts of this DP.
+- Include a **CLI-based configuration wizard (P1)** to guide users through auth, source system selection, and initial variable setup.
 
 ---
 
@@ -63,6 +67,9 @@ The following are deliberately out of scope for the initial release. Excluding t
 | **Automated transformation unit tests**         | A testing framework for verifying transformation SQL output is a P1 concern. |
 | **Multi-tenant or multi-project federation**    | Each deployment of `dp:foundation` targets a single CDF project. Cross-project data federation is out of scope. |
 | **Sharepoint / document source system**         | File ingestion from SharePoint is not included in v1. A generic `cdf_documents_foundation` module is a P1 candidate. |
+| **Japanese / multi-language localization**      | Japanese labels for view and property names are a future consideration. Not in v1 scope. |
+| **CI/CD pipeline templates for ADO**            | Many projects are ADO-based rather than GitHub-based. A "sister" package of ADO CI/CD pipeline templates is a valid need but a separate initiative around SOPs and branching strategy templates. |
+| **Module dependency auto-resolution**           | Automatically resolving and prompting the user to include dependent modules is a desirable UX improvement but deferred to a later toolkit-level enhancement (P1). |
 
 
 ---
@@ -72,7 +79,8 @@ The following are deliberately out of scope for the initial release. Excluding t
 
 | Persona                                                   | How this DP helps                                                                                                                     |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Field Engineers** setting up a new customer project     | Drop-in extractor config templates (PI, OPC-UA, SAP) with all required parameters pre-documented; fill in credentials and run         |
+| **Field Engineers / DEs** setting up a new customer project | Drop-in extractor config templates with all parameters documented; near zero-config start; transformations as AI scaffolds rather than manual SQL |
+| **POC / quickstart projects**                             | Fast, consistent baseline that deploys in a day without demo data or synthetic coupling |
 | **Solutions Architects** designing a scalable CDF project | Modular structure grows by adding modules, not by forking; shared variable contract means location-specific config lives in one place |
 | **Customers** deploying CDF for the first time            | Clear, layered architecture from data model → source systems → orchestration → contextualization; cherry-pick only what applies       |
 
@@ -122,9 +130,12 @@ Existing modules referenced without modification:
 - `models/isa_manufacturing_extension`
 - `accelerators/contextualization/cdf_file_annotation`
 - `accelerators/contextualization/cdf_entity_matching`
-- `accelerators/contextualization/cdf_connection_sql`
 - `accelerators/industrial_tools/cdf_search`
 - `dashboards/context_quality`
+
+P1 additions (not in v1 package):
+
+- `accelerators/contextualization/cdf_connection_sql` *(enabled when `dataModelVariant: qs_enterprise`)*
 
 ---
 
@@ -147,8 +158,8 @@ Existing modules referenced without modification:
 │                                                                              │
 │  ┌───────────────────────────────────────────────────────────────────────┐   │
 │  │  foundation/cdf_foundation  [new]                                     │   │
-│  │  Spaces · Datasets · Auth groups · Base RAW database                 │   │
-│  │  Defines: location, organization, schemaSpace, instanceSpace vars    │   │
+│  │  Spaces · Datasets · Auth groups (scope hierarchy) · RAW databases   │   │
+│  │  Superset of cdf_common — compatible variable contract               │   │
 │  └───────────────────────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────────────────────┘
                     │                  │                   │
@@ -217,6 +228,8 @@ Existing modules referenced without modification:
 ### 1. `foundation/cdf_foundation` *(New)*
 
 **Purpose**: Project-scoped infrastructure shared by all modules in this DP. Creates the spaces, datasets, auth groups, and RAW databases that every source system and contextualization module references. Defines the canonical set of template variables used across the entire DP.
+
+**Auth group design** follows a coarse macro-group model covering: `admins`, `readonly`, `extractors`, `functions`, `workflow` — each scoped to the project dataset and instance spaces. A default global config is provided; DEs customise scope hierarchy per project (global config → site-specific override pattern) as needed.
 
 `cdf_foundation` is designed as a strict superset of `accelerators/cdf_common`. It creates all the same resources that `cdf_common` creates — the instance space, function space, ingestion dataset, RAW source database, RAW state database, and state table — using the same variable names so that existing modules (`cdf_file_annotation`, `cdf_entity_matching`, `cdf_connection_sql`, `cdf_ingestion_foundation`) that were written against the `cdf_common` variable contract work without changes. The annotation-specific CDF Function (`contextualization_connection_writer`) and ExtractionPipeline (`ctx_files_direct_relation_write`) from `cdf_common` are not included — those belong to `cdf_file_annotation`.
 
@@ -336,6 +349,7 @@ Key customer-configured parameters:
 
 **Transformation notes**:
 
+- SQL is provided as a **generalized scaffold** targeting ISA Manufacturing Extension views. Use with cursor rules (`.cursor/rules/cdf-transformations.mdc`) to adapt to site-specific tag naming and metadata properties.
 - Maps PI tag name → `externalId` with `pi:` prefix
 - Writes to `CogniteTimeSeries` view in `{{instanceSpace}}`
 - `sysTagsFound` is populated by default (opt-out via `populateSysTagsFound: false` in `default.config.yaml`) to maintain downstream contextualization compatibility
@@ -417,6 +431,7 @@ Key customer-configured parameters:
 
 **Transformation notes**:
 
+- SQL is provided as a **generalized scaffold** targeting ISA Manufacturing Extension views. Use with cursor rules (`.cursor/rules/cdf-transformations.mdc`) to adapt to site-specific node naming.
 - OPC-UA extractor writes node metadata to `db_{{location}}_opcua:nodes` (RAW)
 - Transformation reads RAW and maps to `CogniteTimeSeries` view in `{{instanceSpace}}`
 - External ID: `opcua:<node-id>`
@@ -460,7 +475,7 @@ sourcesystem/cdf_opcua_foundation/
 
 ### 5. `sourcesystem/cdf_sap_foundation` *(New)*
 
-**Purpose**: Ingest SAP functional locations, equipment master records, maintenance orders, and work operations into CDF RAW via the SAP OData Extractor, then transform into the enterprise data model. Consolidates what would otherwise be separate asset and events modules into a single cohesive SAP source system module — since both share the same extractor, authentication, and data model target.
+**Purpose**: Ingest SAP functional locations, equipment master records, maintenance orders, and work operations into CDF RAW via a **single SAP OData extraction pipeline with multiple entity queries** configured within it (flocs, equipment, work orders, operations, notifications). Transformations are split by entity type to enable correct workflow sequencing (assets → equipment → equipment-to-asset → maintenance orders → operations). Single-plant by default; multi-plant via `sapPlants` list variable. Transformation SQL is provided as generalized scaffolds — no synthetic/sample data.
 
 Ships with a complete SAP OData extractor configuration template sourced from gss-knowledge-base with single-plant default and multi-plant expansion support via a plant list variable.
 
@@ -525,6 +540,7 @@ Key customer-configured parameters:
 
 **Transformation notes**:
 
+- SQL is provided as **generalized scaffolds** targeting ISA Manufacturing Extension views. Use with cursor rules (`.cursor/rules/cdf-transformations.mdc`) to adapt to site-specific SAP entity naming and structure.
 - All SQL uses `{{location}}`, `{{organization}}`, `{{sapSystem}}`, `{{instanceSpace}}`, `{{schemaSpace}}` variables — no hardcoded site names
 - `sysTagsFound` populated on `MaintenanceOrder` for downstream connection compatibility (opt-out via `populateSysTagsFound: false`)
 
@@ -853,13 +869,15 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 | Scoped search filters               | `accelerators/industrial_tools/cdf_search` *(existing)*           |
 
 
-### P1 — v2: Quality and Testing
+### P1 — v2: Quality, Testing, and Usability
 
-**Goal**: Deployments are verifiable. A DE can confirm that transformations produce correct output before handing a project to a customer.
+**Goal**: Deployments are verifiable and easier to configure. A DE can confirm that transformations produce correct output before handing a project to a customer, and new users can be guided through setup without reading documentation.
 
 
 | Deliverable | Notes |
 |---|---|
+| **CLI configuration wizard** | Interactive `cdf init` style wizard that guides users through auth setup, source system selection, and initial variable population — reduces time-to-first-deploy for new DEs |
+| **Module dependency auto-resolution** | When a package depends on another, automatically resolve and prompt the user to include it (toolkit-level enhancement) |
 | `qs_enterprise_dm` data model support | Add `models/qs_enterprise_dm` as an alternative selectable DM; wire in `cdf_connection_sql` contextualization tasks for the `qs_enterprise` variant in `cdf_ingestion_foundation` |
 | `rmdm` data model support | Add `models/rmdm_v1` as a selectable DM variant with its own contextualization task snippets |
 | SQL-based connections (`cdf_connection_sql`) | Becomes available as the contextualization layer when `dataModelVariant: qs_enterprise` is selected |
@@ -908,6 +926,7 @@ Variables are defined once — in `foundation/cdf_foundation/default.config.yaml
 | **OPC-UA node filter requirements**                    | High       | Low    | OPC-UA node structure is highly site-specific. The extractor config template ships with commented-out example filters. Without correct filters, the extractor will browse the full OPC-UA server tree, which may be very large and slow. DEs must configure filters before production use — this should be explicitly documented.                                                      |
 | `**cdf_foundation` vs `cdf_common` variable conflict** | Low        | High   | If an existing module is deployed with `cdf_common` and then `cdf_foundation` is introduced in the same project, and the variable values differ (e.g., different `instanceSpace` defaults), resources may be duplicated or point to the wrong space. The two modules should not be deployed together in the same project.                                                              |
 | **Workflow generation script correctness**             | Low        | Medium | The `build_workflow.py` script must correctly wire `dependsOn` chains when only a subset of sources is enabled (e.g. if SAP is disabled, tasks that depend on SAP transformations must not reference them). The script should validate dependency integrity at generation time and fail loudly on inconsistencies. CI `--check` flag prevents drift between config and committed YAML. |
+| **Transformation generalization limits**               | High       | Medium | Transformation SQL scaffolds are generalized examples, not universally valid production SQL. Site-specific column names, SAP entity keys, PI tag formats, and OPC-UA node structures will require DE customisation. The cursor rules (`.cursor/rules/cdf-transformations.mdc`) guide AI-assisted adaptation, but DEs must validate output against real source data before handing over to customers. |
 
 
 ---
@@ -959,7 +978,23 @@ The WorkflowVersion YAML schema and variable substitution syntax are Toolkit-ver
 
 ---
 
+### Q5 — Transformation scaffold validation approach *(open)*
+
+Since transformations are generalized scaffolds rather than universally valid SQL, we need a clear approach for how DEs validate them before going live:
+
+- **Option A**: Document a manual validation checklist — DE runs the transformation in preview mode against a sample of real RAW data and checks output.
+- **Option B**: Ship a transformation unit test framework (P1) with known-good RAW fixtures and expected DM output, runnable locally.
+- **Option C**: Provide a validation Streamlit app or notebook that runs the scaffolds against sample data and reports mismatches.
+
+A decision is needed before P1 — the cursor rules alone are not sufficient as a quality gate for customer-facing deployments.
+
+---
+
 ## Success Metrics
+
+### Near zero-config (usability check)
+
+- A DE deploys a working environment (foundation + one source system + workflow) by filling in ≤ 10 variables and running `cdf deploy` — without consulting additional documentation or requesting help.
 
 ### Deployment health (binary checks)
 
