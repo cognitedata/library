@@ -1,7 +1,6 @@
 - constraints: {}
   description: Container for file contextualization pipeline annotation data
   externalId: {{ annotationStateExternalId }}
-  indexes: {}
   name: {{ annotationStateExternalId }}
   properties:
     annotatedPageCount:
@@ -13,9 +12,6 @@
         type: int64
       name: Annotated page count
     annotationMessage:
-      autoIncrement: false
-      immutable: false
-      nullable: true
       autoIncrement: false
       immutable: false
       nullable: true
