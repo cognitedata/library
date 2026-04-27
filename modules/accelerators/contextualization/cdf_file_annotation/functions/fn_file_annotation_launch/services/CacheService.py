@@ -498,7 +498,11 @@ class GeneralCacheService(ICacheService):
             if resource_type and item.get("sample"):
                 bucket = merged[resource_type]
                 samples_set = cast(Set[str], bucket["samples"])
-                samples_set.add(cast(str, item["sample"]))
+                sample_val = item["sample"]
+                if isinstance(sample_val, list):
+                    samples_set.update(sample_val)
+                else:
+                    samples_set.add(cast(str, sample_val))
                 # Set annotation_type if not already set (auto-patterns take precedence)
                 if not bucket.get("annotation_type"):
                     # NOTE: UI that creates manual patterns will need to also have the annotation type as a required entry

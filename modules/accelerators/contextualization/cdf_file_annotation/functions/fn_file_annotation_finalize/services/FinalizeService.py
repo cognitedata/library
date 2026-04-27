@@ -127,16 +127,24 @@ class GeneralFinalizeService(AbstractFinalizeService):
 
         job_results: dict | None = None
         pattern_mode_job_results: dict | None = None
+        pattern_only = pattern_mode_job is not None and regular_job[0] == pattern_mode_job[0]
         try:
-            self.logger.info("(Regular) Retrieving diagram detect job results", "START")
-            job_results = self.retrieve_service.get_diagram_detect_job_result(
-                job_id=regular_job[0], job_token=regular_job[1]
-            )
-            if pattern_mode_job:
-                self.logger.info("(Pattern) Retrieving diagram detect job results")
+            if pattern_only:
+                self.logger.info("(Pattern-Only) Retrieving pattern mode diagram detect job results", "START")
                 pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(
                     job_id=pattern_mode_job[0], job_token=pattern_mode_job[1]
                 )
+                job_results = {"items": []}
+            else:
+                self.logger.info("(Regular) Retrieving diagram detect job results", "START")
+                job_results = self.retrieve_service.get_diagram_detect_job_result(
+                    job_id=regular_job[0], job_token=regular_job[1]
+                )
+                if pattern_mode_job:
+                    self.logger.info("(Pattern) Retrieving diagram detect job results")
+                    pattern_mode_job_results = self.retrieve_service.get_diagram_detect_job_result(
+                        job_id=pattern_mode_job[0], job_token=pattern_mode_job[1]
+                    )
         except Exception as e:
             self.logger.error(
                 message=f"Unfinalizing {len(file_to_state_map.keys())} files. Encountered an error.",

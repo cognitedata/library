@@ -284,20 +284,27 @@ class GeneralLaunchService(AbstractLaunchService):
 
         try:
             # Run regular diagram detect
-            self.logger.info(
-                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
-            )
-            job_id, job_token = self.annotation_service.run_diagram_detect(
-                files=batch.file_references, entities=self.in_memory_cache
-            )
+            job_id: int | None = None
+            job_token: str | None = None
+            if self.in_memory_cache:
+                self.logger.info(
+                    f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+                )
+                job_id, job_token = self.annotation_service.run_diagram_detect(
+                    files=batch.file_references, entities=self.in_memory_cache
+                )
+            else:
+                self.logger.info("Skipping standard diagram detect: no entities available.")
+
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-                "diagramDetectJobId": job_id,
-                "diagramDetectJobToken": job_token,
                 "launchFunctionId": self.function_id,
                 "launchFunctionCallId": self.call_id,
             }
+            if job_id is not None:
+                update_properties["diagramDetectJobId"] = job_id
+                update_properties["diagramDetectJobToken"] = job_token
 
             # Run diagram detect on pattern mode
             pattern_job_id: int | None = None
@@ -322,6 +329,14 @@ class GeneralLaunchService(AbstractLaunchService):
                 else:
                     self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
 
+            # If standard detect was skipped, use pattern job ID for finalize discoverability
+            if job_id is None and pattern_job_id is not None:
+                update_properties["diagramDetectJobId"] = pattern_job_id
+                update_properties["diagramDetectJobToken"] = pattern_job_token
+
+            if "diagramDetectJobId" not in update_properties:
+                self.logger.info("No jobs launched: no entities and no patterns available. Skipping batch.")
+                return
 
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
@@ -365,20 +380,27 @@ class LocalLaunchService(GeneralLaunchService):
 
         try:
             # Run regular diagram detect
-            self.logger.info(
-                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
-            )
-            job_id, job_token = self.annotation_service.run_diagram_detect(
-                files=batch.file_references, entities=self.in_memory_cache
-            )
+            job_id: int | None = None
+            job_token: str | None = None
+            if self.in_memory_cache:
+                self.logger.info(
+                    f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+                )
+                job_id, job_token = self.annotation_service.run_diagram_detect(
+                    files=batch.file_references, entities=self.in_memory_cache
+                )
+            else:
+                self.logger.info("Skipping standard diagram detect: no entities available.")
+
             update_properties = {
                 "annotationStatus": AnnotationStatus.PROCESSING,
                 "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-                "diagramDetectJobId": job_id,
-                "diagramDetectJobToken": job_token,
                 "launchFunctionId": self.function_id,
                 "launchFunctionCallId": self.call_id,
             }
+            if job_id is not None:
+                update_properties["diagramDetectJobId"] = job_id
+                update_properties["diagramDetectJobToken"] = job_token
 
             # Run diagram detect on pattern mode
             pattern_job_id: int | None = None
@@ -402,6 +424,15 @@ class LocalLaunchService(GeneralLaunchService):
                     update_properties["patternModeJobToken"] = pattern_job_token
                 else:
                     self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
+
+            # If standard detect was skipped, use pattern job ID for finalize discoverability
+            if job_id is None and pattern_job_id is not None:
+                update_properties["diagramDetectJobId"] = pattern_job_id
+                update_properties["diagramDetectJobToken"] = pattern_job_token
+
+            if "diagramDetectJobId" not in update_properties:
+                self.logger.info("No jobs launched: no entities and no patterns available. Skipping batch.")
+                return
 
             batch.batch_states.update_node_properties(
                 new_properties=update_properties,
