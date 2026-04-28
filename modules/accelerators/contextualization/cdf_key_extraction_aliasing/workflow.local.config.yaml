@@ -1,0 +1,1863 @@
+name: ''
+schemaVersion: 1
+source_views:
+- view_external_id: CogniteFile
+  view_space: cdf_cdm
+  view_version: v1
+  entity_type: file
+  filters:
+  - operator: IN
+    target_property: mimeType
+    values:
+    - application/pdf
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  - unit
+  - documentType
+  - drawingNumber
+- view_external_id: CogniteTimeSeries
+  view_space: cdf_cdm
+  view_version: v1
+  entity_type: timeseries
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  - unit
+- view_external_id: CogniteAsset
+  view_space: cdf_cdm
+  view_version: v1
+  entity_type: asset
+  filters:
+  - operator: CONTAINSANY
+    target_property: tags
+    values:
+    - asset_tag
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  - unit
+- view_external_id: CogniteEquipment
+  view_space: cdf_cdm
+  view_version: v1
+  entity_type: equipment
+  filters: []
+  include_properties: []
+validation_rule_definitions:
+  isa_compliant:
+    name: whitelist
+    enabled: true
+    match:
+      expressions:
+      - pattern: \bP[-_]?\d{1,6}[A-Z]?\b
+        description: Standard pump tags (P-101, P101A, P-2001)
+      - pattern: \b[A-Z]{2,4}P[-_]?\d{1,6}[A-Z]?\b
+        description: Pump with service designation (FWP-101, CWP-201)
+      - pattern: \bCP[-_]?\d{1,6}[A-Z]?\b
+        description: Centrifugal pump tags
+      - pattern: \bC[-_]?\d{1,6}[A-Z]?\b
+        description: Standard compressor tags (C-101, C101A)
+      - pattern: \b[A-Z]{2}C[-_]?\d{1,6}[A-Z]?\b
+        description: Compressor with type designation (AC-101, RC-201)
+      - pattern: \b[A-Z]{2,3}V[-_]?\d{1,6}[A-Z]?\b
+        description: Control valve tags (FCV-101, PCV-201, TCV-301)
+      - pattern: \bV[-_]?\d{1,6}[A-Z]?\b
+        description: Manual valve and vessel tags (V-101, V101A)
+      - pattern: \b[A-Z]{2,3}SV[-_]?\d{1,6}[A-Z]?\b
+        description: Safety valve tags (PSV-101, TSV-201)
+      - pattern: \bT[-_]?\d{1,6}[A-Z]?\b
+        description: Standard tank tags (T-101, T101A)
+      - pattern: \bR[-_]?\d{1,6}[A-Z]?\b
+        description: Reactor tags (R-101, R101A)
+      - pattern: \bE[-_]?\d{1,6}[A-Z]?\b
+        description: Heat exchanger tags (E-101, E101A)
+      - pattern: \b[A-Z]{2}E[-_]?\d{1,6}[A-Z]?\b
+        description: Heat exchanger with type (HE-101, CE-201)
+      - pattern: \bF[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+        description: Flow instruments (FIC-101, FIT-201, FCV-301)
+      - pattern: \bP[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+        description: Pressure instruments (PIC-101, PIT-201, PCV-301)
+      - pattern: \bT[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+        description: Temperature instruments (TIC-101, TIT-201, TCV-301)
+      - pattern: \bL[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+        description: Level instruments (LIC-101, LIT-201, LCV-301)
+      - pattern: \bA[A-Z]{1,3}[-_]?\d{1,6}[A-Z]?\b
+        description: Analytical instruments (AIC-101, AIT-201, ACV-301)
+      - pattern: \b[A-Z]?C[-_]?\d{1,6}[A-Z]?\b
+        description: Distillation column tags (C-101, DC-201)
+      keywords: []
+    confidence_modifier:
+      mode: explicit
+      value: 1
+    priority: 50
+  not_isa_penalty:
+    name: not_isa_penalty
+    enabled: true
+    match:
+      expressions:
+      - pattern: (?s).*
+        description: Catch-all when no higher-priority rule matched; applies non-ISA
+          penalty
+      keywords: []
+    confidence_modifier:
+      mode: offset
+      value: -0.2
+    priority: 1000
+  blacklist:
+    name: blacklist
+    enabled: true
+    priority: 10
+    match:
+      keywords:
+      - test
+      - example
+      - sample
+      - dummy
+      - temp
+      - temporary
+      - 'null'
+      - none
+      - n/a
+      - na
+      - unknown
+    confidence_modifier:
+      mode: explicit
+      value: 0
+  alias_shape_invalid:
+    name: alias_shape_invalid
+    enabled: true
+    priority: 0
+    expression_match: fullmatch
+    match:
+      expressions:
+      - pattern: ^[0-9]{0,3}$
+        description: Alias is only digits and shorter than 4 characters (empty counts
+          as invalid)
+      - pattern: ^.{81,}$
+        description: Alias exceeds maximum length 80
+      - pattern: '[^A-Za-z0-9-_/. ]'
+        description: Character outside allowed set (letters, digits, _ / . - and space)
+    confidence_modifier:
+      mode: explicit
+      value: 0
+key_extraction:
+  externalId: ctx_key_extraction_default
+  config:
+    parameters:
+      debug: true
+      run_all: false
+      raw_db: db_key_extraction
+      raw_table_key: key_extraction_state
+      skip_entity_policy: successful_only
+      write_empty_extraction_rows: false
+      raw_skip_scan_chunk_size: 5000
+      incremental_change_processing: true
+      key_discovery_instance_space: inst_key_discovery
+      key_discovery_schema_space: dm_key_discovery
+      key_discovery_dm_version: v1
+      cdm_view_version: v1
+      workflow_scope: SITE_01__PLANT_A__AREA_01__COOLING_SYS
+      incremental_skip_unchanged_source_inputs: true
+      enable_reference_index: true
+      exclude_self_referencing_keys: true
+    data:
+      extraction_rules:
+      - name: asset_tag_candidate
+        handler: regex_handler
+        extraction_type: candidate_key
+        enabled: true
+        priority: 10
+        description: Equipment tags — optional hyphens; optional numeric tail segments
+          (e.g. ...-92529-02).
+        fields:
+        - regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          field_name: name
+          required: true
+          priority: 1
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_matches_per_field: 10
+          max_length: 500
+          preprocessing:
+          - trim
+        scope_filters:
+          entity_type:
+          - asset
+        validation:
+          validation_rules: []
+        aliasing_pipeline: []
+      - name: file_basename_candidate
+        handler: regex_handler
+        extraction_type: candidate_key
+        enabled: true
+        priority: 20
+        description: Basename (with extension) as candidate key for files.
+        fields:
+        - field_name: name
+          regex: (?:^|[/\\])([^/\\]+)$
+          max_matches_per_field: 1
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+        scope_filters:
+          entity_type:
+          - file
+        validation:
+          validation_rules:
+          - blacklist
+        aliasing_pipeline:
+        - document_aliases
+      - name: timeseries_instrument_tag_candidate
+        handler: regex_handler
+        extraction_type: candidate_key
+        enabled: true
+        priority: 30
+        description: Same *alphanumeric_tag as timeseries FK rules on name/description
+          (and asset candidate).
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+        scope_filters:
+          entity_type:
+          - timeseries
+        validation:
+          validation_rules: []
+        aliasing_pipeline: []
+      - name: instance_name_asset_fk
+        handler: regex_handler
+        extraction_type: foreign_key_reference
+        enabled: true
+        priority: 40
+        description: Extract asset-tag references embedded in timeseries name.
+        fields:
+        - field_name: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+        scope_filters:
+          entity_type:
+          - file
+          - timeseries
+        validation:
+          validation_rules: []
+        aliasing_pipeline: []
+      - name: instance_description_asset_fk
+        handler: regex_handler
+        extraction_type: foreign_key_reference
+        enabled: true
+        priority: 50
+        description: Extract asset-tag references from file description for linking
+          to assets.
+        fields:
+        - field_name: description
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+          required: false
+          max_length: 1000
+          priority: 1
+          preprocessing:
+          - trim
+        scope_filters: {}
+        validation:
+          validation_rules: []
+        aliasing_pipeline: []
+      - name: equipment_tag_ck
+        handler: regex_handler
+        extraction_type: candidate_key
+        enabled: true
+        priority: 60
+        fields:
+        - field_name: name
+          required: true
+          priority: 1
+          variable: name
+          regex: (?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b
+          max_length: 500
+          preprocessing:
+          - trim
+        scope_filters:
+          entity_type:
+          - equipment
+        validation:
+          validation_rules: []
+        aliasing_pipeline: []
+      validation:
+        min_confidence: 0.5
+        max_keys_per_type: 1000
+aliasing_rule_definitions:
+  local_demo_alias:
+    name: local_demo_alias
+    handler: character_substitution
+    enabled: true
+    priority: 10
+    preserve_original: true
+    config:
+      substitutions:
+        /: '-'
+  cogniteasset_explicit_aliases_from_raw:
+    name: cogniteasset_explicit_aliases_from_raw
+    handler: alias_mapping_table
+    description: Apply explicit alias mappings for CogniteAsset from RAW lookup rows.
+    enabled: true
+    priority: 5
+    preserve_original: true
+    config:
+      source_match: exact
+      case_insensitive: false
+      raw_table:
+        database_name: db_tag_aliasing
+        table_name: explicit_asset_aliases
+        key_column: source_tag
+        alias_columns:
+        - aliases
+        alias_delimiter: ','
+        scope_column: scope
+        scope_value_column: scope_value
+        source_match_column: source_match
+        columns:
+        - source_tag
+        - aliases
+        - scope
+        - scope_value
+        - source_match
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  semantic_expansion:
+    name: semantic_expansion
+    handler: semantic_expansion
+    description: Expand equipment type letter codes to full words (e.g. P-101 → PUMP-101).
+    enabled: true
+    priority: 10
+    preserve_original: true
+    config:
+      type_mappings:
+        P:
+        - PUMP
+        - PMP
+        CP:
+        - CENTRIFUGAL_PUMP
+        - PUMP
+        - PMP
+        FWP:
+        - FEEDWATER_PUMP
+        - PUMP
+        - PMP
+        CWP:
+        - COOLING_WATER_PUMP
+        - PUMP
+        - PMP
+        BWP:
+        - BOILER_WATER_PUMP
+        - PUMP
+        - PMP
+        C:
+        - COMPRESSOR
+        - COMP
+        AC:
+        - AIR_COMPRESSOR
+        - COMPRESSOR
+        - COMP
+        RC:
+        - RECIPROCATING_COMPRESSOR
+        - COMPRESSOR
+        - COMP
+        CC:
+        - CENTRIFUGAL_COMPRESSOR
+        - COMPRESSOR
+        - COMP
+        FCV:
+        - FLOW_CONTROL_VALVE
+        - VALVE
+        - VLV
+        PCV:
+        - PRESSURE_CONTROL_VALVE
+        - VALVE
+        - VLV
+        TCV:
+        - TEMPERATURE_CONTROL_VALVE
+        - VALVE
+        - VLV
+        LCV:
+        - LEVEL_CONTROL_VALVE
+        - VALVE
+        - VLV
+        PSV:
+        - PRESSURE_SAFETY_VALVE
+        - SAFETY_VALVE
+        - VALVE
+        - VLV
+        TSV:
+        - TEMPERATURE_SAFETY_VALVE
+        - SAFETY_VALVE
+        - VALVE
+        - VLV
+        FSV:
+        - FLOW_SAFETY_VALVE
+        - SAFETY_VALVE
+        - VALVE
+        - VLV
+        V:
+        - VALVE
+        - VLV
+        T:
+        - TANK
+        - TNK
+        R:
+        - REACTOR
+        - REAC
+        E:
+        - HEAT_EXCHANGER
+        - EXCHANGER
+        - EXCH
+        HE:
+        - HEAT_EXCHANGER
+        - EXCHANGER
+        - EXCH
+        CE:
+        - CONDENSER_EXCHANGER
+        - HEAT_EXCHANGER
+        - EXCH
+        DC:
+        - DISTILLATION_COLUMN
+        - COLUMN
+        - COL
+        FIC:
+        - FLOW_INDICATOR_CONTROLLER
+        - FLOW_CONTROLLER
+        - INSTRUMENT
+        FIT:
+        - FLOW_INDICATOR_TRANSMITTER
+        - FLOW_TRANSMITTER
+        - INSTRUMENT
+        FE:
+        - FLOW_ELEMENT
+        - INSTRUMENT
+        PIC:
+        - PRESSURE_INDICATOR_CONTROLLER
+        - PRESSURE_CONTROLLER
+        - INSTRUMENT
+        PIT:
+        - PRESSURE_INDICATOR_TRANSMITTER
+        - PRESSURE_TRANSMITTER
+        - INSTRUMENT
+        PE:
+        - PRESSURE_ELEMENT
+        - INSTRUMENT
+        TIC:
+        - TEMPERATURE_INDICATOR_CONTROLLER
+        - TEMPERATURE_CONTROLLER
+        - INSTRUMENT
+        TIT:
+        - TEMPERATURE_INDICATOR_TRANSMITTER
+        - TEMPERATURE_TRANSMITTER
+        - INSTRUMENT
+        TE:
+        - TEMPERATURE_ELEMENT
+        - INSTRUMENT
+        LIC:
+        - LEVEL_INDICATOR_CONTROLLER
+        - LEVEL_CONTROLLER
+        - INSTRUMENT
+        LIT:
+        - LEVEL_INDICATOR_TRANSMITTER
+        - LEVEL_TRANSMITTER
+        - INSTRUMENT
+        LE:
+        - LEVEL_ELEMENT
+        - INSTRUMENT
+        AIC:
+        - ANALYTICAL_INDICATOR_CONTROLLER
+        - ANALYTICAL_CONTROLLER
+        - INSTRUMENT
+        AIT:
+        - ANALYTICAL_INDICATOR_TRANSMITTER
+        - ANALYTICAL_TRANSMITTER
+        - INSTRUMENT
+        ACV:
+        - ANALYTICAL_CONTROL_VALVE
+        - INSTRUMENT
+      format_templates:
+      - '{type}-{tag}'
+      - '{type}_{tag}'
+      auto_detect: true
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  strip_numeric_unit_prefix:
+    name: strip_numeric_unit_prefix
+    handler: regex_substitution
+    description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match tags
+      already starting with type (P-1234).'
+    enabled: true
+    priority: 10
+    preserve_original: true
+    config:
+      patterns:
+      - pattern: ^\d+-
+        replacement: ''
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  leading_zero_normalization:
+    name: leading_zero_normalization
+    handler: leading_zero_normalization
+    description: Normalize leading zeros in numeric tokens within tags (assets only).
+    enabled: true
+    priority: 20
+    preserve_original: true
+    config:
+      preserve_single_zero: true
+      min_length: 4
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - asset
+  document_aliases:
+    name: document_aliases
+    handler: document_aliases
+    description: P&ID / drawing / file-name variants for file candidate keys.
+    enabled: true
+    priority: 30
+    preserve_original: true
+    config:
+      pid_rules:
+        remove_ampersand: true
+        add_spaces: true
+        revision_variants: true
+      drawing_rules:
+        zero_padding:
+          enabled: true
+          target_length: 6
+        sheet_variants: true
+      file_rules:
+        remove_revision_numbers: true
+    conditions: {}
+    scope_filters:
+      entity_type:
+      - file
+aliasing:
+  externalId: ctx_aliasing_default
+  config:
+    parameters:
+      debug: true
+      raw_db: db_tag_aliasing
+      raw_table_state: tag_aliasing_state
+      raw_table_aliases: default_aliases
+      alias_writeback_property: aliases
+      write_foreign_key_references: false
+      foreign_key_writeback_property: references_found
+    data:
+      aliasing_rules: []
+      validation:
+        max_aliases_per_tag: 100
+        min_confidence: 0.01
+        validation_rules:
+        - alias_shape_invalid
+      pathways:
+        steps:
+        - mode: sequential
+          rules:
+          - name: document_aliases
+            handler: document_aliases
+            enabled: true
+            priority: 30
+            preserve_original: true
+            config:
+              pid_rules:
+                remove_ampersand: true
+                add_spaces: true
+                revision_variants: true
+              drawing_rules:
+                zero_padding:
+                  enabled: true
+                  target_length: 6
+                sheet_variants: true
+              file_rules:
+                remove_revision_numbers: true
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - file
+            description: P&ID / drawing / file-name variants for file candidate keys.
+            validation:
+              validation_rules: []
+          - name: Strip Delimiter
+            handler: regex_substitution
+            enabled: true
+            priority: 10
+            preserve_original: true
+            config:
+              patterns:
+              - pattern: '[^\p{L}\p{N}]'
+                replacement: ''
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+              - timeseries
+            validation:
+              validation_rules: []
+          - name: leading_zero_normalization
+            handler: leading_zero_normalization
+            enabled: true
+            priority: 40
+            preserve_original: true
+            config:
+              preserve_single_zero: true
+              min_length: 4
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+            description: Normalize leading zeros in numeric tokens within tags (assets
+              only).
+          - name: semantic_expansion
+            handler: semantic_expansion
+            enabled: true
+            priority: 50
+            preserve_original: true
+            config:
+              type_mappings:
+                P:
+                - PUMP
+                - PMP
+                CP:
+                - CENTRIFUGAL_PUMP
+                - PUMP
+                - PMP
+                FWP:
+                - FEEDWATER_PUMP
+                - PUMP
+                - PMP
+                CWP:
+                - COOLING_WATER_PUMP
+                - PUMP
+                - PMP
+                BWP:
+                - BOILER_WATER_PUMP
+                - PUMP
+                - PMP
+                C:
+                - COMPRESSOR
+                - COMP
+                AC:
+                - AIR_COMPRESSOR
+                - COMPRESSOR
+                - COMP
+                RC:
+                - RECIPROCATING_COMPRESSOR
+                - COMPRESSOR
+                - COMP
+                CC:
+                - CENTRIFUGAL_COMPRESSOR
+                - COMPRESSOR
+                - COMP
+                FCV:
+                - FLOW_CONTROL_VALVE
+                - VALVE
+                - VLV
+                PCV:
+                - PRESSURE_CONTROL_VALVE
+                - VALVE
+                - VLV
+                TCV:
+                - TEMPERATURE_CONTROL_VALVE
+                - VALVE
+                - VLV
+                LCV:
+                - LEVEL_CONTROL_VALVE
+                - VALVE
+                - VLV
+                PSV:
+                - PRESSURE_SAFETY_VALVE
+                - SAFETY_VALVE
+                - VALVE
+                - VLV
+                TSV:
+                - TEMPERATURE_SAFETY_VALVE
+                - SAFETY_VALVE
+                - VALVE
+                - VLV
+                FSV:
+                - FLOW_SAFETY_VALVE
+                - SAFETY_VALVE
+                - VALVE
+                - VLV
+                V:
+                - VALVE
+                - VLV
+                T:
+                - TANK
+                - TNK
+                R:
+                - REACTOR
+                - REAC
+                E:
+                - HEAT_EXCHANGER
+                - EXCHANGER
+                - EXCH
+                HE:
+                - HEAT_EXCHANGER
+                - EXCHANGER
+                - EXCH
+                CE:
+                - CONDENSER_EXCHANGER
+                - HEAT_EXCHANGER
+                - EXCH
+                DC:
+                - DISTILLATION_COLUMN
+                - COLUMN
+                - COL
+                FIC:
+                - FLOW_INDICATOR_CONTROLLER
+                - FLOW_CONTROLLER
+                - INSTRUMENT
+                FIT:
+                - FLOW_INDICATOR_TRANSMITTER
+                - FLOW_TRANSMITTER
+                - INSTRUMENT
+                FE:
+                - FLOW_ELEMENT
+                - INSTRUMENT
+                PIC:
+                - PRESSURE_INDICATOR_CONTROLLER
+                - PRESSURE_CONTROLLER
+                - INSTRUMENT
+                PIT:
+                - PRESSURE_INDICATOR_TRANSMITTER
+                - PRESSURE_TRANSMITTER
+                - INSTRUMENT
+                PE:
+                - PRESSURE_ELEMENT
+                - INSTRUMENT
+                TIC:
+                - TEMPERATURE_INDICATOR_CONTROLLER
+                - TEMPERATURE_CONTROLLER
+                - INSTRUMENT
+                TIT:
+                - TEMPERATURE_INDICATOR_TRANSMITTER
+                - TEMPERATURE_TRANSMITTER
+                - INSTRUMENT
+                TE:
+                - TEMPERATURE_ELEMENT
+                - INSTRUMENT
+                LIC:
+                - LEVEL_INDICATOR_CONTROLLER
+                - LEVEL_CONTROLLER
+                - INSTRUMENT
+                LIT:
+                - LEVEL_INDICATOR_TRANSMITTER
+                - LEVEL_TRANSMITTER
+                - INSTRUMENT
+                LE:
+                - LEVEL_ELEMENT
+                - INSTRUMENT
+                AIC:
+                - ANALYTICAL_INDICATOR_CONTROLLER
+                - ANALYTICAL_CONTROLLER
+                - INSTRUMENT
+                AIT:
+                - ANALYTICAL_INDICATOR_TRANSMITTER
+                - ANALYTICAL_TRANSMITTER
+                - INSTRUMENT
+                ACV:
+                - ANALYTICAL_CONTROL_VALVE
+                - INSTRUMENT
+              format_templates:
+              - '{type}-{tag}'
+              - '{type}_{tag}'
+              auto_detect: true
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+            description: Expand equipment type letter codes to full words (e.g. P-101
+              → PUMP-101).
+          - name: strip_numeric_unit_prefix
+            handler: regex_substitution
+            enabled: true
+            priority: 60
+            preserve_original: true
+            config:
+              patterns:
+              - pattern: ^\d+-
+                replacement: ''
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+            description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match
+              tags already starting with type (P-1234).'
+          - name: cogniteasset_explicit_aliases_from_raw
+            handler: alias_mapping_table
+            enabled: true
+            priority: 20
+            preserve_original: true
+            config:
+              source_match: exact
+              case_insensitive: false
+              raw_table:
+                database_name: db_tag_aliasing
+                table_name: explicit_asset_aliases
+                key_column: source_tag
+                alias_columns:
+                - aliases
+                alias_delimiter: ','
+                scope_column: scope
+                scope_value_column: scope_value
+                source_match_column: source_match
+                columns:
+                - source_tag
+                - aliases
+                - scope
+                - scope_value
+                - source_match
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+            description: Apply explicit alias mappings for CogniteAsset from RAW lookup
+              rows.
+associations:
+- kind: source_view_to_extraction
+  source_view_index: 0
+  extraction_rule_name: file_basename_candidate
+- kind: source_view_to_extraction
+  source_view_index: 0
+  extraction_rule_name: instance_description_asset_fk
+- kind: source_view_to_extraction
+  source_view_index: 0
+  extraction_rule_name: instance_name_asset_fk
+- kind: source_view_to_extraction
+  source_view_index: 1
+  extraction_rule_name: instance_description_asset_fk
+- kind: source_view_to_extraction
+  source_view_index: 1
+  extraction_rule_name: instance_name_asset_fk
+- kind: source_view_to_extraction
+  source_view_index: 1
+  extraction_rule_name: timeseries_instrument_tag_candidate
+- kind: source_view_to_extraction
+  source_view_index: 2
+  extraction_rule_name: asset_tag_candidate
+- kind: source_view_to_extraction
+  source_view_index: 2
+  extraction_rule_name: instance_description_asset_fk
+- kind: source_view_to_extraction
+  source_view_index: 3
+  extraction_rule_name: equipment_tag_ck
+- kind: source_view_to_extraction
+  source_view_index: 3
+  extraction_rule_name: instance_description_asset_fk
+compile_workflow_dag: auto
+canvas:
+  schemaVersion: 1
+  nodes:
+  - id: ext_equipment_tag_ck
+    kind: extraction
+    position:
+      x: 395.09233253000065
+      y: 308.6172968489977
+    data:
+      label: equipment_tag_ck
+      handler_id: regex_handler
+      handler_family: extraction
+      ref:
+        extraction_rule_name: equipment_tag_ck
+  - id: ext_instance_description_asset_fk
+    kind: extraction
+    position:
+      x: 400
+      y: -55.5
+    data:
+      label: instance_description_asset_fk
+      handler_id: regex_handler
+      handler_family: extraction
+      ref:
+        extraction_rule_name: instance_description_asset_fk
+  - id: ext_instance_name_asset_fk
+    kind: extraction
+    position:
+      x: 400
+      y: 74.5
+    data:
+      label: instance_name_asset_fk
+      handler_id: regex_handler
+      handler_family: extraction
+      ref:
+        extraction_rule_name: instance_name_asset_fk
+  - id: ext_timeseries_instrument_tag_candidate
+    kind: extraction
+    position:
+      x: 400
+      y: 187.5
+    data:
+      label: timeseries_instrument_tag_candidate
+      handler_id: regex_handler
+      handler_family: extraction
+      ref:
+        extraction_rule_name: timeseries_instrument_tag_candidate
+  - id: flow_end
+    kind: end
+    position:
+      x: 1443.9455714971425
+      y: -51.519867570619226
+    data:
+      label: End
+  - id: flow_start
+    kind: start
+    position:
+      x: 0
+      y: -29
+    data:
+      label: Start
+  - id: n_1776889349769_ezwmy4ak
+    kind: subgraph
+    position:
+      x: 630.8691543731671
+      y: -121.8808497185546
+    data:
+      label: Asset Tag Validation
+      subflow_ports:
+        inputs:
+        - id: in
+          label: blacklist
+          inner_target_rf_type: keaMatchValidationRuleExtraction
+        outputs:
+        - id: out
+          label: out
+      subflow_hub_input_id: n_1776889349769_ezwmy4ak_hub_in
+      subflow_hub_output_id: n_1776889349769_ezwmy4ak_hub_out
+      inner_canvas:
+        schemaVersion: 1
+        nodes:
+        - id: n_1776889349769_ezwmy4ak_hub_in
+          kind: subflow_graph_in
+          position:
+            x: 0
+            y: -31
+          data:
+            label: Graph inputs
+            subflow_ports:
+              inputs:
+              - id: in
+                label: blacklist
+                inner_target_rf_type: keaMatchValidationRuleExtraction
+              outputs: []
+        - id: n_1776889349769_ezwmy4ak_hub_out
+          kind: subflow_graph_out
+          position:
+            x: 972
+            y: -31
+          data:
+            label: Graph outputs
+            subflow_ports:
+              inputs: []
+              outputs:
+              - id: out
+                label: out
+        - id: vrule_ke_h1c10330_blacklist
+          kind: match_validation_extraction
+          position:
+            x: 182
+            y: -38.5
+          data:
+            label: blacklist
+            validation_rule_context: extraction
+            validation_rule_name: blacklist
+            ref:
+              shared_extraction_validation_chain: true
+              extraction_rule_names:
+              - asset_tag_candidate
+              - instance_description_asset_fk
+              - instance_name_asset_fk
+              - timeseries_instrument_tag_candidate
+              validation_list_key: h1c10330
+        - id: vrule_ke_h1c10330_not_isa_penalty
+          kind: match_validation_extraction
+          position:
+            x: 654
+            y: -46
+          data:
+            label: not_isa_penalty
+            validation_rule_context: extraction
+            validation_rule_name: not_isa_penalty
+            ref:
+              shared_extraction_validation_chain: true
+              extraction_rule_names:
+              - asset_tag_candidate
+              - instance_description_asset_fk
+              - instance_name_asset_fk
+              - timeseries_instrument_tag_candidate
+              validation_list_key: h1c10330
+        - id: vrule_ke_h1c10330_whitelist
+          kind: match_validation_extraction
+          position:
+            x: 418
+            y: -38.5
+          data:
+            label: whitelist
+            validation_rule_context: extraction
+            validation_rule_name: whitelist
+            ref:
+              shared_extraction_validation_chain: true
+              extraction_rule_names:
+              - asset_tag_candidate
+              - instance_description_asset_fk
+              - instance_name_asset_fk
+              - timeseries_instrument_tag_candidate
+              validation_list_key: h1c10330
+        edges:
+        - id: e_vrule_ke_h1c10330_blacklist_vrule_ke_h1c10330_whitelist
+          source: vrule_ke_h1c10330_blacklist
+          target: vrule_ke_h1c10330_whitelist
+          source_handle: out
+          target_handle: in
+          kind: sequence
+        - id: e_vrule_ke_h1c10330_whitelist_vrule_ke_h1c10330_not_isa_penalty
+          source: vrule_ke_h1c10330_whitelist
+          target: vrule_ke_h1c10330_not_isa_penalty
+          source_handle: out
+          target_handle: in
+          kind: sequence
+        - id: e_n_1776889349769_ezwmy4ak_hub_in_to_vrule_ke_h1c10330_blacklist_e_ext_asset_tag_candidate_vrule_ke_h1c10330_blacklist
+          source: n_1776889349769_ezwmy4ak_hub_in
+          target: vrule_ke_h1c10330_blacklist
+          source_handle: out__in
+          target_handle: in
+          kind: data
+        - id: e_n_1776889349769_ezwmy4ak_hub_in_to_vrule_ke_h1c10330_blacklist_e_ext_instance_description_asset_fk_vrule_ke_h1c10330_blacklist
+          source: n_1776889349769_ezwmy4ak_hub_in
+          target: vrule_ke_h1c10330_blacklist
+          source_handle: out__in
+          target_handle: in
+          kind: data
+        - id: e_n_1776889349769_ezwmy4ak_hub_in_to_vrule_ke_h1c10330_blacklist_e_ext_instance_name_asset_fk_vrule_ke_h1c10330_blacklist
+          source: n_1776889349769_ezwmy4ak_hub_in
+          target: vrule_ke_h1c10330_blacklist
+          source_handle: out__in
+          target_handle: in
+          kind: data
+        - id: e_n_1776889349769_ezwmy4ak_hub_in_to_vrule_ke_h1c10330_blacklist_e_ext_timeseries_instrument_tag_candidate_vrule_ke_h1c10330_blacklist
+          source: n_1776889349769_ezwmy4ak_hub_in
+          target: vrule_ke_h1c10330_blacklist
+          source_handle: out__in
+          target_handle: in
+          kind: data
+        handle_orientation: lr
+  - id: n_1776889547993_hlqv244t
+    kind: subgraph
+    position:
+      x: 670.2293047457513
+      y: -243.37394866978207
+    data:
+      label: Asset Tag Aliasing
+      subflow_ports:
+        inputs:
+        - id: in
+          label: cogniteasset_explicit_aliases_from_raw
+          inner_target_rf_type: keaAliasing
+        outputs:
+        - id: out
+          label: output
+          inner_source_rf_type: keaAliasing
+        - id: out_al_cogniteasset_explicit_aliases_from_raw_validation
+          label: validation
+          inner_source_rf_type: keaAliasing
+      subflow_hub_input_id: n_1776889547993_hlqv244t_hub_in
+      subflow_hub_output_id: n_1776889547993_hlqv244t_hub_out
+      inner_canvas:
+        schemaVersion: 1
+        nodes:
+        - id: al_cogniteasset_explicit_aliases_from_raw
+          kind: aliasing
+          position:
+            x: 182
+            y: -232.5
+          data:
+            label: cogniteasset_explicit_aliases_from_raw
+            handler_id: alias_mapping_table
+            handler_family: aliasing
+            ref:
+              aliasing_rule_name: cogniteasset_explicit_aliases_from_raw
+        - id: al_leading_zero_normalization
+          kind: aliasing
+          position:
+            x: 182
+            y: -102.5
+          data:
+            label: leading_zero_normalization
+            handler_id: leading_zero_normalization
+            handler_family: aliasing
+            ref:
+              aliasing_rule_name: leading_zero_normalization
+        - id: al_strip_delimiter
+          kind: aliasing
+          position:
+            x: 436
+            y: -38.5
+          data:
+            label: Strip Delimiter
+            handler_id: regex_substitution
+            handler_family: aliasing
+            ref:
+              aliasing_rule_name: Strip Delimiter
+        - id: al_strip_numeric_unit_prefix
+          kind: aliasing
+          position:
+            x: 182
+            y: 155.5
+          data:
+            label: strip_numeric_unit_prefix
+            handler_id: regex_substitution
+            handler_family: aliasing
+            ref:
+              aliasing_rule_name: strip_numeric_unit_prefix
+        - id: n_1776889547993_hlqv244t_hub_in
+          kind: subflow_graph_in
+          position:
+            x: 0
+            y: -31
+          data:
+            label: Graph inputs
+            subflow_ports:
+              inputs:
+              - id: in
+                label: cogniteasset_explicit_aliases_from_raw
+                inner_target_rf_type: keaAliasing
+              outputs: []
+        - id: n_1776889547993_hlqv244t_hub_out
+          kind: subflow_graph_out
+          position:
+            x: 644
+            y: -31
+          data:
+            label: Graph outputs
+            subflow_ports:
+              inputs: []
+              outputs:
+              - id: out
+                label: output
+                inner_source_rf_type: keaAliasing
+              - id: out_al_cogniteasset_explicit_aliases_from_raw_validation
+                label: validation
+                inner_source_rf_type: keaAliasing
+        edges:
+        - id: e_n_1776889547993_hlqv244t_hub_in_to_al_cogniteasset_explicit_aliases_from_raw_e_al_strip_delimiter_al_cogniteasset_explicit_aliases_from_raw_32
+          source: n_1776889547993_hlqv244t_hub_in
+          target: al_cogniteasset_explicit_aliases_from_raw
+          source_handle: out__in
+          target_handle: in
+          kind: data
+        - id: xy-edge__n_1776889547993_hlqv244t_hub_inout__in-al_leading_zero_normalizationin
+          source: n_1776889547993_hlqv244t_hub_in
+          target: al_leading_zero_normalization
+          source_handle: out__in
+          target_handle: in
+          kind: data
+        - id: xy-edge__n_1776889547993_hlqv244t_hub_inout__in-al_strip_numeric_unit_prefixin
+          source: n_1776889547993_hlqv244t_hub_in
+          target: al_strip_numeric_unit_prefix
+          source_handle: out__in
+          target_handle: in
+          kind: data
+        - id: xy-edge__al_strip_delimitervalidation-n_1776889547993_hlqv244t_hub_outin__out_al_cogniteasset_explicit_aliases_from_raw_validation
+          source: al_strip_delimiter
+          target: n_1776889547993_hlqv244t_hub_out
+          source_handle: validation
+          target_handle: in__out_al_cogniteasset_explicit_aliases_from_raw_validation
+          kind: data
+        - id: xy-edge__al_strip_delimiterout-n_1776889547993_hlqv244t_hub_outin__out
+          source: al_strip_delimiter
+          target: n_1776889547993_hlqv244t_hub_out
+          source_handle: out
+          target_handle: in__out
+          kind: data
+        - id: xy-edge__al_cogniteasset_explicit_aliases_from_rawout-al_strip_delimiterin
+          source: al_cogniteasset_explicit_aliases_from_raw
+          target: al_strip_delimiter
+          source_handle: out
+          target_handle: in
+          kind: sequence
+        - id: xy-edge__al_leading_zero_normalizationout-al_strip_delimiterin
+          source: al_leading_zero_normalization
+          target: al_strip_delimiter
+          source_handle: out
+          target_handle: in
+          kind: sequence
+        - id: xy-edge__al_strip_numeric_unit_prefixout-al_strip_delimiterin
+          source: al_strip_numeric_unit_prefix
+          target: al_strip_delimiter
+          source_handle: out
+          target_handle: in
+          kind: sequence
+        handle_orientation: lr
+  - id: n_1776950084494_pb3fk7sl
+    kind: subflow
+    position:
+      x: 189.77564773986143
+      y: -576.0695831791555
+    data:
+      label: Documents
+    size:
+      width: 467
+      height: 270
+  - id: n_1776984020965_4ympp4rb
+    kind: subflow
+    position:
+      x: 1014.4677155931815
+      y: -163.06972669239414
+    data:
+      label: Persistence
+    size:
+      width: 380
+      height: 260
+  - id: n_1776984069281_yune015t
+    kind: subflow
+    position:
+      x: 193.32574491526714
+      y: -289.74398177712726
+    data:
+      label: Assets
+    size:
+      width: 380
+      height: 260
+  - id: sv_1
+    kind: source_view
+    position:
+      x: 182.05008072250217
+      y: 75.54144458247686
+    data:
+      label: CogniteTimeSeries
+      ref:
+        source_view_index: 1
+        view_space: cdf_cdm
+        view_external_id: CogniteTimeSeries
+        view_version: v1
+        entity_type: timeseries
+  - id: sv_3
+    kind: source_view
+    position:
+      x: 194.31924939750047
+      y: 305.2221951849764
+    data:
+      label: CogniteEquipment
+      ref:
+        source_view_index: 3
+        view_space: cdf_cdm
+        view_external_id: CogniteEquipment
+        view_version: v1
+        entity_type: equipment
+  - id: vrule_al_data_alias_shape_invalid
+    kind: match_validation_aliasing
+    position:
+      x: 669.1736339265728
+      y: 13.114652372875447
+    data:
+      label: alias_shape_invalid
+      notes: aliasing.config.data.validation
+      validation_rule_context: aliasing
+      validation_rule_name: alias_shape_invalid
+      ref:
+        aliasing_global_validation: true
+  - id: al_document_aliases
+    kind: aliasing
+    position:
+      x: 488.18501655367254
+      y: 60
+    data:
+      label: document_aliases
+      handler_id: document_aliases
+      handler_family: aliasing
+      ref:
+        aliasing_rule_name: document_aliases
+    parent_id: n_1776950084494_pb3fk7sl
+  - id: ext_asset_tag_candidate
+    kind: extraction
+    position:
+      x: 239.0465647174983
+      y: 44.838766579383446
+    data:
+      label: asset_tag_candidate
+      handler_id: regex_handler
+      handler_family: extraction
+      ref:
+        extraction_rule_name: asset_tag_candidate
+    parent_id: n_1776984069281_yune015t
+  - id: ext_file_basename_candidate
+    kind: extraction
+    position:
+      x: 244
+      y: 116.5
+    data:
+      label: file_basename_candidate
+      handler_id: regex_handler
+      handler_family: extraction
+      ref:
+        extraction_rule_name: file_basename_candidate
+    parent_id: n_1776950084494_pb3fk7sl
+  - id: n_1776968044470_89wvovc3
+    kind: reference_index
+    position:
+      x: 95.7094371751316
+      y: 156.93532713275272
+    data:
+      label: Reference index
+      handler_family: persistence
+      persistence_step: reference_index
+    parent_id: n_1776984020965_4ympp4rb
+  - id: n_1776968047289_da4zzh3o
+    kind: alias_persistence
+    position:
+      x: 91.48696200564086
+      y: 52.780939618638854
+    data:
+      label: Alias write-back
+      handler_family: persistence
+      persistence_step: alias_writeback
+    parent_id: n_1776984020965_4ympp4rb
+  - id: sv_0
+    kind: source_view
+    position:
+      x: 45.86547907423079
+      y: 118.60224148814206
+    data:
+      label: CogniteFile
+      ref:
+        source_view_index: 0
+        view_space: cdf_cdm
+        view_external_id: CogniteFile
+        view_version: v1
+        entity_type: file
+    parent_id: n_1776950084494_pb3fk7sl
+  - id: sv_2
+    kind: source_view
+    position:
+      x: 35.45849813867062
+      y: 53.416001248406275
+    data:
+      label: CogniteAsset
+      ref:
+        source_view_index: 2
+        view_space: cdf_cdm
+        view_external_id: CogniteAsset
+        view_version: v1
+        entity_type: asset
+    parent_id: n_1776984069281_yune015t
+  - id: vrule_ke_hda310940_blacklist
+    kind: match_validation_extraction
+    position:
+      x: 488.18501655367254
+      y: 187
+    data:
+      label: blacklist
+      validation_rule_context: extraction
+      validation_rule_name: blacklist
+      ref:
+        extraction_rule_name: file_basename_candidate
+    parent_id: n_1776950084494_pb3fk7sl
+  edges:
+  - id: e_flow_start_sv_0
+    source: flow_start
+    target: sv_0
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_flow_start_sv_1
+    source: flow_start
+    target: sv_1
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_flow_start_sv_2
+    source: flow_start
+    target: sv_2
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_flow_start_sv_3
+    source: flow_start
+    target: sv_3
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_0_ext_file_basename_candidate
+    source: sv_0
+    target: ext_file_basename_candidate
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_0_ext_instance_name_asset_fk
+    source: sv_0
+    target: ext_instance_name_asset_fk
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_0_ext_instance_description_asset_fk
+    source: sv_0
+    target: ext_instance_description_asset_fk
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_1_ext_timeseries_instrument_tag_candidate
+    source: sv_1
+    target: ext_timeseries_instrument_tag_candidate
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_1_ext_instance_name_asset_fk
+    source: sv_1
+    target: ext_instance_name_asset_fk
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_1_ext_instance_description_asset_fk
+    source: sv_1
+    target: ext_instance_description_asset_fk
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_2_ext_asset_tag_candidate
+    source: sv_2
+    target: ext_asset_tag_candidate
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_2_ext_instance_description_asset_fk
+    source: sv_2
+    target: ext_instance_description_asset_fk
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_sv_3_ext_equipment_tag_ck
+    source: sv_3
+    target: ext_equipment_tag_ck
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_ext_asset_tag_candidate_in_n_1776889349769_ezwmy4ak_e_ext_asset_tag_candidate_vrule_ke_h1c10330_blacklist
+    source: ext_asset_tag_candidate
+    target: n_1776889349769_ezwmy4ak
+    source_handle: validation
+    target_handle: in__in
+    kind: data
+  - id: e_ext_instance_description_asset_fk_in_n_1776889349769_ezwmy4ak_e_ext_instance_description_asset_fk_vrule_ke_h1c10330_blacklist
+    source: ext_instance_description_asset_fk
+    target: n_1776889349769_ezwmy4ak
+    source_handle: validation
+    target_handle: in__in
+    kind: data
+  - id: e_ext_instance_name_asset_fk_in_n_1776889349769_ezwmy4ak_e_ext_instance_name_asset_fk_vrule_ke_h1c10330_blacklist
+    source: ext_instance_name_asset_fk
+    target: n_1776889349769_ezwmy4ak
+    source_handle: validation
+    target_handle: in__in
+    kind: data
+  - id: e_ext_timeseries_instrument_tag_candidate_in_n_1776889349769_ezwmy4ak_e_ext_timeseries_instrument_tag_candidate_vrule_ke_h1c10330_blacklist
+    source: ext_timeseries_instrument_tag_candidate
+    target: n_1776889349769_ezwmy4ak
+    source_handle: validation
+    target_handle: in__in
+    kind: data
+  - id: e_ext_file_basename_candidate_vrule_ke_hda310940_blacklist
+    source: ext_file_basename_candidate
+    target: vrule_ke_hda310940_blacklist
+    source_handle: validation
+    target_handle: in
+    kind: data
+  - id: e_ext_file_basename_candidate_al_document_aliases_27
+    source: ext_file_basename_candidate
+    target: al_document_aliases
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__ext_asset_tag_candidateout-n_1776889547993_hlqv244tin__in
+    source: ext_asset_tag_candidate
+    target: n_1776889547993_hlqv244t
+    source_handle: out
+    target_handle: in__in
+    kind: data
+  - id: xy-edge__n_1776889349769_ezwmy4akout__out-vrule_al_data_alias_shape_invalidin
+    source: n_1776889349769_ezwmy4ak
+    target: vrule_al_data_alias_shape_invalid
+    source_handle: out__out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1776889547993_hlqv244tout__out_al_cogniteasset_explicit_aliases_from_raw_validation-vrule_al_data_alias_shape_invalidin
+    source: n_1776889547993_hlqv244t
+    target: vrule_al_data_alias_shape_invalid
+    source_handle: out__out_al_cogniteasset_explicit_aliases_from_raw_validation
+    target_handle: in
+    kind: data
+  - id: xy-edge__al_document_aliasesout-n_1776968047289_da4zzh3oin
+    source: al_document_aliases
+    target: n_1776968047289_da4zzh3o
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1776889547993_hlqv244tout__out-n_1776968047289_da4zzh3oin
+    source: n_1776889547993_hlqv244t
+    target: n_1776968047289_da4zzh3o
+    source_handle: out__out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1776968047289_da4zzh3oout-flow_endin
+    source: n_1776968047289_da4zzh3o
+    target: flow_end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__ext_instance_description_asset_fkout-n_1776968044470_89wvovc3in
+    source: ext_instance_description_asset_fk
+    target: n_1776968044470_89wvovc3
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1776968044470_89wvovc3out-flow_endin
+    source: n_1776968044470_89wvovc3
+    target: flow_end
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__ext_instance_name_asset_fkout-n_1776968044470_89wvovc3in
+    source: ext_instance_name_asset_fk
+    target: n_1776968044470_89wvovc3
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__ext_timeseries_instrument_tag_candidateout-n_1776968044470_89wvovc3in
+    source: ext_timeseries_instrument_tag_candidate
+    target: n_1776968044470_89wvovc3
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__ext_equipment_tag_ckout-n_1776968044470_89wvovc3in
+    source: ext_equipment_tag_ck
+    target: n_1776968044470_89wvovc3
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__sv_3out-ext_instance_description_asset_fkin
+    source: sv_3
+    target: ext_instance_description_asset_fk
+    source_handle: out
+    target_handle: in
+    kind: data
+  handle_orientation: lr
+compiled_workflow:
+  schemaVersion: 1
+  tasks:
+  - id: kea__incremental_state
+    function_external_id: fn_dm_incremental_state_update
+    executor_kind: incremental_state
+    depends_on: []
+    pipeline_node_id: kea__incremental_state
+    payload: {}
+  - id: kea__ext_equipment_tag_ck
+    canvas_node_id: ext_equipment_tag_ck
+    function_external_id: fn_dm_key_extraction
+    executor_kind: key_extraction
+    depends_on:
+    - kea__incremental_state
+    pipeline_node_id: kea__ext_equipment_tag_ck
+    payload:
+      extraction_rule_names:
+      - equipment_tag_ck
+  - id: kea__ext_instance_description_asset_fk
+    canvas_node_id: ext_instance_description_asset_fk
+    function_external_id: fn_dm_key_extraction
+    executor_kind: key_extraction
+    depends_on:
+    - kea__incremental_state
+    pipeline_node_id: kea__ext_instance_description_asset_fk
+    payload:
+      extraction_rule_names:
+      - instance_description_asset_fk
+  - id: kea__ext_instance_name_asset_fk
+    canvas_node_id: ext_instance_name_asset_fk
+    function_external_id: fn_dm_key_extraction
+    executor_kind: key_extraction
+    depends_on:
+    - kea__incremental_state
+    pipeline_node_id: kea__ext_instance_name_asset_fk
+    payload:
+      extraction_rule_names:
+      - instance_name_asset_fk
+  - id: kea__ext_timeseries_instrument_tag_candidate
+    canvas_node_id: ext_timeseries_instrument_tag_candidate
+    function_external_id: fn_dm_key_extraction
+    executor_kind: key_extraction
+    depends_on:
+    - kea__incremental_state
+    pipeline_node_id: kea__ext_timeseries_instrument_tag_candidate
+    payload:
+      extraction_rule_names:
+      - timeseries_instrument_tag_candidate
+  - id: kea__al_cogniteasset_explicit_aliases_from_raw
+    canvas_node_id: al_cogniteasset_explicit_aliases_from_raw
+    function_external_id: fn_dm_aliasing
+    executor_kind: aliasing
+    depends_on:
+    - kea__ext_asset_tag_candidate
+    pipeline_node_id: kea__al_cogniteasset_explicit_aliases_from_raw
+    payload:
+      aliasing_rule_names:
+      - cogniteasset_explicit_aliases_from_raw
+    persistence:
+      source_raw_db: db_key_extraction
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      incremental_transition: true
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      source_entity_type: file
+  - id: kea__al_leading_zero_normalization
+    canvas_node_id: al_leading_zero_normalization
+    function_external_id: fn_dm_aliasing
+    executor_kind: aliasing
+    depends_on:
+    - kea__ext_asset_tag_candidate
+    pipeline_node_id: kea__al_leading_zero_normalization
+    payload:
+      aliasing_rule_names:
+      - leading_zero_normalization
+    persistence:
+      source_raw_db: db_key_extraction
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      incremental_transition: true
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      source_entity_type: file
+  - id: kea__al_strip_delimiter
+    canvas_node_id: al_strip_delimiter
+    function_external_id: fn_dm_aliasing
+    executor_kind: aliasing
+    depends_on:
+    - kea__al_cogniteasset_explicit_aliases_from_raw
+    - kea__al_leading_zero_normalization
+    - kea__al_strip_numeric_unit_prefix
+    pipeline_node_id: kea__al_strip_delimiter
+    payload:
+      aliasing_rule_names:
+      - Strip Delimiter
+    persistence:
+      source_raw_db: db_key_extraction
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      incremental_transition: true
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      source_entity_type: file
+  - id: kea__al_strip_numeric_unit_prefix
+    canvas_node_id: al_strip_numeric_unit_prefix
+    function_external_id: fn_dm_aliasing
+    executor_kind: aliasing
+    depends_on:
+    - kea__ext_asset_tag_candidate
+    pipeline_node_id: kea__al_strip_numeric_unit_prefix
+    payload:
+      aliasing_rule_names:
+      - strip_numeric_unit_prefix
+    persistence:
+      source_raw_db: db_key_extraction
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      incremental_transition: true
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      source_entity_type: file
+  - id: kea__al_document_aliases
+    canvas_node_id: al_document_aliases
+    function_external_id: fn_dm_aliasing
+    executor_kind: aliasing
+    depends_on:
+    - kea__ext_file_basename_candidate
+    pipeline_node_id: kea__al_document_aliases
+    payload:
+      aliasing_rule_names:
+      - document_aliases
+    persistence:
+      source_raw_db: db_key_extraction
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      incremental_transition: true
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      source_entity_type: file
+  - id: kea__ext_asset_tag_candidate
+    canvas_node_id: ext_asset_tag_candidate
+    function_external_id: fn_dm_key_extraction
+    executor_kind: key_extraction
+    depends_on:
+    - kea__incremental_state
+    pipeline_node_id: kea__ext_asset_tag_candidate
+    payload:
+      extraction_rule_names:
+      - asset_tag_candidate
+  - id: kea__ext_file_basename_candidate
+    canvas_node_id: ext_file_basename_candidate
+    function_external_id: fn_dm_key_extraction
+    executor_kind: key_extraction
+    depends_on:
+    - kea__incremental_state
+    pipeline_node_id: kea__ext_file_basename_candidate
+    payload:
+      extraction_rule_names:
+      - file_basename_candidate
+  - id: kea__n_1776968044470_89wvovc3
+    canvas_node_id: n_1776968044470_89wvovc3
+    function_external_id: fn_dm_reference_index
+    executor_kind: reference_index
+    depends_on:
+    - kea__ext_equipment_tag_ck
+    - kea__ext_instance_description_asset_fk
+    - kea__ext_instance_name_asset_fk
+    - kea__ext_timeseries_instrument_tag_candidate
+    pipeline_node_id: kea__n_1776968044470_89wvovc3
+    payload: {}
+    persistence:
+      source_raw_db: db_key_extraction
+      source_raw_table_key: key_extraction_state
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      reference_index_raw_db: db_key_extraction
+      reference_index_raw_table: reference_index
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      reference_index_fk_entity_type: asset
+      reference_index_document_entity_type: file
+      enable_reference_index: true
+  - id: kea__n_1776968047289_da4zzh3o
+    canvas_node_id: n_1776968047289_da4zzh3o
+    function_external_id: fn_dm_alias_persistence
+    executor_kind: alias_persistence
+    depends_on:
+    - kea__al_document_aliases
+    - kea__al_strip_delimiter
+    pipeline_node_id: kea__n_1776968047289_da4zzh3o
+    payload: {}
+    persistence:
+      raw_db: db_tag_aliasing
+      raw_table_aliases: default_aliases
+      raw_read_limit: 10000
+      source_raw_db: db_key_extraction
+      source_raw_table_key: key_extraction_state
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      incremental_transition: true
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      write_foreign_key_references: false
+      foreign_key_writeback_property: references_found
+  channels:
+  - from: kea__incremental_state
+    to: kea__ext_equipment_tag_ck
+    channel: kea__incremental_state_to_kea__ext_equipment_tag_ck
+  - from: kea__incremental_state
+    to: kea__ext_instance_description_asset_fk
+    channel: kea__incremental_state_to_kea__ext_instance_description_asset_fk
+  - from: kea__incremental_state
+    to: kea__ext_instance_name_asset_fk
+    channel: kea__incremental_state_to_kea__ext_instance_name_asset_fk
+  - from: kea__incremental_state
+    to: kea__ext_timeseries_instrument_tag_candidate
+    channel: kea__incremental_state_to_kea__ext_timeseries_instrument_tag_candidate
+  - from: kea__ext_asset_tag_candidate
+    to: kea__al_cogniteasset_explicit_aliases_from_raw
+    channel: kea__ext_asset_tag_candidate_to_kea__al_cogniteasset_explicit_aliases_from_raw
+  - from: kea__ext_asset_tag_candidate
+    to: kea__al_leading_zero_normalization
+    channel: kea__ext_asset_tag_candidate_to_kea__al_leading_zero_normalization
+  - from: kea__al_cogniteasset_explicit_aliases_from_raw
+    to: kea__al_strip_delimiter
+    channel: kea__al_cogniteasset_explicit_aliases_from_raw_to_kea__al_strip_delimiter
+  - from: kea__al_leading_zero_normalization
+    to: kea__al_strip_delimiter
+    channel: kea__al_leading_zero_normalization_to_kea__al_strip_delimiter
+  - from: kea__al_strip_numeric_unit_prefix
+    to: kea__al_strip_delimiter
+    channel: kea__al_strip_numeric_unit_prefix_to_kea__al_strip_delimiter
+  - from: kea__ext_asset_tag_candidate
+    to: kea__al_strip_numeric_unit_prefix
+    channel: kea__ext_asset_tag_candidate_to_kea__al_strip_numeric_unit_prefix
+  - from: kea__ext_file_basename_candidate
+    to: kea__al_document_aliases
+    channel: kea__ext_file_basename_candidate_to_kea__al_document_aliases
+  - from: kea__incremental_state
+    to: kea__ext_asset_tag_candidate
+    channel: kea__incremental_state_to_kea__ext_asset_tag_candidate
+  - from: kea__incremental_state
+    to: kea__ext_file_basename_candidate
+    channel: kea__incremental_state_to_kea__ext_file_basename_candidate
+  - from: kea__ext_equipment_tag_ck
+    to: kea__n_1776968044470_89wvovc3
+    channel: kea__ext_equipment_tag_ck_to_kea__n_1776968044470_89wvovc3
+  - from: kea__ext_instance_description_asset_fk
+    to: kea__n_1776968044470_89wvovc3
+    channel: kea__ext_instance_description_asset_fk_to_kea__n_1776968044470_89wvovc3
+  - from: kea__ext_instance_name_asset_fk
+    to: kea__n_1776968044470_89wvovc3
+    channel: kea__ext_instance_name_asset_fk_to_kea__n_1776968044470_89wvovc3
+  - from: kea__ext_timeseries_instrument_tag_candidate
+    to: kea__n_1776968044470_89wvovc3
+    channel: kea__ext_timeseries_instrument_tag_candidate_to_kea__n_1776968044470_89wvovc3
+  - from: kea__al_document_aliases
+    to: kea__n_1776968047289_da4zzh3o
+    channel: kea__al_document_aliases_to_kea__n_1776968047289_da4zzh3o
+  - from: kea__al_strip_delimiter
+    to: kea__n_1776968047289_da4zzh3o
+    channel: kea__al_strip_delimiter_to_kea__n_1776968047289_da4zzh3o
+  dag_source: canvas

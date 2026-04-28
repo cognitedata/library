@@ -1,0 +1,320 @@
+schemaVersion: 1
+source_views:
+- view_external_id: CogniteAsset
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: sp_enterprise_schema
+  entity_type: asset
+  filters:
+  - operator: CONTAINSANY
+    target_property: tags
+    values:
+    - asset_tag
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+- view_external_id: CogniteFile
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: springfield_instances
+  entity_type: file
+  batch_size: 50
+  filters:
+  - operator: IN
+    target_property: mimeType
+    values:
+    - application/pdf
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  - documentType
+  - drawingNumber
+- view_external_id: CogniteTimeSeries
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: springfield_instances
+  entity_type: timeseries
+  batch_size: 200
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+  - unit
+key_extraction:
+  externalId: ctx_key_extraction_default
+  config:
+    parameters:
+      debug: true
+      run_all: true
+      raw_db: db_key_extraction
+      raw_table_key: key_extraction_state
+    data:
+      validation:
+        min_confidence: 0.5
+        max_keys_per_type: 1000
+        validation_rules:
+        - name: blacklist
+          priority: 10
+          match:
+            keywords:
+            - test
+            - example
+            - sample
+            - dummy
+            - temp
+            - temporary
+            - 'null'
+            - none
+            - n/a
+            - na
+            - unknown
+          confidence_modifier:
+            mode: explicit
+            value: 0.0
+      extraction_rules:
+      - name: pump_tag_extraction
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Extract pump tags like P-10001, P-10002, P101A from name field
+          (assets only)
+        enabled: true
+        priority: 50
+        scope_filters:
+          entity_type:
+          - asset
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \bP[-_]?\d{1,6}[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: tank_reference_extraction
+        handler: regex_handler
+        extraction_type: foreign_key_reference
+        description: Extract tank references like T-301, T-201 from description field
+        enabled: true
+        priority: 60
+        fields:
+        - field_name: description
+          required: false
+          max_length: 1000
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \bT[-_]?\d{1,6}[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: merge_all
+      - name: instrument_tag_extraction
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Extract ISA standard instrument tags like FIC-2001, PIC-3002
+          (assets and timeseries)
+        enabled: true
+        priority: 55
+        scope_filters:
+          entity_type:
+          - asset
+          - timeseries
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \b([A-Z]{2,4})-(\d{3,4})\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: timeseries_tag_pattern_extraction
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Extract tag patterns like 23-LY-92529 from timeseries names (timeseries
+          only)
+        enabled: true
+        priority: 52
+        scope_filters:
+          entity_type:
+          - timeseries
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: (?:^|[_\\s])(?P<tag_pattern>\d+-[A-Z]{1,4}-\d{4,6})(?=[_\\s:]|$)
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: timeseries_val_prefix_tag
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Extract token after VAL_ from timeseries name (regex; replaces
+          fixed-width column demo)
+        enabled: true
+        priority: 53
+        scope_filters:
+          entity_type:
+          - timeseries
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: ^VAL_([A-Z0-9-]{4,32})
+          max_matches_per_field: 5
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: file_name_extraction
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Extract file name (without path, with extension) as candidate
+          key (files only)
+        enabled: true
+        priority: 48
+        scope_filters:
+          entity_type:
+          - file
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: (?:^|[/\\\\])([^/\\\\]+)$
+          max_matches_per_field: 1
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: pid_document_reference
+        handler: regex_handler
+        extraction_type: document_reference
+        description: Extract P&ID document references from description field (files
+          only)
+        enabled: true
+        priority: 70
+        scope_filters:
+          entity_type:
+          - file
+        fields:
+        - field_name: description
+          required: false
+          max_length: 1000
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \b(PID|P&ID|P_ID)[-_\s]?(\d{4,6})\b
+          max_matches_per_field: 5
+          regex_options:
+            ignore_case: true
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: merge_all
+      - name: multiline_name_instrument_tags
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Instrument-style tags from multi-line or columnar name text (regex;
+          replaces fixed-width demos)
+        enabled: true
+        priority: 45
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \b[A-Z]{2,4}-\d{4}\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: true
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: hierarchical_tag_regex
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Match hierarchical-style tags from names (regex; replaces former
+          token reassembly)
+        enabled: true
+        priority: 40
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: \b[A-Z]{2,4}-\d{3}-[A-Z]{1,2}\d{2,4}[A-Z]?\b
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match
+      - name: timeseries_external_id_instrument_tag
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Extract instrument-style tags (e.g. FIC-1001) from timeseries
+          externalId
+        enabled: true
+        priority: 41
+        scope_filters:
+          entity_type:
+          - timeseries
+        fields:
+        - field_name: externalId
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+          regex: '[A-Z]{2,4}-\d{4}'
+          max_matches_per_field: 10
+          regex_options:
+            ignore_case: false
+            multiline: false
+            dotall: false
+            unicode: true
+        field_results_mode: first_match

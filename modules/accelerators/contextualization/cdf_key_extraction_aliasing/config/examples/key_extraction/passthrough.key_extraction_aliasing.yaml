@@ -1,0 +1,66 @@
+schemaVersion: 1
+source_views:
+- view_external_id: CogniteAsset
+  view_space: cdf_cdm
+  view_version: v1
+  instance_space: sp_enterprise_schema
+  entity_type: asset
+  filters:
+  - operator: CONTAINSANY
+    target_property: tags
+    values:
+    - asset_tag
+  include_properties:
+  - externalId
+  - name
+  - description
+  - tags
+key_extraction:
+  externalId: ctx_key_extraction_passthrough
+  config:
+    parameters:
+      debug: true
+      run_all: true
+      raw_db: db_key_extraction
+      raw_table_key: key_extraction_state
+    data:
+      validation:
+        min_confidence: 0.5
+        max_keys_per_type: 1000
+        validation_rules:
+        - name: blacklist
+          priority: 10
+          match:
+            keywords:
+            - test
+            - example
+            - sample
+            - dummy
+            - temp
+            - temporary
+            - 'null'
+            - none
+            - n/a
+            - na
+            - unknown
+          confidence_modifier:
+            mode: explicit
+            value: 0.0
+      extraction_rules:
+      - name: name_as_candidate_key
+        handler: regex_handler
+        extraction_type: candidate_key
+        description: Use name field value as the candidate key (no regex or parsing)
+        enabled: true
+        priority: 50
+        scope_filters:
+          entity_type:
+          - asset
+        fields:
+        - field_name: name
+          required: true
+          max_length: 500
+          priority: 1
+          preprocessing:
+          - trim
+        field_results_mode: first_match

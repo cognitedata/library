@@ -1,0 +1,20 @@
+space: {{key_discovery_schema_space}}
+externalId: KeyDiscoveryState_DOM
+name: Key Discovery state DOM
+description: >-
+  Key extraction / key discovery incremental state — processing rows and scope checkpoints.
+  Implements CogniteDescribable for CDM-aligned instance identity.
+version: {{key_discovery_dm_version}}
+views:
+  - space: cdf_cdm
+    externalId: CogniteDescribable
+    version: "{{cdm_view_version}}"
+    type: view
+  - space: {{key_discovery_schema_space}}
+    externalId: KeyDiscoveryProcessingState
+    version: "{{key_discovery_dm_version}}"
+    type: view
+  - space: {{key_discovery_schema_space}}
+    externalId: KeyDiscoveryScopeCheckpoint
+    version: "{{key_discovery_dm_version}}"
+    type: view

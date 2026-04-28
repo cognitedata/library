@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Key discovery &amp; aliasing</title>
+    <script>
+      (function () {
+        try {
+          var th = localStorage.getItem("cdf-kea-extraction-theme");
+          if (th === "light" || th === "dark") document.documentElement.dataset.theme = th;
+          var loc = localStorage.getItem("cdf-kea-extraction-locale");
+          if (
+            loc === "en" ||
+            loc === "es" ||
+            loc === "nb" ||
+            loc === "ja" ||
+            loc === "pt" ||
+            loc === "fr" ||
+            loc === "de" ||
+            loc === "zh" ||
+            loc === "hi"
+          )
+            document.documentElement.lang = loc === "nb" ? "nb" : loc === "zh" ? "zh-CN" : loc;
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,140 @@
+space: {{key_discovery_schema_space}}
+externalId: KeyDiscoveryProcessingState
+name: Key Discovery processing state
+description: Per-source-record incremental state for key discovery (hash, status, retries).
+usedFor: node
+constraints:
+  cdf_cdm_CogniteDescribable:
+    constraintType: requires
+    require:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+indexes:
+  workflowScope_idx:
+    indexType: btree
+    properties:
+      - workflowScope
+    cursorable: false
+  workflowScope_sourceViewFingerprint_idx:
+    indexType: btree
+    properties:
+      - workflowScope
+      - sourceViewFingerprint
+    cursorable: false
+properties:
+  workflowScope:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: false
+    autoIncrement: false
+    name: Workflow scope
+    description: Leaf deployment scope (matches generated scope.id / parameters.workflowScope).
+  sourceViewFingerprint:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Source view fingerprint
+    description: View+filters fingerprint when multiple source views share one workflow scope.
+  recordExternalId:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Record external id
+    description: Source instance externalId when available.
+  recordInstanceKey:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Record instance key
+    description: Space-qualified node id for correlation (NODE_INSTANCE_ID analogue).
+  lastSeenHash:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Last seen hash
+    description: SHA-256 hex digest of extraction inputs for skip/reconcile.
+  lastWatermarkValue:
+    type:
+      list: false
+      type: int64
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Last watermark value
+    description: Source node lastUpdatedTime ms when processed (observability).
+  processedAt:
+    type:
+      list: false
+      type: timestamp
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Processed at
+    description: When this state row was last updated for processing.
+  status:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Status
+    description: Processing lifecycle status (e.g. processed, failed).
+  attemptCount:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Attempt count
+    description: Retry attempts for failed processing.
+  lastError:
+    type:
+      list: false
+      collation: ucs_basic
+      type: text
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Last error
+    description: Last error message if any.
+  metadata:
+    type:
+      list: false
+      type: json
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Metadata
+    description: Optional JSON metadata.
+  hashVersion:
+    type:
+      list: false
+      type: int32
+    immutable: false
+    nullable: true
+    autoIncrement: false
+    name: Hash version
+    description: Version of the hash payload algorithm.

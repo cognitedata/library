@@ -1,0 +1,6 @@
+# Template: __KEA_WORKFLOW_EXTERNAL_ID__ → scoped workflow external id (base.suffix per leaf).
+externalId: __KEA_WORKFLOW_EXTERNAL_ID__
+description: >-
+  Key extraction, optional RAW reference index, tag aliasing, and alias write-back to CDM describables.
+  Source views, extraction rules, and aliasing rules come from workflow.input.configuration (see workflow_template/workflow.template.config.yaml).
+dataSetExternalId: 'ds_key_extraction'

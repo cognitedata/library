@@ -1,0 +1,532 @@
+"""
+Unit Tests for AliasingEngine
+
+This module provides comprehensive unit tests for the AliasingEngine,
+testing the full engine orchestration including all transformation types,
+rule application, validation, and edge cases.
+"""
+
+# Add project root to path for imports
+import copy
+import re
+import sys
+import unittest
+from pathlib import Path
+from typing import Any, Dict, List
+
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from tests.fixtures.aliasing.sample_data import get_sample_tags
+
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
+    _DEFAULT_ALIASING_VALIDATION,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
+    AliasingEngine,
+    AliasingResult,
+    AliasRule,
+    TransformationType,
+)
+
+
+def _test_aliasing_validation(**overrides: Any) -> Dict[str, Any]:
+    v = copy.deepcopy(_DEFAULT_ALIASING_VALIDATION)
+    v.update(overrides)
+    return v
+
+
+class TestPerRuleValidationMerge(unittest.TestCase):
+    """Global + per-rule validation merge (aligned with key extraction)."""
+
+    def test_overlay_appends_confidence_rules_in_application_order(self):
+        penalty = {
+            "name": "drop_x",
+            "priority": 99,
+            "match": {"expressions": ["^X$"]},
+            "confidence_modifier": {"mode": "explicit", "value": 0.0},
+        }
+        config: Dict[str, Any] = {
+            "validation": {
+                "min_confidence": 0.5,
+                "validation_rules": [],
+            },
+            "rules": [
+                {
+                    "name": "noop",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {"substitutions": {}},
+                    "validation": {"validation_rules": [penalty]},
+                }
+            ],
+        }
+        eng = AliasingEngine(config)
+        res = eng.generate_aliases("X", "asset")
+        self.assertNotIn("X", res.aliases)
+
+
+class TestAliasingRuleTypes(unittest.TestCase):
+    """Test different aliasing rule types."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.base_config = {
+            "rules": [],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+    def test_character_substitution_rule(self):
+        """Test character substitution aliasing rule."""
+        config = self.base_config.copy()
+        config["rules"] = [
+            {
+                "name": "separator_normalization",
+                "handler": "character_substitution",
+                "enabled": True,
+                "priority": 10,
+                "preserve_original": True,
+                "config": {"substitutions": {"_": "-", " ": "-"}},
+            }
+        ]
+
+        engine = AliasingEngine(config)
+        result = engine.generate_aliases("P_10001", "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+        self.assertIn("P-10001", result.aliases)
+        self.assertIn("P_10001", result.aliases)  # Original preserved
+
+    def test_semantic_expansion_rule(self):
+        """Test semantic expansion aliasing rule."""
+        config = self.base_config.copy()
+        config["rules"] = [
+            {
+                "name": "semantic_expansion",
+                "handler": "semantic_expansion",
+                "enabled": True,
+                "priority": 20,
+                "preserve_original": True,
+                "config": {
+                    "type_mappings": {"P": ["PUMP", "PMP"], "V": ["VALVE", "VLV"]},
+                    "format_templates": ["{type}-{tag}", "{type}_{tag}"],
+                    "auto_detect": True,
+                },
+            }
+        ]
+
+        engine = AliasingEngine(config)
+        context = {"equipment_type": "pump"}
+        result = engine.generate_aliases("P-10001", "asset", context)
+
+        self.assertIsInstance(result, AliasingResult)
+        self.assertIn("PUMP-10001", result.aliases)
+        self.assertIn("PMP-10001", result.aliases)
+        self.assertIn("PUMP_10001", result.aliases)
+        self.assertIn("PMP_10001", result.aliases)
+
+
+class TestContextHandling(unittest.TestCase):
+    """Test context handling in aliasing."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = {
+            "rules": [
+                {
+                    "name": "context_test",
+                    "handler": "semantic_expansion",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {
+                        "type_mappings": {"P": ["PUMP", "PMP"], "V": ["VALVE", "VLV"]},
+                        "format_templates": ["{type}-{tag}"],
+                    },
+                }
+            ],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+        self.engine = AliasingEngine(self.config)
+
+    def test_equipment_type_context(self):
+        """Test aliasing with equipment type context."""
+        context = {"equipment_type": "pump"}
+        result = self.engine.generate_aliases("P-10001", "asset", context)
+
+        self.assertIn("PUMP-10001", result.aliases)
+        self.assertIn("PMP-10001", result.aliases)
+
+    def test_site_context(self):
+        """Test aliasing with site context."""
+        context = {"site": "Plant_A", "equipment_type": "pump"}
+        result = self.engine.generate_aliases("P-10001", "asset", context)
+
+        # Should still generate equipment type aliases
+        self.assertIn("PUMP-10001", result.aliases)
+
+    def test_unit_context(self):
+        """Test aliasing with unit context."""
+        context = {"unit": "Feed", "equipment_type": "pump"}
+        result = self.engine.generate_aliases("P-10001", "asset", context)
+
+        # Should still generate equipment type aliases
+        self.assertIn("PUMP-10001", result.aliases)
+
+    def test_multiple_context_values(self):
+        """Test aliasing with multiple context values."""
+        context = {
+            "site": "Plant_A",
+            "unit": "Feed",
+            "equipment_type": "pump",
+            "area": "Process",
+        }
+        result = self.engine.generate_aliases("P-10001", "asset", context)
+
+        # Should generate aliases based on available context
+        self.assertIn("PUMP-10001", result.aliases)
+
+    def test_empty_context(self):
+        """Test aliasing with empty context."""
+        result = self.engine.generate_aliases("P-10001", "asset", {})
+
+        # Should still generate some aliases
+        self.assertIsInstance(result, AliasingResult)
+        self.assertGreater(len(result.aliases), 0)
+
+    def test_none_context(self):
+        """Test aliasing with None context."""
+        result = self.engine.generate_aliases("P-10001", "asset", None)
+
+        # Should handle None context gracefully
+        self.assertIsInstance(result, AliasingResult)
+        self.assertGreater(len(result.aliases), 0)
+
+
+class TestScopeFilterEntityType(unittest.TestCase):
+    """``scope_filters.entity_type`` matches ``generate_aliases(..., entity_type=...)``."""
+
+    def test_document_aliases_skipped_for_asset_and_timeseries_when_limited_to_file(self) -> None:
+        cfg = {
+            "rules": [
+                {
+                    "name": "doc_aliases",
+                    "handler": "document_aliases",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {"pid_rules": {"remove_ampersand": True}},
+                    "scope_filters": {"entity_type": ["file"]},
+                }
+            ],
+            "validation": _test_aliasing_validation(
+                min_confidence=0.0, max_aliases_per_tag=100
+            ),
+        }
+        eng = AliasingEngine(cfg)
+        for et in ("asset", "timeseries"):
+            with self.subTest(entity_type=et):
+                r = eng.generate_aliases("P&ID-001", et, {})
+                self.assertNotIn(
+                    "doc_aliases", r.metadata.get("applied_rules") or [], msg=et
+                )
+                self.assertEqual(list(r.aliases), ["P&ID-001"])
+        r_file = eng.generate_aliases("P&ID-001", "file", {})
+        self.assertIn("doc_aliases", r_file.metadata.get("applied_rules") or [])
+        self.assertTrue(any("PID" in str(a) for a in r_file.aliases))
+
+
+class TestAliasValidation(unittest.TestCase):
+    """Test alias validation mechanisms."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = {
+            "rules": [
+                {
+                    "name": "validation_test",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {"substitutions": {"-": ["_", " ", ""]}},
+                }
+            ],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+        self.engine = AliasingEngine(self.config)
+
+    def test_minimum_alias_length(self):
+        """Digit-only aliases under 4 characters are dropped; mixed/letter aliases may be shorter."""
+        result = self.engine.generate_aliases("P-10001", "asset")
+
+        for alias in result.aliases:
+            if re.fullmatch(r"[0-9]+", alias):
+                self.assertGreaterEqual(len(alias), 4, msg=alias)
+
+    def test_maximum_alias_length(self):
+        """Test maximum alias length validation."""
+        result = self.engine.generate_aliases("P-10001", "asset")
+
+        for alias in result.aliases:
+            self.assertLessEqual(len(alias), 50)
+
+    def test_maximum_aliases_per_tag(self):
+        """Test maximum aliases per tag limit."""
+        # Create config with very low limit
+        limited_config = copy.deepcopy(self.config)
+        limited_config["validation"]["max_aliases_per_tag"] = 5
+
+        engine = AliasingEngine(limited_config)
+        result = engine.generate_aliases("P-10001", "asset")
+
+        self.assertLessEqual(len(result.aliases), 5)
+
+    def test_alias_uniqueness(self):
+        """Test that aliases are unique."""
+        result = self.engine.generate_aliases("P-10001", "asset")
+
+        # All aliases should be unique
+        self.assertEqual(len(result.aliases), len(set(result.aliases)))
+
+    def test_alias_character_validation(self):
+        """Test alias character validation."""
+        result = self.engine.generate_aliases("P-10001", "asset")
+
+        for alias in result.aliases:
+            # Should not contain invalid characters
+            self.assertNotIn("!", alias)
+            self.assertNotIn("@", alias)
+            self.assertNotIn("#", alias)
+
+
+class TestRulePriorityAndOrdering(unittest.TestCase):
+    """Test rule priority and processing order."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = {
+            "rules": [
+                {
+                    "name": "low_priority_rule",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 100,  # Lower priority (higher number)
+                    "preserve_original": True,
+                    "config": {"substitutions": {"-": "_"}},
+                },
+                {
+                    "name": "high_priority_rule",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,  # Higher priority (lower number)
+                    "preserve_original": True,
+                    "config": {"substitutions": {"_": "-"}},
+                },
+            ],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+        self.engine = AliasingEngine(self.config)
+
+    def test_rule_priority_ordering(self):
+        """Test that rules are applied in priority order."""
+        result = self.engine.generate_aliases("P_10001", "asset")
+
+        # Should include aliases from both rules
+        self.assertIn("P-10001", result.aliases)  # From high priority rule
+        self.assertIn("P_10001", result.aliases)  # Original preserved
+
+    def test_disabled_rules(self):
+        """Test that disabled rules are not applied."""
+        disabled_config = self.config.copy()
+        disabled_config["rules"][0]["enabled"] = False
+
+        engine = AliasingEngine(disabled_config)
+        result = engine.generate_aliases("P_10001", "asset")
+
+        # Should only apply enabled rules
+        self.assertIn("P-10001", result.aliases)  # From enabled rule
+        self.assertIn("P_10001", result.aliases)  # Original preserved
+
+    def test_rule_conflicts(self):
+        """Test handling of conflicting rules."""
+        # Rules that might conflict should be handled gracefully
+        result = self.engine.generate_aliases("P_10001", "asset")
+
+        # Should produce consistent results
+        self.assertIsInstance(result, AliasingResult)
+        self.assertGreater(len(result.aliases), 0)
+
+
+class TestEdgeCasesAndErrorHandling(unittest.TestCase):
+    """Test edge cases and error handling in aliasing."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = {
+            "rules": [
+                {
+                    "name": "edge_case_test",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {"substitutions": {"-": ["_", " ", ""]}},
+                }
+            ],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+        self.engine = AliasingEngine(self.config)
+
+    def test_empty_input(self):
+        """Test handling of empty input."""
+        result = self.engine.generate_aliases("", "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+        self.assertEqual(len(result.aliases), 0)
+
+    def test_none_input(self):
+        """Test handling of None input."""
+        result = self.engine.generate_aliases(None, "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+        self.assertEqual(len(result.aliases), 0)
+
+    def test_very_long_input(self):
+        """Test handling of very long input."""
+        long_tag = "P-" + "1" * 1000
+        result = self.engine.generate_aliases(long_tag, "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+        # Should respect maximum alias length
+        for alias in result.aliases:
+            self.assertLessEqual(len(alias), 50)
+
+    def test_special_characters(self):
+        """Test handling of special characters."""
+        special_tag = "P-10001@#$%^&*()"
+        result = self.engine.generate_aliases(special_tag, "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+        # Should handle special characters gracefully
+        self.assertGreaterEqual(len(result.aliases), 0)
+
+    def test_unicode_characters(self):
+        """Test handling of Unicode characters."""
+        unicode_tag = "P-10001αβγδε"
+        result = self.engine.generate_aliases(unicode_tag, "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+        # Should handle Unicode characters
+        self.assertGreaterEqual(len(result.aliases), 0)
+
+    def test_invalid_rule_config(self):
+        """Test handling of invalid rule configuration."""
+        invalid_config = {
+            "rules": [
+                {
+                    "name": "invalid_rule",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {"substitutions": None},  # Invalid config
+                }
+            ],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+        # Should handle invalid config gracefully
+        engine = AliasingEngine(invalid_config)
+        result = engine.generate_aliases("P-10001", "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+
+    def test_missing_rule_config(self):
+        """Test handling of missing rule configuration."""
+        missing_config = {
+            "rules": [
+                {
+                    "name": "missing_config_rule",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {},  # Empty config
+                }
+            ],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+        engine = AliasingEngine(missing_config)
+        result = engine.generate_aliases("P-10001", "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+
+
+class TestPerformanceAndScalability(unittest.TestCase):
+    """Test performance and scalability aspects."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = {
+            "rules": [
+                {
+                    "name": "performance_test",
+                    "handler": "character_substitution",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {
+                        "substitutions": {
+                            "-": ["_", " ", ""],
+                            "_": ["-", " ", ""],
+                            " ": ["-", "_", ""],
+                        }
+                    },
+                }
+            ],
+            "validation": _test_aliasing_validation(max_aliases_per_tag=30),
+        }
+
+        self.engine = AliasingEngine(self.config)
+
+    def test_large_number_of_aliases(self):
+        """Test generation of large number of aliases."""
+        result = self.engine.generate_aliases("P-10001", "asset")
+
+        # Should respect maximum aliases limit
+        self.assertLessEqual(len(result.aliases), 30)
+
+    def test_complex_tag_processing(self):
+        """Test processing of complex tags."""
+        complex_tag = "UNIT1_P101_A_BACKUP"
+        result = self.engine.generate_aliases(complex_tag, "asset")
+
+        self.assertIsInstance(result, AliasingResult)
+        self.assertGreater(len(result.aliases), 0)
+
+    def test_multiple_tags_processing(self):
+        """Test processing multiple tags efficiently."""
+        tags = ["P-10001", "V-20001", "T-30001", "E-40001", "C-50001"]
+
+        results = []
+        for tag in tags:
+            result = self.engine.generate_aliases(tag, "asset")
+            results.append(result)
+
+        # All should be processed successfully
+        self.assertEqual(len(results), len(tags))
+        for result in results:
+            self.assertIsInstance(result, AliasingResult)
+            self.assertGreater(len(result.aliases), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

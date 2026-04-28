@@ -1,0 +1,192 @@
+"""
+Shared rule adapter and ExtractedKey helpers.
+
+Provides a single contract for rule-like objects (Pydantic, SimpleNamespace, or dict)
+so handlers can access rule_id, config, source_field name, extraction_type, and handler
+without duplicating getattr/dict logic.
+"""
+
+import re
+from typing import Any, Dict, List, Optional, Tuple
+
+from .DataStructures import ExtractionMethod, ExtractionType
+
+
+def get_rule_attr(rule: Any, key: str, default: Any = None) -> Any:
+    """Read a top-level field from a rule object or dict."""
+    if rule is None:
+        return default
+    if isinstance(rule, dict):
+        return rule.get(key, default)
+    return getattr(rule, key, default)
+
+
+def get_regex_pattern_and_flags(rule: Any) -> Tuple[str, int]:
+    """
+    Pattern string and compile flags for regex extraction.
+    Merges engine rule top-level fields with nested config.
+    """
+    cfg = get_config(rule)
+    pattern_str = (cfg.get("pattern") or get_rule_attr(rule, "pattern")) or ""
+    regex_opts = cfg.get("regex_options") or get_rule_attr(rule, "regex_options")
+    flags = 0
+    if regex_opts is not None and hasattr(regex_opts, "to_regex_flags"):
+        flags = regex_opts.to_regex_flags()
+    else:
+        case_sens = get_rule_attr(rule, "case_sensitive")
+        if case_sens is None:
+            case_sens = cfg.get("case_sensitive", True)
+        if case_sens is None:
+            case_sens = True
+        if not case_sens:
+            flags = re.IGNORECASE
+    return pattern_str, flags
+
+
+def get_rule_id(rule: Any) -> str:
+    """Return rule identifier (name or rule_id). Works with object or dict."""
+    if rule is None:
+        return "unknown"
+    if isinstance(rule, dict):
+        return rule.get("name") or rule.get("rule_id") or "unknown"
+    return getattr(rule, "name", None) or getattr(rule, "rule_id", None) or "unknown"
+
+
+def get_config(rule: Any) -> Dict[str, Any]:
+    """Return rule config dict. Works with object or dict."""
+    if rule is None:
+        return {}
+    if isinstance(rule, dict):
+        return rule.get("config") or {}
+    cfg = getattr(rule, "config", None)
+    if isinstance(cfg, dict):
+        return cfg
+    return {}
+
+
+def merge_rule_parameters_config(rule: Any) -> Dict[str, Any]:
+    """
+    Merge parameters and config for a rule (scope YAML often uses `parameters` only).
+    Shallow merge: config keys override parameters.
+    """
+    if rule is None:
+        return {}
+    if isinstance(rule, dict):
+        merged: Dict[str, Any] = {}
+        p, c = rule.get("parameters"), rule.get("config")
+        if isinstance(p, dict):
+            merged.update(p)
+        if isinstance(c, dict):
+            merged = {**merged, **c}
+        return merged
+    p = getattr(rule, "parameters", None)
+    c = getattr(rule, "config", None)
+    merged = {}
+    if isinstance(p, dict):
+        merged.update(p)
+    if isinstance(c, dict):
+        merged = {**merged, **c}
+    return merged
+
+
+def get_source_field_name(rule: Any, default: str = "unknown") -> str:
+    """Return the first field's field_name (fields[] or legacy source_fields)."""
+    if rule is None:
+        return default
+    fields = None
+    if isinstance(rule, dict):
+        fields = rule.get("fields") or rule.get("source_fields")
+    else:
+        fields = getattr(rule, "fields", None) or getattr(rule, "source_fields", None)
+    if not fields:
+        return default
+    first = fields[0] if isinstance(fields, list) else fields
+    if isinstance(first, dict):
+        return first.get("field_name", default)
+    return getattr(first, "field_name", default)
+
+
+def get_min_confidence(rule: Any, default: float = 0.3) -> float:
+    """Return rule min_confidence. Works with object or dict."""
+    if rule is None:
+        return default
+    if isinstance(rule, dict):
+        return rule.get("min_confidence", default)
+    return getattr(rule, "min_confidence", default)
+
+
+def normalize_extraction_type(extraction_type: Any) -> ExtractionType:
+    """Return ExtractionType enum. Accepts string or enum."""
+    if extraction_type is None:
+        return ExtractionType.CANDIDATE_KEY
+    if isinstance(extraction_type, ExtractionType):
+        return extraction_type
+    if isinstance(extraction_type, str) and extraction_type in [
+        e.value for e in ExtractionType
+    ]:
+        return ExtractionType(extraction_type)
+    return ExtractionType.CANDIDATE_KEY
+
+
+def normalize_method(method: Any) -> ExtractionMethod:
+    """Return ExtractionMethod enum. Missing/blank → regex_handler. Legacy handlers → UNSUPPORTED."""
+    if method is None:
+        return ExtractionMethod.REGEX_HANDLER
+    if isinstance(method, ExtractionMethod):
+        return method
+    if isinstance(method, str):
+        stripped = method.strip()
+        if not stripped:
+            return ExtractionMethod.REGEX_HANDLER
+        key = stripped.lower().replace(" ", "_").replace("-", "_")
+        aliases = {
+            "regex_handler": ExtractionMethod.REGEX_HANDLER,
+            "regexhandler": ExtractionMethod.REGEX_HANDLER,
+            "field_rule": ExtractionMethod.REGEX_HANDLER,
+            # Deprecated: fixed-width handler removed; treat as regex field rules.
+            "field_rule_fixed_width": ExtractionMethod.REGEX_HANDLER,
+            "heuristic": ExtractionMethod.HEURISTIC,
+        }
+        if key in aliases:
+            return aliases[key]
+        legacy = {"passthrough", "regex", "token_reassembly", "fixed_width", "fixedwidth"}
+        if key in legacy:
+            return ExtractionMethod.UNSUPPORTED
+    return ExtractionMethod.UNSUPPORTED
+
+
+def get_extraction_type_from_rule(rule: Any) -> ExtractionType:
+    """Return rule extraction_type as enum. Works with object or dict."""
+    if rule is None:
+        return ExtractionType.CANDIDATE_KEY
+    if isinstance(rule, dict):
+        return normalize_extraction_type(rule.get("extraction_type"))
+    return normalize_extraction_type(getattr(rule, "extraction_type", None))
+
+
+def get_handler_from_rule(rule: Any) -> ExtractionMethod:
+    """Return rule handler (extraction method) as enum. Works with object or dict."""
+    if rule is None:
+        return ExtractionMethod.REGEX_HANDLER
+    if isinstance(rule, dict):
+        return normalize_method(rule.get("handler"))
+    return normalize_method(getattr(rule, "handler", None))
+
+
+def common_extracted_key_attrs(
+    rule: Any,
+    source_field_override: Optional[str] = None,
+    method_override: Optional[ExtractionMethod] = None,
+) -> Dict[str, Any]:
+    """
+    Return a dict of common ExtractedKey attributes derived from rule.
+    Handlers can pass value, confidence, metadata and merge with this.
+    """
+    return {
+        "source_field": source_field_override
+        if source_field_override is not None
+        else get_source_field_name(rule),
+        "extraction_type": get_extraction_type_from_rule(rule),
+        "method": method_override if method_override is not None else get_handler_from_rule(rule),
+        "rule_id": get_rule_id(rule),
+    }

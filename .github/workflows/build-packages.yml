@@ -24,7 +24,7 @@ jobs:
     - name: Validate packages.toml
       run: |
         python validate_packages.py
-        
+
     - name: Build packages
       id: build
       run: |

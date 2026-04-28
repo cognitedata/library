@@ -1,0 +1,2827 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;600;700&display=swap");
+
+:root {
+  --kea-font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --kea-bg: #f0f2f7;
+  --kea-bg-elevated: #ffffff;
+  --kea-surface: #f8fafc;
+  --kea-border: #e2e8f0;
+  --kea-border-strong: #cbd5e1;
+  --kea-text: #0f172a;
+  --kea-text-muted: #64748b;
+  --kea-text-subtle: #94a3b8;
+  --kea-primary: #4338ca;
+  --kea-primary-hover: #3730a3;
+  --kea-primary-soft: #eef2ff;
+  --kea-primary-ring: rgba(67, 56, 202, 0.25);
+  --kea-accent: #0d9488;
+  --kea-warning-bg: #fffbeb;
+  --kea-warning-border: #fcd34d;
+  --kea-warning-text: #92400e;
+  --kea-success: #059669;
+  --kea-danger: #dc2626;
+  --kea-radius: 10px;
+  --kea-radius-sm: 8px;
+  --kea-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --kea-shadow-lg: 0 4px 6px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.08);
+  --kea-table-row-border: #f1f5f9;
+  --kea-table-row-hover: #fafbfc;
+  --kea-artifact-divider: #f1f5f9;
+  --kea-title-gradient: linear-gradient(120deg, #1e1b4b 0%, var(--kea-primary) 55%, var(--kea-accent) 100%);
+  --kea-callout-bg-end: #ffffff;
+  --kea-btn-inset: rgba(255, 255, 255, 0.8);
+  font-family: var(--kea-font-sans);
+  line-height: 1.55;
+  color: var(--kea-text);
+  background: var(--kea-bg);
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+html[lang="ja"] {
+  --kea-font-sans: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "DM Sans", system-ui,
+    sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --kea-bg: #0f1419;
+  --kea-bg-elevated: #1a1f26;
+  --kea-surface: #222830;
+  --kea-border: #2d3544;
+  --kea-border-strong: #3d4758;
+  --kea-text: #e8eaed;
+  --kea-text-muted: #9aa5b1;
+  --kea-text-subtle: #6b7785;
+  --kea-primary: #818cf8;
+  --kea-primary-hover: #a5b4fc;
+  --kea-primary-soft: rgba(129, 140, 248, 0.12);
+  --kea-primary-ring: rgba(129, 140, 248, 0.35);
+  --kea-accent: #2dd4bf;
+  --kea-warning-bg: #2a2318;
+  --kea-warning-border: #a16207;
+  --kea-warning-text: #fcd34d;
+  --kea-success: #34d399;
+  --kea-danger: #f87171;
+  --kea-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --kea-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --kea-table-row-border: #2d3544;
+  --kea-table-row-hover: #252d38;
+  --kea-artifact-divider: #2d3544;
+  --kea-title-gradient: linear-gradient(120deg, #c7d2fe 0%, var(--kea-primary) 45%, var(--kea-accent) 100%);
+  --kea-callout-bg-end: #1a1f26;
+  --kea-btn-inset: rgba(255, 255, 255, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+code {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--kea-surface);
+  padding: 0.15em 0.45em;
+  border-radius: 4px;
+  border: 1px solid var(--kea-border);
+}
+
+/* —— Layout —— */
+
+.kea-app {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  padding-top: max(1.5rem, env(safe-area-inset-top, 0px));
+  padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(3rem, env(safe-area-inset-bottom, 0px));
+}
+
+.kea-app--wide {
+  max-width: min(1320px, 100%);
+}
+
+.kea-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--kea-border);
+}
+
+.kea-header__shell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.kea-header__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  background: var(--kea-title-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.kea-header__subtitle {
+  margin: 0;
+  color: var(--kea-text-muted);
+  font-size: 0.95rem;
+  max-width: 56ch;
+  line-height: 1.45;
+}
+
+.kea-header__brand {
+  flex: 1 1 14rem;
+  min-width: 0;
+  text-align: left;
+}
+
+/* Grouped controls: config file | appearance (theme + language) */
+.kea-header__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--kea-radius);
+  border: 1px solid var(--kea-border);
+  background: var(--kea-surface);
+  box-shadow: var(--kea-shadow);
+  flex: 0 1 auto;
+  max-width: 100%;
+  font-size: 0.8125rem;
+}
+
+.kea-header__toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+  min-width: 0;
+}
+
+.kea-header__toolbar-group--config {
+  flex: 1 1 auto;
+}
+
+.kea-header__toolbar-group--prefs {
+  flex: 0 1 auto;
+}
+
+.kea-header__divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 2.25rem;
+  margin: 0 0.1rem;
+  background: var(--kea-border-strong);
+  flex-shrink: 0;
+}
+
+.kea-header__control--config {
+  flex: 1 1 auto;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.65rem;
+  min-width: 0;
+}
+
+.kea-header__control--config select {
+  flex: 1 1 12rem;
+  min-width: min(10rem, 100%);
+  max-width: min(20rem, 100%);
+}
+
+.kea-header__control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  color: var(--kea-text-muted);
+  font-weight: 500;
+}
+
+.kea-header__control-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.kea-header__control select {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border-strong);
+  background: var(--kea-bg-elevated);
+  color: var(--kea-text);
+  cursor: pointer;
+  min-width: 7.5rem;
+}
+
+.kea-header__control select:focus {
+  outline: none;
+  border-color: var(--kea-primary);
+  box-shadow: 0 0 0 2px var(--kea-primary-ring);
+}
+
+.kea-theme-toggle {
+  display: inline-flex;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border);
+  overflow: hidden;
+  background: var(--kea-surface);
+}
+
+.kea-theme-toggle button {
+  border: none;
+  background: transparent;
+  color: var(--kea-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.kea-theme-toggle button:hover {
+  color: var(--kea-text);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-theme-toggle button[data-active="true"] {
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+}
+
+/* —— Tabs —— */
+
+.kea-nav-tabs-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+  min-width: 0;
+}
+
+.kea-nav-tabs-row .kea-tabs {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.kea-tabs-actions {
+  position: relative;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 4px;
+  padding-right: 4px;
+}
+
+.kea-tabs-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+  color: var(--kea-text-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.kea-tabs-gear:hover {
+  color: var(--kea-primary);
+  border-color: var(--kea-border-strong);
+  background: var(--kea-surface);
+}
+
+.kea-tabs-gear--open {
+  color: var(--kea-primary);
+  border-color: var(--kea-primary);
+  background: var(--kea-primary-soft);
+  box-shadow: 0 1px 3px rgba(67, 56, 202, 0.15);
+}
+
+.kea-tabs-gear__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kea-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.kea-settings-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 900;
+  width: min(28rem, calc(100vw - 1.5rem));
+  max-height: min(75vh, 560px);
+  overflow: auto;
+  padding: 1rem 1.1rem 1.15rem;
+  background: var(--kea-surface);
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius);
+  box-shadow:
+    0 10px 40px rgba(15, 23, 42, 0.12),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme="dark"] .kea-settings-popover {
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.kea-settings-popover__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--kea-text);
+}
+
+.kea-settings-popover__fields {
+  margin-bottom: 0;
+}
+
+.kea-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px;
+  background: var(--kea-surface);
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius);
+  box-shadow: var(--kea-shadow);
+}
+
+.kea-tab {
+  padding: 0.55rem 1rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--kea-text-muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.kea-tab:hover {
+  background: var(--kea-bg-elevated);
+  color: var(--kea-text);
+}
+
+.kea-tab--active {
+  background: var(--kea-bg-elevated);
+  color: var(--kea-primary);
+  border-color: var(--kea-border);
+  box-shadow: 0 1px 3px rgba(67, 56, 202, 0.12);
+}
+
+.kea-tabs.kea-tabs--sub {
+  margin: 0.75rem 0 1rem;
+  padding: 3px;
+  gap: 4px;
+}
+
+.kea-tabs--sub .kea-tab {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.kea-configure {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.kea-config-sidenav {
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  padding: 0.75rem 0.65rem;
+  background: var(--kea-surface);
+  max-height: min(72vh, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.kea-config-sidenav__search {
+  display: block;
+  margin: 0 0 0.65rem;
+  width: 100%;
+}
+
+.kea-config-sidenav__search .kea-input {
+  width: 100%;
+  font-size: 0.8125rem;
+}
+
+.kea-config-sidenav__heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--kea-text-subtle);
+  margin: 0.25rem 0 0.35rem;
+}
+
+.kea-config-sidenav__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kea-config-sidenav__section--scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.kea-config-sidenav__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  text-align: left;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--kea-radius-sm);
+  padding: 0.45rem 0.5rem;
+  background: transparent;
+  color: var(--kea-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.kea-config-sidenav__btn-primary {
+  font-weight: 600;
+  color: var(--kea-text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.kea-config-sidenav__btn-secondary {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--kea-text-subtle);
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
+.kea-config-display-name {
+  margin-bottom: 0.75rem;
+  max-width: 42rem;
+}
+
+.kea-config-display-name .kea-label {
+  margin-bottom: 0;
+}
+
+.kea-config-sidenav__btn:hover {
+  background: var(--kea-bg-elevated);
+}
+
+.kea-config-sidenav__btn--active {
+  background: var(--kea-primary-soft);
+  border-color: var(--kea-border);
+  color: var(--kea-primary);
+  font-weight: 600;
+}
+
+.kea-config-sidenav__btn--path {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.kea-config-sidenav__empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+}
+
+.kea-config-sidenav__refresh {
+  margin-top: 0.35rem;
+  align-self: flex-start;
+}
+
+.kea-config-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (max-width: 900px) {
+  .kea-configure {
+    grid-template-columns: 1fr;
+  }
+
+  .kea-config-main {
+    order: -1;
+  }
+
+  .kea-config-sidenav {
+    max-height: min(50vh, 480px);
+  }
+}
+
+.kea-editor-subtabs {
+  margin-bottom: 1rem;
+  max-width: 100%;
+}
+
+.kea-editor-subtabs .kea-tab {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+/* —— Callouts —— */
+
+.kea-callout {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--kea-radius-sm);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border: 1px solid var(--kea-warning-border);
+  background: linear-gradient(135deg, var(--kea-warning-bg) 0%, var(--kea-callout-bg-end) 100%);
+  color: var(--kea-warning-text);
+  box-shadow: var(--kea-shadow);
+}
+
+/* —— Modal (dimension create, etc.) —— */
+
+.kea-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
+    max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  background: rgba(15, 23, 42, 0.45);
+}
+
+:root[data-theme="dark"] .kea-modal-backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.kea-modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--kea-bg-elevated);
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius);
+  box-shadow: var(--kea-shadow-lg);
+  padding: 1.25rem 1.35rem;
+}
+
+.kea-modal__title {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--kea-text);
+}
+
+.kea-modal__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.kea-modal-backdrop--flow-node-editor {
+  z-index: 1285;
+}
+
+.kea-modal--flow-node-editor {
+  width: 100%;
+  max-width: min(96vw, 960px);
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.25rem;
+}
+
+.kea-modal-backdrop--subgraph-drill {
+  z-index: 1250;
+}
+
+.kea-modal--subgraph-drill {
+  width: 100%;
+  max-width: min(98vw, 1680px);
+  max-height: min(94vh, 920px);
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.25rem;
+  min-height: 0;
+}
+
+.kea-modal__body--subgraph-drill-flow.kea-modal__body--scroll {
+  min-height: min(58vh, 520px);
+  max-height: none;
+  overflow: hidden;
+}
+
+.kea-modal__body--scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  max-height: min(68vh, 640px);
+  padding-right: 0.25rem;
+}
+
+/* —— Toolbar —— */
+
+.kea-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.kea-status {
+  font-size: 0.875rem;
+  color: var(--kea-text-muted);
+}
+
+.kea-status--ok {
+  color: var(--kea-success);
+}
+
+/* —— Buttons —— */
+
+.kea-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border-strong);
+  background: var(--kea-bg-elevated);
+  color: var(--kea-text);
+  font: inherit;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+  box-shadow: 0 1px 0 var(--kea-btn-inset) inset;
+}
+
+.kea-btn:hover:not(:disabled) {
+  background: var(--kea-surface);
+  border-color: var(--kea-text-subtle);
+}
+
+.kea-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.kea-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.kea-btn--primary {
+  background: linear-gradient(180deg, #4f46e5 0%, var(--kea-primary) 100%);
+  border-color: #3730a3;
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(67, 56, 202, 0.35);
+}
+
+:root[data-theme="dark"] .kea-btn--primary {
+  border-color: #4f46e5;
+  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.kea-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+  border-color: var(--kea-primary-hover);
+  color: #fff;
+}
+
+:root[data-theme="dark"] .kea-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+  border-color: #818cf8;
+}
+
+.kea-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.kea-btn--ghost:hover:not(:disabled) {
+  background: var(--kea-primary-soft);
+  border-color: transparent;
+  color: var(--kea-primary);
+}
+
+.kea-btn--sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border-radius: 6px;
+}
+
+.kea-btn--danger {
+  border-color: #fecaca;
+  color: var(--kea-danger);
+  background: #fef2f2;
+}
+
+.kea-btn--danger:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+:root[data-theme="dark"] .kea-btn--danger {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+}
+
+:root[data-theme="dark"] .kea-btn--danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: rgba(248, 113, 113, 0.65);
+}
+
+/* —— Form controls —— */
+
+.kea-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--kea-text);
+  letter-spacing: 0.01em;
+}
+
+.kea-input,
+.kea-select,
+.kea-textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border-strong);
+  background: var(--kea-bg-elevated);
+  color: var(--kea-text);
+  font: inherit;
+  font-size: 0.9rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.kea-input:hover,
+.kea-select:hover,
+.kea-textarea:hover {
+  border-color: var(--kea-text-subtle);
+}
+
+.kea-input:focus,
+.kea-select:focus,
+.kea-textarea:focus {
+  outline: none;
+  border-color: var(--kea-primary);
+  box-shadow: 0 0 0 3px var(--kea-primary-ring);
+}
+
+.kea-textarea {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.kea-textarea--readonly {
+  background: var(--kea-surface);
+  color: var(--kea-text-muted);
+}
+
+.kea-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+  cursor: pointer;
+}
+
+.kea-checkbox-row input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--kea-primary);
+}
+
+/* —— Panels & cards —— */
+
+.kea-panel {
+  background: var(--kea-bg-elevated);
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius);
+  padding: 1.15rem 1.25rem;
+  box-shadow: var(--kea-shadow);
+}
+
+.kea-panel + .kea-panel {
+  margin-top: 1rem;
+}
+
+.kea-section-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--kea-text);
+  letter-spacing: -0.02em;
+}
+
+.kea-fieldset {
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  padding: 1rem 1rem 0.85rem;
+  margin: 0;
+  background: var(--kea-surface);
+}
+
+.kea-fieldset legend {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--kea-text-muted);
+  padding: 0 0.35rem;
+}
+
+.kea-hint {
+  font-size: 0.8125rem;
+  color: var(--kea-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.kea-hint--success {
+  color: var(--kea-success);
+}
+
+.kea-hint--warn {
+  color: var(--kea-warning-text);
+}
+
+/* —— Tables —— */
+
+.kea-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border);
+}
+
+.kea-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.kea-table thead tr {
+  text-align: left;
+  background: var(--kea-surface);
+  border-bottom: 1px solid var(--kea-border);
+}
+
+.kea-table th {
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+  color: var(--kea-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kea-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--kea-table-row-border);
+  vertical-align: middle;
+}
+
+.kea-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.kea-table tbody tr:hover td {
+  background: var(--kea-table-row-hover);
+}
+
+/* —— Tree / list picks —— */
+
+.kea-tree {
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  padding: 0.65rem;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 0.85rem;
+  background: var(--kea-bg-elevated);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.kea-tree-empty {
+  color: var(--kea-text-muted);
+  font-size: 0.875rem;
+}
+
+.kea-tree-node {
+  text-align: left;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--kea-text);
+  transition: background 0.12s ease;
+}
+
+.kea-tree-node:hover {
+  background: var(--kea-surface);
+}
+
+.kea-tree-node--selected {
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+  font-weight: 500;
+}
+
+/* —— Dimensions hierarchy tree (drill-down) —— */
+
+.kea-dim-tree-legend {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kea-text-subtle);
+}
+
+.kea-dim-tree-toolbar {
+  margin-bottom: 0.5rem !important;
+}
+
+.kea-dim-tree.kea-tree {
+  padding: 0.5rem 0.45rem;
+}
+
+.kea-dim-tree-root,
+.kea-dim-tree-nested {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kea-dim-tree-nested {
+  padding-left: 0.35rem;
+  margin-left: 0.65rem;
+  border-left: 1px solid var(--kea-border);
+}
+
+.kea-dim-tree-li {
+  margin: 0;
+  padding: 0;
+}
+
+.kea-dim-tree-row {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-height: 1.85rem;
+}
+
+.kea-dim-tree-chevron {
+  flex: 0 0 1.5rem;
+  width: 1.5rem;
+  min-height: 1.85rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kea-text-subtle);
+  cursor: pointer;
+  font-size: 0.65rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.kea-dim-tree-chevron span {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.kea-dim-tree-chevron:not(.kea-dim-tree-chevron--open) span {
+  transform: rotate(-90deg);
+}
+
+.kea-dim-tree-chevron:hover {
+  background: var(--kea-surface);
+  color: var(--kea-text);
+}
+
+.kea-dim-tree-chevron-spacer {
+  flex: 0 0 1.5rem;
+  width: 1.5rem;
+  align-self: flex-start;
+  min-height: 1.85rem;
+}
+
+.kea-dim-tree .kea-tree-node {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-radius: 6px;
+}
+
+.kea-dim-tree-node-id {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+  line-height: 1.2;
+}
+
+.kea-dim-tree-node-label {
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.kea-tree-node--selected .kea-dim-tree-node-id {
+  color: var(--kea-primary);
+  opacity: 0.95;
+}
+
+/* —— Artifacts split —— */
+
+.kea-artifacts {
+  display: grid;
+  /* minmax(0, 1fr) lets the editor column shrink inside the panel instead of overflowing off-screen */
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.kea-artifact-editor {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kea-artifact-editor .kea-textarea {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .kea-artifacts {
+    grid-template-columns: 1fr;
+  }
+
+  /* Editor above the file list on narrow viewports so it stays visible without long scroll */
+  .kea-artifact-editor {
+    order: -1;
+  }
+
+  .kea-artifact-tree-wrap {
+    max-height: min(55dvh, 640px);
+  }
+}
+
+.kea-artifact-sidebar {
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .kea-artifact-sidebar {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+.kea-artifact-list-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--kea-text-subtle);
+  margin: 0 0 0.5rem;
+}
+
+.kea-artifact-list-title:not(:first-child) {
+  margin-top: 1.25rem;
+}
+
+.kea-artifact-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.78rem;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-artifact-item {
+  text-align: left;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--kea-artifact-divider);
+  background: transparent;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  word-break: break-all;
+  color: var(--kea-text-muted);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.kea-artifact-item:last-child {
+  border-bottom: none;
+}
+
+.kea-artifact-item:hover {
+  background: var(--kea-surface);
+  color: var(--kea-text);
+}
+
+.kea-artifact-item--active {
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+  font-weight: 500;
+}
+
+/* —— Source views (list + editor) —— */
+
+.kea-source-views-split {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.kea-source-views-sidebar {
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .kea-source-views-sidebar {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+.kea-source-views-editor {
+  min-width: 0;
+  width: 100%;
+}
+
+.kea-source-views-editor-inner {
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius);
+  background: var(--kea-bg-elevated);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--kea-shadow);
+}
+
+.kea-source-views-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.78rem;
+  max-height: min(55dvh, 420px);
+  overflow-y: auto;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-source-views-item {
+  text-align: left;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--kea-artifact-divider);
+  background: transparent;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.35;
+  word-break: break-word;
+  color: var(--kea-text-muted);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.kea-source-views-item:last-child {
+  border-bottom: none;
+}
+
+.kea-source-views-item:hover {
+  background: var(--kea-surface);
+  color: var(--kea-text);
+}
+
+.kea-source-views-item--active {
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .kea-source-views-split {
+    grid-template-columns: 1fr;
+  }
+
+  .kea-source-views-editor {
+    order: -1;
+  }
+
+  .kea-source-views-list {
+    max-height: min(40dvh, 280px);
+  }
+}
+
+/* —— Artifact tree (hierarchical selector) —— */
+
+.kea-art-tree-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.kea-art-tree-search-label {
+  margin-bottom: 0;
+}
+
+.kea-art-tree-search {
+  margin-top: 0.35rem;
+}
+
+.kea-artifact-tree-wrap {
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  padding: 0.35rem 0;
+}
+
+.kea-art-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.78rem;
+}
+
+.kea-art-tree-empty {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  text-align: center;
+}
+
+.kea-art-tree-li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kea-art-tree-nested {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kea-art-tree-dir-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 1.65rem;
+}
+
+.kea-art-tree-chevron {
+  flex: 0 0 1.35rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--kea-text-subtle);
+  cursor: pointer;
+  font-size: 0.65rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kea-art-tree-chevron:hover {
+  background: var(--kea-surface);
+  color: var(--kea-text);
+}
+
+.kea-art-tree-dir-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0.35rem 0.25rem 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--kea-text-muted);
+}
+
+.kea-art-tree-dir-label:hover {
+  color: var(--kea-text);
+}
+
+.kea-art-tree-file {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0.35rem 0.5rem 0.35rem 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  word-break: break-all;
+  color: var(--kea-text-muted);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.kea-art-tree-file:hover {
+  background: var(--kea-surface);
+  color: var(--kea-text);
+}
+
+.kea-art-tree-file--active {
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+  font-weight: 500;
+}
+
+/* —— Tree context menu —— */
+
+.kea-tree-ctx-menu {
+  margin: 0;
+  padding: 0.3rem 0;
+  list-style: none;
+  min-width: 11.5rem;
+  background: var(--kea-surface-elevated, var(--kea-surface));
+  border: 1px solid var(--kea-border-subtle, rgba(120, 120, 140, 0.35));
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+}
+
+.kea-tree-ctx-menu__btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.85rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--kea-text);
+}
+
+.kea-tree-ctx-menu__btn:hover:not(:disabled) {
+  background: var(--kea-surface);
+}
+
+.kea-tree-ctx-menu__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.kea-tree-ctx-menu__btn--danger {
+  color: var(--kea-danger, #b42318);
+}
+
+/* —— Advanced YAML —— */
+
+.kea-advanced {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--kea-border);
+}
+
+.kea-advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px dashed var(--kea-border-strong);
+  background: var(--kea-surface);
+  color: var(--kea-text-muted);
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.kea-advanced-toggle:hover {
+  border-color: var(--kea-primary);
+  color: var(--kea-primary);
+  background: var(--kea-primary-soft);
+}
+
+.kea-advanced-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kea-advanced-search__label-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+}
+
+.kea-advanced-search__control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  min-width: 0;
+}
+
+.kea-advanced-search__input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.kea-advanced-search__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  flex-shrink: 0;
+}
+
+.kea-advanced-search__status {
+  font-size: 0.8125rem;
+  color: var(--kea-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Fullscreen raw YAML editor */
+.kea-advanced-fs-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: var(--kea-bg);
+  color: var(--kea-text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+.kea-advanced-fs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+.kea-advanced-fs__header {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-advanced-fs__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--kea-text);
+}
+
+.kea-advanced-fs__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kea-advanced-fs__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem;
+  gap: 0.65rem;
+  overflow: hidden;
+}
+
+.kea-advanced-fs__editor {
+  flex: 1;
+  min-height: 12rem;
+  width: 100%;
+  resize: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* —— Dimension chips —— */
+
+.kea-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.kea-chip {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--kea-text-muted);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.kea-chip:hover {
+  border-color: var(--kea-text-subtle);
+  color: var(--kea-text);
+}
+
+.kea-chip--active {
+  border-color: var(--kea-primary);
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+}
+
+/* —— Grid helpers —— */
+
+.kea-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .kea-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kea-properties-panel {
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius);
+  padding: 1rem 1.1rem;
+  background: var(--kea-surface);
+  box-shadow: var(--kea-shadow);
+}
+
+.kea-properties-panel h3 {
+  margin-top: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--kea-text);
+}
+
+.kea-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.kea-stack--lg {
+  gap: 1.25rem;
+}
+
+/* —— Mobile & narrow viewports (touch, safe areas, readability) —— */
+
+@media (max-width: 42rem) {
+  .kea-header__shell {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .kea-header__brand {
+    flex: none;
+    text-align: center;
+    width: 100%;
+  }
+
+  .kea-header__title {
+    font-size: clamp(1.25rem, 5vw, 1.65rem);
+  }
+
+  .kea-header__subtitle {
+    max-width: none;
+  }
+
+  .kea-header__toolbar {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+  }
+
+  .kea-header__toolbar-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .kea-header__toolbar-group--prefs {
+    flex-direction: column;
+  }
+
+  .kea-header__divider {
+    width: 100%;
+    height: 1px;
+    min-height: 0;
+    margin: 0;
+    align-self: stretch;
+  }
+
+  .kea-header__control--config {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .kea-header__control--config select {
+    width: 100%;
+    max-width: none;
+    min-height: 2.75rem;
+    flex: none;
+  }
+
+  .kea-header__control {
+    justify-content: space-between;
+  }
+
+  .kea-header__control select {
+    min-height: 2.75rem;
+    font-size: 1rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .kea-theme-toggle {
+    flex-shrink: 0;
+  }
+
+  .kea-theme-toggle button {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .kea-nav-tabs-row {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .kea-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    gap: 4px;
+    padding: 6px;
+    scrollbar-width: thin;
+  }
+
+  .kea-tabs-gear {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    touch-action: manipulation;
+  }
+
+  .kea-tab {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.9rem;
+    touch-action: manipulation;
+  }
+
+  .kea-toolbar {
+    gap: 8px;
+  }
+
+  .kea-btn {
+    min-height: 2.75rem;
+    padding: 0.55rem 1rem;
+    touch-action: manipulation;
+  }
+
+  .kea-btn--sm {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.75rem;
+  }
+
+  .kea-panel {
+    padding: 1rem 0.9rem;
+  }
+
+  .kea-input,
+  .kea-select,
+  .kea-textarea {
+    font-size: 1rem;
+  }
+
+  .kea-textarea {
+    font-size: 0.9375rem;
+  }
+
+  .kea-checkbox-row {
+    min-height: 2.75rem;
+    align-items: center;
+    padding: 0.2rem 0;
+  }
+
+  .kea-checkbox-row input {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .kea-artifact-tree-wrap {
+    max-height: min(50dvh, 520px);
+  }
+
+  .kea-advanced-toggle {
+    min-height: 2.75rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .kea-advanced-fs__header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .kea-advanced-fs__header-actions .kea-btn {
+    flex: 1 1 auto;
+  }
+
+  .kea-advanced-fs__editor {
+    font-size: 0.9375rem;
+  }
+
+  .kea-modal-backdrop .kea-modal {
+    max-height: min(90dvh, 100%);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .kea-art-tree-chevron,
+  .kea-art-tree-file {
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 26rem) {
+  .kea-app {
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* —— Key discovery scope hierarchy —— */
+
+.kea-scope-hierarchy .kea-levels-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.kea-level-chip {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.kea-toolbar-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.kea-loc-tree,
+.kea-loc-nested {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kea-loc-nested {
+  margin-left: 1rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--kea-border);
+}
+
+.kea-loc-item {
+  margin-bottom: 0.75rem;
+}
+
+.kea-loc-card {
+  background: var(--kea-surface);
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  padding: 0.75rem 1rem;
+}
+
+.kea-loc-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.kea-label--block {
+  grid-column: 1 / -1;
+}
+
+.kea-loc-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.kea-trigger-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.kea-trigger-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.kea-trigger-editor-top {
+  margin-bottom: 0.65rem;
+}
+
+.kea-trigger-pipeline-sub {
+  margin-top: 0.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.kea-trigger-editor-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.72;
+  margin: 0.35rem 0 0.25rem;
+}
+
+.kea-trigger-root-grid {
+  display: grid;
+  gap: 0.65rem 1rem;
+  max-width: 44rem;
+  margin-bottom: 0.5rem;
+}
+
+.kea-trigger-root-grid .kea-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (min-width: 36rem) {
+  .kea-trigger-root-grid--two {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.kea-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: end;
+}
+
+.kea-filter-group {
+  border: 1px solid var(--kea-border-subtle, rgba(120, 120, 140, 0.35));
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem 0.75rem;
+  margin-bottom: 0.65rem;
+  background: var(--kea-surface-elevated, rgba(0, 0, 0, 0.02));
+}
+
+@media (max-width: 52rem) {
+  .kea-loc-fields {
+    grid-template-columns: 1fr;
+  }
+  .kea-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Rules editors: entity_type sidebar + main list */
+.kea-rules-by-entity {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 0.25rem;
+}
+
+.kea-rules-by-entity__sidebar {
+  flex: 0 0 11.5rem;
+  min-width: 0;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  padding: 0.5rem 0.35rem;
+}
+
+.kea-rules-by-entity__sidebar-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--kea-text-muted);
+  padding: 0.25rem 0.4rem 0.5rem;
+}
+
+.kea-rules-by-entity__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kea-rules-by-entity__tab {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem;
+  margin-bottom: 0.2rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kea-text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.kea-rules-by-entity__tab:hover {
+  background: var(--kea-primary-soft);
+}
+
+.kea-rules-by-entity__tab--active {
+  background: var(--kea-primary-soft);
+  color: var(--kea-primary);
+  font-weight: 600;
+}
+
+.kea-rules-by-entity__tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kea-rules-by-entity__tab-count {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+  background: var(--kea-surface);
+  border: 1px solid var(--kea-border);
+  border-radius: 999px;
+  padding: 0.05rem 0.35rem;
+}
+
+.kea-rules-by-entity__tab--active .kea-rules-by-entity__tab-count {
+  color: var(--kea-primary);
+  border-color: var(--kea-primary);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-rules-by-entity__main {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 40rem) {
+  .kea-rules-by-entity {
+    flex-direction: column;
+  }
+  .kea-rules-by-entity__sidebar {
+    flex: none;
+    width: 100%;
+  }
+  .kea-rules-by-entity__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .kea-rules-by-entity__list li {
+    flex: 1 1 auto;
+    min-width: 7rem;
+  }
+}
+
+.kea-handler-fields {
+  margin-top: 0.35rem;
+}
+
+.kea-handler-fieldset {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-handler-fieldset-legend {
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--kea-text-muted);
+}
+
+.kea-handler-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.kea-advanced-details summary {
+  list-style: none;
+}
+
+.kea-advanced-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.kea-validation-rule--drop {
+  outline: 2px dashed var(--kea-primary);
+  outline-offset: 2px;
+  background: var(--kea-primary-soft) !important;
+}
+
+.kea-validation-rule--dragging {
+  opacity: 0.65;
+}
+
+/* Drag handle only — avoids whole-card draggable stealing text selection in inputs/textareas */
+.kea-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  color: var(--kea-text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.35rem 0.2rem;
+  align-self: end;
+  flex-shrink: 0;
+}
+
+.kea-drag-handle:active {
+  cursor: grabbing;
+}
+
+.kea-drag-handle__grip {
+  letter-spacing: -0.12em;
+  font-weight: 600;
+}
+
+/* Workflow flow canvas (React Flow) */
+.kea-flow-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: var(--kea-bg);
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
+}
+
+.kea-flow-fullscreen__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-flow-fullscreen__title-row {
+  min-width: 0;
+  flex: 1;
+}
+
+.kea-flow-fullscreen__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.kea-flow-fullscreen__config-name {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(40rem, 70vw);
+}
+
+.kea-flow-fullscreen__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* No right padding so the inspector column can sit flush with the viewport edge */
+  padding: 0.75rem 0 1rem 1rem;
+  overflow: hidden;
+}
+
+.kea-flow-fullscreen .kea-flow-shell {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+
+/* Dock the right panel to the screen edge (avoid double gap from radius + body padding) */
+.kea-flow-fullscreen .kea-flow-shell__right {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.kea-flow-fullscreen .kea-flow-palette,
+.kea-flow-fullscreen .kea-flow-inspector {
+  max-height: none;
+}
+
+.kea-flow-fullscreen .kea-flow-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.kea-flow-fullscreen .kea-flow-canvas-wrap .react-flow {
+  min-height: 0;
+}
+
+.kea-flow-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+  margin-bottom: 0.75rem;
+}
+
+.kea-flow-preview__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.kea-flow-preview__toolbar-hint {
+  margin: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.kea-flow-preview__runbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+}
+
+.kea-flow-preview__runbar-hint {
+  margin: 0;
+  flex: 1 1 18rem;
+  max-width: 56ch;
+  font-size: 0.875rem;
+}
+
+.kea-flow-preview__canvas {
+  height: min(52vh, 520px);
+  min-height: 280px;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  overflow: hidden;
+}
+
+.kea-flow-preview__canvas .react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+.kea-flow-preview__canvas .react-flow__node.kea-flow-node--executing {
+  outline: 2px solid var(--kea-primary);
+  outline-offset: 2px;
+  border-radius: var(--kea-radius-sm);
+  z-index: 4 !important;
+}
+
+.kea-flow-shell {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  min-height: min(70vh, 720px);
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.kea-flow-shell__left,
+.kea-flow-shell__right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-surface);
+}
+
+.kea-flow-shell__left--collapsed,
+.kea-flow-shell__right--collapsed {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.25rem 0;
+}
+
+.kea-flow-shell__panel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.35rem 0.45rem 0.3rem;
+  border-bottom: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+}
+
+.kea-flow-shell__panel-bar--end {
+  flex-direction: row;
+}
+
+.kea-flow-shell__panel-bar-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--kea-text-muted);
+}
+
+.kea-flow-shell__panel-bar-btn {
+  min-width: 1.65rem;
+  padding: 0.15rem 0.35rem !important;
+  line-height: 1.2;
+}
+
+.kea-flow-shell__resize {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  align-self: stretch;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  margin: 0 1px;
+  border-radius: 3px;
+  touch-action: none;
+}
+
+.kea-flow-shell__resize:hover,
+.kea-flow-shell__resize:focus-visible {
+  background: color-mix(in srgb, var(--kea-primary) 25%, transparent);
+  outline: none;
+}
+
+.kea-flow-shell__reveal {
+  border: none;
+  background: transparent;
+  color: var(--kea-text);
+  cursor: pointer;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.75rem 0.2rem;
+  border-radius: var(--kea-radius-sm);
+  width: 100%;
+  flex: 1;
+  min-height: 5rem;
+}
+
+.kea-flow-shell__reveal:hover {
+  background: var(--kea-bg-elevated);
+}
+
+.kea-flow-shell__left .kea-flow-palette,
+.kea-flow-shell__right .kea-flow-inspector {
+  flex: 1;
+  min-height: 0;
+}
+
+.kea-flow-palette {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.65rem 0.5rem;
+  overflow: auto;
+  max-height: none;
+}
+
+.kea-flow-palette__heading {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--kea-text-muted);
+  margin: 0.5rem 0 0.35rem;
+}
+
+.kea-flow-palette__heading:first-child {
+  margin-top: 0;
+}
+
+.kea-flow-palette__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kea-flow-palette__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.kea-flow-palette__list--scroll {
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.kea-flow-palette__item {
+  width: 100%;
+  text-align: left;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--kea-border);
+  background: var(--kea-bg-elevated);
+  color: var(--kea-text);
+  cursor: grab;
+}
+
+.kea-flow-palette__item:hover {
+  border-color: var(--kea-border-strong);
+}
+
+.kea-flow-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.kea-flow-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.kea-flow-toolbar__orientation {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kea-flow-toolbar__align {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.kea-flow-toolbar__align-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  line-height: 0;
+}
+
+.kea-flow-toolbar__align-btn .kea-flow-align-icon {
+  display: block;
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+.kea-flow-toolbar__align-btn:disabled .kea-flow-align-icon {
+  opacity: 0.45;
+}
+
+.kea-flow-canvas-wrap {
+  flex: 1;
+  min-height: 420px;
+  border: 1px solid var(--kea-border);
+  border-radius: var(--kea-radius-sm);
+  background: var(--kea-bg-elevated);
+  overflow: hidden;
+}
+
+.kea-flow-canvas-wrap .react-flow {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+}
+
+.kea-flow-connect-end-menu {
+  min-width: 10rem;
+  max-width: 15rem;
+  max-height: min(70vh, 22rem);
+  overflow: auto;
+  padding: 0.35rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border-strong);
+  background: var(--kea-bg-elevated);
+  box-shadow: var(--kea-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transform: translate(6px, 6px);
+}
+
+.kea-flow-connect-end-menu__item {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.kea-flow-minimap {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.kea-flow-inspector {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.65rem 0.75rem 0.75rem;
+  overflow: auto;
+  max-height: none;
+}
+
+.kea-flow-inspector__title {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+.kea-flow-inspector__accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.kea-flow-inspector__accent-swatch {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--kea-border-strong);
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.kea-flow-inspector__accent-swatch:hover {
+  filter: brightness(1.08);
+}
+
+.kea-flow-inspector__accent-swatch--active {
+  outline: 2px solid var(--kea-primary-ring);
+  outline-offset: 1px;
+}
+
+.kea-flow-inspector__accent-color-input {
+  width: 2.25rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--kea-border-strong);
+  border-radius: 4px;
+  background: var(--kea-bg-elevated);
+  cursor: pointer;
+}
+
+.kea-flow-node {
+  min-width: 8.5rem;
+  max-width: 12rem;
+  padding: 0.45rem 0.55rem 0.55rem;
+  border-radius: var(--kea-radius-sm);
+  border: 1px solid var(--kea-border-strong);
+  background: var(--kea-bg-elevated);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  box-shadow: var(--kea-shadow);
+}
+
+.kea-flow-node--selected {
+  outline: 2px solid var(--kea-primary-ring);
+  border-color: var(--kea-primary);
+}
+
+.kea-flow-node__badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--kea-text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.kea-flow-node__title {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.kea-flow-node__meta {
+  font-size: 0.72rem;
+  color: var(--kea-text-muted);
+  font-family: ui-monospace, monospace;
+  margin-top: 0.2rem;
+  word-break: break-all;
+}
+
+.kea-flow-node--source {
+  border-left: 3px solid var(--kea-accent);
+}
+
+.kea-flow-node--start {
+  border-left: 3px solid #15803d;
+}
+
+.kea-flow-node--end {
+  border-left: 3px solid #be123c;
+}
+
+.kea-flow-node--extract {
+  border-left: 3px solid var(--kea-primary);
+}
+
+.kea-flow-node--alias {
+  border-left: 3px solid #b45309;
+}
+
+.kea-flow-node--validation {
+  border-left: 3px solid #7c3aed;
+}
+
+.kea-flow-node--validation-rule {
+  border-left: 3px solid #a855f7;
+}
+
+.kea-flow-node--persist-alias {
+  border-left: 3px solid #0d9488;
+}
+
+.kea-flow-node--ref-index {
+  border-left: 3px solid #0369a1;
+}
+
+.kea-flow-node--subflow-graph {
+  border-left: 3px solid #475569;
+  background: color-mix(in srgb, var(--kea-surface) 92%, var(--kea-primary-soft));
+  max-width: 200px;
+  font-size: 0.85rem;
+}
+
+.kea-flow-node--subflow {
+  /* Subflows use NodeResizer + explicit width/height; undo generic card max-width so they can grow horizontally. */
+  max-width: none;
+  border-left: 3px solid #64748b;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--kea-surface) 88%, var(--kea-primary-soft));
+  min-width: 200px;
+  min-height: 140px;
+  height: 100%;
+}
+
+/* Collapsed composite (drill-in inner canvas): card node, solid accent vs dashed subflow frame. */
+.kea-flow-node--subgraph {
+  border-left: 3px solid #7c3aed;
+  border-style: solid;
+  background: color-mix(in srgb, var(--kea-surface) 90%, #7c3aed 14%);
+}
+
+.kea-flow-node--subflow .react-flow__resize-control {
+  z-index: 5;
+}
+
+.kea-flow-node--subflow .react-flow__resize-control.handle {
+  border-radius: 2px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid color-mix(in srgb, var(--kea-primary) 75%, var(--kea-surface));
+  background: var(--kea-surface);
+}
+
+/* Edge lines: horizontal (top/bottom) and vertical (left/right) resize */
+.kea-flow-node--subflow .react-flow__resize-control.line {
+  border-width: 2px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--kea-primary) 70%, var(--kea-surface));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--kea-surface) 55%, transparent);
+}
+
+.kea-flow-node--subflow .react-flow__resize-control.line.horizontal {
+  min-height: 8px;
+  height: 8px;
+}
+
+.kea-flow-node--subflow .react-flow__resize-control.line.vertical {
+  min-width: 8px;
+  width: 8px;
+}
+
+@media (max-width: 1100px) {
+  .kea-flow-shell {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .kea-flow-shell__resize {
+    display: none;
+  }
+
+  .kea-flow-shell__left:not(.kea-flow-shell__left--collapsed),
+  .kea-flow-shell__right:not(.kea-flow-shell__right--collapsed) {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    max-height: 18rem;
+  }
+
+  .kea-flow-palette {
+    max-height: 14rem;
+  }
+
+  .kea-flow-inspector {
+    max-height: 20rem;
+  }
+}
