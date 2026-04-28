@@ -3,6 +3,8 @@ version = "1"
 
 [alpha_flags]
 deployment-pack = true
+
+[plugins]
 data = true
 
 [environment.dev]

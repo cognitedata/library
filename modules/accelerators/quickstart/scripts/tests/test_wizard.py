@@ -25,9 +25,15 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from qs_dp_setup_wizard import main
-from wizard._constants import MIN_TOOLKIT_VERSION, _CONFIG_FLAG_VERSION
+from wizard._constants import _CONFIG_FLAG_VERSION, MIN_TOOLKIT_VERSION
 from wizard._file_io import ensure_backup
-from wizard._preflight import _get_org_dir, _parse_version, check_cdf_toml, check_toolkit_version
+from wizard._preflight import (
+    _ensure_toml_flag,
+    _get_org_dir,
+    _parse_version,
+    check_cdf_toml,
+    check_toolkit_version,
+)
 from wizard._prompts import validate_emails
 from wizard._sql import enable_file_annotation_mode
 from wizard._verification import _cdf_env_args, run_post_write_verification
@@ -265,11 +271,43 @@ class TestCheckToolkitVersion:
 
 
 
-# cdf.toml alpha-flag check
+# _ensure_toml_flag unit tests
+
+class TestEnsureTomlFlag:
+    def _lines(self, text: str) -> list[str]:
+        return text.splitlines(keepends=True)
+
+    def test_already_true_returns_none(self) -> None:
+        lines = self._lines("[alpha_flags]\ndeployment-pack = true\n")
+        assert _ensure_toml_flag(lines, "[alpha_flags]", "deployment-pack") is None
+
+    def test_wrong_value_updated_in_place(self) -> None:
+        lines = self._lines("[alpha_flags]\ndeployment-pack = false\n")
+        result = _ensure_toml_flag(lines, "[alpha_flags]", "deployment-pack")
+        assert result is not None and "updated" in result
+        assert any("deployment-pack = true" in ln for ln in lines)
+        assert not any("deployment-pack = false" in ln for ln in lines)
+
+    def test_missing_flag_inserted_after_section_header(self) -> None:
+        lines = self._lines("[alpha_flags]\n")
+        result = _ensure_toml_flag(lines, "[alpha_flags]", "deployment-pack")
+        assert result is not None and "added" in result
+        assert any("deployment-pack = true" in ln for ln in lines)
+
+    def test_missing_section_appended_at_end(self) -> None:
+        lines = self._lines("[module]\nversion = '1'\n")
+        result = _ensure_toml_flag(lines, "[plugins]", "data")
+        assert result is not None and "added" in result
+        content = "".join(lines)
+        assert "[plugins]" in content
+        assert "data = true" in content
+
+
+# cdf.toml check
 
 class TestCheckCdfToml:
-    def test_both_flags_present_no_change(self, tmp_path: Path) -> None:
-        original = "[alpha_flags]\ndeployment-pack = true\ndata = true\n"
+    def test_both_flags_correct_no_change(self, tmp_path: Path) -> None:
+        original = "[alpha_flags]\ndeployment-pack = true\n\n[plugins]\ndata = true\n"
         (tmp_path / "cdf.toml").write_text(original, encoding="utf-8")
         check_cdf_toml(tmp_path)
         assert (tmp_path / "cdf.toml").read_text() == original  # file untouched
@@ -279,47 +317,52 @@ class TestCheckCdfToml:
             check_cdf_toml(tmp_path)
         assert exc.value.code == 1
 
-    def test_both_flags_missing_no_section_adds_section(self, tmp_path: Path) -> None:
+    def test_no_sections_adds_both(self, tmp_path: Path) -> None:
         (tmp_path / "cdf.toml").write_text("[module]\nversion = '1'\n", encoding="utf-8")
         check_cdf_toml(tmp_path)
         content = (tmp_path / "cdf.toml").read_text()
         assert "[alpha_flags]" in content
         assert "deployment-pack = true" in content
+        assert "[plugins]" in content
         assert "data = true" in content
 
-    def test_both_flags_missing_existing_section_appends_flags(self, tmp_path: Path) -> None:
-        (tmp_path / "cdf.toml").write_text("[alpha_flags]\n", encoding="utf-8")
+    def test_existing_sections_flags_appended(self, tmp_path: Path) -> None:
+        (tmp_path / "cdf.toml").write_text("[alpha_flags]\n\n[plugins]\n", encoding="utf-8")
         check_cdf_toml(tmp_path)
         content = (tmp_path / "cdf.toml").read_text()
         assert "deployment-pack = true" in content
         assert "data = true" in content
 
-    def test_only_deployment_pack_missing_adds_it(self, tmp_path: Path) -> None:
+    def test_deployment_pack_false_updated(self, tmp_path: Path) -> None:
         (tmp_path / "cdf.toml").write_text(
-            "[alpha_flags]\ndata = true\n", encoding="utf-8"
+            "[alpha_flags]\ndeployment-pack = false\n\n[plugins]\ndata = true\n",
+            encoding="utf-8",
         )
         check_cdf_toml(tmp_path)
         content = (tmp_path / "cdf.toml").read_text()
         assert "deployment-pack = true" in content
-        assert content.count("data = true") == 1  # original not duplicated
+        assert "deployment-pack = false" not in content
+        assert content.count("deployment-pack") == 1
 
-    def test_only_data_missing_adds_it(self, tmp_path: Path) -> None:
+    def test_data_false_updated(self, tmp_path: Path) -> None:
         (tmp_path / "cdf.toml").write_text(
-            "[alpha_flags]\ndeployment-pack = true\n", encoding="utf-8"
+            "[alpha_flags]\ndeployment-pack = true\n\n[plugins]\ndata = false\n",
+            encoding="utf-8",
         )
         check_cdf_toml(tmp_path)
         content = (tmp_path / "cdf.toml").read_text()
         assert "data = true" in content
-        assert content.count("deployment-pack = true") == 1  # original not duplicated
+        assert "data = false" not in content
+        assert content.count("data =") == 1
 
-    def test_flags_in_wrong_section_still_added(self, tmp_path: Path) -> None:
-        # flags present but under [other], not [alpha_flags] — should still be added
+    def test_deployment_pack_in_wrong_section_still_added_to_alpha_flags(self, tmp_path: Path) -> None:
         (tmp_path / "cdf.toml").write_text(
-            "[other]\ndeployment-pack = true\ndata = true\n", encoding="utf-8"
+            "[other]\ndeployment-pack = true\n\n[plugins]\ndata = true\n", encoding="utf-8"
         )
         check_cdf_toml(tmp_path)
         content = (tmp_path / "cdf.toml").read_text()
         assert "[alpha_flags]" in content
+        assert content.count("deployment-pack = true") >= 1
 
 
 # main() integration paths
