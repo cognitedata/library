@@ -1,0 +1,4 @@
+[module]
+title = "Quickstart Script"
+id = "dp:accelerators:quickstart_script"
+package_id = "dp:accelerators"

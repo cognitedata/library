@@ -74,6 +74,7 @@ modules = [
     "accelerators/contextualization/cdf_connection_sql",
     "accelerators/industrial_tools/cdf_search",
     "accelerators/open_industrial_data_sync",
+    "accelerators/quickstart",
     "sourcesystem/cdf_pi",
     "sourcesystem/cdf_sap_assets",
     "sourcesystem/cdf_sap_events",

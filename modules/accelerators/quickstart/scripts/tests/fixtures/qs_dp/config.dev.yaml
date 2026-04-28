@@ -1,0 +1,38 @@
+environment:
+  project: placeholder-project
+  type: dev
+
+variables:
+  modules:
+    accelerators:
+      cdf_ingestion:
+        groupSourceId: ${GROUP_SOURCE_ID}
+      contextualization:
+        cdf_entity_matching:
+          entity_matching_processing_group_source_id: ${GROUP_SOURCE_ID}
+          targetViewSearchProperty: placeholder
+          AssetViewExternalId: placeholder
+          TimeSeriesViewExternalId: placeholder
+          targetViewExternalId: placeholder
+          entityViewExternalId: placeholder
+          targetViewFilterValues:
+            - placeholder
+        cdf_file_annotation:
+          groupSourceId: ${GROUP_SOURCE_ID}
+          ApplicationOwner: placeholder@example.com
+      open_industrial_data_sync:
+        groupSourceId: ${GROUP_SOURCE_ID}
+    dashboards:
+      rpt_quality:
+        groupSourceId: ${GROUP_SOURCE_ID}
+    sourcesystem:
+      cdf_pi:
+        groupSourceId: ${GROUP_SOURCE_ID}
+        schedule: 0 0 29 2 *
+      cdf_sap_assets:
+        groupSourceId: ${GROUP_SOURCE_ID}
+        schedule: 0 0 29 2 *
+      cdf_sap_events:
+        groupSourceId: ${GROUP_SOURCE_ID}
+      cdf_sharepoint:
+        groupSourceId: ${GROUP_SOURCE_ID}

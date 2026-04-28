@@ -2,5 +2,6 @@ name: Annotation to Direct Relations Writer
 externalId: contextualization_connection_writer
 owner: Anonymous
 description: Writes all approved Annotations as direct relations connections.
+runtime: py312
 functionPath: handler.py
 space: {{ functionSpace }}
