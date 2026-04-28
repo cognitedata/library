@@ -21,8 +21,6 @@ export type CanvasNodeRfType =
   | "keaAliasing"
   | "keaValidation"
   | "keaAliasPersistence"
-  | "keaWritebackRaw"
-  | "keaWritebackDataModeling"
   | "keaReferenceIndex"
   | "keaMatchValidationRuleSourceView"
   | "keaMatchValidationRuleExtraction"
@@ -82,6 +80,46 @@ export type SubflowPortEntry = {
 
 export type SubflowPortsConfig = { inputs: SubflowPortEntry[]; outputs: SubflowPortEntry[] };
 
+/** Optional named profile resolved from scope ``persistence_profiles[]`` at compile time. */
+export type PersistenceProfileRef = {
+  profile?: string;
+};
+
+/** Executable persistence settings for ``kind: alias_persistence`` nodes (merged into IR ``persistence``). */
+export type AliasPersistenceConfig = PersistenceProfileRef & {
+  kind: "alias_persistence";
+  raw_db?: string;
+  raw_table_aliases?: string;
+  raw_read_limit?: number;
+  source_raw_db?: string;
+  source_raw_table_key?: string;
+  source_raw_read_limit?: number;
+  incremental_auto_run_id?: boolean;
+  incremental_transition?: boolean;
+  source_view_space?: string;
+  source_view_external_id?: string;
+  source_view_version?: string;
+  write_foreign_key_references?: boolean;
+  foreign_key_writeback_property?: string;
+};
+
+/** Reference index RAW sink for ``kind: reference_index`` nodes. */
+export type ReferenceIndexPersistenceConfig = PersistenceProfileRef & {
+  kind: "reference_index";
+  source_raw_db?: string;
+  source_raw_table_key?: string;
+  source_raw_read_limit?: number;
+  reference_index_raw_db?: string;
+  reference_index_raw_table?: string;
+  reference_index_fk_entity_type?: string;
+  reference_index_document_entity_type?: string;
+  source_view_space?: string;
+  source_view_external_id?: string;
+  source_view_version?: string;
+};
+
+export type PersistenceConfig = AliasPersistenceConfig | ReferenceIndexPersistenceConfig;
+
 export type CanvasEdgeKind = "data" | "sequence" | "parallel_group";
 
 /** Logical kind stored in canvas file (maps to React Flow custom type). */
@@ -93,8 +131,6 @@ export type CanvasNodeKind =
   | "aliasing"
   | "validation"
   | "alias_persistence"
-  | "writeback_raw"
-  | "writeback_data_modeling"
   | "reference_index"
   | "match_validation_source_view"
   | "match_validation_extraction"
@@ -146,11 +182,6 @@ export interface WorkflowCanvasNodeData {
   handler_family?: "extraction" | "aliasing" | "annotation" | "persistence" | "incremental";
   /** fn_dm_alias_persistence vs fn_dm_reference_index (layout / future compile) */
   persistence_step?: "alias_writeback" | "reference_index";
-  /**
-   * Palette writeback cards: where results are intended to land (RAW vs Data Modeling).
-   * Layout-only; actual sinks are configured in scope or task data.
-   */
-  writeback_sink?: "raw" | "data_modeling";
   /** fn_dm_incremental_state_update — cohort rows before key extraction when incremental is on */
   incremental_step?: "state_update";
   /** e.g. regex_handler, heuristic, character_substitution */
@@ -186,6 +217,11 @@ export interface WorkflowCanvasNodeData {
    * ``parentId`` children on the outer graph.
    */
   inner_canvas?: WorkflowCanvasDocument;
+  /**
+   * Per-node persistence settings for ``alias_persistence`` / ``reference_index``.
+   * Compiler merges with ``persistence_profiles`` and scope defaults into IR ``persistence``.
+   */
+  persistence_config?: PersistenceConfig;
 }
 
 export interface WorkflowCanvasNode {
@@ -326,7 +362,6 @@ function canvasSourceWantsDefaultOut(sk: CanvasNodeKind): boolean {
   if (sk === "extraction") return true;
   if (sk === "aliasing") return true;
   if (sk === "validation") return true;
-  if (sk === "writeback_raw" || sk === "writeback_data_modeling") return true;
   if (isMatchValidationCanvasKind(sk)) return true;
   return false;
 }
@@ -337,7 +372,6 @@ function canvasTargetWantsDefaultIn(tk: CanvasNodeKind): boolean {
   if (tk === "extraction") return true;
   if (tk === "aliasing") return true;
   if (tk === "validation") return true;
-  if (tk === "writeback_raw" || tk === "writeback_data_modeling") return true;
   if (isMatchValidationCanvasKind(tk)) return true;
   return false;
 }
@@ -350,16 +384,8 @@ function defaultCanvasDataEdgeUsesOutIn(sk: CanvasNodeKind, tk: CanvasNodeKind):
   if (sk === "start" && (tk === "source_view" || tk === "extraction")) return true;
   if (sk === "source_view" && tk === "extraction") return true;
   if (sk === "extraction" && tk === "aliasing") return true;
-  if (sk === "extraction" && (tk === "writeback_raw" || tk === "writeback_data_modeling")) return true;
-  if (sk === "aliasing" && (tk === "writeback_raw" || tk === "writeback_data_modeling")) return true;
-  if (sk === "validation" && (tk === "writeback_raw" || tk === "writeback_data_modeling")) return true;
   if (sk === "extraction" && tk === "end") return true;
   if (sk === "aliasing" && tk === "end") return true;
-  if (
-    (sk === "writeback_raw" || sk === "writeback_data_modeling") &&
-    tk === "end"
-  )
-    return true;
   if (isMatchValidationCanvasKind(sk) && tk === "end") return true;
   return false;
 }
@@ -401,8 +427,6 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
         kind !== "aliasing" &&
         kind !== "validation" &&
         kind !== "alias_persistence" &&
-        kind !== "writeback_raw" &&
-        kind !== "writeback_data_modeling" &&
         kind !== "reference_index" &&
         kind !== "match_validation_source_view" &&
         kind !== "match_validation_extraction" &&
@@ -522,10 +546,6 @@ export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
       return "keaValidation";
     case "alias_persistence":
       return "keaAliasPersistence";
-    case "writeback_raw":
-      return "keaWritebackRaw";
-    case "writeback_data_modeling":
-      return "keaWritebackDataModeling";
     case "reference_index":
       return "keaReferenceIndex";
     case "match_validation_source_view":
@@ -563,10 +583,6 @@ export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
       return "validation";
     case "keaAliasPersistence":
       return "alias_persistence";
-    case "keaWritebackRaw":
-      return "writeback_raw";
-    case "keaWritebackDataModeling":
-      return "writeback_data_modeling";
     case "keaReferenceIndex":
       return "reference_index";
     case "keaMatchValidationRuleSourceView":

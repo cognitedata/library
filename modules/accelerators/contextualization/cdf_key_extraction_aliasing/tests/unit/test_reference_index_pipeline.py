@@ -33,7 +33,7 @@ _REFERENCE_INDEX_TEST_VALIDATION = {
             "expression_match": "fullmatch",
             "match": {
                 "expressions": [
-                    {"pattern": r"^.{0,1}$", "description": "too short"},
+                    {"pattern": r"^[0-9]{0,3}$", "description": "digits-only under 4 chars"},
                     {"pattern": r"^.{51,}$", "description": "too long"},
                     {"pattern": r"[^A-Za-z0-9]", "description": "non-alphanumeric"},
                 ],

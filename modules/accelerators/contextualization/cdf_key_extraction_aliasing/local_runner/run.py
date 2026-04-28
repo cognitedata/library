@@ -10,9 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import yaml
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_alias_persistence.pipeline import (
-    persist_aliases_to_entities,
-)
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.cdf_adapter import (
     _convert_yaml_direct_to_engine_config,
     convert_cdf_config_to_engine_config,
@@ -27,15 +24,17 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 
 from .kahn_run_context import KahnRunContext
 from .kahn_workflow_executor import (
-    run_post_extraction_parallel,
-    step_incremental_state_update,
-    step_key_extraction,
+    run_compiled_workflow_dag,
+    run_deferred_alias_persistence_tasks,
     validate_execution_graph_at_startup,
 )
 from .report import ensure_results_dir
+from .ui_progress import ui_progress_log_forwarding
 from .workflow_payload import (
+    compiled_workflow_for_local_run,
     merged_scope_document_for_local_run,
     remap_associations_for_filtered_source_views,
+    scope_document_has_embedded_compiled_workflow,
     workflow_instance_space_for_local,
 )
 
@@ -399,12 +398,11 @@ def _run_workflow_parity(
     scope_yaml_path: Path,
 ) -> None:
     """
-    Kahn-style macro DAG: incremental → key extraction → (reference index ∥ aliasing) → persist.
+    Execute ``compiled_workflow`` tasks in topological order (same IR as ``workflow.input``).
 
-    Matches deployed WorkflowVersion dependsOn; post-extraction branches run concurrently locally.
+    Uses an embedded root ``compiled_workflow`` when present (e.g. trigger snapshot); otherwise
+    compiles the flow canvas. Independent branches run concurrently where the DAG allows.
     """
-    validate_execution_graph_at_startup(_MODULE_ROOT, logger)
-
     pipe_logger: Any = StdlibLoggerAdapter(logger)
     cdf_config, engine_config = _load_cdf_config_and_engine(
         scope_yaml_path, source_views, logger
@@ -435,10 +433,17 @@ def _run_workflow_parity(
     wf_instance_space = workflow_instance_space_for_local(
         source_views, getattr(args, "instance_space", None)
     )
+    if scope_document_has_embedded_compiled_workflow(scope_document):
+        logger.info(
+            "Using embedded root-level compiled_workflow from scope (matches workflow.input DAG); "
+            "skipping canvas compile."
+        )
+    compiled_wf = compiled_workflow_for_local_run(scope_document)
+    validate_execution_graph_at_startup(_MODULE_ROOT, logger, compiled_wf)
 
     logger.info(
-        "Incremental mode: Kahn macro run "
-        "(state → extraction → reference_index ∥ aliasing → persistence)"
+        "Incremental mode: executing compiled_workflow DAG "
+        "(state → fn_dm_* tasks per workflow.input.compiled_workflow)"
     )
     progress_every = max(0, int(getattr(args, "progress_every", 0) or 0))
 
@@ -458,20 +463,20 @@ def _run_workflow_parity(
         write_foreign_key_references=write_foreign_key_references,
         foreign_key_writeback_property=foreign_key_writeback_property,
         progress_every=progress_every,
+        compiled_workflow=compiled_wf,
     )
 
-    step_incremental_state_update(ctx)
+    run_compiled_workflow_dag(ctx, defer_alias_persistence=True)
     run_id = ctx.run_id
     cohort_rows = ctx.cohort_rows
     cohort_skipped_hash = ctx.cohort_skipped_hash
 
-    step_key_extraction(ctx)
     entities_keys_extracted = ctx.entities_keys_extracted
     rollup = _rollup_extraction_from_entities(entities_keys_extracted)
     ctx.rollup = rollup
     keys_extracted = ctx.keys_extracted
     logger.info(
-        "✓ Key extraction: run_id=%s, keys_extracted=%s, entities=%s, "
+        "✓ Key extraction (aggregated): run_id=%s, keys_extracted=%s, entities=%s, "
         "candidate_key_values=%s, fk_refs=%s, doc_refs=%s, extraction_failed=%s",
         run_id,
         keys_extracted,
@@ -482,11 +487,14 @@ def _run_workflow_parity(
         rollup["extraction_failed_count"],
     )
 
-    run_post_extraction_parallel(ctx)
     ref_summary = ctx.ref_summary
     alias_data = ctx.alias_data
 
-    aliasing_results = alias_data.get("aliasing_results") or []
+    aliasing_results = (
+        list(ctx.accumulated_aliasing_results)
+        if ctx.accumulated_aliasing_results
+        else (alias_data.get("aliasing_results") or [])
+    )
     all_extraction_items = _extraction_json_items_from_entities(entities_keys_extracted)
     aliasing_items = _aliasing_json_items_from_results(aliasing_results)
 
@@ -506,6 +514,8 @@ def _run_workflow_parity(
 
     logger.info(f"✓ Wrote extraction results: {extraction_path}")
     logger.info(f"✓ Wrote aliasing results:   {aliasing_path}")
+
+    run_deferred_alias_persistence_tasks(ctx)
 
     extracted_fk_count = sum(
         len(item.get("extraction_result", {}).get("foreign_key_references") or [])
@@ -568,30 +578,12 @@ def _run_workflow_parity(
         )
         return
 
-    logger.info("Persisting aliases to CogniteDescribable view...")
-    try:
-        persistence_data: Dict[str, Any] = {
-            "aliasing_results": aliasing_results,
-            "entities_keys_extracted": entities_keys_extracted,
-            "logLevel": "INFO",
-            "configuration": scope_document,
-            "instance_space": wf_instance_space,
-        }
-        if alias_writeback_property:
-            persistence_data["alias_writeback_property"] = alias_writeback_property
-        if wfk:
-            persistence_data["write_foreign_key_references"] = True
-            if fk_prop:
-                persistence_data["foreign_key_writeback_property"] = fk_prop
-        persist_aliases_to_entities(
-            client=client,
-            logger=logger,
-            data=persistence_data,
-        )
-        fk_written = int(persistence_data.get("foreign_keys_persisted", 0))
+    ps = ctx.persistence_summary
+    fk_written = int((ps or {}).get("fk_persisted", 0) or 0)
+    if ps and ps.get("status") == "ok":
         persist_msg = (
-            f"✓ Persisted to data model: {persistence_data.get('entities_updated', 0)} entities updated, "
-            f"{persistence_data.get('aliases_persisted', 0)} alias value(s) written, "
+            f"✓ Persisted to data model: {ps.get('entities_updated', 0)} entities updated, "
+            f"{ps.get('aliases_persisted', 0)} alias value(s) written, "
             f"{fk_written} foreign key value(s) written"
         )
         if not wfk and extracted_fk_count:
@@ -604,8 +596,8 @@ def _run_workflow_parity(
         logger.info(persist_msg)
         logger.info(
             "✓ Persistence: entities_updated=%s, aliases_persisted=%s, fk_values_persisted=%s",
-            persistence_data.get("entities_updated", 0),
-            persistence_data.get("aliases_persisted", 0),
+            ps.get("entities_updated", 0),
+            ps.get("aliases_persisted", 0),
             fk_written,
         )
         _log_cli_run_summary(
@@ -627,10 +619,8 @@ def _run_workflow_parity(
                 },
                 "persistence": {
                     "completed": True,
-                    "entities_updated": int(persistence_data.get("entities_updated", 0) or 0),
-                    "aliases_persisted": int(
-                        persistence_data.get("aliases_persisted", 0) or 0
-                    ),
+                    "entities_updated": int(ps.get("entities_updated", 0) or 0),
+                    "aliases_persisted": int(ps.get("aliases_persisted", 0) or 0),
                     "fk_persisted": fk_written,
                 },
                 "paths": {
@@ -639,8 +629,8 @@ def _run_workflow_parity(
                 },
             },
         )
-    except Exception as e:
-        logger.error(f"Failed to persist aliases: {e}", exc_info=True)
+    elif ps and ps.get("status") == "skipped":
+        logger.info("✓ Persistence: skipped (%s)", ps.get("reason", ""))
         _log_cli_run_summary(
             logger,
             {
@@ -658,7 +648,36 @@ def _run_workflow_parity(
                         "key_extraction_workflow_rows_updated"
                     ),
                 },
-                "persistence": {"error": str(e)[:500]},
+                "persistence": {"skipped": True, "reason": ps.get("reason")},
+                "paths": {
+                    "extraction": str(extraction_path),
+                    "aliasing": str(aliasing_path),
+                },
+            },
+        )
+    else:
+        logger.warning(
+            "No fn_dm_alias_persistence task ran (compiled_workflow has no persistence stage); "
+            "nothing written to the data model."
+        )
+        _log_cli_run_summary(
+            logger,
+            {
+                "run_id": run_id,
+                "incremental": True,
+                "cohort_rows": cohort_rows,
+                "cohort_skipped_hash": cohort_skipped_hash,
+                "keys_extracted": keys_extracted,
+                "rollup": rollup,
+                "reference_index": ref_summary,
+                "aliasing": {
+                    "tags": alias_data.get("total_tags_processed", 0),
+                    "aliases": alias_data.get("total_aliases_generated", 0),
+                    "workflow_rows_updated": alias_data.get(
+                        "key_extraction_workflow_rows_updated"
+                    ),
+                },
+                "persistence": {"completed": False, "reason": "no_alias_persistence_task"},
                 "paths": {
                     "extraction": str(extraction_path),
                     "aliasing": str(aliasing_path),
@@ -683,14 +702,13 @@ def run_pipeline(
     inc_raw = params.get("incremental_change_processing")
     incremental = True if inc_raw is None else bool(inc_raw)
     if not incremental:
-        raise ValueError(
-            "local_runner requires key_extraction.parameters.incremental_change_processing=true "
-            "(default). Direct view listing was removed; use --scope or --config-path for workflow "
-            "parity (incremental state update → key extraction → reference index ∥ aliasing → persistence)."
+        logger.info(
+            "incremental_change_processing is false: incremental_state_update will no-op "
+            "(v5 stable DAG); key extraction still runs with a synthetic run_id."
         )
     if not scope_yaml_path:
         raise ValueError(
-            "incremental_change_processing requires a scope YAML path "
+            "Workflow parity runs require a scope YAML path "
             "(module-root workflow.local.config.yaml with --scope default, or --config-path)."
         )
     sp = Path(scope_yaml_path)
@@ -698,15 +716,17 @@ def run_pipeline(
         logger.info(
             "--all: run entire scope (same as workflow input run_all=true)."
         )
-    _run_workflow_parity(
-        args,
-        logger,
-        client,
-        aliasing_config,
-        source_views,
-        alias_writeback_property,
-        write_foreign_key_references,
-        foreign_key_writeback_property,
-        sp,
-    )
+    log_fwd_level = logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
+    with ui_progress_log_forwarding(log_fwd_level):
+        _run_workflow_parity(
+            args,
+            logger,
+            client,
+            aliasing_config,
+            source_views,
+            alias_writeback_property,
+            write_foreign_key_references,
+            foreign_key_writeback_property,
+            sp,
+        )
     return

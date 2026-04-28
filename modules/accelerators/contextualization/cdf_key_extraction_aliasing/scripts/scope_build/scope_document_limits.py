@@ -28,3 +28,13 @@ def assert_scope_document_within_limit(scope_document: dict, *, scope_id: str) -
             f"configuration for scope_id={scope_id!r} minified JSON is {n} bytes "
             f"(limit {MAX_SCOPE_DOCUMENT_JSON_BYTES}); shrink config or split scopes."
         )
+
+
+def assert_workflow_trigger_input_within_limit(workflow_input: dict, *, scope_id: str) -> None:
+    """Raise ValueError if the full trigger ``input`` mapping (configuration + compiled_workflow, etc.) is too large."""
+    n = minified_json_utf8_length(workflow_input)
+    if n > MAX_SCOPE_DOCUMENT_JSON_BYTES:
+        raise ValueError(
+            f"workflow trigger input for scope_id={scope_id!r} minified JSON is {n} bytes "
+            f"(limit {MAX_SCOPE_DOCUMENT_JSON_BYTES}); shrink configuration or compiled_workflow."
+        )

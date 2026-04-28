@@ -318,36 +318,6 @@ export function KeaAliasPersistenceNode({ data, selected }: NodeProps) {
   );
 }
 
-/** Layout: pipeline output persisted to Cognite RAW (db / table); configure in scope or task data. */
-export function KeaWritebackRawNode({ data, selected }: NodeProps) {
-  const d = (data ?? {}) as WorkflowCanvasNodeData;
-  const h = useDataHandles();
-  return (
-    <div className={nodeClass(!!selected, "writeback-raw")} style={mergeNodeCardStyle(d)}>
-      <Handle type="target" position={h.in} id="in" />
-      <div className="kea-flow-node__badge">raw</div>
-      <div className="kea-flow-node__title">{d.label || "Writeback (RAW)"}</div>
-      <div className="kea-flow-node__meta">Cognite RAW</div>
-      <Handle type="source" position={h.out} id="out" />
-    </div>
-  );
-}
-
-/** Layout: writeback to CDF Data Modeling (instances / views); configure in scope or task data. */
-export function KeaWritebackDataModelingNode({ data, selected }: NodeProps) {
-  const d = (data ?? {}) as WorkflowCanvasNodeData;
-  const h = useDataHandles();
-  return (
-    <div className={nodeClass(!!selected, "writeback-dm")} style={mergeNodeCardStyle(d)}>
-      <Handle type="target" position={h.in} id="in" />
-      <div className="kea-flow-node__badge">dm</div>
-      <div className="kea-flow-node__title">{d.label || "Writeback (Data modeling)"}</div>
-      <div className="kea-flow-node__meta">CDF Data Modeling</div>
-      <Handle type="source" position={h.out} id="out" />
-    </div>
-  );
-}
-
 /** fn_dm_reference_index — inverted RAW index from FK / document reference JSON in extraction store. */
 export function KeaReferenceIndexNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;

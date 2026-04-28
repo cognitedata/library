@@ -472,8 +472,8 @@ aliasing:
           expression_match: fullmatch
           match:
             expressions:
-            - pattern: '^.{0,1}$'
-              description: Alias too short (length under 2) or empty
+            - pattern: '^[0-9]{0,3}$'
+              description: Alias is only digits and shorter than 4 characters (empty counts as invalid)
             - pattern: '^.{51,}$'
               description: Alias exceeds maximum length 50
             - pattern: '[^A-Za-z0-9-_/. ]'

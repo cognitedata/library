@@ -35,6 +35,7 @@ import {
 import { appendKeaConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } from "./flowEdgeHelpers";
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowPalette, getPaletteDropPayload } from "./FlowPalette";
+import { WorkflowCompileToolbar } from "./WorkflowCompileToolbar";
 import { seedCanvasFromScope } from "./seedCanvasFromScope";
 import { patchScopeForSourceViewToExtractionConnection } from "./workflowScopeConnectionPatch";
 import { useFlowPanelLayout } from "./useFlowPanelLayout";
@@ -101,6 +102,8 @@ type Props = {
   onSyncScopeFromCanvas?: (canvas: WorkflowCanvasDocument) => void;
   /** From module default config — passed to source view CDF pickers in the node editor modal. */
   schemaSpace?: string;
+  /** When true, the canvas is view-only (no drag/connect/drop, toolbars and palette disabled). */
+  readOnly?: boolean;
 };
 
 function FlowCanvasBody({
@@ -112,6 +115,7 @@ function FlowCanvasBody({
   onChange,
   onSyncScopeFromCanvas,
   schemaSpace,
+  readOnly = false,
 }: Props) {
   const { screenToFlowPosition, getNode, getNodes, getEdges, fitView } = useReactFlow();
 
@@ -169,7 +173,11 @@ function FlowCanvasBody({
     setNodes(snap.nodes);
     setEdges(snap.edges);
     skipEmitRef.current = true;
-  }, [reloadNonce, setNodes, setEdges, setHandleOrientation, flowHistory.reset]);
+    const fitId = window.requestAnimationFrame(() => {
+      fitView({ padding: 0.15, duration: 0 });
+    });
+    return () => window.cancelAnimationFrame(fitId);
+  }, [reloadNonce, setNodes, setEdges, setHandleOrientation, flowHistory.reset, fitView]);
 
   useEffect(() => {
     if (skipEmitRef.current) {
@@ -195,10 +203,18 @@ function FlowCanvasBody({
   }, []);
   const [connectEndMenu, setConnectEndMenu] = useState<ConnectEndMenuState | null>(null);
 
+  useEffect(() => {
+    if (!readOnly) return;
+    setEditorModalNode(null);
+    setSubgraphDrillNodeId(null);
+    setConnectEndMenu(null);
+  }, [readOnly]);
+
   const isValidConnection = useCallback((c: Connection | Edge) => isValidKeaFlowConnection(getNode, c), [getNode]);
 
   const onConnect = useCallback(
     (params: Connection) => {
+      if (readOnly) return;
       setEdges((eds) => appendKeaConnectionEdge(getNode, eds, params));
       patchScopeForSourceViewToExtractionConnection(
         patchWorkflowScopeRef.current,
@@ -206,11 +222,12 @@ function FlowCanvasBody({
         getNode(params.target)
       );
     },
-    [setEdges, getNode]
+    [setEdges, getNode, readOnly]
   );
 
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+      if (readOnly) return;
       const cs = connectionState;
       if (!cs.fromNode || !cs.fromHandle) return;
       if (cs.fromHandle.type !== "source") return;
@@ -234,7 +251,7 @@ function FlowCanvasBody({
         sourceHandleId: handleId,
       });
     },
-    [getNode, screenToFlowPosition]
+    [getNode, screenToFlowPosition, readOnly]
   );
 
   const commitConnectEndMenu = useCallback(
@@ -296,13 +313,18 @@ function FlowCanvasBody({
     };
   }, [connectEndMenu]);
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  }, []);
+  const onDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (readOnly) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    },
+    [readOnly]
+  );
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
+      if (readOnly) return;
       e.preventDefault();
       const payload = getPaletteDropPayload(e);
       if (!payload) return;
@@ -334,7 +356,7 @@ function FlowCanvasBody({
         setSelectedEdge(null);
       }
     },
-    [screenToFlowPosition, setNodes, setEdges, nodes, edges, workflowScopeDoc, getNode, t]
+    [screenToFlowPosition, setNodes, setEdges, nodes, edges, workflowScopeDoc, getNode, t, readOnly]
   );
 
   const patchNode = useCallback(
@@ -531,6 +553,7 @@ function FlowCanvasBody({
 
   const onNodeDoubleClick = useCallback((e: React.MouseEvent, node: Node) => {
     e.preventDefault();
+    if (readOnly) return;
     if (node.type === "keaSubgraph") {
       openSubgraphDrill(node.id);
       setSelectedNode(node);
@@ -540,7 +563,7 @@ function FlowCanvasBody({
     setEditorModalNode(node);
     setSelectedNode(node);
     setSelectedEdge(null);
-  }, [openSubgraphDrill]);
+  }, [openSubgraphDrill, readOnly]);
 
   const handleSeed = useCallback(() => {
     const doc = seedCanvasFromScope(workflowScopeDoc);
@@ -635,6 +658,7 @@ function FlowCanvasBody({
 
   const onPaneContextMenu = useCallback(
     (e: React.MouseEvent | MouseEvent) => {
+      if (readOnly) return;
       flowCtxMenu.open(e, [
         {
           id: "fit",
@@ -649,11 +673,12 @@ function FlowCanvasBody({
         { id: "seed", label: t("flow.seedFromScope"), onSelect: () => handleSeed() },
       ]);
     },
-    [flowCtxMenu, t, fitView, handleAutoLayout, handleSeed]
+    [flowCtxMenu, t, fitView, handleAutoLayout, handleSeed, readOnly]
   );
 
   const onFlowNodeContextMenu = useCallback(
     (e: React.MouseEvent, node: Node) => {
+      if (readOnly) return;
       setSelectedNode(node);
       setSelectedEdge(null);
       if (node.type === "keaStart" || node.type === "keaEnd") return;
@@ -737,11 +762,13 @@ function FlowCanvasBody({
       setNodes,
       setEdges,
       handleOrientation,
+      readOnly,
     ]
   );
 
   const onFlowEdgeContextMenu = useCallback(
     (e: React.MouseEvent, edge: Edge) => {
+      if (readOnly) return;
       setSelectedEdge(edge);
       setSelectedNode(null);
       const fd = (edge.data ?? {}) as FlowEdgeData;
@@ -766,7 +793,7 @@ function FlowCanvasBody({
       ];
       flowCtxMenu.open(e, items);
     },
-    [flowCtxMenu, t, patchEdge, removeEdgeById]
+    [flowCtxMenu, t, patchEdge, removeEdgeById, readOnly]
   );
 
   const panel = useFlowPanelLayout();
@@ -807,7 +834,22 @@ function FlowCanvasBody({
                 ‹
               </button>
             </div>
-            <FlowPalette t={t} scopeDocument={workflowScopeDoc} />
+            <WorkflowCompileToolbar
+              t={t}
+              workflowScopeDoc={workflowScopeDoc}
+              onPatchWorkflowScope={onPatchWorkflowScope}
+              readOnly={readOnly}
+            />
+            <div
+              style={
+                readOnly
+                  ? { pointerEvents: "none", opacity: 0.65 }
+                  : undefined
+              }
+              aria-hidden={readOnly ? true : undefined}
+            >
+              <FlowPalette t={t} scopeDocument={workflowScopeDoc} />
+            </div>
           </>
         )}
       </div>
@@ -822,12 +864,12 @@ function FlowCanvasBody({
       )}
       <div className="kea-flow-main">
         <div className="kea-flow-toolbar">
-          <button type="button" className="kea-btn kea-btn--sm" onClick={handleSeed}>
+          <button type="button" className="kea-btn kea-btn--sm" disabled={readOnly} onClick={handleSeed}>
             {t("flow.seedFromScope")}
           </button>
           <FlowSelectionAlignButtons
             t={t}
-            disabled={alignableSelectionCount < 2}
+            disabled={readOnly || alignableSelectionCount < 2}
             onAlign={applySelectionAlign}
           />
           <label className="kea-flow-toolbar__orientation">
@@ -840,6 +882,7 @@ function FlowCanvasBody({
               value={handleOrientation}
               onChange={onHandleOrientationChange}
               aria-label={t("flow.handleOrientationLabel")}
+              disabled={readOnly}
             >
               <option value="lr">{t("flow.handleOrientationLr")}</option>
               <option value="tb">{t("flow.handleOrientationTb")}</option>
@@ -857,10 +900,10 @@ function FlowCanvasBody({
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               isValidConnection={isValidConnection}
-              onConnect={onConnect}
-              onConnectEnd={onConnectEnd}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
+              onConnect={readOnly ? undefined : onConnect}
+              onConnectEnd={readOnly ? undefined : onConnectEnd}
+              onDrop={readOnly ? undefined : onDrop}
+              onDragOver={readOnly ? undefined : onDragOver}
               nodeTypes={KEA_FLOW_NODE_TYPES}
               defaultEdgeOptions={{ animated: true }}
               onNodeClick={onNodeClick}
@@ -871,6 +914,9 @@ function FlowCanvasBody({
               onPaneContextMenu={onPaneContextMenu}
               onNodeContextMenu={onFlowNodeContextMenu}
               onEdgeContextMenu={onFlowEdgeContextMenu}
+              nodesDraggable={!readOnly}
+              nodesConnectable={!readOnly}
+              edgesReconnectable={!readOnly}
               fitView
               minZoom={0.2}
               maxZoom={1.5}
@@ -963,19 +1009,33 @@ function FlowCanvasBody({
               </button>
               <span className="kea-flow-shell__panel-bar-title">{t("flow.rightPanelTitle")}</span>
             </div>
-            <FlowNodeInspector
-              t={t}
-              selectedNode={selectedNode}
-              selectedEdge={selectedEdge}
-              workflowDoc={workflowScopeDoc}
-              flowNodes={nodes}
-              onPatchWorkflowScope={onPatchWorkflowScope}
-              onPatchNode={patchNode}
-              onPatchEdge={patchEdge}
-              onSetNodeParent={setNodeParent}
-              onApplySubflowPorts={applySubflowPorts}
-              onOpenSubgraphDrill={(id) => openSubgraphDrill(id)}
-            />
+            <div style={{ position: "relative", flex: "1 1 auto", minHeight: 0 }}>
+              <FlowNodeInspector
+                t={t}
+                selectedNode={selectedNode}
+                selectedEdge={selectedEdge}
+                workflowDoc={workflowScopeDoc}
+                flowNodes={nodes}
+                onPatchWorkflowScope={onPatchWorkflowScope}
+                onPatchNode={patchNode}
+                onPatchEdge={patchEdge}
+                onSetNodeParent={setNodeParent}
+                onApplySubflowPorts={applySubflowPorts}
+                onOpenSubgraphDrill={(id) => openSubgraphDrill(id)}
+              />
+              {readOnly ? (
+                <div
+                  aria-hidden
+                  title=""
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    zIndex: 2,
+                    cursor: "not-allowed",
+                  }}
+                />
+              ) : null}
+            </div>
           </>
         )}
       </div>

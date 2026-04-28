@@ -4,13 +4,20 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.workflow_associations import (
     KIND_SOURCE_VIEW_TO_EXTRACTION,
     coerce_association_source_view_index,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.scope_canvas_merge import (
+    canvas_sibling_path,
+    merge_sibling_canvas_yaml_into_scope,
+)
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.workflow_compile.canvas_dag import (
+    compiled_workflow_for_scope_document,
 )
 
 
@@ -83,6 +90,7 @@ def merged_scope_document_for_local_run(
     out = copy.deepcopy(doc)
     if not isinstance(out.get("key_extraction"), dict):
         raise ValueError("Scope YAML requires key_extraction mapping")
+    merge_sibling_canvas_yaml_into_scope(out, scope_yaml_path)
     original_svs = out.get("source_views")
     filtered_svs = copy.deepcopy(source_views)
     raw_assoc = out.get("associations")
@@ -97,6 +105,45 @@ def merged_scope_document_for_local_run(
         )
     out["source_views"] = filtered_svs
     return out
+
+
+def compiled_workflow_for_merged_scope_document(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Return ``compiled_workflow`` IR for a merged v1 scope dict (local / trigger parity)."""
+    return compiled_workflow_for_scope_document(doc)
+
+
+def _embedded_compiled_workflow_tasks(doc: Mapping[str, Any]) -> Optional[List[Any]]:
+    """Return tasks list when *doc* carries a usable pre-built ``compiled_workflow`` (e.g. from trigger)."""
+    cw = doc.get("compiled_workflow")
+    if not isinstance(cw, dict):
+        return None
+    tasks = cw.get("tasks")
+    if not isinstance(tasks, list) or not tasks:
+        return None
+    for t in tasks:
+        if not isinstance(t, dict) or not t.get("id"):
+            return None
+        if not str(t.get("function_external_id") or "").strip():
+            return None
+    return tasks
+
+
+def scope_document_has_embedded_compiled_workflow(doc: Mapping[str, Any]) -> bool:
+    """True when *doc* includes a root ``compiled_workflow`` with executable tasks (trigger snapshot)."""
+    return _embedded_compiled_workflow_tasks(doc) is not None
+
+
+def compiled_workflow_for_local_run(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Resolve ``compiled_workflow`` for ``module.py run`` / Kahn executor.
+
+    Prefer a non-empty root ``compiled_workflow`` on the scope document (WorkflowTrigger snapshot
+    or hand-edited parity) so local execution matches deployed ``workflow.input``; otherwise compile
+    from the flow canvas like CDF build.
+    """
+    if _embedded_compiled_workflow_tasks(doc) is not None:
+        return copy.deepcopy(doc["compiled_workflow"])
+    return compiled_workflow_for_scope_document(doc)
 
 
 def workflow_instance_space_for_local(

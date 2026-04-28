@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -8,6 +8,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from "@xyflow/react";
 import type { MessageKey } from "../../i18n";
 import { normalizeWorkflowCanvasHandleOrientation, type WorkflowCanvasDocument } from "../../types/workflowCanvas";
@@ -17,21 +18,63 @@ import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
+export type WorkflowPreviewLocalRun = {
+  runAll: boolean;
+  onRunAllChange: (next: boolean) => void;
+  busy: boolean;
+  executingTaskIds: readonly string[];
+  onRun: () => void;
+};
+
 type Props = {
   t: TFn;
   document: WorkflowCanvasDocument;
   reloadNonce: number;
   onEdit: () => void;
+  localRun?: WorkflowPreviewLocalRun;
 };
 
-function PreviewInner({ doc, reloadNonce }: { doc: WorkflowCanvasDocument; reloadNonce: number }) {
+/** v12 ``fitView`` prop runs mainly on mount; refit after nodes/edges sync so the graph is not off-screen. */
+function PreviewFitView({ graphRevision }: { graphRevision: number }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      fitView({ padding: 0.12, duration: 0 });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [graphRevision, fitView]);
+  return null;
+}
+
+function PreviewInner({
+  doc,
+  reloadNonce,
+  executingTaskIds,
+}: {
+  doc: WorkflowCanvasDocument;
+  reloadNonce: number;
+  executingTaskIds: readonly string[];
+}) {
   const [nodes, setNodes, onNodesChange] = useNodesState(canvasToFlowNodes(doc.nodes));
   const [edges, setEdges, onEdgesChange] = useEdgesState(canvasToFlowEdges(doc.edges));
 
   useEffect(() => {
-    setNodes(canvasToFlowNodes(doc.nodes));
+    const active = new Set(executingTaskIds);
+    const nextNodes = canvasToFlowNodes(doc.nodes).map((n) => {
+      if (!active.has(n.id)) return n;
+      return {
+        ...n,
+        className: "kea-flow-node--executing",
+      };
+    });
+    setNodes(nextNodes);
     setEdges(canvasToFlowEdges(doc.edges));
-  }, [doc, reloadNonce, setNodes, setEdges]);
+  }, [doc, reloadNonce, executingTaskIds, setNodes, setEdges]);
+
+  const graphRevision = useMemo(
+    () => reloadNonce + doc.nodes.length + doc.edges.length + executingTaskIds.length,
+    [reloadNonce, doc.nodes.length, doc.edges.length, executingTaskIds.length]
+  );
 
   const orient = normalizeWorkflowCanvasHandleOrientation(doc.handle_orientation);
   return (
@@ -54,8 +97,12 @@ function PreviewInner({ doc, reloadNonce }: { doc: WorkflowCanvasDocument; reloa
         maxZoom={1.5}
         deleteKeyCode={null}
         fitView
+        onInit={(inst) => {
+          window.requestAnimationFrame(() => inst.fitView({ padding: 0.12, duration: 0 }));
+        }}
         proOptions={{ hideAttribution: true }}
       >
+        <PreviewFitView graphRevision={graphRevision} />
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
         <Controls />
         <MiniMap zoomable pannable className="kea-flow-minimap" />
@@ -64,20 +111,50 @@ function PreviewInner({ doc, reloadNonce }: { doc: WorkflowCanvasDocument; reloa
   );
 }
 
-export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdit }: Props) {
+export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdit, localRun }: Props) {
   return (
     <div className="kea-flow-preview">
       <div className="kea-flow-preview__toolbar">
-        <p className="kea-hint" style={{ margin: 0, flex: "1 1 auto" }}>
-          {t("flow.canvasPreviewHint")}
-        </p>
-        <button type="button" className="kea-btn kea-btn--primary" onClick={onEdit}>
-          {t("flow.editCanvas")}
+        <p className="kea-hint kea-flow-preview__toolbar-hint">{t("flow.canvasPreviewHint")}</p>
+        <button
+          type="button"
+          className="kea-btn kea-btn--primary"
+          disabled={Boolean(localRun?.busy)}
+          onClick={onEdit}
+        >
+          {t("flow.editWorkflow")}
         </button>
       </div>
+      {localRun ? (
+        <div className="kea-flow-preview__runbar" role="group" aria-label={t("flow.previewRunLocal")}>
+          <button
+            type="button"
+            className="kea-btn kea-btn--primary"
+            disabled={localRun.busy}
+            onClick={() => localRun.onRun()}
+          >
+            {localRun.busy ? t("status.running") : t("flow.previewRunLocal")}
+          </button>
+          <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.35rem" }}>
+            <input
+              type="checkbox"
+              checked={localRun.runAll}
+              disabled={localRun.busy}
+              onChange={(e) => localRun.onRunAllChange(e.target.checked)}
+            />
+            <span>{t("run.runAll")}</span>
+          </label>
+          <p className="kea-hint kea-flow-preview__runbar-hint">{t("flow.previewRunLocalHint")}</p>
+        </div>
+      ) : null}
       <div className="kea-flow-preview__canvas">
         <ReactFlowProvider>
-          <PreviewInner key={reloadNonce} doc={doc} reloadNonce={reloadNonce} />
+          <PreviewInner
+            key={reloadNonce}
+            doc={doc}
+            reloadNonce={reloadNonce}
+            executingTaskIds={localRun?.executingTaskIds ?? []}
+          />
         </ReactFlowProvider>
       </div>
     </div>

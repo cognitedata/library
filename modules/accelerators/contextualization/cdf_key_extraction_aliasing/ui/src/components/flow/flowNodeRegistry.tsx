@@ -1,8 +1,6 @@
 import {
   KeaAliasingNode,
   KeaAliasPersistenceNode,
-  KeaWritebackRawNode,
-  KeaWritebackDataModelingNode,
   KeaEndNode,
   KeaExtractionNode,
   KeaReferenceIndexNode,
@@ -31,7 +29,5 @@ export const KEA_FLOW_NODE_TYPES = {
   keaMatchValidationRuleExtraction: KeaValidationRuleNode,
   keaMatchValidationRuleAliasing: KeaValidationRuleNode,
   keaAliasPersistence: KeaAliasPersistenceNode,
-  keaWritebackRaw: KeaWritebackRawNode,
-  keaWritebackDataModeling: KeaWritebackDataModelingNode,
   keaReferenceIndex: KeaReferenceIndexNode,
 };

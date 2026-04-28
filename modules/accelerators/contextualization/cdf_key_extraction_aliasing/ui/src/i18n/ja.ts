@@ -14,7 +14,7 @@ export const ja: Messages = {
   "tabs.keyExtraction": "キー探索",
   "tabs.aliasing": "エイリアス",
   "tabs.flowCanvas": "フロー",
-  "tabs.runPipeline": "パイプラインを実行",
+  "tabs.runPipeline": "ワークフローを実行",
   "tabs.configure": "設定",
   "tabs.build": "ビルド",
   "tabs.artifacts": "成果物",
@@ -38,7 +38,11 @@ export const ja: Messages = {
   "btn.refreshList": "一覧を更新",
   "btn.runBuild": "ビルドを実行",
   "btn.runBuildForce": "ビルドを実行（強制）",
-  "btn.runPipeline": "パイプラインを実行",
+  "btn.runPipeline": "ローカル実行",
+  "btn.deployScope": "CDF にデプロイ",
+  "btn.deployScopeDryRun": "デプロイのドライラン",
+  "btn.cdfWorkflowRun": "CDF で実行",
+  "btn.cdfWorkflowRunDryRun": "CDF のドライラン",
   "btn.dryRun": "ドライラン",
   "status.loading": "読み込み中…",
   "status.saving": "保存中…",
@@ -70,6 +74,15 @@ export const ja: Messages = {
   "config.fileHint.default": "default.config.yaml",
   "config.fileHint.workflowLocal": "workflow.local.config.yaml",
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
+  "config.updateTemplate": "テンプレートを更新",
+  "config.updateTemplateTooltip":
+    "ディスク上の保存済みローカルファイルで workflow_template/workflow.template.config.yaml と workflow.template.canvas.yaml を上書きします（``python module.py promote-local-templates`` と同じ）。エディターに未保存の変更がある場合は先に保存してください。",
+  "config.promoteTemplateConfirm":
+    "保存済みの workflow.local.config.yaml と workflow.local.canvas.yaml で、ディスク上の workflow.template.config.yaml と workflow.template.canvas.yaml を上書きしますか？ UI からは元に戻せません（Git で戻してください）。",
+  "config.promoteTemplateDirtyConfirm":
+    "エディターに未保存の変更があります。テンプレートはエディターではなく、ディスクに保存済みの内容で更新されます。続行しますか？",
+  "config.templatePromoted":
+    "workflow.local.config.yaml と workflow.local.canvas.yaml から、テンプレートの設定とキャンバスをディスク上で更新しました。",
   "build.warnForce": "強制すると生成済みワークフロー YAML が上書きされます。実行前に確認してください。",
   "build.confirmForce": "生成済みワークフロー ファイルを --force で上書きしますか？",
   "build.outputPlaceholder": "ビルド出力はここに表示されます。",
@@ -79,10 +92,22 @@ export const ja: Messages = {
   "run.contextWorkflowTrigger":
     "保存済みの WorkflowTrigger ファイルの input.configuration を使用します（{path}）。エディタの変更を反映するには実行前に保存してください。",
   "run.triggerUnsaved": "このトリガーに未保存の変更があります。実行ではディスク上の最後に保存したファイルが使われます。",
-  "run.runAll": "すべて実行（--all）",
+  "run.runAll": "すべて実行",
   "run.runAllHint":
     "増分モードが有効な場合、スコープ全体を処理します（ワークフロー入力の run_all と同じ）。増分モードがオフのときは効果がありません。",
+  "run.cdfToolsHint":
+    "デプロイは Cognite SDK で選択スコープの Workflow / WorkflowVersion / WorkflowTrigger を CDF に upsert します（資格情報は module.py run と同じ）。関数など Toolkit の他リソースは含みません。CDF で実行はワークフロー実行を開始します（KEA_WORKFLOW_CLIENT_* は任意）。この UI では生成済みトリガー YAML の未解決の ``{{…}}`` プレースホルダーを許可します。",
+  "run.cdfScopedOnly":
+    "デプロイと CDF での実行は workflows/<suffix>/ 配下のスコープ済みマニフェストのみ対象です（workflow.local や workflow_template は対象外）。サイドバーで WorkflowTrigger を選択してください。",
+  "run.cdfDeployOutputPlaceholder": "デプロイと CDF ワークフロー実行のログがここに表示されます。",
+  "run.needTriggerScope":
+    "サイドバーで workflows/<scope>/ 配下の WorkflowTrigger ファイルを選択すると、そのスコープのデプロイと CDF で実行が有効になります。",
   "run.outputPlaceholder": "パイプラインの出力がここに表示されます。",
+  "run.localRunExitLine": "[ローカル実行] exit_code={code}",
+  "run.localTaskStart": "▶ 開始 {functionId} (タスク {taskId}){nodeSuffix}",
+  "run.localTaskEnd": "✓ 完了 {functionId} (タスク {taskId}){nodeSuffix}",
+  "run.localExecutingNow": "→ 実行中: {list}",
+  "run.localExecutingNone": "(なし)",
   "scope.levelsLabel": "レベル（カンマ区切り）",
   "scope.levelsLabel.tooltip":
     "階層の各深さのラベル（例: site, unit, system）。カンマ区切り。",
@@ -115,7 +140,6 @@ export const ja: Messages = {
   "module.field.schemaSpace": "スキーマ スペース",
   "module.field.viewVersion": "ビューのバージョン",
   "module.field.workflow": "ワークフロー",
-  "module.field.scope_build_mode": "スコープ生成モード",
   "module.field.key_extraction_aliasing_schedule": "キー探索・エイリアス スケジュール",
   "module.field.files_location_processing_group_source_id": "ファイル位置処理グループのソース ID",
   "module.field.functionVersion": "関数のバージョン",
@@ -445,6 +469,8 @@ export const ja: Messages = {
   "triggerEditor.workflowVersion": "ワークフローのバージョン",
   "triggerEditor.authClientId": "クライアント ID",
   "triggerEditor.authClientSecret": "クライアント シークレット",
+  "triggerEditor.authDeployHint":
+    "クライアント ID とシークレットはこの YAML には保存されません（環境変数を使用）。CDF へのデプロイ時に KEA_WORKFLOW_TRIGGER_CLIENT_ID / _SECRET、または IDP_CLIENT_*、または COGNITE_CLIENT_* を読み取り、API リクエストでのみ送信します。",
   "triggerEditor.triggerType": "トリガー種別",
   "triggerEditor.cronExpression": "Cron 式",
   "triggerEditor.scheduleHint":
@@ -490,9 +516,6 @@ export const ja: Messages = {
   "flow.structuralAliasing": "エイリアス",
   "flow.structuralAliasPersistence": "エイリアス書き戻し",
   "flow.structuralReferenceIndex": "参照インデックス",
-  "flow.paletteWriteback": "Writeback",
-  "flow.structuralWritebackRaw": "Writeback（RAW）",
-  "flow.structuralWritebackDataModeling": "Writeback（データモデリング）",
   "flow.validationRuleLayoutSourceView": "マッチ規則（ソースビュー）",
   "flow.validationRuleLayoutExtraction": "マッチ規則（抽出）",
   "flow.validationRuleLayoutAliasing": "マッチ規則（エイリアス）",
@@ -502,6 +525,7 @@ export const ja: Messages = {
   "flow.paletteExtractionHandlers": "抽出ハンドラー",
   "flow.paletteAliasingHandlers": "エイリアスハンドラー",
   "flow.paletteAnnotations": "注釈",
+  "flow.paletteCdfTasks": "CDF 関数",
   "flow.seedFromScope": "リセット",
   "flow.alignLeft": "選択ノードを左揃え",
   "flow.alignCenterHorizontal": "選択ノードを水平方向の中央揃え",
@@ -512,6 +536,11 @@ export const ja: Messages = {
   "flow.alignSelectionGroup": "選択範囲を揃える",
   "flow.canvasHint":
     "レイアウトは対になる .canvas.yaml に保存されます。スコープを保存し、パレットからドラッグしてください。ノードをサブフローの枠内にドロップすると関連付けます。サブフローを選択し、角や辺のバーをドラッグして横方向・縦方向にリサイズできます。",
+  "flow.workflowCompileModeLabel": "ワークフローコンパイル",
+  "flow.workflowCompileModeAuto": "自動（実行ノードがあるときはキャンバス）",
+  "flow.workflowCompileModeCanvas": "キャンバス DAG（常にグラフ由来）",
+  "flow.workflowCompileModeHint":
+    "CDF とローカル実行向けに、フロー キャンバスから ``compiled_workflow`` をどう組み立てるかを制御します。自動とキャンバスは同じキャンバスコンパイルを使います（無効なグラフはビルド、実行、または保存で失敗します）。スコープまたはキャンバスを保存すると、スコープ YAML に ``compiled_workflow`` が再埋め込みされます。",
   "flow.handleOrientationLabel": "ハンドル",
   "flow.handleOrientationLr": "左 → 右",
   "flow.handleOrientationTb": "上 → 下",
@@ -528,8 +557,11 @@ export const ja: Messages = {
   "flow.ctxMenuConvertSubgraphToSubflow": "サブグラフをサブフローに変換（グループ）",
   "flow.subgraphDrillTitle": "Subgraph",
   "flow.subgraphBack": "Save & close",
+  "flow.subgraphCancel": "キャンセル",
+  "flow.subgraphCancelNestedTooltip":
+    "先にネストしたサブグラフ エディターを閉じるか、そのキャンセルを使用してください。",
   "flow.subgraphDrillHint":
-    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+    "内部ワークフローを編集します。接続ルールはメイン キャンバスと同じです。保存して閉じるは変更を保持します。キャンセルはエディターを開いた時点のこのサブグラフに戻します（自動境界セットアップ後を含む）。",
   "flow.inspectorOpenSubgraph": "Open inner graph…",
   "flow.inspectorSubgraphHint":
     "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
@@ -554,21 +586,23 @@ export const ja: Messages = {
   "flow.nodeEditorUnsupported": "このノード種別に対応する設定エディターがありません。",
   "flow.close": "閉じる",
   "flow.save": "保存",
-  "flow.editCanvas": "キャンバスを編集",
-  "flow.canvasPreviewHint": "読み取り専用プレビュー。編集で全画面のキャンバスエディターを開きます。",
+  "flow.editWorkflow": "ワークフローを編集",
+  "flow.canvasPreviewHint":
+    "読み取り専用プレビュー。編集で全画面のワークフロー エディターを開きます。",
+  "flow.previewRunLocal": "ローカルで実行",
+  "flow.previewRunLocalHint":
+    "「ワークフローを実行」タブの「ローカルで実行」と同じ処理です（ディスク上の保存済み YAML を使用—先に保存）。実行中のタスクはグラフ上で枠線表示されます。",
+  "flow.previewRunProgressUnsupported":
+    "Windows ではライブの強調表示は利用できません。完全なログは「ワークフローを実行」タブの「ローカルで実行」を使用してください。",
   "flow.inspectorEmpty": "ノードまたはエッジを選択してください。",
   "flow.inspectorStartHint":
     "パイプラインの開始。ソースビューへ接続（ソースビューがない場合は抽出へ）。",
   "flow.inspectorEndHint":
-    "パイプラインの終了。抽出・エイリアス・検証・エイリアス書き戻し・RAW／データモデリングの Writeback レイアウトノード・参照インデックスの各ノードから接続。",
+    "パイプラインの終了。抽出・エイリアス・検証・エイリアス書き戻し、または参照インデックスの各ノードから接続。",
   "flow.inspectorAliasPersistenceHint":
     "fn_dm_alias_persistence に対応: エイリアス用 RAW を読み、Describable インスタンスへエイリアス一覧（任意で FK 参照文字列）を書き込みます。書き戻しはスコープまたはタスク data で設定。",
   "flow.inspectorReferenceIndexHint":
     "fn_dm_reference_index に対応: キー抽出ストアの FOREIGN_KEY_REFERENCES_JSON と DOCUMENT_REFERENCES_JSON から逆引き RAW インデックスを更新します。スコープで有効化（例: enable_reference_index）。",
-  "flow.inspectorWritebackRawHint":
-    "Cognite RAW（データベース・テーブル・インジェスト）へ結果を書き込むレイアウト用ノードです。RAW の宛先とハンドラ I/O はスコープまたはタスク data で設定します。キャンバス上のノードはドキュメント用です。",
-  "flow.inspectorWritebackDataModelingHint":
-    "CDF Data Modeling（インスタンス・ビュー）への writeback 用レイアウトノードです。スペース、external id、fn_dm_alias_persistence などの投影手順はスコープまたはタスク data で設定します。キャンバス上のノードはドキュメント用です。",
   "flow.inspectorValidationRuleHint":
     "スコープの validation_rules エントリに対応: キー採点（グローバルな key_extraction の data.validation と extraction_rules[].validation）またはエイリアス検証（aliasing_rules[].validation）で使用。ソースビュー行には validation はありません。ルール本体は独立した定義です。YAML リスト、簡略形 { rule_id: [ tail... ] }、または hierarchy: { mode: ordered | concurrent, children: [...] } を使用します。キャンバスでは抽出／エイリアスから最初のマッチルールノードへデータエッジ、その後のマッチルールノード同士は sequence または parallel_group エッジで連鎖します。",
   "flow.inspectorValidationRuleContext": "ルールの適用範囲",

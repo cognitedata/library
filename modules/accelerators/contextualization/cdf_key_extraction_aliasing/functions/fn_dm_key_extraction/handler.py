@@ -20,6 +20,7 @@ except ImportError:
 
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import ensure_key_extraction_config_from_scope_dm
+from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 from cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
 from .engine.key_extraction_engine import KeyExtractionEngine
 
@@ -66,6 +67,8 @@ def handle(
 
         if not client:
             raise ValueError("CogniteClient is required for CDF key extraction")
+
+        merge_compiled_task_into_data(data)
 
         ensure_key_extraction_config_from_scope_dm(
             data, client, incremental_change_processing=True

@@ -11,15 +11,14 @@ from typing import List, Sequence
 import yaml
 
 from scope_build.builders.workflow_definitions import (
-    RootWorkflowDefinitionsBuilder,
     ScopedWorkflowDefinitionsBuilder,
     verify_all_scoped_workflow_bundles,
-    verify_root_workflow_bundle,
 )
 from scope_build.builders.workflow_triggers import WorkflowTriggersBuilder, verify_triggers_file
 from scope_build.context import ScopeBuildContext
 from scope_build.hierarchy import build_contexts, load_hierarchy_doc
 from scope_build.mode import scope_build_mode_from_doc
+from scope_build.naming import cdf_external_id_suffix
 from scope_build.paths import WORKFLOW_ARTIFACTS_REL, WORKFLOW_TEMPLATE_REL
 from scope_build.workflow_clean import run_clean_workflow_artifacts
 from scope_build.registry import (
@@ -50,24 +49,60 @@ def module_root_from_package() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
+def filter_contexts_by_scope_suffix(
+    contexts: Sequence[ScopeBuildContext], scope_suffix: str
+) -> List[ScopeBuildContext]:
+    """Keep leaves whose CDF suffix (``workflows/<suffix>/`` folder name) equals ``scope_suffix``."""
+    wanted = scope_suffix.strip()
+    if not wanted:
+        raise ValueError("scope_suffix must be non-empty")
+    return [c for c in contexts if cdf_external_id_suffix(c.scope_id) == wanted]
+
+
+def resolve_contexts_for_optional_suffix(
+    *,
+    module_root: Path,
+    doc: dict,
+    dry_run: bool,
+    scope_suffix: str | None,
+) -> List[ScopeBuildContext]:
+    """All leaves, or exactly one leaf when ``scope_suffix`` is set; raises ``ValueError`` if invalid."""
+    contexts = build_contexts(module_root=module_root, doc=doc, dry_run=dry_run)
+    if scope_suffix is None or not str(scope_suffix).strip():
+        return contexts
+    ss = str(scope_suffix).strip()
+    filtered = filter_contexts_by_scope_suffix(contexts, ss)
+    if len(filtered) == 1:
+        return filtered
+    valid = sorted({cdf_external_id_suffix(c.scope_id) for c in contexts})
+    if not filtered:
+        raise ValueError(
+            f"No leaf matches --scope-suffix {ss!r}. Valid suffixes (workflows/ folder names): {valid}"
+        )
+    raise ValueError(
+        f"Multiple leaves match --scope-suffix {ss!r} ({len(filtered)} matches). "
+        "Hierarchy scope paths must yield a unique suffix."
+    )
+
+
 def run_build(
     *,
     module_root: Path,
     hierarchy_path: Path,
     builders: Sequence[ScopeArtifactBuilder],
     dry_run: bool,
+    contexts: Sequence[ScopeBuildContext] | None = None,
 ) -> List[ScopeBuildContext]:
-    doc = load_hierarchy_doc(hierarchy_path)
-    contexts = build_contexts(module_root=module_root, doc=doc, dry_run=dry_run)
-    logger.info("Found %d leaf scope(s)", len(contexts))
+    if contexts is None:
+        doc = load_hierarchy_doc(hierarchy_path)
+        ctx_list = build_contexts(module_root=module_root, doc=doc, dry_run=dry_run)
+    else:
+        ctx_list = list(contexts)
+    logger.info("Processing %d leaf scope(s)", len(ctx_list))
 
-    for b in builders:
-        if isinstance(b, RootWorkflowDefinitionsBuilder):
-            b.write_once(module_root, dry_run=dry_run)
-
-    for ctx in contexts:
+    for ctx in ctx_list:
         for b in builders:
-            if isinstance(b, (RootWorkflowDefinitionsBuilder, WorkflowTriggersBuilder)):
+            if isinstance(b, WorkflowTriggersBuilder):
                 continue
             logger.debug("Builder %r → scope_id=%s", b.name, ctx.scope_id)
             b.run(ctx)
@@ -75,20 +110,22 @@ def run_build(
     triggers_builder = next((b for b in builders if isinstance(b, WorkflowTriggersBuilder)), None)
     if triggers_builder is not None:
         triggers_builder.write_all(
-            contexts,
+            ctx_list,
             dry_run=dry_run,
             module_root=module_root,
         )
-    return contexts
+    return ctx_list
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
-            "Create missing workflow artifacts from default.config.yaml (aliasing_scope_hierarchy + scope_build_mode). "
-            "trigger_only: root Workflow/WorkflowVersion if missing, flat *.WorkflowTrigger.yaml under workflows/. "
-            "full: scoped trio under workflows/<suffix>/. "
-            "Templates are read from workflow_template/. Use --force to overwrite existing generated files. "
+            "Create scoped workflow artifacts from default.config.yaml (aliasing_scope_hierarchy). "
+            "Per leaf: workflows/<suffix>/Workflow.yaml, WorkflowVersion.yaml, WorkflowTrigger.yaml "
+            "(created when missing; existing files are only overwritten with --force). "
+            "workflow_template/workflow.execution.graph.yaml is refreshed from IR on every build (no --force). "
+            "WorkflowVersion is generated from compiled_workflow IR (canvas); Workflow.yaml uses workflow_template/. "
+            "Scope template loads with sibling *.canvas.yaml merge (same as module.py run). "
             "Use --clean to remove generated YAML under workflows/ (with confirmation or --yes); no build runs after clean."
         )
     )
@@ -96,8 +133,10 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--force",
         action="store_true",
         help=(
-            "Overwrite existing Workflow, WorkflowVersion, and WorkflowTrigger YAML when they "
-            "already exist (refresh from templates). Does not apply to --check-workflow-triggers."
+            "Overwrite existing scoped Workflow.yaml, WorkflowVersion.yaml, and WorkflowTrigger.yaml "
+            "from templates + compiled IR. Without --force, those files are created if missing but left "
+            "unchanged when already present. workflow.execution.graph.yaml is refreshed every build without --force. "
+            "Does not apply to --check-workflow-triggers."
         ),
     )
     p.add_argument(
@@ -155,9 +194,19 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--check-workflow-triggers",
         action="store_true",
         help=(
-            "Exit 1 if workflow triggers or Workflow/WorkflowVersion artifacts required by "
-            "scope_build_mode and the current hierarchy are missing, invalid, or out of date "
-            "vs templates (no writes)."
+            "Exit 1 if scoped workflow triggers or Workflow/WorkflowVersion artifacts required by "
+            "the current hierarchy are missing, invalid, or out of date vs templates (no writes)."
+        ),
+    )
+    p.add_argument(
+        "--scope-suffix",
+        type=str,
+        default=None,
+        metavar="SUFFIX",
+        help=(
+            "Restrict build or --check-workflow-triggers to the single hierarchy leaf whose "
+            "workflows/ folder name is SUFFIX (same as cdf_external_id_suffix(scope_id)). "
+            "Other leaves' files under workflows/ are not updated on build."
         ),
     )
     p.add_argument(
@@ -196,9 +245,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
-    if args.clean and (args.list_builders or args.check_workflow_triggers):
+    if args.clean and (
+        args.list_builders or args.check_workflow_triggers or args.scope_suffix
+    ):
         logging.getLogger(__name__).error(
-            "--clean cannot be used with --list-builders or --check-workflow-triggers"
+            "--clean cannot be used with --list-builders, --check-workflow-triggers, or --scope-suffix"
         )
         return 1
     module_root = module_root_from_package()
@@ -211,10 +262,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             doc = load_hierarchy_doc(hierarchy)
         except (OSError, ValueError, yaml.YAMLError):
             doc = {}
-        mode = scope_build_mode_from_doc(doc)
+        scope_build_mode_from_doc(doc)
         wf_base = workflow_external_id_from_hierarchy(doc)
         builders = default_builders(
-            scope_build_mode=mode,
             workflow_base=wf_base,
             scope_document_path=scope_document,
             workflow_trigger_template_path=args.workflow_trigger_template,
@@ -227,7 +277,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     try:
         doc = load_hierarchy_doc(hierarchy)
-        mode = scope_build_mode_from_doc(doc)
+        scope_build_mode_from_doc(doc)
         wf_base = workflow_external_id_from_hierarchy(doc)
     except (OSError, ValueError, yaml.YAMLError) as e:
         logging.getLogger(__name__).error("%s", e)
@@ -241,7 +291,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             stdin_isatty=sys.stdin.isatty(),
         )
     builders = default_builders(
-        scope_build_mode=mode,
         workflow_base=wf_base,
         scope_document_path=scope_document,
         workflow_trigger_template_path=args.workflow_trigger_template,
@@ -255,43 +304,54 @@ def main(argv: Sequence[str] | None = None) -> int:
         logger.error("%s", e)
         return 1
     if args.check_workflow_triggers:
-        contexts = build_contexts(module_root=module_root, doc=doc, dry_run=True)
+        try:
+            contexts = resolve_contexts_for_optional_suffix(
+                module_root=module_root,
+                doc=doc,
+                dry_run=True,
+                scope_suffix=args.scope_suffix,
+            )
+        except ValueError as e:
+            logger.error("%s", e)
+            return 1
         try:
             verify_triggers_file(
                 module_root,
                 list(contexts),
                 template_path=args.workflow_trigger_template,
                 scope_document_path=scope_document,
-                mode=mode,
                 workflow_base=wf_base,
             )
-            if mode == "trigger_only":
-                verify_root_workflow_bundle(
-                    module_root,
-                    wf_base,
-                    workflow_template_path=workflow_template,
-                    workflow_version_template_path=workflow_version_template,
-                )
-            else:
-                verify_all_scoped_workflow_bundles(
-                    module_root,
-                    contexts,
-                    wf_base,
-                    workflow_template_path=workflow_template,
-                    workflow_version_template_path=workflow_version_template,
-                )
+            verify_all_scoped_workflow_bundles(
+                module_root,
+                contexts,
+                wf_base,
+                workflow_template_path=workflow_template,
+                scope_document_path=scope_document,
+            )
         except SystemExit as e:
             logger.error("%s", e)
             code = getattr(e, "code", 1)
             return int(code) if isinstance(code, int) else 1
-        logger.info("Workflow artifacts OK for scope_build_mode=%s", mode)
+        logger.info("Workflow artifacts OK")
         return 0
+    try:
+        contexts = resolve_contexts_for_optional_suffix(
+            module_root=module_root,
+            doc=doc,
+            dry_run=bool(args.dry_run),
+            scope_suffix=args.scope_suffix,
+        )
+    except ValueError as e:
+        logger.error("%s", e)
+        return 1
     try:
         run_build(
             module_root=module_root,
             hierarchy_path=hierarchy,
             builders=builders,
             dry_run=bool(args.dry_run),
+            contexts=contexts,
         )
     except (OSError, ValueError, yaml.YAMLError) as e:
         logger.error("%s", e)

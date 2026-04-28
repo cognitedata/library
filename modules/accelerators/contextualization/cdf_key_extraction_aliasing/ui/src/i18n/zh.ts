@@ -15,7 +15,7 @@ export const zh: Messages = {
   "tabs.keyExtraction": "键发现",
   "tabs.aliasing": "别名",
   "tabs.flowCanvas": "流程",
-  "tabs.runPipeline": "运行流水线",
+  "tabs.runPipeline": "运行工作流",
   "tabs.configure": "配置",
   "tabs.build": "构建",
   "tabs.artifacts": "产物",
@@ -39,7 +39,11 @@ export const zh: Messages = {
   "btn.refreshList": "刷新列表",
   "btn.runBuild": "运行构建",
   "btn.runBuildForce": "运行构建（强制）",
-  "btn.runPipeline": "运行流水线",
+  "btn.runPipeline": "本地运行",
+  "btn.deployScope": "部署到 CDF",
+  "btn.deployScopeDryRun": "试运行部署",
+  "btn.cdfWorkflowRun": "在 CDF 中运行",
+  "btn.cdfWorkflowRunDryRun": "在 CDF 中试运行",
   "btn.dryRun": "试运行",
   "status.loading": "正在加载…",
   "status.saving": "正在保存…",
@@ -72,6 +76,15 @@ export const zh: Messages = {
   "config.fileHint.default": "default.config.yaml",
   "config.fileHint.workflowLocal": "workflow.local.config.yaml",
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
+  "config.updateTemplate": "更新模板",
+  "config.updateTemplateTooltip":
+    "用磁盘上已保存的本地文件覆盖 workflow_template/workflow.template.config.yaml 与 workflow.template.canvas.yaml（与 ``python module.py promote-local-templates`` 相同）。若编辑器有未保存更改，请先保存。",
+  "config.promoteTemplateConfirm":
+    "要用已保存的 workflow.local.config.yaml 与 workflow.local.canvas.yaml 覆盖磁盘上的 workflow.template.config.yaml 与 workflow.template.canvas.yaml 吗？无法在界面中撤销（请用 git 恢复）。",
+  "config.promoteTemplateDirtyConfirm":
+    "编辑器中有未保存更改。模板将按磁盘已保存内容更新，而非编辑器当前内容。是否继续？",
+  "config.templatePromoted":
+    "已根据 workflow.local.config.yaml 与 workflow.local.canvas.yaml 更新磁盘上的模板配置与画布。",
   "build.warnForce": "强制会覆盖生成的工作流 YAML。运行前请确认。",
   "build.confirmForce": "使用 --force 覆盖生成的工作流文件？",
   "build.outputPlaceholder": "构建输出将显示在此处。",
@@ -83,10 +96,22 @@ export const zh: Messages = {
     "使用已保存的 WorkflowTrigger 文件（{path}）中的 input.configuration。运行前请保存文件以应用编辑器更改。",
   "run.triggerUnsaved":
     "此触发器有未保存更改 — 运行将使用磁盘上最后保存的文件。",
-  "run.runAll": "全部运行（--all）",
+  "run.runAll": "全部运行",
   "run.runAllHint":
     "启用增量模式时，处理完整范围（与工作流输入 run_all 相同）。若未启用增量模式则无效果。",
+  "run.cdfToolsHint":
+    "部署通过 Cognite SDK 将所选范围的 Workflow、WorkflowVersion 和 WorkflowTrigger 写入 CDF（凭据与 module.py run 相同）。不包含函数等 Toolkit 资源。在 CDF 中运行会启动工作流执行（可选 KEA_WORKFLOW_CLIENT_*）。在此界面允许生成触发器 YAML 中未解析的 ``{{…}}`` 占位符。",
+  "run.cdfScopedOnly":
+    "部署和在 CDF 中运行仅适用于 workflows/<suffix>/ 下的已生成清单（不适用于 workflow.local 或 workflow_template）。请在侧边栏选择 WorkflowTrigger 文件。",
+  "run.cdfDeployOutputPlaceholder": "部署与 CDF 工作流运行的日志将显示在此处。",
+  "run.needTriggerScope":
+    "在侧边栏选择 workflows/<scope>/ 下的 WorkflowTrigger 文件，以启用该范围的部署与在 CDF 中运行。",
   "run.outputPlaceholder": "流水线输出将显示在此处。",
+  "run.localRunExitLine": "[本地运行] exit_code={code}",
+  "run.localTaskStart": "▶ 已开始 {functionId}（任务 {taskId}）{nodeSuffix}",
+  "run.localTaskEnd": "✓ 已完成 {functionId}（任务 {taskId}）{nodeSuffix}",
+  "run.localExecutingNow": "→ 正在执行：{list}",
+  "run.localExecutingNone": "（无）",
   "scope.levelsLabel": "层级（逗号分隔）",
   "scope.levelsLabel.tooltip":
     "层次结构中每一深度的有序标签（例如 site、unit、system）。逗号分隔。",
@@ -119,7 +144,6 @@ export const zh: Messages = {
   "module.field.schemaSpace": "模式空间",
   "module.field.viewVersion": "视图版本",
   "module.field.workflow": "工作流",
-  "module.field.scope_build_mode": "范围构建模式",
   "module.field.key_extraction_aliasing_schedule": "键发现与别名计划",
   "module.field.files_location_processing_group_source_id":
     "文件位置处理组的 Source ID",
@@ -451,6 +475,8 @@ export const zh: Messages = {
   "triggerEditor.workflowVersion": "工作流版本",
   "triggerEditor.authClientId": "客户端 ID",
   "triggerEditor.authClientSecret": "客户端密钥",
+  "triggerEditor.authDeployHint":
+    "客户端 ID 和密钥不会写入此 YAML（请使用环境变量）。部署到 CDF 时会读取 KEA_WORKFLOW_TRIGGER_CLIENT_ID / _SECRET，或 IDP_CLIENT_*，或 COGNITE_CLIENT_*，并仅在 API 请求中发送。",
   "triggerEditor.triggerType": "触发器类型",
   "triggerEditor.cronExpression": "Cron 表达式",
   "triggerEditor.scheduleHint":
@@ -496,9 +522,6 @@ export const zh: Messages = {
   "flow.structuralAliasing": "别名",
   "flow.structuralAliasPersistence": "别名写回",
   "flow.structuralReferenceIndex": "引用索引",
-  "flow.paletteWriteback": "回写",
-  "flow.structuralWritebackRaw": "回写（RAW）",
-  "flow.structuralWritebackDataModeling": "回写（数据建模）",
   "flow.validationRuleLayoutSourceView": "匹配规则（源视图）",
   "flow.validationRuleLayoutExtraction": "匹配规则（提取）",
   "flow.validationRuleLayoutAliasing": "匹配规则（别名）",
@@ -508,6 +531,7 @@ export const zh: Messages = {
   "flow.paletteExtractionHandlers": "提取处理器",
   "flow.paletteAliasingHandlers": "别名处理器",
   "flow.paletteAnnotations": "注释",
+  "flow.paletteCdfTasks": "CDF 函数",
   "flow.seedFromScope": "重置",
   "flow.alignLeft": "将所选节点左对齐",
   "flow.alignCenterHorizontal": "将所选节点水平居中对齐",
@@ -518,6 +542,11 @@ export const zh: Messages = {
   "flow.alignSelectionGroup": "对齐所选内容",
   "flow.canvasHint":
     "布局保存在配对的 .canvas.yaml 中。请保存作用域，并从面板拖到画布。将节点拖入子流程框内可建立从属关系；选中子流程后拖动角点或边缘控制条可横向与纵向调整大小。",
+  "flow.workflowCompileModeLabel": "工作流编译",
+  "flow.workflowCompileModeAuto": "自动（存在可执行节点时使用画布）",
+  "flow.workflowCompileModeCanvas": "画布 DAG（始终由图生成）",
+  "flow.workflowCompileModeHint":
+    "控制 CDF 与本地运行如何从流程画布生成 ``compiled_workflow``。自动与画布均使用画布编译（无效图在构建、运行或保存时报错）。保存作用域或画布时，会将 ``compiled_workflow`` 重新写入作用域 YAML。",
   "flow.handleOrientationLabel": "连接点",
   "flow.handleOrientationLr": "左 → 右",
   "flow.handleOrientationTb": "上 → 下",
@@ -534,8 +563,10 @@ export const zh: Messages = {
   "flow.ctxMenuConvertSubgraphToSubflow": "将子图转为子流程（分组）",
   "flow.subgraphDrillTitle": "Subgraph",
   "flow.subgraphBack": "Save & close",
+  "flow.subgraphCancel": "取消",
+  "flow.subgraphCancelNestedTooltip": "请先关闭嵌套的子图编辑器，或使用其“取消”按钮。",
   "flow.subgraphDrillHint":
-    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+    "编辑内部工作流，连接规则与主画布相同。保存并关闭会保留更改；取消会将此子图恢复为打开编辑器时的状态（含自动边界设置之后）。",
   "flow.inspectorOpenSubgraph": "Open inner graph…",
   "flow.inspectorSubgraphHint":
     "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
@@ -560,20 +591,21 @@ export const zh: Messages = {
   "flow.nodeEditorUnsupported": "此节点类型没有对应的配置编辑器。",
   "flow.close": "关闭",
   "flow.save": "保存",
-  "flow.editCanvas": "编辑画布",
-  "flow.canvasPreviewHint": "只读预览。编辑将打开完整画布编辑器。",
+  "flow.editWorkflow": "编辑工作流",
+  "flow.canvasPreviewHint": "只读预览。编辑将打开完整工作流编辑器。",
+  "flow.previewRunLocal": "本地运行",
+  "flow.previewRunLocalHint":
+    "与「运行工作流」标签页上的「本地运行」相同（使用磁盘上已保存的 YAML—请先保存）。正在执行的任务在图上以轮廓标出。",
+  "flow.previewRunProgressUnsupported":
+    "Windows 上无法使用实时任务高亮；请使用「运行工作流」标签页上的「本地运行」查看完整日志。",
   "flow.inspectorEmpty": "请选择节点或边。",
   "flow.inspectorStartHint": "管道入口。连接到源视图（若无源视图则连到提取）。",
   "flow.inspectorEndHint":
-    "管道出口。由提取、别名、验证、别名写回、RAW 或数据建模回写布局节点，或引用索引节点连入。",
+    "管道出口。由提取、别名、验证、别名写回或引用索引节点连入。",
   "flow.inspectorAliasPersistenceHint":
     "对应 fn_dm_alias_persistence：读取别名 RAW，将别名列表（及可选的外键引用字符串）写回可描述实例。在作用域或任务数据中配置写回。",
   "flow.inspectorReferenceIndexHint":
     "对应 fn_dm_reference_index：根据键提取存储中的 FOREIGN_KEY_REFERENCES_JSON 与 DOCUMENT_REFERENCES_JSON 维护倒排 RAW 索引。在作用域中启用（如 enable_reference_index）。",
-  "flow.inspectorWritebackRawHint":
-    "用于将结果落入 Cognite RAW（库、表、接入）的布局节点。在作用域或任务数据中配置 RAW 目标与处理函数 I/O；画布节点仅作说明。",
-  "flow.inspectorWritebackDataModelingHint":
-    "用于向 CDF 数据建模（实例、视图）回写的布局节点。在作用域或任务数据中配置空间、外部 ID 及投影步骤（如 fn_dm_alias_persistence）；画布节点仅作说明。",
   "flow.inspectorValidationRuleHint":
     "对应作用域中的 validation_rules：用于键置信度评分（全局 key_extraction 的 data.validation 以及 extraction_rules[].validation）或别名验证（aliasing_rules[].validation）。源视图行不包含 validation。规则体为独立定义。可使用 YAML 列表、简写 { rule_id: [ tail... ] }，或 hierarchy: { mode: ordered | concurrent, children: [...] }。画布上从提取/别名用数据边连到首个匹配规则节点；后续匹配规则节点之间使用 sequence 或 parallel_group 边链接。",
   "flow.inspectorValidationRuleContext": "规则作用域",

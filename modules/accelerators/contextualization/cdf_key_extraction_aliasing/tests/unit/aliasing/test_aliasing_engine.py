@@ -8,6 +8,7 @@ rule application, validation, and edge cases.
 
 # Add project root to path for imports
 import copy
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -205,6 +206,39 @@ class TestContextHandling(unittest.TestCase):
         self.assertGreater(len(result.aliases), 0)
 
 
+class TestScopeFilterEntityType(unittest.TestCase):
+    """``scope_filters.entity_type`` matches ``generate_aliases(..., entity_type=...)``."""
+
+    def test_document_aliases_skipped_for_asset_and_timeseries_when_limited_to_file(self) -> None:
+        cfg = {
+            "rules": [
+                {
+                    "name": "doc_aliases",
+                    "handler": "document_aliases",
+                    "enabled": True,
+                    "priority": 10,
+                    "preserve_original": True,
+                    "config": {"pid_rules": {"remove_ampersand": True}},
+                    "scope_filters": {"entity_type": ["file"]},
+                }
+            ],
+            "validation": _test_aliasing_validation(
+                min_confidence=0.0, max_aliases_per_tag=100
+            ),
+        }
+        eng = AliasingEngine(cfg)
+        for et in ("asset", "timeseries"):
+            with self.subTest(entity_type=et):
+                r = eng.generate_aliases("P&ID-001", et, {})
+                self.assertNotIn(
+                    "doc_aliases", r.metadata.get("applied_rules") or [], msg=et
+                )
+                self.assertEqual(list(r.aliases), ["P&ID-001"])
+        r_file = eng.generate_aliases("P&ID-001", "file", {})
+        self.assertIn("doc_aliases", r_file.metadata.get("applied_rules") or [])
+        self.assertTrue(any("PID" in str(a) for a in r_file.aliases))
+
+
 class TestAliasValidation(unittest.TestCase):
     """Test alias validation mechanisms."""
 
@@ -227,11 +261,12 @@ class TestAliasValidation(unittest.TestCase):
         self.engine = AliasingEngine(self.config)
 
     def test_minimum_alias_length(self):
-        """Test minimum alias length validation."""
+        """Digit-only aliases under 4 characters are dropped; mixed/letter aliases may be shorter."""
         result = self.engine.generate_aliases("P-10001", "asset")
 
         for alias in result.aliases:
-            self.assertGreaterEqual(len(alias), 2)
+            if re.fullmatch(r"[0-9]+", alias):
+                self.assertGreaterEqual(len(alias), 4, msg=alias)
 
     def test_maximum_alias_length(self):
         """Test maximum alias length validation."""

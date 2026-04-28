@@ -23,7 +23,7 @@ from scope_build.builders.workflow_triggers import (
     workflow_trigger_filename,
 )
 from scope_build.context import ScopeBuildContext
-from scope_build.mode import ScopeBuildMode, scope_build_mode_from_doc
+from scope_build.mode import scope_build_mode_from_doc
 from scope_build.hierarchy import (
     build_contexts,
     collect_leaves,
@@ -37,7 +37,10 @@ from scope_build.orchestrate import (
     workflow_external_id_from_hierarchy,
 )
 from scope_build.registry import default_builders, filter_builders
-from scope_build.scope_document_patch import prepare_scope_document_for_context
+from scope_build.scope_document_patch import (
+    prepare_scope_document_for_context,
+    scope_configuration_for_workflow_trigger,
+)
 
 
 def test_slugify_display_name_spaces() -> None:
@@ -211,18 +214,31 @@ aliasing:
     data:
       aliasing_rules: []
       validation: {}
+compile_workflow_dag: auto
+canvas:
+  nodes:
+    - id: st
+      kind: start
+    - id: ex
+      kind: extraction
+      data: {}
+    - id: al
+      kind: aliasing
+      data: {}
+  edges:
+    - source: st
+      target: ex
+    - source: ex
+      target: al
 """
 
 MINIMAL_WORKFLOW_TRIGGER_TEMPLATE = """
 externalId: key_extraction_aliasing.__KEA_CDF_SUFFIX__
 triggerRule:
   triggerType: schedule
-  cronExpression: '{{ key_extraction_aliasing_schedule }}'
+  cronExpression: '0 2 * * *'
 workflowExternalId: {{ workflow }}
 workflowVersion: v4
-authentication:
-  clientId: '{{functionClientId}}'
-  clientSecret: '{{functionClientSecret}}'
 input:
   run_all: false
   run_id: ''
@@ -274,13 +290,11 @@ def _install_minimal_workflow_definition_templates(module_root: Path) -> None:
 def _tb(
     scope_document_path: Path,
     *,
-    scope_build_mode: ScopeBuildMode = "trigger_only",
     workflow_base: str = "key_extraction_aliasing",
     overwrite: bool = False,
 ):
-    """Default builders for tests (trigger_only unless overridden)."""
+    """Default builders for tests (scoped layout)."""
     return default_builders(
-        scope_build_mode=scope_build_mode,
         workflow_base=workflow_base,
         scope_document_path=scope_document_path,
         overwrite=overwrite,
@@ -364,6 +378,15 @@ def test_prepare_scope_document_uses_leaf_instance_space_when_set(tmp_path: Path
     data = prepare_scope_document_for_context(doc, ctx)
     v0 = data["source_views"][0]
     assert v0["filters"][0]["values"] == ["sp_acme_prod"]
+
+
+def test_scope_configuration_for_workflow_trigger_drops_canvas_without_mutating_source() -> None:
+    doc = yaml.safe_load(MINIMAL_TEMPLATE)
+    assert "canvas" in doc
+    slim = scope_configuration_for_workflow_trigger(doc)
+    assert "canvas" not in slim
+    assert "canvas" in doc
+    assert slim["key_extraction"]["externalId"] == doc["key_extraction"]["externalId"]
 
 
 def test_prepare_scope_document_skips_inject_when_node_space_filter_exists(tmp_path: Path) -> None:
@@ -456,7 +479,7 @@ def test_filter_builders_subset_and_dedupe(tmp_path: Path) -> None:
     sd = tmp_path / "scope.yaml"
     sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
     builders = _tb(sd)
-    assert [b.name for b in builders] == ["workflow_definitions_root", "workflow_triggers"]
+    assert [b.name for b in builders] == ["workflow_definitions_scoped", "workflow_triggers"]
     assert [b.name for b in filter_builders(builders, ["workflow_triggers"])] == [
         "workflow_triggers"
     ]
@@ -514,24 +537,28 @@ def test_workflow_triggers_builder_two_leaves(tmp_path: Path) -> None:
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
     WorkflowTriggersBuilder().write_all(contexts, dry_run=False, module_root=mod)
-    p1 = mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "s1_p1")
-    p2 = mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "s2_p2")
+    p1 = mod / "workflows" / "s1_p1" / workflow_trigger_filename("key_extraction_aliasing", "s1_p1")
+    p2 = mod / "workflows" / "s2_p2" / workflow_trigger_filename("key_extraction_aliasing", "s2_p2")
     assert p1.is_file()
     assert p2.is_file()
     data0 = yaml.safe_load(p1.read_text(encoding="utf-8"))
     data1 = yaml.safe_load(p2.read_text(encoding="utf-8"))
     assert isinstance(data0, dict) and isinstance(data1, dict)
     assert data0["externalId"] == "key_extraction_aliasing.s1_p1"
-    assert data0["workflowExternalId"] == "key_extraction_aliasing"
+    assert data0["workflowExternalId"] == "key_extraction_aliasing.s1_p1"
     assert data0["workflowVersion"] == "v4"
     assert "configuration" in data0["input"]
+    assert "canvas" not in data0["input"]["configuration"]
+    cw0 = data0["input"].get("compiled_workflow")
+    assert isinstance(cw0, dict) and cw0.get("dag_source") == "canvas"
+    assert isinstance(cw0.get("tasks"), list) and len(cw0["tasks"]) >= 1
     assert data0["input"]["configuration"]["key_extraction"]["externalId"] == "ctx_key_extraction_s1_p1"
     assert "scope_config_file_external_id" not in data0["input"]
     assert data1["input"]["configuration"]["key_extraction"]["externalId"] == "ctx_key_extraction_s2_p2"
 
 
-def test_workflow_triggers_skips_existing_files(tmp_path: Path) -> None:
-    """Second --build must not overwrite an existing trigger file."""
+def test_workflow_triggers_skips_existing_without_force(tmp_path: Path) -> None:
+    """Existing scoped triggers are not overwritten unless ``overwrite=True``."""
     mod = tmp_path / "mod_wt_skip_existing"
     mod.mkdir()
     _install_minimal_workflow_trigger_template(mod)
@@ -548,16 +575,18 @@ def test_workflow_triggers_skips_existing_files(tmp_path: Path) -> None:
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
     WorkflowTriggersBuilder().write_all(contexts, dry_run=False, module_root=mod)
-    path = mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "a")
+    path = mod / "workflows" / "a" / workflow_trigger_filename("key_extraction_aliasing", "a")
     assert path.is_file()
     marker = "skip-existing-build-marker"
     path.write_text(path.read_text(encoding="utf-8") + f"\n# {marker}\n", encoding="utf-8")
     WorkflowTriggersBuilder().write_all(contexts, dry_run=False, module_root=mod)
     assert marker in path.read_text(encoding="utf-8")
+    WorkflowTriggersBuilder(overwrite=True).write_all(contexts, dry_run=False, module_root=mod)
+    assert marker not in path.read_text(encoding="utf-8")
 
 
-def test_workflow_triggers_force_overwrites_existing(tmp_path: Path) -> None:
-    """``overwrite=True`` replaces an existing trigger from templates."""
+def test_workflow_triggers_overwrite_flag_still_regenerates(tmp_path: Path) -> None:
+    """Triggers refresh from templates even when ``overwrite=True`` (API compat)."""
     mod = tmp_path / "mod_wt_force"
     mod.mkdir()
     _install_minimal_workflow_trigger_template(mod)
@@ -576,7 +605,7 @@ def test_workflow_triggers_force_overwrites_existing(tmp_path: Path) -> None:
     WorkflowTriggersBuilder(scope_document_path=sd).write_all(
         contexts, dry_run=False, module_root=mod
     )
-    path = mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "a")
+    path = mod / "workflows" / "a" / workflow_trigger_filename("key_extraction_aliasing", "a")
     marker = "stale-marker-for-force-test"
     path.write_text(path.read_text(encoding="utf-8") + f"\n# {marker}\n", encoding="utf-8")
     WorkflowTriggersBuilder(
@@ -586,7 +615,7 @@ def test_workflow_triggers_force_overwrites_existing(tmp_path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     assert marker not in text
     data = yaml.safe_load(text)
-    assert data["workflowExternalId"] == "key_extraction_aliasing"
+    assert data["workflowExternalId"] == "key_extraction_aliasing.a"
 
 
 def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Path) -> None:
@@ -612,7 +641,7 @@ def test_workflow_triggers_build_does_not_remove_orphan_leaf_files(tmp_path: Pat
     )
     contexts_two = build_contexts(module_root=mod, doc=doc_two, dry_run=False)
     WorkflowTriggersBuilder().write_all(contexts_two, dry_run=False, module_root=mod)
-    p2 = mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "s2_p2")
+    p2 = mod / "workflows" / "s2_p2" / workflow_trigger_filename("key_extraction_aliasing", "s2_p2")
     assert p2.is_file()
     marker = "orphan-preservation-marker"
     p2.write_text(p2.read_text(encoding="utf-8") + f"\n# {marker}\n", encoding="utf-8")
@@ -687,7 +716,12 @@ def test_verify_triggers_file_fails_when_required_file_missing(tmp_path: Path) -
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
     WorkflowTriggersBuilder(scope_document_path=sd).write_all(contexts, dry_run=False, module_root=mod)
-    (mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "s2_p2")).unlink()
+    (
+        mod
+        / "workflows"
+        / "s2_p2"
+        / workflow_trigger_filename("key_extraction_aliasing", "s2_p2")
+    ).unlink()
     with pytest.raises(SystemExit, match="Missing workflow trigger"):
         verify_triggers_file(mod, list(contexts), scope_document_path=sd)
 
@@ -709,7 +743,7 @@ def test_verify_triggers_file_fails_when_content_out_of_date(tmp_path: Path) -> 
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
     WorkflowTriggersBuilder(scope_document_path=sd).write_all(contexts, dry_run=False, module_root=mod)
-    path = mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "a")
+    path = mod / "workflows" / "a" / workflow_trigger_filename("key_extraction_aliasing", "a")
     text = path.read_text(encoding="utf-8")
     path.write_text(text.replace("ctx_key_extraction_a", "ctx_key_extraction_TAMPERED"), encoding="utf-8")
     with pytest.raises(SystemExit, match="out of date"):
@@ -774,14 +808,18 @@ aliasing_scope_hierarchy:
 
 
 def test_scope_build_mode_from_doc_defaults() -> None:
-    assert scope_build_mode_from_doc({}) == "trigger_only"
-    assert scope_build_mode_from_doc({"scope_build_mode": None}) == "trigger_only"
+    assert scope_build_mode_from_doc({}) == "full"
+    assert scope_build_mode_from_doc({"scope_build_mode": None}) == "full"
 
 
 def test_scope_build_mode_full_variants() -> None:
     assert scope_build_mode_from_doc({"scope_build_mode": "full"}) == "full"
     assert scope_build_mode_from_doc({"scope_build_mode": "FULL"}) == "full"
-    assert scope_build_mode_from_doc({"scope_build_mode": "trigger-only"}) == "trigger_only"
+
+
+def test_scope_build_mode_trigger_only_rejected() -> None:
+    with pytest.raises(ValueError, match="trigger_only"):
+        scope_build_mode_from_doc({"scope_build_mode": "trigger-only"})
 
 
 def test_scope_build_mode_invalid_raises() -> None:
@@ -789,28 +827,27 @@ def test_scope_build_mode_invalid_raises() -> None:
         scope_build_mode_from_doc({"scope_build_mode": "bad"})
 
 
-def test_default_builders_full_order(tmp_path: Path) -> None:
+def test_default_builders_order(tmp_path: Path) -> None:
     sd = tmp_path / "s.yaml"
     sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
     bs = default_builders(
-        scope_build_mode="full",
         workflow_base="key_extraction_aliasing",
         scope_document_path=sd,
     )
     assert [b.name for b in bs] == ["workflow_definitions_scoped", "workflow_triggers"]
 
 
-def test_trigger_only_run_build_force_overwrites_root_workflow(tmp_path: Path) -> None:
-    mod = tmp_path / "mod_force_root"
+def test_full_mode_skips_scoped_flow_artifacts_without_force(tmp_path: Path) -> None:
+    """Scoped Workflow / WorkflowVersion / WorkflowTrigger are not overwritten without ``--force``."""
+    mod = tmp_path / "mod_full_skip_trio_force"
     mod.mkdir()
     _install_minimal_workflow_trigger_template(mod)
     sd = _install_minimal_scope_document(mod)
     _install_minimal_workflow_definition_templates(mod)
-    hier = tmp_path / "hier_force_root.yaml"
+    hier = tmp_path / "hier_full_skip_trio_force.yaml"
     hier.write_text(
         """
 workflow: key_extraction_aliasing
-scope_build_mode: trigger_only
 aliasing_scope_hierarchy:
   levels: [site]
   locations:
@@ -820,39 +857,53 @@ aliasing_scope_hierarchy:
         encoding="utf-8",
     )
     doc = yaml.safe_load(hier.read_text(encoding="utf-8"))
+    scope_build_mode_from_doc(doc)
     common = dict(
-        scope_build_mode=scope_build_mode_from_doc(doc),
         workflow_base=workflow_external_id_from_hierarchy(doc),
         scope_document_path=sd,
+        overwrite=False,
     )
+    run_build(module_root=mod, hierarchy_path=hier, builders=default_builders(**common), dry_run=False)
+    scope_dir = mod / "workflows" / "b"
+    for p in (
+        scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
+        scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
+        scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
+    ):
+        p.write_text(p.read_text(encoding="utf-8") + "\n# TAMPER_SCOPED\n", encoding="utf-8")
+    run_build(module_root=mod, hierarchy_path=hier, builders=default_builders(**common), dry_run=False)
+    for p in (
+        scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
+        scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
+        scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
+    ):
+        assert "TAMPER_SCOPED" in p.read_text(encoding="utf-8")
+    force_common = {**common, "overwrite": True}
     run_build(
         module_root=mod,
         hierarchy_path=hier,
-        builders=default_builders(**common, overwrite=False),
+        builders=default_builders(**force_common),
         dry_run=False,
     )
-    wf = mod / "workflows" / "key_extraction_aliasing.Workflow.yaml"
-    wf.write_text(wf.read_text(encoding="utf-8") + "\n# TAMPER_ROOT\n", encoding="utf-8")
-    run_build(
-        module_root=mod,
-        hierarchy_path=hier,
-        builders=default_builders(**common, overwrite=True),
-        dry_run=False,
-    )
-    assert "TAMPER_ROOT" not in wf.read_text(encoding="utf-8")
+    for p in (
+        scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
+        scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
+        scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
+    ):
+        assert "TAMPER_SCOPED" not in p.read_text(encoding="utf-8")
 
 
-def test_trigger_only_run_build_writes_root_and_flat_triggers(tmp_path: Path) -> None:
-    mod = tmp_path / "mod_root_wf"
+def test_execution_graph_refreshes_without_force_even_when_scoped_flows_skipped(tmp_path: Path) -> None:
+    """workflow.execution.graph.yaml tracks IR every build; scoped WV can stay stale without --force."""
+    mod = tmp_path / "mod_graph_refresh_no_force"
     mod.mkdir()
     _install_minimal_workflow_trigger_template(mod)
     sd = _install_minimal_scope_document(mod)
     _install_minimal_workflow_definition_templates(mod)
-    hier = tmp_path / "hier_root.yaml"
+    hier = tmp_path / "hier_graph_refresh.yaml"
     hier.write_text(
         """
 workflow: key_extraction_aliasing
-scope_build_mode: trigger_only
 aliasing_scope_hierarchy:
   levels: [site]
   locations:
@@ -862,20 +913,21 @@ aliasing_scope_hierarchy:
         encoding="utf-8",
     )
     doc = yaml.safe_load(hier.read_text(encoding="utf-8"))
-    run_build(
-        module_root=mod,
-        hierarchy_path=hier,
-        builders=default_builders(
-            scope_build_mode=scope_build_mode_from_doc(doc),
-            workflow_base=workflow_external_id_from_hierarchy(doc),
-            scope_document_path=sd,
-        ),
-        dry_run=False,
+    scope_build_mode_from_doc(doc)
+    common = dict(
+        workflow_base=workflow_external_id_from_hierarchy(doc),
+        scope_document_path=sd,
+        overwrite=False,
     )
-    assert (mod / "workflows" / "key_extraction_aliasing.Workflow.yaml").is_file()
-    assert (mod / "workflows" / "key_extraction_aliasing.WorkflowVersion.yaml").is_file()
-    trig = mod / "workflows" / workflow_trigger_filename("key_extraction_aliasing", "b")
-    assert trig.is_file()
+    run_build(module_root=mod, hierarchy_path=hier, builders=default_builders(**common), dry_run=False)
+    graph_path = mod / "workflow_template" / "workflow.execution.graph.yaml"
+    assert graph_path.is_file()
+    graph_path.write_text("# GRAPH_TAMPER\n" + graph_path.read_text(encoding="utf-8"), encoding="utf-8")
+    wv_path = mod / "workflows" / "b" / "key_extraction_aliasing.b.WorkflowVersion.yaml"
+    wv_path.write_text(wv_path.read_text(encoding="utf-8") + "\n# WV_TAMPER\n", encoding="utf-8")
+    run_build(module_root=mod, hierarchy_path=hier, builders=default_builders(**common), dry_run=False)
+    assert "GRAPH_TAMPER" not in graph_path.read_text(encoding="utf-8")
+    assert "WV_TAMPER" in wv_path.read_text(encoding="utf-8")
 
 
 def test_full_mode_run_build_writes_scoped_trio(tmp_path: Path) -> None:
@@ -888,7 +940,6 @@ def test_full_mode_run_build_writes_scoped_trio(tmp_path: Path) -> None:
     hier.write_text(
         """
 workflow: key_extraction_aliasing
-scope_build_mode: full
 aliasing_scope_hierarchy:
   levels: [site]
   locations:
@@ -898,11 +949,11 @@ aliasing_scope_hierarchy:
         encoding="utf-8",
     )
     doc = yaml.safe_load(hier.read_text(encoding="utf-8"))
+    scope_build_mode_from_doc(doc)
     run_build(
         module_root=mod,
         hierarchy_path=hier,
         builders=default_builders(
-            scope_build_mode=scope_build_mode_from_doc(doc),
             workflow_base=workflow_external_id_from_hierarchy(doc),
             scope_document_path=sd,
         ),
@@ -931,7 +982,6 @@ def test_full_mode_workflow_name_uses_first_and_leaf(tmp_path: Path) -> None:
     hier.write_text(
         """
 workflow: key_extraction_aliasing
-scope_build_mode: full
 aliasing_scope_hierarchy:
   levels: [site, plant]
   locations:
@@ -944,11 +994,11 @@ aliasing_scope_hierarchy:
         encoding="utf-8",
     )
     doc = yaml.safe_load(hier.read_text(encoding="utf-8"))
+    scope_build_mode_from_doc(doc)
     run_build(
         module_root=mod,
         hierarchy_path=hier,
         builders=default_builders(
-            scope_build_mode=scope_build_mode_from_doc(doc),
             workflow_base=workflow_external_id_from_hierarchy(doc),
             scope_document_path=sd,
         ),
@@ -962,7 +1012,7 @@ aliasing_scope_hierarchy:
     assert wf["name"] == "Site One - Plant A"
 
 
-def test_workflow_triggers_builder_full_mode_paths(tmp_path: Path) -> None:
+def test_workflow_triggers_builder_scoped_paths(tmp_path: Path) -> None:
     mod = tmp_path / "mod_wt_full_paths"
     mod.mkdir()
     _install_minimal_workflow_trigger_template(mod)
@@ -978,7 +1028,6 @@ def test_workflow_triggers_builder_full_mode_paths(tmp_path: Path) -> None:
     )
     contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
     WorkflowTriggersBuilder(
-        mode="full",
         workflow_base="key_extraction_aliasing",
         scope_document_path=sd,
     ).write_all(contexts, dry_run=False, module_root=mod)

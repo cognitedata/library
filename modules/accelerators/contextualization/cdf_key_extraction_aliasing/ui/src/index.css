@@ -2324,6 +2324,26 @@ code {
   gap: 0.5rem;
 }
 
+.kea-flow-preview__toolbar-hint {
+  margin: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.kea-flow-preview__runbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+}
+
+.kea-flow-preview__runbar-hint {
+  margin: 0;
+  flex: 1 1 18rem;
+  max-width: 56ch;
+  font-size: 0.875rem;
+}
+
 .kea-flow-preview__canvas {
   height: min(52vh, 520px);
   min-height: 280px;
@@ -2336,6 +2356,13 @@ code {
 .kea-flow-preview__canvas .react-flow {
   width: 100%;
   height: 100%;
+}
+
+.kea-flow-preview__canvas .react-flow__node.kea-flow-node--executing {
+  outline: 2px solid var(--kea-primary);
+  outline-offset: 2px;
+  border-radius: var(--kea-radius-sm);
+  z-index: 4 !important;
 }
 
 .kea-flow-shell {
@@ -2713,14 +2740,6 @@ code {
 
 .kea-flow-node--ref-index {
   border-left: 3px solid #0369a1;
-}
-
-.kea-flow-node--writeback-raw {
-  border-left: 3px solid #b45309;
-}
-
-.kea-flow-node--writeback-dm {
-  border-left: 3px solid #0f766e;
 }
 
 .kea-flow-node--subflow-graph {

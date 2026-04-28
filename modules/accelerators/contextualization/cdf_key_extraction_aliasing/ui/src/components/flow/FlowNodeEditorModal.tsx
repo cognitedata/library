@@ -43,14 +43,12 @@ function modalTitleKey(kind: string | undefined): MessageKey {
       return "flow.nodeEditorTitleSourceViews";
     case "keaExtraction":
     case "keaReferenceIndex":
-    case "keaWritebackRaw":
       return "flow.nodeEditorTitleKeyExtraction";
     case "keaMatchValidationRuleExtraction":
     case "keaValidation":
       return "flow.nodeEditorTitleMatchDefinitions";
     case "keaAliasing":
     case "keaAliasPersistence":
-    case "keaWritebackDataModeling":
       return "flow.nodeEditorTitleAliasing";
     case "keaMatchValidationRuleAliasing":
       return "flow.nodeEditorTitleMatchDefinitions";
@@ -132,7 +130,6 @@ export function FlowNodeEditorModal({
       break;
     case "keaExtraction":
     case "keaReferenceIndex":
-    case "keaWritebackRaw":
       body = (
         <KeyExtractionControls
           key={node.id}
@@ -156,7 +153,6 @@ export function FlowNodeEditorModal({
       break;
     case "keaAliasing":
     case "keaAliasPersistence":
-    case "keaWritebackDataModeling":
       body = (
         <AliasingControls
           key={node.id}

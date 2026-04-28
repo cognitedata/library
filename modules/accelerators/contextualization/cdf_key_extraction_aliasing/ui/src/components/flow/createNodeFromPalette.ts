@@ -73,26 +73,26 @@ export function createNodeFromPalette(
             ref: {},
           },
         };
-      case "writeback_raw":
+      case "reference_index":
         return {
           id,
-          type: "keaWritebackRaw",
+          type: "keaReferenceIndex",
           position,
           data: {
-            label: "Writeback (RAW)",
+            label: "Reference index",
             handler_family: "persistence",
-            writeback_sink: "raw",
+            persistence_step: "reference_index",
           },
         };
-      case "writeback_data_modeling":
+      case "alias_persistence":
         return {
           id,
-          type: "keaWritebackDataModeling",
+          type: "keaAliasPersistence",
           position,
           data: {
-            label: "Writeback (Data modeling)",
+            label: "Alias write-back",
             handler_family: "persistence",
-            writeback_sink: "data_modeling",
+            persistence_step: "alias_writeback",
           },
         };
     }

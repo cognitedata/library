@@ -16,7 +16,7 @@ export const fr: Messages = {
   "tabs.keyExtraction": "Découverte de clés",
   "tabs.aliasing": "Alias",
   "tabs.flowCanvas": "Flux",
-  "tabs.runPipeline": "Exécuter le pipeline",
+  "tabs.runPipeline": "Exécuter le workflow",
   "tabs.configure": "Configurer",
   "tabs.build": "Génération",
   "tabs.artifacts": "Artefacts",
@@ -40,7 +40,11 @@ export const fr: Messages = {
   "btn.refreshList": "Actualiser la liste",
   "btn.runBuild": "Lancer la génération",
   "btn.runBuildForce": "Lancer la génération (forcée)",
-  "btn.runPipeline": "Exécuter le pipeline",
+  "btn.runPipeline": "Exécuter localement",
+  "btn.deployScope": "Déployer dans CDF",
+  "btn.deployScopeDryRun": "Simulation du déploiement",
+  "btn.cdfWorkflowRun": "Exécuter dans CDF",
+  "btn.cdfWorkflowRunDryRun": "Simulation dans CDF",
   "btn.dryRun": "Simulation à blanc",
   "status.loading": "Chargement…",
   "status.saving": "Enregistrement…",
@@ -75,6 +79,15 @@ export const fr: Messages = {
   "config.fileHint.default": "default.config.yaml",
   "config.fileHint.workflowLocal": "workflow.local.config.yaml",
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
+  "config.updateTemplate": "Mettre à jour le modèle",
+  "config.updateTemplateTooltip":
+    "Écrase workflow_template/workflow.template.config.yaml et workflow.template.canvas.yaml à partir des fichiers locaux enregistrés sur le disque (comme ``python module.py promote-local-templates``). Enregistrez d’abord si l’éditeur a des modifications non enregistrées.",
+  "config.promoteTemplateConfirm":
+    "Écraser sur le disque workflow.template.config.yaml et workflow.template.canvas.yaml avec les workflow.local.config.yaml et workflow.local.canvas.yaml enregistrés ? Irréversible depuis l’interface (utilisez git pour annuler).",
+  "config.promoteTemplateDirtyConfirm":
+    "Des modifications non enregistrées sont présentes dans cet éditeur. Le modèle sera mis à jour depuis le disque, pas depuis l’éditeur. Continuer ?",
+  "config.templatePromoted":
+    "Modèle de configuration et canevas mis à jour sur le disque à partir de workflow.local.config.yaml et workflow.local.canvas.yaml.",
   "build.warnForce":
     "Forcer écrase le YAML de workflow généré. Confirmez avant d’exécuter.",
   "build.confirmForce": "Écraser les fichiers de workflow générés avec --force ?",
@@ -87,10 +100,22 @@ export const fr: Messages = {
     "Utilise input.configuration du fichier WorkflowTrigger enregistré ({path}). Enregistrez le fichier avant d’exécuter pour prendre en compte les changements de l’éditeur.",
   "run.triggerUnsaved":
     "Des modifications ne sont pas enregistrées pour ce déclencheur — l’exécution utilise le dernier fichier enregistré sur disque.",
-  "run.runAll": "Tout exécuter (--all)",
+  "run.runAll": "Tout exécuter",
   "run.runAllHint":
     "Si le mode incrémental est activé, traite tout le périmètre (équivalent à l’entrée run_all du workflow). Sans effet si le mode incrémental est désactivé.",
+  "run.cdfToolsHint":
+    "Déployer met à jour Workflow, WorkflowVersion et WorkflowTrigger pour la portée dans CDF via le SDK Cognite (mêmes identifiants que module.py run). N’installe pas les fonctions ni les autres ressources Toolkit. Exécuter dans CDF lance une exécution (KEA_WORKFLOW_CLIENT_* optionnel). Dans cette interface, les marqueurs ``{{…}}`` non résolus dans le YAML de déclencheur généré sont autorisés.",
+  "run.cdfScopedOnly":
+    "Déployer et Exécuter dans CDF ne s’appliquent qu’aux manifestes sous workflows/<suffix>/ (pas workflow.local ni workflow_template). Sélectionnez un WorkflowTrigger dans la barre latérale.",
+  "run.cdfDeployOutputPlaceholder": "Les journaux de déploiement et d’exécution du workflow CDF s’affichent ici.",
+  "run.needTriggerScope":
+    "Sélectionnez un fichier WorkflowTrigger sous workflows/<scope>/ dans la barre latérale pour activer Déployer et Exécuter dans CDF pour cette portée.",
   "run.outputPlaceholder": "La sortie du pipeline s’affiche ici.",
+  "run.localRunExitLine": "[exécution locale] exit_code={code}",
+  "run.localTaskStart": "▶ Démarré {functionId} (tâche {taskId}){nodeSuffix}",
+  "run.localTaskEnd": "✓ Terminé {functionId} (tâche {taskId}){nodeSuffix}",
+  "run.localExecutingNow": "→ En cours : {list}",
+  "run.localExecutingNone": "(aucune)",
   "scope.levelsLabel": "Niveaux (séparés par des virgules)",
   "scope.levelsLabel.tooltip":
     "Libellés ordonnés pour chaque profondeur dans la hiérarchie (ex. site, unité, système). Séparés par des virgules.",
@@ -125,7 +150,6 @@ export const fr: Messages = {
   "module.field.schemaSpace": "Espace de schéma",
   "module.field.viewVersion": "Version de la vue",
   "module.field.workflow": "Workflow",
-  "module.field.scope_build_mode": "Mode de génération du périmètre",
   "module.field.key_extraction_aliasing_schedule":
     "Planification découverte de clés et alias",
   "module.field.files_location_processing_group_source_id":
@@ -463,6 +487,8 @@ export const fr: Messages = {
   "triggerEditor.workflowVersion": "Version du workflow",
   "triggerEditor.authClientId": "ID client",
   "triggerEditor.authClientSecret": "Secret client",
+  "triggerEditor.authDeployHint":
+    "L’identifiant et le secret client ne sont pas enregistrés dans ce YAML (variables d’environnement). Le déploiement CDF lit KEA_WORKFLOW_TRIGGER_CLIENT_ID / _SECRET, ou IDP_CLIENT_*, ou COGNITE_CLIENT_* et ne les envoie que dans la requête API.",
   "triggerEditor.triggerType": "Type de déclencheur",
   "triggerEditor.cronExpression": "Expression cron",
   "triggerEditor.scheduleHint":
@@ -509,9 +535,6 @@ export const fr: Messages = {
   "flow.structuralAliasing": "Alias",
   "flow.structuralAliasPersistence": "Rétroécriture d’alias",
   "flow.structuralReferenceIndex": "Index de références",
-  "flow.paletteWriteback": "Writeback",
-  "flow.structuralWritebackRaw": "Writeback (RAW)",
-  "flow.structuralWritebackDataModeling": "Writeback (modélisation de données)",
   "flow.validationRuleLayoutSourceView": "Règle de correspondance (vue source)",
   "flow.validationRuleLayoutExtraction": "Règle de correspondance (extraction)",
   "flow.validationRuleLayoutAliasing": "Règle de correspondance (alias)",
@@ -521,6 +544,7 @@ export const fr: Messages = {
   "flow.paletteExtractionHandlers": "Gestionnaires d’extraction",
   "flow.paletteAliasingHandlers": "Gestionnaires d’alias",
   "flow.paletteAnnotations": "Annotations",
+  "flow.paletteCdfTasks": "Fonctions CDF",
   "flow.seedFromScope": "Réinitialiser",
   "flow.alignLeft": "Aligner la sélection à gauche",
   "flow.alignCenterHorizontal": "Aligner la sélection au centre horizontal",
@@ -531,6 +555,11 @@ export const fr: Messages = {
   "flow.alignSelectionGroup": "Aligner la sélection",
   "flow.canvasHint":
     "La mise en page est stockée dans un fichier .canvas.yaml jumelé. Enregistrez le périmètre. Glissez depuis la palette. Déposez un nœud dans un sous-flux pour l’associer ; sélectionnez le sous-flux et faites glisser les coins ou les barres de bord pour redimensionner horizontalement et verticalement.",
+  "flow.workflowCompileModeLabel": "Compilation du flux",
+  "flow.workflowCompileModeAuto": "Auto (canvas si nœuds exécutables)",
+  "flow.workflowCompileModeCanvas": "DAG canvas (toujours depuis le graphe)",
+  "flow.workflowCompileModeHint":
+    "Contrôle la construction de ``compiled_workflow`` pour CDF et les exécutions locales à partir du canvas du flux. Auto et Canvas utilisent la même compilation canvas (graphes invalides échouent au build, à l’exécution ou à l’enregistrement). L’enregistrement du périmètre ou du canvas réintègre ``compiled_workflow`` dans le YAML du périmètre.",
   "flow.handleOrientationLabel": "Poignées",
   "flow.handleOrientationLr": "Gauche → droite",
   "flow.handleOrientationTb": "Haut → bas",
@@ -547,8 +576,11 @@ export const fr: Messages = {
   "flow.ctxMenuConvertSubgraphToSubflow": "Convertir le sous-graphe en sous-flux (groupe)",
   "flow.subgraphDrillTitle": "Subgraph",
   "flow.subgraphBack": "Save & close",
+  "flow.subgraphCancel": "Annuler",
+  "flow.subgraphCancelNestedTooltip":
+    "Fermez d’abord l’éditeur de sous-graphe imbriqué ou utilisez son bouton Annuler.",
   "flow.subgraphDrillHint":
-    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+    "Modifiez le flux interne. Les connexions suivent les mêmes règles que sur le canevas principal. Enregistrer et fermer conserve les changements ; Annuler rétablit ce sous-graphe tel qu’à l’ouverture (y compris après configuration automatique des limites).",
   "flow.inspectorOpenSubgraph": "Open inner graph…",
   "flow.inspectorSubgraphHint":
     "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
@@ -573,22 +605,23 @@ export const fr: Messages = {
   "flow.nodeEditorUnsupported": "Aucun éditeur de configuration pour ce type de nœud.",
   "flow.close": "Fermer",
   "flow.save": "Enregistrer",
-  "flow.editCanvas": "Modifier le canevas",
+  "flow.editWorkflow": "Modifier le workflow",
   "flow.canvasPreviewHint":
-    "Aperçu en lecture seule. Modifier ouvre l’éditeur de canevas complet.",
+    "Aperçu en lecture seule. Modifier ouvre l’éditeur de workflow complet.",
+  "flow.previewRunLocal": "Exécuter localement",
+  "flow.previewRunLocalHint":
+    "Même pipeline qu’Exécuter localement sur l’onglet Exécuter le workflow (YAML enregistré sur disque — enregistrez d’abord). Les tâches en cours sont mises en évidence sur le graphe.",
+  "flow.previewRunProgressUnsupported":
+    "La mise en évidence en direct n’est pas disponible sous Windows ; utilisez Exécuter localement sur l’onglet Exécuter le workflow pour les journaux complets.",
   "flow.inspectorEmpty": "Sélectionnez un nœud ou une arête.",
   "flow.inspectorStartHint":
     "Entrée du pipeline. Relier aux vues sources (ou à l’extraction s’il n’y a pas de vues sources).",
   "flow.inspectorEndHint":
-    "Sortie du pipeline. Relier depuis extraction, alias, validation, rétroécriture d’alias, nœuds de writeback RAW ou Data Modeling, ou index de références.",
+    "Sortie du pipeline. Relier depuis extraction, alias, validation, rétroécriture d’alias ou index de références.",
   "flow.inspectorAliasPersistenceHint":
     "Correspond à fn_dm_alias_persistence : lit le RAW d’alias et écrit les listes d’alias (et optionnellement les chaînes FK) sur les instances describables. Configurez la rétroécriture dans le scope ou les données de tâche.",
   "flow.inspectorReferenceIndexHint":
     "Correspond à fn_dm_reference_index : construit un index RAW inversé à partir de FOREIGN_KEY_REFERENCES_JSON et DOCUMENT_REFERENCES_JSON dans le magasin d’extraction. Activez via le scope (ex. enable_reference_index).",
-  "flow.inspectorWritebackRawHint":
-    "Carte de mise en page pour des résultats dans Cognite RAW (base, table, ingestion). Configurez les cibles RAW et les E/S du handler dans le scope ou les données de tâche ; le nœud du canevas est documentaire.",
-  "flow.inspectorWritebackDataModelingHint":
-    "Carte de mise en page pour la rétroécriture vers CDF Data Modeling (instances, vues). Configurez les espaces, external ids et étapes de projection (p. ex. fn_dm_alias_persistence) dans le scope ou les données de tâche ; le nœud est documentaire.",
   "flow.inspectorValidationRuleHint":
     "Référence une entrée validation_rules dans le scope : utilisée pour le score des clés (data.validation globale key_extraction plus extraction_rules[].validation) ou pour valider les alias (aliasing_rules[].validation). Les lignes de vue source ne portent pas validation. Les corps de règle sont des définitions autonomes. Utilisez une liste YAML, la forme abrégée { rule_id: [ tail... ] }, ou hierarchy: { mode: ordered | concurrent, children: [...] }. Sur le canevas : arêtes de données depuis l’extraction ou l’alias vers le premier nœud de règle de correspondance ; enchaînez les nœuds suivants avec des arêtes sequence ou parallel_group.",
   "flow.inspectorValidationRuleContext": "Portée de la règle",

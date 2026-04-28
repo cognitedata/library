@@ -1,16 +1,5 @@
 schemaVersion: 1
 nodes:
-- id: ext_asset_tag_candidate
-  kind: extraction
-  position:
-    x: 400
-    y: -281.5
-  data:
-    label: asset_tag_candidate
-    handler_id: regex_handler
-    handler_family: extraction
-    ref:
-      extraction_rule_name: asset_tag_candidate
 - id: ext_equipment_tag_ck
   kind: extraction
   position:
@@ -58,8 +47,8 @@ nodes:
 - id: flow_end
   kind: end
   position:
-    x: 1377.7934605084486
-    y: -24.777524830508902
+    x: 1443.9455714971425
+    y: -51.519867570619226
   data:
     label: End
 - id: flow_start
@@ -72,8 +61,8 @@ nodes:
 - id: n_1776889349769_ezwmy4ak
   kind: subgraph
   position:
-    x: 629.4616626500034
-    y: -151.43817590499233
+    x: 630.8691543731671
+    y: -121.8808497185546
   data:
     label: Asset Tag Validation
     subflow_ports:
@@ -206,8 +195,8 @@ nodes:
 - id: n_1776889547993_hlqv244t
   kind: subgraph
   position:
-    x: 630.6885795175032
-    y: -280.1407988024595
+    x: 670.2293047457513
+    y: -243.37394866978207
   data:
     label: Asset Tag Aliasing
     subflow_ports:
@@ -249,17 +238,6 @@ nodes:
           handler_family: aliasing
           ref:
             aliasing_rule_name: leading_zero_normalization
-      - id: al_semantic_expansion
-        kind: aliasing
-        position:
-          x: 182
-          y: 42.5
-        data:
-          label: semantic_expansion
-          handler_id: semantic_expansion
-          handler_family: aliasing
-          ref:
-            aliasing_rule_name: semantic_expansion
       - id: al_strip_delimiter
         kind: aliasing
         position:
@@ -324,12 +302,6 @@ nodes:
         source_handle: out__in
         target_handle: in
         kind: data
-      - id: xy-edge__n_1776889547993_hlqv244t_hub_inout__in-al_semantic_expansionin
-        source: n_1776889547993_hlqv244t_hub_in
-        target: al_semantic_expansion
-        source_handle: out__in
-        target_handle: in
-        kind: data
       - id: xy-edge__n_1776889547993_hlqv244t_hub_inout__in-al_strip_numeric_unit_prefixin
         source: n_1776889547993_hlqv244t_hub_in
         target: al_strip_numeric_unit_prefix
@@ -360,12 +332,6 @@ nodes:
         source_handle: out
         target_handle: in
         kind: sequence
-      - id: xy-edge__al_semantic_expansionout-al_strip_delimiterin
-        source: al_semantic_expansion
-        target: al_strip_delimiter
-        source_handle: out
-        target_handle: in
-        kind: sequence
       - id: xy-edge__al_strip_numeric_unit_prefixout-al_strip_delimiterin
         source: al_strip_numeric_unit_prefix
         target: al_strip_delimiter
@@ -376,44 +342,33 @@ nodes:
 - id: n_1776950084494_pb3fk7sl
   kind: subflow
   position:
-    x: 399.7007305082244
-    y: -578.8845666254829
+    x: 189.77564773986143
+    y: -576.0695831791555
   data:
     label: Documents
   size:
     width: 467
     height: 270
-- id: n_1776960827424_5kcelt7o
-  kind: writeback_raw
+- id: n_1776984020965_4ympp4rb
+  kind: subflow
   position:
-    x: 1118.6221031072953
-    y: 33.97911455052403
+    x: 1014.4677155931815
+    y: -163.06972669239414
   data:
-    label: Writeback (RAW)
-    handler_family: persistence
-    writeback_sink: raw
-- id: n_1776960829931_j5wnuv7w
-  kind: writeback_data_modeling
+    label: Persistence
+  size:
+    width: 380
+    height: 260
+- id: n_1776984069281_yune015t
+  kind: subflow
   position:
-    x: 1118.6221031072955
-    y: -85.65768191839047
+    x: 193.32574491526714
+    y: -289.74398177712726
   data:
-    label: Writeback (Data modeling)
-    handler_family: persistence
-    writeback_sink: data_modeling
-- id: sv_0
-  kind: source_view
-  position:
-    x: 200.4538337349997
-    y: -396.94519759497433
-  data:
-    label: CogniteFile
-    ref:
-      source_view_index: 0
-      view_space: cdf_cdm
-      view_external_id: CogniteFile
-      view_version: v1
-      entity_type: file
+    label: Assets
+  size:
+    width: 380
+    height: 260
 - id: sv_1
   kind: source_view
   position:
@@ -427,19 +382,6 @@ nodes:
       view_external_id: CogniteTimeSeries
       view_version: v1
       entity_type: timeseries
-- id: sv_2
-  kind: source_view
-  position:
-    x: 199.22691686749982
-    y: -281.36771566995935
-  data:
-    label: CogniteAsset
-    ref:
-      source_view_index: 2
-      view_space: cdf_cdm
-      view_external_id: CogniteAsset
-      view_version: v1
-      entity_type: asset
 - id: sv_3
   kind: source_view
   position:
@@ -456,8 +398,8 @@ nodes:
 - id: vrule_al_data_alias_shape_invalid
   kind: match_validation_aliasing
   position:
-    x: 802.8853476271245
-    y: -88.22475169491105
+    x: 669.1736339265728
+    y: 13.114652372875447
   data:
     label: alias_shape_invalid
     notes: aliasing.config.data.validation
@@ -468,7 +410,7 @@ nodes:
 - id: al_document_aliases
   kind: aliasing
   position:
-    x: 264.18501655367254
+    x: 488.18501655367254
     y: 60
   data:
     label: document_aliases
@@ -477,10 +419,22 @@ nodes:
     ref:
       aliasing_rule_name: document_aliases
   parent_id: n_1776950084494_pb3fk7sl
+- id: ext_asset_tag_candidate
+  kind: extraction
+  position:
+    x: 239.0465647174983
+    y: 44.838766579383446
+  data:
+    label: asset_tag_candidate
+    handler_id: regex_handler
+    handler_family: extraction
+    ref:
+      extraction_rule_name: asset_tag_candidate
+  parent_id: n_1776984069281_yune015t
 - id: ext_file_basename_candidate
   kind: extraction
   position:
-    x: 20
+    x: 244
     y: 116.5
   data:
     label: file_basename_candidate
@@ -489,10 +443,58 @@ nodes:
     ref:
       extraction_rule_name: file_basename_candidate
   parent_id: n_1776950084494_pb3fk7sl
+- id: n_1776968044470_89wvovc3
+  kind: reference_index
+  position:
+    x: 95.7094371751316
+    y: 156.93532713275272
+  data:
+    label: Reference index
+    handler_family: persistence
+    persistence_step: reference_index
+  parent_id: n_1776984020965_4ympp4rb
+- id: n_1776968047289_da4zzh3o
+  kind: alias_persistence
+  position:
+    x: 91.48696200564086
+    y: 52.780939618638854
+  data:
+    label: Alias write-back
+    handler_family: persistence
+    persistence_step: alias_writeback
+  parent_id: n_1776984020965_4ympp4rb
+- id: sv_0
+  kind: source_view
+  position:
+    x: 45.86547907423079
+    y: 118.60224148814206
+  data:
+    label: CogniteFile
+    ref:
+      source_view_index: 0
+      view_space: cdf_cdm
+      view_external_id: CogniteFile
+      view_version: v1
+      entity_type: file
+  parent_id: n_1776950084494_pb3fk7sl
+- id: sv_2
+  kind: source_view
+  position:
+    x: 35.45849813867062
+    y: 53.416001248406275
+  data:
+    label: CogniteAsset
+    ref:
+      source_view_index: 2
+      view_space: cdf_cdm
+      view_external_id: CogniteAsset
+      view_version: v1
+      entity_type: asset
+  parent_id: n_1776984069281_yune015t
 - id: vrule_ke_hda310940_blacklist
   kind: match_validation_extraction
   position:
-    x: 264.18501655367254
+    x: 488.18501655367254
     y: 187
   data:
     label: blacklist
@@ -634,51 +636,57 @@ edges:
   source_handle: out__out_al_cogniteasset_explicit_aliases_from_raw_validation
   target_handle: in
   kind: data
-- id: xy-edge__n_1776960829931_j5wnuv7wout-flow_endin
-  source: n_1776960829931_j5wnuv7w
-  target: flow_end
+- id: xy-edge__al_document_aliasesout-n_1776968047289_da4zzh3oin
+  source: al_document_aliases
+  target: n_1776968047289_da4zzh3o
   source_handle: out
   target_handle: in
   kind: data
-- id: xy-edge__n_1776889547993_hlqv244tout__out-n_1776960829931_j5wnuv7win
+- id: xy-edge__n_1776889547993_hlqv244tout__out-n_1776968047289_da4zzh3oin
   source: n_1776889547993_hlqv244t
-  target: n_1776960829931_j5wnuv7w
+  target: n_1776968047289_da4zzh3o
   source_handle: out__out
   target_handle: in
   kind: data
-- id: xy-edge__al_document_aliasesout-n_1776960829931_j5wnuv7win
-  source: al_document_aliases
-  target: n_1776960829931_j5wnuv7w
-  source_handle: out
-  target_handle: in
-  kind: data
-- id: xy-edge__ext_instance_description_asset_fkout-n_1776960827424_5kcelt7oin
-  source: ext_instance_description_asset_fk
-  target: n_1776960827424_5kcelt7o
-  source_handle: out
-  target_handle: in
-  kind: data
-- id: xy-edge__ext_instance_name_asset_fkout-n_1776960827424_5kcelt7oin
-  source: ext_instance_name_asset_fk
-  target: n_1776960827424_5kcelt7o
-  source_handle: out
-  target_handle: in
-  kind: data
-- id: xy-edge__ext_timeseries_instrument_tag_candidateout-n_1776960827424_5kcelt7oin
-  source: ext_timeseries_instrument_tag_candidate
-  target: n_1776960827424_5kcelt7o
-  source_handle: out
-  target_handle: in
-  kind: data
-- id: xy-edge__ext_equipment_tag_ckout-n_1776960827424_5kcelt7oin
-  source: ext_equipment_tag_ck
-  target: n_1776960827424_5kcelt7o
-  source_handle: out
-  target_handle: in
-  kind: data
-- id: xy-edge__n_1776960827424_5kcelt7oout-flow_endin
-  source: n_1776960827424_5kcelt7o
+- id: xy-edge__n_1776968047289_da4zzh3oout-flow_endin
+  source: n_1776968047289_da4zzh3o
   target: flow_end
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: xy-edge__ext_instance_description_asset_fkout-n_1776968044470_89wvovc3in
+  source: ext_instance_description_asset_fk
+  target: n_1776968044470_89wvovc3
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: xy-edge__n_1776968044470_89wvovc3out-flow_endin
+  source: n_1776968044470_89wvovc3
+  target: flow_end
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: xy-edge__ext_instance_name_asset_fkout-n_1776968044470_89wvovc3in
+  source: ext_instance_name_asset_fk
+  target: n_1776968044470_89wvovc3
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: xy-edge__ext_timeseries_instrument_tag_candidateout-n_1776968044470_89wvovc3in
+  source: ext_timeseries_instrument_tag_candidate
+  target: n_1776968044470_89wvovc3
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: xy-edge__ext_equipment_tag_ckout-n_1776968044470_89wvovc3in
+  source: ext_equipment_tag_ck
+  target: n_1776968044470_89wvovc3
+  source_handle: out
+  target_handle: in
+  kind: data
+- id: xy-edge__sv_3out-ext_instance_description_asset_fkin
+  source: sv_3
+  target: ext_instance_description_asset_fk
   source_handle: out
   target_handle: in
   kind: data

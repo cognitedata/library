@@ -28,19 +28,16 @@ Authoring lives in **[`default.config.yaml`](../../default.config.yaml)** at the
 
 - **`aliasing_scope_hierarchy.levels`** — Ordered labels for path tiers (same convention as **`cdf_access_control`** hierarchy dimensions: semantic names like `site`, `unit`, `area`, `system`, not `level_1`, `level_2`, …). You do not have to use every tier; deeper paths can use synthetic tier names when you exceed the list (see [config/README.md](../../config/README.md)).
 - **`aliasing_scope_hierarchy.locations`** — Root list of nodes. Each node has a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`). Nest children under another **`locations`** key on each node.
-- **Leaves** — A leaf is a node with no child `locations` or **`locations: []`**. Each leaf gets its own **`key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (path depends on `scope_build_mode`; see below).
+- **Leaves** — A leaf is a node with no child `locations` or **`locations: []`**. Each leaf gets its own scoped trio under **`workflows/<suffix>/`**, including **`key_extraction_aliasing.<suffix>.WorkflowTrigger.yaml`**.
 - **Optional `instance_space` on a leaf** — When set, the scope builder can emit **literal** node `space` filters in that leaf’s embedded **`input.configuration`** instead of the Toolkit placeholder `{{instance_space}}`. See *Instance spaces* below.
 
 Commented examples in `default.config.yaml` show how to add sites and nested locations.
 
-## 2. `scope_build_mode`: where files are written
+## 2. Generated layout under `workflows/`
 
-| Mode | Layout |
-|------|--------|
-| **`trigger_only`** | Root **`workflows/key_extraction_aliasing.Workflow.yaml`** and **`WorkflowVersion.yaml`** (if missing), plus **flat** **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** per leaf. |
-| **`full`** | Per leaf under **`workflows/<suffix>/`**: **`Workflow.yaml`**, **`WorkflowVersion.yaml`**, and **`WorkflowTrigger.yaml`** for that scope (no shared root pair). |
+Per leaf, the builder writes **`workflows/<suffix>/key_extraction_aliasing.<suffix>.Workflow.yaml`**, **`WorkflowVersion.yaml`**, and **`WorkflowTrigger.yaml`**. The legacy **`scope_build_mode: trigger_only`** (flat triggers and root Workflow pair) is **not** supported.
 
-Set **`scope_build_mode`** in `default.config.yaml`. Templates always come from [`workflow_template/`](../../workflow_template/) (see [workflow_template/README.md](../../workflow_template/README.md)).
+Templates always come from [`workflow_template/`](../../workflow_template/) (see [workflow_template/README.md](../../workflow_template/README.md)).
 
 ### Key Discovery data model (incremental state)
 
@@ -52,8 +49,8 @@ Incremental watermark and per-record hash state can live in **FDM** views shippe
 
 | Flag | Purpose |
 |------|---------|
-| *(none)* | Create **missing** Workflow / WorkflowVersion / WorkflowTrigger files from templates. Existing files are **not** overwritten unless **`--force`**. |
-| **`--force`** | Overwrite existing generated workflow YAML from templates. |
+| *(none)* | Create missing scoped **Workflow** / **WorkflowVersion** / **WorkflowTrigger** under **`workflows/<suffix>/`**; refresh **`workflow_template/workflow.execution.graph.yaml`** from IR (does not overwrite existing scoped flow YAML without **`--force`**). |
+| **`--force`** | Overwrite **existing** scoped **Workflow** / **WorkflowVersion** / **WorkflowTrigger** files from templates + IR. (The execution graph file is refreshed on every build without **`--force`**.) |
 | **`--hierarchy <path>`** | Use a different hierarchy file instead of module-root `default.config.yaml`. |
 | **`--scope-document <path>`** | Patch scope body from another YAML (default: `workflow_template/workflow.template.config.yaml`). |
 | **`--workflow-trigger-template <path>`** | Custom trigger shell template. |
@@ -80,13 +77,13 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module
 Deployed workflows read **`workflow.input.configuration`** (v1 scope shape). The builder patches **`source_views`** (including node **`space`** filters) per leaf. You can control instance space in three ways:
 
 **A — Leaf `instance_space` in the hierarchy**  
-Set **`instance_space`** on the leaf node in `default.config.yaml`. Regenerate with **`module.py build`** (and **`--force`** if the trigger file already exists). Generated filters can contain the **literal** space string instead of a template token.
+Set **`instance_space`** on the leaf node in `default.config.yaml`. Run **`module.py build`** (add **`--force`** if the trigger file already exists and must be rewritten). Generated filters can contain the **literal** space string instead of a template token.
 
 **B — Toolkit placeholder `{{instance_space}}`**  
 If the leaf has no baked-in space, triggers may keep **`{{instance_space}}`** inside **`input.configuration`** (for example on node `space` filters). **CDF Toolkit** substitutes that value at **`cdf build` / deploy** from your project’s variables (often aligned with keys in `default.config.yaml`). Substitution applies **inside the embedded configuration**, not only on `workflow.input` top-level fields. See [workflows/README.md](../../workflows/README.md).
 
 **C — Manual edits after generation**  
-Edit **`workflows/.../key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** and change **`input.configuration`** (or specific `source_views` / filters) for one leaf. Prefer **rebuild from hierarchy** when you want reproducible, reviewable changes; use manual edits for one-off fixes or experiments, then consider folding the change back into `default.config.yaml` or templates.
+You can edit **`workflows/.../*.WorkflowTrigger.yaml`**; the next plain **`module.py build`** will **not** overwrite an existing trigger—use **`module.py build --force`** to regenerate from **`workflow_template/`**. For durable per-leaf tweaks, change **`default.config.yaml`** / templates (or use **`copy-workflow-config`** between leaves).
 
 Also ensure your Toolkit / project config supplies **`instance_space`** (or equivalent) for every deploy target where triggers still contain `{{instance_space}}`.
 
@@ -108,15 +105,25 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module
 
 Use **`--dry-run`** and **`--limit`** until you are confident. Optional **`--instance-space`** filters views when your file lists multiple views; see [`module.py`](../../module.py).
 
-## 6. Deploy with Cognite Toolkit
+## 6. Deploy to CDF
 
-This **library** repository does not ship a root **`cdf.toml`** or **`fusion.yaml`**. In practice you **add or symlink this module** into a **Cognite Toolkit** project that already defines modules, build variables, and deployment profiles.
+### 6a. Workflow shell only (`module.py deploy-scope` — Cognite SDK)
 
-1. **Artifacts to deploy** — Under this module, Toolkit resources include at least:
-   - **`workflows/`** — `Workflow`, `WorkflowVersion`, and per-scope **`WorkflowTrigger`** YAML produced by **`--build`**.
-   - **`functions/`** — Cognite Function definitions (for example [`functions.Function.yaml`](../../functions/functions.Function.yaml)) and handler code.
-2. **Build** — From your Toolkit project root, run **`cdf build`** (with the correct profile / config) so templates and variables resolve.
-3. **Deploy** — Run **`cdf deploy`** (same project conventions your team uses). Schedule cron, OAuth placeholders (`{{functionClientId}}`, `{{functionClientSecret}}`), and **`{{instance_space}}`** are resolved from your project’s configuration when you build/deploy, not by `module.py`.
+From this module (with the same **`.env` / credentials** as `module.py run`), **`python module.py deploy-scope --scope-suffix <leaf>`** validates the scoped trio under **`workflows/<suffix>/`**, optionally runs **`module.py build --scope-suffix`**, then **upserts** **`Workflow`**, **`WorkflowVersion`**, and **`WorkflowTrigger`** via the **Cognite Python SDK** (no **`cdf build`** / **`cdf deploy`**). It does **not** upload functions, RAW, data sets, or other Toolkit resources — deploy those separately if needed.
+
+- Use **`--dry-run`** to print planned upserts without calling CDF.
+- Generated trigger YAML may still contain **`{{…}}`** Toolkit placeholders; the CLI rejects those by default. Pass **`--allow-unresolved-placeholders`** only when you intend to push placeholders and fix them later (CDF may still reject invalid payloads).
+- Resolve **`dataSetExternalId`** on the Workflow file to an existing data set in the project.
+
+The operator UI **Run** tab uses the same API path when you click **Deploy**.
+
+### 6b. Full module with Cognite Toolkit (optional)
+
+This **library** repository does not ship a root **`cdf.toml`** or **`fusion.yaml`**. To deploy **functions**, **RAW**, **data models**, and workflows together, add or symlink this module into a **Cognite Toolkit** project.
+
+1. **Artifacts** — Under this module, typical Toolkit resources include **`workflows/`**, **`functions/`**, **`data_modeling/`**, etc.
+2. **Build** — From your Toolkit project root, run **`cdf build`** so templates and variables resolve.
+3. **Deploy** — Run **`cdf deploy`**. Schedule cron, OAuth placeholders (`{{functionClientId}}`, `{{functionClientSecret}}`), and **`{{instance_space}}`** are resolved from your project’s configuration when you build/deploy, not by `module.py`.
 
 Official Toolkit repository and docs: [CDF Toolkit](https://github.com/cognitedata/cdf-toolkit). For workflow triggers and **`workflow.input`**, see Cognite’s data workflows documentation (linked from [workflows/README.md](../../workflows/README.md)).
 

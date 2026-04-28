@@ -1,8 +1,9 @@
 """
 Declarative macro execution graph (Kahn-style process network) for cdf_key_extraction_aliasing.
 
-SSOT: workflow_template/workflow.execution.graph.yaml
-Aligned with workflow.template.WorkflowVersion.yaml task dependsOn.
+``workflow.execution.graph.yaml`` may be refreshed by ``build_scopes.py --force`` from
+``compiled_workflow`` IR. Validation compares an :class:`ExecutionGraph` derived from that IR
+to the generated ``WorkflowVersion`` document (task ``externalId`` / ``dependsOn``).
 """
 
 from __future__ import annotations
@@ -15,24 +16,24 @@ import yaml
 
 # Optional metadata for docs / tooling (inputs/outputs are logical; CDF uses RAW + configuration).
 FUNCTION_CHANNEL_METADATA: Mapping[str, Mapping[str, Any]] = {
-    "fn_dm_incremental_state_update": {
+    "kea__incremental_state": {
         "outputs": ["cohort RAW rows", "run_id in task data"],
-        "inputs": ["workflow.input.configuration", "run_all"],
+        "inputs": ["workflow.input.configuration", "run_all", "compiled_workflow"],
     },
-    "fn_dm_key_extraction": {
-        "inputs": ["run_id", "configuration", "key-extraction RAW parameters"],
+    "kea__key_extraction": {
+        "inputs": ["run_id", "configuration", "key-extraction RAW parameters", "compiled_workflow"],
         "outputs": ["key-extraction RAW rows", "FOREIGN_KEY_REFERENCES_JSON", "DOCUMENT_REFERENCES_JSON"],
     },
-    "fn_dm_reference_index": {
-        "inputs": ["configuration", "source RAW db/table", "run_id"],
+    "kea__reference_index": {
+        "inputs": ["configuration", "source RAW db/table", "run_id", "compiled_workflow"],
         "outputs": ["reference index RAW rows"],
     },
-    "fn_dm_aliasing": {
-        "inputs": ["configuration", "key-extraction RAW or in-memory mirror"],
+    "kea__aliasing": {
+        "inputs": ["configuration", "key-extraction RAW or in-memory mirror", "compiled_workflow"],
         "outputs": ["tag-aliasing RAW rows"],
     },
-    "fn_dm_alias_persistence": {
-        "inputs": ["aliasing RAW", "configuration", "optional FK from key-extraction RAW"],
+    "kea__alias_persistence": {
+        "inputs": ["aliasing RAW", "configuration", "optional FK from key-extraction RAW", "compiled_workflow"],
         "outputs": ["DM instance updates"],
     },
 }
@@ -158,7 +159,10 @@ def validate_execution_graph(graph: ExecutionGraph) -> List[str]:
 
 def depends_on_from_workflow_version(wv: Mapping[str, Any]) -> Dict[str, List[str]]:
     """
-    Map function externalId -> list of dependency externalIds from WorkflowVersion YAML.
+    Map **task** ``externalId`` -> list of dependency task ``externalId`` values from WorkflowVersion YAML.
+
+    Canvas-driven versions use stable per-task ids (e.g. ``kea__key_extraction``) distinct from
+    Cognite Function ``externalId`` (``parameters.function.externalId``).
     """
     wd = wv.get("workflowDefinition") or {}
     tasks = wd.get("tasks") or []
@@ -168,10 +172,8 @@ def depends_on_from_workflow_version(wv: Mapping[str, Any]) -> Dict[str, List[st
     for t in tasks:
         if not isinstance(t, dict):
             continue
-        params = t.get("parameters") or {}
-        fn = params.get("function") or {}
-        ext = str(fn.get("externalId") or t.get("externalId") or "").strip()
-        if not ext:
+        tid = str(t.get("externalId") or "").strip()
+        if not tid:
             continue
         deps: List[str] = []
         for d in t.get("dependsOn") or []:
@@ -179,7 +181,7 @@ def depends_on_from_workflow_version(wv: Mapping[str, Any]) -> Dict[str, List[st
                 did = str(d.get("externalId") or "").strip()
                 if did:
                     deps.append(did)
-        out[ext] = sorted(set(deps))
+        out[tid] = sorted(set(deps))
     return out
 
 
@@ -230,3 +232,161 @@ def load_workflow_version_yaml(path: Path) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError(f"WorkflowVersion must be a mapping: {path}")
     return raw
+
+
+_FN_TO_ROLE: Dict[str, str] = {
+    "fn_dm_incremental_state_update": "incremental_cohort",
+    "fn_dm_key_extraction": "key_extraction",
+    "fn_dm_reference_index": "reference_index",
+    "fn_dm_aliasing": "aliasing",
+    "fn_dm_alias_persistence": "alias_persistence",
+}
+
+
+def compiled_workflow_structural_signature(cw: Mapping[str, Any]) -> tuple:
+    """Stable tuple for DAG equality (task ids, function ids, sorted depends_on)."""
+    tasks = cw.get("tasks") if isinstance(cw, dict) else None
+    if not isinstance(tasks, list):
+        return ()
+    rows: List[tuple] = []
+    for t in tasks:
+        if not isinstance(t, dict):
+            continue
+        tid = str(t.get("id") or "").strip()
+        fn = str(t.get("function_external_id") or "").strip()
+        deps_raw = t.get("depends_on")
+        deps = [str(x) for x in deps_raw] if isinstance(deps_raw, list) else []
+        rows.append((tid, fn, tuple(sorted(deps))))
+    return tuple(sorted(rows))
+
+
+def execution_graph_from_compiled_workflow(cw: Mapping[str, Any]) -> ExecutionGraph:
+    """Build :class:`ExecutionGraph` from ``compiled_workflow`` tasks and optional ``channels``."""
+    tasks = cw.get("tasks") if isinstance(cw, dict) else None
+    if not isinstance(tasks, list) or not tasks:
+        return ExecutionGraph(
+            schema_version=1,
+            description="Empty compiled_workflow",
+            nodes=[],
+            node_roles={},
+            edges=[],
+        )
+
+    ch_map: Dict[tuple, str] = {}
+    channels = cw.get("channels")
+    if isinstance(channels, list):
+        for ch in channels:
+            if not isinstance(ch, dict):
+                continue
+            fr = str(ch.get("from") or "").strip()
+            to = str(ch.get("to") or "").strip()
+            cname = str(ch.get("channel") or "").strip()
+            if fr and to:
+                ch_map[(fr, to)] = cname or f"{fr}_to_{to}"
+
+    node_ids: List[str] = []
+    node_roles: Dict[str, str] = {}
+    seen: Set[str] = set()
+    for t in tasks:
+        if not isinstance(t, dict):
+            continue
+        tid = str(t.get("id") or "").strip()
+        if not tid or tid in seen:
+            continue
+        seen.add(tid)
+        node_ids.append(tid)
+        fn = str(t.get("function_external_id") or "").strip()
+        role = _FN_TO_ROLE.get(fn, "")
+        if role:
+            node_roles[tid] = role
+
+    edges: List[ExecutionGraphEdge] = []
+    node_set = set(node_ids)
+    for t in tasks:
+        if not isinstance(t, dict):
+            continue
+        tid = str(t.get("id") or "").strip()
+        if not tid:
+            continue
+        deps_raw = t.get("depends_on")
+        if not isinstance(deps_raw, list):
+            continue
+        for d in deps_raw:
+            ds = str(d).strip()
+            if not ds or ds not in node_set or tid not in node_set:
+                continue
+            channel = ch_map.get((ds, tid), f"{ds}_to_{tid}")
+            edges.append(ExecutionGraphEdge(from_id=ds, to_id=tid, channel=channel))
+
+    desc = (
+        "Cognite workflow task nodes from compiled_workflow IR; edges follow depends_on "
+        "(CDF does not pass payloads between tasks)."
+    )
+    return ExecutionGraph(
+        schema_version=int(cw.get("schemaVersion") or 1),
+        description=desc,
+        nodes=node_ids,
+        node_roles=node_roles,
+        edges=edges,
+    )
+
+
+def execution_graph_to_mapping(graph: ExecutionGraph) -> Dict[str, Any]:
+    """Serialize graph to a YAML-root mapping (``schemaVersion``, ``nodes``, ``edges``)."""
+    nodes_out: List[Dict[str, Any]] = []
+    for nid in graph.nodes:
+        entry: Dict[str, Any] = {"id": nid}
+        r = graph.node_roles.get(nid, "")
+        if r:
+            entry["role"] = r
+        nodes_out.append(entry)
+    edges_out = [
+        {"from": e.from_id, "to": e.to_id, "channel": e.channel} for e in graph.edges
+    ]
+    return {
+        "schemaVersion": graph.schema_version,
+        "description": graph.description,
+        "nodes": nodes_out,
+        "edges": edges_out,
+    }
+
+
+EXECUTION_GRAPH_FILE_HEADER = (
+    "# IR-derived Kahn-style execution graph for cdf_key_extraction_aliasing.\n"
+    "# Regenerated by ``python module.py build --force`` from ``compiled_workflow``.\n"
+    "# Channel semantics: see workflow_channel_contracts.md\n"
+)
+
+
+def dump_execution_graph_yaml_for_compiled_workflow(
+    module_root: Path,
+    cw: Mapping[str, Any],
+    *,
+    dry_run: bool,
+) -> None:
+    """Write ``workflow_template/workflow.execution.graph.yaml`` from *cw* (no-op when *dry_run*)."""
+    graph = execution_graph_from_compiled_workflow(cw)
+    errs = validate_execution_graph(graph)
+    if errs:
+        raise ValueError(
+            "compiled_workflow yields invalid execution graph: " + "; ".join(errs)
+        )
+    path = default_execution_graph_path(module_root)
+    body = yaml.safe_dump(
+        execution_graph_to_mapping(graph),
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+    )
+    if dry_run:
+        return
+    path.write_text(EXECUTION_GRAPH_FILE_HEADER + body, encoding="utf-8")
+
+
+def validate_compiled_workflow_matches_workflow_version_document(
+    workflow_version: Mapping[str, Any],
+    cw: Mapping[str, Any],
+) -> List[str]:
+    """Compare :func:`execution_graph_from_compiled_workflow` to *workflow_version* tasks."""
+    graph = execution_graph_from_compiled_workflow(cw)
+    return compare_graph_to_workflow_version(graph, workflow_version)

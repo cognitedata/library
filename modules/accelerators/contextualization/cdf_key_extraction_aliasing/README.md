@@ -66,13 +66,13 @@ Run **`module.py run`** from **repository root** with **`PYTHONPATH=.`** (see [P
 Before **`module.py build`**, configure **`aliasing_scope_hierarchy`** in [default.config.yaml](default.config.yaml) at the module root (or pass another file via **`--hierarchy`** to `scripts/build_scopes.py`):
 
 - **`aliasing_scope_hierarchy.levels`** — Ordered labels for path tiers (same naming style as **`cdf_access_control`** `dimensions.*.levels` under **`type: hierarchy`**, e.g. `site` → `unit` → `area` → `system`). You do not have to reach every tier; shallow trees are valid, and deeper paths use synthetic names such as `level_5` when you run past the end of `levels`.
-- **`aliasing_scope_hierarchy.locations`** — Root list of scope nodes. Each node should have a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`) and optional **`name`** / **`description`**. **Children** of a node are listed under another **`locations`** key on that node (same key name as the root list). A **leaf** is a node with no child list or an empty **`locations: []`**; leaves get one **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** each (or under **`workflows/<suffix>/`** when **`scope_build_mode: full`**).
+- **`aliasing_scope_hierarchy.locations`** — Root list of scope nodes. Each node should have a stable **`id`** (used in trigger `externalId` suffixes and `scope_id`) and optional **`name`** / **`description`**. **Children** of a node are listed under another **`locations`** key on that node (same key name as the root list). A **leaf** is a node with no child list or an empty **`locations: []`**; each leaf gets a scoped trio under **`workflows/<suffix>/`**, including **`key_extraction_aliasing.<suffix>.WorkflowTrigger.yaml`**.
 
 See the commented example under **`aliasing_scope_hierarchy.locations`** in `default.config.yaml` for a deeper tree.
 
-### Create missing workflow triggers (`build`)
+### Workflow manifests (`build`)
 
-**`module.py build`** creates **`workflows/key_extraction_aliasing.<scope>.WorkflowTrigger.yaml`** (flat **`trigger_only`** layout) only when that file does not exist (embedded **`configuration`** per leaf). It does **not** overwrite existing triggers; delete a file first if you need to recreate it from templates. **No CDF connection.** (Equivalent: **`module.py --build`**.)
+**`module.py build`** creates missing scoped **Workflow** / **WorkflowVersion** / **WorkflowTrigger** YAML under **`workflows/<suffix>/`** from **`workflow_template/`** and refreshes **`workflow_template/workflow.execution.graph.yaml`** from IR on every run. Use **`--force`** to overwrite **existing** scoped manifests after you edit **`workflow.template.config.yaml`** / canvas. **No CDF connection.** (Equivalent: **`module.py --build`**.)
 
 ```bash
 python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module.py build
@@ -83,7 +83,7 @@ The second form exits non-zero if required trigger files are missing or their co
 
 ### Remove generated workflow YAML (`build --clean`)
 
-**`module.py build --clean`** (same flags on `scripts/build_scopes.py`) deletes Toolkit workflow artifacts under **`workflows/`** that match the **`workflow`** external id from your hierarchy file (flat **`trigger_only`** files, per-suffix folders in **`full`** mode, and a few legacy root trigger names). It prints a file list and a warning that the operation **cannot be undone**, then requires typing **`yes`** to proceed unless you pass **`--yes`** (required when stdin is not a TTY, for example in CI). **`--dry-run --clean`** shows what would be removed without deleting. **No build runs after a successful clean**—run **`module.py build`** again to recreate files.
+**`module.py build --clean`** (same flags on `scripts/build_scopes.py`) deletes Toolkit workflow artifacts under **`workflows/`** that match the **`workflow`** external id from your hierarchy file (per-suffix folders and a few legacy names). It prints a file list and a warning that the operation **cannot be undone**, then requires typing **`yes`** to proceed unless you pass **`--yes`** (required when stdin is not a TTY, for example in CI). **`--dry-run --clean`** shows what would be removed without deleting. **No build runs after a successful clean**—run **`module.py build`** again to recreate files.
 
 This is **not** **`--clean-state`**: the latter drops incremental **RAW** tables for the pipeline scope; it does not remove **`workflows/*.yaml`**.
 
@@ -100,7 +100,7 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `build` | Subcommand: only run the scope builder — **create missing** `workflows/.../key_extraction_aliasing.*.WorkflowTrigger.yaml` (and Workflow/WorkflowVersion per `scope_build_mode`) from `default.config.yaml` (does not overwrite existing). Forwards `--clean`, `--yes`, `--check-workflow-triggers`, `--dry-run`, `--hierarchy`, etc. Does **not** run the pipeline. Legacy: `--build` as first argument. | off |
+| `build` | Subcommand: only run the scope builder — creates missing scoped **Workflow** / **WorkflowVersion** / **WorkflowTrigger** under **`workflows/<suffix>/`**, and refreshes `workflow.execution.graph.yaml` from IR every run. **`--force`** overwrites existing scoped manifests and triggers. Forwards `--clean`, `--yes`, `--check-workflow-triggers`, `--dry-run`, `--hierarchy`, etc. Does **not** run the pipeline. Legacy: `--build` as first argument. | off |
 | `--limit` | Max instances per view; `0` = all | `0` |
 | `--verbose` | Verbose logging | false |
 | `--dry-run` | Skip alias persistence to CDF | false |

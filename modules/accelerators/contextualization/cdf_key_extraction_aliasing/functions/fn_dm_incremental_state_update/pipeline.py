@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -111,12 +112,16 @@ def incremental_state_update(
     """
     Write scope watermarks and cohort rows with WORKFLOW_STATUS=detected.
 
-    Expects ``cdf_config.parameters.incremental_change_processing`` True and
-    standard key-extraction ``raw_db`` / ``raw_table_key``.
+    When ``incremental_change_processing`` is false, assigns a synthetic ``run_id`` and returns
+    without RAW writes (v5 workflow keeps the incremental task for a stable DAG).
     """
     params = getattr(cdf_config, "parameters", None)
     if not bool(getattr(params, "incremental_change_processing", False)):
-        raise ValueError("incremental_change_processing must be true for this function")
+        data["run_id"] = data.get("run_id") or str(uuid.uuid4())
+        logger.info(
+            "incremental_change_processing is false — skipping incremental_state_update RAW writes"
+        )
+        return
 
     raw_db = str(getattr(params, "raw_db", "") or "")
     raw_table_key = str(getattr(params, "raw_table_key", "") or "")

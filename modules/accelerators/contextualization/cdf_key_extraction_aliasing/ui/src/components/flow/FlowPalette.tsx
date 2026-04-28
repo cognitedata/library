@@ -12,8 +12,8 @@ export type PaletteDragPayload =
         | "source_view"
         | "subflow"
         | "subgraph"
-        | "writeback_raw"
-        | "writeback_data_modeling"
+        | "reference_index"
+        | "alias_persistence"
         | "match_validation_source_view"
         | "match_validation_extraction"
         | "match_validation_aliasing";
@@ -75,27 +75,27 @@ export function FlowPalette({ t, scopeDocument }: Props) {
           {t("flow.structuralSubgraph")}
         </button>
       </div>
-      <p className="kea-flow-palette__heading">{t("flow.paletteWriteback")}</p>
+      <p className="kea-flow-palette__heading">{t("flow.paletteCdfTasks")}</p>
       <div className="kea-flow-palette__buttons">
         <button
           type="button"
           className="kea-btn kea-btn--sm"
           draggable
           onDragStart={(e) =>
-            setPaletteDragData(e, { kind: "structural", nodeKind: "writeback_raw" })
+            setPaletteDragData(e, { kind: "structural", nodeKind: "reference_index" })
           }
         >
-          {t("flow.structuralWritebackRaw")}
+          {t("flow.structuralReferenceIndex")}
         </button>
         <button
           type="button"
           className="kea-btn kea-btn--sm"
           draggable
           onDragStart={(e) =>
-            setPaletteDragData(e, { kind: "structural", nodeKind: "writeback_data_modeling" })
+            setPaletteDragData(e, { kind: "structural", nodeKind: "alias_persistence" })
           }
         >
-          {t("flow.structuralWritebackDataModeling")}
+          {t("flow.structuralAliasPersistence")}
         </button>
       </div>
       <p className="kea-flow-palette__heading">{t("flow.paletteValidationRuleDefinitions")}</p>

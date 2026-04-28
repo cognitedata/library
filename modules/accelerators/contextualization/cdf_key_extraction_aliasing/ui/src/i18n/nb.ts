@@ -14,7 +14,7 @@ export const nb: Messages = {
   "tabs.keyExtraction": "Nøkkeloppdagelse",
   "tabs.aliasing": "Alias",
   "tabs.flowCanvas": "Flyt",
-  "tabs.runPipeline": "Kjør pipeline",
+  "tabs.runPipeline": "Kjør arbeidsflyt",
   "tabs.configure": "Konfigurer",
   "tabs.build": "Bygg",
   "tabs.artifacts": "Artefakter",
@@ -38,7 +38,11 @@ export const nb: Messages = {
   "btn.refreshList": "Oppdater liste",
   "btn.runBuild": "Kjør bygg",
   "btn.runBuildForce": "Kjør bygg (tving)",
-  "btn.runPipeline": "Kjør pipeline",
+  "btn.runPipeline": "Kjør lokalt",
+  "btn.deployScope": "Distribuer til CDF",
+  "btn.deployScopeDryRun": "Tørrkjøring av distribusjon",
+  "btn.cdfWorkflowRun": "Kjør i CDF",
+  "btn.cdfWorkflowRunDryRun": "Tørrkjøring i CDF",
   "btn.dryRun": "Tørrkjøring",
   "status.loading": "Laster…",
   "status.saving": "Lagrer…",
@@ -70,6 +74,15 @@ export const nb: Messages = {
   "config.fileHint.default": "default.config.yaml",
   "config.fileHint.workflowLocal": "workflow.local.config.yaml",
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
+  "config.updateTemplate": "Oppdater mal",
+  "config.updateTemplateTooltip":
+    "Overskriver workflow_template/workflow.template.config.yaml og workflow.template.canvas.yaml med lagrede lokale filer på disk (samme som ``python module.py promote-local-templates``). Lagre først hvis redigeringsprogrammet har ulagrede endringer.",
+  "config.promoteTemplateConfirm":
+    "Overskrive workflow.template.config.yaml og workflow.template.canvas.yaml på disk med lagrede workflow.local.config.yaml og workflow.local.canvas.yaml? Kan ikke angres i UI (bruk git for å tilbakestille).",
+  "config.promoteTemplateDirtyConfirm":
+    "Du har ulagrede endringer i redigeringsprogrammet. Malen oppdateres fra det som allerede er lagret på disk, ikke fra redigeringsprogrammet. Fortsette?",
+  "config.templatePromoted":
+    "Mal-konfigurasjon og lerret oppdatert på disk fra workflow.local.config.yaml og workflow.local.canvas.yaml.",
   "build.warnForce": "Tving overskriver generert arbeidsflyt-YAML. Bekreft før kjøring.",
   "build.confirmForce": "Overskrive genererte arbeidsflytfiler med --force?",
   "build.outputPlaceholder": "Byggutdata vises her.",
@@ -79,10 +92,22 @@ export const nb: Messages = {
   "run.contextWorkflowTrigger":
     "Bruker input.configuration fra lagret WorkflowTrigger-fil ({path}). Lagre filen før kjøring for å ta med endringer fra editoren.",
   "run.triggerUnsaved": "Ulagrede endringer i denne utløseren — kjøringen bruker sist lagrede fil på disk.",
-  "run.runAll": "Kjør alle (--all)",
+  "run.runAll": "Kjør alle",
   "run.runAllHint":
     "Når inkrementell modus er på, behandler hele omfanget (samme som workflow-inndata run_all). Uten effekt når inkrementell modus er av.",
+  "run.cdfToolsHint":
+    "Distribuer oppdaterer Workflow, WorkflowVersion og WorkflowTrigger for omfanget i CDF via Cognite SDK (samme legitimasjon som module.py run). Distribuerer ikke funksjoner eller andre Toolkit-ressurser. Kjør i CDF starter en kjøring (valgfritt KEA_WORKFLOW_CLIENT_*). I dette grensesnittet tillates uløste ``{{…}}``-plassholdere i generert trigger-YAML.",
+  "run.cdfScopedOnly":
+    "Distribuer og Kjør i CDF gjelder bare manifester under workflows/<suffix>/ (ikke workflow.local eller workflow_template). Velg en WorkflowTrigger-fil i sidefeltet.",
+  "run.cdfDeployOutputPlaceholder": "Logger for distribusjon og CDF-workflowkjøringer vises her.",
+  "run.needTriggerScope":
+    "Velg en WorkflowTrigger-fil under workflows/<scope>/ i sidefeltet for å aktivere Distribuer og Kjør i CDF for det omfanget.",
   "run.outputPlaceholder": "Pipeline-utskrift vises her.",
+  "run.localRunExitLine": "[lokalt kjør] exit_code={code}",
+  "run.localTaskStart": "▶ Startet {functionId} (oppgave {taskId}){nodeSuffix}",
+  "run.localTaskEnd": "✓ Fullført {functionId} (oppgave {taskId}){nodeSuffix}",
+  "run.localExecutingNow": "→ Kjører nå: {list}",
+  "run.localExecutingNone": "(ingen)",
   "scope.levelsLabel": "Nivåer (kommaseparert)",
   "scope.levelsLabel.tooltip":
     "Navn på hvert nivå i hierarkiet (f.eks. site, unit, system). Kommaseparert.",
@@ -115,7 +140,6 @@ export const nb: Messages = {
   "module.field.schemaSpace": "Skjemaområde",
   "module.field.viewVersion": "Visningsversjon",
   "module.field.workflow": "Arbeidsflyt",
-  "module.field.scope_build_mode": "Omfangsbyggmodus",
   "module.field.key_extraction_aliasing_schedule": "Plan for nøkkeloppdagelse og alias",
   "module.field.files_location_processing_group_source_id": "Kilde-ID for fil-lokasjonsbehandlingsgruppe",
   "module.field.functionVersion": "Funksjonsversjon",
@@ -445,6 +469,8 @@ export const nb: Messages = {
   "triggerEditor.workflowVersion": "Arbeidsflytversjon",
   "triggerEditor.authClientId": "Klient-ID",
   "triggerEditor.authClientSecret": "Klienthemmelighet",
+  "triggerEditor.authDeployHint":
+    "Klient-ID og hemmelighet lagres ikke i denne YAML-filen (bruk miljøvariabler). Utrulling til CDF leser KEA_WORKFLOW_TRIGGER_CLIENT_ID / _SECRET, eller IDP_CLIENT_*, eller COGNITE_CLIENT_* og sender dem bare i API-kallet.",
   "triggerEditor.triggerType": "Utløsertype",
   "triggerEditor.cronExpression": "Cron-uttrykk",
   "triggerEditor.scheduleHint":
@@ -490,9 +516,6 @@ export const nb: Messages = {
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "Alias tilbakeskriving",
   "flow.structuralReferenceIndex": "Referanseindeks",
-  "flow.paletteWriteback": "Writeback",
-  "flow.structuralWritebackRaw": "Writeback (RAW)",
-  "flow.structuralWritebackDataModeling": "Writeback (datamodellering)",
   "flow.validationRuleLayoutSourceView": "Samsvarsregel (kildevisning)",
   "flow.validationRuleLayoutExtraction": "Samsvarsregel (ekstraksjon)",
   "flow.validationRuleLayoutAliasing": "Samsvarsregel (alias)",
@@ -502,6 +525,7 @@ export const nb: Messages = {
   "flow.paletteExtractionHandlers": "Ekstraksjonshåndterere",
   "flow.paletteAliasingHandlers": "Aliasing-håndterere",
   "flow.paletteAnnotations": "Annotasjoner",
+  "flow.paletteCdfTasks": "CDF-funksjoner",
   "flow.seedFromScope": "Tilbakestill",
   "flow.alignLeft": "Juster valgte noder til venstre",
   "flow.alignCenterHorizontal": "Juster valgte noder til horisontalt senter",
@@ -512,6 +536,11 @@ export const nb: Messages = {
   "flow.alignSelectionGroup": "Juster utvalg",
   "flow.canvasHint":
     "Oppsett lagres i en tilhørende .canvas.yaml. Lagre omfang. Dra fra paletten til lerretet. Slipp en node i en underflytramme for å knytte den til; velg underflyten og dra hjørner eller kantfelt for å endre størrelse vannrett og loddrett.",
+  "flow.workflowCompileModeLabel": "Kompilering av arbeidsflyt",
+  "flow.workflowCompileModeAuto": "Auto (lerret når kjørbare noder finnes)",
+  "flow.workflowCompileModeCanvas": "Lerret-DAG (alltid fra graf)",
+  "flow.workflowCompileModeHint":
+    "Styrer hvordan ``compiled_workflow`` bygges for CDF og lokale kjøringer fra flyt-lerretet. Auto og lerret bruker samme lerret-kompilering (ugyldige grafer feiler ved bygg, kjøring eller lagring). Lagring av omfang eller lerret bygger ``compiled_workflow`` inn i omfangs-YAML på nytt.",
   "flow.handleOrientationLabel": "Håndtak",
   "flow.handleOrientationLr": "Venstre → høyre",
   "flow.handleOrientationTb": "Topp → bunn",
@@ -528,8 +557,11 @@ export const nb: Messages = {
   "flow.ctxMenuConvertSubgraphToSubflow": "Gjør om delgraf til delflyt (gruppe)",
   "flow.subgraphDrillTitle": "Subgraph",
   "flow.subgraphBack": "Save & close",
+  "flow.subgraphCancel": "Avbryt",
+  "flow.subgraphCancelNestedTooltip":
+    "Lukk den nestede undergraf-editoren først, eller bruk Avbryt der.",
   "flow.subgraphDrillHint":
-    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+    "Rediger den indre arbeidsflyten. Tilkoblinger følger samme regler som hovedlerretet. Lagre og lukk beholder endringer; Avbryt gjenoppretter denne undergrafen slik den var da du åpnet redigereren (inkludert etter automatisk grenseoppsett).",
   "flow.inspectorOpenSubgraph": "Open inner graph…",
   "flow.inspectorSubgraphHint":
     "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
@@ -554,21 +586,23 @@ export const nb: Messages = {
   "flow.nodeEditorUnsupported": "Ingen konfigurasjonseditor for denne nodetypen.",
   "flow.close": "Lukk",
   "flow.save": "Lagre",
-  "flow.editCanvas": "Rediger lerret",
-  "flow.canvasPreviewHint": "Skrivebeskyttet forhåndsvisning. Rediger åpner hele lerretsredigereren.",
+  "flow.editWorkflow": "Rediger arbeidsflyt",
+  "flow.canvasPreviewHint":
+    "Skrivebeskyttet forhåndsvisning. Rediger åpner hele arbeidsflytredigereren.",
+  "flow.previewRunLocal": "Kjør lokalt",
+  "flow.previewRunLocalHint":
+    "Samme som Kjør lokalt på fanen Kjør arbeidsflyt (lagret YAML på disk—lagre først). Oppgaver som kjører markeres på grafen.",
+  "flow.previewRunProgressUnsupported":
+    "Live markering er ikke tilgjengelig på Windows; bruk Kjør lokalt på fanen Kjør arbeidsflyt for full logg.",
   "flow.inspectorEmpty": "Velg en node eller kant.",
   "flow.inspectorStartHint":
     "Pipeline-inngang. Koble til kildevisninger (eller til ekstraksjon hvis det ikke finnes kilder).",
   "flow.inspectorEndHint":
-    "Pipeline-utgang. Koble fra ekstraksjon, alias, validering, alias tilbakeskriving, RAW-/datamodellerings-writeback-noder eller referanseindeks.",
+    "Pipeline-utgang. Koble fra ekstraksjon, alias, validering, alias tilbakeskriving eller referanseindeks.",
   "flow.inspectorAliasPersistenceHint":
     "Tilsvarer fn_dm_alias_persistence: leser aliasing-RAW og skriver aliaslister (valgfritt FK-strenger) til describable-instanser. Konfigurer tilbakeskriving i scope eller oppgavedata.",
   "flow.inspectorReferenceIndexHint":
     "Tilsvarer fn_dm_reference_index: vedlikeholder en invertert RAW-indeks fra FOREIGN_KEY_REFERENCES_JSON og DOCUMENT_REFERENCES_JSON i nøkkelekstraksjonslageret. Aktiver i scope (f.eks. enable_reference_index).",
-  "flow.inspectorWritebackRawHint":
-    "Layout-node for resultater i Cognite RAW (database, tabell, inntak). Konfigurer RAW-mål og handler I/O i scope eller oppgavedata; lerretsnoden er dokumentasjon.",
-  "flow.inspectorWritebackDataModelingHint":
-    "Layout-node for writeback til CDF Data Modeling (instanser, visninger). Konfigurer mellomrom, eksterne ID-er og projeksjonstrinn (f.eks. fn_dm_alias_persistence) i scope eller oppgavedata; lerretsnoden er dokumentasjon.",
   "flow.inspectorValidationRuleHint":
     "Lenker til validation_rules i scope: brukes ved nøkkelscoring (global key_extraction data.validation pluss extraction_rules[].validation) eller aliasvalidering (aliasing_rules[].validation). Kildevisningsrader har ikke validation. Regelkroppene er frittstående definisjoner. Bruk YAML-liste, kortform { rule_id: [ tail... ] }, eller hierarchy: { mode: ordered | concurrent, children: [...] }. På lerretet: datakanter fra ekstraksjon eller aliasing til første match-regelnode; koble videre match-regelnoder med sequence- eller parallel_group-kanter.",
   "flow.inspectorValidationRuleContext": "Regelomfang",

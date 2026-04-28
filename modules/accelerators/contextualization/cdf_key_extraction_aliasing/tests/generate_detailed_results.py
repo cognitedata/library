@@ -23,13 +23,10 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 )
 
 
-def _sample_aliasing_validation(
-    *, max_aliases_per_tag: int, max_len: int = 50, min_len: int = 2
-) -> dict:
-    if min_len < 1:
-        raise ValueError("min_len must be >= 1")
-    short_pat = "^$" if min_len == 1 else rf"^.{{0,{min_len - 1}}}$"
-    short_desc = "empty alias" if min_len == 1 else "alias too short"
+def _sample_aliasing_validation(*, max_aliases_per_tag: int, max_len: int = 50) -> dict:
+    """Align short-alias rejection with production: ASCII digits-only, length < 4 (incl. empty)."""
+    short_pat = r"^[0-9]{0,3}$"
+    short_desc = "digits-only alias under 4 characters (incl. empty)"
     return {
         "max_aliases_per_tag": max_aliases_per_tag,
         "min_confidence": 0.01,

@@ -10,6 +10,7 @@ sys.path.insert(0, str(project_root))
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.cdf_adapter import (
     _DEFAULT_ALIASING_VALIDATION,
+    _convert_yaml_direct_to_aliasing_config,
 )
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
     AliasingEngine,
@@ -94,6 +95,35 @@ class TestExtractionAliasingPipeline(unittest.TestCase):
         self.assertIn("1O", r.aliases)
         self.assertIn("2O", r.aliases)
         self.assertNotIn("12O", r.aliases)
+
+    def test_empty_per_rule_pipeline_falls_back_to_global_aliasing_rules(self) -> None:
+        """Scope attach maps every extraction rule id to a pipeline list (often []); global rules must still run."""
+        scope = {
+            "key_extraction": {"config": {"data": {"extraction_rules": [{"name": "r1"}]}}}
+        }
+        cfg = _convert_yaml_direct_to_aliasing_config(
+            {
+                "config": {
+                    "data": {
+                        "aliasing_rules": [
+                            {
+                                "name": "underscore",
+                                "handler": "character_substitution",
+                                "enabled": True,
+                                "priority": 1,
+                                "config": {"substitutions": {"-": "_"}},
+                            }
+                        ],
+                        "validation": _val(min_confidence=0.0, max_aliases_per_tag=100),
+                    }
+                }
+            },
+            scope_document=scope,
+        )
+        eng = AliasingEngine(cfg)
+        r = eng.generate_aliases("A-B", context={"extraction_rule_name": "r1"})
+        self.assertIn("underscore", r.metadata.get("applied_rules") or [])
+        self.assertIn("A_B", r.aliases)
 
 
 if __name__ == "__main__":

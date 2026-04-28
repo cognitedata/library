@@ -17,6 +17,7 @@ except ImportError:
 
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import ensure_aliasing_config_from_scope_dm
+from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 from cdf_adapter import (
     _DEFAULT_ALIASING_VALIDATION,
     _convert_yaml_direct_to_aliasing_config,
@@ -58,6 +59,8 @@ def handle(
 
         if not client:
             raise ValueError("CogniteClient is required for tag aliasing in CDF")
+
+        merge_compiled_task_into_data(data)
 
         if data.get("configuration") or data.get("scope_document"):
             ensure_aliasing_config_from_scope_dm(data, client)

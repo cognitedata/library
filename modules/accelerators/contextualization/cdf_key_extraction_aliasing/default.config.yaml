@@ -10,7 +10,6 @@ functionClientId: ${IDP_CLIENT_ID}
 functionClientSecret: ${IDP_CLIENT_SECRET}
 functionVersion: v1
 workflow: key_extraction_aliasing
-scope_build_mode: full
 key_extraction_aliasing_schedule: 0 2 * * *
 files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
 aliasing_scope_hierarchy:

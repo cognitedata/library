@@ -14,7 +14,7 @@ export const en: Messages = {
   "tabs.keyExtraction": "Key Discovery",
   "tabs.aliasing": "Aliasing",
   "tabs.flowCanvas": "Flow",
-  "tabs.runPipeline": "Run pipeline",
+  "tabs.runPipeline": "Run Workflow",
   "tabs.configure": "Configure",
   "tabs.build": "Build",
   "tabs.artifacts": "Artifacts",
@@ -38,7 +38,11 @@ export const en: Messages = {
   "btn.refreshList": "Refresh List",
   "btn.runBuild": "Run Build",
   "btn.runBuildForce": "Run Build (Force)",
-  "btn.runPipeline": "Run pipeline",
+  "btn.runPipeline": "Run Locally",
+  "btn.deployScope": "Deploy to CDF",
+  "btn.deployScopeDryRun": "Dry-run deploy",
+  "btn.cdfWorkflowRun": "Run on CDF",
+  "btn.cdfWorkflowRunDryRun": "Dry-run on CDF",
   "btn.dryRun": "Dry Run",
   "status.loading": "Loading…",
   "status.saving": "Saving…",
@@ -70,6 +74,15 @@ export const en: Messages = {
   "config.fileHint.default": "default.config.yaml",
   "config.fileHint.workflowLocal": "workflow.local.config.yaml",
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
+  "config.updateTemplate": "Update template",
+  "config.updateTemplateTooltip":
+    "Overwrite workflow_template/workflow.template.config.yaml and workflow.template.canvas.yaml using the saved local files on disk (same as python module.py promote-local-templates). Save first if you have unsaved editor changes.",
+  "config.promoteTemplateConfirm":
+    "Overwrite workflow.template.config.yaml and workflow.template.canvas.yaml on disk with the saved local workflow.local.config.yaml and workflow.local.canvas.yaml? This cannot be undone from the UI (use git to revert).",
+  "config.promoteTemplateDirtyConfirm":
+    "You have unsaved changes in this editor. The template will be updated from what is already saved on disk, not from the editor. Continue?",
+  "config.templatePromoted":
+    "Template config and canvas updated on disk from workflow.local.config.yaml and workflow.local.canvas.yaml.",
   "build.warnForce": "Force Overwrites Generated Workflow YAML. Confirm Before Running.",
   "build.confirmForce": "Overwrite Generated Workflow Files With --force?",
   "build.outputPlaceholder": "Build Output Appears Here.",
@@ -79,10 +92,22 @@ export const en: Messages = {
   "run.contextWorkflowTrigger":
     "Uses input.configuration from the saved WorkflowTrigger file ({path}). Save the file before running to pick up editor changes.",
   "run.triggerUnsaved": "You have unsaved changes in this trigger — the run uses the last saved file on disk.",
-  "run.runAll": "Run All (--all)",
+  "run.runAll": "Run All",
   "run.runAllHint":
     "When incremental mode is on, processes the full scope (same as workflow input run_all). No effect if incremental mode is off.",
+  "run.cdfToolsHint":
+    "Deploy upserts Workflow, WorkflowVersion, and WorkflowTrigger for the selected scope to CDF using the Cognite SDK (same credentials as module.py run). It does not deploy functions or other Toolkit resources. Run on CDF starts a workflow execution (optional KEA_WORKFLOW_CLIENT_* for executions.run). Unresolved ``{{…}}`` tokens in generated trigger YAML are allowed from this UI so schedule placeholders can be fixed later in CDF or in the file.",
+  "run.cdfScopedOnly":
+    "Deploy and Run on CDF apply only to scoped manifests under workflows/<suffix>/ (not workflow.local or workflow_template). Select a WorkflowTrigger file in the sidebar.",
+  "run.cdfDeployOutputPlaceholder": "Deploy and CDF workflow run logs appear here.",
+  "run.needTriggerScope":
+    "Select a WorkflowTrigger file under workflows/<scope>/ in the sidebar to enable Deploy and Run on CDF for that scope.",
   "run.outputPlaceholder": "Pipeline output appears here.",
+  "run.localRunExitLine": "[local run] exit_code={code}",
+  "run.localTaskStart": "▶ Started {functionId} (task {taskId}){nodeSuffix}",
+  "run.localTaskEnd": "✓ Finished {functionId} (task {taskId}){nodeSuffix}",
+  "run.localExecutingNow": "→ Now executing: {list}",
+  "run.localExecutingNone": "(none)",
   "scope.levelsLabel": "Levels (Comma-Separated)",
   "scope.levelsLabel.tooltip":
     "Ordered labels for each depth in the hierarchy (e.g. site, unit, system). Comma-separated.",
@@ -115,7 +140,6 @@ export const en: Messages = {
   "module.field.schemaSpace": "Schema Space",
   "module.field.viewVersion": "View Version",
   "module.field.workflow": "Workflow",
-  "module.field.scope_build_mode": "Scope Build Mode",
   "module.field.key_extraction_aliasing_schedule": "Key Discovery Aliasing Schedule",
   "module.field.files_location_processing_group_source_id": "Files Location Processing Group Source ID",
   "module.field.functionVersion": "Function Version",
@@ -444,6 +468,8 @@ export const en: Messages = {
   "triggerEditor.workflowVersion": "Workflow version",
   "triggerEditor.authClientId": "Client ID",
   "triggerEditor.authClientSecret": "Client secret",
+  "triggerEditor.authDeployHint":
+    "Client ID and secret are not saved in this YAML (use environment variables). Deploy to CDF reads KEA_WORKFLOW_TRIGGER_CLIENT_ID / KEA_WORKFLOW_TRIGGER_CLIENT_SECRET, or IDP_CLIENT_ID / IDP_CLIENT_SECRET, or COGNITE_CLIENT_ID / COGNITE_CLIENT_SECRET, and sends them only in the API request.",
   "triggerEditor.triggerType": "Trigger type",
   "triggerEditor.cronExpression": "Cron expression",
   "triggerEditor.scheduleHint":
@@ -489,9 +515,6 @@ export const en: Messages = {
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "Alias write-back",
   "flow.structuralReferenceIndex": "Reference index",
-  "flow.paletteWriteback": "Writeback",
-  "flow.structuralWritebackRaw": "Writeback (RAW)",
-  "flow.structuralWritebackDataModeling": "Writeback (Data modeling)",
   "flow.validationRuleLayoutSourceView": "Validation rule (source view)",
   "flow.validationRuleLayoutExtraction": "Validation rule (extraction)",
   "flow.validationRuleLayoutAliasing": "Validation rule (aliasing)",
@@ -501,6 +524,7 @@ export const en: Messages = {
   "flow.paletteExtractionHandlers": "Extraction handlers",
   "flow.paletteAliasingHandlers": "Aliasing handlers",
   "flow.paletteAnnotations": "Annotations",
+  "flow.paletteCdfTasks": "CDF functions",
   "flow.seedFromScope": "Reset",
   "flow.alignLeft": "Align selected nodes to the left",
   "flow.alignCenterHorizontal": "Align selected nodes to horizontal center",
@@ -511,6 +535,11 @@ export const en: Messages = {
   "flow.alignSelectionGroup": "Align selection",
   "flow.canvasHint":
     "Layout is stored in a sibling .canvas.yaml file. Save scope to persist. Drag palette items onto the canvas. Drop a node into a subflow frame to attach it; select the subflow and drag corners or edge bars to resize horizontally and vertically.",
+  "flow.workflowCompileModeLabel": "Workflow compile",
+  "flow.workflowCompileModeAuto": "Auto (canvas when executable nodes exist)",
+  "flow.workflowCompileModeCanvas": "Canvas DAG (always from graph)",
+  "flow.workflowCompileModeHint":
+    "Controls how ``compiled_workflow`` is built for CDF and local runs from the flow canvas. Auto and canvas both use canvas compilation (invalid graphs fail at build/run or when saving). Saving the scope or canvas re-embeds ``compiled_workflow`` in the scope YAML.",
   "flow.handleOrientationLabel": "Handles",
   "flow.handleOrientationLr": "Left → right",
   "flow.handleOrientationTb": "Top → bottom",
@@ -527,8 +556,10 @@ export const en: Messages = {
   "flow.ctxMenuConvertSubgraphToSubflow": "Convert subgraph to subflow (group)",
   "flow.subgraphDrillTitle": "Subgraph",
   "flow.subgraphBack": "Save & close",
+  "flow.subgraphCancel": "Cancel",
+  "flow.subgraphCancelNestedTooltip": "Close the nested subgraph editor first, or use its Cancel button.",
   "flow.subgraphDrillHint":
-    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close keeps changes; Cancel restores this subgraph to how it was when you opened the editor (including after auto boundary setup).",
   "flow.inspectorOpenSubgraph": "Open inner graph…",
   "flow.inspectorSubgraphHint":
     "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
@@ -553,20 +584,21 @@ export const en: Messages = {
   "flow.nodeEditorUnsupported": "No matching configure editor for this node type.",
   "flow.close": "Close",
   "flow.save": "Save",
-  "flow.editCanvas": "Edit canvas",
-  "flow.canvasPreviewHint": "Read-only preview. Edit opens the full canvas editor.",
+  "flow.editWorkflow": "Edit Workflow",
+  "flow.canvasPreviewHint": "Read-only preview. Edit opens the full workflow editor.",
+  "flow.previewRunLocal": "Run Locally",
+  "flow.previewRunLocalHint":
+    "Same pipeline as Run Locally on the Run Workflow tab (saved YAML on disk—save first). Tasks currently running are outlined on the graph.",
+  "flow.previewRunProgressUnsupported":
+    "Live task highlighting is unavailable on Windows; use Run Locally on the Run Workflow tab for full logs.",
   "flow.inspectorEmpty": "Select a node or edge.",
   "flow.inspectorStartHint": "Pipeline entry. Connect to source views (or to extraction if there are no source views).",
   "flow.inspectorEndHint":
-    "Pipeline exit. Connect from extraction, aliasing, annotation or confidence validation-rule nodes, alias write-back, RAW or Data Modeling writeback layout nodes, or reference index.",
+    "Pipeline exit. Connect from extraction, aliasing, annotation or confidence validation-rule nodes, alias write-back, or reference index.",
   "flow.inspectorAliasPersistenceHint":
     "Maps to fn_dm_alias_persistence: reads aliasing RAW and writes alias lists (and optional FK reference strings) onto describable instances. Configure write-back properties in scope or task data.",
   "flow.inspectorReferenceIndexHint":
     "Maps to fn_dm_reference_index: builds an inverted RAW index from FOREIGN_KEY_REFERENCES_JSON and DOCUMENT_REFERENCES_JSON in the key-extraction store. Enable via scope (e.g. enable_reference_index).",
-  "flow.inspectorWritebackRawHint":
-    "Layout card for pipelines that land results in Cognite RAW (database and table names, ingest). Configure RAW targets and handler I/O in scope or task data; the canvas node is documentary.",
-  "flow.inspectorWritebackDataModelingHint":
-    "Layout card for writeback to CDF Data Modeling (instances and views). Configure spaces, external ids, and projection steps such as fn_dm_alias_persistence in scope or task data; the canvas node is documentary.",
   "flow.inspectorValidationRuleHint":
     "Links to a validation_rules entry in scope: used when scoring keys (global key_extraction data.validation plus extraction_rules[].validation) or when validating aliases (aliasing_rules[].validation). Source view rows do not carry validation. Rule bodies are standalone definitions. Use a YAML list, shorthand { rule_id: [ tail... ] }, or hierarchy: { mode: ordered | concurrent, children: [...] }. On the canvas, use data edges from extraction or aliasing to the first validation-rule layout node; chain further validation-rule layout nodes with sequence or parallel_group edges.",
   "flow.inspectorValidationRuleContext": "Rule scope",

@@ -7,6 +7,7 @@ import { ArtifactTree } from "./components/ArtifactTree";
 import { KeyExtractionControls } from "./components/KeyExtractionControls";
 import { ScopeHierarchyEditor } from "./components/ScopeHierarchyEditor";
 import { WorkflowFlowCanvasPreview } from "./components/flow/WorkflowFlowCanvasPreview";
+import type { WorkflowPreviewLocalRun } from "./components/flow/WorkflowFlowCanvasPreview";
 import { WorkflowFlowPanel } from "./components/flow/WorkflowFlowPanel";
 import { syncWorkflowScopeFromCanvas } from "./components/flow/canvasScopeSync";
 import { canvasDocWithScopeSeedIfEmpty } from "./components/flow/seedCanvasFromScope";
@@ -57,7 +58,6 @@ const MODULE_FORM_KEYS: { key: string; labelKey: MessageKey }[] = [
   { key: "schemaSpace", labelKey: "module.field.schemaSpace" },
   { key: "viewVersion", labelKey: "module.field.viewVersion" },
   { key: "workflow", labelKey: "module.field.workflow" },
-  { key: "scope_build_mode", labelKey: "module.field.scope_build_mode" },
   { key: "key_extraction_aliasing_schedule", labelKey: "module.field.key_extraction_aliasing_schedule" },
   {
     key: "files_location_processing_group_source_id",
@@ -74,6 +74,13 @@ function tabClass(active: boolean): string {
 
 function isTriggerPath(path: string | null): boolean {
   return path != null && /\.WorkflowTrigger\.ya?ml$/i.test(path);
+}
+
+/** ``workflows/<suffix>/…`` → ``suffix`` for scoped deploy / SDK commands. */
+function scopeSuffixFromWorkflowTriggerPath(rel: string): string | null {
+  const parts = rel.split("/").filter(Boolean);
+  if (parts.length < 3 || parts[0] !== "workflows") return null;
+  return parts[1] ?? null;
 }
 
 function configureTargetsEqual(a: ConfigureTarget, b: ConfigureTarget): boolean {
@@ -120,6 +127,9 @@ export default function App() {
   );
   const [savedScopeCanvasSnap, setSavedScopeCanvasSnap] = useState("");
   const [scopeCanvasReloadNonce, setScopeCanvasReloadNonce] = useState(0);
+  /** Shown after POST /api/promote-local-workflow-templates (local → template files on disk). */
+  const [templatePromoteMessage, setTemplatePromoteMessage] = useState<string | null>(null);
+  const [promoteTemplatesBusy, setPromoteTemplatesBusy] = useState(false);
 
   const [templateCanvasDoc, setTemplateCanvasDoc] = useState<WorkflowCanvasDocument>(() =>
     emptyWorkflowCanvasDocument()
@@ -135,6 +145,11 @@ export default function App() {
   const [buildLog, setBuildLog] = useState("");
   const [runLog, setRunLog] = useState("");
   const [runAll, setRunAll] = useState(false);
+  const [canvasPreviewExecutingIds, setCanvasPreviewExecutingIds] = useState<string[]>([]);
+  const [canvasPreviewRunBusy, setCanvasPreviewRunBusy] = useState(false);
+  /** task_id → labels for streamed run log / “now executing” lines. */
+  const localRunTaskMetaRef = useRef<Map<string, { fn?: string; node?: string }>>(new Map());
+  const [cdfToolLog, setCdfToolLog] = useState("");
   const [artifactPaths, setArtifactPaths] = useState<string[]>([]);
   const [artifactPath, setArtifactPath] = useState<string | null>(null);
   const [artifactText, setArtifactText] = useState("");
@@ -203,28 +218,21 @@ export default function App() {
     setScopeError(null);
     setTemplateError(null);
     try {
-      const [dDef, rawDef, dScope, rawScope, dTpl, rawTpl, dScopeCanvas, dTplCanvas, arts, trigMeta] =
-        await Promise.all([
-          api<Record<string, unknown>>("/api/default-config/model"),
-          api<{ content: string }>("/api/default-config"),
-          api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
-          api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`),
-          api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
-          api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`),
-          api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
-          api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
-          api<{ paths: string[] }>("/api/artifacts"),
-          api<{ entries: { path: string; name: string | null }[] }>("/api/workflow-trigger-meta"),
-        ]);
+      // Local workflow + module defaults first so a failing template or heavy workflows/ scan
+      // cannot block ``workflow.local`` / canvas from loading.
+      const [dDef, rawDef, dScope, rawScope, dScopeCanvas] = await Promise.all([
+        api<Record<string, unknown>>("/api/default-config/model"),
+        api<{ content: string }>("/api/default-config"),
+        api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
+        api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(SCOPE_REL)}`),
+        api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(SCOPE_REL)}`),
+      ]);
       setDefaultDoc(dDef && typeof dDef === "object" ? dDef : {});
       setDefaultRawYaml(rawDef.content ?? "");
       setSavedDefaultSnap(JSON.stringify(dDef));
       setScopeDoc(dScope && typeof dScope === "object" ? dScope : {});
       setScopeRawYaml(rawScope.content ?? "");
       setSavedScopeSnap(JSON.stringify(dScope));
-      setTemplateDoc(dTpl && typeof dTpl === "object" ? dTpl : {});
-      setTemplateRawYaml(rawTpl.content ?? "");
-      setSavedTemplateSnap(JSON.stringify(dTpl));
       {
         const scopeModel = dScope && typeof dScope === "object" ? dScope : {};
         const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(dScopeCanvas), scopeModel);
@@ -232,6 +240,26 @@ export default function App() {
         setSavedScopeCanvasSnap(JSON.stringify(c));
         setScopeCanvasReloadNonce((n) => n + 1);
       }
+      setDefaultPhase("status.loaded");
+      setScopePhase("status.loaded");
+    } catch (e) {
+      setDefaultError(String(e));
+      setScopeError(String(e));
+      setDefaultPhase(null);
+      setScopePhase(null);
+      setTemplatePhase(null);
+      return;
+    }
+
+    try {
+      const [dTpl, rawTpl, dTplCanvas] = await Promise.all([
+        api<Record<string, unknown>>(`/api/scope-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+        api<{ content: string }>(`/api/scope-document?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+        api<Record<string, unknown>>(`/api/canvas-document/model?rel=${encodeURIComponent(TEMPLATE_REL)}`),
+      ]);
+      setTemplateDoc(dTpl && typeof dTpl === "object" ? dTpl : {});
+      setTemplateRawYaml(rawTpl.content ?? "");
+      setSavedTemplateSnap(JSON.stringify(dTpl));
       {
         const tplModel = dTpl && typeof dTpl === "object" ? dTpl : {};
         const c = canvasDocWithScopeSeedIfEmpty(parseWorkflowCanvasDocument(dTplCanvas), tplModel);
@@ -239,22 +267,33 @@ export default function App() {
         setSavedTemplateCanvasSnap(JSON.stringify(c));
         setTemplateCanvasReloadNonce((n) => n + 1);
       }
+      setTemplateError(null);
+      setTemplatePhase("status.loaded");
+    } catch (e) {
+      setTemplateError(String(e));
+      setTemplateDoc({});
+      setTemplateRawYaml("");
+      setSavedTemplateSnap("{}");
+      setTemplateCanvasDoc(emptyWorkflowCanvasDocument());
+      setSavedTemplateCanvasSnap(JSON.stringify(emptyWorkflowCanvasDocument()));
+      setTemplateCanvasReloadNonce((n) => n + 1);
+      setTemplatePhase("status.loaded");
+    }
+
+    try {
+      const [arts, trigMeta] = await Promise.all([
+        api<{ paths: string[] }>("/api/artifacts"),
+        api<{ entries: { path: string; name: string | null }[] }>("/api/workflow-trigger-meta"),
+      ]);
       setArtifactPaths(arts.paths ?? []);
       const nm: Record<string, string> = {};
       for (const e of trigMeta.entries ?? []) {
         if (e.name) nm[e.path] = e.name;
       }
       setTriggerNamesByPath(nm);
-      setDefaultPhase("status.loaded");
-      setScopePhase("status.loaded");
-      setTemplatePhase("status.loaded");
-    } catch (e) {
-      setDefaultError(String(e));
-      setScopeError(String(e));
-      setTemplateError(String(e));
-      setDefaultPhase(null);
-      setScopePhase(null);
-      setTemplatePhase(null);
+    } catch {
+      setArtifactPaths([]);
+      setTriggerNamesByPath({});
     }
   }, [api]);
 
@@ -356,6 +395,12 @@ export default function App() {
     () => isScopeDocDirty || isScopeCanvasDirty,
     [isScopeDocDirty, isScopeCanvasDirty]
   );
+
+  useEffect(() => {
+    if (configureTarget.id === "workflowLocal" && isScopeDirty) {
+      setTemplatePromoteMessage(null);
+    }
+  }, [configureTarget.id, isScopeDirty]);
 
   const isTemplateDocDirty = useMemo(() => {
     if (!savedTemplateSnap) return false;
@@ -471,6 +516,29 @@ export default function App() {
     }
   };
 
+  const promoteLocalWorkflowTemplates = async (): Promise<void> => {
+    const confirmMsg = isScopeDirty
+      ? t("config.promoteTemplateDirtyConfirm")
+      : t("config.promoteTemplateConfirm");
+    if (!window.confirm(confirmMsg)) return;
+    setPromoteTemplatesBusy(true);
+    setTemplatePromoteMessage(null);
+    setScopeError(null);
+    try {
+      await api("/api/promote-local-workflow-templates", { method: "POST" });
+      setTemplatePromoteMessage(t("config.templatePromoted"));
+      window.setTimeout(() => setTemplatePromoteMessage(null), 8000);
+      if (configureTarget.id === "workflowTemplate") {
+        await reloadCurrentConfigure();
+      }
+    } catch (e) {
+      setTemplatePromoteMessage(null);
+      setScopeError(String(e));
+    } finally {
+      setPromoteTemplatesBusy(false);
+    }
+  };
+
   const saveScope = async (): Promise<boolean> => {
     setScopePhase("status.saving");
     setScopeError(null);
@@ -530,10 +598,21 @@ export default function App() {
     const rel = configureTarget.path;
     setConfigTriggerPhase("status.saving");
     try {
+      let content = configTriggerText;
+      try {
+        const doc = YAML.parse(content) as Record<string, unknown> | null;
+        if (doc && typeof doc === "object" && !Array.isArray(doc) && "authentication" in doc) {
+          const { authentication: _removed, ...rest } = doc;
+          content = YAML.stringify(rest, { lineWidth: 0 });
+          setConfigTriggerText(content);
+        }
+      } catch {
+        /* invalid YAML: save raw; server may reject */
+      }
       await api(`/api/file?rel=${encodeURIComponent(rel)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: configTriggerText }),
+        body: JSON.stringify({ content }),
       });
       setSavedConfigTriggerSnap(configTriggerText);
       setConfigTriggerPhase("status.saved");
@@ -640,7 +719,10 @@ export default function App() {
     setArtifactPaths(art.paths ?? []);
   };
 
-  const runLocalPipeline = async () => {
+  const runLocalPipelineStreamed = useCallback(async () => {
+    setCanvasPreviewRunBusy(true);
+    setCanvasPreviewExecutingIds([]);
+    localRunTaskMetaRef.current = new Map();
     setRunLog(`${t("status.running")}\n`);
     const body: {
       run_all: boolean;
@@ -654,22 +736,212 @@ export default function App() {
       body.workflow_trigger_rel = configureTarget.path;
     }
     try {
-      const d = await api<{ exit_code: number; stdout: string; stderr: string }>("/api/run", {
+      const res = await fetch("/api/run-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      setRunLog(
+      if (res.status === 501) {
+        setRunLog(
+          `${t("status.running")}\n${t("flow.previewRunProgressUnsupported")}\n`
+        );
+        try {
+          const d = await api<{ exit_code: number; stdout: string; stderr: string }>("/api/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          setRunLog(
+            `exit_code: ${d.exit_code}\n\n--- stdout ---\n${d.stdout}\n--- stderr ---\n${d.stderr}`
+          );
+        } catch (e) {
+          setRunLog(String(e));
+        }
+        return;
+      }
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || res.statusText);
+      }
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+      const dec = new TextDecoder();
+      let buf = "";
+      const active = new Set<string>();
+      const flushExecuting = () => setCanvasPreviewExecutingIds([...active]);
+      const appendExecutingLine = () => {
+        if (active.size === 0) {
+          setRunLog(
+            (prev) => `${prev}${t("run.localExecutingNow", { list: t("run.localExecutingNone") })}\n`
+          );
+          return;
+        }
+        const parts: string[] = [];
+        for (const id of [...active].sort()) {
+          const m = localRunTaskMetaRef.current.get(id);
+          const fn = (m?.fn ?? "").trim();
+          const node = (m?.node ?? "").trim();
+          const label = fn || id;
+          parts.push(node ? `${label} (${node})` : label);
+        }
+        setRunLog((prev) => `${prev}${t("run.localExecutingNow", { list: parts.join("; ") })}\n`);
+      };
+      type ProgressEv = {
+        event?: string;
+        task_id?: string;
+        code?: number;
+        level?: string;
+        message?: string;
+        function_external_id?: string;
+        canvas_node_id?: string;
+        pipeline_node_id?: string;
+      };
+      const nodeSuffixFor = (ev: ProgressEv, taskId: string): string => {
+        const canvas = (ev.canvas_node_id ?? "").trim();
+        if (canvas) return ` — ${canvas}`;
+        const p = (ev.pipeline_node_id ?? "").trim();
+        if (p && p !== taskId) return ` — ${p}`;
+        return "";
+      };
+      const handleLine = (line: string) => {
+        if (!line.trim()) return;
+        let ev: ProgressEv;
+        try {
+          ev = JSON.parse(line) as ProgressEv;
+        } catch {
+          return;
+        }
+        if (ev.event === "log" && typeof ev.message === "string") {
+          const prefix = ev.level ? `[${ev.level}] ` : "";
+          setRunLog((prev) => `${prev}${prefix}${ev.message}\n`);
+          return;
+        }
+        if (ev.event === "task_start" && ev.task_id) {
+          const taskId = ev.task_id;
+          const fn = (ev.function_external_id ?? "").trim();
+          const canvas = (ev.canvas_node_id ?? "").trim();
+          const pnode = (ev.pipeline_node_id ?? "").trim();
+          const node = canvas || (pnode && pnode !== taskId ? pnode : "");
+          localRunTaskMetaRef.current.set(taskId, {
+            fn: fn || undefined,
+            node: node || undefined,
+          });
+          active.add(taskId);
+          setRunLog(
+            (prev) =>
+              `${prev}${t("run.localTaskStart", {
+                functionId: fn || taskId,
+                taskId,
+                nodeSuffix: nodeSuffixFor(ev, taskId),
+              })}\n`
+          );
+          appendExecutingLine();
+          flushExecuting();
+          return;
+        }
+        if (ev.event === "task_end" && ev.task_id) {
+          const taskId = ev.task_id;
+          const fn = (ev.function_external_id ?? "").trim();
+          active.delete(taskId);
+          localRunTaskMetaRef.current.delete(taskId);
+          setRunLog(
+            (prev) =>
+              `${prev}${t("run.localTaskEnd", {
+                functionId: fn || taskId,
+                taskId,
+                nodeSuffix: nodeSuffixFor(ev, taskId),
+              })}\n`
+          );
+          appendExecutingLine();
+          flushExecuting();
+          return;
+        }
+        if (ev.event === "exit") {
+          setRunLog((prev) => `${prev}\n${t("run.localRunExitLine", { code: ev.code ?? -1 })}\n`);
+        }
+        flushExecuting();
+      };
+      while (true) {
+        const { done, value } = await reader.read();
+        if (value) buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n");
+        buf = parts.pop() ?? "";
+        for (const line of parts) handleLine(line);
+        if (done) break;
+      }
+      buf += dec.decode();
+      for (const line of buf.split("\n")) handleLine(line);
+    } catch (e) {
+      setRunLog((prev) => `${prev}\n${String(e)}\n`);
+    } finally {
+      setCanvasPreviewRunBusy(false);
+      setCanvasPreviewExecutingIds([]);
+      try {
+        const art = await api<{ paths: string[] }>("/api/artifacts");
+        setArtifactPaths(art.paths ?? []);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [api, configureTarget, runAll, t]);
+
+  const flowPreviewLocalRun: WorkflowPreviewLocalRun = useMemo(
+    () => ({
+      runAll,
+      onRunAllChange: setRunAll,
+      busy: canvasPreviewRunBusy,
+      executingTaskIds: canvasPreviewExecutingIds,
+      onRun: () => void runLocalPipelineStreamed(),
+    }),
+    [runAll, canvasPreviewRunBusy, canvasPreviewExecutingIds, runLocalPipelineStreamed]
+  );
+
+  type CdfCliResult = { exit_code: number; stdout: string; stderr: string };
+
+  const runDeployScope = async (dryRun: boolean) => {
+    if (configureTarget.id !== "trigger" || !selectedScopeSuffix) return;
+    setCdfToolLog(`${t("status.running")}\n`);
+    const body = {
+      scope_suffix: selectedScopeSuffix,
+      workflow_trigger_rel: configureTarget.path,
+      dry_run: dryRun,
+      skip_build: false,
+      /** Generated triggers often still contain Toolkit ``{{…}}`` tokens until edited. */
+      allow_unresolved_placeholders: true,
+    };
+    try {
+      const d = await api<CdfCliResult>("/api/deploy-scope", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      setCdfToolLog(
         `exit_code: ${d.exit_code}\n\n--- stdout ---\n${d.stdout}\n--- stderr ---\n${d.stderr}`
       );
     } catch (e) {
-      setRunLog(String(e));
+      setCdfToolLog(String(e));
     }
+  };
+
+  const runCdfWorkflowRemote = async (dryRun: boolean) => {
+    if (configureTarget.id !== "trigger" || !selectedScopeSuffix) return;
+    setCdfToolLog(`${t("status.running")}\n`);
+    const body = {
+      scope_suffix: selectedScopeSuffix,
+      workflow_trigger_rel: configureTarget.path,
+      dry_run: dryRun,
+    };
     try {
-      const art = await api<{ paths: string[] }>("/api/artifacts");
-      setArtifactPaths(art.paths ?? []);
-    } catch {
-      /* ignore */
+      const d = await api<CdfCliResult>("/api/cdf-workflow-run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      setCdfToolLog(
+        `exit_code: ${d.exit_code}\n\n--- stdout ---\n${d.stdout}\n--- stderr ---\n${d.stderr}`
+      );
+    } catch (e) {
+      setCdfToolLog(String(e));
     }
   };
 
@@ -727,17 +999,12 @@ export default function App() {
     return {};
   }, [parsedConfigTrigger]);
 
-  const authenticationForForm: JsonObject = useMemo(() => {
-    const a = parsedConfigTrigger?.authentication;
-    if (a !== null && typeof a === "object" && !Array.isArray(a)) return a as JsonObject;
-    return {};
-  }, [parsedConfigTrigger]);
-
   const pipelineConfiguration: JsonObject = triggerConfiguration ?? {};
 
   const triggerCanvasDoc = useMemo((): WorkflowCanvasDocument => {
     if (configureTarget.id !== "trigger") return emptyWorkflowCanvasDocument();
-    const raw = (pipelineConfiguration as Record<string, unknown>)[TRIGGER_WORKFLOW_CANVAS_KEY];
+    const pc = pipelineConfiguration as Record<string, unknown>;
+    const raw = pc[TRIGGER_WORKFLOW_CANVAS_KEY] ?? pc["canvas"];
     const parsed = parseWorkflowCanvasDocument(raw);
     return canvasDocWithScopeSeedIfEmpty(parsed, pipelineConfiguration as Record<string, unknown>);
   }, [configureTarget.id, pipelineConfiguration, configTriggerText]);
@@ -785,19 +1052,6 @@ export default function App() {
       const base =
         tr !== null && typeof tr === "object" && !Array.isArray(tr) ? ({ ...(tr as JsonObject) }) : {};
       mergeParsedTriggerDoc({ ...parsedConfigTrigger, triggerRule: { ...base, ...patch } });
-    },
-    [parsedConfigTrigger, mergeParsedTriggerDoc]
-  );
-
-  const patchTriggerAuthentication = useCallback(
-    (patch: Partial<JsonObject>) => {
-      if (!parsedConfigTrigger) return;
-      const auth = parsedConfigTrigger.authentication;
-      const base =
-        auth !== null && typeof auth === "object" && !Array.isArray(auth)
-          ? ({ ...(auth as JsonObject) })
-          : {};
-      mergeParsedTriggerDoc({ ...parsedConfigTrigger, authentication: { ...base, ...patch } });
     },
     [parsedConfigTrigger, mergeParsedTriggerDoc]
   );
@@ -1023,6 +1277,7 @@ export default function App() {
   const configureStatus = (() => {
     switch (configureTarget.id) {
       case "workflowLocal":
+        return templatePromoteMessage ?? workflowStatus;
       case "workflowTemplate":
         return workflowStatus;
       case "trigger":
@@ -1034,7 +1289,10 @@ export default function App() {
 
   const configurePhaseOk =
     configureTarget.id === "workflowLocal" || configureTarget.id === "workflowTemplate"
-      ? workflowPhase === "status.saved" || workflowPhase === "status.loaded"
+      ? !workflowError &&
+          (Boolean(templatePromoteMessage) ||
+            workflowPhase === "status.saved" ||
+            workflowPhase === "status.loaded")
       : configureTarget.id === "trigger"
         ? configTriggerPhase === "status.saved" || configTriggerPhase === "status.loaded"
         : false;
@@ -1085,6 +1343,14 @@ export default function App() {
     return t("run.contextWorkflowTrigger", { path: short });
   }, [configureTarget, t]);
 
+  const selectedScopeSuffix = useMemo(() => {
+    if (configureTarget.id !== "trigger") return null;
+    return scopeSuffixFromWorkflowTriggerPath(configureTarget.path);
+  }, [configureTarget]);
+
+  /** Local pipeline run in progress — lock edits and unify preview + Run Workflow tab state. */
+  const configureEditsLocked = canvasPreviewRunBusy;
+
   const configureRunPipelineSubpanel = (
     <div className="kea-config-run">
       <p className="kea-hint" style={{ marginBottom: "0.5rem", maxWidth: "72ch" }}>
@@ -1104,13 +1370,19 @@ export default function App() {
           marginBottom: "0.5rem",
         }}
       >
-        <button type="button" className="kea-btn kea-btn--primary" onClick={() => void runLocalPipeline()}>
-          {t("btn.runPipeline")}
+        <button
+          type="button"
+          className="kea-btn kea-btn--primary"
+          disabled={configureEditsLocked}
+          onClick={() => void runLocalPipelineStreamed()}
+        >
+          {configureEditsLocked ? t("status.running") : t("btn.runPipeline")}
         </button>
         <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}>
           <input
             type="checkbox"
             checked={runAll}
+            disabled={configureEditsLocked}
             onChange={(e) => setRunAll(e.target.checked)}
           />
           {t("run.runAll")}
@@ -1126,6 +1398,77 @@ export default function App() {
         placeholder={t("run.outputPlaceholder")}
         style={{ minHeight: 160, width: "100%" }}
       />
+
+      <hr className="kea-run-divider" style={{ margin: "1.25rem 0", border: 0, borderTop: "1px solid var(--kea-border)" }} />
+      {configureTarget.id === "trigger" ? (
+        <>
+          <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+            {t("run.cdfToolsHint")}
+          </p>
+          {!selectedScopeSuffix && (
+            <p className="kea-hint kea-hint--warn" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+              {t("run.needTriggerScope")}
+            </p>
+          )}
+          <div
+            className="kea-toolbar"
+            style={{
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              alignItems: "center",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <button
+              type="button"
+              className="kea-btn"
+              disabled={configureEditsLocked || !selectedScopeSuffix}
+              title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
+              onClick={() => void runDeployScope(false)}
+            >
+              {t("btn.deployScope")}
+            </button>
+            <button
+              type="button"
+              className="kea-btn"
+              disabled={configureEditsLocked || !selectedScopeSuffix}
+              title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
+              onClick={() => void runCdfWorkflowRemote(false)}
+            >
+              {t("btn.cdfWorkflowRun")}
+            </button>
+            <button
+              type="button"
+              className="kea-btn kea-btn--ghost"
+              disabled={configureEditsLocked || !selectedScopeSuffix}
+              title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
+              onClick={() => void runCdfWorkflowRemote(true)}
+            >
+              {t("btn.cdfWorkflowRunDryRun")}
+            </button>
+            <button
+              type="button"
+              className="kea-btn kea-btn--ghost"
+              disabled={configureEditsLocked || !selectedScopeSuffix}
+              title={!selectedScopeSuffix ? t("run.needTriggerScope") : undefined}
+              onClick={() => void runDeployScope(true)}
+            >
+              {t("btn.deployScopeDryRun")}
+            </button>
+          </div>
+          <textarea
+            readOnly
+            className="kea-textarea kea-textarea--readonly"
+            value={cdfToolLog}
+            placeholder={t("run.cdfDeployOutputPlaceholder")}
+            style={{ minHeight: 140, width: "100%" }}
+          />
+        </>
+      ) : (
+        <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+          {t("run.cdfScopedOnly")}
+        </p>
+      )}
     </div>
   );
 
@@ -1370,6 +1713,7 @@ export default function App() {
                 title={t("config.searchPlaceholder")}
                 autoComplete="off"
                 spellCheck={false}
+                disabled={configureEditsLocked}
               />
             </label>
             {showFullPanelEmpty && (
@@ -1436,6 +1780,7 @@ export default function App() {
             <button
               type="button"
               className="kea-btn kea-btn--sm kea-config-sidenav__refresh"
+              disabled={configureEditsLocked}
               onClick={() => void refreshArtifactLists()}
             >
               {t("btn.refreshList")}
@@ -1453,6 +1798,7 @@ export default function App() {
                   <input
                     className="kea-input"
                     placeholder={t("config.displayNamePlaceholder")}
+                    readOnly={configureEditsLocked}
                     value={
                       (configureTarget.id === "workflowTemplate" ? templateDoc : scopeDoc).name != null
                         ? String((configureTarget.id === "workflowTemplate" ? templateDoc : scopeDoc).name)
@@ -1480,6 +1826,7 @@ export default function App() {
                   <input
                     className="kea-input"
                     placeholder={t("config.displayNamePlaceholder")}
+                    readOnly={configureEditsLocked}
                     value={
                       typeof parsedConfigTrigger.name === "string" ? parsedConfigTrigger.name : ""
                     }
@@ -1489,12 +1836,35 @@ export default function App() {
               </div>
             )}
             <div className="kea-toolbar">
-              <button type="button" className="kea-btn kea-btn--ghost" onClick={() => void reloadCurrentConfigure()}>
+              <button
+                type="button"
+                className="kea-btn kea-btn--ghost"
+                disabled={configureEditsLocked}
+                onClick={() => void reloadCurrentConfigure()}
+              >
                 {t("btn.reload")}
               </button>
-              <button type="button" className="kea-btn kea-btn--primary" onClick={() => void saveConfigure()}>
+              <button
+                type="button"
+                className="kea-btn kea-btn--primary"
+                disabled={configureEditsLocked}
+                onClick={() => void saveConfigure()}
+              >
                 {t(saveButtonLabel())}
               </button>
+              {configureTarget.id === "workflowLocal" && (
+                <button
+                  type="button"
+                  className="kea-btn"
+                  disabled={
+                    configureEditsLocked || promoteTemplatesBusy || scopePhase === "status.saving"
+                  }
+                  title={t("config.updateTemplateTooltip")}
+                  onClick={() => void promoteLocalWorkflowTemplates()}
+                >
+                  {promoteTemplatesBusy ? t("status.running") : t("config.updateTemplate")}
+                </button>
+              )}
               <span className={configurePhaseOk ? "kea-status kea-status--ok" : "kea-status"}>{configureStatus}</span>
               {isConfigureDirty && (
                 <span className="kea-hint kea-hint--warn" role="status">
@@ -1517,7 +1887,7 @@ export default function App() {
                     </button>
                   ))}
                 </nav>
-                {configSubTab === "flowCanvas" && (
+                <div hidden={configSubTab !== "flowCanvas"}>
                   <WorkflowFlowCanvasPreview
                     t={t}
                     document={
@@ -1528,40 +1898,82 @@ export default function App() {
                         ? templateCanvasReloadNonce
                         : scopeCanvasReloadNonce
                     }
-                    onEdit={() => setFlowCanvasEditorOpen(true)}
+                    onEdit={() => {
+                      if (!configureEditsLocked) setFlowCanvasEditorOpen(true);
+                    }}
+                    localRun={flowPreviewLocalRun}
                   />
-                )}
+                </div>
                 {configSubTab === "sourceViews" && (
-                  <SourceViewsControls
-                    value={workflowDoc.source_views}
-                    onChange={(v) => setWorkflowDoc((d) => ({ ...d, source_views: v }))}
-                    schemaSpace={moduleSchemaSpace}
-                  />
+                  <div
+                    style={
+                      configureEditsLocked
+                        ? { pointerEvents: "none", opacity: 0.65 }
+                        : undefined
+                    }
+                  >
+                    <SourceViewsControls
+                      value={workflowDoc.source_views}
+                      onChange={(v) => setWorkflowDoc((d) => ({ ...d, source_views: v }))}
+                      schemaSpace={moduleSchemaSpace}
+                    />
+                  </div>
                 )}
                 {configSubTab === "matchDefinitions" && (
-                  <MatchDefinitionsScopePanel
-                    scopeDocument={workflowDoc as Record<string, unknown>}
-                    onPatch={(recipe) =>
-                      setWorkflowDoc((d) => recipe({ ...(d as Record<string, unknown>) }) as typeof d)
+                  <div
+                    style={
+                      configureEditsLocked
+                        ? { pointerEvents: "none", opacity: 0.65 }
+                        : undefined
                     }
-                  />
+                  >
+                    <MatchDefinitionsScopePanel
+                      scopeDocument={workflowDoc as Record<string, unknown>}
+                      onPatch={(recipe) =>
+                        setWorkflowDoc((d) => recipe({ ...(d as Record<string, unknown>) }) as typeof d)
+                      }
+                    />
+                  </div>
                 )}
                 {configSubTab === "keyExtraction" && (
-                  <KeyExtractionControls
-                    value={workflowDoc.key_extraction}
-                    onChange={(v) => setWorkflowDoc((d) => ({ ...d, key_extraction: v }))}
-                    scopeDocument={workflowDoc as Record<string, unknown>}
-                  />
+                  <div
+                    style={
+                      configureEditsLocked
+                        ? { pointerEvents: "none", opacity: 0.65 }
+                        : undefined
+                    }
+                  >
+                    <KeyExtractionControls
+                      value={workflowDoc.key_extraction}
+                      onChange={(v) => setWorkflowDoc((d) => ({ ...d, key_extraction: v }))}
+                      scopeDocument={workflowDoc as Record<string, unknown>}
+                    />
+                  </div>
                 )}
                 {configSubTab === "aliasing" && (
-                  <AliasingControls
-                    value={workflowDoc.aliasing}
-                    onChange={(v) => setWorkflowDoc((d) => ({ ...d, aliasing: v }))}
-                    scopeDocument={workflowDoc as Record<string, unknown>}
-                  />
+                  <div
+                    style={
+                      configureEditsLocked
+                        ? { pointerEvents: "none", opacity: 0.65 }
+                        : undefined
+                    }
+                  >
+                    <AliasingControls
+                      value={workflowDoc.aliasing}
+                      onChange={(v) => setWorkflowDoc((d) => ({ ...d, aliasing: v }))}
+                      scopeDocument={workflowDoc as Record<string, unknown>}
+                    />
+                  </div>
                 )}
                 {configSubTab === "runPipeline" && configureRunPipelineSubpanel}
-                <AdvancedYamlPanel
+                <div
+                  style={
+                    configureEditsLocked
+                      ? { pointerEvents: "none", opacity: 0.65 }
+                      : undefined
+                  }
+                >
+                  <AdvancedYamlPanel
                   initialContent={workflowRawYaml}
                   onSaveRaw={async (content) => {
                     const rel =
@@ -1608,7 +2020,8 @@ export default function App() {
                       }
                     }
                   }}
-                />
+                  />
+                </div>
               </>
             )}
 
@@ -1618,6 +2031,7 @@ export default function App() {
                   <textarea
                     className="kea-textarea"
                     value={configTriggerText}
+                    readOnly={configureEditsLocked}
                     onChange={(e) => setConfigTriggerText(e.target.value)}
                     spellCheck={false}
                     style={{ minHeight: 320 }}
@@ -1655,6 +2069,13 @@ export default function App() {
                     </nav>
 
                     {triggerTopTab === "triggerAuth" && (
+                      <div
+                        style={
+                          configureEditsLocked
+                            ? { pointerEvents: "none", opacity: 0.65 }
+                            : undefined
+                        }
+                      >
                       <div className="kea-trigger-root-grid kea-trigger-root-grid--two">
                         <p
                           className="kea-trigger-editor-section-title"
@@ -1696,26 +2117,9 @@ export default function App() {
                         >
                           {t("triggerEditor.section.auth")}
                         </p>
-                        <label className="kea-label">
-                          {t("triggerEditor.authClientId")}
-                          <input
-                            className="kea-input"
-                            value={String(authenticationForForm.clientId ?? "")}
-                            onChange={(e) => patchTriggerAuthentication({ clientId: e.target.value })}
-                          />
-                        </label>
-                        <label className="kea-label">
-                          {t("triggerEditor.authClientSecret")}
-                          <input
-                            className="kea-input"
-                            type="password"
-                            autoComplete="off"
-                            value={String(authenticationForForm.clientSecret ?? "")}
-                            onChange={(e) =>
-                              patchTriggerAuthentication({ clientSecret: e.target.value })
-                            }
-                          />
-                        </label>
+                        <p className="kea-hint" style={{ gridColumn: "1 / -1", maxWidth: "72ch" }}>
+                          {t("triggerEditor.authDeployHint")}
+                        </p>
                         <p
                           className="kea-trigger-editor-section-title"
                           style={{ gridColumn: "1 / -1" }}
@@ -1739,9 +2143,17 @@ export default function App() {
                           />
                         </label>
                       </div>
+                      </div>
                     )}
 
                     {triggerTopTab === "schedule" && (
+                      <div
+                        style={
+                          configureEditsLocked
+                            ? { pointerEvents: "none", opacity: 0.65 }
+                            : undefined
+                        }
+                      >
                       <div className="kea-trigger-root-grid">
                         <p className="kea-trigger-editor-section-title">
                           {t("triggerEditor.section.schedule")}
@@ -1772,6 +2184,7 @@ export default function App() {
                           {t("triggerEditor.scheduleHint")}
                         </p>
                       </div>
+                      </div>
                     )}
 
                     {triggerTopTab === "pipeline" && (
@@ -1791,52 +2204,94 @@ export default function App() {
                             </button>
                           ))}
                         </nav>
-                        {configSubTab === "flowCanvas" && (
+                        <div hidden={configSubTab !== "flowCanvas"}>
                           <WorkflowFlowCanvasPreview
                             t={t}
                             document={triggerCanvasDoc}
                             reloadNonce={triggerCanvasReloadNonce}
-                            onEdit={() => setFlowCanvasEditorOpen(true)}
+                            onEdit={() => {
+                              if (!configureEditsLocked) setFlowCanvasEditorOpen(true);
+                            }}
+                            localRun={flowPreviewLocalRun}
                           />
-                        )}
+                        </div>
                         {configSubTab === "sourceViews" && (
-                          <SourceViewsControls
-                            value={pipelineConfiguration.source_views}
-                            onChange={(v) => setTriggerSourceViews(v)}
-                            schemaSpace={moduleSchemaSpace}
-                          />
+                          <div
+                            style={
+                              configureEditsLocked
+                                ? { pointerEvents: "none", opacity: 0.65 }
+                                : undefined
+                            }
+                          >
+                            <SourceViewsControls
+                              value={pipelineConfiguration.source_views}
+                              onChange={(v) => setTriggerSourceViews(v)}
+                              schemaSpace={moduleSchemaSpace}
+                            />
+                          </div>
                         )}
                         {configSubTab === "matchDefinitions" && (
-                          <MatchDefinitionsScopePanel
-                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
-                            onPatch={(recipe) => {
-                              const next = recipe({
-                                ...(pipelineConfiguration as Record<string, unknown>),
-                              });
-                              updateTriggerConfiguration(next as Partial<JsonObject>);
-                            }}
-                          />
+                          <div
+                            style={
+                              configureEditsLocked
+                                ? { pointerEvents: "none", opacity: 0.65 }
+                                : undefined
+                            }
+                          >
+                            <MatchDefinitionsScopePanel
+                              scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                              onPatch={(recipe) => {
+                                const next = recipe({
+                                  ...(pipelineConfiguration as Record<string, unknown>),
+                                });
+                                updateTriggerConfiguration(next as Partial<JsonObject>);
+                              }}
+                            />
+                          </div>
                         )}
                         {configSubTab === "keyExtraction" && (
-                          <KeyExtractionControls
-                            value={pipelineConfiguration.key_extraction}
-                            onChange={(v) => setTriggerKeyExtraction(v)}
-                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
-                          />
+                          <div
+                            style={
+                              configureEditsLocked
+                                ? { pointerEvents: "none", opacity: 0.65 }
+                                : undefined
+                            }
+                          >
+                            <KeyExtractionControls
+                              value={pipelineConfiguration.key_extraction}
+                              onChange={(v) => setTriggerKeyExtraction(v)}
+                              scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                            />
+                          </div>
                         )}
                         {configSubTab === "aliasing" && (
-                          <AliasingControls
-                            value={pipelineConfiguration.aliasing}
-                            onChange={(v) => setTriggerAliasing(v)}
-                            scopeDocument={pipelineConfiguration as Record<string, unknown>}
-                          />
+                          <div
+                            style={
+                              configureEditsLocked
+                                ? { pointerEvents: "none", opacity: 0.65 }
+                                : undefined
+                            }
+                          >
+                            <AliasingControls
+                              value={pipelineConfiguration.aliasing}
+                              onChange={(v) => setTriggerAliasing(v)}
+                              scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                            />
+                          </div>
                         )}
                         {configSubTab === "runPipeline" && configureRunPipelineSubpanel}
                       </>
                     )}
                   </>
                 )}
-                <AdvancedYamlPanel
+                <div
+                  style={
+                    configureEditsLocked
+                      ? { pointerEvents: "none", opacity: 0.65 }
+                      : undefined
+                  }
+                >
+                  <AdvancedYamlPanel
                   initialContent={configTriggerText}
                   onSaveRaw={async (content) => {
                     await api(`/api/file?rel=${encodeURIComponent(configureTarget.path)}`, {
@@ -1848,7 +2303,8 @@ export default function App() {
                   onAfterSave={async () => {
                     await loadConfigTrigger(configureTarget.path);
                   }}
-                />
+                  />
+                </div>
               </>
             )}
           </div>
@@ -1978,11 +2434,12 @@ export default function App() {
                 type="button"
                 className="kea-btn kea-btn--primary"
                 disabled={
-                  configureTarget.id === "workflowLocal"
+                  configureEditsLocked ||
+                  (configureTarget.id === "workflowLocal"
                     ? scopePhase === "status.saving"
                     : configureTarget.id === "workflowTemplate"
                       ? templatePhase === "status.saving"
-                      : configTriggerPhase === "status.saving"
+                      : configTriggerPhase === "status.saving")
                 }
                 onClick={() => {
                   if (configureTarget.id === "workflowLocal") void saveScope();
@@ -2024,6 +2481,7 @@ export default function App() {
                   )
                 }
                 schemaSpace={moduleSchemaSpace}
+                readOnly={configureEditsLocked}
               />
             ) : configureTarget.id === "workflowTemplate" ? (
               <WorkflowFlowPanel
@@ -2041,6 +2499,7 @@ export default function App() {
                   )
                 }
                 schemaSpace={moduleSchemaSpace}
+                readOnly={configureEditsLocked}
               />
             ) : (
               <WorkflowFlowPanel
@@ -2065,6 +2524,7 @@ export default function App() {
                   );
                   updateTriggerConfiguration(next as Partial<JsonObject>);
                 }}
+                readOnly={configureEditsLocked}
               />
             )}
           </div>

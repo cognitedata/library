@@ -48,8 +48,8 @@ class TestAliasingPathways(unittest.TestCase):
                     {
                         "mode": "parallel",
                         "branches": [
-                            {"rules": [_char_rule("a_to_1", {"a": "1"}, priority=10)]},
-                            {"rules": [_char_rule("b_to_2", {"b": "2"}, priority=10)]},
+                            {"rules": [_char_rule("a_to_c", {"a": "c"}, priority=10)]},
+                            {"rules": [_char_rule("b_to_d", {"b": "d"}, priority=10)]},
                         ],
                     }
                 ]
@@ -60,20 +60,20 @@ class TestAliasingPathways(unittest.TestCase):
         eng_p = AliasingEngine(parallel_cfg)
         res_p = eng_p.generate_aliases("ab", "asset", {})
         self.assertIn("ab", res_p.aliases)
-        self.assertIn("1b", res_p.aliases)
-        self.assertIn("a2", res_p.aliases)
-        self.assertNotIn("12", res_p.aliases)
+        self.assertIn("cb", res_p.aliases)
+        self.assertIn("ad", res_p.aliases)
+        self.assertNotIn("cd", res_p.aliases)
 
         seq_cfg = {
             "rules": [
-                _char_rule("a_to_1", {"a": "1"}, priority=10),
-                _char_rule("b_to_2", {"b": "2"}, priority=20),
+                _char_rule("a_to_c", {"a": "c"}, priority=10),
+                _char_rule("b_to_d", {"b": "d"}, priority=20),
             ],
             "validation": _val(max_aliases_per_tag=50),
         }
         eng_s = AliasingEngine(seq_cfg)
         res_s = eng_s.generate_aliases("ab", "asset", {})
-        self.assertIn("12", res_s.aliases)
+        self.assertIn("cd", res_s.aliases)
 
     def test_sequential_pathway_step_order(self):
         """Explicit sequential pathway uses list order (not priority inversion)."""

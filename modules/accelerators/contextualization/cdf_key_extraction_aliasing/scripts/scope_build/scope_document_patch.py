@@ -117,6 +117,18 @@ def _set_workflow_scope_parameter(doc: Dict[str, Any], ctx: ScopeBuildContext) -
                 params["workflow_scope"] = ctx.scope_id
 
 
+def scope_configuration_for_workflow_trigger(scope_document: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a deep copy of a prepared scope document suitable for ``workflow.input.configuration``.
+
+    Omits the ``canvas`` key: layout is carried only in ``workflow.input.compiled_workflow`` so trigger
+    payloads stay smaller (CDF task I/O limits). Compile and persistence overlays still use the full
+    document including ``canvas`` before this helper runs.
+    """
+    out = copy.deepcopy(scope_document)
+    out.pop("canvas", None)
+    return out
+
+
 def prepare_scope_document_for_context(doc: Dict[str, Any], ctx: ScopeBuildContext) -> Dict[str, Any]:
     """Return a deep copy of ``doc`` with leaf patches (external ids, filters, scope block)."""
     out = copy.deepcopy(doc)

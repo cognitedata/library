@@ -258,6 +258,24 @@ def build_reference_index_config_block(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {"config": inner}
 
 
+def incremental_change_processing_in_task_configuration(
+    data: MutableMapping[str, Any],
+) -> bool:
+    """Return ``key_extraction.config.parameters.incremental_change_processing`` from v1 scope on ``data``."""
+    materialize_scope_confidence_refs_on_task_data(data)
+    doc = _workflow_v1_from_task_data(data)
+    ke = doc.get("key_extraction")
+    if not isinstance(ke, dict):
+        return False
+    kcfg = ke.get("config")
+    if not isinstance(kcfg, dict):
+        return False
+    params = kcfg.get("parameters")
+    if not isinstance(params, dict):
+        return False
+    return bool(params.get("incremental_change_processing"))
+
+
 def ensure_key_extraction_config_from_scope_dm(
     data: MutableMapping[str, Any],
     client: Any,

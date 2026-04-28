@@ -136,32 +136,7 @@ def test_reconcile_uses_instance_space_placeholder_when_leaf_has_no_instance_spa
     assert space_filters[0]["values"] == ["{{instance_space}}"]
 
 
-def test_resolve_workflow_trigger_path_trigger_only(tmp_path: Path) -> None:
-    mod = tmp_path / "mod"
-    mod.mkdir()
-    (mod / "workflows").mkdir(parents=True)
-    doc = yaml.safe_load(
-        """
-        aliasing_scope_hierarchy:
-          levels: [site]
-          locations:
-          - id: alpha
-            name: A
-        """
-    )
-    contexts = build_contexts(module_root=mod, doc=doc, dry_run=True)
-    path, ctx = resolve_workflow_trigger_path_and_context(
-        "alpha",
-        module_root=mod,
-        contexts=contexts,
-        workflow_base="key_extraction_aliasing",
-        mode="trigger_only",
-    )
-    assert ctx.scope_id == "alpha"
-    assert path == mod / "workflows" / "key_extraction_aliasing.alpha.WorkflowTrigger.yaml"
-
-
-def test_resolve_workflow_trigger_path_full_mode(tmp_path: Path) -> None:
+def test_resolve_workflow_trigger_path_scoped(tmp_path: Path) -> None:
     mod = tmp_path / "mod2"
     mod.mkdir()
     (mod / "workflows" / "alpha").mkdir(parents=True)
@@ -180,7 +155,6 @@ def test_resolve_workflow_trigger_path_full_mode(tmp_path: Path) -> None:
         module_root=mod,
         contexts=contexts,
         workflow_base="key_extraction_aliasing",
-        mode="full",
     )
     assert ctx.scope_id == "alpha"
     assert path == mod / "workflows" / "alpha" / "key_extraction_aliasing.alpha.WorkflowTrigger.yaml"
@@ -189,9 +163,8 @@ def test_resolve_workflow_trigger_path_full_mode(tmp_path: Path) -> None:
 def test_resolve_workflow_trigger_path_by_file(tmp_path: Path) -> None:
     mod = tmp_path / "mod3"
     mod.mkdir()
-    wf = mod / "workflows"
-    wf.mkdir()
-    trig = wf / "key_extraction_aliasing.beta.WorkflowTrigger.yaml"
+    trig = mod / "workflows" / "beta" / "key_extraction_aliasing.beta.WorkflowTrigger.yaml"
+    trig.parent.mkdir(parents=True)
     trig.write_text("externalId: x\ninput: {}\n", encoding="utf-8")
     doc = yaml.safe_load(
         """
@@ -208,7 +181,6 @@ def test_resolve_workflow_trigger_path_by_file(tmp_path: Path) -> None:
         module_root=mod,
         contexts=contexts,
         workflow_base="key_extraction_aliasing",
-        mode="trigger_only",
     )
     assert path.resolve() == trig.resolve()
     assert ctx.scope_id == "beta"
@@ -231,5 +203,4 @@ def test_resolve_unknown_scope_raises() -> None:
             module_root=Path("/tmp"),
             contexts=contexts,
             workflow_base="key_extraction_aliasing",
-            mode="trigger_only",
         )

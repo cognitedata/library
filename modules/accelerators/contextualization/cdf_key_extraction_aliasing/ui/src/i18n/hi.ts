@@ -15,7 +15,7 @@ export const hi: Messages = {
   "tabs.keyExtraction": "कुंजी खोज",
   "tabs.aliasing": "Aliasing",
   "tabs.flowCanvas": "Flow",
-  "tabs.runPipeline": "पाइपलाइन चलाएँ",
+  "tabs.runPipeline": "वर्कफ़्लो चलाएँ",
   "tabs.configure": "कॉन्फ़िगर करें",
   "tabs.build": "बिल्ड",
   "tabs.artifacts": "आर्टिफ़ैक्ट",
@@ -39,7 +39,11 @@ export const hi: Messages = {
   "btn.refreshList": "सूची ताज़ा करें",
   "btn.runBuild": "बिल्ड चलाएँ",
   "btn.runBuildForce": "बिल्ड चलाएँ (फ़ोर्स)",
-  "btn.runPipeline": "पाइपलाइन चलाएँ",
+  "btn.runPipeline": "स्थानीय रूप से चलाएँ",
+  "btn.deployScope": "CDF पर तैनात करें",
+  "btn.deployScopeDryRun": "तैनाती ड्राई रन",
+  "btn.cdfWorkflowRun": "CDF पर चलाएँ",
+  "btn.cdfWorkflowRunDryRun": "CDF ड्राई रन",
   "btn.dryRun": "ड्राई रन",
   "status.loading": "लोड हो रहा है…",
   "status.saving": "सहेजा जा रहा है…",
@@ -71,6 +75,15 @@ export const hi: Messages = {
   "config.fileHint.default": "default.config.yaml",
   "config.fileHint.workflowLocal": "workflow.local.config.yaml",
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
+  "config.updateTemplate": "टेम्प्लेट अपडेट करें",
+  "config.updateTemplateTooltip":
+    "डिस्क पर सहेजे गए स्थानीय फ़ाइलों से workflow_template/workflow.template.config.yaml और workflow.template.canvas.yaml को अधिलेखित करता है (``python module.py promote-local-templates`` जैसा)। यदि संपादक में असहेजे परिवर्तन हैं तो पहले सहेजें।",
+  "config.promoteTemplateConfirm":
+    "डिस्क पर workflow.template.config.yaml और workflow.template.canvas.yaml को सहेजे गए workflow.local.config.yaml और workflow.local.canvas.yaml से अधिलेखित करें? UI से पूर्ववत नहीं (git से वापस लें)।",
+  "config.promoteTemplateDirtyConfirm":
+    "इस संपादक में असहेजे परिवर्तन हैं। टेम्प्लेट डिस्क पर पहले से सहेजी सामग्री से अपडेट होगा, संपादक से नहीं। जारी रखें?",
+  "config.templatePromoted":
+    "workflow.local.config.yaml और workflow.local.canvas.yaml से टेम्प्लेट कॉन्फ़िगरेशन और कैनवास डिस्क पर अपडेट किए गए।",
   "build.warnForce": "फ़ोर्स उत्पन्न वर्कफ़्लो YAML को अधिलेखित करता है। चलाने से पहले पुष्टि करें।",
   "build.confirmForce": "उत्पन्न वर्कफ़्लो फ़ाइलें --force से अधिलेखित करें?",
   "build.outputPlaceholder": "बिल्ड आउटपुट यहाँ दिखेगा।",
@@ -80,10 +93,22 @@ export const hi: Messages = {
   "run.contextWorkflowTrigger":
     "सहेजी गई WorkflowTrigger फ़ाइल से input.configuration उपयोग करता है ({path})। संपादक बदलाव लाने के लिए चलाने से पहले फ़ाइल सहेजें।",
   "run.triggerUnsaved": "इस ट्रिगर में असहेजे बदलाव हैं — रन डिस्क पर अंतिम सहेजी फ़ाइल उपयोग करता है।",
-  "run.runAll": "सभी चलाएँ (--all)",
+  "run.runAll": "सभी चलाएँ",
   "run.runAllHint":
     "इंक्रीमेंटल मोड चालू होने पर पूरा स्कोप संसाधित करता है (वर्कफ़्लो इनपुट run_all जैसा)। इंक्रीमेंटल बंद होने पर कोई प्रभाव नहीं।",
+  "run.cdfToolsHint":
+    "तैनाती Cognite SDK से चुने स्कोप के लिए Workflow, WorkflowVersion और WorkflowTrigger को CDF में upsert करती है (क्रेडेंशियल module.py run जैसे)। फ़ंक्शन आदि Toolkit संसाधन शामिल नहीं। CDF पर चलाएँ वर्कफ़्लो निष्पादन शुरू करता है (वैकल्पिक KEA_WORKFLOW_CLIENT_*). इस UI में जनरेट किए गए ट्रिगर YAML में अनसुलझे ``{{…}}`` प्लेसहोल्डर की अनुमति है।",
+  "run.cdfScopedOnly":
+    "तैनाती और CDF पर चलाना केवल workflows/<suffix>/ के अंतर्गत स्कोप मैनिफ़ेस्ट पर लागू होता है (workflow.local या workflow_template पर नहीं)। साइडबार में WorkflowTrigger चुनें।",
+  "run.cdfDeployOutputPlaceholder": "तैनाती और CDF वर्कफ़्लो रन लॉग यहाँ दिखते हैं।",
+  "run.needTriggerScope":
+    "उस स्कोप के लिए तैनाती और CDF पर चलाना चालू करने हेतु साइडबार में workflows/<scope>/ के अंतर्गत WorkflowTrigger फ़ाइल चुनें।",
   "run.outputPlaceholder": "पाइपलाइन आउटपुट यहाँ दिखता है।",
+  "run.localRunExitLine": "[स्थानीय चलान] exit_code={code}",
+  "run.localTaskStart": "▶ शुरू {functionId} (कार्य {taskId}){nodeSuffix}",
+  "run.localTaskEnd": "✓ समाप्त {functionId} (कार्य {taskId}){nodeSuffix}",
+  "run.localExecutingNow": "→ अभी चल रहा: {list}",
+  "run.localExecutingNone": "(कोई नहीं)",
   "scope.levelsLabel": "स्तर (अल्पविराम से अलग)",
   "scope.levelsLabel.tooltip":
     "पदानुक्रम में प्रत्येक गहराई के क्रमबद्ध लेबल (उदा. साइट, यूनिट, सिस्टम)। अल्पविराम से अलग।",
@@ -116,7 +141,6 @@ export const hi: Messages = {
   "module.field.schemaSpace": "स्कीमा स्पेस",
   "module.field.viewVersion": "व्यू संस्करण",
   "module.field.workflow": "वर्कफ़्लो",
-  "module.field.scope_build_mode": "स्कोप बिल्ड मोड",
   "module.field.key_extraction_aliasing_schedule": "कुंजी खोज Aliasing अनुसूची",
   "module.field.files_location_processing_group_source_id": "फ़ाइल स्थान प्रसंस्करण समूह स्रोत ID",
   "module.field.functionVersion": "फ़ंक्शन संस्करण",
@@ -445,6 +469,8 @@ export const hi: Messages = {
   "triggerEditor.workflowVersion": "वर्कफ़्लो संस्करण",
   "triggerEditor.authClientId": "क्लाइंट ID",
   "triggerEditor.authClientSecret": "क्लाइंट सीक्रेट",
+  "triggerEditor.authDeployHint":
+    "क्लाइंट ID और सीक्रेट इस YAML में सहेजे नहीं जाते (पर्यावरण चर उपयोग करें)। CDF पर तैनाती KEA_WORKFLOW_TRIGGER_CLIENT_ID / _SECRET, या IDP_CLIENT_*, या COGNITE_CLIENT_* पढ़ती है और केवल API अनुरोध में भेजती है।",
   "triggerEditor.triggerType": "ट्रिगर प्रकार",
   "triggerEditor.cronExpression": "Cron अभिव्यक्ति",
   "triggerEditor.scheduleHint":
@@ -490,9 +516,6 @@ export const hi: Messages = {
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "उपनाम वापस लेखन",
   "flow.structuralReferenceIndex": "संदर्भ अनुक्रमणिका",
-  "flow.paletteWriteback": "Writeback",
-  "flow.structuralWritebackRaw": "Writeback (RAW)",
-  "flow.structuralWritebackDataModeling": "Writeback (डेटा मॉडलिंग)",
   "flow.validationRuleLayoutSourceView": "मिलान नियम (स्रोत दृश्य)",
   "flow.validationRuleLayoutExtraction": "मिलान नियम (निष्कर्षण)",
   "flow.validationRuleLayoutAliasing": "मिलान नियम (उपनाम)",
@@ -502,6 +525,7 @@ export const hi: Messages = {
   "flow.paletteExtractionHandlers": "निष्कर्षण हैंडलर",
   "flow.paletteAliasingHandlers": "Aliasing हैंडलर",
   "flow.paletteAnnotations": "टिप्पणियाँ",
+  "flow.paletteCdfTasks": "CDF फ़ंक्शन",
   "flow.seedFromScope": "रीसेट",
   "flow.alignLeft": "चयनित नोड बाएँ संरेखित करें",
   "flow.alignCenterHorizontal": "चयनित नोड क्षैतिज केंद्र पर संरेखित करें",
@@ -512,6 +536,11 @@ export const hi: Messages = {
   "flow.alignSelectionGroup": "चयन संरेखित करें",
   "flow.canvasHint":
     "लेआउट .canvas.yaml में सहेजा जाता है। स्कोप सहेजें। पैलेट से कैनवास पर खींचें। नोड को सबफ़्लो फ़्रेम में छोड़कर उसे जोड़ें; सबफ़्लो चुनकर कोनों या किनारे की पट्टियों से क्षैतिज और ऊर्ध्वाधर आकार बदलें।",
+  "flow.workflowCompileModeLabel": "वर्कफ़्लो कंपाइल",
+  "flow.workflowCompileModeAuto": "ऑटो (निष्पादनीय नोड होने पर कैनवास)",
+  "flow.workflowCompileModeCanvas": "कैनवास DAG (हमेशा ग्राफ़ से)",
+  "flow.workflowCompileModeHint":
+    "CDF और लोकल रन के लिए ``compiled_workflow`` फ्लो कैनवास से कैसे बने, यह नियंत्रित करता है। ऑटो और कैनवास दोनों एक ही कैनवास संकलन का उपयोग करते हैं (अमान्य ग्राफ़ बिल्ड, रन या सेव पर विफल)। स्कोप या कैनवास सहेजने पर ``compiled_workflow`` स्कोप YAML में दोबारा सम्मिलित होता है।",
   "flow.handleOrientationLabel": "हैंडल",
   "flow.handleOrientationLr": "बाएँ → दाएँ",
   "flow.handleOrientationTb": "ऊपर → नीचे",
@@ -528,8 +557,11 @@ export const hi: Messages = {
   "flow.ctxMenuConvertSubgraphToSubflow": "सबग्राफ को सबफ़्लो में बदलें (समूह)",
   "flow.subgraphDrillTitle": "Subgraph",
   "flow.subgraphBack": "Save & close",
+  "flow.subgraphCancel": "रद्द करें",
+  "flow.subgraphCancelNestedTooltip":
+    "पहले नेस्टेड सबग्राफ संपादक बंद करें या उसका रद्द करें बटन उपयोग करें।",
   "flow.subgraphDrillHint":
-    "Edit the inner workflow. Connections use the same rules as the main canvas. Save & close writes the nested layout into this subgraph node.",
+    "आंतरिक वर्कफ़्लो संपादित करें। कनेक्शन मुख्य कैनवास जैसे नियमों का पालन करते हैं। सहेजें और बंद करें परिवर्तन रखता है; रद्द करें इस सबग्राफ को संपादक खोलने के समय की स्थिति पर लौटाता है (स्वचालित सीमा सेटअप के बाद सहित)।",
   "flow.inspectorOpenSubgraph": "Open inner graph…",
   "flow.inspectorSubgraphHint":
     "Collapsed composite: double-click the node or use this button to edit the inner canvas. Named ports on the frame connect the outer pipeline to the interior.",
@@ -554,21 +586,23 @@ export const hi: Messages = {
   "flow.nodeEditorUnsupported": "इस नोड प्रकार के लिए कोई कॉन्फ़िगर संपादक नहीं।",
   "flow.close": "बंद करें",
   "flow.save": "सहेजें",
-  "flow.editCanvas": "कैनवास संपादित करें",
-  "flow.canvasPreviewHint": "केवल पढ़ने योग्य पूर्वावलोकन। संपादन पूर्ण कैनवास संपादक खोलता है।",
+  "flow.editWorkflow": "वर्कफ़्लो संपादित करें",
+  "flow.canvasPreviewHint":
+    "केवल पढ़ने योग्य पूर्वावलोकन। संपादन पूर्ण वर्कफ़्लो संपादक खोलता है।",
+  "flow.previewRunLocal": "स्थानीय रूप से चलाएँ",
+  "flow.previewRunLocalHint":
+    "वर्कफ़्लो चलाएँ टैब पर स्थानीय रूप से चलाएँ जैसा ही (डिस्क पर सहेजा YAML—पहले सहेएँ)। चल रहे कार्य ग्राफ़ पर रूपरेखा में दिखते हैं।",
+  "flow.previewRunProgressUnsupported":
+    "Windows पर लाइव हाइलाइट उपलब्ध नहीं; पूरे लॉग के लिए वर्कफ़्लो चलाएँ टैब पर स्थानीय रूप से चलाएँ का उपयोग करें।",
   "flow.inspectorEmpty": "कोई नोड या एज चुनें।",
   "flow.inspectorStartHint":
     "पाइपलाइन प्रवेश। स्रोत दृश्यों से जोड़ें (यदि कोई स्रोत दृश्य नहीं तो निष्कर्षण से)।",
   "flow.inspectorEndHint":
-    "पाइपलाइन निकास। निष्करण, उपनाम, सत्यापन, उपनाम वापस लेखन, RAW या डेटा मॉडलिंग writeback लेआउट नोड, या संदर्भ अनुक्रमणिका नोड से जोड़ें।",
+    "पाइपलाइन निकास। निष्करण, उपनाम, सत्यापन, उपनाम वापस लेखन या संदर्भ अनुक्रमणिका नोड से जोड़ें।",
   "flow.inspectorAliasPersistenceHint":
     "fn_dm_alias_persistence से मेल: aliasing RAW पढ़कर describable इंस्टेंस पर उपनाम सूचियाँ (वैकल्पिक FK स्ट्रिंग) लिखता है। स्कोप या टास्क डेटा में वापस लेखन सेट करें।",
   "flow.inspectorReferenceIndexHint":
     "fn_dm_reference_index से मेल: कुंजी-निष्कर्षण स्टोर में FOREIGN_KEY_REFERENCES_JSON व DOCUMENT_REFERENCES_JSON से उलटा RAW अनुक्रमणिका बनाए रखता है। स्कोप में सक्षम करें (जैसे enable_reference_index)।",
-  "flow.inspectorWritebackRawHint":
-    "Cognite RAW (डेटाबेस, टेबल, इनजेस्ट) में परिणामों के लिए लेआउट नोड। स्कोप या टास्क डेटा में RAW लक्ष्य और हैंडलर I/O कॉन्फ़िगर करें; कैनवास नोड दस्तावेज़ी है।",
-  "flow.inspectorWritebackDataModelingHint":
-    "CDF Data Modeling (इंस्टेंस, व्यू) में writeback के लिए लेआउट नोड। स्कोप या टास्क डेटा में स्पेस, बाहरी ID और प्रक्षेपण चरण (जैसे fn_dm_alias_persistence) कॉन्फ़िगर करें; कैनवास नोड दस्तावेज़ी है।",
   "flow.inspectorValidationRuleHint":
     "स्कोप में validation_rules प्रविष्टि से जोड़ता है: कुंजी स्कोरिंग (वैश्विक key_extraction data.validation और extraction_rules[].validation) या उपनाम सत्यापन (aliasing_rules[].validation) के दौरान उपयोग। स्रोत दृश्य पंक्तियों में validation नहीं होता। नियम स्वतंत्र परिभाषाएँ हैं। YAML सूची, संक्षिप्त { rule_id: [ tail... ] }, या hierarchy: { mode: ordered | concurrent, children: [...] } उपयोग करें। कैनवास पर निष्कर्षण/उपनाम से पहले मिलान-नियम तक डेटा किनारे; आगे मिलान-नियमों को sequence या parallel_group किनारों से जोड़ें।",
   "flow.inspectorValidationRuleContext": "नियम दायरा",

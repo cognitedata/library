@@ -33,7 +33,7 @@ For **incremental** runs, local **`module.py run`** follows **workflow parity** 
 If you need **one WorkflowTrigger per leaf** (per site / line / area):
 
 1. Edit **`aliasing_scope_hierarchy`** in **`default.config.yaml`**: **`levels`** (tier labels) and **`locations`** (nested scope nodes with stable **`id`**).
-2. Run **`module.py build`** to **create missing** files under **`workflows/`** (does not overwrite existing triggers). See [Scoped deployment](howto_scoped_deployment.md) and [config/README.md](../../config/README.md#scope-hierarchy-builder).
+2. Run **`module.py build`** to create missing manifests under **`workflows/`** (and **`module.py build --force`** after template edits to overwrite triggers). See [Scoped deployment](howto_scoped_deployment.md) and [config/README.md](../../config/README.md#scope-hierarchy-builder).
 3. Keep **`workflow_template/workflow.template.config.yaml`** in sync with the scope you want embedded in new triggers (copy from your tuned **`workflow.local.config.yaml`** when appropriate).
 
 ---

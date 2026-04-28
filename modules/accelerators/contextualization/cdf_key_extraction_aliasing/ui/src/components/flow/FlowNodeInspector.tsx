@@ -5,7 +5,9 @@ import YAML from "yaml";
 import type { MessageKey } from "../../i18n";
 import type { JsonObject } from "../../types/scopeConfig";
 import type {
+  AliasPersistenceConfig,
   CanvasEdgeKind,
+  ReferenceIndexPersistenceConfig,
   SubflowPortsConfig,
   SubflowPortEntry,
   WorkflowCanvasNodeData,
@@ -812,20 +814,11 @@ export function FlowNodeInspector({
     );
   }
 
-  if (
-    kind === "keaAliasPersistence" ||
-    kind === "keaWritebackRaw" ||
-    kind === "keaWritebackDataModeling" ||
-    kind === "keaReferenceIndex"
-  ) {
+  if (kind === "keaAliasPersistence" || kind === "keaReferenceIndex") {
     const persistenceHint =
       kind === "keaAliasPersistence"
         ? t("flow.inspectorAliasPersistenceHint")
-        : kind === "keaReferenceIndex"
-          ? t("flow.inspectorReferenceIndexHint")
-          : kind === "keaWritebackRaw"
-            ? t("flow.inspectorWritebackRawHint")
-            : t("flow.inspectorWritebackDataModelingHint");
+        : t("flow.inspectorReferenceIndexHint");
     return (
       <aside className="kea-flow-inspector">
         <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
@@ -845,6 +838,80 @@ export function FlowNodeInspector({
           {persistenceHint}
         </p>
         <FlowNodeAccentColorFields t={t} nodeId={selectedNode.id} data={data} onPatchNode={onPatchNode} />
+        {kind === "keaAliasPersistence" && (() => {
+          const nd = data as WorkflowCanvasNodeData;
+          const apc = nd.persistence_config?.kind === "alias_persistence" ? nd.persistence_config : undefined;
+          return (
+          <>
+            <label className="kea-label kea-label--block">
+              Persistence profile id (optional)
+              <DeferredCommitInput
+                className="kea-input"
+                committedValue={String(apc?.profile ?? "")}
+                syncKey={`${selectedNode.id}-persistence-profile`}
+                onCommit={(v) => {
+                  const prof = v.trim();
+                  const rawNd = (selectedNode.data ?? {}) as WorkflowCanvasNodeData;
+                  const cur =
+                    rawNd.persistence_config?.kind === "alias_persistence"
+                      ? rawNd.persistence_config
+                      : { kind: "alias_persistence" as const };
+                  const merged: AliasPersistenceConfig = { ...cur, kind: "alias_persistence" };
+                  if (prof) merged.profile = prof;
+                  else delete merged.profile;
+                  onPatchNode(selectedNode.id, { ...data, persistence_config: merged });
+                }}
+              />
+            </label>
+            <label className="kea-label kea-label--block">
+              RAW database (tag aliasing)
+              <DeferredCommitInput
+                className="kea-input"
+                committedValue={String(apc?.raw_db ?? "")}
+                syncKey={`${selectedNode.id}-persistence-raw-db`}
+                onCommit={(v) => {
+                  const rawDb = v.trim();
+                  const rawNd = (selectedNode.data ?? {}) as WorkflowCanvasNodeData;
+                  const cur =
+                    rawNd.persistence_config?.kind === "alias_persistence"
+                      ? rawNd.persistence_config
+                      : { kind: "alias_persistence" as const };
+                  const merged: AliasPersistenceConfig = { ...cur, kind: "alias_persistence" };
+                  if (rawDb) merged.raw_db = rawDb;
+                  else delete merged.raw_db;
+                  onPatchNode(selectedNode.id, { ...data, persistence_config: merged });
+                }}
+              />
+            </label>
+          </>
+          );
+        })()}
+        {kind === "keaReferenceIndex" && (() => {
+          const nd = data as WorkflowCanvasNodeData;
+          const rpc = nd.persistence_config?.kind === "reference_index" ? nd.persistence_config : undefined;
+          return (
+          <label className="kea-label kea-label--block">
+            Persistence profile id (optional)
+            <DeferredCommitInput
+              className="kea-input"
+              committedValue={String(rpc?.profile ?? "")}
+              syncKey={`${selectedNode.id}-refix-profile`}
+              onCommit={(v) => {
+                const prof = v.trim();
+                const rawNd = (selectedNode.data ?? {}) as WorkflowCanvasNodeData;
+                const cur =
+                  rawNd.persistence_config?.kind === "reference_index"
+                    ? rawNd.persistence_config
+                    : { kind: "reference_index" as const };
+                const merged: ReferenceIndexPersistenceConfig = { ...cur, kind: "reference_index" };
+                if (prof) merged.profile = prof;
+                else delete merged.profile;
+                onPatchNode(selectedNode.id, { ...data, persistence_config: merged });
+              }}
+            />
+          </label>
+          );
+        })()}
         <label className="kea-label kea-label--block">
           {t("flow.inspectorNotes")}
           <DeferredCommitTextarea

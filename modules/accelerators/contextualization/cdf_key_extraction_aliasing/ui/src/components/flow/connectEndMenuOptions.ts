@@ -11,16 +11,17 @@ export type ConnectEndMenuOption = {
   labelText?: string;
 };
 
-const WRITE_BACK_CONNECT_OPTIONS: ConnectEndMenuOption[] = [
+/** Layout nodes that compile to Cognite function tasks (fn_dm_*). */
+const PIPELINE_FN_CONNECT_OPTIONS: ConnectEndMenuOption[] = [
   {
-    id: "structural-writeback_raw",
-    payload: { kind: "structural", nodeKind: "writeback_raw" },
-    labelKey: "flow.structuralWritebackRaw",
+    id: "structural-reference_index",
+    payload: { kind: "structural", nodeKind: "reference_index" },
+    labelKey: "flow.structuralReferenceIndex",
   },
   {
-    id: "structural-writeback_data_modeling",
-    payload: { kind: "structural", nodeKind: "writeback_data_modeling" },
-    labelKey: "flow.structuralWritebackDataModeling",
+    id: "structural-alias_persistence",
+    payload: { kind: "structural", nodeKind: "alias_persistence" },
+    labelKey: "flow.structuralAliasPersistence",
   },
 ];
 
@@ -73,7 +74,7 @@ export function connectEndMenuOptionsForSourceType(
       ];
     }
     return [
-      ...WRITE_BACK_CONNECT_OPTIONS,
+      ...PIPELINE_FN_CONNECT_OPTIONS,
       ...ALIASING_HANDLER_IDS.map((id) => ({
         id: `aliasing-${id}`,
         payload: { kind: "aliasing", handlerId: id, preset: true } as const,
@@ -121,7 +122,7 @@ export function connectEndMenuOptionsForSourceType(
       ];
     }
     return [
-      ...WRITE_BACK_CONNECT_OPTIONS,
+      ...PIPELINE_FN_CONNECT_OPTIONS,
       ...ALIASING_HANDLER_IDS.map((id) => ({
         id: `aliasing-${id}`,
         payload: { kind: "aliasing", handlerId: id, preset: true } as const,

@@ -604,11 +604,15 @@ class AliasingEngine:
             or ctx.get("extraction_rule_id")
         )
 
+        # When ``extraction_aliasing_pipelines`` is populated from the scope document, every
+        # extraction rule id gets an entry (possibly ``[]``). An empty list must not skip
+        # global ``pathways`` / flat ``aliasing_rules`` — those are the default macro stack.
+        use_global_rules = not self._extraction_aliasing_pipelines
         if self._extraction_aliasing_pipelines:
             if ext_key:
                 rid = str(ext_key).strip()
                 nodes = self._extraction_aliasing_pipelines.get(rid)
-                if isinstance(nodes, list):
+                if isinstance(nodes, list) and len(nodes) > 0:
                     aliases = self._run_extraction_aliasing_pipeline(
                         nodes,
                         tag,
@@ -617,6 +621,9 @@ class AliasingEngine:
                         applied_rules,
                         applied_rules_set,
                     )
+                    use_global_rules = False
+                elif isinstance(nodes, list) and len(nodes) == 0:
+                    use_global_rules = True
                 else:
                     self.logger.warning(
                         "Aliasing: no aliasing_pipeline for extraction rule %r; identity only",
@@ -627,40 +634,42 @@ class AliasingEngine:
                     "Aliasing: extraction_aliasing_pipelines configured but context missing "
                     "extraction_rule_name / rule_name; identity only"
                 )
-        elif self._pathways_config_active:
-            for step in self.pathway_steps or []:
-                if isinstance(step, SequentialPathwayStep):
-                    aliases = self._apply_rules_sequential(
-                        step.rules,
-                        aliases,
-                        entity_type,
-                        context,
-                        applied_rules,
-                        applied_rules_set,
-                    )
-                elif isinstance(step, ParallelPathwayStep):
-                    fork = set(aliases)
-                    merged = set(fork)
-                    for branch in step.branches:
-                        branch_out = self._apply_rules_sequential(
-                            branch,
-                            fork,
+
+        if use_global_rules:
+            if self._pathways_config_active:
+                for step in self.pathway_steps or []:
+                    if isinstance(step, SequentialPathwayStep):
+                        aliases = self._apply_rules_sequential(
+                            step.rules,
+                            aliases,
                             entity_type,
                             context,
                             applied_rules,
                             applied_rules_set,
                         )
-                        merged.update(branch_out)
-                    aliases = merged
-        else:
-            aliases = self._apply_rules_sequential(
-                self.rules,
-                aliases,
-                entity_type,
-                context,
-                applied_rules,
-                applied_rules_set,
-            )
+                    elif isinstance(step, ParallelPathwayStep):
+                        fork = set(aliases)
+                        merged = set(fork)
+                        for branch in step.branches:
+                            branch_out = self._apply_rules_sequential(
+                                branch,
+                                fork,
+                                entity_type,
+                                context,
+                                applied_rules,
+                                applied_rules_set,
+                            )
+                            merged.update(branch_out)
+                        aliases = merged
+            else:
+                aliases = self._apply_rules_sequential(
+                    self.rules,
+                    aliases,
+                    entity_type,
+                    context,
+                    applied_rules,
+                    applied_rules_set,
+                )
 
         validated_aliases = self._validate_aliases(
             list(aliases), self._effective_validation(applied_rules)
@@ -677,36 +686,42 @@ class AliasingEngine:
             },
         )
 
+    @staticmethod
+    def _filter_value_matches(actual: Any, expected: Any) -> bool:
+        """True if *actual* satisfies *expected* (scalar equality or list membership)."""
+        if isinstance(expected, list):
+            return actual in expected
+        return actual == expected
+
     def _check_conditions(
         self, rule: AliasRule, entity_type: str, context: Dict[str, Any]
     ) -> bool:
-        """Check optional non-entity_type scope_filters / conditions against *context*."""
+        """Check ``scope_filters`` / ``conditions`` against *context* and row *entity_type*.
+
+        ``entity_type`` keys match the ``entity_type`` argument to ``generate_aliases`` (the
+        source view kind from key extraction: e.g. ``asset``, ``timeseries``, ``file``), not
+        ``context['entity_type']``, so rules such as ``document_aliases`` can be limited to
+        Cognite files when the scope YAML lists ``scope_filters.entity_type: [file]``.
+        """
+        ctx = context if isinstance(context, dict) else {}
+
         if rule.scope_filters:
-            if context:
-                for key, expected_value in rule.scope_filters.items():
-                    if key == "entity_type":
-                        continue
-                    actual_value = context.get(key)
-                    if isinstance(expected_value, list):
-                        if actual_value not in expected_value:
-                            return False
-                    else:
-                        if actual_value != expected_value:
-                            return False
+            for key, expected_value in rule.scope_filters.items():
+                if key == "entity_type":
+                    actual_value = entity_type
+                else:
+                    actual_value = ctx.get(key)
+                if not self._filter_value_matches(actual_value, expected_value):
+                    return False
 
         if rule.conditions:
-            if context:
-                for key, expected_value in rule.conditions.items():
-                    if key == "entity_type":
-                        continue
-
-                    actual_value = context.get(key)
-                    if isinstance(expected_value, list):
-                        if actual_value not in expected_value:
-                            return False
-                    else:
-                        if actual_value != expected_value:
-                            return False
+            for key, expected_value in rule.conditions.items():
+                if key == "entity_type":
+                    actual_value = entity_type
+                else:
+                    actual_value = ctx.get(key)
+                if not self._filter_value_matches(actual_value, expected_value):
+                    return False
 
         return True
 

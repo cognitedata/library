@@ -1,4 +1,4 @@
-"""Shared mutable state for Kahn-style local workflow execution (macro fn_dm_* stages)."""
+"""Shared mutable state for local topological execution over ``compiled_workflow``."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 @dataclass
 class KahnRunContext:
-    """Filled incrementally by incremental → key extraction → (ref ∥ alias) → persistence."""
+    """Filled incrementally as each ``compiled_workflow`` task runs."""
 
     args: Namespace
     logger: Any
@@ -27,6 +27,8 @@ class KahnRunContext:
     write_foreign_key_references: bool
     foreign_key_writeback_property: Optional[str]
     progress_every: int
+    # IR from cdf_fn_common.workflow_compile (same shape as workflow.input.compiled_workflow).
+    compiled_workflow: Dict[str, Any] = field(default_factory=dict)
 
     run_id: str = ""
     cohort_rows: Optional[int] = None
@@ -44,3 +46,6 @@ class KahnRunContext:
 
     ref_summary: Optional[Dict[str, Any]] = None
     alias_data: Dict[str, Any] = field(default_factory=dict)
+    # Merged across multiple fn_dm_aliasing tasks (canvas DAG).
+    accumulated_aliasing_results: List[Any] = field(default_factory=list)
+    persistence_summary: Optional[Dict[str, Any]] = None

@@ -5,14 +5,26 @@ Local CLI entry point — fetch CDF instances from data model views, run key dis
 
 Configuration: ``run`` loads the v1 scope document ``workflow.local.config.yaml`` at the
 module root when ``--scope default`` (the default); other scope names require ``--config-path``.
+Before compiling ``compiled_workflow`` from the flow canvas, the sibling layout file
+``workflow.local.canvas.yaml`` (same stem as ``*.config.yaml``) is merged into the scope,
+matching the operator UI (``compile_workflow_dag`` is ``auto`` or ``canvas``).
 Incremental workflow-parity runs use ``key_extraction.config.parameters`` the same way as deployed
 workflows: optional ``key_discovery_instance_space`` / ``workflow_scope`` for Key Discovery FDM state
 (watermark and hash use RAW automatically if the views are not deployed).
 CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each task (built by
-``scripts/build_scopes.py`` into ``workflows/`` from templates in ``workflow_template/``). Create **missing** workflow artifacts with
-``python module.py build`` (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
+``scripts/build_scopes.py`` into ``workflows/<suffix>/``). ``Workflow.yaml`` is derived from
+``workflow_template/workflow.template.Workflow.yaml``; ``WorkflowVersion.yaml`` is emitted from the
+canvas ``compiled_workflow`` IR. Build loads the scope template with the same sibling
+``*.canvas.yaml`` merge as ``module.py run``. Run ``python module.py build`` to create missing scoped **Workflow**,
+**WorkflowVersion**, and **WorkflowTrigger** YAML and to refresh ``workflow.execution.graph.yaml`` from IR on every run;
+pass ``--force`` to overwrite existing scoped flow manifests (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
 Use ``python module.py copy-workflow-config`` to copy ``input.configuration`` between leaf WorkflowTrigger YAML files.
-Respects ``scope_build_mode``; does not overwrite existing files; pass ``--dry-run``, ``--check-workflow-triggers``, etc. Remove generated
+Use ``python module.py promote-local-templates`` to overwrite ``workflow_template/workflow.template.{config,canvas}.yaml``
+from ``workflow.local.{config,canvas}.yaml`` (see ``--dry-run`` / ``--config-only`` / ``--canvas-only``).
+Use ``python module.py build --scope-suffix <suffix>`` to limit writes to one leaf under ``workflows/<suffix>/`` (still refreshes ``workflow.execution.graph.yaml``; use ``--force`` to overwrite that leaf’s existing scoped YAML).
+Use ``python module.py deploy-scope`` to upsert Workflow / WorkflowVersion / WorkflowTrigger to CDF via the Cognite SDK,
+or ``python module.py cdf-workflow-run`` to run a deployed workflow (see ``scripts/deploy_scope_cdf.py`` and ``scripts/cdf_workflow_run.py``).
+Optional ``scope_build_mode`` in hierarchy YAML must be ``full`` or omitted (``trigger_only`` is rejected). Pass ``--force`` to overwrite existing scoped workflow/trigger YAML, or ``--dry-run``, ``--check-workflow-triggers``, etc. Remove generated
 workflow YAML with ``python module.py build --clean`` (confirmation or ``--yes``; no rebuild after delete—run
 ``build`` again to recreate). This is unrelated to ``run --clean-state``, which drops RAW tables. See
 ``config/README.md`` and ``default.config.yaml``.
@@ -126,6 +138,45 @@ def _run_copy_workflow_config(copy_argv: List[str]) -> int:
     return int(copy_workflow_config_main(copy_argv))
 
 
+def _run_promote_local_templates(promote_argv: List[str]) -> int:
+    """Copy ``workflow.local.*`` into ``workflow_template/workflow.template.*`` (see ``promote_local_workflow_templates``)."""
+    scripts_dir = _PACKAGE_ROOT / "scripts"
+    sd = str(scripts_dir)
+    if sd not in sys.path:
+        sys.path.insert(0, sd)
+    from scope_build.promote_local_workflow_templates import main as promote_local_templates_main
+
+    return int(promote_local_templates_main(promote_argv))
+
+
+def _pythonpath_for_module_scripts() -> str:
+    """``functions:scripts:<module>`` plus any existing ``PYTHONPATH`` (for deploy / workflow-run helpers)."""
+    parts = [
+        str(_PACKAGE_ROOT / "functions"),
+        str(_PACKAGE_ROOT / "scripts"),
+        str(_PACKAGE_ROOT),
+    ]
+    joined = ":".join(parts)
+    prev = (os.environ.get("PYTHONPATH") or "").strip()
+    return f"{joined}:{prev}" if prev else joined
+
+
+def _run_cdf_helper_script(script_name: str, forward_argv: List[str]) -> int:
+    """Run ``scripts/<script_name>`` with ``cwd`` at module root and a suitable ``PYTHONPATH``."""
+    script = _PACKAGE_ROOT / "scripts" / script_name
+    if not script.is_file():
+        logger.error("Script not found: %s", script)
+        return 1
+    env = os.environ.copy()
+    env["PYTHONPATH"] = _pythonpath_for_module_scripts()
+    proc = subprocess.run(
+        [sys.executable, str(script)] + forward_argv,
+        cwd=str(_PACKAGE_ROOT),
+        env=env,
+    )
+    return int(proc.returncode)
+
+
 _UI_DIR = _PACKAGE_ROOT / "ui"
 
 
@@ -188,7 +239,20 @@ def _run_ui(argv: List[str]) -> int:
         if r.returncode != 0:
             return r.returncode
 
-    env = {**os.environ, "PYTHONPATH": str(_PACKAGE_ROOT)}
+    # Match ``module.py build`` / pytest: ``functions`` + ``scripts`` packages live under the module root.
+    _py_path = ":".join(
+        str(p)
+        for p in (
+            _PACKAGE_ROOT / "functions",
+            _PACKAGE_ROOT / "scripts",
+            _PACKAGE_ROOT,
+        )
+    )
+    _prev_py = (os.environ.get("PYTHONPATH") or "").strip()
+    env = {
+        **os.environ,
+        "PYTHONPATH": f"{_py_path}:{_prev_py}" if _prev_py else _py_path,
+    }
     api_cmd = [
         sys.executable,
         "-m",
@@ -378,8 +442,12 @@ def _print_root_cli_help() -> None:
             "  python module.py run --dry-run\n"
             "  python module.py run --scope default --limit 50\n"
             "  python module.py build\n"
+            "  python module.py build --scope-suffix site_01\n"
             "  python module.py build --check-workflow-triggers\n"
+            "  python module.py deploy-scope --scope-suffix site_01\n"
+            "  python module.py cdf-workflow-run --scope-suffix site_01 --dry-run\n"
             "  python module.py copy-workflow-config --from SITE_A --to SITE_B\n"
+            "  python module.py promote-local-templates --dry-run\n"
             "Legacy: ``python module.py --build`` is equivalent to ``python module.py build``."
         ),
     )
@@ -400,8 +468,26 @@ def _print_root_cli_help() -> None:
         ),
     )
     sub.add_parser(
+        "promote-local-templates",
+        help=(
+            "Overwrite workflow_template/workflow.template.config.yaml and .canvas.yaml from "
+            "workflow.local.config.yaml / workflow.local.canvas.yaml"
+        ),
+    )
+    sub.add_parser(
         "ui",
         help="Local operator UI (FastAPI + Vite) for default.config.yaml, scope YAML, and workflows/",
+    )
+    sub.add_parser(
+        "deploy-scope",
+        help=(
+            "Validate one scope's workflow YAML, optionally run build --scope-suffix, then upsert Workflow, "
+            "WorkflowVersion, and WorkflowTrigger to CDF via the Cognite SDK (see scripts/deploy_scope_cdf.py --help)"
+        ),
+    )
+    sub.add_parser(
+        "cdf-workflow-run",
+        help="Start a CDF workflow execution for one scope and poll status (scripts/cdf_workflow_run.py --help)",
     )
     parser.print_help()
 
@@ -505,8 +591,17 @@ def main() -> None:
     if argv[0] == "copy-workflow-config":
         raise SystemExit(_run_copy_workflow_config(argv[1:]))
 
+    if argv[0] == "promote-local-templates":
+        raise SystemExit(_run_promote_local_templates(argv[1:]))
+
     if argv[0] == "ui":
         raise SystemExit(_run_ui(argv[1:]))
+
+    if argv[0] == "deploy-scope":
+        raise SystemExit(_run_cdf_helper_script("deploy_scope_cdf.py", argv[1:]))
+
+    if argv[0] == "cdf-workflow-run":
+        raise SystemExit(_run_cdf_helper_script("cdf_workflow_run.py", argv[1:]))
 
     if argv[0] != "run":
         print(f"module.py: error: unknown command {argv[0]!r}", file=sys.stderr)

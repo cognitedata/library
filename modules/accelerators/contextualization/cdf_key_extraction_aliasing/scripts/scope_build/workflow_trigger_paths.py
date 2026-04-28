@@ -8,7 +8,6 @@ from typing import List, Sequence, Tuple
 
 from scope_build.builders.workflow_triggers import trigger_output_path
 from scope_build.context import ScopeBuildContext
-from scope_build.mode import ScopeBuildMode
 from scope_build.naming import cdf_external_id_suffix
 from scope_build.paths import WORKFLOW_ARTIFACTS_REL
 
@@ -57,7 +56,6 @@ def resolve_workflow_trigger_path_and_context(
     module_root: Path,
     contexts: Sequence[ScopeBuildContext],
     workflow_base: str,
-    mode: ScopeBuildMode,
 ) -> Tuple[Path, ScopeBuildContext]:
     """Return absolute path to a trigger file and its leaf context.
 
@@ -108,7 +106,6 @@ def resolve_workflow_trigger_path_and_context(
     suffix = cdf_external_id_suffix(ctx.scope_id)
     out = trigger_output_path(
         workflows_dir=workflows_dir,
-        mode=mode,
         workflow_base=workflow_base,
         suffix=suffix,
     )

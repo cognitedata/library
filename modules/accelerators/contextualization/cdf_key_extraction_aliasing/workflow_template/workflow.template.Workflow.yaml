@@ -1,4 +1,4 @@
-# Template: __KEA_WORKFLOW_EXTERNAL_ID__ → workflow external id (base or base.suffix). See default.config.yaml scope_build_mode.
+# Template: __KEA_WORKFLOW_EXTERNAL_ID__ → scoped workflow external id (base.suffix per leaf).
 externalId: __KEA_WORKFLOW_EXTERNAL_ID__
 description: >-
   Key extraction, optional RAW reference index, tag aliasing, and alias write-back to CDM describables.

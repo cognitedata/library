@@ -23,8 +23,11 @@ _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {
             "match": {
                 "expressions": [
                     {
-                        "pattern": r"^.{0,1}$",
-                        "description": "Alias too short (length under 2) or empty",
+                        "pattern": r"^[0-9]{0,3}$",
+                        "description": (
+                            "Alias is only digits and shorter than 4 characters "
+                            "(empty counts as invalid)"
+                        ),
                     },
                     {
                         "pattern": r"^.{51,}$",
@@ -363,7 +366,13 @@ def attach_extraction_aliasing_pipelines(
     aliasing_config: Dict[str, Any],
     scope_document: Optional[Dict[str, Any]],
 ) -> None:
-    """Populate ``extraction_aliasing_pipelines`` on *aliasing_config* from scope ``key_extraction``."""
+    """Populate ``extraction_aliasing_pipelines`` on *aliasing_config* from scope ``key_extraction``.
+
+    Each extraction rule id is mapped to its ``aliasing_pipeline`` list, or ``[]`` when the field
+    is absent. The aliasing engine treats a **non-empty** list as an exclusive per-rule pipeline;
+    an **empty** list means "no per-rule overrides" and execution **falls through** to global
+    ``pathways`` / ``aliasing_rules`` (same as when no pipelines map exists).
+    """
     if not isinstance(scope_document, dict):
         return
     ke = scope_document.get("key_extraction")

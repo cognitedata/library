@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from types import SimpleNamespace
 from typing import Any, Dict
 
@@ -13,7 +14,11 @@ except ImportError:
     CDF_AVAILABLE = False
 
 from cdf_fn_common.function_logging import resolve_function_logger
-from cdf_fn_common.scope_document_dm import ensure_key_extraction_config_from_scope_dm
+from cdf_fn_common.scope_document_dm import (
+    ensure_key_extraction_config_from_scope_dm,
+    incremental_change_processing_in_task_configuration,
+)
+from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 from pipeline import incremental_state_update
 
 
@@ -29,6 +34,21 @@ def handle(
 
         if not client:
             raise ValueError("CogniteClient is required")
+
+        merge_compiled_task_into_data(data)
+
+        if not incremental_change_processing_in_task_configuration(data):
+            log.info(
+                "incremental_change_processing is false — skipping cohort/state RAW writes "
+                "(v5 workflow keeps this task for a stable DAG)."
+            )
+            rid = data.get("run_id") or str(uuid.uuid4())
+            data["run_id"] = rid
+            return {
+                "status": "succeeded",
+                "run_id": rid,
+                "message": '{"cohort_rows_written": 0, "skipped_incremental_disabled": true}',
+            }
 
         ensure_key_extraction_config_from_scope_dm(
             data, client, incremental_change_processing=True
@@ -55,11 +75,6 @@ def handle(
                 associations=data_section.get("associations") or [],
             ),
         )
-
-        if not cdf_config.parameters.incremental_change_processing:
-            raise ValueError(
-                "parameters.incremental_change_processing must be true for incremental state update"
-            )
 
         incremental_state_update(client, log, data, cdf_config)
 

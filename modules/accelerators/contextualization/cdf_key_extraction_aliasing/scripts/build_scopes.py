@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """CLI: build workflow artifacts from default.config.yaml (same as ``python module.py build``).
 
-Uses top-level ``scope_build_mode``:
-
-- **trigger_only** — create missing ``workflows/{workflow}.Workflow.yaml`` and
-  ``{workflow}.WorkflowVersion.yaml``, plus flat
-  ``workflows/{workflow}.<scope>.WorkflowTrigger.yaml`` per leaf.
-- **full** — create missing scoped trio under ``workflows/<scope>/`` (Workflow, WorkflowVersion,
-  WorkflowTrigger) with ``workflowExternalId`` = ``{workflow}.{scope}``.
+Writes per-leaf artifacts under ``workflows/<suffix>/``: ``{workflow}.{suffix}.Workflow.yaml``,
+``{workflow}.{suffix}.WorkflowVersion.yaml``, and ``{workflow}.{suffix}.WorkflowTrigger.yaml``.
+Each trigger’s ``workflowExternalId`` is ``{workflow}.{suffix}``.
 
 Scope body: ``workflow_template/workflow.template.config.yaml`` (``--scope-document``).
 Trigger shell: ``workflow_template/workflow.template.WorkflowTrigger.yaml``
@@ -15,8 +11,10 @@ Trigger shell: ``workflow_template/workflow.template.WorkflowTrigger.yaml``
 ``workflow_template/workflow.template.WorkflowVersion.yaml``
 (``--workflow-template``, ``--workflow-version-template``).
 
-``--build`` only creates missing files by default; ``--force`` overwrites existing generated YAML from
-templates. ``--check-workflow-triggers`` validates triggers and Workflow/WorkflowVersion vs templates (no writes).
+``workflow_template/workflow.execution.graph.yaml`` is refreshed from IR on **every** build (no ``--force``).
+``--force`` overwrites existing **WorkflowTrigger** files and scoped **Workflow** / **WorkflowVersion** when they
+already exist (initial creation does not require ``--force``).
+``--check-workflow-triggers`` validates triggers and Workflow/WorkflowVersion vs templates (no writes).
 ``--clean`` removes generated YAML under ``workflows/`` matching the hierarchy ``workflow`` id (recursive under
 ``workflows/``, plus legacy root trigger names). It prints a summary, warns the operation cannot be undone, and
 prompts for ``yes`` unless ``--yes`` is set (required when stdin is not a TTY). ``--dry-run --clean`` lists what

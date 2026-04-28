@@ -1,31 +1,30 @@
-"""scope_build_mode from default.config.yaml (module.py build / build_scopes.py)."""
+"""Workflow layout is always scoped (``workflows/<suffix>/`` per hierarchy leaf)."""
 
 from __future__ import annotations
 
 from typing import Literal
 
-ScopeBuildMode = Literal["trigger_only", "full"]
-
-_TRIGGER_ONLY: ScopeBuildMode = "trigger_only"
-_FULL: ScopeBuildMode = "full"
+ScopeBuildMode = Literal["full"]
 
 
 def scope_build_mode_from_doc(doc: dict) -> ScopeBuildMode:
-    """Return ``trigger_only`` (default) or ``full`` from top-level ``scope_build_mode``."""
-    raw = doc.get("scope_build_mode", _TRIGGER_ONLY)
+    """Return ``full``. Reject removed ``trigger_only`` / unknown values."""
+    raw = doc.get("scope_build_mode")
     if raw is None or str(raw).strip() == "":
-        return _TRIGGER_ONLY
+        return "full"
     s = str(raw).strip().lower().replace("-", "_")
     if s in ("trigger_only", "triggeronly"):
-        return _TRIGGER_ONLY
+        raise ValueError(
+            "scope_build_mode 'trigger_only' is no longer supported; remove the key "
+            "(scoped workflows under workflows/<suffix>/ are the only layout)."
+        )
     if s == "full":
-        return _FULL
+        return "full"
     raise ValueError(
-        "scope_build_mode must be 'trigger_only' or 'full' "
-        f"(got {raw!r}); see default.config.yaml"
+        f"scope_build_mode must be 'full' or omitted (got {raw!r}); see default.config.yaml"
     )
 
 
 def scoped_workflow_external_id(workflow_base: str, suffix: str) -> str:
-    """CDF workflow external id for one leaf in ``full`` mode."""
+    """CDF workflow external id for one leaf."""
     return f"{workflow_base}.{suffix}"

@@ -7,13 +7,9 @@ import {
 } from "../../types/workflowCanvas";
 import { keaValidationRuleLayoutRfTypes } from "./flowConstants";
 
-/** Pipeline writeback sinks (RAW or Data Modeling layout cards, plus fn_dm_alias_persistence). */
-function isPipelineWritebackRfType(t: string | undefined): boolean {
-  return (
-    t === "keaAliasPersistence" ||
-    t === "keaWritebackRaw" ||
-    t === "keaWritebackDataModeling"
-  );
+/** Layout node for fn_dm_alias_persistence (pipeline step before end). */
+function isAliasPersistenceLayoutRfType(t: string | undefined): boolean {
+  return t === "keaAliasPersistence";
 }
 
 type GetNode = (id: string) => Node | undefined;
@@ -51,20 +47,20 @@ export function isValidDirectRfDataEdgeSourceToTarget(
       st === "keaAliasing" ||
       st === "keaValidation" ||
       validationRuleLayoutRfTypes.has(st) ||
-      isPipelineWritebackRfType(st) ||
+      isAliasPersistenceLayoutRfType(st) ||
       st === "keaReferenceIndex"
     );
   }
 
   if (tt === "keaReferenceIndex") return st === "keaExtraction";
 
-  if (isPipelineWritebackRfType(tt)) {
+  if (isAliasPersistenceLayoutRfType(tt)) {
     return st === "keaAliasing" || st === "keaValidation" || st === "keaExtraction";
   }
 
   if (st === "keaReferenceIndex") return tt === "keaEnd";
 
-  if (isPipelineWritebackRfType(st)) return tt === "keaEnd";
+  if (isAliasPersistenceLayoutRfType(st)) return tt === "keaEnd";
 
   if (st === "keaStart") {
     return tt === "keaSourceView" || tt === "keaExtraction";
@@ -135,7 +131,7 @@ function allowedExternalSourceToSubflowInput(st: string): boolean {
   if (st === "keaStart") return true;
   if (st === "keaSourceView") return true;
   if (st === "keaExtraction" || st === "keaAliasing" || st === "keaValidation") return true;
-  if (isPipelineWritebackRfType(st) || st === "keaReferenceIndex") return true;
+  if (isAliasPersistenceLayoutRfType(st) || st === "keaReferenceIndex") return true;
   if (keaValidationRuleLayoutRfTypes.has(st)) return true;
   return false;
 }
@@ -146,7 +142,7 @@ function allowedSubflowOutputToExternalTarget(tt: string, validationRuleLayoutRf
   if (tt === "keaSubflow" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
   if (tt === "keaEnd") return true;
   if (tt === "keaSourceView") return false;
-  if (tt === "keaReferenceIndex" || isPipelineWritebackRfType(tt)) return true;
+  if (tt === "keaReferenceIndex" || isAliasPersistenceLayoutRfType(tt)) return true;
   if (tt === "keaExtraction" || tt === "keaAliasing" || tt === "keaValidation") return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return true;
@@ -174,7 +170,7 @@ function validInteriorToGraphOut(
     return false;
   if (st === "keaSourceView") return false;
   if (st === "keaExtraction" || st === "keaAliasing" || st === "keaValidation") return true;
-  if (isPipelineWritebackRfType(st) || st === "keaReferenceIndex") return true;
+  if (isAliasPersistenceLayoutRfType(st) || st === "keaReferenceIndex") return true;
   if (validationRuleLayoutRfTypes.has(st)) return true;
   return false;
 }
@@ -196,7 +192,7 @@ function validGraphInToInterior(getNode: GetNode, c: Connection | Edge, validati
   if (tt === "keaEnd" || tt === "keaStart" || tt === "keaSubflow" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt))
     return false;
   if (tt === "keaSourceView") return false;
-  if (isPipelineWritebackRfType(tt) || tt === "keaReferenceIndex") return false;
+  if (isAliasPersistenceLayoutRfType(tt) || tt === "keaReferenceIndex") return false;
   if (tt === "keaExtraction" || tt === "keaAliasing" || tt === "keaValidation") return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return false;
