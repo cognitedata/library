@@ -81,12 +81,51 @@ def check_toolkit_version() -> tuple[int, int, int] | None:
 
 # cdf.toml check
 
-def check_cdf_toml(repo_root: Path) -> None:
-    """Verify ``cdf.toml`` exists and contains the required ``[alpha_flags]``.
+def _ensure_toml_flag(lines: list[str], section_header: str, flag: str) -> str | None:
+    """Ensure ``flag = true`` exists in *section_header* of a TOML file (in-place on *lines*).
 
-    If either ``deployment-pack = true`` or ``data = true`` is missing from
-    the ``[alpha_flags]`` section they are appended automatically and the
-    change is printed.  Exits with code 1 only if the file is absent.
+    - Already ``= true``           → no-op, returns ``None``.
+    - Exists with a different value → updated in place, returns change description.
+    - Missing from section          → inserted after section header, returns change description.
+    - Section itself missing        → section + flag appended at end of file, returns change description.
+    """
+    section_idx: int | None = None
+    flag_idx: int | None = None
+    in_section = False
+
+    for idx, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == section_header:
+            in_section = True
+            section_idx = idx
+        elif stripped.startswith("[") and stripped != section_header:
+            in_section = False
+        if in_section and re.match(rf"{re.escape(flag)}\s*=", stripped):
+            flag_idx = idx
+            break
+
+    if flag_idx is not None:
+        if re.match(rf"{re.escape(flag)}\s*=\s*true", lines[flag_idx].strip()):
+            return None  # already correct
+        lines[flag_idx] = f"{flag} = true\n"
+        return f"updated {flag} = true  (in {section_header})"
+
+    if section_idx is not None:
+        lines.insert(section_idx + 1, f"{flag} = true\n")
+    else:
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"
+        lines.append(f"\n{section_header}\n{flag} = true\n")
+    return f"added {flag} = true  (in {section_header})"
+
+
+def check_cdf_toml(repo_root: Path) -> None:
+    """Verify ``cdf.toml`` exists and contains the required flags.
+
+    Ensures ``deployment-pack = true`` under ``[alpha_flags]`` and
+    ``data = true`` under ``[plugins]``.  Each flag is added if absent or
+    corrected if present with a non-true value.  Exits with code 1 only
+    if the file is absent.
     """
     toml_path = repo_root / "cdf.toml"
     if not toml_path.exists():
@@ -96,55 +135,22 @@ def check_cdf_toml(repo_root: Path) -> None:
         )
         sys.exit(1)
 
-    content = toml_path.read_text(encoding="utf-8")
-    lines = content.splitlines(keepends=True)
+    lines = toml_path.read_text(encoding="utf-8").splitlines(keepends=True)
 
-    # Scan for the [alpha_flags] section and record which flags are present.
-    alpha_section_idx: int | None = None
-    has_deployment_pack = False
-    has_data = False
-    in_alpha = False
+    changes: list[str] = []
+    for result in [
+        _ensure_toml_flag(lines, "[alpha_flags]", "deployment-pack"),
+        _ensure_toml_flag(lines, "[plugins]", "data"),
+    ]:
+        if result:
+            changes.append(result)
 
-    for idx, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped == "[alpha_flags]":
-            in_alpha = True
-            alpha_section_idx = idx
-        elif stripped.startswith("[") and stripped != "[alpha_flags]":
-            in_alpha = False
-        if in_alpha:
-            if re.match(r"deployment-pack\s*=\s*true", stripped):
-                has_deployment_pack = True
-            if re.match(r"data\s*=\s*true", stripped):
-                has_data = True
-
-    missing: list[str] = []
-    if not has_deployment_pack:
-        missing.append("deployment-pack = true")
-    if not has_data:
-        missing.append("data = true")
-
-    if not missing:
-        return
-
-    # Append missing flags — either into the existing [alpha_flags] section
-    # or by adding the section at the end of the file.
-    flag_lines = [f"{flag}\n" for flag in missing]
-
-    if alpha_section_idx is not None:
-        insert_at = alpha_section_idx + 1
-        lines[insert_at:insert_at] = flag_lines
-    else:
-        if lines and not lines[-1].endswith("\n"):
-            lines[-1] += "\n"
-        lines.append("\n[alpha_flags]\n")
-        lines.extend(flag_lines)
-
-    toml_path.write_text("".join(lines), encoding="utf-8")
-    style.warning(
-        "  Updated cdf.toml: added missing alpha flag(s) under [alpha_flags]:\n"
-        + "".join(f"    {f}" for f in missing)
-    )
+    if changes:
+        toml_path.write_text("".join(lines), encoding="utf-8")
+        style.warning(
+            "  Updated cdf.toml:\n"
+            + "".join(f"    {c}\n" for c in changes)
+        )
 
 
 # cdf.toml helpers
