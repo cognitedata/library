@@ -97,10 +97,12 @@ export const de: Messages = {
   "run.runAllHint":
     "Bei aktivem Inkrementalmodus wird der gesamte Geltungsbereich verarbeitet (wie Workflow-Eingabe run_all). Keine Wirkung, wenn der Inkrementalmodus aus ist.",
   "run.cdfToolsHint":
-    "Bereitstellung schreibt Workflow, WorkflowVersion und WorkflowTrigger für den gewählten Scope per Cognite SDK nach CDF (gleiche Anmeldedaten wie module.py run). Funktionen und andere Toolkit-Ressourcen werden nicht bereitgestellt. Ausführen in CDF startet eine Workflow-Ausführung (optional KEA_WORKFLOW_CLIENT_*). In dieser UI sind unaufgelöste ``{{…}}``-Platzhalter in generierten Trigger-YAMLs erlaubt.",
+    "Bereitstellung schreibt standardmäßig KEA-Cognite-Funktionen sowie Workflow, WorkflowVersion und WorkflowTrigger für den gewählten Scope per Cognite SDK nach CDF (gleiche Anmeldedaten wie module.py run). Ausführen in CDF startet eine Workflow-Ausführung (optional KEA_WORKFLOW_CLIENT_*). Instanz-Space unten setzen, wenn im Trigger-YAML noch ``{{instance_space}}`` steht. Sonst sind unaufgelöste ``{{…}}``-Platzhalter in dieser UI weiterhin erlaubt.",
   "run.cdfScopedOnly":
     "Bereitstellung und Ausführung in CDF gelten nur für Manifeste unter workflows/<suffix>/ (nicht workflow.local oder workflow_template). Wählen Sie eine WorkflowTrigger-Datei in der Seitenleiste.",
   "run.cdfDeployOutputPlaceholder": "Protokolle für Bereitstellung und CDF-Workflow-Läufe erscheinen hier.",
+  "run.cdfInstanceSpaceLabel": "Instanz-Space (für CDF-Lauf)",
+  "run.cdfInstanceSpacePlaceholder": "Externe DM-Instanz-Space-ID — ersetzt {{instance_space}} in der Trigger-Eingabe",
   "run.needTriggerScope":
     "Wählen Sie in der Seitenleiste eine WorkflowTrigger-Datei unter workflows/<scope>/, um Bereitstellung und Ausführung in CDF für diesen Scope zu aktivieren.",
   "run.outputPlaceholder": "Pipeline-Ausgabe erscheint hier.",

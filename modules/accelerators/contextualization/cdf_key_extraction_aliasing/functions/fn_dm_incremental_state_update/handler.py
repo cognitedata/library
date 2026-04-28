@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import sys
 import uuid
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict
+
+_staging_root = Path(__file__).resolve().parent.parent
+if str(_staging_root) not in sys.path:
+    sys.path.insert(0, str(_staging_root))
 
 try:
     from cognite.client import CogniteClient
@@ -19,7 +25,7 @@ from cdf_fn_common.scope_document_dm import (
     incremental_change_processing_in_task_configuration,
 )
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
-from pipeline import incremental_state_update
+from fn_dm_incremental_state_update.pipeline import incremental_state_update
 
 
 def handle(

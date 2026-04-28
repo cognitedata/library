@@ -17,6 +17,7 @@ if str(_SCRIPTS) not in sys.path:
 from cdf_workflow_io import (
     assert_expected_workflow_input_keys,
     shallow_has_toolkit_placeholder,
+    substitute_instance_space_placeholder,
     workflow_input_from_trigger_yaml,
     workflow_version_from_yaml,
 )
@@ -60,6 +61,28 @@ def test_shallow_has_toolkit_placeholder() -> None:
     assert shallow_has_toolkit_placeholder("{{instance_space}}") is True
     assert shallow_has_toolkit_placeholder({"a": {"b": "{{x}}"}}) is True
     assert shallow_has_toolkit_placeholder({"a": "ok"}) is False
+
+
+def test_substitute_instance_space_placeholder() -> None:
+    raw = {
+        "configuration": {
+            "source_views": [
+                {"filters": [{"values": ["{{instance_space}}", "other"]}]},
+            ]
+        },
+        "compiled_workflow": {},
+        "run_all": False,
+        "run_id": "",
+    }
+    assert_expected_workflow_input_keys(raw)
+    out = substitute_instance_space_placeholder(raw, "sp_demo")
+    assert out["configuration"]["source_views"][0]["filters"][0]["values"][0] == "sp_demo"
+    assert out["configuration"]["source_views"][0]["filters"][0]["values"][1] == "other"
+    assert shallow_has_toolkit_placeholder(out) is False
+
+
+def test_substitute_instance_space_empty_space_is_noop() -> None:
+    assert substitute_instance_space_placeholder({"a": "{{instance_space}}"}, "") == {"a": "{{instance_space}}"}
 
 
 def test_workflow_input_from_json_roundtrip(tmp_path: Path) -> None:

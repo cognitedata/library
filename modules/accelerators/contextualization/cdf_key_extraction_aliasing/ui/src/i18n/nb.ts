@@ -96,10 +96,12 @@ export const nb: Messages = {
   "run.runAllHint":
     "Når inkrementell modus er på, behandler hele omfanget (samme som workflow-inndata run_all). Uten effekt når inkrementell modus er av.",
   "run.cdfToolsHint":
-    "Distribuer oppdaterer Workflow, WorkflowVersion og WorkflowTrigger for omfanget i CDF via Cognite SDK (samme legitimasjon som module.py run). Distribuerer ikke funksjoner eller andre Toolkit-ressurser. Kjør i CDF starter en kjøring (valgfritt KEA_WORKFLOW_CLIENT_*). I dette grensesnittet tillates uløste ``{{…}}``-plassholdere i generert trigger-YAML.",
+    "Distribuer oppdaterer som standard KEA Cognite-funksjoner og deretter Workflow, WorkflowVersion og WorkflowTrigger for omfanget i CDF via Cognite SDK (samme legitimasjon som module.py run). Kjør i CDF starter en kjøring (valgfritt KEA_WORKFLOW_CLIENT_*). Angi instansrom nedenfor hvis trigger-YAML fortsatt inneholder ``{{instance_space}}``. Ellers tillates fortsatt uløste ``{{…}}``-plassholdere i dette grensesnittet.",
   "run.cdfScopedOnly":
     "Distribuer og Kjør i CDF gjelder bare manifester under workflows/<suffix>/ (ikke workflow.local eller workflow_template). Velg en WorkflowTrigger-fil i sidefeltet.",
   "run.cdfDeployOutputPlaceholder": "Logger for distribusjon og CDF-workflowkjøringer vises her.",
+  "run.cdfInstanceSpaceLabel": "Instansrom (for kjøring i CDF)",
+  "run.cdfInstanceSpacePlaceholder": "Ekstern DM-instansrom-ID — erstatter {{instance_space}} i trigger-inndata",
   "run.needTriggerScope":
     "Velg en WorkflowTrigger-fil under workflows/<scope>/ i sidefeltet for å aktivere Distribuer og Kjør i CDF for det omfanget.",
   "run.outputPlaceholder": "Pipeline-utskrift vises her.",

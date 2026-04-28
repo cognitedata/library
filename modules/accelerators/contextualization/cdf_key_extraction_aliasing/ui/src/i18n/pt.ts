@@ -99,10 +99,12 @@ export const pt: Messages = {
   "run.runAllHint":
     "Com o modo incremental ativo, processa o escopo completo (equivalente a run_all no workflow). Sem efeito se o modo incremental estiver desativado.",
   "run.cdfToolsHint":
-    "Implantar envia Workflow, WorkflowVersion e WorkflowTrigger do âmbito para o CDF com o SDK Cognite (mesmas credenciais que module.py run). Não implanta funções nem outros recursos do Toolkit. Executar no CDF inicia uma execução (KEA_WORKFLOW_CLIENT_* opcional). Nesta interface, marcadores ``{{…}}`` por resolver no YAML do gatilho gerado são permitidos.",
+    "Implantar envia por defeito as funções Cognite KEA e depois Workflow, WorkflowVersion e WorkflowTrigger do âmbito para o CDF com o SDK Cognite (mesmas credenciais que module.py run). Executar no CDF inicia uma execução (KEA_WORKFLOW_CLIENT_* opcional). Indique o espaço de instância abaixo se o YAML do gatilho ainda tiver ``{{instance_space}}``. Caso contrário, marcadores ``{{…}}`` por resolver continuam permitidos nesta interface.",
   "run.cdfScopedOnly":
     "Implantar e Executar no CDF aplicam-se apenas a manifestos em workflows/<suffix>/ (não workflow.local nem workflow_template). Selecione um WorkflowTrigger na barra lateral.",
   "run.cdfDeployOutputPlaceholder": "Os registros de implantação e de execução do workflow no CDF aparecem aqui.",
+  "run.cdfInstanceSpaceLabel": "Espaço de instância (executar no CDF)",
+  "run.cdfInstanceSpacePlaceholder": "Id. externo do espaço de instâncias DM — substitui {{instance_space}} na entrada do gatilho",
   "run.needTriggerScope":
     "Selecione um ficheiro WorkflowTrigger em workflows/<scope>/ na barra lateral para ativar Implantar e Executar no CDF para esse âmbito.",
   "run.outputPlaceholder": "A saída do pipeline aparece aqui.",

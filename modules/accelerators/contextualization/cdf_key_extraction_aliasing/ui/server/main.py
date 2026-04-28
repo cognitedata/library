@@ -198,6 +198,8 @@ class DeployScopeBody(BaseModel):
     """When true, YAML is validated and planned upserts are printed; no CDF calls."""
     allow_unresolved_placeholders: bool = False
     """If true, allow ``{{ ... }}`` Toolkit-style placeholders in YAML (CDF may still reject)."""
+    deploy_functions: Literal["never", "if-missing", "if-stale", "always"] = "if-stale"
+    """Passed to ``deploy_scope_cdf.py --deploy-functions`` (Cognite Functions from ``functions.Function.yaml``)."""
 
 
 class CdfWorkflowRunBody(BaseModel):
@@ -211,6 +213,10 @@ class CdfWorkflowRunBody(BaseModel):
     timeout_seconds: float = Field(7200.0, ge=30.0, le=86400.0)
     poll_interval: float = Field(5.0, ge=0.5, le=120.0)
     workflow_external_id: str | None = None
+    instance_space: str | None = Field(
+        default=None,
+        description="Passed as ``--instance-space`` to substitute ``{{instance_space}}`` in trigger input.",
+    )
 
 
 class FileBody(BaseModel):
@@ -739,6 +745,7 @@ def deploy_scope_cdf(body: DeployScopeBody) -> dict:
         cmd.append("--dry-run")
     if body.allow_unresolved_placeholders:
         cmd.append("--allow-unresolved-placeholders")
+    cmd.extend(["--deploy-functions", body.deploy_functions])
     env = {**os.environ, "PYTHONPATH": _module_pythonpath()}
     proc = subprocess.run(
         cmd,
@@ -788,6 +795,9 @@ def cdf_workflow_run_endpoint(body: CdfWorkflowRunBody) -> dict:
     wfe = (body.workflow_external_id or "").strip()
     if wfe:
         cmd.extend(["--workflow-external-id", wfe])
+    ins = (body.instance_space or "").strip()
+    if ins:
+        cmd.extend(["--instance-space", ins])
     env = {**os.environ, "PYTHONPATH": _module_pythonpath()}
     proc = subprocess.run(
         cmd,

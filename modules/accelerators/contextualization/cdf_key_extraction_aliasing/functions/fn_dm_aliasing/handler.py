@@ -6,7 +6,13 @@ CDF Functions or called directly, maintaining compatibility with the CDF
 workflow format while using the existing AliasingEngine.
 """
 
+import sys
+from pathlib import Path
 from typing import Any, Dict
+
+_staging_root = Path(__file__).resolve().parent.parent
+if str(_staging_root) not in sys.path:
+    sys.path.insert(0, str(_staging_root))
 
 try:
     from cognite.client import CogniteClient
@@ -18,13 +24,13 @@ except ImportError:
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import ensure_aliasing_config_from_scope_dm
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
-from cdf_adapter import (
+from fn_dm_aliasing.cdf_adapter import (
     _DEFAULT_ALIASING_VALIDATION,
     _convert_yaml_direct_to_aliasing_config,
     scope_has_key_extraction_rules,
 )
-from dependencies import create_client, get_env_variables
-from .engine.tag_aliasing_engine import AliasingEngine
+from fn_dm_aliasing.dependencies import create_client, get_env_variables
+from fn_dm_aliasing.engine.tag_aliasing_engine import AliasingEngine
 
 
 def handle(
@@ -124,7 +130,7 @@ def handle(
         # Initialize engine with logger
         engine = AliasingEngine(aliasing_config, log)
 
-        from pipeline import tag_aliasing
+        from fn_dm_aliasing.pipeline import tag_aliasing
 
         tag_aliasing(client=client, logger=log, data=data, engine=engine)
 

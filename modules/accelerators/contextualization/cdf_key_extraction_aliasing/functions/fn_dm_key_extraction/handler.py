@@ -11,6 +11,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict
 
+_staging_root = Path(__file__).resolve().parent.parent
+if str(_staging_root) not in sys.path:
+    sys.path.insert(0, str(_staging_root))
+
 try:
     from cognite.client import CogniteClient
 
@@ -21,12 +25,12 @@ except ImportError:
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import ensure_key_extraction_config_from_scope_dm
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
-from cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
-from .engine.key_extraction_engine import KeyExtractionEngine
+from fn_dm_key_extraction.cdf_adapter import convert_cdf_config_to_engine_config, load_config_from_yaml
+from fn_dm_key_extraction.engine.key_extraction_engine import KeyExtractionEngine
 
 # Try to import CDF config loader - fallback if not available
 try:
-    from config import Config
+    from fn_dm_key_extraction.config import Config
 
     CDF_CONFIG_AVAILABLE = True
 except ImportError:
@@ -138,7 +142,7 @@ def handle(
         # Initialize engine (do not store in return payload)
         engine = KeyExtractionEngine(engine_config)
 
-        from pipeline import key_extraction, require_incremental_change_processing_for_cdf
+        from fn_dm_key_extraction.pipeline import key_extraction, require_incremental_change_processing_for_cdf
 
         if cdf_config is not None:
             require_incremental_change_processing_for_cdf(cdf_config)

@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from cognite.client import CogniteClient
 
-from ..cdf_fn_common.property_path import get_value_by_property_path
+from cdf_fn_common.property_path import get_value_by_property_path
 
 __all__ = [
     "normalize_cell_value",

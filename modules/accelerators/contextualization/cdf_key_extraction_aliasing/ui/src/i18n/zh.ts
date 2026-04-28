@@ -100,10 +100,12 @@ export const zh: Messages = {
   "run.runAllHint":
     "启用增量模式时，处理完整范围（与工作流输入 run_all 相同）。若未启用增量模式则无效果。",
   "run.cdfToolsHint":
-    "部署通过 Cognite SDK 将所选范围的 Workflow、WorkflowVersion 和 WorkflowTrigger 写入 CDF（凭据与 module.py run 相同）。不包含函数等 Toolkit 资源。在 CDF 中运行会启动工作流执行（可选 KEA_WORKFLOW_CLIENT_*）。在此界面允许生成触发器 YAML 中未解析的 ``{{…}}`` 占位符。",
+    "部署默认先更新 KEA Cognite 函数，再通过 Cognite SDK 将所选范围的 Workflow、WorkflowVersion 和 WorkflowTrigger 写入 CDF（凭据与 module.py run 相同）。在 CDF 中运行会启动工作流执行（可选 KEA_WORKFLOW_CLIENT_*）。若触发器 YAML 仍含 ``{{instance_space}}``，请在下方填写实例空间。否则此界面仍允许其他未解析的 ``{{…}}`` 占位符。",
   "run.cdfScopedOnly":
     "部署和在 CDF 中运行仅适用于 workflows/<suffix>/ 下的已生成清单（不适用于 workflow.local 或 workflow_template）。请在侧边栏选择 WorkflowTrigger 文件。",
   "run.cdfDeployOutputPlaceholder": "部署与 CDF 工作流运行的日志将显示在此处。",
+  "run.cdfInstanceSpaceLabel": "实例空间（在 CDF 中运行）",
+  "run.cdfInstanceSpacePlaceholder": "DM 实例空间 external id — 替换触发器输入中的 {{instance_space}}",
   "run.needTriggerScope":
     "在侧边栏选择 workflows/<scope>/ 下的 WorkflowTrigger 文件，以启用该范围的部署与在 CDF 中运行。",
   "run.outputPlaceholder": "流水线输出将显示在此处。",

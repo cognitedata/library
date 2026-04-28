@@ -91,6 +91,8 @@ export type MessageKey =
   | "run.cdfToolsHint"
   | "run.cdfScopedOnly"
   | "run.cdfDeployOutputPlaceholder"
+  | "run.cdfInstanceSpaceLabel"
+  | "run.cdfInstanceSpacePlaceholder"
   | "run.needTriggerScope"
   | "run.outputPlaceholder"
   | "run.localRunExitLine"

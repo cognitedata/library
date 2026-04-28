@@ -5,7 +5,7 @@ from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
 
-from ..cdf_fn_common.function_logging import cognite_function_logger
+from cdf_fn_common.function_logging import cognite_function_logger
 
 
 @dataclass

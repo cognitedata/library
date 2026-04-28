@@ -150,6 +150,8 @@ export default function App() {
   /** task_id → labels for streamed run log / “now executing” lines. */
   const localRunTaskMetaRef = useRef<Map<string, { fn?: string; node?: string }>>(new Map());
   const [cdfToolLog, setCdfToolLog] = useState("");
+  /** Passed to ``cdf_workflow_run.py --instance-space`` when running on CDF from this UI. */
+  const [cdfInstanceSpace, setCdfInstanceSpace] = useState("");
   const [artifactPaths, setArtifactPaths] = useState<string[]>([]);
   const [artifactPath, setArtifactPath] = useState<string | null>(null);
   const [artifactText, setArtifactText] = useState("");
@@ -926,11 +928,15 @@ export default function App() {
   const runCdfWorkflowRemote = async (dryRun: boolean) => {
     if (configureTarget.id !== "trigger" || !selectedScopeSuffix) return;
     setCdfToolLog(`${t("status.running")}\n`);
-    const body = {
+    const body: Record<string, unknown> = {
       scope_suffix: selectedScopeSuffix,
       workflow_trigger_rel: configureTarget.path,
       dry_run: dryRun,
     };
+    const ins = cdfInstanceSpace.trim();
+    if (ins) {
+      body.instance_space = ins;
+    }
     try {
       const d = await api<CdfCliResult>("/api/cdf-workflow-run", {
         method: "POST",
@@ -1410,6 +1416,23 @@ export default function App() {
               {t("run.needTriggerScope")}
             </p>
           )}
+          <div style={{ marginBottom: "0.75rem", maxWidth: "48rem" }}>
+            <label className="kea-label" htmlFor="cdf-instance-space-input">
+              {t("run.cdfInstanceSpaceLabel")}
+            </label>
+            <input
+              id="cdf-instance-space-input"
+              type="text"
+              className="kea-input"
+              value={cdfInstanceSpace}
+              onChange={(e) => setCdfInstanceSpace(e.target.value)}
+              placeholder={t("run.cdfInstanceSpacePlaceholder")}
+              disabled={configureEditsLocked}
+              autoComplete="off"
+              spellCheck={false}
+              style={{ width: "100%", marginTop: "0.35rem" }}
+            />
+          </div>
           <div
             className="kea-toolbar"
             style={{

@@ -10,6 +10,10 @@ or OAuth). Optional ``--workflow-client-id`` / ``--workflow-client-secret`` (or 
 ``KEA_WORKFLOW_CLIENT_ID`` / ``KEA_WORKFLOW_CLIENT_SECRET``) are passed as
 ``client_credentials`` to ``executions.run`` when both are set.
 
+If trigger input still contains ``{{instance_space}}`` (Toolkit placeholder), pass
+``--instance-space <space>`` or set ``KEA_INSTANCE_SPACE`` / ``CDF_INSTANCE_SPACE`` so the CLI
+can substitute it before ``executions.run`` (alternatively use ``cdf build`` or ``--input-json``).
+
 Examples::
 
   cd modules/accelerators/contextualization/cdf_key_extraction_aliasing
@@ -63,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     from cdf_workflow_io import (
         assert_expected_workflow_input_keys,
         shallow_has_toolkit_placeholder,
+        substitute_instance_space_placeholder,
         workflow_input_from_json,
         workflow_input_from_trigger_yaml,
         workflow_version_from_yaml,
@@ -90,6 +95,12 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=None,
         help="JSON file to use as workflow input instead of parsing the WorkflowTrigger.yaml.",
+    )
+    p.add_argument(
+        "--instance-space",
+        default=None,
+        metavar="SPACE",
+        help="Replace {{instance_space}} in workflow input (overrides KEA_INSTANCE_SPACE / CDF_INSTANCE_SPACE).",
     )
     p.add_argument(
         "--timeout-seconds",
@@ -144,6 +155,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         wf_input = workflow_input_from_trigger_yaml(trig_path)
     assert_expected_workflow_input_keys(wf_input)
+
+    inst_space = (
+        (args.instance_space or "").strip()
+        or (os.environ.get("KEA_INSTANCE_SPACE") or "").strip()
+        or (os.environ.get("CDF_INSTANCE_SPACE") or "").strip()
+    )
+    if inst_space:
+        wf_input = substitute_instance_space_placeholder(wf_input, inst_space)
+        logger.info("Substituted {{instance_space}} in workflow input (--instance-space or env).")
 
     if shallow_has_toolkit_placeholder(wf_input):
         logger.warning(

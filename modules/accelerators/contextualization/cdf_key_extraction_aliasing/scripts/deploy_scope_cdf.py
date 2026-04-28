@@ -2,11 +2,13 @@
 """Deploy one scoped workflow to CDF using the Cognite Data Fusion APIs (SDK).
 
 Validates ``workflows/<suffix>/*.Workflow.yaml`` (+ Version + Trigger), optionally runs
-``module.py build --scope-suffix``, then upserts **Workflow**, **WorkflowVersion**, and
+``module.py build --scope-suffix``, then by default deploys **KEA Cognite Functions** from
+``functions/functions.Function.yaml`` (when missing or when local code hash differs from
+``metadata.kea_source_hash``), then upserts **Workflow**, **WorkflowVersion**, and
 **WorkflowTrigger** via ``client.workflows`` (no Cognite Toolkit ``cdf build`` / ``cdf deploy``).
 
-Other module resources (functions, RAW, schedules resolved from placeholders) must already
-exist or be deployed separately.
+Data sets referenced by workflows and functions must already exist. RAW and other resources
+are unchanged here.
 
 Examples::
 
@@ -31,6 +33,7 @@ import io
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 
 def _module_root() -> Path:
@@ -79,6 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     from scope_build.hierarchy import load_hierarchy_doc
     from scope_build.orchestrate import DEFAULT_HIERARCHY, workflow_external_id_from_hierarchy
 
+    from deploy_kea_functions_cdf_api import DeployFunctionsMode, deploy_kea_functions
     from deploy_scope_workflows_cdf_api import deploy_scope_workflows
 
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -109,6 +113,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Allow ``{{ ... }}`` strings in YAML (Toolkit placeholders); CDF may still reject invalid payloads.",
     )
+    p.add_argument(
+        "--deploy-functions",
+        choices=("never", "if-missing", "if-stale", "always"),
+        default="if-stale",
+        metavar="MODE",
+        help="Cognite Functions from functions/functions.Function.yaml: never | if-missing | "
+        "if-stale (default: redeploy when code hash differs or function missing) | always.",
+    )
     args = p.parse_args(argv)
 
     from cdf_deploy_scope_guard import assert_scope_suffix_deployable
@@ -121,10 +133,13 @@ def main(argv: list[str] | None = None) -> int:
     paths = _expected_workflow_paths(module_root, wf_base, args.scope_suffix.strip())
     _validate_artifacts(paths)
 
+    fn_mode = cast(DeployFunctionsMode, args.deploy_functions)
     print(
-        "Deploying workflow shell via CDF APIs (Workflow, WorkflowVersion, WorkflowTrigger).\n"
-        "Ensure functions, data sets, and IAM are already in place.\n"
-        f"Artifacts: {paths['workflow'].name}, {paths['workflow_version'].name}, {paths['trigger'].name}",
+        "Deploying via CDF APIs: Cognite Functions (per --deploy-functions), then "
+        "Workflow, WorkflowVersion, WorkflowTrigger.\n"
+        "Ensure data sets and IAM are in place.\n"
+        f"Workflow artifacts: {paths['workflow'].name}, {paths['workflow_version'].name}, {paths['trigger'].name}\n"
+        f"Function deploy mode: {fn_mode}",
         file=sys.stderr,
     )
 
@@ -146,6 +161,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         try:
+            deploy_kea_functions(
+                None,
+                module_root,
+                mode=fn_mode,
+                dry_run=True,
+                log=log_buf,
+            )
             deploy_scope_workflows(
                 None,
                 workflow_yaml=paths["workflow"],
@@ -172,6 +194,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
+        deploy_kea_functions(
+            client,
+            module_root,
+            mode=fn_mode,
+            dry_run=False,
+            log=log_buf,
+        )
         deploy_scope_workflows(
             client,
             workflow_yaml=paths["workflow"],

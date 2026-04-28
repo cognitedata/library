@@ -96,10 +96,12 @@ export const en: Messages = {
   "run.runAllHint":
     "When incremental mode is on, processes the full scope (same as workflow input run_all). No effect if incremental mode is off.",
   "run.cdfToolsHint":
-    "Deploy upserts Workflow, WorkflowVersion, and WorkflowTrigger for the selected scope to CDF using the Cognite SDK (same credentials as module.py run). It does not deploy functions or other Toolkit resources. Run on CDF starts a workflow execution (optional KEA_WORKFLOW_CLIENT_* for executions.run). Unresolved ``{{…}}`` tokens in generated trigger YAML are allowed from this UI so schedule placeholders can be fixed later in CDF or in the file.",
+    "Deploy upserts KEA Cognite Functions (default), then Workflow, WorkflowVersion, and WorkflowTrigger for the selected scope to CDF using the Cognite SDK (same credentials as module.py run). Run on CDF starts a workflow execution (optional KEA_WORKFLOW_CLIENT_* for executions.run). Set instance space below when trigger YAML still contains ``{{instance_space}}``. Unresolved ``{{…}}`` tokens are otherwise allowed from this UI so schedule placeholders can be fixed later in CDF or in the file.",
   "run.cdfScopedOnly":
     "Deploy and Run on CDF apply only to scoped manifests under workflows/<suffix>/ (not workflow.local or workflow_template). Select a WorkflowTrigger file in the sidebar.",
   "run.cdfDeployOutputPlaceholder": "Deploy and CDF workflow run logs appear here.",
+  "run.cdfInstanceSpaceLabel": "Instance space (for Run on CDF)",
+  "run.cdfInstanceSpacePlaceholder": "DM instance space external id — replaces {{instance_space}} in trigger input",
   "run.needTriggerScope":
     "Select a WorkflowTrigger file under workflows/<scope>/ in the sidebar to enable Deploy and Run on CDF for that scope.",
   "run.outputPlaceholder": "Pipeline output appears here.",

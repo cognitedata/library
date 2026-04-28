@@ -18,16 +18,16 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from ...cdf_fn_common.confidence_match_eval import (
+from cdf_fn_common.confidence_match_eval import (
     apply_confidence_match_rules_mutating,
 )
-from ...cdf_fn_common.confidence_match_rule_refs import (
+from cdf_fn_common.confidence_match_rule_refs import (
     dedupe_confidence_match_rules_by_name,
     validation_rules_list_get,
     validation_rules_list_set,
 )
-from ...cdf_fn_common.pipeline_io import pipeline_io_dict_for_engine
-from ...cdf_fn_common.workflow_associations import parse_source_view_to_extraction_pairs
+from cdf_fn_common.pipeline_io import pipeline_io_dict_for_engine
+from cdf_fn_common.workflow_associations import parse_source_view_to_extraction_pairs
 from ..common.logger import CogniteFunctionLogger
 from ..config import Config
 from ..utils.DataStructures import *

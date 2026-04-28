@@ -104,10 +104,12 @@ export const fr: Messages = {
   "run.runAllHint":
     "Si le mode incrémental est activé, traite tout le périmètre (équivalent à l’entrée run_all du workflow). Sans effet si le mode incrémental est désactivé.",
   "run.cdfToolsHint":
-    "Déployer met à jour Workflow, WorkflowVersion et WorkflowTrigger pour la portée dans CDF via le SDK Cognite (mêmes identifiants que module.py run). N’installe pas les fonctions ni les autres ressources Toolkit. Exécuter dans CDF lance une exécution (KEA_WORKFLOW_CLIENT_* optionnel). Dans cette interface, les marqueurs ``{{…}}`` non résolus dans le YAML de déclencheur généré sont autorisés.",
+    "Déployer met à jour par défaut les fonctions Cognite KEA puis Workflow, WorkflowVersion et WorkflowTrigger pour la portée dans CDF via le SDK Cognite (mêmes identifiants que module.py run). Exécuter dans CDF lance une exécution (KEA_WORKFLOW_CLIENT_* optionnel). Renseignez l’espace d’instances ci-dessous si le YAML du déclencheur contient encore ``{{instance_space}}``. Sinon, les marqueurs ``{{…}}`` non résolus restent autorisés dans cette interface.",
   "run.cdfScopedOnly":
     "Déployer et Exécuter dans CDF ne s’appliquent qu’aux manifestes sous workflows/<suffix>/ (pas workflow.local ni workflow_template). Sélectionnez un WorkflowTrigger dans la barre latérale.",
   "run.cdfDeployOutputPlaceholder": "Les journaux de déploiement et d’exécution du workflow CDF s’affichent ici.",
+  "run.cdfInstanceSpaceLabel": "Espace d’instances (exécution CDF)",
+  "run.cdfInstanceSpacePlaceholder": "Identifiant externe de l’espace d’instances DM — remplace {{instance_space}} dans l’entrée du déclencheur",
   "run.needTriggerScope":
     "Sélectionnez un fichier WorkflowTrigger sous workflows/<scope>/ dans la barre latérale pour activer Déployer et Exécuter dans CDF pour cette portée.",
   "run.outputPlaceholder": "La sortie du pipeline s’affiche ici.",

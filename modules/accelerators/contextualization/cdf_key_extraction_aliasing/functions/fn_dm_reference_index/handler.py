@@ -2,8 +2,14 @@
 CDF handler: build/update RAW reference index from key-extraction FK + document JSON.
 """
 
+import sys
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, Dict
+
+_staging_root = Path(__file__).resolve().parent.parent
+if str(_staging_root) not in sys.path:
+    sys.path.insert(0, str(_staging_root))
 
 try:
     from cognite.client import CogniteClient
@@ -15,8 +21,8 @@ except ImportError:
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import apply_reference_index_scope_document
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
-from .dependencies import create_client, get_env_variables
-from .pipeline import persist_reference_index
+from fn_dm_reference_index.dependencies import create_client, get_env_variables
+from fn_dm_reference_index.pipeline import persist_reference_index
 
 
 _DEFAULT_ALIASING_VALIDATION: Dict[str, Any] = {

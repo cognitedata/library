@@ -6,7 +6,13 @@ back to source entities in the CDF data model.
 """
 
 import os
+import sys
+from pathlib import Path
 from typing import Any, Dict, Optional
+
+_staging_root = Path(__file__).resolve().parent.parent
+if str(_staging_root) not in sys.path:
+    sys.path.insert(0, str(_staging_root))
 
 try:
     from cognite.client import CogniteClient
@@ -18,7 +24,7 @@ except ImportError:
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import ensure_alias_persistence_from_scope_dm
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
-from dependencies import create_client, get_env_variables
+from fn_dm_alias_persistence.dependencies import create_client, get_env_variables
 
 
 def handle(
@@ -66,7 +72,7 @@ def handle(
             ensure_alias_persistence_from_scope_dm(data, client)
 
         # Call pipeline function
-        from pipeline import persist_aliases_to_entities
+        from fn_dm_alias_persistence.pipeline import persist_aliases_to_entities
 
         persist_aliases_to_entities(client=client, logger=log, data=data)
 

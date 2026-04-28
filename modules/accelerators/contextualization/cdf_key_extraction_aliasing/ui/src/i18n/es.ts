@@ -96,10 +96,12 @@ export const es: Messages = {
   "run.runAllHint":
     "Si el modo incremental está activo, procesa el alcance completo (equivalente a run_all en el workflow). Sin efecto si el modo incremental está desactivado.",
   "run.cdfToolsHint":
-    "Desplegar actualiza Workflow, WorkflowVersion y WorkflowTrigger del ámbito en CDF con el SDK de Cognite (mismas credenciales que module.py run). No despliega funciones ni otros recursos de Toolkit. Ejecutar en CDF inicia una ejecución (opcional KEA_WORKFLOW_CLIENT_*). En esta interfaz se permiten marcadores ``{{…}}`` sin resolver en YAML de disparadores generados.",
+    "Desplegar actualiza por defecto las funciones Cognite de KEA y luego Workflow, WorkflowVersion y WorkflowTrigger del ámbito en CDF con el SDK de Cognite (mismas credenciales que module.py run). Ejecutar en CDF inicia una ejecución (opcional KEA_WORKFLOW_CLIENT_*). Indique el espacio de instancia abajo si el YAML del disparador aún contiene ``{{instance_space}}``. Por lo demás, en esta interfaz se permiten ``{{…}}`` sin resolver.",
   "run.cdfScopedOnly":
     "Desplegar y Ejecutar en CDF solo aplican a manifiestos bajo workflows/<suffix>/ (no workflow.local ni workflow_template). Seleccione un WorkflowTrigger en la barra lateral.",
   "run.cdfDeployOutputPlaceholder": "Aquí aparecen los registros de despliegue y de ejecución del workflow en CDF.",
+  "run.cdfInstanceSpaceLabel": "Espacio de instancia (ejecución en CDF)",
+  "run.cdfInstanceSpacePlaceholder": "Id. externo del espacio de instancias DM — sustituye {{instance_space}} en la entrada del disparador",
   "run.needTriggerScope":
     "Seleccione un archivo WorkflowTrigger bajo workflows/<scope>/ en la barra lateral para habilitar Desplegar y Ejecutar en CDF para ese ámbito.",
   "run.outputPlaceholder": "Aquí aparecerá la salida del pipeline.",

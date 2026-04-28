@@ -1,8 +1,9 @@
 """Push scoped Workflow / WorkflowVersion / WorkflowTrigger YAML to CDF via the Cognite SDK.
 
 Used by ``deploy_scope_cdf.py`` and the operator UI instead of Cognite Toolkit
-(``cdf build`` / ``cdf deploy``). Functions, data sets, and other resources are not
-deployed here—only the three workflow artifacts under ``workflows/<suffix>/``.
+(``cdf build`` / ``cdf deploy``). Cognite Functions are deployed separately by
+``deploy_kea_functions_cdf_api`` when using ``deploy_scope_cdf.py`` (see ``--deploy-functions``).
+This module upserts only the three workflow artifacts under ``workflows/<suffix>/``.
 
 **WorkflowTrigger authentication** must not live in git-tracked YAML. Any ``authentication``
 key from disk is stripped; the upsert uses ``KEA_WORKFLOW_TRIGGER_CLIENT_*`` or

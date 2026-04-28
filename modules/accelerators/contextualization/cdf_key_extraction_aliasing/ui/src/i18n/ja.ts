@@ -96,10 +96,12 @@ export const ja: Messages = {
   "run.runAllHint":
     "増分モードが有効な場合、スコープ全体を処理します（ワークフロー入力の run_all と同じ）。増分モードがオフのときは効果がありません。",
   "run.cdfToolsHint":
-    "デプロイは Cognite SDK で選択スコープの Workflow / WorkflowVersion / WorkflowTrigger を CDF に upsert します（資格情報は module.py run と同じ）。関数など Toolkit の他リソースは含みません。CDF で実行はワークフロー実行を開始します（KEA_WORKFLOW_CLIENT_* は任意）。この UI では生成済みトリガー YAML の未解決の ``{{…}}`` プレースホルダーを許可します。",
+    "デプロイは既定で KEA の Cognite 関数を更新したうえで、Cognite SDK により選択スコープの Workflow / WorkflowVersion / WorkflowTrigger を CDF に upsert します（資格情報は module.py run と同じ）。CDF で実行はワークフロー実行を開始します（KEA_WORKFLOW_CLIENT_* は任意）。トリガー YAML に ``{{instance_space}}`` が残る場合は下にインスタンススペースを入力してください。それ以外の未解決 ``{{…}}`` はこの UI でも引き続き許可されます。",
   "run.cdfScopedOnly":
     "デプロイと CDF での実行は workflows/<suffix>/ 配下のスコープ済みマニフェストのみ対象です（workflow.local や workflow_template は対象外）。サイドバーで WorkflowTrigger を選択してください。",
   "run.cdfDeployOutputPlaceholder": "デプロイと CDF ワークフロー実行のログがここに表示されます。",
+  "run.cdfInstanceSpaceLabel": "インスタンススペース（CDF で実行）",
+  "run.cdfInstanceSpacePlaceholder": "DM のインスタンススペース外部 ID — トリガー入力の {{instance_space}} を置換",
   "run.needTriggerScope":
     "サイドバーで workflows/<scope>/ 配下の WorkflowTrigger ファイルを選択すると、そのスコープのデプロイと CDF で実行が有効になります。",
   "run.outputPlaceholder": "パイプラインの出力がここに表示されます。",

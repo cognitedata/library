@@ -48,6 +48,26 @@ def workflow_input_from_json(path: Path) -> dict[str, Any]:
     return dict(raw)
 
 
+_INSTANCE_SPACE_TOKEN = "{{instance_space}}"
+
+
+def substitute_instance_space_placeholder(value: Any, space: str) -> Any:
+    """Return a deep copy of ``value`` with ``{{instance_space}}`` replaced by ``space`` in every string node.
+
+    Used when running from generated trigger YAML without Toolkit ``cdf build``, if the operator
+    sets ``KEA_INSTANCE_SPACE`` or ``CDF_INSTANCE_SPACE`` in the environment.
+    """
+    if not space:
+        return value
+    if isinstance(value, str):
+        return value.replace(_INSTANCE_SPACE_TOKEN, space) if _INSTANCE_SPACE_TOKEN in value else value
+    if isinstance(value, list):
+        return [substitute_instance_space_placeholder(x, space) for x in value]
+    if isinstance(value, dict):
+        return {k: substitute_instance_space_placeholder(v, space) for k, v in value.items()}
+    return value
+
+
 def shallow_has_toolkit_placeholder(obj: Any) -> bool:
     """True if any string value contains ``{{ ... }}`` (unresolved Toolkit template)."""
     if isinstance(obj, str):
