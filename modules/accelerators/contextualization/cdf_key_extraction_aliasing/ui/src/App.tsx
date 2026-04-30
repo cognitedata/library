@@ -10,7 +10,10 @@ import { WorkflowFlowCanvasPreview } from "./components/flow/WorkflowFlowCanvasP
 import type { WorkflowPreviewLocalRun } from "./components/flow/WorkflowFlowCanvasPreview";
 import { WorkflowFlowPanel } from "./components/flow/WorkflowFlowPanel";
 import { syncWorkflowScopeFromCanvas } from "./components/flow/canvasScopeSync";
-import { canvasDocWithScopeSeedIfEmpty } from "./components/flow/seedCanvasFromScope";
+import {
+  canvasDocWithScopeSeedIfEmpty,
+  mergeScopeRootsForTriggerFlowSeed,
+} from "./components/flow/seedCanvasFromScope";
 import { MatchDefinitionsScopePanel } from "./components/MatchDefinitionsScopePanel";
 import { SourceViewsControls } from "./components/SourceViewsControls";
 import { useAppSettings } from "./context/AppSettingsContext";
@@ -22,6 +25,10 @@ import {
   type WorkflowCanvasDocument,
 } from "./types/workflowCanvas";
 import { displayNameFromRoot } from "./utils/configDisplayName";
+import {
+  scopeConfigRelFromWorkflowTriggerPath,
+  workflowTriggerRelFromScopedCanvasRel,
+} from "./utils/canvasDocumentPath";
 import { matchConfigSearch } from "./utils/configPanelSearch";
 
 type Tab = "scope" | "configure" | "build" | "artifacts";
@@ -48,6 +55,9 @@ const TEMPLATE_REL = "workflow_template/workflow.template.config.yaml";
 
 /** Embedded in WorkflowTrigger `input.configuration` (same schema as sibling `.canvas.yaml` for local/template). */
 const TRIGGER_WORKFLOW_CANVAS_KEY = "workflow_canvas";
+
+/** Stable fallback so ``triggerCanvasDoc`` deps do not change identity every render. */
+const EMPTY_TRIGGER_PIPELINE: JsonObject = {};
 
 const MODULE_FORM_KEYS: { key: string; labelKey: MessageKey }[] = [
   { key: "function_version", labelKey: "module.field.function_version" },
@@ -149,6 +159,8 @@ export default function App() {
   const [canvasPreviewRunBusy, setCanvasPreviewRunBusy] = useState(false);
   /** task_id → labels for streamed run log / “now executing” lines. */
   const localRunTaskMetaRef = useRef<Map<string, { fn?: string; node?: string }>>(new Map());
+  /** Latest flow canvas for the open WorkflowTrigger (sync); Save merges this in case React state is one frame behind. */
+  const triggerFlowCanvasDraftRef = useRef<{ path: string; doc: WorkflowCanvasDocument } | null>(null);
   const [cdfToolLog, setCdfToolLog] = useState("");
   /** Passed to ``cdf_workflow_run.py --instance-space`` when running on CDF from this UI. */
   const [cdfInstanceSpace, setCdfInstanceSpace] = useState("");
@@ -203,6 +215,9 @@ export default function App() {
         setConfigTriggerText(d.content ?? "");
         setSavedConfigTriggerSnap(d.content ?? "");
         setConfigTriggerPhase("status.loaded");
+        triggerFlowCanvasDraftRef.current = null;
+        // Reset flow from disk after load; do not bump on Save (races the last onChange and drops edits).
+        setTriggerCanvasReloadNonce((n) => n + 1);
       } catch {
         setConfigTriggerText("");
         setSavedConfigTriggerSnap("");
@@ -601,22 +616,99 @@ export default function App() {
     setConfigTriggerPhase("status.saving");
     try {
       let content = configTriggerText;
+      const draft = triggerFlowCanvasDraftRef.current;
+      if (
+        draft &&
+        draft.path === rel &&
+        draft.doc.nodes.length > 0
+      ) {
+        try {
+          const parsed = YAML.parse(content) as Record<string, unknown> | null;
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            parsed.input &&
+            typeof parsed.input === "object" &&
+            !Array.isArray(parsed.input)
+          ) {
+            const inp = parsed.input as Record<string, unknown>;
+            const conf = inp.configuration;
+            if (conf && typeof conf === "object" && !Array.isArray(conf)) {
+              const nextConf = { ...(conf as Record<string, unknown>) };
+              nextConf[TRIGGER_WORKFLOW_CANVAS_KEY] = draft.doc as unknown as Record<string, unknown>;
+              delete nextConf["canvas"];
+              content = YAML.stringify(
+                { ...parsed, input: { ...inp, configuration: nextConf } },
+                { lineWidth: 0 }
+              );
+            }
+          }
+        } catch {
+          /* keep content */
+        }
+      }
       try {
         const doc = YAML.parse(content) as Record<string, unknown> | null;
         if (doc && typeof doc === "object" && !Array.isArray(doc) && "authentication" in doc) {
           const { authentication: _removed, ...rest } = doc;
           content = YAML.stringify(rest, { lineWidth: 0 });
-          setConfigTriggerText(content);
         }
       } catch {
         /* invalid YAML: save raw; server may reject */
       }
+      let contentForFile = content;
+      const scopeRel = scopeConfigRelFromWorkflowTriggerPath(rel);
+      if (scopeRel) {
+        try {
+          const d = YAML.parse(content) as Record<string, unknown> | null;
+          if (d && typeof d === "object" && d.input && typeof d.input === "object" && !Array.isArray(d.input)) {
+            const inp = d.input as Record<string, unknown>;
+            const conf = inp.configuration;
+            if (conf && typeof conf === "object" && !Array.isArray(conf)) {
+              const pc = conf as Record<string, unknown>;
+              const wcv = pc[TRIGGER_WORKFLOW_CANVAS_KEY] ?? pc["canvas"];
+              if (wcv && typeof wcv === "object" && !Array.isArray(wcv)) {
+                await api(`/api/canvas-document/model?rel=${encodeURIComponent(scopeRel)}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(wcv as Record<string, unknown>),
+                });
+                const nextConf = { ...pc };
+                delete nextConf[TRIGGER_WORKFLOW_CANVAS_KEY];
+                delete nextConf["canvas"];
+                contentForFile = YAML.stringify(
+                  { ...d, input: { ...inp, configuration: nextConf } },
+                  { lineWidth: 0 }
+                );
+              }
+            }
+          }
+        } catch {
+          /* Keep embedded canvas on trigger if sibling mirror fails. */
+        }
+      }
       await api(`/api/file?rel=${encodeURIComponent(rel)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: contentForFile }),
       });
-      setSavedConfigTriggerSnap(configTriggerText);
+      let leafAfterSave: WorkflowCanvasDocument | null = null;
+      if (scopeRel) {
+        try {
+          const cModel = await api<Record<string, unknown>>(
+            `/api/canvas-document/model?rel=${encodeURIComponent(scopeRel)}`
+          );
+          leafAfterSave = parseWorkflowCanvasDocument(cModel);
+        } catch {
+          leafAfterSave = null;
+        }
+      }
+      setConfigTriggerText(contentForFile);
+      setSavedConfigTriggerSnap(contentForFile);
+      if (scopeRel && leafAfterSave !== null) {
+        setTriggerLeafCanvasState({ kind: "ready", path: rel, doc: leafAfterSave });
+      }
+      setTriggerCanvasReloadNonce((n) => n + 1);
       setConfigTriggerPhase("status.saved");
       const art = await api<{ paths: string[] }>("/api/artifacts");
       setArtifactPaths(art.paths ?? []);
@@ -971,6 +1063,60 @@ export default function App() {
         body: JSON.stringify({ content: artifactText }),
       });
       setSavedArtifactSnap(artifactText);
+      const trigRel = workflowTriggerRelFromScopedCanvasRel(artifactPath);
+      if (trigRel) {
+        try {
+          const td = await api<{ content: string }>(`/api/file?rel=${encodeURIComponent(trigRel)}`);
+          const raw = td.content ?? "";
+          const doc = YAML.parse(raw) as Record<string, unknown> | null;
+          if (doc && typeof doc === "object" && doc.input && typeof doc.input === "object" && !Array.isArray(doc.input)) {
+            const inp = doc.input as Record<string, unknown>;
+            const conf = inp.configuration;
+            if (conf && typeof conf === "object" && !Array.isArray(conf)) {
+              const pc = conf as Record<string, unknown>;
+              if (
+                Object.prototype.hasOwnProperty.call(pc, TRIGGER_WORKFLOW_CANVAS_KEY) ||
+                Object.prototype.hasOwnProperty.call(pc, "canvas")
+              ) {
+                const nextConf = { ...pc };
+                delete nextConf[TRIGGER_WORKFLOW_CANVAS_KEY];
+                delete nextConf["canvas"];
+                const nextYaml = YAML.stringify(
+                  { ...doc, input: { ...inp, configuration: nextConf } },
+                  { lineWidth: 0 }
+                );
+                await api(`/api/file?rel=${encodeURIComponent(trigRel)}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ content: nextYaml }),
+                });
+                if (configureTarget.id === "trigger" && configureTarget.path === trigRel) {
+                  setConfigTriggerText(nextYaml);
+                  setSavedConfigTriggerSnap(nextYaml);
+                  setTriggerCanvasReloadNonce((n) => n + 1);
+                }
+                const scopeRelForLeaf = scopeConfigRelFromWorkflowTriggerPath(trigRel);
+                if (scopeRelForLeaf) {
+                  try {
+                    const cModel = await api<Record<string, unknown>>(
+                      `/api/canvas-document/model?rel=${encodeURIComponent(scopeRelForLeaf)}`
+                    );
+                    setTriggerLeafCanvasState({
+                      kind: "ready",
+                      path: trigRel,
+                      doc: parseWorkflowCanvasDocument(cModel),
+                    });
+                  } catch {
+                    /* ignore */
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          /* Paired trigger may be missing or unreadable; canvas file still saved. */
+        }
+      }
       setArtifactPhase("status.saved");
       const art = await api<{ paths: string[] }>("/api/artifacts");
       setArtifactPaths(art.paths ?? []);
@@ -996,7 +1142,7 @@ export default function App() {
     const ti = triggerInput as JsonObject;
     const c = ti.configuration;
     if (c !== null && typeof c === "object" && !Array.isArray(c)) return c as JsonObject;
-    return {};
+    return null;
   })();
 
   const triggerRuleForForm: JsonObject = useMemo(() => {
@@ -1005,34 +1151,112 @@ export default function App() {
     return {};
   }, [parsedConfigTrigger]);
 
-  const pipelineConfiguration: JsonObject = triggerConfiguration ?? {};
+  const pipelineConfiguration: JsonObject = triggerConfiguration ?? EMPTY_TRIGGER_PIPELINE;
+
+  const triggerPipelineMergedScope = useMemo((): Record<string, unknown> => {
+    if (configureTarget.id !== "trigger") {
+      return pipelineConfiguration as Record<string, unknown>;
+    }
+    return mergeScopeRootsForTriggerFlowSeed(
+      pipelineConfiguration as Record<string, unknown>,
+      scopeDoc as Record<string, unknown>,
+      templateDoc as Record<string, unknown>
+    );
+  }, [configureTarget.id, pipelineConfiguration, scopeDoc, templateDoc]);
+
+  type TriggerLeafCanvasState =
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "ready"; path: string; doc: WorkflowCanvasDocument };
+
+  const [triggerLeafCanvasState, setTriggerLeafCanvasState] = useState<TriggerLeafCanvasState>({
+    kind: "idle",
+  });
+
+  const activeTriggerConfigPath = configureTarget.id === "trigger" ? configureTarget.path : null;
+
+  useEffect(() => {
+    if (activeTriggerConfigPath == null) {
+      setTriggerLeafCanvasState({ kind: "idle" });
+      return;
+    }
+    const rel = scopeConfigRelFromWorkflowTriggerPath(activeTriggerConfigPath);
+    if (rel == null) {
+      setTriggerLeafCanvasState({
+        kind: "ready",
+        path: activeTriggerConfigPath,
+        doc: emptyWorkflowCanvasDocument(),
+      });
+      return;
+    }
+    setTriggerLeafCanvasState({ kind: "loading" });
+    let cancelled = false;
+    void (async () => {
+      try {
+        const cModel = await api<Record<string, unknown>>(
+          `/api/canvas-document/model?rel=${encodeURIComponent(rel)}`
+        );
+        if (cancelled) return;
+        const doc = parseWorkflowCanvasDocument(cModel);
+        setTriggerLeafCanvasState({ kind: "ready", path: activeTriggerConfigPath, doc });
+      } catch {
+        if (!cancelled) {
+          setTriggerLeafCanvasState({
+            kind: "ready",
+            path: activeTriggerConfigPath,
+            doc: emptyWorkflowCanvasDocument(),
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, activeTriggerConfigPath]);
 
   const triggerCanvasDoc = useMemo((): WorkflowCanvasDocument => {
     if (configureTarget.id !== "trigger") return emptyWorkflowCanvasDocument();
-    const pc = pipelineConfiguration as Record<string, unknown>;
+    const path = configureTarget.path;
+    const pc = triggerPipelineMergedScope;
+    const hasExplicitCanvas =
+      Object.prototype.hasOwnProperty.call(pc, TRIGGER_WORKFLOW_CANVAS_KEY) ||
+      Object.prototype.hasOwnProperty.call(pc, "canvas");
     const raw = pc[TRIGGER_WORKFLOW_CANVAS_KEY] ?? pc["canvas"];
     const parsed = parseWorkflowCanvasDocument(raw);
-    return canvasDocWithScopeSeedIfEmpty(parsed, pipelineConfiguration as Record<string, unknown>);
-  }, [configureTarget.id, pipelineConfiguration, configTriggerText]);
-
-  useEffect(() => {
-    if (configureTarget.id !== "trigger") return;
-    setTriggerCanvasReloadNonce((n) => n + 1);
-  }, [configureTarget, savedConfigTriggerSnap]);
+    if (parsed.nodes.length > 0) {
+      return canvasDocWithScopeSeedIfEmpty(parsed, pc);
+    }
+    if (hasExplicitCanvas) {
+      return canvasDocWithScopeSeedIfEmpty(parsed, pc);
+    }
+    const st = triggerLeafCanvasState;
+    if (st.kind === "ready" && st.path === path) {
+      return canvasDocWithScopeSeedIfEmpty(st.doc, pc);
+    }
+    return emptyWorkflowCanvasDocument();
+  }, [configureTarget, triggerLeafCanvasState, triggerPipelineMergedScope]);
 
   const updateTriggerConfiguration = (slice: Partial<JsonObject>) => {
-    if (!parsedConfigTrigger) return;
-    const ti =
-      triggerInput && typeof triggerInput === "object" && !Array.isArray(triggerInput)
-        ? (triggerInput as JsonObject)
-        : {};
-    const base = ti.configuration;
-    const prev =
-      base !== null && typeof base === "object" && !Array.isArray(base) ? (base as JsonObject) : {};
-    const nextConf = { ...prev, ...slice };
-    const nextInput = { ...ti, configuration: nextConf };
-    const nextDoc = { ...parsedConfigTrigger, input: nextInput };
-    setConfigTriggerText(YAML.stringify(nextDoc, { lineWidth: 0 }));
+    setConfigTriggerText((currentText) => {
+      let currentDoc: Record<string, unknown>;
+      try {
+        const p = YAML.parse(currentText) as unknown;
+        if (p == null || typeof p !== "object" || Array.isArray(p)) return currentText;
+        currentDoc = p as Record<string, unknown>;
+      } catch {
+        return currentText;
+      }
+      const ti0 = currentDoc.input;
+      if (ti0 == null || typeof ti0 !== "object" || Array.isArray(ti0)) return currentText;
+      const ti = ti0 as JsonObject;
+      const base = ti.configuration;
+      const prev =
+        base != null && typeof base === "object" && !Array.isArray(base) ? (base as JsonObject) : {};
+      const nextConf = { ...prev, ...slice };
+      const nextInput = { ...ti, configuration: nextConf };
+      const nextDoc = { ...currentDoc, input: nextInput };
+      return YAML.stringify(nextDoc, { lineWidth: 0 });
+    });
   };
 
   const setTriggerSourceViews = (v: unknown) => updateTriggerConfiguration({ source_views: v });
@@ -2262,10 +2486,10 @@ export default function App() {
                             }
                           >
                             <MatchDefinitionsScopePanel
-                              scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                              scopeDocument={triggerPipelineMergedScope}
                               onPatch={(recipe) => {
                                 const next = recipe({
-                                  ...(pipelineConfiguration as Record<string, unknown>),
+                                  ...triggerPipelineMergedScope,
                                 });
                                 updateTriggerConfiguration(next as Partial<JsonObject>);
                               }}
@@ -2283,7 +2507,7 @@ export default function App() {
                             <KeyExtractionControls
                               value={pipelineConfiguration.key_extraction}
                               onChange={(v) => setTriggerKeyExtraction(v)}
-                              scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                              scopeDocument={triggerPipelineMergedScope}
                             />
                           </div>
                         )}
@@ -2298,7 +2522,7 @@ export default function App() {
                             <AliasingControls
                               value={pipelineConfiguration.aliasing}
                               onChange={(v) => setTriggerAliasing(v)}
-                              scopeDocument={pipelineConfiguration as Record<string, unknown>}
+                              scopeDocument={triggerPipelineMergedScope}
                             />
                           </div>
                         )}
@@ -2529,22 +2753,23 @@ export default function App() {
                 t={t}
                 initialDocument={triggerCanvasDoc}
                 reloadNonce={triggerCanvasReloadNonce}
-                workflowScopeDoc={pipelineConfiguration as Record<string, unknown>}
+                workflowScopeDoc={triggerPipelineMergedScope}
                 onPatchWorkflowScope={(recipe) => {
-                  const next = recipe({ ...(pipelineConfiguration as Record<string, unknown>) });
+                  const next = recipe({ ...triggerPipelineMergedScope });
                   updateTriggerConfiguration(next as Partial<JsonObject>);
                 }}
-                onChange={(doc) =>
+                onChange={(doc) => {
+                  triggerFlowCanvasDraftRef.current = {
+                    path: configureTarget.path,
+                    doc,
+                  };
                   updateTriggerConfiguration({
                     [TRIGGER_WORKFLOW_CANVAS_KEY]: doc as unknown as JsonObject,
-                  })
-                }
+                  });
+                }}
                 schemaSpace={moduleSchemaSpace}
                 onSyncScopeFromCanvas={(canvas) => {
-                  const next = syncWorkflowScopeFromCanvas(
-                    canvas,
-                    pipelineConfiguration as Record<string, unknown>
-                  );
+                  const next = syncWorkflowScopeFromCanvas(canvas, triggerPipelineMergedScope);
                   updateTriggerConfiguration(next as Partial<JsonObject>);
                 }}
                 readOnly={configureEditsLocked}

@@ -55,7 +55,7 @@ export const de: Messages = {
   "callout.settings": "Bearbeitung von default.config.yaml — Modul- & Build-Einstellungen.",
   "callout.scopeDoc": "Bearbeitung von workflow.local.config.yaml (Quellansichten, Schlüsselerkennung, Aliasing).",
   "callout.workflowTemplate":
-    "Bearbeitung von workflow_template/workflow.template.config.yaml — eingecheckter Workflow-Standard beim Zurücksetzen des lokalen Geltungsbereichs aus der Vorlage.",
+    "Bearbeitung von workflow_template/workflow.template.config.yaml — Workflow-Standard für bereichsspezifische Bereitstellungen.",
   "callout.triggerEditor":
     "Bearbeitung von {path} — WorkflowTrigger input.configuration (Quellansichten, Schlüsselerkennung, Aliasing).",
   "config.sidebarTitle": "Konfigurationen",

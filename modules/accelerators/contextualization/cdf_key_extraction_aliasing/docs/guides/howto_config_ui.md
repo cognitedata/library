@@ -95,6 +95,8 @@ The UI persists **real files** under the module root:
 
 **Forms + YAML:** Sub-panels expose structured editors (source views, key extraction parameters, aliasing, hierarchy) and **raw YAML** for the same document where applicable. Saving updates the file on disk.
 
+When the **flow canvas** file is empty, the UI **seeds** a minimal graph from the current scope: it uses each extraction rule’s **`aliasing_pipeline`** (when set), else scoped inference from **`scope_filters`** and source views, and it places **match-validation** nodes from non-empty **`validation` / `validation_rules`** (linear chains and common shapes) so scope sync can round-trip.
+
 ---
 
 ## 4. Sync scope ↔ workflow template

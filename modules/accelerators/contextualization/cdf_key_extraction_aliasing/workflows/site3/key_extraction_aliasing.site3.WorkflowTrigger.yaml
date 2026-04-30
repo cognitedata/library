@@ -3,11 +3,11 @@
 # Scope body: workflow_template/workflow.template.config.yaml
 # Cron is literal in the trigger template (0 2 * * * UTC). Toolkit substitutes {{functionClientId}}, {{functionClientSecret}}, and {{instance_space}} inside configuration at deploy time.
 name: ''
-externalId: key_extraction_aliasing.site_01
+externalId: key_extraction_aliasing.site3
 triggerRule:
   triggerType: schedule
   cronExpression: 0 2 * * *
-workflowExternalId: key_extraction_aliasing.site_01
+workflowExternalId: key_extraction_aliasing.site3
 workflowVersion: v5
 input:
   run_all: false
@@ -456,7 +456,7 @@ input:
           mode: explicit
           value: 0
     key_extraction:
-      externalId: ctx_key_extraction_site_01
+      externalId: ctx_key_extraction_site3
       config:
         parameters:
           debug: true
@@ -471,7 +471,7 @@ input:
           key_discovery_schema_space: dm_key_discovery
           key_discovery_dm_version: v1
           cdm_view_version: v1
-          workflow_scope: SITE_01
+          workflow_scope: Site3
           incremental_skip_unchanged_source_inputs: true
           enable_reference_index: true
           exclude_self_referencing_keys: true
@@ -778,7 +778,7 @@ input:
           entity_type:
           - file
     aliasing:
-      externalId: ctx_aliasing_site_01
+      externalId: ctx_aliasing_site3
       config:
         parameters:
           debug: true
@@ -1210,12 +1210,11 @@ input:
         channel: kea__al_strip_delimiter_to_kea__n_1776968047289_da4zzh3o
       dag_source: canvas
     scope:
-      id: SITE_01
-      name: First Manufacturing Site
-      description: First site (display name may contain spaces; id is the stable segment)
+      id: Site3
+      name: Site 3
+      description: ''
       path:
       - level: site
-        id: SITE_01
-        name: First Manufacturing Site
-        description: First site (display name may contain spaces; id is the stable
-          segment)
+        id: Site3
+        name: Site 3
+        description: ''

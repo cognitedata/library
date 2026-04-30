@@ -55,7 +55,7 @@ export const hi: Messages = {
   "callout.settings": "default.config.yaml संपादित कर रहे हैं — मॉड्यूल व बिल्ड सेटिंग्स।",
   "callout.scopeDoc": "workflow.local.config.yaml संपादित कर रहे हैं (स्रोत व्यू, कुंजी खोज, Aliasing)।",
   "callout.workflowTemplate":
-    "workflow_template/workflow.template.config.yaml संपादित कर रहे हैं — स्थानीय स्कोप को टेम्पलेट से रीसेट करते समय चेक-इन वर्कफ़्लो डिफ़ॉल्ट।",
+    "workflow_template/workflow.template.config.yaml संपादित कर रहे हैं — स्कोप वाली तैनातियों के लिए वर्कफ़्लो डिफ़ॉल्ट।",
   "callout.triggerEditor":
     "{path} संपादित कर रहे हैं — WorkflowTrigger input.configuration (स्रोत व्यू, कुंजी खोज, Aliasing)।",
   "config.sidebarTitle": "कॉन्फ़िगरेशन",

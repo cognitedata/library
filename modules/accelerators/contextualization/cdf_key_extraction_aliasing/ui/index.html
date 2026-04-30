@@ -12,6 +12,7 @@
           var loc = localStorage.getItem("cdf-kea-extraction-locale");
           if (
             loc === "en" ||
+            loc === "ar" ||
             loc === "es" ||
             loc === "nb" ||
             loc === "ja" ||
@@ -20,8 +21,11 @@
             loc === "de" ||
             loc === "zh" ||
             loc === "hi"
-          )
-            document.documentElement.lang = loc === "nb" ? "nb" : loc === "zh" ? "zh-CN" : loc;
+          ) {
+            document.documentElement.lang =
+              loc === "nb" ? "nb" : loc === "zh" ? "zh-CN" : loc === "ar" ? "ar" : loc;
+            document.documentElement.dir = loc === "ar" ? "rtl" : "ltr";
+          }
         } catch (e) {}
       })();
     </script>

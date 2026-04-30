@@ -26,6 +26,7 @@ def _layout(module: Path, wf_base: str = "my_wf") -> None:
     sub = wf / "leaf"
     sub.mkdir()
     (sub / f"{wf_base}.leaf.WorkflowVersion.yaml").write_text("y", encoding="utf-8")
+    (sub / f"{wf_base}.leaf.canvas.yaml").write_text("c", encoding="utf-8")
     (wf / LEGACY_MONOLITHIC_NAME).write_text("z", encoding="utf-8")
     (wf / f"cdf_{wf_base}_oldstuff.WorkflowTrigger.yaml").write_text("t", encoding="utf-8")
     (module / "workflow_template").mkdir()
@@ -38,10 +39,11 @@ def test_discover_root_nested_and_legacy(tmp_path: Path) -> None:
     module = tmp_path / "mod"
     _layout(module, "my_wf")
     paths = discover_workflow_artifact_paths(module, "my_wf")
-    assert len(paths) == 4
+    assert len(paths) == 5
     names = {p.name for p in paths}
     assert "my_wf.root.Workflow.yaml" in names
     assert "my_wf.leaf.WorkflowVersion.yaml" in names
+    assert "my_wf.leaf.canvas.yaml" in names
     assert LEGACY_MONOLITHIC_NAME in names
     assert "cdf_my_wf_oldstuff.WorkflowTrigger.yaml" in names
 

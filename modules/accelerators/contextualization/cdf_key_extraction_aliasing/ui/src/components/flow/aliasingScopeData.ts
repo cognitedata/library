@@ -18,32 +18,92 @@ export function aliasingDataUsesPathways(data: Record<string, unknown> | undefin
   return Array.isArray(steps) && steps.length > 0;
 }
 
-function collectRulesFromPathwaysSteps(steps: unknown[]): unknown[] {
-  const out: unknown[] = [];
-  for (const step of steps) {
+/** Placement of a rule row inside ``pathways.steps`` (for seed spine vs. lift parity). */
+export type AliasingPathwayRuleTag = {
+  stepIndex: number;
+  /** ``null`` = sequential step; branch index for a ``parallel`` step row */
+  parallelBranch: number | null;
+};
+
+function ruleRowName(r: unknown): string {
+  if (!isRecord(r)) return "";
+  const name = r.name != null ? String(r.name).trim() : "";
+  return name;
+}
+
+/**
+ * Walk ``pathways.steps`` in engine order: sequential rows, then parallel branches in order.
+ * ``firstTagByRuleName`` records the first encounter per rule name (matches deduped seed order).
+ */
+function collectPathwaysRowsAndFirstTags(steps: unknown[]): {
+  rows: unknown[];
+  firstTagByRuleName: Map<string, AliasingPathwayRuleTag>;
+} {
+  const rows: unknown[] = [];
+  const firstTagByRuleName = new Map<string, AliasingPathwayRuleTag>();
+  for (let si = 0; si < steps.length; si++) {
+    const step = steps[si];
     if (!isRecord(step)) continue;
     const mode = String(step.mode || "sequential").trim().toLowerCase();
     if (mode === "sequential") {
       const rules = step.rules;
-      if (Array.isArray(rules)) {
-        for (const r of rules) out.push(r);
+      if (!Array.isArray(rules)) continue;
+      for (const r of rules) {
+        rows.push(r);
+        const nm = ruleRowName(r);
+        if (nm && !firstTagByRuleName.has(nm)) {
+          firstTagByRuleName.set(nm, { stepIndex: si, parallelBranch: null });
+        }
       }
     } else if (mode === "parallel") {
       const branches = step.branches;
       if (!Array.isArray(branches)) continue;
-      for (const br of branches) {
+      for (let bi = 0; bi < branches.length; bi++) {
+        const br = branches[bi];
         if (Array.isArray(br)) {
-          for (const r of br) out.push(r);
+          for (const r of br) {
+            rows.push(r);
+            const nm = ruleRowName(r);
+            if (nm && !firstTagByRuleName.has(nm)) {
+              firstTagByRuleName.set(nm, { stepIndex: si, parallelBranch: bi });
+            }
+          }
         } else if (isRecord(br)) {
           const rules = br.rules;
-          if (Array.isArray(rules)) {
-            for (const r of rules) out.push(r);
+          if (!Array.isArray(rules)) continue;
+          for (const r of rules) {
+            rows.push(r);
+            const nm = ruleRowName(r);
+            if (nm && !firstTagByRuleName.has(nm)) {
+              firstTagByRuleName.set(nm, { stepIndex: si, parallelBranch: bi });
+            }
           }
         }
       }
     }
   }
-  return out;
+  return { rows, firstTagByRuleName };
+}
+
+/**
+ * First pathway placement for each rule name (flat ``aliasing_rules`` → all ``{ stepIndex: 0, parallelBranch: null }``).
+ * Used so reseed pathway spine does not add ``sequence`` links across **parallel branch borders** in flatten order.
+ */
+export function buildAliasingPathwayTagByRuleName(data: Record<string, unknown> | undefined): Map<string, AliasingPathwayRuleTag> {
+  const map = new Map<string, AliasingPathwayRuleTag>();
+  if (!data) return map;
+  if (!aliasingDataUsesPathways(data)) {
+    const flat = data.aliasing_rules;
+    if (!Array.isArray(flat)) return map;
+    for (const r of flat) {
+      const nm = ruleRowName(r);
+      if (nm) map.set(nm, { stepIndex: 0, parallelBranch: null });
+    }
+    return map;
+  }
+  const steps = (data.pathways as Record<string, unknown>).steps;
+  if (!Array.isArray(steps)) return map;
+  return collectPathwaysRowsAndFirstTags(steps).firstTagByRuleName;
 }
 
 /** All transform rule row objects (for seeding, lookup, reorder). */
@@ -52,7 +112,7 @@ export function getAliasingTransformRuleRows(data: Record<string, unknown> | und
   if (aliasingDataUsesPathways(data)) {
     const steps = (data.pathways as Record<string, unknown>).steps;
     if (!Array.isArray(steps)) return [];
-    return collectRulesFromPathwaysSteps(steps);
+    return collectPathwaysRowsAndFirstTags(steps).rows;
   }
   const flat = data.aliasing_rules;
   return Array.isArray(flat) ? [...flat] : [];

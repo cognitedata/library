@@ -56,7 +56,7 @@ export const zh: Messages = {
   "callout.scopeDoc":
     "正在编辑 workflow.local.config.yaml（源视图、键发现、别名）。",
   "callout.workflowTemplate":
-    "正在编辑 workflow_template/workflow.template.config.yaml — 从模板重置本地范围时使用的已检入工作流默认值。",
+    "正在编辑 workflow_template/workflow.template.config.yaml — 用于范围化部署的工作流默认值。",
   "callout.triggerEditor":
     "正在编辑 {path} — WorkflowTrigger 的 input.configuration（源视图、键发现、别名）。",
   "config.sidebarTitle": "配置",

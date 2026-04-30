@@ -27,6 +27,7 @@ function readStoredLocale(): Locale | null {
     const v = localStorage.getItem(LOCALE_KEY);
     if (
       v === "en" ||
+      v === "ar" ||
       v === "es" ||
       v === "nb" ||
       v === "ja" ||
@@ -88,7 +89,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useLayoutEffect(() => {
-    document.documentElement.lang = locale === "nb" ? "nb" : locale === "zh" ? "zh-CN" : locale;
+    document.documentElement.lang =
+      locale === "nb" ? "nb" : locale === "zh" ? "zh-CN" : locale === "ar" ? "ar" : locale;
+    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
   }, [locale]);
 
   const t = useMemo(() => createTranslator(locale), [locale]);

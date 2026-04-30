@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Protocol, Sequence
 
+from scope_build.builders.scope_canvas_copy import ScopedCanvasCopyBuilder
 from scope_build.builders.workflow_definitions import ScopedWorkflowDefinitionsBuilder
 from scope_build.builders.workflow_triggers import WorkflowTriggersBuilder
 from scope_build.context import ScopeBuildContext
@@ -23,6 +24,7 @@ def default_builders(
     workflow_trigger_template_path: Path | None = None,
     workflow_template_path: Path | None = None,
     workflow_version_template_path: Path | None = None,
+    canvas_template_path: Path | None = None,
     overwrite: bool = False,
 ) -> List[ScopeArtifactBuilder]:
     triggers = WorkflowTriggersBuilder(
@@ -37,6 +39,11 @@ def default_builders(
             scope_document_path=scope_document_path,
             workflow_template_path=workflow_template_path,
             workflow_version_template_path=workflow_version_template_path,
+            overwrite=overwrite,
+        ),
+        ScopedCanvasCopyBuilder(
+            workflow_base=workflow_base,
+            canvas_template_path=canvas_template_path,
             overwrite=overwrite,
         ),
         triggers,

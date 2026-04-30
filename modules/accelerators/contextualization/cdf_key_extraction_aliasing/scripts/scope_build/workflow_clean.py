@@ -16,6 +16,7 @@ _WORKFLOW_ARTIFACT_SUFFIXES = (
     ".Workflow.yaml",
     ".WorkflowVersion.yaml",
     ".WorkflowTrigger.yaml",
+    ".canvas.yaml",
 )
 
 _SUMMARY_MAX_LIST = 50

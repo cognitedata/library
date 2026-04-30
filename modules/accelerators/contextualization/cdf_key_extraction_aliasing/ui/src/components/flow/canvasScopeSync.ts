@@ -24,9 +24,17 @@ import { patchExtractionRuleAliasingPipeline } from "./workflowScopePatch";
  * aliasing **data** edges and composition edges among ``kind: "aliasing"`` nodes (not from prior YAML).
  *
  * **Aliasing rule list order** — ``aliasing_rules[]`` / pathways order follows composition edges among
- * aliasing nodes when present.
+ * aliasing nodes when present. **Rules removed from the canvas** are **dropped** from
+ * ``aliasing.config.data`` (not left appended). When there are no composition edges but aliasing
+ * transform nodes exist, the rule list is **filtered** to the set of those nodes (document order).
+ * **Root** ``aliasing_rule_definitions`` entries that are no longer referenced are pruned to match.
  *
  * **Associations** — top-level ``associations`` from source view → extraction **data** edges.
+ *
+ * **Persistence** — ``alias_persistence`` / ``reference_index`` placement and ``persistence_config`` are
+ * carried in the canvas and merged into IR ``persistence`` by Python ``compiled_workflow_for_scope_document``
+ * (not rewritten into ``key_extraction`` / ``aliasing`` text by this TS sync). ``expandCanvasForScopeSync``
+ * flattens ``subgraph`` ``inner_canvas`` nodes first so the graph here matches compile.
  */
 export function syncWorkflowScopeFromCanvas(
   canvas: WorkflowCanvasDocument,
@@ -36,7 +44,128 @@ export function syncWorkflowScopeFromCanvas(
   const wired = applyCanvasMatchWiring(expanded, scopeDoc);
   const withPipelines = applyExtractionAliasingPipelinesFromCanvas(expanded, wired);
   const withOrder = applyAliasingRulesOrderFromCanvas(expanded, withPipelines);
-  return applySourceViewExtractionAssociationsFromCanvas(expanded, withOrder);
+  const withAssoc = applySourceViewExtractionAssociationsFromCanvas(expanded, withOrder);
+  return pruneAliasingRuleDefinitionsToActiveRules(withAssoc);
+}
+
+function isRecordObj(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+/** Strings / keys in pipeline JSON that are not tag-transform rule names. */
+const _PIPELINE_NOISE: ReadonlySet<string> = new Set(
+  [
+    "sequential",
+    "parallel",
+    "concurrent",
+    "ordered",
+    "hierarchy",
+    "mode",
+    "children",
+    "branches",
+    "rules",
+    "config",
+    "validation",
+    "scope_filters",
+    "conditions",
+    "description",
+    "enabled",
+    "priority",
+    "preserve_original",
+    "name",
+    "handler",
+    "type",
+    "match",
+    "expression",
+    "expressions",
+    "extraction",
+    "aliasing",
+  ].map((s) => s.toLowerCase())
+);
+
+function collectRuleNamesFromPipelineValue(x: unknown, out: Set<string>): void {
+  if (x === null || x === undefined) return;
+  if (typeof x === "string") {
+    const t = x.trim();
+    if (t && t.length < 512 && !_PIPELINE_NOISE.has(t.toLowerCase())) {
+      out.add(t);
+    }
+    return;
+  }
+  if (Array.isArray(x)) {
+    for (const v of x) {
+      collectRuleNamesFromPipelineValue(v, out);
+    }
+    return;
+  }
+  if (isRecordObj(x)) {
+    for (const [k, v] of Object.entries(x)) {
+      const kt = k.trim();
+      if (kt && kt.length < 512 && !_PIPELINE_NOISE.has(kt.toLowerCase())) {
+        out.add(kt);
+      }
+      collectRuleNamesFromPipelineValue(v, out);
+    }
+  }
+}
+
+function collectRuleNamesFromExtractionPipelines(doc: Record<string, unknown>): Set<string> {
+  const s = new Set<string>();
+  const ke = doc.key_extraction;
+  if (!isRecordObj(ke)) return s;
+  const config = ke.config;
+  if (!isRecordObj(config)) return s;
+  const data = config.data;
+  if (!isRecordObj(data)) return s;
+  const exRules = data.extraction_rules;
+  if (!Array.isArray(exRules)) return s;
+  for (const r of exRules) {
+    if (!isRecordObj(r)) continue;
+    collectRuleNamesFromPipelineValue(
+      (r as Record<string, unknown>).aliasing_pipeline,
+      s
+    );
+  }
+  return s;
+}
+
+/** Remove root ``aliasing_rule_definitions`` keys that are not used by the active transform list or extraction ``aliasing_pipeline`` values. */
+function pruneAliasingRuleDefinitionsToActiveRules(
+  doc: Record<string, unknown>
+): Record<string, unknown> {
+  const defs = doc.aliasing_rule_definitions;
+  if (!isRecordObj(defs) || Object.keys(defs).length === 0) {
+    return doc;
+  }
+  const keep = new Set<string>();
+  const al = doc.aliasing;
+  if (isRecordObj(al) && isRecordObj(al.config) && isRecordObj(al.config.data)) {
+    for (const row of getAliasingTransformRuleRows(al.config.data as Record<string, unknown>)) {
+      if (isRecordObj(row)) {
+        const name = String(row.name ?? "").trim();
+        if (name) {
+          keep.add(name);
+        }
+      }
+    }
+  }
+  for (const n of collectRuleNamesFromExtractionPipelines(doc)) {
+    keep.add(n);
+  }
+  const next: Record<string, unknown> = { ...defs };
+  for (const k of Object.keys(defs)) {
+    if (!keep.has(k)) {
+      delete next[k];
+    }
+  }
+  if (Object.keys(next).length === 0) {
+    const { aliasing_rule_definitions: _removed, ...rest } = doc;
+    return rest as Record<string, unknown>;
+  }
+  if (Object.keys(next).length === Object.keys(defs).length) {
+    return doc;
+  }
+  return { ...doc, aliasing_rule_definitions: next };
 }
 
 function isDataEdge(e: WorkflowCanvasEdge): boolean {
@@ -365,7 +494,8 @@ function applyExtractionAliasingPipelinesFromCanvas(
       if (!t || !acceptAliasingCompositionNode(t)) continue;
       heads.push(e.target);
     }
-    sortAliasingHeadIdsByRuleName(heads, byId);
+    // Preserve ``canvas.edges`` order (multiple data heads = concurrent pipeline branches). Do not
+    // sort alphabetically by rule name — that breaks branch order vs. predecessors on the canvas.
 
     if (heads.length === 0) {
       doc = patchExtractionRuleAliasingPipeline(doc, ruleName, []);
@@ -392,14 +522,6 @@ function applyExtractionAliasingPipelinesFromCanvas(
   }
 
   return doc;
-}
-
-function sortAliasingHeadIdsByRuleName(heads: string[], byId: Map<string, WorkflowCanvasNode>): void {
-  heads.sort((a, b) => {
-    const na = aliasingRuleNameFromNode(byId.get(a)) ?? a;
-    const nb = aliasingRuleNameFromNode(byId.get(b)) ?? b;
-    return na.localeCompare(nb);
-  });
 }
 
 /** Mirrors `buildMatchSubtree` — flatten to rule names for `aliasing_rules[]` (validation uses nested trees). */
@@ -510,7 +632,7 @@ function buildAliasingRulesOrderFromCanvas(canvas: WorkflowCanvasDocument): stri
   for (const id of alIds) {
     if ((incoming.get(id) ?? 0) === 0) heads.push(id);
   }
-  sortAliasingHeadIdsByRuleName(heads, byId);
+  // Heads are already in ``canvas.nodes`` / Set insertion order; do not reorder by rule name.
 
   const visited = new Set<string>();
   const orderedNames: string[] = [];
@@ -554,17 +676,40 @@ function patchAliasingRulesArrayOrder(
     seen.add(nm);
     nextRules.push(row);
   }
+  // Unnamed transform rows (edge case): preserve so we do not drop ad-hoc YAML without `name`.
   for (const r of rules) {
     if (!r || typeof r !== "object" || Array.isArray(r)) {
       nextRules.push(r);
       continue;
     }
     const nm = String((r as Record<string, unknown>).name ?? "").trim();
-    if (nm && seen.has(nm)) continue;
-    nextRules.push(r);
+    if (!nm) {
+      nextRules.push(r);
+    }
   }
+  // Named rules that are not in orderedNames were removed from the canvas — do not re-append them.
 
   return replaceAliasingTransformRulesInDoc(doc, nextRules);
+}
+
+/** All distinct ``ref.aliasing_rule_name`` values in canvas iteration order (no composition graph). */
+function collectAliasingRuleNamesOnCanvasInOrder(
+  canvas: WorkflowCanvasDocument
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const n of canvas.nodes) {
+    if (n.kind !== "aliasing") {
+      continue;
+    }
+    const nm = aliasingRuleNameFromNode(n);
+    if (!nm || seen.has(nm)) {
+      continue;
+    }
+    seen.add(nm);
+    out.push(nm);
+  }
+  return out;
 }
 
 function applyAliasingRulesOrderFromCanvas(
@@ -572,8 +717,14 @@ function applyAliasingRulesOrderFromCanvas(
   scopeDoc: Record<string, unknown>
 ): Record<string, unknown> {
   const order = buildAliasingRulesOrderFromCanvas(canvas);
-  if (!order || order.length === 0) return scopeDoc;
-  return patchAliasingRulesArrayOrder(scopeDoc, order);
+  if (order && order.length > 0) {
+    return patchAliasingRulesArrayOrder(scopeDoc, order);
+  }
+  const fromNodes = collectAliasingRuleNamesOnCanvasInOrder(canvas);
+  if (fromNodes.length > 0) {
+    return patchAliasingRulesArrayOrder(scopeDoc, fromNodes);
+  }
+  return scopeDoc;
 }
 
 /**

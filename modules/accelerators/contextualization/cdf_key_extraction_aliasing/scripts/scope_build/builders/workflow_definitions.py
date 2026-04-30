@@ -1,6 +1,10 @@
 """Emit scoped Workflow / WorkflowVersion YAML under ``workflows/<suffix>/``.
 
-``WorkflowVersion`` is generated from ``compiled_workflow`` IR via ``build_workflow_version_document``.
+``WorkflowVersion`` task *structure* (ids, ``dependsOn``) comes from ``compiled_workflow`` IR via
+``build_workflow_version_document``; per-function ``name`` / ``description`` / ``timeout`` and the
+top-level ``workflowDefinition.description`` are aligned with
+``workflow_template/workflow.template.WorkflowVersion.yaml`` so scoped output matches the template
+wording for each ``fn_*`` function.
 ``Workflow.yaml`` still comes from ``workflow.template.Workflow.yaml``.
 
 **``workflow_template/workflow.execution.graph.yaml``** is refreshed from the first leaf’s
@@ -155,10 +159,15 @@ class ScopedWorkflowDefinitionsBuilder:
                     graph_path,
                 )
             self._dumped_execution_graph = True
+        wv_tmpl = self._workflow_version_template_override
+        if wv_tmpl is not None and not wv_tmpl.is_absolute():
+            wv_tmpl = module_root / wv_tmpl
         wv_doc = build_workflow_version_document(
             workflow_external_id=ext_id,
             version="v5",
             compiled_workflow=cw,
+            module_root=module_root,
+            workflow_version_template_path=wv_tmpl,
         )
 
         scope_dir = module_root / WORKFLOW_ARTIFACTS_REL / suffix
@@ -223,6 +232,7 @@ def expected_scoped_workflow_documents(
     workflow_template_path: Path | None,
     scope_document_path: Path,
     ctx: ScopeBuildContext,
+    workflow_version_template_path: Path | None = None,
 ) -> Tuple[dict, dict]:
     ext_id = scoped_workflow_external_id(workflow_base, suffix)
     wf_tpl = _read_text_template(
@@ -239,10 +249,15 @@ def expected_scoped_workflow_documents(
     scope_tpl = load_scope_document_dict_for_build(scope_abs)
     scope_document = prepare_scope_document_for_context(scope_tpl, ctx)
     cw = compiled_workflow_for_scope_document(scope_document)
+    wv_tmpl = workflow_version_template_path
+    if wv_tmpl is not None and not wv_tmpl.is_absolute():
+        wv_tmpl = module_root / wv_tmpl
     wv_doc = build_workflow_version_document(
         workflow_external_id=ext_id,
         version="v5",
         compiled_workflow=cw,
+        module_root=module_root,
+        workflow_version_template_path=wv_tmpl,
     )
     if not isinstance(wf_doc, dict) or not isinstance(wv_doc, dict):
         raise ValueError("Workflow templates must render to YAML mappings")

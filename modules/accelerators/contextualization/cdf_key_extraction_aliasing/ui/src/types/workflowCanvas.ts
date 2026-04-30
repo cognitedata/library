@@ -206,6 +206,11 @@ export interface WorkflowCanvasNodeData {
   validation_rule_context?: "source_view" | "extraction" | "aliasing";
   /** Name of the `validation_rules` entry (paired with ref.* parent). */
   validation_rule_name?: string;
+  /**
+   * Optional index for auto-layout: within one graph layer, ``keaAliasing`` nodes sort by this
+   * (ascending) instead of id-only, so pipeline / seed order survives ``ids.sort()`` in the layout pass.
+   */
+  pipeline_rank?: number;
   /** Named subgraph ports (``kind: subflow``); drives frame handles + internal hub handles. */
   subflow_ports?: SubflowPortsConfig;
   /** Child node id — input hub inside this subflow (sources per input port). */

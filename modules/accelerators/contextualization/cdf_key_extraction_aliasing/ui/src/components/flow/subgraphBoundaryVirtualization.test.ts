@@ -1,78 +1,130 @@
 import { describe, expect, it } from "vitest";
+import {
+  SUBFLOW_PORT_HANDLE_IN_PREFIX,
+  WORKFLOW_CANVAS_SCHEMA_VERSION,
+  subflowSourceHandleForPort,
+} from "../../types/workflowCanvas";
 import type { WorkflowCanvasDocument } from "../../types/workflowCanvas";
-import { subflowSourceHandleForPort, subflowTargetHandleForPort } from "../../types/workflowCanvas";
-import { expandCanvasForScopeSync } from "./subgraphBoundaryVirtualization";
+import { expandCanvasForScopeSync, flattenSubgraphsForScopeSync } from "./subgraphBoundaryVirtualization";
 
-describe("expandCanvasForScopeSync", () => {
-  it("bridges source_view → subflow(in) and hub → extraction into source_view → extraction", () => {
-    const sf = "sf1";
-    const hubIn = `${sf}_hub_in`;
-    const hubOut = `${sf}_hub_out`;
-    const ext = "ext1";
-    const sv = "sv1";
-    const doc: WorkflowCanvasDocument = {
-      schemaVersion: 1,
+describe("flattenSubgraphsForScopeSync", () => {
+  it("hoists inner aliasing so outer data edges reach prefixed inner node ids", () => {
+    const hubInId = "hub_in_1";
+    const hubOutId = "hub_out_1";
+    const innerAlId = "inner_al";
+    const sgId = "subgraph_box";
+
+    const inner: WorkflowCanvasDocument = {
+      schemaVersion: WORKFLOW_CANVAS_SCHEMA_VERSION,
       nodes: [
+        { id: hubInId, kind: "subflow_graph_in", position: { x: 0, y: 0 }, data: { label: "In" } },
+        { id: hubOutId, kind: "subflow_graph_out", position: { x: 400, y: 0 }, data: { label: "Out" } },
         {
-          id: sf,
-          kind: "subflow",
-          position: { x: 0, y: 0 },
-          data: {
-            subflow_ports: { inputs: [{ id: "in" }], outputs: [{ id: "out" }] },
-            subflow_hub_input_id: hubIn,
-            subflow_hub_output_id: hubOut,
-          },
+          id: innerAlId,
+          kind: "aliasing",
+          position: { x: 120, y: 0 },
+          data: { label: "inner_al", ref: { aliasing_rule_name: "inner_al" } },
         },
-        { id: hubIn, kind: "subflow_graph_in", parent_id: sf, position: { x: 0, y: 0 }, data: {} },
-        { id: hubOut, kind: "subflow_graph_out", parent_id: sf, position: { x: 0, y: 0 }, data: {} },
-        {
-          id: ext,
-          kind: "extraction",
-          parent_id: sf,
-          position: { x: 0, y: 0 },
-          data: { ref: { extraction_rule_name: "r1" } },
-        },
-        { id: sv, kind: "source_view", position: { x: 0, y: 0 }, data: {} },
-        { id: "end1", kind: "end", position: { x: 0, y: 0 }, data: {} },
       ],
       edges: [
         {
-          id: "e_in",
-          source: sv,
-          target: sf,
-          target_handle: subflowTargetHandleForPort("in"),
+          id: "e_hub_to_al",
+          source: hubInId,
+          target: innerAlId,
           kind: "data",
-        },
-        {
-          id: "e_hub",
-          source: hubIn,
           source_handle: subflowSourceHandleForPort("in"),
-          target: ext,
           target_handle: "in",
-          kind: "data",
         },
+      ],
+    };
+
+    const doc: WorkflowCanvasDocument = {
+      schemaVersion: WORKFLOW_CANVAS_SCHEMA_VERSION,
+      nodes: [
+        { id: "ext_o", kind: "extraction", position: { x: 0, y: 0 }, data: { ref: { extraction_rule_name: "r" } } },
         {
-          id: "e_out",
-          source: ext,
+          id: sgId,
+          kind: "subgraph",
+          position: { x: 100, y: 0 },
+          data: {
+            label: "G",
+            subflow_hub_input_id: hubInId,
+            subflow_hub_output_id: hubOutId,
+            inner_canvas: inner,
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "e_ext_to_sg",
+          source: "ext_o",
+          target: sgId,
+          kind: "data",
           source_handle: "out",
-          target: hubOut,
-          target_handle: subflowTargetHandleForPort("out"),
-          kind: "data",
+          target_handle: `${SUBFLOW_PORT_HANDLE_IN_PREFIX}in`,
+        },
+      ],
+    };
+
+    const flat = flattenSubgraphsForScopeSync(doc);
+    expect(flat.nodes.some((n) => n.kind === "subgraph")).toBe(false);
+    const liftedAl = flat.nodes.find((n) => n.kind === "aliasing");
+    expect(liftedAl).toBeDefined();
+    expect(liftedAl!.id.startsWith(`__sg_`)).toBe(true);
+    expect(
+      flat.edges.some(
+        (e) => e.kind === "data" && e.source === "ext_o" && e.target === liftedAl!.id
+      )
+    ).toBe(true);
+  });
+});
+
+describe("expandCanvasForScopeSync", () => {
+  it("bridges sequence edges through subflow in ports", () => {
+    const hubInId = "hin2";
+    const innerAl = "al2";
+    const sfId = "sf1";
+    const doc: WorkflowCanvasDocument = {
+      schemaVersion: WORKFLOW_CANVAS_SCHEMA_VERSION,
+      nodes: [
+        { id: "ext_x", kind: "extraction", position: { x: 0, y: 0 }, data: { ref: { extraction_rule_name: "rx" } } },
+        {
+          id: sfId,
+          kind: "subflow",
+          position: { x: 80, y: 0 },
+          data: { label: "SF", subflow_hub_input_id: hubInId },
+        },
+        { id: hubInId, kind: "subflow_graph_in", position: { x: 0, y: 0 }, data: {}, parent_id: sfId },
+        {
+          id: innerAl,
+          kind: "aliasing",
+          position: { x: 120, y: 0 },
+          data: { ref: { aliasing_rule_name: "al2" } },
+          parent_id: sfId,
+        },
+      ],
+      edges: [
+        {
+          id: "e_ext_sf",
+          source: "ext_x",
+          target: sfId,
+          kind: "sequence",
+          source_handle: "out",
+          target_handle: `${SUBFLOW_PORT_HANDLE_IN_PREFIX}in`,
         },
         {
-          id: "e_sf_end",
-          source: sf,
-          source_handle: subflowSourceHandleForPort("out"),
-          target: "end1",
+          id: "e_hub_al",
+          source: hubInId,
+          target: innerAl,
+          kind: "sequence",
+          source_handle: subflowSourceHandleForPort("in"),
           target_handle: "in",
-          kind: "data",
         },
       ],
     };
     const out = expandCanvasForScopeSync(doc);
-    expect(out.edges.some((e) => e.source === sv && e.target === ext)).toBe(true);
-    expect(out.edges.some((e) => e.source === ext && e.target === "end1")).toBe(true);
-    expect(out.edges.find((e) => e.id === "e_in")).toBeUndefined();
-    expect(out.edges.find((e) => e.id === "e_hub")).toBeUndefined();
+    expect(out.edges.some((e) => e.kind === "sequence" && e.source === "ext_x" && e.target === innerAl)).toBe(
+      true
+    );
   });
 });

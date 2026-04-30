@@ -54,7 +54,7 @@ export const es: Messages = {
   "callout.settings": "Editando default.config.yaml — ajustes del módulo y compilación.",
   "callout.scopeDoc": "Editando workflow.local.config.yaml (vistas de origen, descubrimiento de claves, alias).",
   "callout.workflowTemplate":
-    "Editando workflow_template/workflow.template.config.yaml — valor por defecto del flujo de trabajo en el repositorio al restablecer el ámbito local desde la plantilla.",
+    "Editando workflow_template/workflow.template.config.yaml — el valor por defecto del flujo de trabajo para implementaciones con alcance.",
   "callout.triggerEditor":
     "Editando {path} — input.configuration de WorkflowTrigger (vistas de origen, descubrimiento de claves, alias).",
   "config.sidebarTitle": "Configuraciones",

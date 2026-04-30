@@ -137,7 +137,8 @@ validation_rule_definitions:
     match:
       expressions:
       - pattern: ^[0-9]{0,3}$
-        description: Alias is only digits and shorter than 4 characters (empty counts as invalid)
+        description: Alias is only digits and shorter than 4 characters (empty counts
+          as invalid)
       - pattern: ^.{81,}$
         description: Alias exceeds maximum length 80
       - pattern: '[^A-Za-z0-9-_/. ]'
@@ -192,8 +193,29 @@ key_extraction:
           entity_type:
           - asset
         validation:
-          validation_rules: []
-        aliasing_pipeline: []
+          validation_rules:
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+        aliasing_pipeline:
+        - hierarchy:
+            mode: concurrent
+            children:
+            - cogniteasset_explicit_aliases_from_raw:
+              - Strip Delimiter
+            - leading_zero_normalization:
+              - Strip Delimiter
+            - strip_numeric_unit_prefix:
+              - Strip Delimiter
       - name: file_basename_candidate
         handler: regex_handler
         extraction_type: candidate_key
@@ -247,7 +269,19 @@ key_extraction:
           entity_type:
           - timeseries
         validation:
-          validation_rules: []
+          validation_rules:
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
         aliasing_pipeline: []
       - name: instance_name_asset_fk
         handler: regex_handler
@@ -274,7 +308,19 @@ key_extraction:
           - file
           - timeseries
         validation:
-          validation_rules: []
+          validation_rules:
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
         aliasing_pipeline: []
       - name: instance_description_asset_fk
         handler: regex_handler
@@ -299,7 +345,19 @@ key_extraction:
           - trim
         scope_filters: {}
         validation:
-          validation_rules: []
+          validation_rules:
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
+          - blacklist:
+            - whitelist:
+              - not_isa_penalty
         aliasing_pipeline: []
       - name: equipment_tag_ck
         handler: regex_handler
@@ -325,15 +383,6 @@ key_extraction:
         min_confidence: 0.5
         max_keys_per_type: 1000
 aliasing_rule_definitions:
-  local_demo_alias:
-    name: local_demo_alias
-    handler: character_substitution
-    enabled: true
-    priority: 10
-    preserve_original: true
-    config:
-      substitutions:
-        /: '-'
   cogniteasset_explicit_aliases_from_raw:
     name: cogniteasset_explicit_aliases_from_raw
     handler: alias_mapping_table
@@ -360,168 +409,6 @@ aliasing_rule_definitions:
         - scope
         - scope_value
         - source_match
-    conditions: {}
-    scope_filters:
-      entity_type:
-      - asset
-  semantic_expansion:
-    name: semantic_expansion
-    handler: semantic_expansion
-    description: Expand equipment type letter codes to full words (e.g. P-101 → PUMP-101).
-    enabled: true
-    priority: 10
-    preserve_original: true
-    config:
-      type_mappings:
-        P:
-        - PUMP
-        - PMP
-        CP:
-        - CENTRIFUGAL_PUMP
-        - PUMP
-        - PMP
-        FWP:
-        - FEEDWATER_PUMP
-        - PUMP
-        - PMP
-        CWP:
-        - COOLING_WATER_PUMP
-        - PUMP
-        - PMP
-        BWP:
-        - BOILER_WATER_PUMP
-        - PUMP
-        - PMP
-        C:
-        - COMPRESSOR
-        - COMP
-        AC:
-        - AIR_COMPRESSOR
-        - COMPRESSOR
-        - COMP
-        RC:
-        - RECIPROCATING_COMPRESSOR
-        - COMPRESSOR
-        - COMP
-        CC:
-        - CENTRIFUGAL_COMPRESSOR
-        - COMPRESSOR
-        - COMP
-        FCV:
-        - FLOW_CONTROL_VALVE
-        - VALVE
-        - VLV
-        PCV:
-        - PRESSURE_CONTROL_VALVE
-        - VALVE
-        - VLV
-        TCV:
-        - TEMPERATURE_CONTROL_VALVE
-        - VALVE
-        - VLV
-        LCV:
-        - LEVEL_CONTROL_VALVE
-        - VALVE
-        - VLV
-        PSV:
-        - PRESSURE_SAFETY_VALVE
-        - SAFETY_VALVE
-        - VALVE
-        - VLV
-        TSV:
-        - TEMPERATURE_SAFETY_VALVE
-        - SAFETY_VALVE
-        - VALVE
-        - VLV
-        FSV:
-        - FLOW_SAFETY_VALVE
-        - SAFETY_VALVE
-        - VALVE
-        - VLV
-        V:
-        - VALVE
-        - VLV
-        T:
-        - TANK
-        - TNK
-        R:
-        - REACTOR
-        - REAC
-        E:
-        - HEAT_EXCHANGER
-        - EXCHANGER
-        - EXCH
-        HE:
-        - HEAT_EXCHANGER
-        - EXCHANGER
-        - EXCH
-        CE:
-        - CONDENSER_EXCHANGER
-        - HEAT_EXCHANGER
-        - EXCH
-        DC:
-        - DISTILLATION_COLUMN
-        - COLUMN
-        - COL
-        FIC:
-        - FLOW_INDICATOR_CONTROLLER
-        - FLOW_CONTROLLER
-        - INSTRUMENT
-        FIT:
-        - FLOW_INDICATOR_TRANSMITTER
-        - FLOW_TRANSMITTER
-        - INSTRUMENT
-        FE:
-        - FLOW_ELEMENT
-        - INSTRUMENT
-        PIC:
-        - PRESSURE_INDICATOR_CONTROLLER
-        - PRESSURE_CONTROLLER
-        - INSTRUMENT
-        PIT:
-        - PRESSURE_INDICATOR_TRANSMITTER
-        - PRESSURE_TRANSMITTER
-        - INSTRUMENT
-        PE:
-        - PRESSURE_ELEMENT
-        - INSTRUMENT
-        TIC:
-        - TEMPERATURE_INDICATOR_CONTROLLER
-        - TEMPERATURE_CONTROLLER
-        - INSTRUMENT
-        TIT:
-        - TEMPERATURE_INDICATOR_TRANSMITTER
-        - TEMPERATURE_TRANSMITTER
-        - INSTRUMENT
-        TE:
-        - TEMPERATURE_ELEMENT
-        - INSTRUMENT
-        LIC:
-        - LEVEL_INDICATOR_CONTROLLER
-        - LEVEL_CONTROLLER
-        - INSTRUMENT
-        LIT:
-        - LEVEL_INDICATOR_TRANSMITTER
-        - LEVEL_TRANSMITTER
-        - INSTRUMENT
-        LE:
-        - LEVEL_ELEMENT
-        - INSTRUMENT
-        AIC:
-        - ANALYTICAL_INDICATOR_CONTROLLER
-        - ANALYTICAL_CONTROLLER
-        - INSTRUMENT
-        AIT:
-        - ANALYTICAL_INDICATOR_TRANSMITTER
-        - ANALYTICAL_TRANSMITTER
-        - INSTRUMENT
-        ACV:
-        - ANALYTICAL_CONTROL_VALVE
-        - INSTRUMENT
-      format_templates:
-      - '{type}-{tag}'
-      - '{type}_{tag}'
-      auto_detect: true
     conditions: {}
     scope_filters:
       entity_type:
@@ -601,237 +488,6 @@ aliasing:
         steps:
         - mode: sequential
           rules:
-          - name: document_aliases
-            handler: document_aliases
-            enabled: true
-            priority: 30
-            preserve_original: true
-            config:
-              pid_rules:
-                remove_ampersand: true
-                add_spaces: true
-                revision_variants: true
-              drawing_rules:
-                zero_padding:
-                  enabled: true
-                  target_length: 6
-                sheet_variants: true
-              file_rules:
-                remove_revision_numbers: true
-            conditions: {}
-            scope_filters:
-              entity_type:
-              - file
-            description: P&ID / drawing / file-name variants for file candidate keys.
-            validation:
-              validation_rules: []
-          - name: Strip Delimiter
-            handler: regex_substitution
-            enabled: true
-            priority: 10
-            preserve_original: true
-            config:
-              patterns:
-              - pattern: '[^\p{L}\p{N}]'
-                replacement: ''
-            conditions: {}
-            scope_filters:
-              entity_type:
-              - asset
-              - timeseries
-            validation:
-              validation_rules: []
-          - name: leading_zero_normalization
-            handler: leading_zero_normalization
-            enabled: true
-            priority: 40
-            preserve_original: true
-            config:
-              preserve_single_zero: true
-              min_length: 4
-            conditions: {}
-            scope_filters:
-              entity_type:
-              - asset
-            description: Normalize leading zeros in numeric tokens within tags (assets
-              only).
-          - name: semantic_expansion
-            handler: semantic_expansion
-            enabled: true
-            priority: 50
-            preserve_original: true
-            config:
-              type_mappings:
-                P:
-                - PUMP
-                - PMP
-                CP:
-                - CENTRIFUGAL_PUMP
-                - PUMP
-                - PMP
-                FWP:
-                - FEEDWATER_PUMP
-                - PUMP
-                - PMP
-                CWP:
-                - COOLING_WATER_PUMP
-                - PUMP
-                - PMP
-                BWP:
-                - BOILER_WATER_PUMP
-                - PUMP
-                - PMP
-                C:
-                - COMPRESSOR
-                - COMP
-                AC:
-                - AIR_COMPRESSOR
-                - COMPRESSOR
-                - COMP
-                RC:
-                - RECIPROCATING_COMPRESSOR
-                - COMPRESSOR
-                - COMP
-                CC:
-                - CENTRIFUGAL_COMPRESSOR
-                - COMPRESSOR
-                - COMP
-                FCV:
-                - FLOW_CONTROL_VALVE
-                - VALVE
-                - VLV
-                PCV:
-                - PRESSURE_CONTROL_VALVE
-                - VALVE
-                - VLV
-                TCV:
-                - TEMPERATURE_CONTROL_VALVE
-                - VALVE
-                - VLV
-                LCV:
-                - LEVEL_CONTROL_VALVE
-                - VALVE
-                - VLV
-                PSV:
-                - PRESSURE_SAFETY_VALVE
-                - SAFETY_VALVE
-                - VALVE
-                - VLV
-                TSV:
-                - TEMPERATURE_SAFETY_VALVE
-                - SAFETY_VALVE
-                - VALVE
-                - VLV
-                FSV:
-                - FLOW_SAFETY_VALVE
-                - SAFETY_VALVE
-                - VALVE
-                - VLV
-                V:
-                - VALVE
-                - VLV
-                T:
-                - TANK
-                - TNK
-                R:
-                - REACTOR
-                - REAC
-                E:
-                - HEAT_EXCHANGER
-                - EXCHANGER
-                - EXCH
-                HE:
-                - HEAT_EXCHANGER
-                - EXCHANGER
-                - EXCH
-                CE:
-                - CONDENSER_EXCHANGER
-                - HEAT_EXCHANGER
-                - EXCH
-                DC:
-                - DISTILLATION_COLUMN
-                - COLUMN
-                - COL
-                FIC:
-                - FLOW_INDICATOR_CONTROLLER
-                - FLOW_CONTROLLER
-                - INSTRUMENT
-                FIT:
-                - FLOW_INDICATOR_TRANSMITTER
-                - FLOW_TRANSMITTER
-                - INSTRUMENT
-                FE:
-                - FLOW_ELEMENT
-                - INSTRUMENT
-                PIC:
-                - PRESSURE_INDICATOR_CONTROLLER
-                - PRESSURE_CONTROLLER
-                - INSTRUMENT
-                PIT:
-                - PRESSURE_INDICATOR_TRANSMITTER
-                - PRESSURE_TRANSMITTER
-                - INSTRUMENT
-                PE:
-                - PRESSURE_ELEMENT
-                - INSTRUMENT
-                TIC:
-                - TEMPERATURE_INDICATOR_CONTROLLER
-                - TEMPERATURE_CONTROLLER
-                - INSTRUMENT
-                TIT:
-                - TEMPERATURE_INDICATOR_TRANSMITTER
-                - TEMPERATURE_TRANSMITTER
-                - INSTRUMENT
-                TE:
-                - TEMPERATURE_ELEMENT
-                - INSTRUMENT
-                LIC:
-                - LEVEL_INDICATOR_CONTROLLER
-                - LEVEL_CONTROLLER
-                - INSTRUMENT
-                LIT:
-                - LEVEL_INDICATOR_TRANSMITTER
-                - LEVEL_TRANSMITTER
-                - INSTRUMENT
-                LE:
-                - LEVEL_ELEMENT
-                - INSTRUMENT
-                AIC:
-                - ANALYTICAL_INDICATOR_CONTROLLER
-                - ANALYTICAL_CONTROLLER
-                - INSTRUMENT
-                AIT:
-                - ANALYTICAL_INDICATOR_TRANSMITTER
-                - ANALYTICAL_TRANSMITTER
-                - INSTRUMENT
-                ACV:
-                - ANALYTICAL_CONTROL_VALVE
-                - INSTRUMENT
-              format_templates:
-              - '{type}-{tag}'
-              - '{type}_{tag}'
-              auto_detect: true
-            conditions: {}
-            scope_filters:
-              entity_type:
-              - asset
-            description: Expand equipment type letter codes to full words (e.g. P-101
-              → PUMP-101).
-          - name: strip_numeric_unit_prefix
-            handler: regex_substitution
-            enabled: true
-            priority: 60
-            preserve_original: true
-            config:
-              patterns:
-              - pattern: ^\d+-
-                replacement: ''
-            conditions: {}
-            scope_filters:
-              entity_type:
-              - asset
-            description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match
-              tags already starting with type (P-1234).'
           - name: cogniteasset_explicit_aliases_from_raw
             handler: alias_mapping_table
             enabled: true
@@ -862,6 +518,81 @@ aliasing:
               - asset
             description: Apply explicit alias mappings for CogniteAsset from RAW lookup
               rows.
+            validation:
+              validation_rules: []
+          - name: Strip Delimiter
+            handler: regex_substitution
+            enabled: true
+            priority: 10
+            preserve_original: true
+            config:
+              patterns:
+              - pattern: '[^\p{L}\p{N}]'
+                replacement: ''
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+              - timeseries
+            validation:
+              validation_rules: []
+          - name: document_aliases
+            handler: document_aliases
+            enabled: true
+            priority: 30
+            preserve_original: true
+            config:
+              pid_rules:
+                remove_ampersand: true
+                add_spaces: true
+                revision_variants: true
+              drawing_rules:
+                zero_padding:
+                  enabled: true
+                  target_length: 6
+                sheet_variants: true
+              file_rules:
+                remove_revision_numbers: true
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - file
+            description: P&ID / drawing / file-name variants for file candidate keys.
+            validation:
+              validation_rules: []
+          - name: leading_zero_normalization
+            handler: leading_zero_normalization
+            enabled: true
+            priority: 40
+            preserve_original: true
+            config:
+              preserve_single_zero: true
+              min_length: 4
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+            description: Normalize leading zeros in numeric tokens within tags (assets
+              only).
+            validation:
+              validation_rules: []
+          - name: strip_numeric_unit_prefix
+            handler: regex_substitution
+            enabled: true
+            priority: 60
+            preserve_original: true
+            config:
+              patterns:
+              - pattern: ^\d+-
+                replacement: ''
+            conditions: {}
+            scope_filters:
+              entity_type:
+              - asset
+            description: '{unit}-{type}-{id} e.g. 10-P-1234 -> P-1234; does not match
+              tags already starting with type (P-1234).'
+            validation:
+              validation_rules: []
 associations:
 - kind: source_view_to_extraction
   source_view_index: 0
@@ -897,6 +628,17 @@ compile_workflow_dag: auto
 canvas:
   schemaVersion: 1
   nodes:
+  - id: al_document_aliases
+    kind: aliasing
+    position:
+      x: 651.9500827094669
+      y: -523.754143351807
+    data:
+      label: document_aliases
+      handler_id: document_aliases
+      handler_family: aliasing
+      ref:
+        aliasing_rule_name: document_aliases
   - id: ext_equipment_tag_ck
     kind: extraction
     position:
@@ -1135,17 +877,6 @@ canvas:
             handler_family: aliasing
             ref:
               aliasing_rule_name: leading_zero_normalization
-        - id: al_semantic_expansion
-          kind: aliasing
-          position:
-            x: 182
-            y: 42.5
-          data:
-            label: semantic_expansion
-            handler_id: semantic_expansion
-            handler_family: aliasing
-            ref:
-              aliasing_rule_name: semantic_expansion
         - id: al_strip_delimiter
           kind: aliasing
           position:
@@ -1210,12 +941,6 @@ canvas:
           source_handle: out__in
           target_handle: in
           kind: data
-        - id: xy-edge__n_1776889547993_hlqv244t_hub_inout__in-al_semantic_expansionin
-          source: n_1776889547993_hlqv244t_hub_in
-          target: al_semantic_expansion
-          source_handle: out__in
-          target_handle: in
-          kind: data
         - id: xy-edge__n_1776889547993_hlqv244t_hub_inout__in-al_strip_numeric_unit_prefixin
           source: n_1776889547993_hlqv244t_hub_in
           target: al_strip_numeric_unit_prefix
@@ -1246,12 +971,6 @@ canvas:
           source_handle: out
           target_handle: in
           kind: sequence
-        - id: xy-edge__al_semantic_expansionout-al_strip_delimiterin
-          source: al_semantic_expansion
-          target: al_strip_delimiter
-          source_handle: out
-          target_handle: in
-          kind: sequence
         - id: xy-edge__al_strip_numeric_unit_prefixout-al_strip_delimiterin
           source: al_strip_numeric_unit_prefix
           target: al_strip_delimiter
@@ -1262,8 +981,8 @@ canvas:
   - id: n_1776950084494_pb3fk7sl
     kind: subflow
     position:
-      x: 189.77564773986143
-      y: -576.0695831791555
+      x: 185.16491163627052
+      y: -595.6064952136858
     data:
       label: Documents
     size:
@@ -1327,18 +1046,6 @@ canvas:
       validation_rule_name: alias_shape_invalid
       ref:
         aliasing_global_validation: true
-  - id: al_document_aliases
-    kind: aliasing
-    position:
-      x: 488.18501655367254
-      y: 60
-    data:
-      label: document_aliases
-      handler_id: document_aliases
-      handler_family: aliasing
-      ref:
-        aliasing_rule_name: document_aliases
-    parent_id: n_1776950084494_pb3fk7sl
   - id: ext_asset_tag_candidate
     kind: extraction
     position:
@@ -1354,8 +1061,8 @@ canvas:
   - id: ext_file_basename_candidate
     kind: extraction
     position:
-      x: 244
-      y: 116.5
+      x: 220.94631948204562
+      y: 73.02351861878833
     data:
       label: file_basename_candidate
       handler_id: regex_handler
@@ -1386,8 +1093,8 @@ canvas:
   - id: sv_0
     kind: source_view
     position:
-      x: 45.86547907423079
-      y: 118.60224148814206
+      x: 27.422534659867267
+      y: 64.36737586521826
     data:
       label: CogniteFile
       ref:
@@ -1414,8 +1121,8 @@ canvas:
   - id: vrule_ke_hda310940_blacklist
     kind: match_validation_extraction
     position:
-      x: 488.18501655367254
-      y: 187
+      x: 228.4468827180528
+      y: 166.57719913674265
     data:
       label: blacklist
       validation_rule_context: extraction
@@ -1620,6 +1327,25 @@ compiled_workflow:
     depends_on: []
     pipeline_node_id: kea__incremental_state
     payload: {}
+  - id: kea__al_document_aliases
+    canvas_node_id: al_document_aliases
+    function_external_id: fn_dm_aliasing
+    executor_kind: aliasing
+    depends_on:
+    - kea__ext_file_basename_candidate
+    pipeline_node_id: kea__al_document_aliases
+    payload:
+      aliasing_rule_names:
+      - document_aliases
+    persistence:
+      source_raw_db: db_key_extraction
+      source_raw_read_limit: 10000
+      incremental_auto_run_id: true
+      incremental_transition: true
+      source_view_space: cdf_cdm
+      source_view_external_id: CogniteFile
+      source_view_version: v1
+      source_entity_type: file
   - id: kea__ext_equipment_tag_ck
     canvas_node_id: ext_equipment_tag_ck
     function_external_id: fn_dm_key_extraction
@@ -1698,25 +1424,6 @@ compiled_workflow:
       source_view_external_id: CogniteFile
       source_view_version: v1
       source_entity_type: file
-  - id: kea__al_semantic_expansion
-    canvas_node_id: al_semantic_expansion
-    function_external_id: fn_dm_aliasing
-    executor_kind: aliasing
-    depends_on:
-    - kea__ext_asset_tag_candidate
-    pipeline_node_id: kea__al_semantic_expansion
-    payload:
-      aliasing_rule_names:
-      - semantic_expansion
-    persistence:
-      source_raw_db: db_key_extraction
-      source_raw_read_limit: 10000
-      incremental_auto_run_id: true
-      incremental_transition: true
-      source_view_space: cdf_cdm
-      source_view_external_id: CogniteFile
-      source_view_version: v1
-      source_entity_type: file
   - id: kea__al_strip_delimiter
     canvas_node_id: al_strip_delimiter
     function_external_id: fn_dm_aliasing
@@ -1724,7 +1431,6 @@ compiled_workflow:
     depends_on:
     - kea__al_cogniteasset_explicit_aliases_from_raw
     - kea__al_leading_zero_normalization
-    - kea__al_semantic_expansion
     - kea__al_strip_numeric_unit_prefix
     pipeline_node_id: kea__al_strip_delimiter
     payload:
@@ -1749,25 +1455,6 @@ compiled_workflow:
     payload:
       aliasing_rule_names:
       - strip_numeric_unit_prefix
-    persistence:
-      source_raw_db: db_key_extraction
-      source_raw_read_limit: 10000
-      incremental_auto_run_id: true
-      incremental_transition: true
-      source_view_space: cdf_cdm
-      source_view_external_id: CogniteFile
-      source_view_version: v1
-      source_entity_type: file
-  - id: kea__al_document_aliases
-    canvas_node_id: al_document_aliases
-    function_external_id: fn_dm_aliasing
-    executor_kind: aliasing
-    depends_on:
-    - kea__ext_file_basename_candidate
-    pipeline_node_id: kea__al_document_aliases
-    payload:
-      aliasing_rule_names:
-      - document_aliases
     persistence:
       source_raw_db: db_key_extraction
       source_raw_read_limit: 10000
@@ -1845,6 +1532,9 @@ compiled_workflow:
       write_foreign_key_references: false
       foreign_key_writeback_property: references_found
   channels:
+  - from: kea__ext_file_basename_candidate
+    to: kea__al_document_aliases
+    channel: kea__ext_file_basename_candidate_to_kea__al_document_aliases
   - from: kea__incremental_state
     to: kea__ext_equipment_tag_ck
     channel: kea__incremental_state_to_kea__ext_equipment_tag_ck
@@ -1863,27 +1553,18 @@ compiled_workflow:
   - from: kea__ext_asset_tag_candidate
     to: kea__al_leading_zero_normalization
     channel: kea__ext_asset_tag_candidate_to_kea__al_leading_zero_normalization
-  - from: kea__ext_asset_tag_candidate
-    to: kea__al_semantic_expansion
-    channel: kea__ext_asset_tag_candidate_to_kea__al_semantic_expansion
   - from: kea__al_cogniteasset_explicit_aliases_from_raw
     to: kea__al_strip_delimiter
     channel: kea__al_cogniteasset_explicit_aliases_from_raw_to_kea__al_strip_delimiter
   - from: kea__al_leading_zero_normalization
     to: kea__al_strip_delimiter
     channel: kea__al_leading_zero_normalization_to_kea__al_strip_delimiter
-  - from: kea__al_semantic_expansion
-    to: kea__al_strip_delimiter
-    channel: kea__al_semantic_expansion_to_kea__al_strip_delimiter
   - from: kea__al_strip_numeric_unit_prefix
     to: kea__al_strip_delimiter
     channel: kea__al_strip_numeric_unit_prefix_to_kea__al_strip_delimiter
   - from: kea__ext_asset_tag_candidate
     to: kea__al_strip_numeric_unit_prefix
     channel: kea__ext_asset_tag_candidate_to_kea__al_strip_numeric_unit_prefix
-  - from: kea__ext_file_basename_candidate
-    to: kea__al_document_aliases
-    channel: kea__ext_file_basename_candidate_to_kea__al_document_aliases
   - from: kea__incremental_state
     to: kea__ext_asset_tag_candidate
     channel: kea__incremental_state_to_kea__ext_asset_tag_candidate

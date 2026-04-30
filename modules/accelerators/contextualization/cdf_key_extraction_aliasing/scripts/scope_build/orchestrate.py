@@ -121,8 +121,9 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
             "Create scoped workflow artifacts from default.config.yaml (aliasing_scope_hierarchy). "
-            "Per leaf: workflows/<suffix>/Workflow.yaml, WorkflowVersion.yaml, WorkflowTrigger.yaml "
-            "(created when missing; existing files are only overwritten with --force). "
+            "Per leaf: workflows/<suffix>/Workflow.yaml, WorkflowVersion.yaml, "
+            "optional .canvas.yaml (from workflow.template.canvas.yaml), WorkflowTrigger.yaml "
+            "(created when missing; existing Workflow/Version/Trigger/Canvas are only overwritten with --force). "
             "workflow_template/workflow.execution.graph.yaml is refreshed from IR on every build (no --force). "
             "WorkflowVersion is generated from compiled_workflow IR (canvas); Workflow.yaml uses workflow_template/. "
             "Scope template loads with sibling *.canvas.yaml merge (same as module.py run). "
@@ -133,10 +134,10 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "--force",
         action="store_true",
         help=(
-            "Overwrite existing scoped Workflow.yaml, WorkflowVersion.yaml, and WorkflowTrigger.yaml "
-            "from templates + compiled IR. Without --force, those files are created if missing but left "
-            "unchanged when already present. workflow.execution.graph.yaml is refreshed every build without --force. "
-            "Does not apply to --check-workflow-triggers."
+            "Overwrite existing scoped Workflow.yaml, WorkflowVersion.yaml, .canvas.yaml, and "
+            "WorkflowTrigger.yaml from templates + compiled IR. Without --force, those files are created if "
+            "missing but left unchanged when already present. workflow.execution.graph.yaml is refreshed every "
+            "build without --force. Does not apply to --check-workflow-triggers."
         ),
     )
     p.add_argument(
@@ -236,6 +237,15 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
             "workflow_template/workflow.template.WorkflowVersion.yaml)"
         ),
     )
+    p.add_argument(
+        "--canvas-template",
+        type=Path,
+        default=None,
+        help=(
+            "Layout canvas copied to each workflows/<suffix>/ (default: "
+            "workflow_template/workflow.template.canvas.yaml when present)"
+        ),
+    )
     return p.parse_args(list(argv) if argv is not None else None)
 
 
@@ -270,6 +280,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             workflow_trigger_template_path=args.workflow_trigger_template,
             workflow_template_path=workflow_template,
             workflow_version_template_path=workflow_version_template,
+            canvas_template_path=args.canvas_template,
             overwrite=bool(args.force),
         )
         for b in builders:
@@ -296,6 +307,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         workflow_trigger_template_path=args.workflow_trigger_template,
         workflow_template_path=workflow_template,
         workflow_version_template_path=workflow_version_template,
+        canvas_template_path=args.canvas_template,
         overwrite=bool(args.force),
     )
     try:

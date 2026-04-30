@@ -59,7 +59,7 @@ export const fr: Messages = {
   "callout.scopeDoc":
     "Édition de workflow.local.config.yaml (vues sources, découverte de clés, alias).",
   "callout.workflowTemplate":
-    "Édition de workflow_template/workflow.template.config.yaml — workflow par défaut versionné utilisé lors de la réinitialisation du périmètre local depuis le modèle.",
+    "Édition de workflow_template/workflow.template.config.yaml — workflow par défaut utilisé pour les déploiements à périmètre défini.",
   "callout.triggerEditor":
     "Édition de {path} — input.configuration du WorkflowTrigger (vues sources, découverte de clés, alias).",
   "config.sidebarTitle": "Configurations",

@@ -54,7 +54,7 @@ export const en: Messages = {
   "callout.settings": "Editing default.config.yaml — Module & Build Settings.",
   "callout.scopeDoc": "Editing workflow.local.config.yaml (Source Views, Key Discovery, Aliasing).",
   "callout.workflowTemplate":
-    "Editing workflow_template/workflow.template.config.yaml — the checked-in workflow default used when resetting local scope from template.",
+    "Editing workflow_template/workflow.template.config.yaml — the workflow default used for scoped deployments.",
   "callout.triggerEditor":
     "Editing {path} — WorkflowTrigger input.configuration (Source Views, Key Discovery, Aliasing).",
   "config.sidebarTitle": "Configurations",

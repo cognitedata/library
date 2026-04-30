@@ -276,6 +276,12 @@ workflowDefinition:
 """
 
 
+MINIMAL_CANVAS_TEMPLATE = """schemaVersion: 1
+nodes: []
+edges: []
+"""
+
+
 def _install_minimal_workflow_definition_templates(module_root: Path) -> None:
     d = module_root / "workflow_template"
     d.mkdir(parents=True, exist_ok=True)
@@ -284,6 +290,9 @@ def _install_minimal_workflow_definition_templates(module_root: Path) -> None:
     )
     (d / "workflow.template.WorkflowVersion.yaml").write_text(
         MINIMAL_WV_DEF_TEMPLATE, encoding="utf-8"
+    )
+    (d / "workflow.template.canvas.yaml").write_text(
+        MINIMAL_CANVAS_TEMPLATE, encoding="utf-8"
     )
 
 
@@ -479,7 +488,11 @@ def test_filter_builders_subset_and_dedupe(tmp_path: Path) -> None:
     sd = tmp_path / "scope.yaml"
     sd.write_text(MINIMAL_TEMPLATE, encoding="utf-8")
     builders = _tb(sd)
-    assert [b.name for b in builders] == ["workflow_definitions_scoped", "workflow_triggers"]
+    assert [b.name for b in builders] == [
+        "workflow_definitions_scoped",
+        "scope_canvas_scoped",
+        "workflow_triggers",
+    ]
     assert [b.name for b in filter_builders(builders, ["workflow_triggers"])] == [
         "workflow_triggers"
     ]
@@ -834,7 +847,11 @@ def test_default_builders_order(tmp_path: Path) -> None:
         workflow_base="key_extraction_aliasing",
         scope_document_path=sd,
     )
-    assert [b.name for b in bs] == ["workflow_definitions_scoped", "workflow_triggers"]
+    assert [b.name for b in bs] == [
+        "workflow_definitions_scoped",
+        "scope_canvas_scoped",
+        "workflow_triggers",
+    ]
 
 
 def test_full_mode_skips_scoped_flow_artifacts_without_force(tmp_path: Path) -> None:
@@ -869,6 +886,7 @@ aliasing_scope_hierarchy:
         scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
+        scope_dir / "key_extraction_aliasing.b.canvas.yaml",
     ):
         p.write_text(p.read_text(encoding="utf-8") + "\n# TAMPER_SCOPED\n", encoding="utf-8")
     run_build(module_root=mod, hierarchy_path=hier, builders=default_builders(**common), dry_run=False)
@@ -876,6 +894,7 @@ aliasing_scope_hierarchy:
         scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
+        scope_dir / "key_extraction_aliasing.b.canvas.yaml",
     ):
         assert "TAMPER_SCOPED" in p.read_text(encoding="utf-8")
     force_common = {**common, "overwrite": True}
@@ -889,6 +908,7 @@ aliasing_scope_hierarchy:
         scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
+        scope_dir / "key_extraction_aliasing.b.canvas.yaml",
     ):
         assert "TAMPER_SCOPED" not in p.read_text(encoding="utf-8")
 
@@ -923,10 +943,13 @@ aliasing_scope_hierarchy:
     graph_path = mod / "workflow_template" / "workflow.execution.graph.yaml"
     assert graph_path.is_file()
     graph_path.write_text("# GRAPH_TAMPER\n" + graph_path.read_text(encoding="utf-8"), encoding="utf-8")
+    wf_path = mod / "workflows" / "b" / "key_extraction_aliasing.b.Workflow.yaml"
     wv_path = mod / "workflows" / "b" / "key_extraction_aliasing.b.WorkflowVersion.yaml"
+    wf_path.write_text(wf_path.read_text(encoding="utf-8") + "\n# WF_TAMPER\n", encoding="utf-8")
     wv_path.write_text(wv_path.read_text(encoding="utf-8") + "\n# WV_TAMPER\n", encoding="utf-8")
     run_build(module_root=mod, hierarchy_path=hier, builders=default_builders(**common), dry_run=False)
     assert "GRAPH_TAMPER" not in graph_path.read_text(encoding="utf-8")
+    assert "WF_TAMPER" in wf_path.read_text(encoding="utf-8")
     assert "WV_TAMPER" in wv_path.read_text(encoding="utf-8")
 
 
@@ -963,6 +986,11 @@ aliasing_scope_hierarchy:
     assert (scope_dir / "key_extraction_aliasing.b.Workflow.yaml").is_file()
     assert (scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml").is_file()
     assert (scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml").is_file()
+    canvas = scope_dir / "key_extraction_aliasing.b.canvas.yaml"
+    assert canvas.is_file()
+    tpl_canvas = mod / "workflow_template" / "workflow.template.canvas.yaml"
+    assert canvas.read_bytes() == tpl_canvas.read_bytes()
+    assert "schemaVersion" in canvas.read_text(encoding="utf-8")
     t = yaml.safe_load(
         (scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml").read_text(encoding="utf-8")
     )

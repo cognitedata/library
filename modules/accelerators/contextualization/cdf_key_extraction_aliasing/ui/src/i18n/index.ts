@@ -9,12 +9,14 @@ import { ja } from "./ja";
 import { nb } from "./nb";
 import { pt } from "./pt";
 import { zh } from "./zh";
+import { ar } from "./ar";
 
 export type { Locale, MessageKey, Messages, Theme } from "./types";
-export { de, en, es, fr, hi, ja, nb, pt, zh };
+export { ar, de, en, es, fr, hi, ja, nb, pt, zh };
 
 export const LOCALES: { code: Locale; label: string }[] = [
   { code: "en", label: "English" },
+  { code: "ar", label: "العربية" },
   { code: "de", label: "Deutsch" },
   { code: "es", label: "Español" },
   { code: "fr", label: "Français" },
@@ -27,6 +29,7 @@ export const LOCALES: { code: Locale; label: string }[] = [
 
 export const translations: Record<Locale, Messages> = {
   en,
+  ar,
   es,
   pt,
   fr,

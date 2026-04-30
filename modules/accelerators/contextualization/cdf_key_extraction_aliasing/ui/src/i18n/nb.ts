@@ -54,7 +54,7 @@ export const nb: Messages = {
   "callout.settings": "Redigerer default.config.yaml — modul- og bygginnstillinger.",
   "callout.scopeDoc": "Redigerer workflow.local.config.yaml (kildevisninger, nøkkeloppdagelse, alias).",
   "callout.workflowTemplate":
-    "Redigerer workflow_template/workflow.template.config.yaml — innsjekket standard arbeidsflyt ved tilbakestilling av lokalt omfang fra mal.",
+    "Redigerer workflow_template/workflow.template.config.yaml — standard arbeidsflyt for omfangsspesifikke distribusjoner.",
   "callout.triggerEditor":
     "Redigerer {path} — WorkflowTrigger input.configuration (kildevisninger, nøkkeloppdagelse, alias).",
   "config.sidebarTitle": "Konfigurasjoner",

@@ -103,3 +103,21 @@ def test_build_workflow_version_document_tasks(template_scope: dict) -> None:
     assert tasks[0]["externalId"] == TASK_INCREMENTAL
     assert tasks[0]["parameters"]["function"]["externalId"] == "fn_dm_incremental_state_update"
     assert tasks[1]["dependsOn"] == [{"externalId": TASK_INCREMENTAL}]
+
+
+def test_build_workflow_version_document_uses_workflow_template_prose(template_scope: dict) -> None:
+    """Scoped/build output should use the same task names and descriptions as workflow.template.WorkflowVersion.yaml."""
+    cw = compile_legacy_configuration(template_scope)
+    wv = build_workflow_version_document(
+        workflow_external_id="key_extraction_aliasing.x",
+        version="v5",
+        compiled_workflow=cw,
+        module_root=_MODULE_ROOT,
+    )
+    wd = wv["workflowDefinition"]
+    assert "node-per-task" in (wd.get("description") or "")
+    t0 = wd["tasks"][0]
+    assert t0["name"] == "Incremental state (cohort)"
+    assert "RUN_ID" in t0["description"]
+    t_ke = next(x for x in wd["tasks"] if x["externalId"] == TASK_KEY_EXTRACTION)
+    assert "timeseries" in t_ke["description"]

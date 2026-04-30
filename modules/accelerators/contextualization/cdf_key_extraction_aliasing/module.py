@@ -16,8 +16,8 @@ CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each
 ``workflow_template/workflow.template.Workflow.yaml``; ``WorkflowVersion.yaml`` is emitted from the
 canvas ``compiled_workflow`` IR. Build loads the scope template with the same sibling
 ``*.canvas.yaml`` merge as ``module.py run``. Run ``python module.py build`` to create missing scoped **Workflow**,
-**WorkflowVersion**, and **WorkflowTrigger** YAML and to refresh ``workflow.execution.graph.yaml`` from IR on every run;
-pass ``--force`` to overwrite existing scoped flow manifests (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
+**WorkflowVersion**, and **WorkflowTrigger** YAML, and per-leaf **.canvas.yaml** (from ``workflow_template/workflow.template.canvas.yaml`` when that template exists). Refreshes ``workflow.execution.graph.yaml`` from IR on every run;
+pass ``--force`` to overwrite existing scoped **Workflow** / **WorkflowVersion** / **.canvas.yaml** / **WorkflowTrigger** (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
 Use ``python module.py copy-workflow-config`` to copy ``input.configuration`` between leaf WorkflowTrigger YAML files.
 Use ``python module.py promote-local-templates`` to overwrite ``workflow_template/workflow.template.{config,canvas}.yaml``
 from ``workflow.local.{config,canvas}.yaml`` (see ``--dry-run`` / ``--config-only`` / ``--canvas-only``).

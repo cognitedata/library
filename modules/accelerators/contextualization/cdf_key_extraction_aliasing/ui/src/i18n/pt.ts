@@ -57,7 +57,7 @@ export const pt: Messages = {
   "callout.scopeDoc":
     "Editando workflow.local.config.yaml (fontes de dados, descoberta de chaves, alias).",
   "callout.workflowTemplate":
-    "Editando workflow_template/workflow.template.config.yaml — padrão do fluxo de trabalho no repositório ao redefinir o escopo local a partir do modelo.",
+    "Editando workflow_template/workflow.template.config.yaml — padrão do fluxo de trabalho para implantações com escopo.",
   "callout.triggerEditor":
     "Editando {path} — input.configuration do WorkflowTrigger (fontes de dados, descoberta de chaves, alias).",
   "config.sidebarTitle": "Configurações",

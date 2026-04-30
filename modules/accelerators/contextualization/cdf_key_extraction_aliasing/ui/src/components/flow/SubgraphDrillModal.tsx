@@ -615,16 +615,20 @@ function SubgraphDrillCanvas({
   const handleSeed = useCallback(() => {
     const doc = seedCanvasFromScope(workflowScopeDoc);
     const merged: WorkflowCanvasDocument = { ...doc, handle_orientation: handleOrientation };
-    setNodes(canvasToFlowNodes(merged.nodes));
-    setEdges(canvasToFlowEdges(merged.edges));
+    const flowNodes = canvasToFlowNodes(merged.nodes);
+    const flowEdges = canvasToFlowEdges(merged.edges);
+    const laidOut = layoutFlowNodes(flowNodes, flowEdges, handleOrientation, workflowScopeDoc);
+    setEdges(flowEdges);
+    setNodes(laidOut);
     skipEmitRef.current = true;
-    onSaveRef.current(merged);
-  }, [workflowScopeDoc, setNodes, setEdges, handleOrientation]);
+    onSaveRef.current(flowToCanvasDocument(laidOut, flowEdges, { handleOrientation }));
+    window.setTimeout(() => fitView({ padding: 0.15 }), 0);
+  }, [workflowScopeDoc, setNodes, setEdges, handleOrientation, fitView]);
 
   const handleAutoLayout = useCallback(() => {
-    setNodes((nds) => layoutFlowNodes(nds, edges, handleOrientation));
+    setNodes((nds) => layoutFlowNodes(nds, edges, handleOrientation, workflowScopeDoc));
     window.setTimeout(() => fitView({ padding: 0.15 }), 0);
-  }, [edges, setNodes, fitView, handleOrientation]);
+  }, [edges, setNodes, fitView, handleOrientation, workflowScopeDoc]);
 
   const applySelectionAlign = useCallback(
     (mode: AlignFlowSelectionMode) => {
@@ -648,10 +652,10 @@ function SubgraphDrillCanvas({
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const next = normalizeWorkflowCanvasHandleOrientation(e.target.value);
       setHandleOrientation(next);
-      setNodes((nds) => layoutFlowNodes(nds, edges, next));
+      setNodes((nds) => layoutFlowNodes(nds, edges, next, workflowScopeDoc));
       window.setTimeout(() => fitView({ padding: 0.15 }), 0);
     },
-    [edges, setNodes, fitView]
+    [edges, setNodes, fitView, workflowScopeDoc]
   );
 
   const removeNodeById = useCallback(

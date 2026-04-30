@@ -54,7 +54,7 @@ export const ja: Messages = {
   "callout.settings": "default.config.yaml を編集中 — モジュールとビルド設定。",
   "callout.scopeDoc": "workflow.local.config.yaml を編集中（ソース ビュー、キー探索、エイリアス）。",
   "callout.workflowTemplate":
-    "workflow_template/workflow.template.config.yaml を編集中 — テンプレートからローカル スコープをリセットするときに使うリポジトリ既定のワークフロー。",
+    "workflow_template/workflow.template.config.yaml を編集中 — スコープ付きデプロイ用のワークフロー既定。",
   "callout.triggerEditor":
     "{path} を編集中 — WorkflowTrigger の input.configuration（ソース ビュー、キー探索、エイリアス）。",
   "config.sidebarTitle": "構成",
