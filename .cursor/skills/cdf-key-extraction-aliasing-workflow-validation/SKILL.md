@@ -58,7 +58,7 @@ PYTHONPATH="functions:scripts:$(pwd)" python -m pytest tests/unit/scope_build/ -
 ```bash
 cd "$MODULE"
 PYTHONPATH="functions:scripts:$(pwd)" python -m pytest tests/unit/cdf_fn_common/test_workflow_execution_graph.py \
-  tests/unit/cdf_fn_common/test_workflow_compile_legacy.py \
+  tests/unit/cdf_fn_common/test_canvas_dag_compile.py \
   tests/unit/cdf_fn_common/test_workflow_associations.py \
   tests/unit/local_runner/test_workflow_payload.py \
   tests/unit/local_runner/test_kahn_workflow_executor.py -q
