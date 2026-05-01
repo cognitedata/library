@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate key discovery and aliasing report from latest JSON under tests/results/."""
+"""Generate key discovery and aliasing report from latest JSON under local_run_results/."""
 
 import logging
 import sys
@@ -24,9 +24,8 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Find latest results and generate report."""
-    # Results dir: key_extraction_aliasing/tests/results (relative to this script)
     key_extraction_dir = Path(__file__).resolve().parent.parent
-    results_dir = key_extraction_dir / "tests" / "results"
+    results_dir = key_extraction_dir / "local_run_results"
 
     # Find latest extraction file
     extraction_files = sorted(

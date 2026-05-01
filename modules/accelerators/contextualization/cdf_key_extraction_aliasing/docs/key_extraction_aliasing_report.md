@@ -4,7 +4,7 @@
 **Canonical default scope:** [`workflow.local.config.yaml`](../workflow.local.config.yaml) at module root — `parameters.exclude_self_referencing_keys` is **`true`**; the **CogniteTimeSeries** `source_views` entry sets **`exclude_self_referencing_keys: false`** so duplicate tag strings can remain as FKs on timeseries while asset/file self-matches are dropped.  
 **Shared tag pattern library:** [`config/tag_patterns.yaml`](../config/tag_patterns.yaml) (aligned field `alphanumeric_tag`)
 
-This document describes the **current** default configuration and pipeline behavior for the **`key_extraction_aliasing`** workflow (Toolkit module directory `cdf_key_extraction_aliasing`). For numbers from a specific CDF or local test run, use the latest JSON under [`tests/results/`](../tests/results/) or your own exported extraction output.
+This document describes the **current** default configuration and pipeline behavior for the **`key_extraction_aliasing`** workflow (Toolkit module directory `cdf_key_extraction_aliasing`). For numbers from a specific CDF or local test run, use the latest JSON under [`local_run_results/`](../local_run_results/) or your own exported extraction output.
 
 ---
 
@@ -106,7 +106,7 @@ Exact counts and confidence scores depend on data and run parameters (`min_confi
 
 ## Where to get run-specific metrics
 
-- Local pipeline / CDF test output: see [`tests/results/`](../tests/results/) (`*_cdf_extraction.json` and related artifacts).
+- Local pipeline / CDF test output: see [`local_run_results/`](../local_run_results/) (`*_cdf_extraction.json` and related artifacts).
 - Regenerate or customize tables for a **specific** run by post-processing those exports (rule names, method counts, entity breakdowns).
 
 ---

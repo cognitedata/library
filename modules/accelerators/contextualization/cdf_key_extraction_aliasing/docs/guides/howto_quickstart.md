@@ -76,7 +76,7 @@ If your team uses Poetry or another runner, prefix the command as usual (for exa
 
 ## Where results go
 
-The pipeline writes **timestamped JSON** under the module’s **[`tests/results/`](../../tests/results/)** directory (relative to `cdf_key_extraction_aliasing/`):
+The pipeline writes **timestamped JSON** under the module’s **`local_run_results/`** directory (relative to `cdf_key_extraction_aliasing/`; shared with optional `run_fn_dm_*_local.py` outputs):
 
 - **`*_cdf_extraction.json`** — extraction output per run
 - **`*_cdf_aliasing.json`** — aliasing output per run

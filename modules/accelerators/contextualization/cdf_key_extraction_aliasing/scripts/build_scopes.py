@@ -3,19 +3,17 @@
 
 Writes per-leaf artifacts under ``workflows/<suffix>/``: ``{workflow}.{suffix}.Workflow.yaml``,
 ``{workflow}.{suffix}.WorkflowVersion.yaml``,
-``{workflow}.{suffix}.canvas.yaml`` (from ``workflow_template/workflow.template.canvas.yaml`` when present),
 and ``{workflow}.{suffix}.WorkflowTrigger.yaml``.
 Each trigger’s ``workflowExternalId`` is ``{workflow}.{suffix}``.
 
-Scope body: ``workflow_template/workflow.template.config.yaml`` (``--scope-document``).
+Scope body: ``workflow_template/workflow.template.config.yaml`` (``--scope-document``; unified ``canvas`` inside).
 Trigger shell: ``workflow_template/workflow.template.WorkflowTrigger.yaml``
 (``--workflow-trigger-template``). Workflow templates: ``workflow_template/workflow.template.Workflow.yaml`` and
 ``workflow_template/workflow.template.WorkflowVersion.yaml``
-(``--workflow-template``, ``--workflow-version-template``). Canvas copy: ``--canvas-template`` (default
-``workflow_template/workflow.template.canvas.yaml``).
+(``--workflow-template``, ``--workflow-version-template``).
 
 ``workflow_template/workflow.execution.graph.yaml`` is refreshed from IR on **every** build (no ``--force``).
-``--force`` overwrites existing **WorkflowTrigger** files and scoped **Workflow** / **WorkflowVersion** / **.canvas.yaml** when they
+``--force`` overwrites existing **WorkflowTrigger** files and scoped **Workflow** / **WorkflowVersion** when they
 already exist (initial creation does not require ``--force``).
 ``--check-workflow-triggers`` validates triggers and Workflow/WorkflowVersion vs templates (no writes).
 ``--clean`` removes generated YAML under ``workflows/`` matching the hierarchy ``workflow`` id (recursive under

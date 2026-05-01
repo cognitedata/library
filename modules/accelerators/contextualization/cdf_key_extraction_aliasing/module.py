@@ -5,22 +5,18 @@ Local CLI entry point — fetch CDF instances from data model views, run key dis
 
 Configuration: ``run`` loads the v1 scope document ``workflow.local.config.yaml`` at the
 module root when ``--scope default`` (the default); other scope names require ``--config-path``.
-Before compiling ``compiled_workflow`` from the flow canvas, the sibling layout file
-``workflow.local.canvas.yaml`` (same stem as ``*.config.yaml``) is merged into the scope,
-matching the operator UI (``compile_workflow_dag`` is ``auto`` or ``canvas``).
+The flow graph lives under ``canvas`` in that YAML. ``compile_workflow_dag`` is ``auto`` or ``canvas``.
 Incremental workflow-parity runs use ``key_extraction.config.parameters`` the same way as deployed
 workflows: optional ``key_discovery_instance_space`` / ``workflow_scope`` for Key Discovery FDM state
 (watermark and hash use RAW automatically if the views are not deployed).
-CDF workflows use the same v1 shape via ``workflow.input.configuration`` on each task (built by
-``scripts/build_scopes.py`` into ``workflows/<suffix>/``). ``Workflow.yaml`` is derived from
-``workflow_template/workflow.template.Workflow.yaml``; ``WorkflowVersion.yaml`` is emitted from the
-canvas ``compiled_workflow`` IR. Build loads the scope template with the same sibling
-``*.canvas.yaml`` merge as ``module.py run``. Run ``python module.py build`` to create missing scoped **Workflow**,
-**WorkflowVersion**, and **WorkflowTrigger** YAML, and per-leaf **.canvas.yaml** (from ``workflow_template/workflow.template.canvas.yaml`` when that template exists). Refreshes ``workflow.execution.graph.yaml`` from IR on every run;
-pass ``--force`` to overwrite existing scoped **Workflow** / **WorkflowVersion** / **.canvas.yaml** / **WorkflowTrigger** (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
+CDF workflows use ``workflow.input.configuration`` (trimmed unified scope, no ``compiled_workflow`` in the trigger).
+``Workflow.yaml`` is derived from ``workflow_template/workflow.template.Workflow.yaml``; ``WorkflowVersion.yaml``
+embeds per-task IR fields from the build-time canvas compile. Run ``python module.py build`` to create missing scoped **Workflow**,
+**WorkflowVersion**, and **WorkflowTrigger** YAML. Refreshes ``workflow.execution.graph.yaml`` from IR on every run;
+pass ``--force`` to overwrite existing scoped **Workflow** / **WorkflowVersion** / **WorkflowTrigger** (same CLI as ``scripts/build_scopes.py``; legacy ``python module.py --build`` is accepted).
 Use ``python module.py copy-workflow-config`` to copy ``input.configuration`` between leaf WorkflowTrigger YAML files.
-Use ``python module.py promote-local-templates`` to overwrite ``workflow_template/workflow.template.{config,canvas}.yaml``
-from ``workflow.local.{config,canvas}.yaml`` (see ``--dry-run`` / ``--config-only`` / ``--canvas-only``).
+Use ``python module.py promote-local-templates`` to overwrite ``workflow_template/workflow.template.config.yaml``
+from ``workflow.local.config.yaml`` (see ``--dry-run``).
 Use ``python module.py build --scope-suffix <suffix>`` to limit writes to one leaf under ``workflows/<suffix>/`` (still refreshes ``workflow.execution.graph.yaml``; use ``--force`` to overwrite that leaf’s existing scoped YAML).
 Use ``python module.py deploy-scope`` to upsert Workflow / WorkflowVersion / WorkflowTrigger to CDF via the Cognite SDK,
 or ``python module.py cdf-workflow-run`` to run a deployed workflow (see ``scripts/deploy_scope_cdf.py`` and ``scripts/cdf_workflow_run.py``).
@@ -33,7 +29,7 @@ workflow YAML with ``python module.py build --clean`` (confirmation or ``--yes``
 
 Reads CDF credentials from environment (.env supported) for ``run``, queries instances from configured views,
 runs the key extraction engine followed by the aliasing engine, and writes JSON results under
-``tests/results/`` (relative to this package). Use ``run --clean-state`` / ``run --clean-state-only`` to drop
+``local_run_results/`` (relative to this package). Use ``run --clean-state`` / ``run --clean-state-only`` to drop
 incremental RAW state tables from the scope YAML (not data-model alias/FK properties).
 """
 
@@ -454,7 +450,7 @@ def _print_root_cli_help() -> None:
     sub = parser.add_subparsers(title="commands", metavar="COMMAND", dest="command")
     sub.add_parser(
         "run",
-        help="Run key discovery + aliasing on CDF data model instances (writes tests/results/*.json)",
+        help="Run key discovery + aliasing on CDF data model instances (writes local_run_results/*_cdf_*.json)",
     )
     sub.add_parser(
         "build",
@@ -470,8 +466,8 @@ def _print_root_cli_help() -> None:
     sub.add_parser(
         "promote-local-templates",
         help=(
-            "Overwrite workflow_template/workflow.template.config.yaml and .canvas.yaml from "
-            "workflow.local.config.yaml / workflow.local.canvas.yaml"
+            "Overwrite workflow_template/workflow.template.config.yaml from workflow.local.config.yaml "
+            "(unified scope including embedded canvas)"
         ),
     )
     sub.add_parser(
@@ -493,7 +489,7 @@ def _print_root_cli_help() -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    """Fetch instances from CDF views, run key discovery & aliasing, write results to tests/results/."""
+    """Fetch instances from CDF views, run key discovery & aliasing, write results to local_run_results/."""
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 

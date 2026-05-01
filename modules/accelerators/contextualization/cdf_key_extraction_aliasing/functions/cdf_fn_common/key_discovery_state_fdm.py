@@ -283,6 +283,52 @@ def load_key_discovery_scope_state_maps(
     return hash_by_node, prior_ids
 
 
+def _node_apply_key_discovery_processing_success(
+    processing_view_id: ViewId,
+    instance_space: str,
+    workflow_scope: str,
+    source_view_fingerprint: str,
+    record_instance_key: str,
+    record_external_id: str,
+    last_seen_hash: str,
+    last_watermark_value_ms: Optional[int],
+    *,
+    hash_version: int = 2,
+) -> NodeApply:
+    """Build a single KeyDiscoveryProcessingState success ``NodeApply`` (shared by single and batch upsert)."""
+    ext_id = key_discovery_processing_external_id(
+        workflow_scope, source_view_fingerprint, record_instance_key
+    )
+    now = datetime.now(timezone.utc)
+    props: Dict[str, Any] = {
+        "workflowScope": workflow_scope,
+        "sourceViewFingerprint": source_view_fingerprint or "",
+        "recordExternalId": record_external_id or "",
+        "recordInstanceKey": record_instance_key,
+        "lastSeenHash": last_seen_hash,
+        "processedAt": now,
+        "status": KEY_DISCOVERY_STATUS_PROCESSED,
+        "attemptCount": 0,
+        "hashVersion": int(hash_version),
+    }
+    if last_watermark_value_ms is not None:
+        props["lastWatermarkValue"] = int(last_watermark_value_ms)
+    return NodeApply(
+        space=instance_space,
+        external_id=ext_id,
+        sources=[
+            NodeOrEdgeData(
+                DESCRIBABLE_VIEW,
+                {
+                    "name": f"kd-state-{ext_id[:12]}",
+                    "description": "Key Discovery processing state",
+                },
+            ),
+            NodeOrEdgeData(processing_view_id, props),
+        ],
+    )
+
+
 def upsert_key_discovery_processing_state_success(
     client: Any,
     processing_view_id: ViewId,
@@ -297,41 +343,63 @@ def upsert_key_discovery_processing_state_success(
     *,
     logger: Optional[Any] = None,
 ) -> None:
-    ext_id = key_discovery_processing_external_id(
-        workflow_scope, source_view_fingerprint, record_instance_key
-    )
-    now = datetime.now(timezone.utc)
-    props = {
-        "workflowScope": workflow_scope,
-        "sourceViewFingerprint": source_view_fingerprint or "",
-        "recordExternalId": record_external_id or "",
-        "recordInstanceKey": record_instance_key,
-        "lastSeenHash": last_seen_hash,
-        "processedAt": now,
-        "status": KEY_DISCOVERY_STATUS_PROCESSED,
-        "attemptCount": 0,
-        "hashVersion": int(hash_version),
-    }
-    if last_watermark_value_ms is not None:
-        props["lastWatermarkValue"] = int(last_watermark_value_ms)
-
-    apply = NodeApply(
-        space=instance_space,
-        external_id=ext_id,
-        sources=[
-            NodeOrEdgeData(
-                DESCRIBABLE_VIEW,
-                {
-                    "name": f"kd-state-{ext_id[:12]}",
-                    "description": "Key Discovery processing state",
-                },
-            ),
-            NodeOrEdgeData(processing_view_id, props),
-        ],
+    apply = _node_apply_key_discovery_processing_success(
+        processing_view_id,
+        instance_space,
+        workflow_scope,
+        source_view_fingerprint,
+        record_instance_key,
+        record_external_id,
+        last_seen_hash,
+        last_watermark_value_ms,
+        hash_version=hash_version,
     )
     client.data_modeling.instances.apply(nodes=[apply])
     if logger and hasattr(logger, "debug"):
-        logger.debug(f"Upserted KeyDiscoveryProcessingState externalId={ext_id}")
+        logger.debug(
+            "Upserted KeyDiscoveryProcessingState externalId=%s",
+            getattr(apply, "external_id", ""),
+        )
+
+
+def upsert_key_discovery_processing_state_success_batch(
+    client: Any,
+    processing_view_id: ViewId,
+    instance_space: str,
+    items: List[Dict[str, Any]],
+    *,
+    hash_version: int = 2,
+    logger: Optional[Any] = None,
+) -> None:
+    """
+    Batch upsert Key Discovery processing-state nodes (one ``instances.apply`` per chunk).
+
+    Each *items* entry must include keys:
+    ``workflow_scope``, ``source_view_fingerprint``, ``record_instance_key``, ``record_external_id``,
+    ``last_seen_hash``; optional ``last_watermark_value_ms``.
+    """
+    if not items:
+        return
+    applies = [
+        _node_apply_key_discovery_processing_success(
+            processing_view_id,
+            instance_space,
+            str(it["workflow_scope"]),
+            str(it.get("source_view_fingerprint") or ""),
+            str(it["record_instance_key"]),
+            str(it.get("record_external_id") or ""),
+            str(it["last_seen_hash"]),
+            it.get("last_watermark_value_ms"),
+            hash_version=hash_version,
+        )
+        for it in items
+    ]
+    client.data_modeling.instances.apply(nodes=applies)
+    if logger and hasattr(logger, "debug"):
+        logger.debug(
+            "Upserted KeyDiscoveryProcessingState batch: %s node(s) in one apply",
+            len(applies),
+        )
 
 
 def record_key_discovery_processing_failure(

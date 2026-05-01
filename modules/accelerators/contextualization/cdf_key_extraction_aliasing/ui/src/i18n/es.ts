@@ -14,10 +14,11 @@ export const es: Messages = {
   "tabs.keyExtraction": "Descubrimiento de claves",
   "tabs.aliasing": "Alias",
   "tabs.flowCanvas": "Flujo",
-  "tabs.runPipeline": "Ejecutar flujo de trabajo",
+  "tabs.runPipeline": "Consola",
   "tabs.configure": "Configurar",
   "tabs.build": "Compilar",
   "tabs.artifacts": "Artefactos",
+  "tabs.results": "Resultados",
   "controls.theme": "Tema",
   "controls.themeLight": "Claro",
   "controls.themeDark": "Oscuro",
@@ -32,7 +33,8 @@ export const es: Messages = {
   "unsaved.save": "Guardar",
   "unsaved.discard": "Descartar",
   "btn.saveDefault": "Guardar default.config.yaml",
-  "btn.saveScope": "Guardar documento de ámbito",
+  "btn.save": "Guardar",
+  "btn.saveScope": "Guardar",
   "btn.saveTemplateFile": "Guardar plantilla del flujo de trabajo",
   "btn.saveFile": "Guardar archivo",
   "btn.refreshList": "Actualizar lista",
@@ -76,13 +78,13 @@ export const es: Messages = {
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
   "config.updateTemplate": "Actualizar plantilla",
   "config.updateTemplateTooltip":
-    "Sobrescribe workflow_template/workflow.template.config.yaml y workflow.template.canvas.yaml con los archivos locales guardados en disco (igual que ``python module.py promote-local-templates``). Guarde antes si hay cambios sin guardar en el editor.",
+    "Sobrescribe workflow_template/workflow.template.config.yaml con workflow.local.config.yaml guardada en disco (canvas integrado; igual que ``python module.py promote-local-templates``). Guarde antes si hay cambios sin guardar en el editor.",
   "config.promoteTemplateConfirm":
-    "¿Sobrescribir en disco workflow.template.config.yaml y workflow.template.canvas.yaml con workflow.local.config.yaml y workflow.local.canvas.yaml guardados? No se puede deshacer desde la interfaz (use git para revertir).",
+    "¿Sobrescribir workflow.template.config.yaml en disco con la workflow.local.config.yaml guardada (archivo unificado con canvas)? No se puede deshacer desde la interfaz (use git para revertir).",
   "config.promoteTemplateDirtyConfirm":
     "Hay cambios sin guardar en este editor. La plantilla se actualizará desde lo ya guardado en disco, no desde el editor. ¿Continuar?",
   "config.templatePromoted":
-    "Plantilla de configuración y lienzo actualizadas en disco desde workflow.local.config.yaml y workflow.local.canvas.yaml.",
+    "Plantilla de configuración actualizada en disco desde workflow.local.config.yaml (canvas integrado).",
   "build.warnForce": "Forzar sobrescribe el YAML del flujo generado. Confirme antes de ejecutar.",
   "build.confirmForce": "¿Sobrescribir los archivos del flujo generados con --force?",
   "build.outputPlaceholder": "La salida de compilación aparecerá aquí.",
@@ -486,6 +488,26 @@ export const es: Messages = {
   "artifacts.plainEditor": "Editor YAML plano",
   "artifacts.treeExpand": "Expandir",
   "artifacts.treeCollapse": "Contraer",
+  "runResults.title": "Resultados de ejecución",
+  "runResults.hint":
+    "En Configurar → Flujo: pestaña interna Resultados junto a Canvas y Ejecutar flujo. JSON en local_run_results/ para el flujo de la barra lateral. Solo ejecuciones de ese origen; archivos sin metadatos se ocultan con disparador. CDF remoto no escribe aquí.",
+  "runResults.empty": "No hay pares extracción/aliasing. Ejecute primero la pipeline localmente.",
+  "runResults.refresh": "Actualizar lista",
+  "runResults.runLabel": "Ejecución",
+  "runResults.viewExtraction": "Extracción",
+  "runResults.viewAliasing": "Aliasing",
+  "runResults.totalRows": "{count} filas",
+  "runResults.showing": "Mostrando {from}–{to} de {total}",
+  "runResults.filterPlaceholder": "Filtrar filas cargadas (entidad, etiqueta…)",
+  "runResults.loadMore": "Cargar más",
+  "runResults.error": "No se pudieron cargar los resultados.",
+  "runResults.table.entity": "Entidad",
+  "runResults.table.entityType": "Tipo de entidad",
+  "runResults.table.baseTag": "Etiqueta base",
+  "runResults.table.aliases": "Alias",
+  "runResults.table.keys": "Claves candidatas",
+  "runResults.table.fk": "Refs FK",
+  "runResults.openRaw": "Abrir JSON en bruto",
   "advanced.toggle": "YAML avanzado…",
   "advanced.warning1": "La edición en bruto puede eliminar comentarios. El YAML inválido se rechazará.",
   "advanced.warning2": "Los comentarios no se conservan en ida y vuelta.",
@@ -513,7 +535,6 @@ export const es: Messages = {
   "flow.resizePanels": "Arrastrar para redimensionar paneles",
   "flow.paletteStructural": "Estructura de la canalización",
   "flow.structuralSourceView": "Vista origen",
-  "flow.structuralSubflow": "Subflujo",
   "flow.structuralSubgraph": "Subgrafo",
   "flow.structuralExtraction": "Extracción",
   "flow.structuralAliasing": "Alias",
@@ -529,7 +550,6 @@ export const es: Messages = {
   "flow.paletteAliasingHandlers": "Handlers de alias",
   "flow.paletteAnnotations": "Anotaciones",
   "flow.paletteCdfTasks": "Funciones CDF",
-  "flow.seedFromScope": "Restablecer",
   "flow.alignLeft": "Alinear nodos seleccionados a la izquierda",
   "flow.alignCenterHorizontal": "Alinear nodos seleccionados al centro horizontal",
   "flow.alignRight": "Alinear nodos seleccionados a la derecha",
@@ -538,12 +558,12 @@ export const es: Messages = {
   "flow.alignBottom": "Alinear nodos seleccionados abajo",
   "flow.alignSelectionGroup": "Alinear selección",
   "flow.canvasHint":
-    "El diseño se guarda en un .canvas.yaml junto al ámbito. Guarde el ámbito. Arrastre desde la paleta. Suelte un nodo dentro del marco de un subflujo para asociarlo; seleccione el subflujo y arrastre esquinas o barras de borde para redimensionar en horizontal y vertical.",
+    "El diseño se guarda bajo canvas dentro del YAML del ámbito. Guarde el flujo o el ámbito. Arrastre desde la paleta. Suelte un nodo dentro del marco de un subflujo para asociarlo; seleccione el subflujo y arrastre esquinas o barras de borde para redimensionar en horizontal y vertical.",
   "flow.workflowCompileModeLabel": "Compilación del flujo",
   "flow.workflowCompileModeAuto": "Auto (canvas si hay nodos ejecutables)",
   "flow.workflowCompileModeCanvas": "DAG canvas (siempre desde el grafo)",
   "flow.workflowCompileModeHint":
-    "Define cómo se construye ``compiled_workflow`` para CDF y ejecución local a partir del canvas del flujo. Auto y canvas usan la misma compilación desde el canvas (grafos inválidos fallan al construir, ejecutar o guardar). Al guardar el ámbito o el canvas se vuelve a incrustar ``compiled_workflow`` en el YAML del ámbito.",
+    "Controla la compilación del DAG del canvas para ejecución local. Auto y canvas usan la misma compilación (grafos inválidos fallan al construir, ejecutar o guardar). En CDF, WorkflowVersion de ``python module.py build`` lleva el IR. Al guardar se actualiza ``canvas`` en el YAML del ámbito.",
   "flow.handleOrientationLabel": "Handles",
   "flow.handleOrientationLr": "Izquierda → derecha",
   "flow.handleOrientationTb": "Arriba → abajo",
@@ -553,12 +573,10 @@ export const es: Messages = {
   "flow.ctxMenuRemoveNode": "Eliminar nodo",
   "flow.confirmSubgraphDeleteLift":
     "Este subgrafo contiene pasos de flujo de trabajo internos.\n\nOK — moverlos al lienzo principal y quitar el marco del subgrafo.\nCancelar — quitar el subgrafo y descartar los pasos internos.",
-  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
   "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
-  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
-  "flow.ctxMenuConvertSubflowToSubgraph": "Convertir subflujo en subgrafo (drill-in)",
-  "flow.ctxMenuConvertSubgraphToSubflow": "Convertir subgrafo en subflujo (agrupar)",
   "flow.subgraphDrillTitle": "Subgraph",
+  "flow.ctxMenuFlattenSubgraph": "Flatten subgraph to parent canvas",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
   "flow.subgraphBack": "Save & close",
   "flow.subgraphCancel": "Cancelar",
   "flow.subgraphCancelNestedTooltip":
@@ -580,8 +598,6 @@ export const es: Messages = {
   "flow.nodeEditorDone": "Listo",
   "flow.nodeEditorPipelineStubBody":
     "Los nodos de inicio y fin son solo diseño. Edite vistas de origen, extracción y alias con otros nodos o las pestañas Configurar.",
-  "flow.nodeEditorSubflowBody":
-    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
   "flow.nodeEditorSubgraphBody":
     "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
   "flow.nodeEditorGraphHubBody":
@@ -592,6 +608,8 @@ export const es: Messages = {
   "flow.editWorkflow": "Editar flujo de trabajo",
   "flow.canvasPreviewHint":
     "Vista previa de solo lectura. Editar abre el editor completo del flujo de trabajo.",
+  "flow.subtabCanvas": "Canvas",
+  "flow.subtabRunWorkflow": "Consola",
   "flow.previewRunLocal": "Ejecutar localmente",
   "flow.previewRunLocalHint":
     "Mismo flujo que Ejecutar localmente en la pestaña Ejecutar flujo de trabajo (YAML guardado en disco; guarde antes). Las tareas en ejecución aparecen resaltadas en el grafo.",
@@ -613,10 +631,6 @@ export const es: Messages = {
   "flow.validationContextSourceView": "Vista origen (listado)",
   "flow.validationContextExtraction": "Regla de extracción",
   "flow.validationContextAliasing": "Regla de alias",
-  "flow.inspectorSubflowHint":
-    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
-  "flow.inspectorSubflowOrganizationalHint":
-    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
   "flow.inspectorSubflowPorts": "Subgraph ports",
   "flow.inspectorSubflowInputs": "Inputs",
   "flow.inspectorSubflowOutputs": "Outputs",
@@ -635,7 +649,6 @@ export const es: Messages = {
     "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
   "flow.inspectorSubflowGraphOutHint":
     "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
-  "flow.inspectorParentSubflow": "Subflujo padre",
   "flow.inspectorNodeTitle": "Nodo",
   "flow.inspectorEdgeTitle": "Arista",
   "flow.inspectorEdgeKind": "Tipo de arista",

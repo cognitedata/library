@@ -18,22 +18,33 @@ import yaml
 FUNCTION_CHANNEL_METADATA: Mapping[str, Mapping[str, Any]] = {
     "kea__incremental_state": {
         "outputs": ["cohort RAW rows", "run_id in task data"],
-        "inputs": ["workflow.input.configuration", "run_all", "compiled_workflow"],
+        "inputs": ["workflow.input.configuration", "run_all", "task_id (WorkflowVersion)"],
     },
     "kea__key_extraction": {
-        "inputs": ["run_id", "configuration", "key-extraction RAW parameters", "compiled_workflow"],
+        "inputs": [
+            "run_id",
+            "configuration",
+            "key-extraction RAW parameters",
+            "task_id",
+            "extraction_rule_names (inlined)",
+        ],
         "outputs": ["key-extraction RAW rows", "FOREIGN_KEY_REFERENCES_JSON", "DOCUMENT_REFERENCES_JSON"],
     },
     "kea__reference_index": {
-        "inputs": ["configuration", "source RAW db/table", "run_id", "compiled_workflow"],
+        "inputs": ["configuration", "source RAW db/table", "run_id", "task_id", "persistence (inlined)"],
         "outputs": ["reference index RAW rows"],
     },
     "kea__aliasing": {
-        "inputs": ["configuration", "key-extraction RAW or in-memory mirror", "compiled_workflow"],
+        "inputs": [
+            "configuration",
+            "key-extraction RAW or in-memory mirror",
+            "task_id",
+            "aliasing_rule_names (inlined)",
+        ],
         "outputs": ["tag-aliasing RAW rows"],
     },
     "kea__alias_persistence": {
-        "inputs": ["aliasing RAW", "configuration", "optional FK from key-extraction RAW", "compiled_workflow"],
+        "inputs": ["aliasing RAW", "configuration", "optional FK from key-extraction RAW", "task_id"],
         "outputs": ["DM instance updates"],
     },
 }

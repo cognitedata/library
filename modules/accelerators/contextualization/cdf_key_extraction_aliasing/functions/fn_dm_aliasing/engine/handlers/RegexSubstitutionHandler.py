@@ -46,7 +46,10 @@ class RegexSubstitutionHandler(AliasTransformerHandler):
 
                 try:
                     compiled_pattern = re.compile(pattern)
-                    if compiled_pattern.match(alias):
+                    # Use search, not match: patterns like ``(?:\W|_)`` strip non-word chars anywhere
+                    # in the tag (e.g. ``P-8107`` → ``P8107``). ``match`` only succeeds at offset 0,
+                    # so anchored-only rules still behave the same when they use ``^...``.
+                    if compiled_pattern.search(alias):
                         new_variant = compiled_pattern.sub(replacement, alias)
                         alias_variants.add(new_variant)
                 except re.error as e:

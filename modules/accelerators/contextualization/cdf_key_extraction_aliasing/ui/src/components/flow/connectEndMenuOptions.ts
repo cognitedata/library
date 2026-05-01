@@ -11,20 +11,6 @@ export type ConnectEndMenuOption = {
   labelText?: string;
 };
 
-/** Layout nodes that compile to Cognite function tasks (fn_dm_*). */
-const PIPELINE_FN_CONNECT_OPTIONS: ConnectEndMenuOption[] = [
-  {
-    id: "structural-reference_index",
-    payload: { kind: "structural", nodeKind: "reference_index" },
-    labelKey: "flow.structuralReferenceIndex",
-  },
-  {
-    id: "structural-alias_persistence",
-    payload: { kind: "structural", nodeKind: "alias_persistence" },
-    labelKey: "flow.structuralAliasPersistence",
-  },
-];
-
 function labelForOption(opt: ConnectEndMenuOption, t: (key: MessageKey, vars?: Record<string, string | number>) => string): string {
   if (opt.labelText != null) return opt.labelText;
   if (opt.labelKey) return t(opt.labelKey);
@@ -73,14 +59,11 @@ export function connectEndMenuOptionsForSourceType(
         },
       ];
     }
-    return [
-      ...PIPELINE_FN_CONNECT_OPTIONS,
-      ...ALIASING_HANDLER_IDS.map((id) => ({
-        id: `aliasing-${id}`,
-        payload: { kind: "aliasing", handlerId: id, preset: true } as const,
-        labelText: id,
-      })),
-    ];
+    return ALIASING_HANDLER_IDS.map((id) => ({
+      id: `aliasing-${id}`,
+      payload: { kind: "aliasing", handlerId: id, preset: true } as const,
+      labelText: id,
+    }));
   }
 
   if (sourceType === "keaMatchValidationRuleSourceView") {
@@ -121,14 +104,11 @@ export function connectEndMenuOptionsForSourceType(
         },
       ];
     }
-    return [
-      ...PIPELINE_FN_CONNECT_OPTIONS,
-      ...ALIASING_HANDLER_IDS.map((id) => ({
-        id: `aliasing-${id}`,
-        payload: { kind: "aliasing", handlerId: id, preset: true } as const,
-        labelText: id,
-      })),
-    ];
+    return ALIASING_HANDLER_IDS.map((id) => ({
+      id: `aliasing-${id}`,
+      payload: { kind: "aliasing", handlerId: id, preset: true } as const,
+      labelText: id,
+    }));
   }
 
   return [];

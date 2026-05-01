@@ -157,6 +157,16 @@ class TestRegexSubstitutionTransformer(unittest.TestCase):
 
         self.assertIn("PUMP-10001", result)
 
+    def test_regex_strip_nonword_chars_anywhere_in_tag(self):
+        """Patterns that match inside the tag (not only at ^) must run — strip delimiter style."""
+        transformer = RegexSubstitutionHandler()
+        config = {
+            "patterns": [{"pattern": r"(?:\W|_)", "replacement": ""}],
+        }
+        result = transformer.transform({"P-8107"}, config)
+        self.assertIn("P8107", result)
+        self.assertIn("P-8107", result)
+
     def test_invalid_regex_pattern_is_skipped(self):
         """Invalid pattern logs warning and leaves alias unchanged."""
         transformer = RegexSubstitutionHandler()

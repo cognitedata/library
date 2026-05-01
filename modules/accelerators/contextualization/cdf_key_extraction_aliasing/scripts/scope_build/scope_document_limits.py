@@ -31,7 +31,7 @@ def assert_scope_document_within_limit(scope_document: dict, *, scope_id: str) -
 
 
 def assert_workflow_trigger_input_within_limit(workflow_input: dict, *, scope_id: str) -> None:
-    """Raise ValueError if the full trigger ``input`` mapping (configuration + compiled_workflow, etc.) is too large."""
+    """Raise ValueError if the full trigger ``input`` mapping (configuration, run_all, etc.) is too large."""
     n = minified_json_utf8_length(workflow_input)
     if n > MAX_SCOPE_DOCUMENT_JSON_BYTES:
         raise ValueError(

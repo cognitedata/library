@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
-import json
 from typing import Any, Dict, Iterator, List, Literal, Set
 
 import yaml
@@ -28,10 +30,14 @@ for _p in (_scripts, _functions, _mod_root_str):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from scope_build.scope_yaml_io import (  # noqa: E402
+    SCOPE_DOCUMENT_DUMP_KWARGS,
+    dump_scope_document_yaml_roundtrip,
+)
+
 DEFAULT_CONFIG_REL = "default.config.yaml"
 DEFAULT_SCOPE_DOCUMENT_REL = "workflow.local.config.yaml"
 TEMPLATE_WORKFLOW_CONFIG_REL = "workflow_template/workflow.template.config.yaml"
-TEMPLATE_WORKFLOW_CANVAS_REL = "workflow_template/workflow.template.canvas.yaml"
 # Snapshot of input.configuration from the last operator run against a WorkflowTrigger (optional .gitignore).
 OPERATOR_RUN_SCOPE_SNAPSHOT = ".operator_run_scope.yaml"
 
@@ -73,68 +79,139 @@ def _safe_rel_path(rel: str) -> Path:
     return p
 
 
+_RUN_RESULTS_PREFIX = "local_run_results/"
+_CDF_PIPELINE_RESULT_BASENAME = re.compile(
+    r"^\d{8}_\d{6}_cdf_(extraction|aliasing)\.json$"
+)
+_MAX_RUN_RESULT_PREVIEW_BYTES = 50 * 1024 * 1024
+
+
+def _run_results_root() -> Path:
+    return MODULE_ROOT / "local_run_results"
+
+
+def _norm_run_scope_key(key: str) -> str:
+    return key.strip().replace("\\", "/")
+
+
+def _run_scope_matches_key(run_scope: Any, run_scope_key: str) -> bool:
+    """*run_scope_key*: ``workflow_local`` | ``workflow_template`` | ``workflow_trigger:<moduleRel>``."""
+    key = _norm_run_scope_key(run_scope_key)
+    if not key:
+        return True
+    if not isinstance(run_scope, dict):
+        return False
+    if ":" in key:
+        prefix, rest = key.split(":", 1)
+        prefix = prefix.strip().lower()
+        rest = _norm_run_scope_key(rest)
+        if prefix != "workflow_trigger":
+            return False
+        if str(run_scope.get("target") or "").strip().lower() != "workflow_trigger":
+            return False
+        return _norm_run_scope_key(str(run_scope.get("workflow_trigger_rel") or "")) == rest
+    want = key.lower()
+    if want not in ("workflow_local", "workflow_template"):
+        return False
+    return str(run_scope.get("target") or "").strip().lower() == want
+
+
+def _read_extraction_run_scope(extraction_path: Path) -> Any:
+    try:
+        data = json.loads(extraction_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if isinstance(data, dict):
+        return data.get("run_scope")
+    return None
+
+
+def _resolve_run_result_pipeline_file(rel: str) -> Path:
+    rel_n = rel.strip().replace("\\", "/")
+    if not rel_n.startswith(_RUN_RESULTS_PREFIX):
+        raise HTTPException(status_code=400, detail="Path must be under local_run_results/")
+    path = _safe_rel_path(rel_n)
+    root_resolved = _run_results_root().resolve()
+    try:
+        path.relative_to(root_resolved)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Path escapes local_run_results") from e
+    if not _CDF_PIPELINE_RESULT_BASENAME.match(path.name):
+        raise HTTPException(
+            status_code=400,
+            detail="Only YYYYMMDD_HHMMSS_cdf_extraction.json or _cdf_aliasing.json",
+        )
+    return path
+
+
 def _scope_document_path(rel: str | None) -> Path:
     r = (rel or "").strip() or DEFAULT_SCOPE_DOCUMENT_REL
     return _safe_rel_path(r)
 
 
-def _canvas_document_path(scope_rel: str | None) -> Path:
-    """Sibling layout file: workflow.local.config.yaml -> workflow.local.canvas.yaml."""
-    scope = _scope_document_path(scope_rel)
-    name = scope.name
-    parent = scope.parent
-    lower = name.lower()
-    if lower.endswith(".config.yaml"):
-        stem = name[: -len(".config.yaml")]
-        return parent / f"{stem}.canvas.yaml"
-    if lower.endswith(".config.yml"):
-        stem = name[: -len(".config.yml")]
-        return parent / f"{stem}.canvas.yml"
-    if lower.endswith(".yaml"):
-        stem = name[: -len(".yaml")]
-        return parent / f"{stem}.canvas.yaml"
-    if lower.endswith(".yml"):
-        stem = name[: -len(".yml")]
-        return parent / f"{stem}.canvas.yml"
-    return parent / f"{name}.canvas.yaml"
+def _persist_canvas_model_to_scope(rel: str | None, canvas_model: Dict[str, Any]) -> str:
+    """Write ``canvas`` inside the scope YAML at *rel* and validate compile."""
+    from functions.cdf_fn_common.workflow_compile.canvas_dag import CanvasCompileError
+    from scope_build.scope_yaml_io import (
+        compile_validate_scope_document,
+        dump_scope_document_yaml_roundtrip,
+        load_scope_document_dict_normalized,
+    )
+
+    scope_path = _scope_document_path(rel)
+    if not scope_path.is_file():
+        raise HTTPException(status_code=404, detail="Scope document not found")
+    try:
+        raw = load_scope_document_dict_normalized(scope_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    raw["canvas"] = deepcopy(canvas_model)
+    raw.pop("compiled_workflow", None)
+    try:
+        compile_validate_scope_document(raw)
+    except CanvasCompileError as e:
+        raise HTTPException(status_code=400, detail=f"Workflow canvas compile failed: {e}") from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    try:
+        text = dump_scope_document_yaml_roundtrip(raw)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    scope_path.write_text(text, encoding="utf-8")
+    return str(scope_path.relative_to(MODULE_ROOT)).replace("\\", "/")
 
 
 def _embed_compiled_workflow_into_scope_file(rel: str | None) -> None:
-    """Merge sibling canvas into the scope YAML on disk, compile the DAG, write root ``compiled_workflow``.
+    """Normalize scope graph keys and validate compile.
 
-    Called after scope or canvas saves so local runs and operator snapshots stay aligned with CDF
-    ``workflow.input`` (embedded IR matches ``compiled_workflow_for_local_run`` fast path).
+    Called after scope or canvas saves. CDF uses WorkflowVersion for task IR; trigger carries trimmed
+    ``configuration`` only.
     """
-    from functions.cdf_fn_common.scope_canvas_merge import merge_sibling_canvas_yaml_into_scope
-    from functions.cdf_fn_common.workflow_compile.canvas_dag import (
-        CanvasCompileError,
-        compiled_workflow_for_scope_document,
+    from functions.cdf_fn_common.workflow_compile.canvas_dag import CanvasCompileError
+    from scope_build.scope_yaml_io import (
+        compile_validate_scope_document,
+        dump_scope_document_yaml_roundtrip,
+        load_scope_document_dict_normalized,
     )
 
     path = _scope_document_path(rel)
     if not path.is_file():
         return
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict):
-        raise HTTPException(status_code=400, detail="Scope document root must be a mapping")
-    merge_sibling_canvas_yaml_into_scope(raw, path)
     try:
-        cw = compiled_workflow_for_scope_document(raw)
+        raw = load_scope_document_dict_normalized(path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    raw.pop("compiled_workflow", None)
+    try:
+        compile_validate_scope_document(raw)
     except CanvasCompileError as e:
         raise HTTPException(status_code=400, detail=f"Workflow canvas compile failed: {e}") from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    raw["compiled_workflow"] = cw
     try:
-        text = yaml.safe_dump(
-            raw,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
-        )
-        yaml.safe_load(text)
-    except yaml.YAMLError as e:
-        raise HTTPException(status_code=500, detail=f"Invalid YAML after compile: {e}") from e
+        text = dump_scope_document_yaml_roundtrip(raw)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
     path.write_text(text, encoding="utf-8")
 
 
@@ -403,15 +480,9 @@ def get_default_config_model() -> Dict[str, Any]:
 def put_default_config_model(model: Dict[str, Any] = Body(...)) -> dict:
     p = MODULE_ROOT / DEFAULT_CONFIG_REL
     try:
-        text = yaml.safe_dump(
-            model,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
-        )
-        yaml.safe_load(text)
-    except yaml.YAMLError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid YAML structure: {e}") from e
+        text = dump_scope_document_yaml_roundtrip(model)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     p.write_text(text, encoding="utf-8")
@@ -468,15 +539,9 @@ def put_scope_document_model(
 ) -> dict:
     path = _scope_document_path(rel)
     try:
-        text = yaml.safe_dump(
-            model,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
-        )
-        yaml.safe_load(text)
-    except yaml.YAMLError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid YAML structure: {e}") from e
+        text = dump_scope_document_yaml_roundtrip(model)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -490,19 +555,28 @@ def put_scope_document_model(
 def get_canvas_document(
     rel: str | None = Query(
         None,
-        description="Scope document path under module root (canvas sibling is derived)",
+        description="Scope document path under module root",
     ),
 ) -> dict:
-    """Layout-only canvas YAML paired with the scope document (e.g. workflow.local.canvas.yaml)."""
-    path = _canvas_document_path(rel)
-    r = str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
-    if not path.is_file():
-        return {"path": r, "scope_rel": str(_scope_document_path(rel).relative_to(MODULE_ROOT)).replace("\\", "/"), "content": ""}
-    return {
-        "path": r,
-        "scope_rel": str(_scope_document_path(rel).relative_to(MODULE_ROOT)).replace("\\", "/"),
-        "content": path.read_text(encoding="utf-8"),
-    }
+    """Return embedded ``canvas`` from the scope YAML, or empty content."""
+    scope_path = _scope_document_path(rel)
+    scope_r = str(scope_path.relative_to(MODULE_ROOT)).replace("\\", "/")
+    if scope_path.is_file():
+        try:
+            doc = yaml.safe_load(scope_path.read_text(encoding="utf-8"))
+        except yaml.YAMLError:
+            doc = None
+        if isinstance(doc, dict):
+            c = doc.get("canvas")
+            if isinstance(c, dict) and isinstance(c.get("nodes"), list) and c.get("nodes"):
+                text = yaml.safe_dump(c, **SCOPE_DOCUMENT_DUMP_KWARGS)
+                return {
+                    "path": scope_r,
+                    "scope_rel": scope_r,
+                    "content": text,
+                    "storage": "scope",
+                }
+    return {"path": scope_r, "scope_rel": scope_r, "content": "", "storage": "scope"}
 
 
 @app.put("/api/canvas-document")
@@ -510,19 +584,25 @@ def put_canvas_document(
     body: YamlBody,
     rel: str | None = Query(
         None,
-        description="Scope document path under module root (canvas sibling is derived)",
+        description="Scope document path under module root (canvas is stored under ``canvas`` in this file)",
     ),
 ) -> dict:
-    path = _canvas_document_path(rel)
     try:
-        yaml.safe_load(body.content)
+        loaded = yaml.safe_load(body.content)
     except yaml.YAMLError as e:
         raise HTTPException(status_code=400, detail=f"Invalid YAML: {e}") from e
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(body.content, encoding="utf-8")
-    _embed_compiled_workflow_into_scope_file(rel)
-    r = str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
-    return {"ok": True, "path": r}
+    if not isinstance(loaded, dict):
+        raise HTTPException(status_code=400, detail="Canvas YAML must be a mapping")
+    from functions.cdf_fn_common.scope_canvas_merge import canvas_dict_from_layout_yaml
+
+    cd = canvas_dict_from_layout_yaml(loaded)
+    if cd is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Canvas YAML must define non-empty nodes (root or under canvas:)",
+        )
+    r = _persist_canvas_model_to_scope(rel, cd)
+    return {"ok": True, "path": r, "scope_rel": r}
 
 
 @app.get("/api/canvas-document/model")
@@ -532,15 +612,14 @@ def get_canvas_document_model(
         description="Scope document path under module root",
     ),
 ) -> Dict[str, Any]:
-    path = _canvas_document_path(rel)
-    if not path.is_file():
-        return {}
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if data is None:
-        return {}
-    if not isinstance(data, dict):
-        raise HTTPException(status_code=500, detail="Canvas document root must be a mapping")
-    return data
+    scope_path = _scope_document_path(rel)
+    if scope_path.is_file():
+        doc = yaml.safe_load(scope_path.read_text(encoding="utf-8"))
+        if isinstance(doc, dict):
+            c = doc.get("canvas")
+            if isinstance(c, dict) and isinstance(c.get("nodes"), list) and c.get("nodes"):
+                return c
+    return {}
 
 
 @app.put("/api/canvas-document/model")
@@ -551,24 +630,14 @@ def put_canvas_document_model(
         description="Scope document path under module root",
     ),
 ) -> dict:
-    path = _canvas_document_path(rel)
     try:
-        text = yaml.safe_dump(
-            model,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
-        )
-        yaml.safe_load(text)
-    except yaml.YAMLError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid YAML structure: {e}") from e
+        dump_scope_document_yaml_roundtrip(model)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-    _embed_compiled_workflow_into_scope_file(rel)
-    r = str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
-    return {"ok": True, "path": r}
+    r = _persist_canvas_model_to_scope(rel, model)
+    return {"ok": True, "path": r, "scope_rel": r}
 
 
 @app.post("/api/template-workflow-config/from-scope")
@@ -578,11 +647,7 @@ def copy_template_workflow_config_from_scope(
         description="Scope document path under module root (default workflow.local.config.yaml)",
     ),
 ) -> dict:
-    """Overwrite workflow.template.config.yaml with the saved scope document (same v1 shape).
-
-    For promoting both scope and sibling canvas in one step, prefer
-    ``POST /api/promote-local-workflow-templates``.
-    """
+    """Overwrite workflow.template.config.yaml with the saved scope document (same v1 shape)."""
     scope_path = _scope_document_path(scope_rel)
     if not scope_path.is_file():
         raise HTTPException(status_code=404, detail="Scope document not found")
@@ -610,50 +675,26 @@ def promote_local_workflow_templates(
         None,
         description=(
             "Scope document path under module root (default workflow.local.config.yaml). "
-            "Copies that file to workflow.template.config.yaml and the sibling canvas to "
-            "workflow.template.canvas.yaml (same as ``python module.py promote-local-templates``)."
+            "Writes ``workflow.template.config.yaml`` (same as ``python module.py promote-local-templates``)."
         ),
     ),
 ) -> dict:
-    """Overwrite workflow template config + canvas from saved local scope + sibling canvas."""
+    """Overwrite workflow template config from local scope (unified document including ``canvas``)."""
+    from scope_build.scope_yaml_io import promote_unified_scope_file_to_template_config
+
     scope_path = _scope_document_path(scope_rel)
     if not scope_path.is_file():
         raise HTTPException(status_code=404, detail="Scope document not found")
-    canvas_src = _canvas_document_path(scope_rel)
-    if not canvas_src.is_file():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Canvas document not found (expected next to scope): {canvas_src.name}",
-        )
-
-    scope_text = scope_path.read_text(encoding="utf-8")
-    canvas_text = canvas_src.read_text(encoding="utf-8")
-    try:
-        yaml.safe_load(scope_text)
-    except yaml.YAMLError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid YAML in scope document: {e}"
-        ) from e
-    try:
-        yaml.safe_load(canvas_text)
-    except yaml.YAMLError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid YAML in canvas document: {e}"
-        ) from e
-
     template_cfg = _safe_rel_path(TEMPLATE_WORKFLOW_CONFIG_REL)
-    template_canvas = _safe_rel_path(TEMPLATE_WORKFLOW_CANVAS_REL)
-    template_cfg.parent.mkdir(parents=True, exist_ok=True)
-    template_canvas.parent.mkdir(parents=True, exist_ok=True)
-    template_cfg.write_text(scope_text, encoding="utf-8")
-    template_canvas.write_text(canvas_text, encoding="utf-8")
+    try:
+        promote_unified_scope_file_to_template_config(source=scope_path, destination=template_cfg)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     scope_rel_out = str(scope_path.relative_to(MODULE_ROOT)).replace("\\", "/")
-    canvas_rel_out = str(canvas_src.relative_to(MODULE_ROOT)).replace("\\", "/")
     return {
         "ok": True,
         "config": {"from": scope_rel_out, "to": TEMPLATE_WORKFLOW_CONFIG_REL},
-        "canvas": {"from": canvas_rel_out, "to": TEMPLATE_WORKFLOW_CANVAS_REL},
     }
 
 
@@ -822,7 +863,11 @@ def run_pipeline(body: RunBody) -> dict:
         cwd=str(MODULE_ROOT),
         capture_output=True,
         text=True,
-        env={**os.environ},
+        env={
+            **os.environ,
+            "KEA_OPERATOR_RUN_TARGET": body.target,
+            "KEA_OPERATOR_WORKFLOW_TRIGGER_REL": (body.workflow_trigger_rel or "").strip(),
+        },
     )
     return {
         "exit_code": proc.returncode,
@@ -847,6 +892,8 @@ def run_pipeline_stream(body: RunBody) -> StreamingResponse:
             **os.environ,
             "KEA_UI_PROGRESS_FD": str(w_fd),
             "PYTHONPATH": _module_pythonpath(),
+            "KEA_OPERATOR_RUN_TARGET": body.target,
+            "KEA_OPERATOR_WORKFLOW_TRIGGER_REL": (body.workflow_trigger_rel or "").strip(),
         }
         proc = subprocess.Popen(
             cmd,
@@ -882,6 +929,101 @@ def _is_workflow_trigger_path(rel: str) -> bool:
     )
 
 
+def _scope_config_rel_from_workflow_trigger_rel(trigger_rel: str) -> str:
+    """Sibling ``*.config.yaml`` path for a scoped WorkflowTrigger (same stem, ASCII case preserved on prefix)."""
+    tr = trigger_rel.strip().replace("\\", "/")
+    lower = tr.lower()
+    if lower.endswith(".workflowtrigger.yaml"):
+        return f"{tr[: -len('.workflowtrigger.yaml')]}.config.yaml"
+    if lower.endswith(".workflowtrigger.yml"):
+        return f"{tr[: -len('.workflowtrigger.yml')]}.config.yml"
+    raise HTTPException(
+        status_code=400,
+        detail="workflow_trigger_rel must end with .workflowtrigger.yaml or .workflowtrigger.yml",
+    )
+
+
+class ScopedWorkflowPublishBody(BaseModel):
+    workflow_trigger_rel: str = Field(..., min_length=1)
+    full_scope_document: Dict[str, Any] = Field(
+        ...,
+        description="Unified v1 scope document (full); persisted to sibling *.config.yaml",
+    )
+    workflow_trigger_yaml: str | None = Field(
+        None,
+        description="Optional full WorkflowTrigger YAML from the editor; when set, replaces disk "
+        "shell (except input.configuration, which is set from trimmed full scope).",
+    )
+
+
+@app.post("/api/scoped-workflow-publish")
+def scoped_workflow_publish(body: ScopedWorkflowPublishBody) -> dict:
+    """Write full scope to ``*.config.yaml`` and trimmed ``input.configuration`` into the WorkflowTrigger."""
+    from scope_build.scope_document_limits import (  # noqa: PLC0415
+        assert_scope_document_within_limit,
+        assert_workflow_trigger_input_within_limit,
+    )
+    from scope_build.scope_document_patch import scope_configuration_for_workflow_trigger  # noqa: PLC0415
+    from scope_build.scope_yaml_io import (  # noqa: PLC0415
+        compile_validate_scope_document,
+        dump_scope_document_yaml_roundtrip,
+        load_scope_document_dict_normalized,
+    )
+
+    rel = body.workflow_trigger_rel.strip().replace("\\", "/")
+    if not _is_workflow_trigger_path(rel):
+        raise HTTPException(
+            status_code=400,
+            detail="workflow_trigger_rel must be a WorkflowTrigger YAML path",
+        )
+    trig_path = _safe_rel_path(rel)
+    if not trig_path.is_file():
+        raise HTTPException(status_code=404, detail="WorkflowTrigger file not found")
+    scope_rel = _scope_config_rel_from_workflow_trigger_rel(rel)
+    scope_path = _safe_rel_path(scope_rel)
+    doc_in = deepcopy(body.full_scope_document)
+    if not isinstance(doc_in, dict):
+        raise HTTPException(status_code=400, detail="full_scope_document must be a JSON object")
+    try:
+        compile_validate_scope_document(doc_in)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    scope_path.parent.mkdir(parents=True, exist_ok=True)
+    scope_path.write_text(dump_scope_document_yaml_roundtrip(doc_in), encoding="utf-8")
+    _embed_compiled_workflow_into_scope_file(scope_rel)
+    try:
+        final_scope = load_scope_document_dict_normalized(scope_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    trimmed = scope_configuration_for_workflow_trigger(final_scope)
+    scope_id = scope_path.parent.name
+    assert_scope_document_within_limit(trimmed, scope_id=scope_id)
+    raw_yaml = (body.workflow_trigger_yaml or "").strip()
+    try:
+        if raw_yaml:
+            trig_data = yaml.safe_load(raw_yaml)
+        else:
+            trig_data = yaml.safe_load(trig_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=500, detail=f"Invalid WorkflowTrigger YAML: {e}") from e
+    if not isinstance(trig_data, dict):
+        raise HTTPException(status_code=500, detail="WorkflowTrigger root must be a mapping")
+    inp = trig_data.setdefault("input", {})
+    if not isinstance(inp, dict):
+        raise HTTPException(status_code=500, detail="WorkflowTrigger input must be a mapping")
+    inp["configuration"] = trimmed
+    assert_workflow_trigger_input_within_limit(inp, scope_id=scope_id)
+    trig_path.write_text(
+        yaml.safe_dump(trig_data, **SCOPE_DOCUMENT_DUMP_KWARGS),
+        encoding="utf-8",
+    )
+    return {
+        "ok": True,
+        "workflow_trigger_rel": rel.replace("\\", "/"),
+        "scope_document_rel": str(scope_path.relative_to(MODULE_ROOT)).replace("\\", "/"),
+    }
+
+
 def _write_scope_yaml_from_workflow_trigger(rel: str) -> str:
     """Extract ``input.configuration`` to :data:`OPERATOR_RUN_SCOPE_SNAPSHOT`; return relative path."""
     if not _is_workflow_trigger_path(rel):
@@ -908,21 +1050,8 @@ def _write_scope_yaml_from_workflow_trigger(rel: str) -> str:
             detail="WorkflowTrigger missing input.configuration mapping",
         )
     snapshot: Dict[str, Any] = dict(cfg)
-    cw = inp.get("compiled_workflow")
-    if isinstance(cw, dict):
-        tasks = cw.get("tasks")
-        if isinstance(tasks, list) and tasks:
-            snapshot["compiled_workflow"] = cw
     out_path = MODULE_ROOT / OPERATOR_RUN_SCOPE_SNAPSHOT
-    out_path.write_text(
-        yaml.safe_dump(
-            snapshot,
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True,
-        ),
-        encoding="utf-8",
-    )
+    out_path.write_text(yaml.safe_dump(snapshot, **SCOPE_DOCUMENT_DUMP_KWARGS), encoding="utf-8")
     return OPERATOR_RUN_SCOPE_SNAPSHOT
 
 
@@ -968,6 +1097,69 @@ def list_artifacts() -> dict:
             seen.add(rel)
         paths = sorted(seen)
     return {"paths": paths}
+
+
+@app.get("/api/run-results")
+def list_run_results(
+    run_scope_key: str | None = Query(
+        None,
+        description="Filter: workflow_local | workflow_template | workflow_trigger:<WorkflowTriggerRel>",
+    ),
+) -> dict:
+    """Paired ``module.py run`` JSON under ``local_run_results/`` (timestamped *_cdf_*.json)."""
+    root = _run_results_root()
+    root.mkdir(parents=True, exist_ok=True)
+    runs: List[Dict[str, Any]] = []
+    if not root.is_dir():
+        return {"runs": []}
+    scope_filter = (run_scope_key or "").strip()
+    for p in sorted(root.glob("*_cdf_extraction.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+        if not _CDF_PIPELINE_RESULT_BASENAME.match(p.name):
+            continue
+        stem_ts = p.stem.replace("_cdf_extraction", "")
+        alias = root / f"{stem_ts}_cdf_aliasing.json"
+        if not alias.is_file() or not _CDF_PIPELINE_RESULT_BASENAME.match(alias.name):
+            continue
+        if scope_filter:
+            rs = _read_extraction_run_scope(p)
+            if not _run_scope_matches_key(rs, scope_filter):
+                continue
+        runs.append(
+            {
+                "stem": stem_ts,
+                "extraction_rel": str(p.relative_to(MODULE_ROOT)).replace("\\", "/"),
+                "aliasing_rel": str(alias.relative_to(MODULE_ROOT)).replace("\\", "/"),
+                "mtime_ms": int(p.stat().st_mtime * 1000),
+            }
+        )
+    return {"runs": runs}
+
+
+@app.get("/api/run-results/preview")
+def preview_run_result(
+    rel: str = Query(..., description="Module-relative path under local_run_results/"),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+) -> dict:
+    path = _resolve_run_result_pipeline_file(rel)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    sz = path.stat().st_size
+    if sz > _MAX_RUN_RESULT_PREVIEW_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large for preview ({sz} bytes; max {_MAX_RUN_RESULT_PREVIEW_BYTES})",
+        )
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}") from e
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+        raise HTTPException(status_code=400, detail="Expected object with results array")
+    results = data["results"]
+    total = len(results)
+    chunk = results[offset : offset + limit]
+    return {"total": total, "offset": offset, "limit": limit, "items": chunk}
 
 
 @app.get("/api/file")

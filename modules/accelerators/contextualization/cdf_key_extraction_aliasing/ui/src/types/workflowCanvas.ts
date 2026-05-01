@@ -1,5 +1,5 @@
 /**
- * workflow.local.canvas.yaml / workflow.template.canvas.yaml — layout-only document
+ * Serialized flow graph under `canvas` in a v1 scope YAML (or root `nodes`/`edges` when parsing a canvas-only blob).
  * paired with the scope document (canonical config remains in workflow *.config.yaml).
  */
 
@@ -25,7 +25,6 @@ export type CanvasNodeRfType =
   | "keaMatchValidationRuleSourceView"
   | "keaMatchValidationRuleExtraction"
   | "keaMatchValidationRuleAliasing"
-  | "keaSubflow"
   | "keaSubflowGraphIn"
   | "keaSubflowGraphOut"
   | "keaSubgraph";
@@ -135,7 +134,6 @@ export type CanvasNodeKind =
   | "match_validation_source_view"
   | "match_validation_extraction"
   | "match_validation_aliasing"
-  | "subflow"
   | "subflow_graph_in"
   | "subflow_graph_out"
   | "subgraph";
@@ -211,11 +209,11 @@ export interface WorkflowCanvasNodeData {
    * (ascending) instead of id-only, so pipeline / seed order survives ``ids.sort()`` in the layout pass.
    */
   pipeline_rank?: number;
-  /** Named subgraph ports (``kind: subflow``); drives frame handles + internal hub handles. */
+  /** Named subgraph ports; drives frame handles + internal hub handles. */
   subflow_ports?: SubflowPortsConfig;
-  /** Child node id — input hub inside this subflow (sources per input port). */
+  /** Child node id — input hub inside this subgraph (sources per input port). */
   subflow_hub_input_id?: string;
-  /** Child node id — output hub inside this subflow (targets per output port). */
+  /** Child node id — output hub inside this subgraph (targets per output port). */
   subflow_hub_output_id?: string;
   /**
    * Nested canvas for ``kind: subgraph`` — edited in a drill-in view; not rendered as
@@ -234,9 +232,9 @@ export interface WorkflowCanvasNode {
   kind: CanvasNodeKind;
   position: { x: number; y: number };
   data: WorkflowCanvasNodeData;
-  /** When set, this node is drawn inside the subflow parent (coordinates are relative to the parent). */
+  /** Optional React Flow parent id when serializing nested groups (subgraph inner graph uses inner_canvas, not parent_id). */
   parent_id?: string | null;
-  /** Bounding size for ``kind: subflow`` (persisted; drives React Flow group dimensions). */
+  /** Optional persisted frame size (e.g. for future layout hints). */
   size?: { width: number; height: number };
 }
 
@@ -436,7 +434,6 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
         kind !== "match_validation_source_view" &&
         kind !== "match_validation_extraction" &&
         kind !== "match_validation_aliasing" &&
-        kind !== "subflow" &&
         kind !== "subflow_graph_in" &&
         kind !== "subflow_graph_out" &&
         kind !== "subgraph"
@@ -559,8 +556,6 @@ export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
       return "keaMatchValidationRuleExtraction";
     case "match_validation_aliasing":
       return "keaMatchValidationRuleAliasing";
-    case "subflow":
-      return "keaSubflow";
     case "subflow_graph_in":
       return "keaSubflowGraphIn";
     case "subflow_graph_out":
@@ -596,8 +591,6 @@ export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
       return "match_validation_extraction";
     case "keaMatchValidationRuleAliasing":
       return "match_validation_aliasing";
-    case "keaSubflow":
-      return "subflow";
     case "keaSubflowGraphIn":
       return "subflow_graph_in";
     case "keaSubflowGraphOut":

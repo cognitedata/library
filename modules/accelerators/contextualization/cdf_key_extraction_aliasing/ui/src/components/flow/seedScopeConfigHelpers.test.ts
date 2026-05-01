@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { seedCanvasFromScope } from "./seedCanvasFromScope";
 import {
   buildExtractionMatchValidationSubgraph,
   collectAliasingRuleNamesReferencedByExtractionPipelines,
@@ -166,67 +165,5 @@ describe("buildExtractionMatchValidationSubgraph", () => {
       idPrefix: "t",
     });
     expect(g.nodes).toHaveLength(2);
-  });
-});
-
-describe("seedCanvasFromScope validation from object-shaped rules", () => {
-  it("creates one match_validation_extraction node per object rule in validation_rules", () => {
-    const scope: Record<string, unknown> = {
-      key_extraction: {
-        config: {
-          data: {
-            extraction_rules: [
-              {
-                name: "ext_obj",
-                enabled: true,
-                handler: "regex_handler",
-                priority: 10,
-                validation: {
-                  validation_rules: [
-                    { name: "rule_alpha", priority: 1, match: { keywords: ["a"] } },
-                    { name: "rule_beta", priority: 2, match: { keywords: ["b"] } },
-                  ],
-                },
-              },
-            ],
-          },
-        },
-      },
-      aliasing: { config: { data: { aliasing_rules: [] } } },
-    };
-    const doc = seedCanvasFromScope(scope);
-    const m = doc.nodes.filter((n) => n.kind === "match_validation_extraction");
-    expect(m.length).toBe(2);
-    const names = m.map((n) => (n.data as { validation_rule_name?: string }).validation_rule_name).sort();
-    expect(names).toEqual(["rule_alpha", "rule_beta"]);
-  });
-
-  it("does not duplicate the same validation chain as global and per-extraction in scope", () => {
-    const sameRules = [
-      { name: "rule_alpha", priority: 1, match: { keywords: ["a"] } },
-      { name: "rule_beta", priority: 2, match: { keywords: ["b"] } },
-    ];
-    const scope: Record<string, unknown> = {
-      key_extraction: {
-        config: {
-          data: {
-            validation: { validation_rules: sameRules },
-            extraction_rules: [
-              {
-                name: "ext_only",
-                enabled: true,
-                handler: "regex_handler",
-                priority: 10,
-                validation: { validation_rules: sameRules },
-              },
-            ],
-          },
-        },
-      },
-      aliasing: { config: { data: { aliasing_rules: [] } } },
-    };
-    const doc = seedCanvasFromScope(scope);
-    const m = doc.nodes.filter((n) => n.kind === "match_validation_extraction");
-    expect(m.length).toBe(2);
   });
 });

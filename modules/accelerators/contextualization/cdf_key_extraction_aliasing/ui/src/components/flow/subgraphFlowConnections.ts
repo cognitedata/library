@@ -97,12 +97,8 @@ export function subflowDeclaresOutputPort(sf: Node | undefined, portId: string |
   return Boolean(readPorts(sf)?.outputs?.some((p) => p.id === portId));
 }
 
-function parentSubflowOf(getNode: GetNode, childId: string): Node | undefined {
-  const ch = getNode(childId);
-  const pid = ch?.parentId != null && String(ch.parentId).trim() ? String(ch.parentId).trim() : "";
-  if (!pid) return undefined;
-  const p = getNode(pid);
-  return p?.type === "keaSubflow" ? p : undefined;
+function parentSubflowOf(_getNode: GetNode, _childId: string): Node | undefined {
+  return undefined;
 }
 
 /** Node whose ``data.subflow_ports`` should be used to validate graph-in / graph-out handles. */
@@ -124,10 +120,10 @@ function sameSubflowInterior(getNode: GetNode, a: string, b: string): boolean {
   return Boolean(pa && pa === pb);
 }
 
-/** Whether ``st → tt`` is allowed for wiring into a subgraph input port (parent → subflow frame). */
+/** Whether ``st → tt`` is allowed for wiring into a subgraph input port (parent → subgraph frame). */
 function allowedExternalSourceToSubflowInput(st: string): boolean {
   if (st === "keaEnd") return false;
-  if (st === "keaSubflow" || st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
+  if (st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
   if (st === "keaStart") return true;
   if (st === "keaSourceView") return true;
   if (st === "keaExtraction" || st === "keaAliasing" || st === "keaValidation") return true;
@@ -136,10 +132,10 @@ function allowedExternalSourceToSubflowInput(st: string): boolean {
   return false;
 }
 
-/** Whether ``st → tt`` is allowed for wiring from a subgraph output port (subflow frame → external). */
+/** Whether ``st → tt`` is allowed for wiring from a subgraph output port (subgraph frame → external). */
 function allowedSubflowOutputToExternalTarget(tt: string, validationRuleLayoutRfTypes: Set<string>): boolean {
   if (tt === "keaStart") return false;
-  if (tt === "keaSubflow" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
+  if (tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
   if (tt === "keaEnd") return true;
   if (tt === "keaSourceView") return false;
   if (tt === "keaReferenceIndex" || isAliasPersistenceLayoutRfType(tt)) return true;
@@ -166,8 +162,7 @@ function validInteriorToGraphOut(
   if (parentSf) {
     if (!sameSubflowInterior(getNode, c.source, c.target)) return false;
   }
-  if (st === "keaEnd" || st === "keaStart" || st === "keaSubflow" || st === "keaSubgraph" || isSubflowGraphHubRfType(st))
-    return false;
+  if (st === "keaEnd" || st === "keaStart" || st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
   if (st === "keaSourceView") return false;
   if (st === "keaExtraction" || st === "keaAliasing" || st === "keaValidation") return true;
   if (isAliasPersistenceLayoutRfType(st) || st === "keaReferenceIndex") return true;
@@ -189,8 +184,7 @@ function validGraphInToInterior(getNode: GetNode, c: Connection | Edge, validati
   if (parentSf) {
     if (!sameSubflowInterior(getNode, c.source, c.target)) return false;
   }
-  if (tt === "keaEnd" || tt === "keaStart" || tt === "keaSubflow" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt))
-    return false;
+  if (tt === "keaEnd" || tt === "keaStart" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
   if (tt === "keaSourceView") return false;
   if (isAliasPersistenceLayoutRfType(tt) || tt === "keaReferenceIndex") return false;
   if (tt === "keaExtraction" || tt === "keaAliasing" || tt === "keaValidation") return true;
@@ -200,7 +194,6 @@ function validGraphInToInterior(getNode: GetNode, c: Connection | Edge, validati
 
 /**
  * Full connection validity including ``keaSubgraph`` boundary ports and inner graph-in/out hubs.
- * ``keaSubflow`` is organizational only — it is not a valid connection endpoint.
  */
 export function isValidKeaFlowConnection(
   getNode: GetNode,
@@ -211,8 +204,6 @@ export function isValidKeaFlowConnection(
   const tt = getNode(c.target)?.type;
   if (!st || !tt) return false;
   const srcH = c.sourceHandle ?? undefined;
-
-  if (st === "keaSubflow" || tt === "keaSubflow") return false;
 
   if (st === "keaSubflowGraphIn") {
     return validGraphInToInterior(getNode, c, validationRuleLayoutRfTypes);

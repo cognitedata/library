@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Handle, NodeResizer, Position, type NodeProps, useReactFlow } from "@xyflow/react";
+import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
 import {
   type SubflowPortEntry,
   type WorkflowCanvasNodeData,
@@ -41,35 +41,6 @@ function portHandleStyle(
     return { top: `${frac}%`, transform: "translateY(-50%)" };
   }
   return { left: `${frac}%`, transform: "translateX(-50%)" };
-}
-
-/** Subflow frame — organizational grouping only (no boundary I/O; use ``keaSubgraph`` for named ports). */
-export function KeaSubflowNode({ data, selected }: NodeProps) {
-  const d = (data ?? {}) as WorkflowCanvasNodeData;
-
-  return (
-    <div
-      className={nodeClass(!!selected, "subflow")}
-      style={mergeNodeCardStyle(d, {
-        width: "100%",
-        height: "100%",
-        minWidth: 200,
-        minHeight: 140,
-        position: "relative",
-      })}
-    >
-      <NodeResizer
-        minWidth={200}
-        minHeight={140}
-        isVisible={selected}
-        autoScale={false}
-        keepAspectRatio={false}
-        lineStyle={{ borderWidth: 2, opacity: selected ? 1 : 0 }}
-      />
-      <div className="kea-flow-node__badge">subflow</div>
-      <div className="kea-flow-node__title">{d.label || "Subflow"}</div>
-    </div>
-  );
 }
 
 /** Collapsed composite: card-sized node; boundary ports match ``subflow_*`` handle ids; inner graph is drill-in only. */

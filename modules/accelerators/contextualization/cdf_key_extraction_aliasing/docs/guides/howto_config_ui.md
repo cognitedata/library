@@ -88,14 +88,14 @@ The UI persists **real files** under the module root:
 | Area | Typical files | Purpose |
 | ---- | --------------- | ------- |
 | **Scope** | **`default.config.yaml`** | Hierarchy (**`aliasing_scope_hierarchy`**), Toolkit-style module fields, schedules. |
-| **Configure** | **`workflow.local.config.yaml`**, **`workflow_template/workflow.template.config.yaml`**, or a selected **`workflows/.../*.WorkflowTrigger.yaml`** | v1 **scope** (`source_views`, `key_extraction`, `aliasing`) for local/template/trigger-specific edits. |
+| **Configure** | **`workflow.local.config.yaml`**, **`workflow_template/workflow.template.config.yaml`**, or a selected **`workflows/.../*.WorkflowTrigger.yaml`** | v1 **scope** (`source_views`, `key_extraction`, `aliasing`, embedded **`canvas`**, optional **`associations`**) for local/template/trigger-specific edits. |
 | **Build** | Invokes **`module.py build`** | Creates missing workflow YAML; shows stdout/stderr. |
 | **Run** | Invokes **`module.py run --config-path …`** | Targets: **workflow local**, **workflow template**, or a **WorkflowTrigger** (see below). |
 | **Artifacts** | Browse/edit **`workflows/**/*.yaml`** | Review generated manifests; save writes **YAML only** (validated parse). |
 
 **Forms + YAML:** Sub-panels expose structured editors (source views, key extraction parameters, aliasing, hierarchy) and **raw YAML** for the same document where applicable. Saving updates the file on disk.
 
-When the **flow canvas** file is empty, the UI **seeds** a minimal graph from the current scope: it uses each extraction rule’s **`aliasing_pipeline`** (when set), else scoped inference from **`scope_filters`** and source views, and it places **match-validation** nodes from non-empty **`validation` / `validation_rules`** (linear chains and common shapes) so scope sync can round-trip.
+The flow canvas shows **only** what is stored under **`canvas`** (or the trigger’s **`workflow_canvas`** mirror). If there are no nodes, the canvas stays empty until you add nodes from the palette or paste YAML; scope sync and build still use the structured Configure tabs and saved canvas document.
 
 ---
 
@@ -120,7 +120,7 @@ The **Run** action calls the backend **`POST /api/run`** with:
 
 **Credentials** are **not** stored in YAML: the subprocess inherits your **environment** (`.env` loaded per your shell / quickstart). If the run fails with auth errors, fix **`.env`** and retry.
 
-Results of **`module.py run`** still appear as JSON under **`tests/results/`** on disk; the UI shows **stdout/stderr** in the run log panel.
+Results of **`module.py run`** appear as JSON under **`local_run_results/`** on disk, with a **`run_scope`** object (target + optional trigger path). The **Results** view is under **Configure → Flow** as an inner tab next to **Canvas** and **Console** (local scope, template, or trigger → Pipeline). It lists only runs that match that workflow target. stdout/stderr stay in the run log panel.
 
 ---
 

@@ -607,6 +607,8 @@ class AliasingEngine:
         # When ``extraction_aliasing_pipelines`` is populated from the scope document, every
         # extraction rule id gets an entry (possibly ``[]``). An empty list must not skip
         # global ``pathways`` / flat ``aliasing_rules`` — those are the default macro stack.
+        # A **non-empty** per-rule list runs first, then global pathways / flat rules still run
+        # when configured (per-rule transforms are a prefix, not a replacement for scope macros).
         use_global_rules = not self._extraction_aliasing_pipelines
         if self._extraction_aliasing_pipelines:
             if ext_key:
@@ -621,7 +623,7 @@ class AliasingEngine:
                         applied_rules,
                         applied_rules_set,
                     )
-                    use_global_rules = False
+                    use_global_rules = self._pathways_config_active or bool(self.rules)
                 elif isinstance(nodes, list) and len(nodes) == 0:
                     use_global_rules = True
                 else:

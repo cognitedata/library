@@ -2,7 +2,7 @@
 
 **Documentation index:** [docs/README.md](../docs/README.md) (maps specs, guides, examples, and workflows). **Authoring walkthroughs:** [How to build configuration with YAML](../docs/guides/howto_config_yaml.md), [How to build configuration with the UI](../docs/guides/howto_config_ui.md). **Scoped build and deploy walkthrough:** [Scoped deployment how-to](../docs/guides/howto_scoped_deployment.md).
 
-Configs for this module are the **authoring source** for **`module.py`** / **`local_runner`** and for **CDF workflow** payloads. CDF functions receive **`workflow.input.configuration`** (v1 scope mapping) from schedule triggers built by **`scripts/build_scopes.py`** — scope YAML is **not** uploaded as Cognite File for this pipeline.
+Configs for this module are the **authoring source** for **`module.py`** / **`local_runner`** and for **CDF workflow** payloads. CDF functions receive **`workflow.input.configuration`** (trimmed v1 scope, including **`canvas`**) from schedule triggers built by **`scripts/build_scopes.py`** — there is **no** **`workflow.input.compiled_workflow`**; per-step IR is inlined into generated **WorkflowVersion** task **`data`**. Scope YAML is **not** uploaded as Cognite File for this pipeline.
 
 ## Directories
 
@@ -13,9 +13,9 @@ Configs for this module are the **authoring source** for **`module.py`** / **`lo
 
 **Local default v1 scope file:** [`../workflow.local.config.yaml`](../workflow.local.config.yaml) at the **module root** (used when `--scope default` and no `--config-path`).
 
-**Local incremental (workflow parity):** When `key_extraction.config.parameters.incremental_change_processing` is true, `local_runner/run.py` sets top-level `source_views` on the merged v1 scope dict and passes **`configuration`** plus **`instance_space`** on each step’s task payload, matching workflow v4 task inputs (see [`local_runner/workflow_payload.py`](../local_runner/workflow_payload.py)). Use the same Key Discovery parameters as generated workflows (`key_discovery_instance_space`, `key_discovery_schema_space`, `key_discovery_dm_version`, `cdm_view_version`, `workflow_scope`, `incremental_skip_unchanged_source_inputs`, …); if the Key Discovery views are not deployed in the project, functions fall back to RAW watermark and `EXTRACTION_INPUTS_HASH` behavior.
+**Local incremental (workflow parity):** When `key_extraction.config.parameters.incremental_change_processing` is true, `local_runner/run.py` sets top-level `source_views` on the merged v1 scope dict and passes **`configuration`** plus **`instance_space`** on each step’s task payload, matching workflow **v5** task inputs (see [`local_runner/workflow_payload.py`](../local_runner/workflow_payload.py)). Use the same Key Discovery parameters as generated workflows (`key_discovery_instance_space`, `key_discovery_schema_space`, `key_discovery_dm_version`, `cdm_view_version`, `workflow_scope`, `incremental_skip_unchanged_source_inputs`, …); if the Key Discovery views are not deployed in the project, functions fall back to RAW watermark and `EXTRACTION_INPUTS_HASH` behavior.
 
-**Trigger-embedded template:** [`../workflow_template/workflow.template.config.yaml`](../workflow_template/workflow.template.config.yaml) — copied into each generated trigger’s **`input.configuration`**, patched per hierarchy leaf (external ids, node `space` filters, `scope` block).
+**Trigger-embedded template:** [`../workflow_template/workflow.template.config.yaml`](../workflow_template/workflow.template.config.yaml) — merged, patched per hierarchy leaf, then **trimmed** into each generated trigger’s **`input.configuration`** (no separate per-leaf **`*.canvas.yaml`** from **`build_scopes`**).
 
 Python package code in this folder (`configuration_manager.py`, etc.) lives beside these data directories.
 
@@ -43,7 +43,7 @@ Pipeline flags apply to **`python module.py run`** (bare **`module.py`** prints 
 
 ## Workflows
 
-Workflow **v4** (generated **`workflows/.../key_extraction_aliasing*.WorkflowVersion.yaml`**) passes **`configuration`** on **`workflow.input`** into each function task. RAW table keys remain in **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside that object. See [`workflows/README.md`](../workflows/README.md).
+Workflow **v5** (generated **`workflows/.../key_extraction_aliasing*.WorkflowVersion.yaml`**) passes **`${workflow.input.configuration}`** on each function task and **inlines** IR-derived fields on task **`data`** (`task_id`, payloads, persistence, rule name lists, etc.). RAW table keys remain in **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`**. See [`workflows/README.md`](../workflows/README.md).
 
 ## Reference docs
 

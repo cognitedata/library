@@ -3,6 +3,7 @@ import argparse
 import copy
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -39,6 +40,29 @@ from .workflow_payload import (
 )
 
 _MODULE_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _config_rel_for_run_results(scope_yaml_path: Union[Path, str]) -> str:
+    p = Path(scope_yaml_path).resolve()
+    try:
+        return str(p.relative_to(_MODULE_ROOT)).replace("\\", "/")
+    except ValueError:
+        return str(p).replace("\\", "/")
+
+
+def result_run_scope_dict(scope_yaml_path: Union[Path, str]) -> Dict[str, Any]:
+    """Classify a local run for operator UI filtering (env from ``ui.server`` / ``module.py`` subprocess)."""
+    raw_target = (os.environ.get("KEA_OPERATOR_RUN_TARGET") or "workflow_local").strip().lower()
+    if raw_target not in ("workflow_local", "workflow_template", "workflow_trigger"):
+        raw_target = "workflow_local"
+    trig = (os.environ.get("KEA_OPERATOR_WORKFLOW_TRIGGER_REL") or "").strip().replace("\\", "/")
+    out: Dict[str, Any] = {
+        "target": raw_target,
+        "config_rel": _config_rel_for_run_results(scope_yaml_path),
+    }
+    if trig:
+        out["workflow_trigger_rel"] = trig
+    return out
 
 
 def _build_dm_filter_from_view_dict(
@@ -466,7 +490,14 @@ def _run_workflow_parity(
         compiled_workflow=compiled_wf,
     )
 
+    _timing_mark = len(ctx.task_timings)
     run_compiled_workflow_dag(ctx, defer_alias_persistence=True)
+    if len(ctx.task_timings) > _timing_mark:
+        parts = [
+            f"{t.get('function_external_id') or t.get('task_id')}:{float(t.get('duration_sec', 0)):.2f}s"
+            for t in ctx.task_timings[_timing_mark:]
+        ]
+        logger.info("Pipeline task timings (main DAG): %s", ", ".join(parts))
     run_id = ctx.run_id
     cohort_rows = ctx.cohort_rows
     cohort_skipped_hash = ctx.cohort_skipped_hash
@@ -502,20 +533,31 @@ def _run_workflow_parity(
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     extraction_path = results_dir / f"{ts}_cdf_extraction.json"
     aliasing_path = results_dir / f"{ts}_cdf_aliasing.json"
+    run_scope = result_run_scope_dict(scope_yaml_path)
 
     with extraction_path.open("w", encoding="utf-8") as f:
-        json.dump({"results": all_extraction_items}, f, indent=2)
+        json.dump({"run_scope": run_scope, "results": all_extraction_items}, f, indent=2)
 
     sorted_aliasing_items = sorted(
         aliasing_items, key=lambda x: (x.get("entity_id") or "", x.get("base_tag", ""))
     )
     with aliasing_path.open("w", encoding="utf-8") as f:
-        json.dump({"results": sorted_aliasing_items}, f, indent=2)
+        json.dump({"run_scope": run_scope, "results": sorted_aliasing_items}, f, indent=2)
 
     logger.info(f"✓ Wrote extraction results: {extraction_path}")
     logger.info(f"✓ Wrote aliasing results:   {aliasing_path}")
 
+    _timing_mark2 = len(ctx.task_timings)
     run_deferred_alias_persistence_tasks(ctx)
+    if len(ctx.task_timings) > _timing_mark2:
+        parts2 = [
+            f"{t.get('function_external_id') or t.get('task_id')}:{float(t.get('duration_sec', 0)):.2f}s"
+            for t in ctx.task_timings[_timing_mark2:]
+        ]
+        logger.info(
+            "Pipeline task timings (deferred alias persistence): %s",
+            ", ".join(parts2),
+        )
 
     extracted_fk_count = sum(
         len(item.get("extraction_result", {}).get("foreign_key_references") or [])

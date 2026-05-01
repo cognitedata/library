@@ -1,7 +1,7 @@
 import type { Node } from "@xyflow/react";
 import { isSubflowGraphHubRfType } from "../../types/workflowCanvas";
 
-/** Nodes that may be reparented under an RF ``keaSubflow`` group (drag, inspector, drop). */
+/** Nodes that may have ``parentId`` cleared when lifting from a subgraph. */
 export function canChangeSubflowParent(nodeType: string | undefined): boolean {
   if (!nodeType) return false;
   if (nodeType === "keaStart" || nodeType === "keaEnd") return false;
@@ -9,10 +9,10 @@ export function canChangeSubflowParent(nodeType: string | undefined): boolean {
   return true;
 }
 
-/** Nodes that may be grouped into a new ``keaSubflow`` via wrap / context menu. */
+/** Nodes that may be grouped into a new ``keaSubgraph`` via collapse selection. */
 export function isWrapGroupableNodeType(nodeType: string | undefined): boolean {
   if (!canChangeSubflowParent(nodeType)) return false;
-  if (nodeType === "keaSubflow" || nodeType === "keaSubgraph") return false;
+  if (nodeType === "keaSubgraph") return false;
   return true;
 }
 

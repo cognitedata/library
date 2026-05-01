@@ -25,11 +25,21 @@ except ImportError:
     NodeId = None
     ViewId = None
 
+from cdf_fn_common.incremental_scope import iter_raw_table_rows_chunked
+from cdf_fn_common.workflow_task_lineage import (
+    allowed_extraction_rule_names_for_task,
+    raw_row_allowed_for_predecessor_extraction_rules,
+)
+
+# ``retrieve_nodes`` payload size vs round trips (DM API limits vary by project).
+_PERSISTENCE_RETRIEVE_NODES_CHUNK = 800
+
 from .common.logger import CogniteFunctionLogger
 
 logger = None  # Use CogniteFunctionLogger directly
 
 FOREIGN_KEY_REFERENCES_JSON_COLUMN = "FOREIGN_KEY_REFERENCES_JSON"
+DOCUMENT_REFERENCES_JSON_COLUMN = "DOCUMENT_REFERENCES_JSON"
 
 
 def _resolve_alias_writeback_property(data: Dict[str, Any]) -> str:
@@ -231,32 +241,64 @@ def _load_foreign_key_map_from_raw(
     raw_table_key: str,
     logger: Any,
     limit: int = 10000,
+    allowed_extraction_rule_names: Optional[Set[str]] = None,
 ) -> Dict[str, List[str]]:
     """Map entity external id -> deduplicated FK string values from extraction RAW."""
+    fk_map: Dict[str, List[str]] = {}
+    yielded = 0
     try:
-        rows = client.raw.rows.list(raw_db, raw_table_key, limit=limit)
+        row_iter = iter_raw_table_rows_chunked(
+            client, raw_db, raw_table_key, chunk_size=2500
+        )
     except Exception as e:
         logger.error(
             f"Failed reading FK RAW rows db={raw_db} table={raw_table_key}: {e}"
         )
         raise
-    fk_map: Dict[str, List[str]] = {}
-    for row in rows:
+    for row in row_iter:
+        if limit is not None and limit > 0 and yielded >= limit:
+            if yielded == limit:
+                logger.warning(
+                    "FK map from RAW truncated at limit=%s rows for db=%s table=%s",
+                    limit,
+                    raw_db,
+                    raw_table_key,
+                )
+            break
+        yielded += 1
         key = getattr(row, "key", None)
         if not key:
             continue
         cols = getattr(row, "columns", {}) or {}
+        fk_list_parse: Optional[List[Any]] = None
+        doc_list_parse: Optional[List[Any]] = None
+        doc_raw = cols.get(DOCUMENT_REFERENCES_JSON_COLUMN)
+        if isinstance(doc_raw, str) and doc_raw.strip():
+            try:
+                d0 = json.loads(doc_raw)
+                if isinstance(d0, list):
+                    doc_list_parse = d0
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
         raw_json = cols.get(FOREIGN_KEY_REFERENCES_JSON_COLUMN)
-        if not isinstance(raw_json, str) or not raw_json.strip():
+        if isinstance(raw_json, str) and raw_json.strip():
+            try:
+                p0 = json.loads(raw_json)
+                if isinstance(p0, list):
+                    fk_list_parse = p0
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+        if allowed_extraction_rule_names is not None:
+            if not raw_row_allowed_for_predecessor_extraction_rules(
+                cols,
+                fk_list=fk_list_parse,
+                doc_list=doc_list_parse,
+                allowed=allowed_extraction_rule_names,
+            ):
+                continue
+        if fk_list_parse is None:
             continue
-        try:
-            parsed = json.loads(raw_json)
-        except Exception:
-            logger.warning(
-                f"Invalid {FOREIGN_KEY_REFERENCES_JSON_COLUMN} JSON for RAW key={key!r}; skipping"
-            )
-            continue
-        vals = _fk_values_from_parsed_json(parsed)
+        vals = _fk_values_from_parsed_json(fk_list_parse)
         if vals:
             fk_map[str(key)] = vals
     logger.info(
@@ -431,6 +473,11 @@ def persist_aliases_to_entities(
             data["foreign_key_writeback_property"] = fk_writeback_property
 
         fk_map: Dict[str, List[str]] = {}
+        pred_allow_fk: Optional[Set[str]] = None
+        _cw_fk = data.get("compiled_workflow")
+        _tid_fk = data.get("task_id")
+        if isinstance(_cw_fk, dict) and _tid_fk:
+            pred_allow_fk = allowed_extraction_rule_names_for_task(_cw_fk, str(_tid_fk))
         if write_fk and fk_writeback_property:
             source_raw_db = data.get("source_raw_db")
             source_raw_table_key = data.get("source_raw_table_key")
@@ -444,6 +491,7 @@ def persist_aliases_to_entities(
                     raw_table_key=str(source_raw_table_key),
                     logger=logger,
                     limit=fk_limit,
+                    allowed_extraction_rule_names=pred_allow_fk,
                 )
             eke = data.get("entities_keys_extracted")
             if isinstance(eke, dict) and eke:
@@ -636,11 +684,16 @@ def persist_aliases_to_entities(
                     srcs = [target_view_id]
                     if write_fk and fk_writeback_property and fk_view_id != target_view_id:
                         srcs.append(fk_view_id)
-                    existing_nodes = client.data_modeling.instances.retrieve_nodes(
-                        nodes=node_ids,
-                        sources=srcs,
-                    )
-                    for n in existing_nodes or []:
+                    existing_nodes: List[Any] = []
+                    for j in range(0, len(node_ids), _PERSISTENCE_RETRIEVE_NODES_CHUNK):
+                        sub_ids = node_ids[j : j + _PERSISTENCE_RETRIEVE_NODES_CHUNK]
+                        batch = client.data_modeling.instances.retrieve_nodes(
+                            nodes=sub_ids,
+                            sources=srcs,
+                        )
+                        if batch:
+                            existing_nodes.extend(batch)
+                    for n in existing_nodes:
                         nd = n.dump() if hasattr(n, "dump") else {}
                         props = nd.get("properties", {}) if isinstance(nd, dict) else {}
                         t_props = (

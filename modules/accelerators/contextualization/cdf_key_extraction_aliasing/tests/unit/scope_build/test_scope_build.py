@@ -19,6 +19,7 @@ from scope_build.builders.workflow_triggers import (
     DEFAULT_TRIGGER_TEMPLATE_REL,
     WorkflowTriggersBuilder,
     minified_json_utf8_length,
+    scope_config_filename,
     verify_triggers_file,
     workflow_trigger_filename,
 )
@@ -276,12 +277,6 @@ workflowDefinition:
 """
 
 
-MINIMAL_CANVAS_TEMPLATE = """schemaVersion: 1
-nodes: []
-edges: []
-"""
-
-
 def _install_minimal_workflow_definition_templates(module_root: Path) -> None:
     d = module_root / "workflow_template"
     d.mkdir(parents=True, exist_ok=True)
@@ -291,11 +286,6 @@ def _install_minimal_workflow_definition_templates(module_root: Path) -> None:
     (d / "workflow.template.WorkflowVersion.yaml").write_text(
         MINIMAL_WV_DEF_TEMPLATE, encoding="utf-8"
     )
-    (d / "workflow.template.canvas.yaml").write_text(
-        MINIMAL_CANVAS_TEMPLATE, encoding="utf-8"
-    )
-
-
 def _tb(
     scope_document_path: Path,
     *,
@@ -389,11 +379,13 @@ def test_prepare_scope_document_uses_leaf_instance_space_when_set(tmp_path: Path
     assert v0["filters"][0]["values"] == ["sp_acme_prod"]
 
 
-def test_scope_configuration_for_workflow_trigger_drops_canvas_without_mutating_source() -> None:
+def test_scope_configuration_for_workflow_trigger_trims_without_mutating_source() -> None:
     doc = yaml.safe_load(MINIMAL_TEMPLATE)
     assert "canvas" in doc
     slim = scope_configuration_for_workflow_trigger(doc)
-    assert "canvas" not in slim
+    assert "canvas" in slim
+    assert isinstance(slim["canvas"].get("nodes"), list)
+    assert "compiled_workflow" not in slim
     assert "canvas" in doc
     assert slim["key_extraction"]["externalId"] == doc["key_extraction"]["externalId"]
 
@@ -490,7 +482,6 @@ def test_filter_builders_subset_and_dedupe(tmp_path: Path) -> None:
     builders = _tb(sd)
     assert [b.name for b in builders] == [
         "workflow_definitions_scoped",
-        "scope_canvas_scoped",
         "workflow_triggers",
     ]
     assert [b.name for b in filter_builders(builders, ["workflow_triggers"])] == [
@@ -561,13 +552,18 @@ def test_workflow_triggers_builder_two_leaves(tmp_path: Path) -> None:
     assert data0["workflowExternalId"] == "key_extraction_aliasing.s1_p1"
     assert data0["workflowVersion"] == "v4"
     assert "configuration" in data0["input"]
-    assert "canvas" not in data0["input"]["configuration"]
-    cw0 = data0["input"].get("compiled_workflow")
-    assert isinstance(cw0, dict) and cw0.get("dag_source") == "canvas"
-    assert isinstance(cw0.get("tasks"), list) and len(cw0["tasks"]) >= 1
+    assert "compiled_workflow" not in data0["input"]
+    assert "canvas" in data0["input"]["configuration"]
+    assert isinstance(data0["input"]["configuration"]["canvas"].get("nodes"), list)
     assert data0["input"]["configuration"]["key_extraction"]["externalId"] == "ctx_key_extraction_s1_p1"
     assert "scope_config_file_external_id" not in data0["input"]
     assert data1["input"]["configuration"]["key_extraction"]["externalId"] == "ctx_key_extraction_s2_p2"
+    cfg0 = mod / "workflows" / "s1_p1" / scope_config_filename("key_extraction_aliasing", "s1_p1")
+    cfg1 = mod / "workflows" / "s2_p2" / scope_config_filename("key_extraction_aliasing", "s2_p2")
+    assert cfg0.is_file() and cfg1.is_file()
+    full0 = yaml.safe_load(cfg0.read_text(encoding="utf-8"))
+    assert isinstance(full0, dict)
+    assert full0["key_extraction"]["externalId"] == "ctx_key_extraction_s1_p1"
 
 
 def test_workflow_triggers_skips_existing_without_force(tmp_path: Path) -> None:
@@ -739,6 +735,30 @@ def test_verify_triggers_file_fails_when_required_file_missing(tmp_path: Path) -
         verify_triggers_file(mod, list(contexts), scope_document_path=sd)
 
 
+def test_verify_triggers_file_fails_when_leaf_scope_config_missing(tmp_path: Path) -> None:
+    mod = tmp_path / "mod_verify_missing_cfg"
+    mod.mkdir()
+    _install_minimal_workflow_trigger_template(mod)
+    sd = _install_minimal_scope_document(mod)
+    doc = yaml.safe_load(
+        """
+        aliasing_scope_hierarchy:
+          levels:
+          - site
+          locations:
+          - id: A
+            name: A
+        """
+    )
+    contexts = build_contexts(module_root=mod, doc=doc, dry_run=False)
+    WorkflowTriggersBuilder(scope_document_path=sd).write_all(contexts, dry_run=False, module_root=mod)
+    cfg = mod / "workflows" / "a" / scope_config_filename("key_extraction_aliasing", "a")
+    assert cfg.is_file()
+    cfg.unlink()
+    with pytest.raises(SystemExit, match="Missing leaf scope config"):
+        verify_triggers_file(mod, list(contexts), scope_document_path=sd)
+
+
 def test_verify_triggers_file_fails_when_content_out_of_date(tmp_path: Path) -> None:
     mod = tmp_path / "mod_verify_stale"
     mod.mkdir()
@@ -849,7 +869,6 @@ def test_default_builders_order(tmp_path: Path) -> None:
     )
     assert [b.name for b in bs] == [
         "workflow_definitions_scoped",
-        "scope_canvas_scoped",
         "workflow_triggers",
     ]
 
@@ -886,7 +905,6 @@ aliasing_scope_hierarchy:
         scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
-        scope_dir / "key_extraction_aliasing.b.canvas.yaml",
     ):
         p.write_text(p.read_text(encoding="utf-8") + "\n# TAMPER_SCOPED\n", encoding="utf-8")
     run_build(module_root=mod, hierarchy_path=hier, builders=default_builders(**common), dry_run=False)
@@ -894,7 +912,6 @@ aliasing_scope_hierarchy:
         scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
-        scope_dir / "key_extraction_aliasing.b.canvas.yaml",
     ):
         assert "TAMPER_SCOPED" in p.read_text(encoding="utf-8")
     force_common = {**common, "overwrite": True}
@@ -908,7 +925,6 @@ aliasing_scope_hierarchy:
         scope_dir / "key_extraction_aliasing.b.Workflow.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml",
         scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml",
-        scope_dir / "key_extraction_aliasing.b.canvas.yaml",
     ):
         assert "TAMPER_SCOPED" not in p.read_text(encoding="utf-8")
 
@@ -986,11 +1002,6 @@ aliasing_scope_hierarchy:
     assert (scope_dir / "key_extraction_aliasing.b.Workflow.yaml").is_file()
     assert (scope_dir / "key_extraction_aliasing.b.WorkflowVersion.yaml").is_file()
     assert (scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml").is_file()
-    canvas = scope_dir / "key_extraction_aliasing.b.canvas.yaml"
-    assert canvas.is_file()
-    tpl_canvas = mod / "workflow_template" / "workflow.template.canvas.yaml"
-    assert canvas.read_bytes() == tpl_canvas.read_bytes()
-    assert "schemaVersion" in canvas.read_text(encoding="utf-8")
     t = yaml.safe_load(
         (scope_dir / "key_extraction_aliasing.b.WorkflowTrigger.yaml").read_text(encoding="utf-8")
     )

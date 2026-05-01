@@ -70,7 +70,7 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/module
   --config-path modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflow.local.config.yaml
 ```
 
-With **incremental** config, add **`--all`** to mirror **`run_all: true`** (process entire scope per filters). Outputs land under **`tests/results/`** as `*_cdf_extraction.json` and `*_cdf_aliasing.json`.
+With **incremental** config, add **`--all`** to mirror **`run_all: true`** (process entire scope per filters). Outputs land under **`local_run_results/`** as `*_cdf_extraction.json` and `*_cdf_aliasing.json`.
 
 ---
 

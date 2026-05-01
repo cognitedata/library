@@ -51,17 +51,6 @@ function estimateNodeRect(n: Node): Rect {
   if (t === "keaSubgraph") {
     return { w: 192 + BOX_PAD, h: 112 + BOX_PAD };
   }
-  if (t === "keaSubflow") {
-    const style = (n.style ?? {}) as Record<string, unknown>;
-    const sw = style.width;
-    const sh = style.height;
-    const w = typeof sw === "number" ? sw : typeof sw === "string" ? parseFloat(sw) : NaN;
-    const h = typeof sh === "number" ? sh : typeof sh === "string" ? parseFloat(sh) : NaN;
-    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
-      return { w: Math.ceil(w) + BOX_PAD, h: Math.ceil(h) + BOX_PAD };
-    }
-    return { w: 380 + BOX_PAD, h: 260 + BOX_PAD };
-  }
   return { w: 192, h: 108 };
 }
 
@@ -264,157 +253,9 @@ function positionsForComponent(
   return pos;
 }
 
-const SUB_INTERIOR_PAD = 20;
-const SUB_INTERIOR_HEADER = 40;
-const SUB_MIN_W = 200;
-const SUB_MIN_H = 140;
-const INTERIOR_COMP_GAP = 48;
-
-/** How many subflow-only ancestor levels sit above this subflow (inner = larger). */
-function subflowNestingDepth(nodes: Node[], subflowId: string): number {
-  let d = 0;
-  const start = nodes.find((n) => n.id === subflowId);
-  if (!start) return 0;
-  const seen = new Set<string>();
-  let walk: Node = start;
-  while (walk.parentId && !seen.has(walk.parentId)) {
-    seen.add(walk.parentId);
-    const p = nodes.find((n) => n.id === walk.parentId);
-    if (!p || p.type !== "keaSubflow") break;
-    d++;
-    walk = p;
-  }
-  return d;
-}
-
-/** Layer children of ``subflowId`` using the same pipeline rules as the root canvas; resize the subflow frame to fit. */
-const HUB_LANE_W = 136;
-const HUB_GAP = 24;
-
-function layoutSubflowInterior(
-  nodes: Node[],
-  edges: Edge[],
-  subflowId: string,
-  orientation: WorkflowCanvasHandleOrientation,
-  aliasingRankByName?: Map<string, number>
-): Node[] {
-  const children = nodes.filter((n) => n.parentId === subflowId);
-  if (children.length === 0) return nodes;
-
-  const hubTypes = new Set(["keaSubflowGraphIn", "keaSubflowGraphOut"]);
-  const layoutChildren = children.filter((c) => !hubTypes.has(c.type ?? ""));
-  const hubIn = children.find((c) => c.type === "keaSubflowGraphIn");
-  const hubOut = children.find((c) => c.type === "keaSubflowGraphOut");
-
-  const byId = nodeById(nodes);
-
-  if (layoutChildren.length === 0) {
-    const subW = Math.max(SUB_MIN_W, SUB_INTERIOR_PAD * 2 + HUB_LANE_W * 2 + HUB_GAP);
-    const subH = Math.max(SUB_MIN_H, SUB_INTERIOR_HEADER + SUB_INTERIOR_PAD * 2 + 72);
-    return nodes.map((n) => {
-      if (n.id === subflowId) {
-        const prev = (n.style ?? {}) as Record<string, unknown>;
-        return { ...n, style: { ...prev, width: subW, height: subH } };
-      }
-      if (hubIn && n.id === hubIn.id) {
-        return { ...n, position: { x: SUB_INTERIOR_PAD, y: SUB_INTERIOR_HEADER + SUB_INTERIOR_PAD } };
-      }
-      if (hubOut && n.id === hubOut.id) {
-        return {
-          ...n,
-          position: { x: subW - SUB_INTERIOR_PAD - HUB_LANE_W, y: SUB_INTERIOR_HEADER + SUB_INTERIOR_PAD },
-        };
-      }
-      return n;
-    });
-  }
-
-  const childIds = layoutChildren.map((c) => c.id);
-  const subEdges = edges.filter((e) => childIds.includes(e.source) && childIds.includes(e.target));
-  const comps = weakComponents(childIds, subEdges);
-
-  const interiorPos = new Map<string, { x: number; y: number }>();
-  let primaryCursor = 0;
-
-  for (const comp of comps) {
-    const compInternalEdges = subEdges.filter((e) => comp.includes(e.source) && comp.includes(e.target));
-    const compPos = positionsForComponent(
-      comp,
-      nodes,
-      compInternalEdges,
-      primaryCursor,
-      orientation,
-      aliasingRankByName
-    );
-    let maxExt = primaryCursor;
-    for (const [id, p] of compPos) {
-      interiorPos.set(id, p);
-      const r = estimateNodeRect(byId.get(id)!);
-      if (orientation === "lr") {
-        maxExt = Math.max(maxExt, p.x + r.w);
-      } else {
-        maxExt = Math.max(maxExt, p.y + r.h);
-      }
-    }
-    primaryCursor = maxExt + INTERIOR_COMP_GAP;
-  }
-
-  let minX = Infinity;
-  let minY = Infinity;
-  for (const [, p] of interiorPos) {
-    minX = Math.min(minX, p.x);
-    minY = Math.min(minY, p.y);
-  }
-  if (!Number.isFinite(minX) || !Number.isFinite(minY)) return nodes;
-
-  const laneOffset = hubIn ? SUB_INTERIOR_PAD + HUB_LANE_W + HUB_GAP : SUB_INTERIOR_PAD;
-  const shiftX = laneOffset - minX;
-  const shiftY = SUB_INTERIOR_HEADER + SUB_INTERIOR_PAD - minY;
-  const shifted = new Map<string, { x: number; y: number }>();
-  for (const [id, p] of interiorPos) {
-    shifted.set(id, { x: p.x + shiftX, y: p.y + shiftY });
-  }
-
-  let bboxMaxX = 0;
-  let bboxMaxY = 0;
-  for (const [id, p] of shifted) {
-    const node = byId.get(id);
-    if (!node) continue;
-    const r = estimateNodeRect(node);
-    bboxMaxX = Math.max(bboxMaxX, p.x + r.w);
-    bboxMaxY = Math.max(bboxMaxY, p.y + r.h);
-  }
-
-  const rightReserve = hubOut ? HUB_GAP + HUB_LANE_W + SUB_INTERIOR_PAD : SUB_INTERIOR_PAD;
-  const subW = Math.max(SUB_MIN_W, bboxMaxX + rightReserve);
-  const subH = Math.max(SUB_MIN_H, bboxMaxY + SUB_INTERIOR_PAD);
-
-  return nodes.map((n) => {
-    if (n.id === subflowId) {
-      const prev = (n.style ?? {}) as Record<string, unknown>;
-      return { ...n, style: { ...prev, width: subW, height: subH } };
-    }
-    if (hubIn && n.id === hubIn.id) {
-      return { ...n, position: { x: SUB_INTERIOR_PAD, y: SUB_INTERIOR_HEADER + SUB_INTERIOR_PAD } };
-    }
-    if (hubOut && n.id === hubOut.id) {
-      return {
-        ...n,
-        position: { x: subW - SUB_INTERIOR_PAD - HUB_LANE_W, y: SUB_INTERIOR_HEADER + SUB_INTERIOR_PAD },
-      };
-    }
-    const np = shifted.get(n.id);
-    if (np) {
-      return { ...n, position: np };
-    }
-    return n;
-  });
-}
-
 /**
  * Layered layout: ``lr`` = pipeline to the east; ``tb`` = pipeline downward.
- * Multiple disconnected subgraphs are spaced along the layout primary axis.
- * Nested subflows are laid out inside-out (deepest first), then root nodes (including subflow frames).
+ * Multiple disconnected components are spaced along the layout primary axis.
  */
 export function layoutFlowNodes(
   nodes: Node[],
@@ -429,12 +270,7 @@ export function layoutFlowNodes(
       ? new Map(orderedAliasingRuleNamesForSeed(workflowScopeDoc).map((name, i) => [name, i]))
       : undefined;
 
-  const subflowIds = nodes.filter((n) => n.type === "keaSubflow").map((n) => n.id);
-  let next = [...nodes];
-  subflowIds.sort((a, b) => subflowNestingDepth(next, b) - subflowNestingDepth(next, a));
-  for (const sfId of subflowIds) {
-    next = layoutSubflowInterior(next, edges, sfId, orientation, aliasingRankByName);
-  }
+  const next = [...nodes];
 
   const roots = next.filter((n) => !n.parentId);
   if (roots.length === 0) return nodes;

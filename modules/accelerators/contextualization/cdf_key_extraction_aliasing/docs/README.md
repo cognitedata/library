@@ -10,7 +10,7 @@ All paths are relative to `modules/accelerators/contextualization/cdf_key_extrac
 | [Key Discovery incremental state](#key-discovery-incremental-state-architecture-summary) | Everyone | Plan-aligned summary: FDM vs RAW split, checkpoint vs processing state, naming, deploy/fallback |
 | [Module functional document](module_functional_document.md) | Everyone                      | End-to-end scope, behaviors, components, data flows, interfaces (points to deep specs) |
 | [Module README](../README.md)                              | Everyone                      | What the module does, prerequisites, [Local runs (module.py)](../README.md#local-runs-modulepy), [Python API](../README.md#python-api), [custom handlers how-to](guides/howto_custom_handlers.md), pointers to deeper docs |
-| [Quickstart — local `module.py`](guides/howto_quickstart.md) | Everyone                      | `.env` at repo root, `PYTHONPATH=.`, run `module.py`, read outputs under `tests/results/` |
+| [Quickstart — local `module.py`](guides/howto_quickstart.md) | Everyone                      | `.env` at repo root, `PYTHONPATH=.`, run `module.py`, read outputs under `local_run_results/` |
 | [Build configuration (YAML)](guides/howto_config_yaml.md)   | Authors                       | v1 scope files, `default.config.yaml` hierarchy, template alignment, `module.py build` / `run`, deploy pointers |
 | [Build configuration (UI)](guides/howto_config_ui.md)      | Authors / operators           | Local operator UI + API: edit scope/template/triggers, run build and pipeline, `run_all` / `--all`, security notes |
 | [Scoped deployment](guides/howto_scoped_deployment.md)     | Authors / operators           | `aliasing_scope_hierarchy`, `module.py build`, WorkflowTrigger `configuration` / instance spaces, local parity from a trigger, Cognite Toolkit `cdf build` / `cdf deploy` |
@@ -63,7 +63,7 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 
 | Document                                                                     | Contents                                                                                                               |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [Workflows README](../workflows/README.md)                                   | Single workflow `key_extraction_aliasing` (v4), generated YAML under `workflows/`, `workflow.input.configuration`, incremental Key Discovery vs RAW |
+| [Workflows README](../workflows/README.md)                                   | Single workflow `key_extraction_aliasing` (**v5**), generated YAML under `workflows/`, trimmed `workflow.input.configuration`, inlined task `data`, incremental Key Discovery vs RAW |
 | [Key Discovery data modeling YAML](../data_modeling/)                        | `KeyDiscoveryProcessingState` / `KeyDiscoveryScopeCheckpoint` containers, views, datamodel — deploy with Toolkit; runtime falls back to RAW if missing |
 | [Workflow diagram source](../workflow_template/workflow_diagram.md)                  | Mermaid diagram source (no committed PNG; lives in `workflow_template/`)                                                            |
 | [fn_dm_key_extraction](../functions/fn_dm_key_extraction/README.md)          | Key extraction function I/O                                                                                            |
@@ -88,7 +88,7 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 
 | Document                                                              | Contents                                                                                                  |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [Key discovery / aliasing report](key_extraction_aliasing_report.md) | Current default scope, shared tag regex, aliasing stack; run-specific metrics live under `tests/results/` |
+| [Key discovery / aliasing report](key_extraction_aliasing_report.md) | Current default scope, shared tag regex, aliasing stack; run-specific metrics live under `local_run_results/` |
 | [Common issues](troubleshooting/common_issues.md)                     | Troubleshooting                                                                                           |
 
 

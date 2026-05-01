@@ -125,6 +125,45 @@ class TestExtractionAliasingPipeline(unittest.TestCase):
         self.assertIn("underscore", r.metadata.get("applied_rules") or [])
         self.assertIn("A_B", r.aliases)
 
+    def test_non_empty_per_rule_pipeline_then_global_pathways(self) -> None:
+        """Per-rule ``aliasing_pipeline`` runs first; global ``pathways`` still apply after."""
+        cfg = {
+            "validation": _val(min_confidence=0.0, max_aliases_per_tag=100),
+            "extraction_aliasing_pipelines": {
+                "rule_a": [
+                    {
+                        "name": "pre_step",
+                        "handler": "character_substitution",
+                        "config": {"substitutions": {"X": "Y"}},
+                    }
+                ],
+            },
+            "pathways": {
+                "steps": [
+                    {
+                        "mode": "sequential",
+                        "rules": [
+                            {
+                                "name": "post_step",
+                                "handler": "character_substitution",
+                                "config": {"substitutions": {"Y": "Z"}},
+                            }
+                        ],
+                    }
+                ]
+            },
+        }
+        eng = AliasingEngine(cfg)
+        r = eng.generate_aliases(
+            "XOW",
+            "asset",
+            context={"extraction_rule_name": "rule_a"},
+        )
+        self.assertIn("ZOW", r.aliases)
+        names = r.metadata.get("applied_rules") or []
+        self.assertIn("pre_step", names)
+        self.assertIn("post_step", names)
+
 
 if __name__ == "__main__":
     unittest.main()

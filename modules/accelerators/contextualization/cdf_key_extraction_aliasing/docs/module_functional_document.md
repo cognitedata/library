@@ -20,7 +20,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 | In scope | Out of scope (by design) |
 | -------- | ------------------------ |
 | Rule-driven key discovery and aliasing from YAML config | Automatic DM relationship edges or graph sync (see module README roadmap) |
-| CDF Functions + Workflow orchestration (v4) | Replacing trigger-embedded `configuration` without updating workflow task wiring |
+| CDF Functions + Workflow orchestration (**v5**) | Drifting trigger **`configuration`** from **WorkflowVersion** task **`data`** without **`module.py build --force`** |
 | RAW as inter-task buffer and incremental state | Removing values already written to DM instances (`--clean-state` clears RAW only) |
 | Local runner (`module.py`) for dev / parity testing | General-purpose ETL outside contextualization |
 
@@ -121,7 +121,7 @@ flowchart LR
     CFG[Scope YAML v1 in trigger input]
   end
 
-  subgraph wf [Workflow v4]
+  subgraph wf [Workflow v5]
     INC[fn_dm_incremental_state_update]
     KE[fn_dm_key_extraction]
     RI[fn_dm_reference_index]
@@ -170,7 +170,7 @@ Shared helpers live under `functions/cdf_fn_common/` (logging, scope document lo
 
 ### 4.3 Local runner
 
-**`module.py`** loads scope YAML from disk, optionally filters `source_views` by **`--instance-space`**, can **`--clean-state`**, then runs the same engines against live CDF data. Results are written under **`tests/results/`** as JSON. **`--dry-run`** skips alias persistence to DM. See [Quickstart — `module.py`](guides/howto_quickstart.md).
+**`module.py`** loads scope YAML from disk, optionally filters `source_views` by **`--instance-space`**, can **`--clean-state`**, then runs the same engines against live CDF data. Results are written under **`local_run_results/`** as JSON. **`--dry-run`** skips alias persistence to DM. See [Quickstart — `module.py`](guides/howto_quickstart.md).
 
 ---
 
@@ -182,15 +182,18 @@ Single YAML document shape (local file or embedded in each schedule trigger) com
 
 - **`key_extraction`**: `config` (`parameters`, `data` with rules and validation). Top-level **`source_views`** on the scope document lists DM views; handlers receive them under `config.data.source_views` after merge.
 - **`aliasing`**: `config` (rules, validation, parameters such as `raw_table_aliases`, `alias_writeback_property`).
+- **`canvas`**: workflow graph (nodes/edges); authored inside the same YAML. **`build_scopes`** reads the unified template only.
 - Optional top-level keys consumed by tooling (e.g. `scope` block injected by `build_scopes`).
 
 Validation: Pydantic models in `fn_dm_key_extraction/config.py`, `fn_dm_aliasing/config.py`, and cdf_adapter layers.
 
-### 5.2 Workflow v4 runtime config
+### 5.2 Workflow v5 runtime config
 
-Workflow YAML does **not** embed full rule sets inline. Each function task receives **`configuration`** (v1 mapping) from **`workflow.input`**, optional **`run_all`** / **`run_id`**, and RAW wiring. **`instance_space`** for DM handlers is taken from **`configuration`** (`source_views`) when not set on task **`data`**. Functions resolve **`config`** from **`configuration`** in memory.
+**Triggers** embed a **trimmed** v1 scope on **`workflow.input.configuration`** (same keys as authoring, but subgraphs flattened, canvas positions stripped, and **`extraction_rules`** / **`aliasing_rules`** lists reduced to rules referenced by executable canvas nodes). There is **no** **`workflow.input.compiled_workflow`**.
 
-Authoring: **`workflow.local.config.yaml`** (local default v1 scope), **`workflow_template/workflow.template.config.yaml`** (template embedded into triggers by **`build_scopes`**).
+**WorkflowVersion** YAML is generated at **`module.py build`**: the canvas is compiled to an in-memory IR; each function task’s **`parameters.function.data`** includes **`${workflow.input.configuration}`** plus **inlined** IR fields (`task_id`, `pipeline_node_id`, optional `canvas_node_id`, step payloads, persistence overrides, and per-step rule name lists where applicable). **`instance_space`** for DM handlers is taken from **`configuration`** (`source_views`) when not set on task **`data`**. Functions resolve **`config`** from **`configuration`** in memory (handlers may further filter definitions using inlined rule name lists).
+
+Authoring: **`workflow.local.config.yaml`** (local default v1 scope with embedded **`canvas`**), **`workflow_template/workflow.template.config.yaml`** (template merged into triggers by **`build_scopes`**).
 
 ### 5.3 Multi-site generation
 
@@ -239,13 +242,15 @@ Failures remain visible in RAW for operator review; persistence aggregates alias
 
 ## 7. External interfaces
 
-### 7.1 Workflow input (`key_extraction_aliasing` v4)
+### 7.1 Workflow input (`key_extraction_aliasing` v5)
 
 | Field | Role |
 | ----- | ---- |
-| `configuration` | Full v1 scope mapping (`key_extraction`, `aliasing`, optional `scope`). |
+| `configuration` | **Trimmed** v1 scope (`key_extraction`, `aliasing`, embedded **`canvas`**, optional `scope`, …) as described in §5.2. |
 | `run_all` | Bool override for incremental behavior. |
 | `run_id` | Optional operator/run correlation; auto-discovery paths exist for single-run setups. |
+
+Per-step compiled DAG and full rule payloads are **not** on **`workflow.input`**; they are **inlined** on each **WorkflowVersion** task’s **`data`** at build time.
 
 ### 7.2 CLI (`module.py`)
 
@@ -278,7 +283,7 @@ A **React + Vite** frontend under **`ui/`** talks to a **FastAPI** app in **`ui/
 | ---- | -------- |
 | Documentation index | [docs/README.md](README.md) |
 | Operator / developer entry | [Module README](../README.md) |
-| Workflow task graph and v4 behavior | [workflows/README.md](../workflows/README.md) |
+| Workflow task graph and v5 behavior | [workflows/README.md](../workflows/README.md) |
 | YAML authoring (how-tos) | [guides/howto_config_yaml.md](guides/howto_config_yaml.md), [guides/howto_config_ui.md](guides/howto_config_ui.md) |
 | YAML reference | [guides/configuration_guide.md](guides/configuration_guide.md), [config/README.md](../config/README.md) |
 | Extraction rules reference | [specifications/1. key_extraction.md](specifications/1.%20key_extraction.md) |
@@ -293,7 +298,7 @@ A **React + Vite** frontend under **`ui/`** talks to a **FastAPI** app in **`ui/
 | Item | Value |
 | ---- | ----- |
 | Module | `modules/accelerators/contextualization/cdf_key_extraction_aliasing` |
-| Workflow version referenced | **v4** (`key_extraction_aliasing`) |
+| Workflow version referenced | **v5** (`key_extraction_aliasing`) |
 | Audience | Product/engineering readers who need an end-to-end functional picture without reading all specs |
 
 When workflow semantics or default scope behavior change, update this document in the same change set as the workflow YAML or default scope so the functional story stays accurate.

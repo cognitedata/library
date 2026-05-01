@@ -54,7 +54,6 @@ function modalTitleKey(kind: string | undefined): MessageKey {
       return "flow.nodeEditorTitleMatchDefinitions";
     case "keaStart":
     case "keaEnd":
-    case "keaSubflow":
     case "keaSubgraph":
     case "keaSubflowGraphIn":
     case "keaSubflowGraphOut":
@@ -176,9 +175,6 @@ export function FlowNodeEditorModal({
     case "keaStart":
     case "keaEnd":
       body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorPipelineStubBody")}</p>;
-      break;
-    case "keaSubflow":
-      body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorSubflowBody")}</p>;
       break;
     case "keaSubgraph":
       body = <p className="kea-hint" style={{ marginTop: 0 }}>{t("flow.nodeEditorSubgraphBody")}</p>;

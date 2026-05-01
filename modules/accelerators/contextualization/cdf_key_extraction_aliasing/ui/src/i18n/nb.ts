@@ -14,10 +14,11 @@ export const nb: Messages = {
   "tabs.keyExtraction": "Nøkkeloppdagelse",
   "tabs.aliasing": "Alias",
   "tabs.flowCanvas": "Flyt",
-  "tabs.runPipeline": "Kjør arbeidsflyt",
+  "tabs.runPipeline": "Konsoll",
   "tabs.configure": "Konfigurer",
   "tabs.build": "Bygg",
   "tabs.artifacts": "Artefakter",
+  "tabs.results": "Resultater",
   "controls.theme": "Tema",
   "controls.themeLight": "Lyst",
   "controls.themeDark": "Mørkt",
@@ -32,7 +33,8 @@ export const nb: Messages = {
   "unsaved.save": "Lagre",
   "unsaved.discard": "Forkast",
   "btn.saveDefault": "Lagre default.config.yaml",
-  "btn.saveScope": "Lagre omfangsdokument",
+  "btn.save": "Lagre",
+  "btn.saveScope": "Lagre",
   "btn.saveTemplateFile": "Lagre arbeidsflytmal",
   "btn.saveFile": "Lagre fil",
   "btn.refreshList": "Oppdater liste",
@@ -76,13 +78,13 @@ export const nb: Messages = {
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
   "config.updateTemplate": "Oppdater mal",
   "config.updateTemplateTooltip":
-    "Overskriver workflow_template/workflow.template.config.yaml og workflow.template.canvas.yaml med lagrede lokale filer på disk (samme som ``python module.py promote-local-templates``). Lagre først hvis redigeringsprogrammet har ulagrede endringer.",
+    "Overskriver workflow_template/workflow.template.config.yaml med lagret workflow.local.config.yaml på disk (canvas innebygd; samme som ``python module.py promote-local-templates``). Lagre først hvis redigeringsprogrammet har ulagrede endringer.",
   "config.promoteTemplateConfirm":
-    "Overskrive workflow.template.config.yaml og workflow.template.canvas.yaml på disk med lagrede workflow.local.config.yaml og workflow.local.canvas.yaml? Kan ikke angres i UI (bruk git for å tilbakestille).",
+    "Overskrive workflow.template.config.yaml på disk med lagret workflow.local.config.yaml (én fil med canvas)? Kan ikke angres i UI (bruk git for å tilbakestille).",
   "config.promoteTemplateDirtyConfirm":
     "Du har ulagrede endringer i redigeringsprogrammet. Malen oppdateres fra det som allerede er lagret på disk, ikke fra redigeringsprogrammet. Fortsette?",
   "config.templatePromoted":
-    "Mal-konfigurasjon og lerret oppdatert på disk fra workflow.local.config.yaml og workflow.local.canvas.yaml.",
+    "Mal-konfigurasjon oppdatert på disk fra workflow.local.config.yaml (canvas innebygd).",
   "build.warnForce": "Tving overskriver generert arbeidsflyt-YAML. Bekreft før kjøring.",
   "build.confirmForce": "Overskrive genererte arbeidsflytfiler med --force?",
   "build.outputPlaceholder": "Byggutdata vises her.",
@@ -485,6 +487,26 @@ export const nb: Messages = {
   "artifacts.plainEditor": "Ren YAML-redigerer",
   "artifacts.treeExpand": "Utvid",
   "artifacts.treeCollapse": "Skjul",
+  "runResults.title": "Kjøreresultater",
+  "runResults.hint":
+    "Under Konfigurer → Flyt: innvendig fane Resultater ved siden av Lerret og Kjør arbeidsflyt. JSON under local_run_results/ for mål valgt i sidemenyen. Bare kjøringer fra det målet; filer uten metadata skjules med trigger. Fjerne CDF skriver ikke hit.",
+  "runResults.empty": "Ingen par med ekstraksjon/aliasing. Kjør pipeline lokalt først.",
+  "runResults.refresh": "Oppdater liste",
+  "runResults.runLabel": "Kjøring",
+  "runResults.viewExtraction": "Ekstraksjon",
+  "runResults.viewAliasing": "Aliasing",
+  "runResults.totalRows": "{count} rader",
+  "runResults.showing": "Viser {from}–{to} av {total}",
+  "runResults.filterPlaceholder": "Filtrer innlastede rader (entitet, tagg …)",
+  "runResults.loadMore": "Last inn mer",
+  "runResults.error": "Kunne ikke laste resultater.",
+  "runResults.table.entity": "Entitet",
+  "runResults.table.entityType": "Entitetstype",
+  "runResults.table.baseTag": "Grunntagg",
+  "runResults.table.aliases": "Alias",
+  "runResults.table.keys": "Kandidatnøkler",
+  "runResults.table.fk": "FK-referanser",
+  "runResults.openRaw": "Åpne rå JSON",
   "advanced.toggle": "Avansert YAML …",
   "advanced.warning1": "Rå redigering kan fjerne kommentarer. Ugyldig YAML avvises.",
   "advanced.warning2": "Kommentarer beholdes ikke ved rundtur.",
@@ -512,7 +534,6 @@ export const nb: Messages = {
   "flow.resizePanels": "Dra for å endre panelbredde",
   "flow.paletteStructural": "Pipeline-struktur",
   "flow.structuralSourceView": "Kildevisning",
-  "flow.structuralSubflow": "Underflyt",
   "flow.structuralSubgraph": "Delgraf",
   "flow.structuralExtraction": "Ekstraksjon",
   "flow.structuralAliasing": "Aliasing",
@@ -528,7 +549,6 @@ export const nb: Messages = {
   "flow.paletteAliasingHandlers": "Aliasing-håndterere",
   "flow.paletteAnnotations": "Annotasjoner",
   "flow.paletteCdfTasks": "CDF-funksjoner",
-  "flow.seedFromScope": "Tilbakestill",
   "flow.alignLeft": "Juster valgte noder til venstre",
   "flow.alignCenterHorizontal": "Juster valgte noder til horisontalt senter",
   "flow.alignRight": "Juster valgte noder til høyre",
@@ -537,12 +557,12 @@ export const nb: Messages = {
   "flow.alignBottom": "Juster valgte noder til bunnen",
   "flow.alignSelectionGroup": "Juster utvalg",
   "flow.canvasHint":
-    "Oppsett lagres i en tilhørende .canvas.yaml. Lagre omfang. Dra fra paletten til lerretet. Slipp en node i en underflytramme for å knytte den til; velg underflyten og dra hjørner eller kantfelt for å endre størrelse vannrett og loddrett.",
+    "Oppsett lagres under canvas i omfangs-YAML. Lagre flyt eller omfang. Dra fra paletten til lerretet. Slipp en node i en underflytramme for å knytte den til; velg underflyten og dra hjørner eller kantfelt for å endre størrelse vannrett og loddrett.",
   "flow.workflowCompileModeLabel": "Kompilering av arbeidsflyt",
   "flow.workflowCompileModeAuto": "Auto (lerret når kjørbare noder finnes)",
   "flow.workflowCompileModeCanvas": "Lerret-DAG (alltid fra graf)",
   "flow.workflowCompileModeHint":
-    "Styrer hvordan ``compiled_workflow`` bygges for CDF og lokale kjøringer fra flyt-lerretet. Auto og lerret bruker samme lerret-kompilering (ugyldige grafer feiler ved bygg, kjøring eller lagring). Lagring av omfang eller lerret bygger ``compiled_workflow`` inn i omfangs-YAML på nytt.",
+    "Styrer lerret-DAG-kompilering for lokale kjøringer. Auto og lerret bruker samme kompilering (ugyldige grafer feiler ved bygg, kjøring eller lagring). På CDF bærer WorkflowVersion fra ``python module.py build`` IR-en. Lagring oppdaterer ``canvas`` i omfangs-YAML.",
   "flow.handleOrientationLabel": "Håndtak",
   "flow.handleOrientationLr": "Venstre → høyre",
   "flow.handleOrientationTb": "Topp → bunn",
@@ -552,12 +572,10 @@ export const nb: Messages = {
   "flow.ctxMenuRemoveNode": "Fjern node",
   "flow.confirmSubgraphDeleteLift":
     "Denne delgrafen inneholder indre arbeidsflyttrinn.\n\nOK — flytt dem til overordnet lerret og fjern delgraframmen.\nAvbryt — fjern delgrafen og forkast de indre trinnene.",
-  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
   "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
-  "flow.ctxMenuPromoteNodeToOwningGraph": "Flytt til overordnet graf",
-  "flow.ctxMenuConvertSubflowToSubgraph": "Gjør om delflyt til delgraf (drill-inn)",
-  "flow.ctxMenuConvertSubgraphToSubflow": "Gjør om delgraf til delflyt (gruppe)",
   "flow.subgraphDrillTitle": "Subgraph",
+  "flow.ctxMenuFlattenSubgraph": "Flatten subgraph to parent canvas",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
   "flow.subgraphBack": "Save & close",
   "flow.subgraphCancel": "Avbryt",
   "flow.subgraphCancelNestedTooltip":
@@ -579,8 +597,6 @@ export const nb: Messages = {
   "flow.nodeEditorDone": "Ferdig",
   "flow.nodeEditorPipelineStubBody":
     "Start- og sluttnoder er bare layout. Rediger kildevisninger, ekstraksjon og aliasing via andre noder eller Konfigurer-fanene.",
-  "flow.nodeEditorSubflowBody":
-    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
   "flow.nodeEditorSubgraphBody":
     "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
   "flow.nodeEditorGraphHubBody":
@@ -591,6 +607,8 @@ export const nb: Messages = {
   "flow.editWorkflow": "Rediger arbeidsflyt",
   "flow.canvasPreviewHint":
     "Skrivebeskyttet forhåndsvisning. Rediger åpner hele arbeidsflytredigereren.",
+  "flow.subtabCanvas": "Lerret",
+  "flow.subtabRunWorkflow": "Konsoll",
   "flow.previewRunLocal": "Kjør lokalt",
   "flow.previewRunLocalHint":
     "Samme som Kjør lokalt på fanen Kjør arbeidsflyt (lagret YAML på disk—lagre først). Oppgaver som kjører markeres på grafen.",
@@ -612,10 +630,6 @@ export const nb: Messages = {
   "flow.validationContextSourceView": "Kildevisning (liste)",
   "flow.validationContextExtraction": "Ekstraksjonsregel",
   "flow.validationContextAliasing": "Alias-regel",
-  "flow.inspectorSubflowHint":
-    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
-  "flow.inspectorSubflowOrganizationalHint":
-    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
   "flow.inspectorSubflowPorts": "Subgraph ports",
   "flow.inspectorSubflowInputs": "Inputs",
   "flow.inspectorSubflowOutputs": "Outputs",
@@ -634,7 +648,6 @@ export const nb: Messages = {
     "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
   "flow.inspectorSubflowGraphOutHint":
     "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
-  "flow.inspectorParentSubflow": "Overordnet underflyt",
   "flow.inspectorNodeTitle": "Node",
   "flow.inspectorEdgeTitle": "Kant",
   "flow.inspectorEdgeKind": "Kanttype",

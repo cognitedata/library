@@ -147,12 +147,14 @@ def handle(
         if cdf_config is not None:
             require_incremental_change_processing_for_cdf(cdf_config)
 
+        _pec = engine_config if isinstance(engine_config, dict) else None
         key_extraction(
             client=client,
             logger=log,
             data=data,
             engine=engine,
             cdf_config=cdf_config if (CDF_CONFIG_AVAILABLE and client) else None,
+            parallel_engine_config=_pec,
         )
 
         # CDF Functions requires the returned object to be JSON-serializable.

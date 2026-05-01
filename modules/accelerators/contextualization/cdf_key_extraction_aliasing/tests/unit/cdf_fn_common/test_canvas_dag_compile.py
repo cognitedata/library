@@ -16,7 +16,6 @@ from cdf_fn_common.workflow_compile.canvas_dag import (  # noqa: E402
     CanvasCompileError,
     compile_canvas_dag,
     compile_workflow_from_document,
-    should_use_canvas_dag,
 )
 from cdf_fn_common.workflow_compile.legacy_ir import TASK_INCREMENTAL  # noqa: E402
 
@@ -34,35 +33,6 @@ def _minimal_scope_doc() -> dict:
         "key_extraction": {"config": {"parameters": {"raw_db": "db_ke", "raw_table_key": "tkey"}}},
         "aliasing": {"config": {"parameters": {"raw_db": "db_al", "raw_table_aliases": "tal"}}},
     }
-
-
-def test_should_use_canvas_dag_auto() -> None:
-    doc = _minimal_scope_doc()
-    assert should_use_canvas_dag(doc) is False
-    doc["canvas"] = {"nodes": [{"id": "x", "kind": "start"}], "edges": []}
-    assert should_use_canvas_dag(doc) is False
-    doc["canvas"]["nodes"].append({"id": "e1", "kind": "extraction", "data": {}})
-    assert should_use_canvas_dag(doc) is True
-
-
-def test_should_use_canvas_dag_true_when_executable_only_inside_subgraph() -> None:
-    doc = _minimal_scope_doc()
-    doc["canvas"] = {
-        "nodes": [
-            {
-                "id": "sg",
-                "kind": "subgraph",
-                "data": {
-                    "inner_canvas": {
-                        "nodes": [{"id": "ex1", "kind": "extraction", "data": {}}],
-                        "edges": [],
-                    }
-                },
-            }
-        ],
-        "edges": [],
-    }
-    assert should_use_canvas_dag(doc) is True
 
 
 def test_compile_canvas_linear_chain() -> None:
@@ -199,15 +169,35 @@ def test_compile_workflow_from_document_legacy_rejected() -> None:
         compile_workflow_from_document(doc)
 
 
-def test_should_use_canvas_dag_false_when_legacy_requested() -> None:
-    doc = _minimal_scope_doc()
-    doc["compile_workflow_dag"] = "legacy"
-    assert should_use_canvas_dag(doc) is False
-
-
 def test_compile_workflow_from_document_canvas_mode_errors() -> None:
     doc = _minimal_scope_doc()
     doc["compile_workflow_dag"] = "canvas"
     doc["canvas"] = {"nodes": [], "edges": []}
     with pytest.raises(CanvasCompileError):
         compile_workflow_from_document(doc)
+
+
+def test_compile_canvas_duplicate_extraction_rule_name_errors() -> None:
+    doc = _minimal_scope_doc()
+    doc["compile_workflow_dag"] = "canvas"
+    doc["canvas"] = {
+        "nodes": [
+            {"id": "st", "kind": "start"},
+            {
+                "id": "ex1",
+                "kind": "extraction",
+                "data": {"ref": {"extraction_rule_name": "same_rule"}},
+            },
+            {
+                "id": "ex2",
+                "kind": "extraction",
+                "data": {"ref": {"extraction_rule_name": "same_rule"}},
+            },
+        ],
+        "edges": [
+            {"source": "st", "target": "ex1"},
+            {"source": "st", "target": "ex2"},
+        ],
+    }
+    with pytest.raises(CanvasCompileError, match="Duplicate extraction rule name"):
+        compile_canvas_dag(doc)

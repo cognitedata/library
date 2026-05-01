@@ -15,10 +15,11 @@ export const hi: Messages = {
   "tabs.keyExtraction": "कुंजी खोज",
   "tabs.aliasing": "Aliasing",
   "tabs.flowCanvas": "Flow",
-  "tabs.runPipeline": "वर्कफ़्लो चलाएँ",
+  "tabs.runPipeline": "कंसोल",
   "tabs.configure": "कॉन्फ़िगर करें",
   "tabs.build": "बिल्ड",
   "tabs.artifacts": "आर्टिफ़ैक्ट",
+  "tabs.results": "परिणाम",
   "controls.theme": "थीम",
   "controls.themeLight": "लाइट",
   "controls.themeDark": "डार्क",
@@ -33,7 +34,8 @@ export const hi: Messages = {
   "unsaved.save": "सहेजें",
   "unsaved.discard": "छोड़ें",
   "btn.saveDefault": "default.config.yaml सहेजें",
-  "btn.saveScope": "स्कोप दस्तावेज़ सहेजें",
+  "btn.save": "सहेजें",
+  "btn.saveScope": "सहेजें",
   "btn.saveTemplateFile": "वर्कफ़्लो टेम्पलेट सहेजें",
   "btn.saveFile": "फ़ाइल सहेजें",
   "btn.refreshList": "सूची ताज़ा करें",
@@ -77,13 +79,13 @@ export const hi: Messages = {
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
   "config.updateTemplate": "टेम्प्लेट अपडेट करें",
   "config.updateTemplateTooltip":
-    "डिस्क पर सहेजे गए स्थानीय फ़ाइलों से workflow_template/workflow.template.config.yaml और workflow.template.canvas.yaml को अधिलेखित करता है (``python module.py promote-local-templates`` जैसा)। यदि संपादक में असहेजे परिवर्तन हैं तो पहले सहेजें।",
+    "डिस्क पर सहेजी workflow.local.config.yaml से workflow_template/workflow.template.config.yaml को अधिलेखित करता है (canvas एक ही फ़ाइल में; ``python module.py promote-local-templates`` जैसा)। यदि संपादक में असहेजे परिवर्तन हैं तो पहले सहेजें।",
   "config.promoteTemplateConfirm":
-    "डिस्क पर workflow.template.config.yaml और workflow.template.canvas.yaml को सहेजे गए workflow.local.config.yaml और workflow.local.canvas.yaml से अधिलेखित करें? UI से पूर्ववत नहीं (git से वापस लें)।",
+    "डिस्क पर सहेजी workflow.local.config.yaml से workflow.template.config.yaml अधिलेखित करें (एकीकृत फ़ाइल में canvas)? UI से पूर्ववत नहीं (git से वापस लें)।",
   "config.promoteTemplateDirtyConfirm":
     "इस संपादक में असहेजे परिवर्तन हैं। टेम्प्लेट डिस्क पर पहले से सहेजी सामग्री से अपडेट होगा, संपादक से नहीं। जारी रखें?",
   "config.templatePromoted":
-    "workflow.local.config.yaml और workflow.local.canvas.yaml से टेम्प्लेट कॉन्फ़िगरेशन और कैनवास डिस्क पर अपडेट किए गए।",
+    "workflow.local.config.yaml से टेम्प्लेट कॉन्फ़िगरेशन डिस्क पर अपडेट किया गया (canvas सम्मिलित)।",
   "build.warnForce": "फ़ोर्स उत्पन्न वर्कफ़्लो YAML को अधिलेखित करता है। चलाने से पहले पुष्टि करें।",
   "build.confirmForce": "उत्पन्न वर्कफ़्लो फ़ाइलें --force से अधिलेखित करें?",
   "build.outputPlaceholder": "बिल्ड आउटपुट यहाँ दिखेगा।",
@@ -485,6 +487,26 @@ export const hi: Messages = {
   "artifacts.plainEditor": "सादा YAML संपादक",
   "artifacts.treeExpand": "फैलाएँ",
   "artifacts.treeCollapse": "संकुचित करें",
+  "runResults.title": "चाल परिणाम",
+  "runResults.hint":
+    "Under Configure → Flow, open the Results inner tab (beside Canvas and Console). Preview JSON under local_run_results/ for the workflow target selected in the sidebar. Only runs started from that target are listed; older files without run metadata are hidden when a trigger is selected. Remote CDF workflow runs do not write these files here.",
+  "runResults.empty": "No paired extraction/aliasing runs found. Run the pipeline locally first.",
+  "runResults.refresh": "Refresh list",
+  "runResults.runLabel": "Run",
+  "runResults.viewExtraction": "Extraction",
+  "runResults.viewAliasing": "Aliasing",
+  "runResults.totalRows": "{count} rows",
+  "runResults.showing": "Showing {from}–{to} of {total}",
+  "runResults.filterPlaceholder": "Filter loaded rows (entity, tag…)",
+  "runResults.loadMore": "Load more",
+  "runResults.error": "Could not load results.",
+  "runResults.table.entity": "Entity",
+  "runResults.table.entityType": "Entity type",
+  "runResults.table.baseTag": "Base tag",
+  "runResults.table.aliases": "Aliases",
+  "runResults.table.keys": "Candidate keys",
+  "runResults.table.fk": "FK refs",
+  "runResults.openRaw": "Open raw JSON",
   "advanced.toggle": "उन्नत YAML…",
   "advanced.warning1": "कच्चा संपादन टिप्पणियाँ हटा सकता है। अमान्य YAML अस्वीकृत होगा।",
   "advanced.warning2": "राउंड-ट्रिप पर टिप्पणियाँ संरक्षित नहीं।",
@@ -512,7 +534,6 @@ export const hi: Messages = {
   "flow.resizePanels": "पैनल आकार बदलने के लिए खींचें",
   "flow.paletteStructural": "पाइपलाइन संरचना",
   "flow.structuralSourceView": "स्रोत दृश्य",
-  "flow.structuralSubflow": "उप-प्रवाह",
   "flow.structuralSubgraph": "उप-ग्राफ़",
   "flow.structuralExtraction": "निष्कर्षण",
   "flow.structuralAliasing": "Aliasing",
@@ -528,7 +549,6 @@ export const hi: Messages = {
   "flow.paletteAliasingHandlers": "Aliasing हैंडलर",
   "flow.paletteAnnotations": "टिप्पणियाँ",
   "flow.paletteCdfTasks": "CDF फ़ंक्शन",
-  "flow.seedFromScope": "रीसेट",
   "flow.alignLeft": "चयनित नोड बाएँ संरेखित करें",
   "flow.alignCenterHorizontal": "चयनित नोड क्षैतिज केंद्र पर संरेखित करें",
   "flow.alignRight": "चयनित नोड दाएँ संरेखित करें",
@@ -537,12 +557,12 @@ export const hi: Messages = {
   "flow.alignBottom": "चयनित नोड नीचे संरेखित करें",
   "flow.alignSelectionGroup": "चयन संरेखित करें",
   "flow.canvasHint":
-    "लेआउट .canvas.yaml में सहेजा जाता है। स्कोप सहेजें। पैलेट से कैनवास पर खींचें। नोड को सबफ़्लो फ़्रेम में छोड़कर उसे जोड़ें; सबफ़्लो चुनकर कोनों या किनारे की पट्टियों से क्षैतिज और ऊर्ध्वाधर आकार बदलें।",
+    "लेआउट स्कोप YAML में canvas के अंतर्गत सहेजा जाता है। फ़्लो या स्कोप सहेजें। पैलेट से कैनवास पर खींचें। नोड को सबफ़्लो फ़्रेम में छोड़कर उसे जोड़ें; सबफ़्लो चुनकर कोनों या किनारे की पट्टियों से क्षैतिज और ऊर्ध्वाधर आकार बदलें।",
   "flow.workflowCompileModeLabel": "वर्कफ़्लो कंपाइल",
   "flow.workflowCompileModeAuto": "ऑटो (निष्पादनीय नोड होने पर कैनवास)",
   "flow.workflowCompileModeCanvas": "कैनवास DAG (हमेशा ग्राफ़ से)",
   "flow.workflowCompileModeHint":
-    "CDF और लोकल रन के लिए ``compiled_workflow`` फ्लो कैनवास से कैसे बने, यह नियंत्रित करता है। ऑटो और कैनवास दोनों एक ही कैनवास संकलन का उपयोग करते हैं (अमान्य ग्राफ़ बिल्ड, रन या सेव पर विफल)। स्कोप या कैनवास सहेजने पर ``compiled_workflow`` स्कोप YAML में दोबारा सम्मिलित होता है।",
+    "लोकल रन के लिए कैनवास DAG संकलन नियंत्रित करता है। ऑटो और कैनवास एक ही संकलन का उपयोग करते हैं (अमान्य ग्राफ़ बिल्ड, रन या सेव पर विफल)। CDF पर ``python module.py build`` का WorkflowVersion IR रखता है। सहेजने पर स्कोप YAML में ``canvas`` अपडेट होता है।",
   "flow.handleOrientationLabel": "हैंडल",
   "flow.handleOrientationLr": "बाएँ → दाएँ",
   "flow.handleOrientationTb": "ऊपर → नीचे",
@@ -552,12 +572,10 @@ export const hi: Messages = {
   "flow.ctxMenuRemoveNode": "नोड हटाएँ",
   "flow.confirmSubgraphDeleteLift":
     "इस सबग्राफ में आंतरिक वर्कफ़्लो चरण हैं।\n\nठीक — उन्हें मूल कैनवास पर ले जाएँ और सबग्राफ फ़्रेम हटाएँ।\nरद्द करें — सबग्राफ हटाएँ और आंतरिक चरण छोड़ दें।",
-  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
   "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
-  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
-  "flow.ctxMenuConvertSubflowToSubgraph": "सबफ़्लो को सबग्राफ में बदलें (ड्रिल-इन)",
-  "flow.ctxMenuConvertSubgraphToSubflow": "सबग्राफ को सबफ़्लो में बदलें (समूह)",
   "flow.subgraphDrillTitle": "Subgraph",
+  "flow.ctxMenuFlattenSubgraph": "Flatten subgraph to parent canvas",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
   "flow.subgraphBack": "Save & close",
   "flow.subgraphCancel": "रद्द करें",
   "flow.subgraphCancelNestedTooltip":
@@ -579,8 +597,6 @@ export const hi: Messages = {
   "flow.nodeEditorDone": "हो गया",
   "flow.nodeEditorPipelineStubBody":
     "प्रारंभ/अंत नोड केवल लेआउट हैं। स्रोत दृश्य, निष्कर्षण और उपनाम अन्य नोड या कॉन्फ़िगर टैब से संपादित करें।",
-  "flow.nodeEditorSubflowBody":
-    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
   "flow.nodeEditorSubgraphBody":
     "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
   "flow.nodeEditorGraphHubBody":
@@ -591,6 +607,8 @@ export const hi: Messages = {
   "flow.editWorkflow": "वर्कफ़्लो संपादित करें",
   "flow.canvasPreviewHint":
     "केवल पढ़ने योग्य पूर्वावलोकन। संपादन पूर्ण वर्कफ़्लो संपादक खोलता है।",
+  "flow.subtabCanvas": "कैनवास",
+  "flow.subtabRunWorkflow": "कंसोल",
   "flow.previewRunLocal": "स्थानीय रूप से चलाएँ",
   "flow.previewRunLocalHint":
     "वर्कफ़्लो चलाएँ टैब पर स्थानीय रूप से चलाएँ जैसा ही (डिस्क पर सहेजा YAML—पहले सहेएँ)। चल रहे कार्य ग्राफ़ पर रूपरेखा में दिखते हैं।",
@@ -612,10 +630,6 @@ export const hi: Messages = {
   "flow.validationContextSourceView": "स्रोत दृश्य (सूची)",
   "flow.validationContextExtraction": "कुंजी निष्कर्षण नियम",
   "flow.validationContextAliasing": "उपनाम नियम",
-  "flow.inspectorSubflowHint":
-    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
-  "flow.inspectorSubflowOrganizationalHint":
-    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
   "flow.inspectorSubflowPorts": "Subgraph ports",
   "flow.inspectorSubflowInputs": "Inputs",
   "flow.inspectorSubflowOutputs": "Outputs",
@@ -634,7 +648,6 @@ export const hi: Messages = {
     "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
   "flow.inspectorSubflowGraphOutHint":
     "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
-  "flow.inspectorParentSubflow": "मूल उप-प्रवाह",
   "flow.inspectorNodeTitle": "नोड",
   "flow.inspectorEdgeTitle": "एज",
   "flow.inspectorEdgeKind": "एज प्रकार",

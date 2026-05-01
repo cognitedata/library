@@ -1,7 +1,8 @@
 /**
- * Helpers to rebuild flow canvas structure from v1 scope YAML (used by ``seedCanvasFromScope``).
+ * Helpers for inferring aliasing / validation structure from v1 scope YAML (auto-layout, palette, sync).
  */
 
+import { ALIASING_PIPELINE_NAME_NOISE } from "./aliasingPipelineTokens";
 import { getAliasingTransformRuleRows } from "./aliasingScopeData";
 import type { WorkflowCanvasEdge, WorkflowCanvasNode } from "../../types/workflowCanvas";
 
@@ -16,45 +17,11 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-/**
- * Keys / structural tokens in ``aliasing_pipeline`` YAML that are not transform rule names
- * (aligned with ``canvasScopeSync`` ``_PIPELINE_NOISE``).
- */
-const PIPELINE_NAME_NOISE = new Set(
-  [
-    "sequential",
-    "parallel",
-    "concurrent",
-    "ordered",
-    "hierarchy",
-    "mode",
-    "children",
-    "branches",
-    "rules",
-    "config",
-    "validation",
-    "scope_filters",
-    "conditions",
-    "description",
-    "enabled",
-    "priority",
-    "preserve_original",
-    "name",
-    "handler",
-    "type",
-    "match",
-    "expression",
-    "expressions",
-    "extraction",
-    "aliasing",
-  ].map((s) => s.toLowerCase())
-);
-
 function collectPipelineRuleNameTokens(x: unknown, ordered: string[], seen: Set<string>): void {
   if (x === null || x === undefined) return;
   if (typeof x === "string") {
     const t = x.trim();
-    if (t && t.length < 512 && !PIPELINE_NAME_NOISE.has(t.toLowerCase()) && !seen.has(t)) {
+    if (t && t.length < 512 && !ALIASING_PIPELINE_NAME_NOISE.has(t.toLowerCase()) && !seen.has(t)) {
       seen.add(t);
       ordered.push(t);
     }
@@ -67,7 +34,7 @@ function collectPipelineRuleNameTokens(x: unknown, ordered: string[], seen: Set<
   if (isRecord(x)) {
     for (const [k, v] of Object.entries(x)) {
       const kt = k.trim();
-      if (kt && kt.length < 512 && !PIPELINE_NAME_NOISE.has(kt.toLowerCase()) && !seen.has(kt)) {
+      if (kt && kt.length < 512 && !ALIASING_PIPELINE_NAME_NOISE.has(kt.toLowerCase()) && !seen.has(kt)) {
         seen.add(kt);
         ordered.push(kt);
       }
@@ -100,9 +67,8 @@ export function collectAliasingRuleNamesReferencedByExtractionPipelines(scopeDoc
 }
 
 /**
- * Enabled aliasing transform rule names in the same order ``seedCanvasFromScope`` uses
- * (pathway / flat rows, definition-only extras from pipelines, then pipeline-first merge).
- * Used by auto-layout when persisted nodes omit ``pipeline_rank``.
+ * Enabled aliasing transform rule names (pathway / flat rows, definition-only extras from pipelines,
+ * then pipeline-first merge). Used by auto-layout when persisted nodes omit ``pipeline_rank``.
  */
 export function orderedAliasingRuleNamesForSeed(scopeDoc: Record<string, unknown>): string[] {
   const alScope = scopeDoc.aliasing as Record<string, unknown> | undefined;

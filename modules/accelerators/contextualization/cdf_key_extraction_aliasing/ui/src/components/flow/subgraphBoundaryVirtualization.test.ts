@@ -5,7 +5,7 @@ import {
   subflowSourceHandleForPort,
 } from "../../types/workflowCanvas";
 import type { WorkflowCanvasDocument } from "../../types/workflowCanvas";
-import { expandCanvasForScopeSync, flattenSubgraphsForScopeSync } from "./subgraphBoundaryVirtualization";
+import { flattenSubgraphsForScopeSync } from "./subgraphBoundaryVirtualization";
 
 describe("flattenSubgraphsForScopeSync", () => {
   it("hoists inner aliasing so outer data edges reach prefixed inner node ids", () => {
@@ -76,55 +76,5 @@ describe("flattenSubgraphsForScopeSync", () => {
         (e) => e.kind === "data" && e.source === "ext_o" && e.target === liftedAl!.id
       )
     ).toBe(true);
-  });
-});
-
-describe("expandCanvasForScopeSync", () => {
-  it("bridges sequence edges through subflow in ports", () => {
-    const hubInId = "hin2";
-    const innerAl = "al2";
-    const sfId = "sf1";
-    const doc: WorkflowCanvasDocument = {
-      schemaVersion: WORKFLOW_CANVAS_SCHEMA_VERSION,
-      nodes: [
-        { id: "ext_x", kind: "extraction", position: { x: 0, y: 0 }, data: { ref: { extraction_rule_name: "rx" } } },
-        {
-          id: sfId,
-          kind: "subflow",
-          position: { x: 80, y: 0 },
-          data: { label: "SF", subflow_hub_input_id: hubInId },
-        },
-        { id: hubInId, kind: "subflow_graph_in", position: { x: 0, y: 0 }, data: {}, parent_id: sfId },
-        {
-          id: innerAl,
-          kind: "aliasing",
-          position: { x: 120, y: 0 },
-          data: { ref: { aliasing_rule_name: "al2" } },
-          parent_id: sfId,
-        },
-      ],
-      edges: [
-        {
-          id: "e_ext_sf",
-          source: "ext_x",
-          target: sfId,
-          kind: "sequence",
-          source_handle: "out",
-          target_handle: `${SUBFLOW_PORT_HANDLE_IN_PREFIX}in`,
-        },
-        {
-          id: "e_hub_al",
-          source: hubInId,
-          target: innerAl,
-          kind: "sequence",
-          source_handle: subflowSourceHandleForPort("in"),
-          target_handle: "in",
-        },
-      ],
-    };
-    const out = expandCanvasForScopeSync(doc);
-    expect(out.edges.some((e) => e.kind === "sequence" && e.source === "ext_x" && e.target === innerAl)).toBe(
-      true
-    );
   });
 });

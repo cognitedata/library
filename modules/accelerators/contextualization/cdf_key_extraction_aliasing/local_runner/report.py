@@ -7,8 +7,8 @@ from pathlib import Path
 from .paths import SCRIPT_DIR
 
 def ensure_results_dir() -> Path:
-    """Ensure results directory exists."""
-    results_dir = SCRIPT_DIR / "tests" / "results"
+    """Ensure directory for ``module.py run`` pipeline JSON (paired *_cdf_*.json)."""
+    results_dir = SCRIPT_DIR / "local_run_results"
     results_dir.mkdir(parents=True, exist_ok=True)
     return results_dir
 

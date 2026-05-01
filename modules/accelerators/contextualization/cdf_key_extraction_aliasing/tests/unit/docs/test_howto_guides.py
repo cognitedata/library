@@ -23,7 +23,7 @@ def _module_root() -> Path:
                 ".env",
                 "PYTHONPATH",
                 "## Run `module.py run`",
-                "tests/results/",
+                "local_run_results/",
             ],
         ),
         (

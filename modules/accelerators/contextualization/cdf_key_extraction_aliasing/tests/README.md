@@ -62,9 +62,9 @@ Shared sample entities and tags live under `fixtures/`. Prefer importing from `t
 
 ## Result JSON and reports
 
-- **`results/`** — timestamped `*_cdf_extraction.json` / `*_cdf_aliasing.json` from pipeline-style runs (same artifacts described in [Quickstart — local `module.py`](../docs/guides/howto_quickstart.md)). `*.json` and `*.txt` here are **gitignored** at the repo root (`__init__.py` stays tracked as a package marker).
+- **`results/`** — pytest and harness JSON (e.g. `run_tests_and_save_results.py`, detailed generators). `*.json` and `*.txt` here are **gitignored** at the repo root (`__init__.py` stays tracked as a package marker). **`module.py run`** pipeline pairs live under **`../local_run_results/`** at module root.
 - **`generate_detailed_results.py`** — build structured summaries without executing the full test suite (see script docstring).
-- **Module report** — [docs/key_extraction_aliasing_report.md](../docs/key_extraction_aliasing_report.md) documents the default scope; `scripts/generate_report.py` can regenerate it from the latest `tests/results/*_cdf_extraction.json` if you want run-specific stats (overwrites the file).
+- **Module report** — [docs/key_extraction_aliasing_report.md](../docs/key_extraction_aliasing_report.md) documents the default scope; `scripts/generate_report.py` can regenerate it from the latest `local_run_results/*_cdf_extraction.json` if you want run-specific stats (overwrites the file).
 
 ## Documentation
 

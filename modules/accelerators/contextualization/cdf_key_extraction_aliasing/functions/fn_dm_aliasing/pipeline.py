@@ -17,7 +17,6 @@ try:
 except ImportError:
     CDF_AVAILABLE = False
 
-from .common.logger import CogniteFunctionLogger
 from cdf_fn_common.incremental_scope import (
     EXTERNAL_ID_COLUMN,
     RAW_ROW_KEY_COLUMN,
@@ -34,9 +33,28 @@ from cdf_fn_common.incremental_scope import (
     raw_row_columns,
     transition_workflow_status_for_run,
 )
+from cdf_fn_common.workflow_task_lineage import (
+    allowed_extraction_rule_names_for_task,
+    raw_row_allowed_for_predecessor_extraction_rules,
+)
+
+from .common.logger import CogniteFunctionLogger
 from .engine.tag_aliasing_engine import AliasingEngine, AliasingResult
 
 logger = None  # Use CogniteFunctionLogger directly
+
+_FK_JSON_COL = "FOREIGN_KEY_REFERENCES_JSON"
+_DOC_JSON_COL = "DOCUMENT_REFERENCES_JSON"
+
+
+def _parse_json_list_column(raw: Any) -> Optional[List[Any]]:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        o = json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return o if isinstance(o, list) else None
 
 
 def _iter_raw_table_rows(
@@ -104,6 +122,7 @@ def _load_candidate_keys_from_raw(
     chunk_size: int = 2500,
     run_id: Optional[str] = None,
     workflow_status: Optional[str] = None,
+    allowed_extraction_rule_names: Optional[Set[str]] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Load candidate keys from key-extraction RAW table and build a tag->entity mapping.
@@ -153,6 +172,16 @@ def _load_candidate_keys_from_raw(
         if not entity_id:
             continue
         if not isinstance(columns, dict):
+            continue
+
+        fk_list = _parse_json_list_column(columns.get(_FK_JSON_COL))
+        doc_list = _parse_json_list_column(columns.get(_DOC_JSON_COL))
+        if not raw_row_allowed_for_predecessor_extraction_rules(
+            columns,
+            fk_list=fk_list,
+            doc_list=doc_list,
+            allowed=allowed_extraction_rule_names,
+        ):
             continue
 
         for field_name, values in columns.items():
@@ -224,6 +253,12 @@ def tag_aliasing(
         logger.info("Starting Tag Aliasing Pipeline")
         run_started_at = datetime.now(timezone.utc)
 
+        pred_allow: Optional[Set[str]] = None
+        _cw = data.get("compiled_workflow")
+        _tid = data.get("task_id")
+        if isinstance(_cw, dict) and _tid:
+            pred_allow = allowed_extraction_rule_names_for_task(_cw, str(_tid))
+
         # Get tags to process
         tags = data.get("tags", [])
         entities = data.get("entities", [])
@@ -261,6 +296,14 @@ def tag_aliasing(
                                 extraction_type == "candidate_key"
                                 or extraction_type is None
                             ):
+                                rn_check = None
+                                if isinstance(key_info, dict):
+                                    rn_check = key_info.get("rule_name") or key_info.get(
+                                        "rule_id"
+                                    )
+                                if pred_allow is not None:
+                                    if rn_check is None or str(rn_check).strip() not in pred_allow:
+                                        continue
                                 if key_value not in tags:
                                     tags.append(key_value)
                                     tag_to_entity_map[key_value] = []
@@ -341,6 +384,7 @@ def tag_aliasing(
                         limit=raw_limit,
                         run_id=str(src_run) if src_run else None,
                         workflow_status=str(wf_src) if wf_src else None,
+                        allowed_extraction_rule_names=pred_allow,
                     )
                     data["_tag_to_entity_map"] = tag_to_entity_map
                     tags = list(tag_to_entity_map.keys())

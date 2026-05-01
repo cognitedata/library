@@ -369,9 +369,10 @@ def attach_extraction_aliasing_pipelines(
     """Populate ``extraction_aliasing_pipelines`` on *aliasing_config* from scope ``key_extraction``.
 
     Each extraction rule id is mapped to its ``aliasing_pipeline`` list, or ``[]`` when the field
-    is absent. The aliasing engine treats a **non-empty** list as an exclusive per-rule pipeline;
-    an **empty** list means "no per-rule overrides" and execution **falls through** to global
-    ``pathways`` / ``aliasing_rules`` (same as when no pipelines map exists).
+    is absent. A **non-empty** list runs that per-rule pipeline first; global ``pathways`` /
+    flat ``aliasing_rules`` still run afterward when present. An **empty** list means "no
+    per-rule transforms" and execution **falls through** to globals only (same as when the
+    pipeline key maps to ``[]`` for that rule id).
     """
     if not isinstance(scope_document, dict):
         return

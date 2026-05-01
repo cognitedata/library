@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { Edge, Node } from "@xyflow/react";
-import { isDescendantInParentTree } from "./flowParentGeometry";
 import YAML from "yaml";
 import type { MessageKey } from "../../i18n";
 import type { JsonObject } from "../../types/scopeConfig";
@@ -35,7 +34,6 @@ import {
   patchSourceViewFilters,
 } from "./workflowScopePatch";
 import { DeferredCommitInput, DeferredCommitTextarea } from "../DeferredCommitTextField";
-import { canChangeSubflowParent } from "./subflowMembership";
 import { keaValidationRuleLayoutRfTypes } from "./flowConstants";
 import { FlowNodeAccentColorFields } from "./flowNodeAccent";
 import { getAliasingTransformRuleRows } from "./aliasingScopeData";
@@ -60,13 +58,11 @@ type Props = {
   selectedNode: Node | null;
   selectedEdge: Edge | null;
   workflowDoc: Record<string, unknown>;
-  /** All flow nodes (for subflow parent picker). */
+  /** All flow nodes (for context). */
   flowNodes?: Node[];
   onPatchWorkflowScope: (recipe: (doc: Record<string, unknown>) => Record<string, unknown>) => void;
   onPatchNode: (nodeId: string, data: Record<string, unknown>) => void;
   onPatchEdge: (edgeId: string, kind: CanvasEdgeKind) => void;
-  /** Set or clear ``parentId`` (empty string = root canvas). */
-  onSetNodeParent?: (nodeId: string, parentSubflowId: string) => void;
   /** Persist subgraph port list and prune edges that referenced removed ports. */
   onApplySubflowPorts?: (subflowId: string, ports: SubflowPortsConfig) => void;
   /** Open drill-in editor for a ``keaSubgraph`` composite. */
@@ -79,19 +75,6 @@ type Props = {
     hubOutId: string;
   };
 };
-
-function eligibleParentSubflows(flowNodes: Node[], forNodeId: string): { id: string; label: string }[] {
-  const out: { id: string; label: string }[] = [];
-  for (const n of flowNodes) {
-    if (n.type !== "keaSubflow") continue;
-    if (n.id === forNodeId) continue;
-    if (isDescendantInParentTree(flowNodes, forNodeId, n.id)) continue;
-    const lab = String((n.data as Record<string, unknown> | undefined)?.label ?? n.id);
-    out.push({ id: n.id, label: lab });
-  }
-  out.sort((a, b) => a.label.localeCompare(b.label));
-  return out;
-}
 
 function resolveSourceViewIndex(ref: Record<string, unknown>): number | null {
   const idxRaw = ref.source_view_index;
@@ -227,7 +210,6 @@ function refResolved(
   workflowDoc: Record<string, unknown>
 ): { ok: boolean; hint: string } {
   const logical = rfTypeToKind(rfType);
-  if (logical === "subflow") return { ok: true, hint: "" };
   const ref = data.ref as Record<string, unknown> | undefined;
   const isMatchRuleLogical =
     logical === "match_validation_source_view" ||
@@ -483,11 +465,10 @@ export function FlowNodeInspector({
   selectedNode,
   selectedEdge,
   workflowDoc,
-  flowNodes,
+  flowNodes: _flowNodes,
   onPatchWorkflowScope,
   onPatchNode,
   onPatchEdge,
-  onSetNodeParent,
   onApplySubflowPorts,
   onOpenSubgraphDrill,
   drillBoundaryPorts,
@@ -683,60 +664,7 @@ export function FlowNodeInspector({
     );
   }
 
-  if (kind === "keaSubflow") {
-    const parents = eligibleParentSubflows(flowNodes ?? [], selectedNode.id);
-    return (
-      <aside className="kea-flow-inspector">
-        <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
-        <p className="kea-hint" style={{ marginTop: 0 }}>
-          {selectedNode.id} · {kind}
-        </p>
-        <label className="kea-label kea-label--block">
-          {t("flow.inspectorLabel")}
-          <DeferredCommitInput
-            className="kea-input"
-            committedValue={String(data.label ?? "")}
-            syncKey={selectedNode.id}
-            onCommit={(v) => onPatchNode(selectedNode.id, { ...data, label: v })}
-          />
-        </label>
-        <p className="kea-hint" style={{ marginTop: "0.35rem", maxWidth: "42rem" }}>
-          {t("flow.inspectorSubflowOrganizationalHint")}
-        </p>
-        <FlowNodeAccentColorFields t={t} nodeId={selectedNode.id} data={data} onPatchNode={onPatchNode} />
-        {onSetNodeParent && canChangeSubflowParent(selectedNode.type) && parents.length > 0 && (
-          <label className="kea-label kea-label--block">
-            {t("flow.inspectorParentSubflow")}
-            <select
-              className="kea-input"
-              value={selectedNode.parentId ?? ""}
-              onChange={(e) => onSetNodeParent?.(selectedNode.id, e.target.value)}
-            >
-              <option value="">{t("flow.inspectorRefNone")}</option>
-              {parents.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} ({p.id})
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <label className="kea-label kea-label--block">
-          {t("flow.inspectorNotes")}
-          <DeferredCommitTextarea
-            className="kea-textarea"
-            rows={3}
-            committedValue={String(data.notes ?? "")}
-            syncKey={selectedNode.id}
-            onCommit={(v) => onPatchNode(selectedNode.id, { ...data, notes: v })}
-          />
-        </label>
-      </aside>
-    );
-  }
-
   if (kind === "keaSubgraph") {
-    const parents = eligibleParentSubflows(flowNodes ?? [], selectedNode.id);
     const wfData = data as unknown as WorkflowCanvasNodeData;
     const ports: SubflowPortsConfig = wfData.subflow_ports ?? { inputs: [], outputs: [] };
 
@@ -782,23 +710,6 @@ export function FlowNodeInspector({
             ports={ports}
             onCommit={commitPorts}
           />
-        )}
-        {onSetNodeParent && canChangeSubflowParent(selectedNode.type) && parents.length > 0 && (
-          <label className="kea-label kea-label--block">
-            {t("flow.inspectorParentSubflow")}
-            <select
-              className="kea-input"
-              value={selectedNode.parentId ?? ""}
-              onChange={(e) => onSetNodeParent?.(selectedNode.id, e.target.value)}
-            >
-              <option value="">{t("flow.inspectorRefNone")}</option>
-              {parents.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} ({p.id})
-                </option>
-              ))}
-            </select>
-          </label>
         )}
         <label className="kea-label kea-label--block">
           {t("flow.inspectorNotes")}
@@ -946,26 +857,6 @@ export function FlowNodeInspector({
           onCommit={(v) => onPatchNode(selectedNode.id, { ...data, label: v })}
         />
       </label>
-      {onSetNodeParent &&
-        canChangeSubflowParent(selectedNode.type) &&
-        (flowNodes?.length ?? 0) > 0 &&
-        eligibleParentSubflows(flowNodes ?? [], selectedNode.id).length > 0 && (
-        <label className="kea-label kea-label--block">
-          {t("flow.inspectorParentSubflow")}
-          <select
-            className="kea-input"
-            value={selectedNode.parentId ?? ""}
-            onChange={(e) => onSetNodeParent?.(selectedNode.id, e.target.value)}
-          >
-            <option value="">{t("flow.inspectorRefNone")}</option>
-            {eligibleParentSubflows(flowNodes ?? [], selectedNode.id).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label} ({p.id})
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       <FlowNodeAccentColorFields t={t} nodeId={selectedNode.id} data={data} onPatchNode={onPatchNode} />
       {keaValidationRuleLayoutRfTypes.has(kind) && (
         <>

@@ -16,4 +16,3 @@ workflowVersion: v5
 input:
   run_all: false
   run_id: ''
-  compiled_workflow: {}

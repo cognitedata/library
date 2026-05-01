@@ -4,7 +4,7 @@
 
 **Approach A (text-first):** The canonical workflow configuration remains the v1 scope YAML consumed by CDF functions. **Top-level `associations`** records explicit bindings from **source views** to **extraction rules**; engines use these pairs (not `scope_filters.entity_type` matching) to decide which rules run for which view.
 
-The React flow canvas can still be edited visually; on save, [`syncWorkflowScopeFromCanvas`](../../ui/src/components/flow/canvasScopeSync.ts) writes `associations`. For CI or headless workflows, use [`scripts/compile_canvas_associations.py`](../../scripts/compile_canvas_associations.py) to apply the same slice from `workflow.local.canvas.yaml` into a scope file.
+The React flow canvas can still be edited visually; on save, [`syncWorkflowScopeFromCanvas`](../../ui/src/components/flow/canvasScopeSync.ts) writes `associations`. The canonical graph for build and triggers is **`canvas`** inside the v1 scope file (for example **`workflow.local.config.yaml`** or **`workflow_template/workflow.template.config.yaml`**). For CI or headless workflows, use [`scripts/compile_canvas_associations.py`](../../scripts/compile_canvas_associations.py): default **`--scope`** is **`workflow.local.config.yaml`** and the script reads the embedded **`canvas`** from that file; pass **`--canvas`** for a separate WorkflowCanvasDocument YAML (top-level **`nodes`** / **`edges`**).
 
 **Not chosen here:** graph-only SSOT (full compile of canvas to scope) or DM graph-edge filters (`relation_filter`) — those are larger follow-ups.
 

@@ -25,12 +25,8 @@ STRUCTURAL_KINDS: FrozenSet[str] = frozenset(
         "start",
         "end",
         "source_view",
-        "subflow",
         "subflow_graph_in",
         "subflow_graph_out",
-        # Legacy layout-only cards (removed from UI); still traversable for dependency closure.
-        "writeback_raw",
-        "writeback_data_modeling",
     }
 )
 
@@ -53,23 +49,6 @@ _KIND_FN: Dict[str, Tuple[str, str, Optional[str]]] = {
 
 class CanvasCompileError(ValueError):
     """Invalid canvas for workflow compilation."""
-
-
-def _legacy_compile_requested(doc: Mapping[str, Any]) -> bool:
-    """True when scope still sets the removed legacy compile mode (for diagnostics / UI)."""
-    for raw in (
-        doc.get("compile_workflow_dag"),
-        (
-            doc.get("workflow", {}).get("compile_dag_mode")
-            if isinstance(doc.get("workflow"), dict)
-            else None
-        ),
-    ):
-        if raw is None:
-            continue
-        if str(raw).strip().lower() == "legacy":
-            return True
-    return False
 
 
 def _compile_dag_mode(doc: Mapping[str, Any]) -> str:
@@ -189,24 +168,9 @@ def _flatten_canvas_subgraphs(canvas: Mapping[str, Any]) -> Dict[str, Any]:
     return out
 
 
-def should_use_canvas_dag(doc: Mapping[str, Any]) -> bool:
-    """
-    Whether the scope document has a canvas with at least one executable node.
-
-    Used for diagnostics/UI. Legacy compile mode (removed) yields false here without raising.
-    """
-    if _legacy_compile_requested(doc):
-        return False
-    try:
-        mode = _compile_dag_mode(doc)
-    except ValueError:
-        return False
-    if mode == "canvas":
-        return True
-    c = _canvas_doc(doc)
-    if not c:
-        return False
-    return _has_executable_canvas(c)
+def flatten_subgraphs_in_canvas(canvas: Mapping[str, Any]) -> Dict[str, Any]:
+    """Public entry: flatten ``subgraph`` nodes for deploy payloads or tooling."""
+    return _flatten_canvas_subgraphs(copy.deepcopy(dict(canvas)))
 
 
 def sanitize_task_id(node_id: str) -> str:
@@ -288,6 +252,29 @@ def _validate_task_dag(tasks: Sequence[Mapping[str, Any]]) -> None:
             raise CanvasCompileError("Task graph has a cycle or unsatisfiable dependencies")
         completed |= ready
         remaining -= ready
+
+
+def _validate_unique_extraction_rule_names(
+    by_id: Dict[str, Mapping[str, Any]], executable_canvas_ids: Sequence[str]
+) -> None:
+    """Two extraction nodes must not reference the same ``extraction_rule_name`` (DAG lineage)."""
+    seen: Dict[str, str] = {}
+    for nid in executable_canvas_ids:
+        n = by_id.get(nid)
+        if not n or _kind(n) != "extraction":
+            continue
+        data = n.get("data") if isinstance(n.get("data"), dict) else {}
+        ref = data.get("ref") if isinstance(data.get("ref"), dict) else {}
+        rn = ref.get("extraction_rule_name")
+        if not isinstance(rn, str) or not rn.strip():
+            continue
+        key = rn.strip()
+        if key in seen:
+            raise CanvasCompileError(
+                f"Duplicate extraction rule name {key!r}: canvas nodes "
+                f"{seen[key]!r} and {nid!r} must reference distinct rules."
+            )
+        seen[key] = nid
 
 
 def _walk_scope_canvas_nodes(nodes: Any) -> List[Dict[str, Any]]:
@@ -398,6 +385,7 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
         )
 
     executable_id_set = set(executable_canvas_ids)
+    _validate_unique_extraction_rule_names(by_id, executable_canvas_ids)
     has_extraction = any(_kind(by_id[nid]) == "extraction" for nid in executable_canvas_ids)
 
     tasks: List[Dict[str, Any]] = []

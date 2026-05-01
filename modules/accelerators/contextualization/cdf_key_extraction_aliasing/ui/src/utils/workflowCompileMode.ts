@@ -9,7 +9,6 @@ export function normalizeCompileWorkflowDagMode(raw: unknown): CompileWorkflowDa
   const s = String(raw ?? "")
     .trim()
     .toLowerCase();
-  if (s === "legacy") return "auto";
   if (s === "canvas" || s === "auto") return s;
   return "auto";
 }

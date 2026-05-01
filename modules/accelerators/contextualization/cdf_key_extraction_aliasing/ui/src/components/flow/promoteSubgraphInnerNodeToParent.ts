@@ -94,10 +94,6 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
   const innerCrossEdges: Edge[] = [];
 
   const subAbs = absoluteNodePosition(nodes, subgraphId);
-  const parentId =
-    S.parentId != null && String(S.parentId).trim() ? String(S.parentId).trim() : "";
-  const parentNode = parentId ? nodes.find((n) => n.id === parentId) : undefined;
-
   const stripRfParent = (n: Node): Node => {
     const { parentId: _p, extent: _e, expandParent: _x, ...rest } = n as Node & {
       parentId?: string;
@@ -239,10 +235,7 @@ export function promoteSubgraphInnerSubtreeToParentWorkflow(
   for (const cn of promotedRfList) {
     const ln = stripRfParent(cn);
     nextNodes = [...nextNodes, ln];
-    nextNodes =
-      parentId && parentNode?.type === "keaSubflow"
-        ? assignFlowNodeSubflowParent(nextNodes, ln.id, parentId)
-        : assignFlowNodeSubflowParent(nextNodes, ln.id, null);
+    nextNodes = assignFlowNodeSubflowParent(nextNodes, ln.id, null);
   }
 
   const alive = new Set(nextNodes.map((n) => n.id));

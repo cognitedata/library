@@ -5,11 +5,31 @@ from __future__ import annotations
 import copy
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+def ir_task_inline_function_data(ir_task: Mapping[str, Any]) -> Dict[str, Any]:
+    """Static keys merged onto each Cognite function task ``data`` (replaces runtime ``compiled_workflow`` slice)."""
+    out: Dict[str, Any] = {}
+    pnode = ir_task.get("pipeline_node_id")
+    if pnode is not None and str(pnode).strip():
+        out["pipeline_node_id"] = str(pnode).strip()
+    cn = ir_task.get("canvas_node_id")
+    if cn is not None and str(cn).strip():
+        out["canvas_node_id"] = str(cn).strip()
+    pl = ir_task.get("payload")
+    if isinstance(pl, dict):
+        for pk, pv in pl.items():
+            out[pk] = copy.deepcopy(pv)
+    pers = ir_task.get("persistence")
+    if isinstance(pers, dict):
+        for pk, pv in pers.items():
+            out[pk] = copy.deepcopy(pv)
+    return out
 
 
 def _function_task(
@@ -26,7 +46,6 @@ def _function_task(
         "logLevel": "INFO",
         "run_all": "${workflow.input.run_all}",
         "configuration": "${workflow.input.configuration}",
-        "compiled_workflow": "${workflow.input.compiled_workflow}",
         "task_id": task_external_id,
     }
     if extra_data:
@@ -118,8 +137,8 @@ def build_workflow_version_document(
     """
     Return a mapping suitable for ``yaml.safe_dump`` as ``*WorkflowVersion.yaml``.
 
-    ``compiled_workflow`` is used only to list tasks (ids, function_external_id, depends_on);
-    runtime still receives the trigger-supplied ``workflow.input.compiled_workflow``.
+    ``compiled_workflow`` is used only to list tasks (ids, function_external_id, depends_on) and
+    to inline per-task ``payload`` / ``persistence`` / ``pipeline_node_id`` onto each function task.
 
     When ``module_root`` is set, per-function ``name`` / ``description`` / ``timeout`` and the top-level
     ``workflowDefinition.description`` are taken from ``workflow_version_template_path`` (default
@@ -146,7 +165,7 @@ def build_workflow_version_document(
         or top_from_tpl
         or (
             "Canvas-driven key extraction and aliasing (node-per-task). "
-            "Each task passes task_id + compiled_workflow in function data."
+            "Each task carries task_id plus inlined payload/persistence from build-time IR."
         )
     )
 
@@ -154,7 +173,6 @@ def build_workflow_version_document(
         "run_all": False,
         "run_id": "",
         "configuration": {},
-        "compiled_workflow": {},
     }
 
     tasks_out: List[Dict[str, Any]] = []
@@ -210,7 +228,7 @@ def build_workflow_version_document(
                 description=dsc,
                 name=nm,
                 timeout=tmo,
-                extra_data=None,
+                extra_data=ir_task_inline_function_data(t),
             )
         )
 

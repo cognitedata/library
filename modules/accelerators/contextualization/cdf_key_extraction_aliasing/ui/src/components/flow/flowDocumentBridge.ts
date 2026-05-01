@@ -15,10 +15,7 @@ import {
 export type FlowEdgeData = { kind?: CanvasEdgeKind };
 
 /** React Flow–only edge flags (not persisted in canvas YAML). */
-export const keaFlowEdgeVisualDefaults = { animated: true as const };
-
-const DEFAULT_SUBFLOW_W = 380;
-const DEFAULT_SUBFLOW_H = 260;
+export const keaFlowEdgeVisualDefaults = { animated: false as const };
 
 function sortCanvasNodesForReactFlow(nodes: WorkflowCanvasNode[]): WorkflowCanvasNode[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -75,10 +72,8 @@ export function canvasToFlowNodes(nodes: WorkflowCanvasNode[]): Node[] {
       base.extent = "parent";
       base.expandParent = true;
     }
-    if (n.kind === "subflow") {
-      const w = n.size?.width && n.size.width > 0 ? n.size.width : DEFAULT_SUBFLOW_W;
-      const h = n.size?.height && n.size.height > 0 ? n.size.height : DEFAULT_SUBFLOW_H;
-      base.style = { ...((base.style as Record<string, unknown>) ?? {}), width: w, height: h };
+    if (n.kind === "start" || n.kind === "end") {
+      base.deletable = false;
     }
     return base;
   });
@@ -94,32 +89,6 @@ export function canvasToFlowEdges(edges: WorkflowCanvasEdge[]): Edge[] {
     targetHandle: e.target_handle ?? undefined,
     data: { kind: e.kind ?? "data" } satisfies FlowEdgeData,
   }));
-}
-
-function parseCssDim(v: unknown): number | undefined {
-  if (typeof v === "number" && Number.isFinite(v) && v > 0) return v;
-  if (typeof v === "string" && v.trim().endsWith("px")) {
-    const n = parseFloat(v);
-    return Number.isFinite(n) && n > 0 ? n : undefined;
-  }
-  return undefined;
-}
-
-function readPersistedSubflowSize(n: Node): { width: number; height: number } | undefined {
-  const ext = n as Node & {
-    width?: number;
-    height?: number;
-    measured?: { width?: number; height?: number };
-  };
-  const style = (n.style ?? {}) as Record<string, unknown>;
-  const w =
-    parseCssDim(style.width) ?? (typeof ext.width === "number" ? ext.width : ext.measured?.width);
-  const h =
-    parseCssDim(style.height) ?? (typeof ext.height === "number" ? ext.height : ext.measured?.height);
-  if (w != null && h != null && w > 0 && h > 0) {
-    return { width: Math.round(w), height: Math.round(h) };
-  }
-  return undefined;
 }
 
 export function flowToCanvasDocument(
@@ -139,10 +108,6 @@ export function flowToCanvasDocument(
     };
     if (n.parentId && String(n.parentId).trim()) {
       entry.parent_id = String(n.parentId).trim();
-    }
-    if (kind === "subflow") {
-      const sz = readPersistedSubflowSize(n);
-      if (sz) entry.size = sz;
     }
     return entry;
   });

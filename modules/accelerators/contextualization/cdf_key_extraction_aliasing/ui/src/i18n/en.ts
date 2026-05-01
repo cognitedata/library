@@ -14,10 +14,11 @@ export const en: Messages = {
   "tabs.keyExtraction": "Key Discovery",
   "tabs.aliasing": "Aliasing",
   "tabs.flowCanvas": "Flow",
-  "tabs.runPipeline": "Run Workflow",
+  "tabs.runPipeline": "Console",
   "tabs.configure": "Configure",
   "tabs.build": "Build",
   "tabs.artifacts": "Artifacts",
+  "tabs.results": "Results",
   "controls.theme": "Theme",
   "controls.themeLight": "Light",
   "controls.themeDark": "Dark",
@@ -32,7 +33,8 @@ export const en: Messages = {
   "unsaved.save": "Save",
   "unsaved.discard": "Discard",
   "btn.saveDefault": "Save default.config.yaml",
-  "btn.saveScope": "Save Scope Document",
+  "btn.save": "Save",
+  "btn.saveScope": "Save",
   "btn.saveTemplateFile": "Save workflow template",
   "btn.saveFile": "Save File",
   "btn.refreshList": "Refresh List",
@@ -76,13 +78,13 @@ export const en: Messages = {
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
   "config.updateTemplate": "Update template",
   "config.updateTemplateTooltip":
-    "Overwrite workflow_template/workflow.template.config.yaml and workflow.template.canvas.yaml using the saved local files on disk (same as python module.py promote-local-templates). Save first if you have unsaved editor changes.",
+    "Overwrite workflow_template/workflow.template.config.yaml using the saved workflow.local.config.yaml on disk (same as python module.py promote-local-templates). Save first if you have unsaved editor changes.",
   "config.promoteTemplateConfirm":
-    "Overwrite workflow.template.config.yaml and workflow.template.canvas.yaml on disk with the saved local workflow.local.config.yaml and workflow.local.canvas.yaml? This cannot be undone from the UI (use git to revert).",
+    "Overwrite workflow.template.config.yaml on disk with the saved workflow.local.config.yaml (unified file including canvas)? This cannot be undone from the UI (use git to revert).",
   "config.promoteTemplateDirtyConfirm":
     "You have unsaved changes in this editor. The template will be updated from what is already saved on disk, not from the editor. Continue?",
   "config.templatePromoted":
-    "Template config and canvas updated on disk from workflow.local.config.yaml and workflow.local.canvas.yaml.",
+    "Template config updated on disk from workflow.local.config.yaml (canvas is embedded in that file).",
   "build.warnForce": "Force Overwrites Generated Workflow YAML. Confirm Before Running.",
   "build.confirmForce": "Overwrite Generated Workflow Files With --force?",
   "build.outputPlaceholder": "Build Output Appears Here.",
@@ -484,6 +486,26 @@ export const en: Messages = {
   "artifacts.plainEditor": "Plain YAML Editor",
   "artifacts.treeExpand": "Expand",
   "artifacts.treeCollapse": "Collapse",
+  "runResults.title": "Run results",
+  "runResults.hint":
+    "Under Configure → Flow, open the Results inner tab (beside Canvas and Console). Preview JSON under local_run_results/ for the workflow target selected in the sidebar. Only runs started from that target are listed; older files without run metadata are hidden when a trigger is selected. Remote CDF workflow runs do not write these files here.",
+  "runResults.empty": "No paired extraction/aliasing runs found. Run the pipeline locally first.",
+  "runResults.refresh": "Refresh list",
+  "runResults.runLabel": "Run",
+  "runResults.viewExtraction": "Extraction",
+  "runResults.viewAliasing": "Aliasing",
+  "runResults.totalRows": "{count} rows",
+  "runResults.showing": "Showing {from}–{to} of {total}",
+  "runResults.filterPlaceholder": "Filter loaded rows (entity, tag…)",
+  "runResults.loadMore": "Load more",
+  "runResults.error": "Could not load results.",
+  "runResults.table.entity": "Entity",
+  "runResults.table.entityType": "Entity type",
+  "runResults.table.baseTag": "Base tag",
+  "runResults.table.aliases": "Aliases",
+  "runResults.table.keys": "Candidate keys",
+  "runResults.table.fk": "FK refs",
+  "runResults.openRaw": "Open raw JSON",
   "advanced.toggle": "Advanced YAML…",
   "advanced.warning1": "Raw Edit May Drop Comments. Invalid YAML Will Be Rejected.",
   "advanced.warning2": "Comments Are Not Preserved on Round-Trip.",
@@ -511,7 +533,6 @@ export const en: Messages = {
   "flow.resizePanels": "Drag to resize panels",
   "flow.paletteStructural": "Pipeline structure",
   "flow.structuralSourceView": "Source view",
-  "flow.structuralSubflow": "Subflow",
   "flow.structuralSubgraph": "Subgraph",
   "flow.structuralExtraction": "Extraction",
   "flow.structuralAliasing": "Aliasing",
@@ -527,7 +548,6 @@ export const en: Messages = {
   "flow.paletteAliasingHandlers": "Aliasing handlers",
   "flow.paletteAnnotations": "Annotations",
   "flow.paletteCdfTasks": "CDF functions",
-  "flow.seedFromScope": "Reset",
   "flow.alignLeft": "Align selected nodes to the left",
   "flow.alignCenterHorizontal": "Align selected nodes to horizontal center",
   "flow.alignRight": "Align selected nodes to the right",
@@ -536,12 +556,12 @@ export const en: Messages = {
   "flow.alignBottom": "Align selected nodes to the bottom",
   "flow.alignSelectionGroup": "Align selection",
   "flow.canvasHint":
-    "Layout is stored in a sibling .canvas.yaml file. Save scope to persist. Drag palette items onto the canvas. Drop a node into a subflow frame to attach it; select the subflow and drag corners or edge bars to resize horizontally and vertically.",
+    "Layout is stored under canvas inside the scope YAML. Save the flow (or scope) to persist. Drag palette items onto the canvas. Use subgraph nodes for named boundary ports and a drill-in inner workflow.",
   "flow.workflowCompileModeLabel": "Workflow compile",
   "flow.workflowCompileModeAuto": "Auto (canvas when executable nodes exist)",
   "flow.workflowCompileModeCanvas": "Canvas DAG (always from graph)",
   "flow.workflowCompileModeHint":
-    "Controls how ``compiled_workflow`` is built for CDF and local runs from the flow canvas. Auto and canvas both use canvas compilation (invalid graphs fail at build/run or when saving). Saving the scope or canvas re-embeds ``compiled_workflow`` in the scope YAML.",
+    "Controls how the canvas DAG is compiled for local runs from the flow graph. Auto and canvas both use canvas compilation (invalid graphs fail at build/run or when saving). CDF deploy uses WorkflowVersion task data from ``python module.py build``; saving updates the embedded ``canvas`` in the scope YAML.",
   "flow.handleOrientationLabel": "Handles",
   "flow.handleOrientationLr": "Left → right",
   "flow.handleOrientationTb": "Top → bottom",
@@ -551,11 +571,9 @@ export const en: Messages = {
   "flow.ctxMenuRemoveNode": "Remove node",
   "flow.confirmSubgraphDeleteLift":
     "This subgraph contains inner workflow steps.\n\nOK — move them to the parent canvas and remove the subgraph frame.\nCancel — remove the subgraph and discard those inner steps.",
-  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
   "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
+  "flow.ctxMenuFlattenSubgraph": "Flatten subgraph to parent canvas",
   "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
-  "flow.ctxMenuConvertSubflowToSubgraph": "Convert subflow to subgraph (drill-in)",
-  "flow.ctxMenuConvertSubgraphToSubflow": "Convert subgraph to subflow (group)",
   "flow.subgraphDrillTitle": "Subgraph",
   "flow.subgraphBack": "Save & close",
   "flow.subgraphCancel": "Cancel",
@@ -577,8 +595,6 @@ export const en: Messages = {
   "flow.nodeEditorDone": "Done",
   "flow.nodeEditorPipelineStubBody":
     "Start and end nodes are layout only. Edit source views, extraction, and aliasing using the other nodes or the Configure tabs.",
-  "flow.nodeEditorSubflowBody":
-    "Organizational group only: resize the frame and nest nodes inside. It has no pipeline inputs or outputs—use a subgraph node when you need named boundary ports and an inner workflow.",
   "flow.nodeEditorSubgraphBody":
     "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
   "flow.nodeEditorGraphHubBody":
@@ -588,15 +604,17 @@ export const en: Messages = {
   "flow.save": "Save",
   "flow.editWorkflow": "Edit Workflow",
   "flow.canvasPreviewHint": "Read-only preview. Edit opens the full workflow editor.",
+  "flow.subtabCanvas": "Canvas",
+  "flow.subtabRunWorkflow": "Console",
   "flow.previewRunLocal": "Run Locally",
   "flow.previewRunLocalHint":
-    "Same pipeline as Run Locally on the Run Workflow tab (saved YAML on disk—save first). Tasks currently running are outlined on the graph.",
+    "Same pipeline as Run Locally on the Console tab (saved YAML on disk—save first). Running tasks are outlined; edges into active or completed steps animate.",
   "flow.previewRunProgressUnsupported":
-    "Live task highlighting is unavailable on Windows; use Run Locally on the Run Workflow tab for full logs.",
+    "Live task highlighting is unavailable on Windows; use Run Locally on the Console tab for full logs.",
   "flow.inspectorEmpty": "Select a node or edge.",
   "flow.inspectorStartHint": "Pipeline entry. Connect to source views (or to extraction if there are no source views).",
   "flow.inspectorEndHint":
-    "Pipeline exit. Connect from extraction, aliasing, annotation or confidence validation-rule nodes, alias write-back, or reference index.",
+    "Pipeline exit. Connect from extraction, aliasing, annotation or confidence validation-rule nodes. Reference index and alias write-back are inserted by the deployed workflow when enabled in scope.",
   "flow.inspectorAliasPersistenceHint":
     "Maps to fn_dm_alias_persistence: reads aliasing RAW and writes alias lists (and optional FK reference strings) onto describable instances. Configure write-back properties in scope or task data.",
   "flow.inspectorReferenceIndexHint":
@@ -608,10 +626,6 @@ export const en: Messages = {
   "flow.validationContextSourceView": "Source view (listing)",
   "flow.validationContextExtraction": "Key extraction rule",
   "flow.validationContextAliasing": "Aliasing rule",
-  "flow.inspectorSubflowHint":
-    "Child positions are relative to this frame. For named inputs/outputs and an inner workflow, use a subgraph node instead of a subflow.",
-  "flow.inspectorSubflowOrganizationalHint":
-    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
   "flow.inspectorSubflowPorts": "Subgraph ports",
   "flow.inspectorSubflowInputs": "Inputs",
   "flow.inspectorSubflowOutputs": "Outputs",
@@ -630,7 +644,6 @@ export const en: Messages = {
     "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
   "flow.inspectorSubflowGraphOutHint":
     "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
-  "flow.inspectorParentSubflow": "Parent subflow",
   "flow.inspectorNodeTitle": "Node",
   "flow.inspectorEdgeTitle": "Edge",
   "flow.inspectorEdgeKind": "Edge kind",

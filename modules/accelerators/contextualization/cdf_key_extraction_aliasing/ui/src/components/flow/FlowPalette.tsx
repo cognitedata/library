@@ -10,10 +10,7 @@ export type PaletteDragPayload =
       kind: "structural";
       nodeKind:
         | "source_view"
-        | "subflow"
         | "subgraph"
-        | "reference_index"
-        | "alias_persistence"
         | "match_validation_source_view"
         | "match_validation_extraction"
         | "match_validation_aliasing";
@@ -62,40 +59,9 @@ export function FlowPalette({ t, scopeDocument }: Props) {
           type="button"
           className="kea-btn kea-btn--sm"
           draggable
-          onDragStart={(e) => setPaletteDragData(e, { kind: "structural", nodeKind: "subflow" })}
-        >
-          {t("flow.structuralSubflow")}
-        </button>
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          draggable
           onDragStart={(e) => setPaletteDragData(e, { kind: "structural", nodeKind: "subgraph" })}
         >
           {t("flow.structuralSubgraph")}
-        </button>
-      </div>
-      <p className="kea-flow-palette__heading">{t("flow.paletteCdfTasks")}</p>
-      <div className="kea-flow-palette__buttons">
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          draggable
-          onDragStart={(e) =>
-            setPaletteDragData(e, { kind: "structural", nodeKind: "reference_index" })
-          }
-        >
-          {t("flow.structuralReferenceIndex")}
-        </button>
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          draggable
-          onDragStart={(e) =>
-            setPaletteDragData(e, { kind: "structural", nodeKind: "alias_persistence" })
-          }
-        >
-          {t("flow.structuralAliasPersistence")}
         </button>
       </div>
       <p className="kea-flow-palette__heading">{t("flow.paletteValidationRuleDefinitions")}</p>

@@ -74,7 +74,7 @@ Run **`module.py`** with a scope YAML that references your new `method` or `type
 ## Related reading
 
 - [How to build configuration with YAML](howto_config_yaml.md) · [How to build configuration with the UI](howto_config_ui.md)
-- [Quickstart — local run with `module.py`](howto_quickstart.md) (`.env`, results under `tests/results/`)
+- [Quickstart — local run with `module.py`](howto_quickstart.md) (`.env`, results under `local_run_results/`)
 - [Scoped deployment — hierarchy and Toolkit](howto_scoped_deployment.md) (`--build`, WorkflowTrigger `configuration`, `cdf deploy`)
 - [Module functional document — handlers overview](../module_functional_document.md) (sections 3.1 and 3.2)
 - [Key extraction specification](../specifications/1.%20key_extraction.md)

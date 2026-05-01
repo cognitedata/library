@@ -5,50 +5,35 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Sequence, Set
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.task_runtime import (
-    merge_compiled_task_into_data,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.workflow_compile.legacy_ir import (
+from cdf_fn_common.reference_index_naming import reference_index_raw_table_from_key_extraction_table
+from cdf_fn_common.scope_document_dm import narrow_aliasing_engine_config_for_inline_rule_names
+from cdf_fn_common.task_runtime import merge_compiled_task_into_data
+from cdf_fn_common.workflow_task_lineage import apply_predecessor_extraction_allowlist_to_task_data
+from cdf_fn_common.workflow_compile.legacy_ir import (
     TASK_ALIAS_PERSISTENCE,
     TASK_ALIASING,
     TASK_INCREMENTAL,
     TASK_KEY_EXTRACTION,
     TASK_REFERENCE_INDEX,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.workflow_execution_graph import (
+from cdf_fn_common.workflow_execution_graph import (
     default_execution_graph_path,
     load_execution_graph,
     validate_execution_graph,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_alias_persistence.pipeline import (
-    persist_aliases_to_entities,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.engine.tag_aliasing_engine import (
-    AliasingEngine,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_aliasing.pipeline import (
-    tag_aliasing,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_incremental_state_update.pipeline import (
-    incremental_state_update,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.engine.key_extraction_engine import (
-    KeyExtractionEngine,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
-    key_extraction,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline import (
-    persist_reference_index,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.reference_index_naming import (
-    reference_index_raw_table_from_key_extraction_table,
-)
+from fn_dm_alias_persistence.pipeline import persist_aliases_to_entities
+from fn_dm_aliasing.engine.tag_aliasing_engine import AliasingEngine
+from fn_dm_aliasing.pipeline import tag_aliasing
+from fn_dm_incremental_state_update.pipeline import incremental_state_update
+from fn_dm_key_extraction.engine.key_extraction_engine import KeyExtractionEngine
+from fn_dm_key_extraction.pipeline import key_extraction
+from fn_dm_reference_index.pipeline import persist_reference_index
 
 from .kahn_run_context import KahnRunContext
 from .ui_progress import emit_ui_progress
@@ -155,7 +140,15 @@ def step_key_extraction(
     }
     merge_compiled_task_into_data(ke_data)
     engine = KeyExtractionEngine(ctx.engine_config)
-    key_extraction(ctx.client, ctx.pipe_logger, ke_data, engine, ctx.cdf_config)
+    _pec = ctx.engine_config if isinstance(ctx.engine_config, dict) else None
+    key_extraction(
+        ctx.client,
+        ctx.pipe_logger,
+        ke_data,
+        engine,
+        ctx.cdf_config,
+        parallel_engine_config=_pec,
+    )
     new_ek = ke_data.get("entities_keys_extracted") or {}
     new_keys = int(ke_data.get("keys_extracted") or 0)
 
@@ -179,6 +172,24 @@ def step_key_extraction(
             _merge()
     else:
         _merge()
+
+
+def _reference_index_aliasing_data_from_engine_config(
+    aliasing_config: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build ``config.config.data`` for reference index from the merged engine aliasing dict.
+
+    Pathway-only scopes have empty ``rules`` while transforms live under ``pathways``; passing
+    only ``rules`` made reference-index alias expansion see zero workflow rules for assets.
+    """
+    out: Dict[str, Any] = {
+        "aliasing_rules": list(aliasing_config.get("rules") or []),
+        "validation": dict(aliasing_config.get("validation") or {}),
+    }
+    pw = aliasing_config.get("pathways")
+    if isinstance(pw, dict) and isinstance(pw.get("steps"), list) and pw.get("steps"):
+        out["pathways"] = copy.deepcopy(pw)
+    return out
 
 
 def _reference_index_branch(ctx: KahnRunContext, task_id: str = TASK_REFERENCE_INDEX) -> Dict[str, Any]:
@@ -233,14 +244,12 @@ def _reference_index_branch(ctx: KahnRunContext, task_id: str = TASK_REFERENCE_I
         "config": {
             "config": {
                 "parameters": {"debug": True},
-                "data": {
-                    "aliasing_rules": ctx.aliasing_config.get("rules") or [],
-                    "validation": ctx.aliasing_config.get("validation") or {},
-                },
+                "data": _reference_index_aliasing_data_from_engine_config(ctx.aliasing_config),
             },
         },
     }
     merge_compiled_task_into_data(ref_data)
+    apply_predecessor_extraction_allowlist_to_task_data(ref_data)
     persist_reference_index(ctx.client, ctx.pipe_logger, ref_data)
     logger.info(
         "✓ Reference index: %s entities processed, %s inverted writes, %s postings "
@@ -288,7 +297,12 @@ def _aliasing_branch(ctx: KahnRunContext, task_id: str = TASK_ALIASING) -> None:
         "source_entity_type": str(ctx.v0.get("entity_type", "asset")),
     }
     merge_compiled_task_into_data(ctx.alias_data)
-    engine = AliasingEngine(ctx.aliasing_config, client=ctx.client)
+    apply_predecessor_extraction_allowlist_to_task_data(ctx.alias_data)
+    eff_cfg = narrow_aliasing_engine_config_for_inline_rule_names(
+        ctx.aliasing_config,
+        ctx.alias_data.get("aliasing_rule_names"),
+    )
+    engine = AliasingEngine(eff_cfg, client=ctx.client)
     tag_aliasing(ctx.client, ctx.pipe_logger, ctx.alias_data, engine)
     ar = ctx.alias_data.get("aliasing_results") or []
     if isinstance(ar, list):
@@ -323,6 +337,7 @@ def _alias_persistence_branch(ctx: KahnRunContext, task_id: str) -> Dict[str, An
         "task_id": task_id,
     }
     merge_compiled_task_into_data(persistence_data)
+    apply_predecessor_extraction_allowlist_to_task_data(persistence_data)
     if ctx.alias_writeback_property:
         persistence_data["alias_writeback_property"] = ctx.alias_writeback_property
     wfk = ctx.write_foreign_key_references or getattr(args, "write_foreign_keys", False)
@@ -436,9 +451,31 @@ def _ui_task_progress_fields(ctx: KahnRunContext, task_id: str) -> Dict[str, Any
 
 def _dispatch_task_tracked(ctx: KahnRunContext, task_id: str, merge_lock: Lock) -> None:
     emit_ui_progress("task_start", **_ui_task_progress_fields(ctx, task_id))
+    t0 = time.perf_counter()
+    fn_ext = ""
     try:
+        fn_ext = str(
+            (_task_index(ctx.compiled_workflow).get(task_id) or {}).get(
+                "function_external_id"
+            )
+            or ""
+        )
         _dispatch_task(ctx, task_id, merge_lock)
     finally:
+        dt = time.perf_counter() - t0
+        ctx.logger.info(
+            "pipeline_task_timing task_id=%s function_external_id=%s duration_sec=%.3f",
+            task_id,
+            fn_ext or "?",
+            dt,
+        )
+        ctx.task_timings.append(
+            {
+                "task_id": task_id,
+                "function_external_id": fn_ext or None,
+                "duration_sec": round(dt, 6),
+            }
+        )
         emit_ui_progress("task_end", **_ui_task_progress_fields(ctx, task_id))
 
 

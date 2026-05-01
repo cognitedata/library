@@ -1,13 +1,15 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  applyEdgeChanges,
+  applyNodeChanges,
   Background,
   BackgroundVariant,
   Controls,
+  type EdgeChange,
   MiniMap,
+  type NodeChange,
   ReactFlow,
   ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
   useReactFlow,
 } from "@xyflow/react";
 import type { MessageKey } from "../../i18n";
@@ -15,15 +17,19 @@ import { normalizeWorkflowCanvasHandleOrientation, type WorkflowCanvasDocument }
 import { canvasToFlowEdges, canvasToFlowNodes } from "./flowDocumentBridge";
 import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
 import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
+import { runProgressAnimatedEdgeIds } from "./flowRunProgressEdges";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
-export type WorkflowPreviewLocalRun = {
-  runAll: boolean;
-  onRunAllChange: (next: boolean) => void;
+/** Live local-run progress for canvas preview (controls live in Configure main toolbar). */
+export type WorkflowPreviewRunProgress = {
   busy: boolean;
-  executingTaskIds: readonly string[];
-  onRun: () => void;
+  /** Canvas node ids for tasks currently running (outline on graph). */
+  executingCanvasNodeIds: readonly string[];
+  /** Canvas node ids for tasks that have started but not yet ended (run progress). */
+  runActiveCanvasNodeIds: readonly string[];
+  /** Canvas node ids for tasks that have completed this run (run progress). */
+  runCompletedCanvasNodeIds: readonly string[];
 };
 
 type Props = {
@@ -31,7 +37,7 @@ type Props = {
   document: WorkflowCanvasDocument;
   reloadNonce: number;
   onEdit: () => void;
-  localRun?: WorkflowPreviewLocalRun;
+  runProgress?: WorkflowPreviewRunProgress;
 };
 
 /** v12 ``fitView`` prop runs mainly on mount; refit after nodes/edges sync so the graph is not off-screen. */
@@ -49,31 +55,77 @@ function PreviewFitView({ graphRevision }: { graphRevision: number }) {
 function PreviewInner({
   doc,
   reloadNonce,
-  executingTaskIds,
+  executingCanvasNodeIds,
+  runActiveCanvasNodeIds,
+  runCompletedCanvasNodeIds,
 }: {
   doc: WorkflowCanvasDocument;
   reloadNonce: number;
-  executingTaskIds: readonly string[];
+  executingCanvasNodeIds: readonly string[];
+  runActiveCanvasNodeIds: readonly string[];
+  runCompletedCanvasNodeIds: readonly string[];
 }) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(canvasToFlowNodes(doc.nodes));
-  const [edges, setEdges, onEdgesChange] = useEdgesState(canvasToFlowEdges(doc.edges));
+  /**
+   * Keep RF-internal node/edge state separate from execution styling. React Flow applies
+   * ``onNodesChange`` updates (e.g. dimensions) that would strip a naïve ``useEffect`` className.
+   */
+  const [rfNodes, setRfNodes] = useState(() => canvasToFlowNodes(doc.nodes));
+  const [rfEdges, setRfEdges] = useState(() => canvasToFlowEdges(doc.edges));
 
   useEffect(() => {
-    const active = new Set(executingTaskIds);
-    const nextNodes = canvasToFlowNodes(doc.nodes).map((n) => {
-      if (!active.has(n.id)) return n;
-      return {
-        ...n,
-        className: "kea-flow-node--executing",
-      };
-    });
-    setNodes(nextNodes);
-    setEdges(canvasToFlowEdges(doc.edges));
-  }, [doc, reloadNonce, executingTaskIds, setNodes, setEdges]);
+    setRfNodes(canvasToFlowNodes(doc.nodes));
+    setRfEdges(canvasToFlowEdges(doc.edges));
+  }, [doc, reloadNonce]);
+
+  const progressAnimatedEdgeIds = useMemo(
+    () =>
+      runProgressAnimatedEdgeIds(doc.edges, runActiveCanvasNodeIds, runCompletedCanvasNodeIds),
+    [doc.edges, runActiveCanvasNodeIds, runCompletedCanvasNodeIds]
+  );
+
+  const executingSet = useMemo(() => new Set(executingCanvasNodeIds), [executingCanvasNodeIds]);
+
+  const nodes = useMemo(
+    () =>
+      rfNodes.map((n) =>
+        executingSet.has(n.id) ? { ...n, className: "kea-flow-node--executing" } : { ...n, className: undefined }
+      ),
+    [rfNodes, executingSet]
+  );
+
+  const edges = useMemo(
+    () =>
+      rfEdges.map((e) => ({
+        ...e,
+        animated: progressAnimatedEdgeIds.has(e.id),
+      })),
+    [rfEdges, progressAnimatedEdgeIds]
+  );
+
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setRfNodes((prev) => applyNodeChanges(changes, prev));
+  }, []);
+
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    setRfEdges((prev) => applyEdgeChanges(changes, prev));
+  }, []);
 
   const graphRevision = useMemo(
-    () => reloadNonce + doc.nodes.length + doc.edges.length + executingTaskIds.length,
-    [reloadNonce, doc.nodes.length, doc.edges.length, executingTaskIds.length]
+    () =>
+      reloadNonce +
+      doc.nodes.length +
+      doc.edges.length +
+      executingCanvasNodeIds.length +
+      runActiveCanvasNodeIds.length +
+      runCompletedCanvasNodeIds.length,
+    [
+      reloadNonce,
+      doc.nodes.length,
+      doc.edges.length,
+      executingCanvasNodeIds.length,
+      runActiveCanvasNodeIds.length,
+      runCompletedCanvasNodeIds.length,
+    ]
   );
 
   const orient = normalizeWorkflowCanvasHandleOrientation(doc.handle_orientation);
@@ -85,7 +137,7 @@ function PreviewInner({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={KEA_FLOW_NODE_TYPES}
-        defaultEdgeOptions={{ animated: true }}
+        defaultEdgeOptions={{ animated: false }}
         nodesDraggable={false}
         nodesConnectable={false}
         edgesReconnectable={false}
@@ -111,7 +163,7 @@ function PreviewInner({
   );
 }
 
-export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdit, localRun }: Props) {
+export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdit, runProgress }: Props) {
   return (
     <div className="kea-flow-preview">
       <div className="kea-flow-preview__toolbar">
@@ -119,41 +171,21 @@ export function WorkflowFlowCanvasPreview({ t, document: doc, reloadNonce, onEdi
         <button
           type="button"
           className="kea-btn kea-btn--primary"
-          disabled={Boolean(localRun?.busy)}
+          disabled={Boolean(runProgress?.busy)}
           onClick={onEdit}
         >
           {t("flow.editWorkflow")}
         </button>
       </div>
-      {localRun ? (
-        <div className="kea-flow-preview__runbar" role="group" aria-label={t("flow.previewRunLocal")}>
-          <button
-            type="button"
-            className="kea-btn kea-btn--primary"
-            disabled={localRun.busy}
-            onClick={() => localRun.onRun()}
-          >
-            {localRun.busy ? t("status.running") : t("flow.previewRunLocal")}
-          </button>
-          <label className="kea-label" style={{ flexDirection: "row", alignItems: "center", gap: "0.35rem" }}>
-            <input
-              type="checkbox"
-              checked={localRun.runAll}
-              disabled={localRun.busy}
-              onChange={(e) => localRun.onRunAllChange(e.target.checked)}
-            />
-            <span>{t("run.runAll")}</span>
-          </label>
-          <p className="kea-hint kea-flow-preview__runbar-hint">{t("flow.previewRunLocalHint")}</p>
-        </div>
-      ) : null}
       <div className="kea-flow-preview__canvas">
         <ReactFlowProvider>
           <PreviewInner
             key={reloadNonce}
             doc={doc}
             reloadNonce={reloadNonce}
-            executingTaskIds={localRun?.executingTaskIds ?? []}
+            executingCanvasNodeIds={runProgress?.executingCanvasNodeIds ?? []}
+            runActiveCanvasNodeIds={runProgress?.runActiveCanvasNodeIds ?? []}
+            runCompletedCanvasNodeIds={runProgress?.runCompletedCanvasNodeIds ?? []}
           />
         </ReactFlowProvider>
       </div>

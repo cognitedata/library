@@ -314,7 +314,12 @@ class TestLoadForeignKeyMapFromRaw(unittest.TestCase):
             )
         }
         client = MagicMock()
-        client.raw.rows.list.return_value = [row]
+
+        class _RowsApi:
+            def list(self, *_a, **_k):
+                return [row]
+
+        client.raw.rows = _RowsApi()
         logger = MagicMock()
         m = _load_foreign_key_map_from_raw(
             client, "db", "tbl", logger, limit=10

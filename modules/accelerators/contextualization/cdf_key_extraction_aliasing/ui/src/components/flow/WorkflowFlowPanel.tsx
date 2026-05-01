@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   Background,
@@ -9,6 +9,7 @@ import {
   type FinalConnectionState,
   MiniMap,
   type Node,
+  type NodeChange,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
@@ -36,7 +37,6 @@ import { appendKeaConnectionEdge, appendReuseDataEdge, dedupeEdgesByHandles } fr
 import { FlowNodeInspector } from "./FlowNodeInspector";
 import { FlowPalette, getPaletteDropPayload } from "./FlowPalette";
 import { WorkflowCompileToolbar } from "./WorkflowCompileToolbar";
-import { seedCanvasFromScope } from "./seedCanvasFromScope";
 import { patchScopeForSourceViewToExtractionConnection } from "./workflowScopeConnectionPatch";
 import { useFlowPanelLayout } from "./useFlowPanelLayout";
 import { layoutFlowNodes } from "./autoLayoutFlow";
@@ -44,16 +44,11 @@ import { FlowHandleOrientationProvider } from "./FlowHandleOrientationContext";
 import { FlowNodeEditorModal } from "./FlowNodeEditorModal";
 import { KEA_FLOW_NODE_TYPES } from "./flowNodeRegistry";
 import { TreeContextMenuPortal, useTreeContextMenuState, type TreeCtxMenuItem } from "../TreeContextMenu";
-import { collectSubflowFrameAndHubIds, removeSubflowFrameAndLiftChildren } from "./subflowDeleteLift";
 import { liftSubgraphInnerToParentWorkflow, subgraphHasLiftableInnerContent } from "./liftSubgraphInnerToParent";
 import { clampNodeInsideParentSubflowFrame } from "./subflowGroupClamp";
 import { promoteSubgraphInnerSubtreeToParentWorkflow } from "./promoteSubgraphInnerNodeToParent";
 import { collectSubtreeNodeIds } from "./flowParentGeometry";
-import {
-  appendNodeAndResolveSubflowParent,
-  assignFlowNodeSubflowParent,
-  resolveSubflowParentsAfterGroupDrag,
-} from "./subflowDropAssociation";
+import { appendNodeAndResolveSubflowParent, resolveSubflowParentsAfterGroupDrag } from "./subflowDropAssociation";
 import { resolveGroupableSelectionNodes } from "./subflowMembership";
 import { isValidKeaFlowConnection } from "./subgraphFlowConnections";
 import { collapseSelectionToSubgraph } from "./collapseSelectionToSubgraph";
@@ -65,12 +60,6 @@ import {
   syncSubgraphInnerHubPortData,
 } from "./subgraphInnerBoundaryHubs";
 import { SubgraphDrillModal } from "./SubgraphDrillModal";
-import { wrapSelectionInNewSubflow } from "./wrapSelectionInSubflow";
-import {
-  convertSubflowToSubgraph,
-  convertSubgraphToSubflow,
-  subflowCanConvertToSubgraph,
-} from "./subflowSubgraphConvert";
 import { materializePaletteDrop } from "./materializePaletteDrop";
 import { alignSelectedFlowNodes, type AlignFlowSelectionMode } from "./alignSelectedNodes";
 import { FlowSelectionAlignButtons } from "./FlowSelectionAlignButtons";
@@ -79,6 +68,7 @@ import {
   formatConnectEndMenuOptionLabel,
 } from "./connectEndMenuOptions";
 import type { PaletteDragPayload } from "./FlowPalette";
+import { upstreamDownstreamAnimatedEdgeIds } from "./flowSelectionEdgeAnimation";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -121,9 +111,11 @@ function FlowCanvasBody({
 
   const rfSelectionRef = useRef<Node[]>([]);
   const [alignableSelectionCount, setAlignableSelectionCount] = useState(0);
+  const [selectedRfNodeIds, setSelectedRfNodeIds] = useState<string[]>([]);
   useOnSelectionChange({
     onChange: useCallback(({ nodes: sel }) => {
       rfSelectionRef.current = sel;
+      setSelectedRfNodeIds(sel.map((n) => n.id));
       setAlignableSelectionCount(sel.filter((n) => n.type !== "keaStart" && n.type !== "keaEnd").length);
     }, []),
   });
@@ -494,20 +486,6 @@ function FlowCanvasBody({
     [getNodes, setNodes, setEdges]
   );
 
-  const setNodeParent = useCallback(
-    (nodeId: string, parentSubflowId: string) => {
-      const next = parentSubflowId.trim();
-      setNodes((nds) => {
-        let out = assignFlowNodeSubflowParent(nds, nodeId, next.length ? next : null);
-        if (next.length) {
-          out = clampNodeInsideParentSubflowFrame(out, nodeId);
-        }
-        return out;
-      });
-    },
-    [setNodes]
-  );
-
   const patchEdge = useCallback(
     (edgeId: string, kind: FlowEdgeData["kind"]) => {
       setEdges((eds) =>
@@ -565,21 +543,6 @@ function FlowCanvasBody({
     setSelectedEdge(null);
   }, [openSubgraphDrill, readOnly]);
 
-  const handleSeed = useCallback(() => {
-    const doc = seedCanvasFromScope(workflowScopeDoc);
-    const merged: WorkflowCanvasDocument = { ...doc, handle_orientation: handleOrientation };
-    const flowNodes = canvasToFlowNodes(merged.nodes);
-    const flowEdges = canvasToFlowEdges(merged.edges);
-    const laidOut = layoutFlowNodes(flowNodes, flowEdges, handleOrientation, workflowScopeDoc);
-    setEdges(flowEdges);
-    setNodes(laidOut);
-    skipEmitRef.current = true;
-    const out = flowToCanvasDocument(laidOut, flowEdges, { handleOrientation });
-    onChangeRef.current(out);
-    onSyncScopeFromCanvasRef.current?.(out);
-    window.setTimeout(() => fitView({ padding: 0.15 }), 0);
-  }, [workflowScopeDoc, setNodes, setEdges, handleOrientation, fitView]);
-
   const handleAutoLayout = useCallback(() => {
     setNodes((nds) => layoutFlowNodes(nds, edges, handleOrientation, workflowScopeDoc));
     window.setTimeout(() => fitView({ padding: 0.15 }), 0);
@@ -618,14 +581,6 @@ function FlowCanvasBody({
       const all = getNodes();
       const allEdges = getEdges();
       const root = all.find((n) => n.id === nodeId);
-      if (root?.type === "keaSubflow") {
-        const removed = collectSubflowFrameAndHubIds(all, nodeId);
-        setNodes((nds) => removeSubflowFrameAndLiftChildren(nds, nodeId));
-        setEdges((eds) => eds.filter((e) => !removed.has(e.source) && !removed.has(e.target)));
-        setSelectedNode((sn) => (sn && removed.has(sn.id) ? null : sn));
-        setSelectedEdge(null);
-        return;
-      }
       if (root?.type === "keaSubgraph") {
         if (subgraphHasLiftableInnerContent(all, nodeId) && window.confirm(t("flow.confirmSubgraphDeleteLift"))) {
           const lifted = liftSubgraphInnerToParentWorkflow(all, allEdges, nodeId, handleOrientation);
@@ -661,6 +616,31 @@ function FlowCanvasBody({
     [setEdges]
   );
 
+  const selectionAnimatedEdgeIds = useMemo(
+    () => upstreamDownstreamAnimatedEdgeIds(edges, selectedRfNodeIds),
+    [edges, selectedRfNodeIds]
+  );
+  const edgesForRf = useMemo(
+    () => edges.map((e) => ({ ...e, animated: selectionAnimatedEdgeIds.has(e.id) })),
+    [edges, selectionAnimatedEdgeIds]
+  );
+
+  const onNodesChangeWrapped = useCallback(
+    (changes: NodeChange[]) => {
+      const removals = changes.filter((c): c is Extract<NodeChange, { type: "remove" }> => c.type === "remove");
+      const rest = changes.filter((c) => c.type !== "remove");
+      if (rest.length) onNodesChange(rest);
+      if (readOnly || removals.length === 0) return;
+      const ids = [...new Set(removals.map((r) => r.id))];
+      for (const id of ids) {
+        flushSync(() => {
+          removeNodeById(id);
+        });
+      }
+    },
+    [onNodesChange, readOnly, removeNodeById]
+  );
+
   const onPaneContextMenu = useCallback(
     (e: React.MouseEvent | MouseEvent) => {
       if (readOnly) return;
@@ -675,10 +655,9 @@ function FlowCanvasBody({
           label: t("flow.ctxMenuAutoLayout"),
           onSelect: () => handleAutoLayout(),
         },
-        { id: "seed", label: t("flow.seedFromScope"), onSelect: () => handleSeed() },
       ]);
     },
-    [flowCtxMenu, t, fitView, handleAutoLayout, handleSeed, readOnly]
+    [flowCtxMenu, t, fitView, handleAutoLayout, readOnly]
   );
 
   const onFlowNodeContextMenu = useCallback(
@@ -689,19 +668,9 @@ function FlowCanvasBody({
       if (node.type === "keaStart" || node.type === "keaEnd") return;
       const nds = getNodes();
       const groupableSelected = resolveGroupableSelectionNodes(nds, node, rfSelectionRef.current);
-      const showWrapSubflow = groupableSelected.length >= 1;
+      const showGroupActions = groupableSelected.length >= 1;
       const items: TreeCtxMenuItem[] = [];
-      if (showWrapSubflow) {
-        items.push({
-          id: "wrap-subflow",
-          label: t("flow.ctxMenuWrapSelectionInSubflow"),
-          onSelect: () => {
-            setNodes((nds2) => {
-              const sel = resolveGroupableSelectionNodes(nds2, node, rfSelectionRef.current);
-              return wrapSelectionInNewSubflow(nds2, sel) ?? nds2;
-            });
-          },
-        });
+      if (showGroupActions) {
         items.push({
           id: "collapse-subgraph",
           label: t("flow.ctxMenuCollapseSelectionToSubgraph"),
@@ -718,33 +687,17 @@ function FlowCanvasBody({
           },
         });
       }
-      if (node.type === "keaSubflow" && subflowCanConvertToSubgraph(nds, node.id)) {
-        items.push({
-          id: "convert-subflow-to-subgraph",
-          label: t("flow.ctxMenuConvertSubflowToSubgraph"),
-          onSelect: () => {
-            const nds2 = getNodes();
-            const eds = getEdges();
-            const res = convertSubflowToSubgraph(nds2, eds, node.id, handleOrientation);
-            if (!res) return;
-            setNodes(res.nodes);
-            setEdges(res.edges);
-            setSelectedNode(null);
-            setSelectedEdge(null);
-          },
-        });
-      }
       if (node.type === "keaSubgraph" && subgraphHasLiftableInnerContent(nds, node.id)) {
         items.push({
-          id: "convert-subgraph-to-subflow",
-          label: t("flow.ctxMenuConvertSubgraphToSubflow"),
+          id: "flatten-subgraph",
+          label: t("flow.ctxMenuFlattenSubgraph"),
           onSelect: () => {
             const nds2 = getNodes();
             const eds = getEdges();
-            const res = convertSubgraphToSubflow(nds2, eds, node.id, handleOrientation);
-            if (!res) return;
-            setNodes(res.nodes);
-            setEdges(res.edges);
+            const lifted = liftSubgraphInnerToParentWorkflow(nds2, eds, node.id, handleOrientation);
+            if (!lifted) return;
+            setNodes(lifted.nodes);
+            setEdges(lifted.edges);
             setSelectedNode(null);
             setSelectedEdge(null);
           },
@@ -869,9 +822,6 @@ function FlowCanvasBody({
       )}
       <div className="kea-flow-main">
         <div className="kea-flow-toolbar">
-          <button type="button" className="kea-btn kea-btn--sm" disabled={readOnly} onClick={handleSeed}>
-            {t("flow.seedFromScope")}
-          </button>
           <FlowSelectionAlignButtons
             t={t}
             disabled={readOnly || alignableSelectionCount < 2}
@@ -901,8 +851,8 @@ function FlowCanvasBody({
           <FlowHandleOrientationProvider value={handleOrientation}>
             <ReactFlow
               nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
+              edges={edgesForRf}
+              onNodesChange={onNodesChangeWrapped}
               onEdgesChange={onEdgesChange}
               isValidConnection={isValidConnection}
               onConnect={readOnly ? undefined : onConnect}
@@ -910,7 +860,8 @@ function FlowCanvasBody({
               onDrop={readOnly ? undefined : onDrop}
               onDragOver={readOnly ? undefined : onDragOver}
               nodeTypes={KEA_FLOW_NODE_TYPES}
-              defaultEdgeOptions={{ animated: true }}
+              defaultEdgeOptions={{ animated: false }}
+              deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
               onNodeClick={onNodeClick}
               onEdgeClick={onEdgeClick}
               onPaneClick={onPaneClick}
@@ -925,7 +876,6 @@ function FlowCanvasBody({
               fitView
               minZoom={0.2}
               maxZoom={1.5}
-              deleteKeyCode={null}
               panOnScroll
               zoomOnScroll
               zoomOnPinch
@@ -1024,7 +974,6 @@ function FlowCanvasBody({
                 onPatchWorkflowScope={onPatchWorkflowScope}
                 onPatchNode={patchNode}
                 onPatchEdge={patchEdge}
-                onSetNodeParent={setNodeParent}
                 onApplySubflowPorts={applySubflowPorts}
                 onOpenSubgraphDrill={(id) => openSubgraphDrill(id)}
               />

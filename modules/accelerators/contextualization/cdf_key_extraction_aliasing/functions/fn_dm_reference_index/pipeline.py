@@ -31,6 +31,10 @@ except ImportError:
     RowWrite = None  # type: ignore
 
 from cdf_fn_common.cdf_utils import create_table_if_not_exists
+from cdf_fn_common.workflow_task_lineage import (
+    allowed_extraction_rule_names_for_task,
+    raw_row_allowed_for_predecessor_extraction_rules,
+)
 from cdf_fn_common.incremental_scope import (
     EXTERNAL_ID_COLUMN,
     RECORD_KIND_COLUMN,
@@ -412,6 +416,13 @@ def persist_reference_index(
         client, source_raw_db, source_raw_table_key, data, logger
     )
     data["reference_index_source_list_chunks"] = source_list_chunks
+
+    pred_allow = None
+    _cw = data.get("compiled_workflow")
+    _tid = data.get("task_id")
+    if isinstance(_cw, dict) and _tid:
+        pred_allow = allowed_extraction_rule_names_for_task(_cw, str(_tid))
+
     if progress_every > 0:
         logger.info(
             "Reference index: progress log every "
@@ -467,6 +478,14 @@ def persist_reference_index(
         doc_json = cols.get(DOCUMENT_REFERENCES_JSON_COLUMN)
         fk_list = _parse_reference_json(fk_json if isinstance(fk_json, str) else None)
         doc_list = _parse_reference_json(doc_json if isinstance(doc_json, str) else None)
+        if pred_allow is not None:
+            if not raw_row_allowed_for_predecessor_extraction_rules(
+                cols,
+                fk_list=fk_list,
+                doc_list=doc_list,
+                allowed=pred_allow,
+            ):
+                continue
         if not fk_list and not doc_list:
             continue
 

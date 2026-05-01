@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_runner.workflow_payload import (
-    canvas_sibling_path,
+_MODULE_ROOT = Path(__file__).resolve().parents[3]
+_FUNCS = _MODULE_ROOT / "functions"
+_SCRIPTS = _MODULE_ROOT / "scripts"
+for _p in (str(_FUNCS), str(_SCRIPTS), str(_MODULE_ROOT)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from local_runner.workflow_payload import (  # noqa: E402
     compiled_workflow_for_local_run,
     merged_scope_document_for_local_run,
     remap_associations_for_filtered_source_views,
@@ -17,20 +24,9 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_ru
 )
 
 
-def test_canvas_sibling_path_for_config_yaml() -> None:
-    p = Path("/tmp/workflow.local.config.yaml")
-    assert canvas_sibling_path(p) == Path("/tmp/workflow.local.canvas.yaml")
-
-
-def test_canvas_sibling_path_for_generic_yaml() -> None:
-    p = Path("/x/foo.yaml")
-    assert canvas_sibling_path(p) == Path("/x/foo.canvas.yaml")
-
-
-def test_merged_scope_sibling_canvas_overrides_stale_inline_canvas(tmp_path: Path) -> None:
-    """Non-empty sibling layout wins over inline ``canvas`` (full flow editor graph, including subgraphs)."""
+def test_merged_scope_preserves_embedded_canvas(tmp_path: Path) -> None:
+    """Embedded ``canvas`` in the scope file is passed through (no sidecar layout file)."""
     scope = tmp_path / "site.config.yaml"
-    sibling = tmp_path / "site.canvas.yaml"
     scope.write_text(
         yaml.dump(
             {
@@ -43,10 +39,10 @@ def test_merged_scope_sibling_canvas_overrides_stale_inline_canvas(tmp_path: Pat
                     "schemaVersion": 1,
                     "nodes": [
                         {
-                            "id": "stale",
+                            "id": "only",
                             "kind": "extraction",
                             "position": {"x": 0, "y": 0},
-                            "data": {"ref": {"extraction_rule_name": "old"}},
+                            "data": {"ref": {"extraction_rule_name": "r1"}},
                         }
                     ],
                     "edges": [],
@@ -55,85 +51,9 @@ def test_merged_scope_sibling_canvas_overrides_stale_inline_canvas(tmp_path: Pat
         ),
         encoding="utf-8",
     )
-    sibling.write_text(
-        yaml.dump(
-            {
-                "schemaVersion": 1,
-                "handle_orientation": "tb",
-                "nodes": [
-                    {
-                        "id": "sg",
-                        "kind": "subgraph",
-                        "position": {"x": 1, "y": 2},
-                        "data": {
-                            "label": "G",
-                            "subflow_hub_input_id": "hin",
-                            "subflow_hub_output_id": "hout",
-                            "inner_canvas": {
-                                "schemaVersion": 1,
-                                "nodes": [
-                                    {
-                                        "id": "inner_ext",
-                                        "kind": "extraction",
-                                        "position": {"x": 0, "y": 0},
-                                        "data": {"ref": {"extraction_rule_name": "r_inner"}},
-                                    }
-                                ],
-                                "edges": [],
-                            },
-                        },
-                    }
-                ],
-                "edges": [],
-            }
-        ),
-        encoding="utf-8",
-    )
     filtered = [{"view_external_id": "V", "view_space": "s", "view_version": "v1"}]
     doc = merged_scope_document_for_local_run(scope, filtered)
-    assert doc["canvas"]["nodes"][0]["id"] == "sg"
-    assert doc["canvas"]["handle_orientation"] == "tb"
-    inner = doc["canvas"]["nodes"][0]["data"]["inner_canvas"]
-    assert inner["nodes"][0]["id"] == "inner_ext"
-
-
-def test_merged_scope_merges_sibling_canvas_root_nodes(tmp_path: Path) -> None:
-    """Layout-only sibling ``*.canvas.yaml`` (root ``nodes``/``edges``) becomes ``doc.canvas``."""
-    scope = tmp_path / "site.config.yaml"
-    sibling = tmp_path / "site.canvas.yaml"
-    scope.write_text(
-        yaml.dump(
-            {
-                "schemaVersion": 1,
-                "source_views": [
-                    {"view_external_id": "V", "view_space": "s", "view_version": "v1"}
-                ],
-                "key_extraction": {"config": {"data": {}}},
-            }
-        ),
-        encoding="utf-8",
-    )
-    sibling.write_text(
-        yaml.dump(
-            {
-                "schemaVersion": 1,
-                "nodes": [
-                    {
-                        "id": "ext1",
-                        "kind": "extraction",
-                        "position": {"x": 0, "y": 0},
-                        "data": {"ref": {"extraction_rule_name": "r1"}},
-                    }
-                ],
-                "edges": [],
-            }
-        ),
-        encoding="utf-8",
-    )
-    filtered = [{"view_external_id": "V", "view_space": "s", "view_version": "v1"}]
-    doc = merged_scope_document_for_local_run(scope, filtered)
-    assert doc.get("canvas", {}).get("nodes")
-    assert doc["canvas"]["nodes"][0]["id"] == "ext1"
+    assert doc["canvas"]["nodes"][0]["id"] == "only"
 
 
 def test_remap_associations_after_source_view_filter(tmp_path: Path) -> None:
@@ -241,7 +161,7 @@ def test_compiled_workflow_for_local_run_prefers_embedded(monkeypatch: pytest.Mo
         raise AssertionError("canvas compile should not run when embedded IR is valid")
 
     monkeypatch.setattr(
-        "modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_runner.workflow_payload.compiled_workflow_for_scope_document",
+        "local_runner.workflow_payload.compiled_workflow_for_scope_document",
         _should_not_compile,
     )
     doc = {
@@ -268,7 +188,7 @@ def test_compiled_workflow_for_local_run_ignores_malformed_embedded(monkeypatch:
         return sentinel
 
     monkeypatch.setattr(
-        "modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_runner.workflow_payload.compiled_workflow_for_scope_document",
+        "local_runner.workflow_payload.compiled_workflow_for_scope_document",
         _fake_compile,
     )
     doc = {

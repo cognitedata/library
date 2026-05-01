@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.scope_document_dm import (
+    _filter_aliasing_rules_on_data,
+    narrow_aliasing_engine_config_for_inline_rule_names,
     build_aliasing_workflow_config,
     build_key_extraction_workflow_config,
     build_reference_index_config_block,
@@ -14,6 +16,7 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     reference_index_raw_table_key_from_scope,
     resolve_instance_space_from_scope_document,
     resolve_scope_document_source_views,
+    restrict_aliasing_pathways_to_wanted_names,
 )
 
 
@@ -47,6 +50,88 @@ def test_build_key_extraction_merges_runtime() -> None:
     assert inner["parameters"]["run_all"] is True
     assert inner["parameters"]["incremental_change_processing"] is True
     assert inner["data"]["source_views"][0]["instance_space"] == "sp1"
+
+
+def test_restrict_pathways_keeps_only_wanted_rule_names() -> None:
+    sec = {
+        "pathways": {
+            "steps": [
+                {
+                    "mode": "sequential",
+                    "rules": [
+                        {"name": "keep_a", "handler": "character_substitution"},
+                        {"name": "drop_b", "handler": "character_substitution"},
+                    ],
+                }
+            ]
+        }
+    }
+    restrict_aliasing_pathways_to_wanted_names(sec, {"keep_a"})
+    steps = sec["pathways"]["steps"]
+    assert len(steps) == 1
+    assert [r["name"] for r in steps[0]["rules"]] == ["keep_a"]
+
+
+def test_narrow_engine_config_for_inline_rule_names() -> None:
+    eng = {
+        "rules": [{"name": "r1", "handler": "character_substitution"}],
+        "pathways": {
+            "steps": [
+                {
+                    "mode": "sequential",
+                    "rules": [
+                        {"name": "p1", "handler": "character_substitution"},
+                        {"name": "p2", "handler": "character_substitution"},
+                    ],
+                }
+            ]
+        },
+        "validation": {},
+    }
+    out = narrow_aliasing_engine_config_for_inline_rule_names(eng, ["p2"])
+    assert out["rules"] == []
+    assert [r["name"] for r in out["pathways"]["steps"][0]["rules"]] == ["p2"]
+    assert len(eng["pathways"]["steps"][0]["rules"]) == 2
+
+
+def test_filter_aliasing_rules_on_data_slices_pathways_for_task_payload() -> None:
+    cfg = {
+        "config": {
+            "data": {
+                "aliasing_rules": [],
+                "pathways": {
+                    "steps": [
+                        {
+                            "mode": "sequential",
+                            "rules": [
+                                {"name": "A", "handler": "character_substitution"},
+                                {"name": "B", "handler": "character_substitution"},
+                            ],
+                        }
+                    ]
+                },
+            }
+        }
+    }
+    data = {"aliasing_rule_names": ["B"]}
+    _filter_aliasing_rules_on_data(data, cfg)
+    names = [r["name"] for r in cfg["config"]["data"]["pathways"]["steps"][0]["rules"]]
+    assert names == ["B"]
+
+
+def test_restrict_pathways_removes_key_when_no_rule_matches() -> None:
+    sec = {
+        "pathways": {
+            "steps": [
+                {
+                    "mode": "sequential",
+                    "rules": [{"name": "only_x", "handler": "character_substitution"}],
+                }
+            ]
+        }
+    }
+    restrict_aliasing_pathways_to_wanted_names(sec, {"other"})
+    assert "pathways" not in sec
 
 
 def test_build_aliasing_merges_raw_tables() -> None:

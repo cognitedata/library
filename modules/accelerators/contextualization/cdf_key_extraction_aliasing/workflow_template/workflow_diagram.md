@@ -96,7 +96,7 @@ DM entities → fn_dm_key_extraction → RAW (keys + FK/doc JSON)
 
 ## Implementation Notes
 
-### Current workflow (`key_extraction_aliasing` v4)
+### Current workflow (`key_extraction_aliasing` v5)
 1. **Key extraction** — queries source views, writes extraction output to RAW.
 2. **Reference index** — reads FK/document JSON from extraction RAW, updates inverted index table.
 3. **Aliasing** — reads candidate keys from extraction RAW, writes alias rows to RAW.

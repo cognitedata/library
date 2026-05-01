@@ -87,7 +87,7 @@ function collectPathwaysRowsAndFirstTags(steps: unknown[]): {
 
 /**
  * First pathway placement for each rule name (flat ``aliasing_rules`` → all ``{ stepIndex: 0, parallelBranch: null }``).
- * Used so reseed pathway spine does not add ``sequence`` links across **parallel branch borders** in flatten order.
+ * Used so the flattened pathway spine does not add ``sequence`` links across **parallel branch borders** in flatten order.
  */
 export function buildAliasingPathwayTagByRuleName(data: Record<string, unknown> | undefined): Map<string, AliasingPathwayRuleTag> {
   const map = new Map<string, AliasingPathwayRuleTag>();

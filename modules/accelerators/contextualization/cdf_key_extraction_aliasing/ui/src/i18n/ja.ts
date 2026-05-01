@@ -14,10 +14,11 @@ export const ja: Messages = {
   "tabs.keyExtraction": "キー探索",
   "tabs.aliasing": "エイリアス",
   "tabs.flowCanvas": "フロー",
-  "tabs.runPipeline": "ワークフローを実行",
+  "tabs.runPipeline": "コンソール",
   "tabs.configure": "設定",
   "tabs.build": "ビルド",
   "tabs.artifacts": "成果物",
+  "tabs.results": "実行結果",
   "controls.theme": "テーマ",
   "controls.themeLight": "ライト",
   "controls.themeDark": "ダーク",
@@ -32,7 +33,8 @@ export const ja: Messages = {
   "unsaved.save": "保存",
   "unsaved.discard": "破棄",
   "btn.saveDefault": "default.config.yaml を保存",
-  "btn.saveScope": "スコープ ドキュメントを保存",
+  "btn.save": "保存",
+  "btn.saveScope": "保存",
   "btn.saveTemplateFile": "ワークフロー テンプレートを保存",
   "btn.saveFile": "ファイルを保存",
   "btn.refreshList": "一覧を更新",
@@ -76,13 +78,13 @@ export const ja: Messages = {
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
   "config.updateTemplate": "テンプレートを更新",
   "config.updateTemplateTooltip":
-    "ディスク上の保存済みローカルファイルで workflow_template/workflow.template.config.yaml と workflow.template.canvas.yaml を上書きします（``python module.py promote-local-templates`` と同じ）。エディターに未保存の変更がある場合は先に保存してください。",
+    "ディスク上の workflow.local.config.yaml で workflow_template/workflow.template.config.yaml を上書きします（``python module.py promote-local-templates`` と同じ。キャンバスは同一ファイル内）。エディターに未保存の変更がある場合は先に保存してください。",
   "config.promoteTemplateConfirm":
-    "保存済みの workflow.local.config.yaml と workflow.local.canvas.yaml で、ディスク上の workflow.template.config.yaml と workflow.template.canvas.yaml を上書きしますか？ UI からは元に戻せません（Git で戻してください）。",
+    "保存済みの workflow.local.config.yaml で、ディスク上の workflow.template.config.yaml を上書きしますか（キャンバスはそのファイルに埋め込み）？ UI からは元に戻せません（Git で戻してください）。",
   "config.promoteTemplateDirtyConfirm":
     "エディターに未保存の変更があります。テンプレートはエディターではなく、ディスクに保存済みの内容で更新されます。続行しますか？",
   "config.templatePromoted":
-    "workflow.local.config.yaml と workflow.local.canvas.yaml から、テンプレートの設定とキャンバスをディスク上で更新しました。",
+    "workflow.local.config.yaml からテンプレート設定をディスク上で更新しました（キャンバスは埋め込み）。",
   "build.warnForce": "強制すると生成済みワークフロー YAML が上書きされます。実行前に確認してください。",
   "build.confirmForce": "生成済みワークフロー ファイルを --force で上書きしますか？",
   "build.outputPlaceholder": "ビルド出力はここに表示されます。",
@@ -485,6 +487,26 @@ export const ja: Messages = {
   "artifacts.plainEditor": "プレーン YAML エディター",
   "artifacts.treeExpand": "展開",
   "artifacts.treeCollapse": "折りたたむ",
+  "runResults.title": "実行結果",
+  "runResults.hint":
+    "設定 → フロー内のサブタブ「実行結果」（キャンバス・ワークフローを実行の横）。サイドバーで選んだ対象の local_run_results/ の JSON のみ。トリガー時はメタデータのない古いファイルは非表示。リモート CDF は書きません。",
+  "runResults.empty": "抽出/エイリアスのペアがありません。先にローカルでパイプラインを実行してください。",
+  "runResults.refresh": "一覧を更新",
+  "runResults.runLabel": "実行",
+  "runResults.viewExtraction": "抽出",
+  "runResults.viewAliasing": "エイリアス",
+  "runResults.totalRows": "{count} 行",
+  "runResults.showing": "{total} 件中 {from}–{to} を表示",
+  "runResults.filterPlaceholder": "読み込んだ行をフィルター（エンティティ、タグなど）",
+  "runResults.loadMore": "さらに読み込む",
+  "runResults.error": "結果を読み込めませんでした。",
+  "runResults.table.entity": "エンティティ",
+  "runResults.table.entityType": "エンティティ種別",
+  "runResults.table.baseTag": "ベースタグ",
+  "runResults.table.aliases": "エイリアス",
+  "runResults.table.keys": "候補キー",
+  "runResults.table.fk": "FK 参照",
+  "runResults.openRaw": "生 JSON を開く",
   "advanced.toggle": "詳細 YAML…",
   "advanced.warning1": "生編集ではコメントが落ちる場合があります。無効な YAML は拒否されます。",
   "advanced.warning2": "往復でコメントは保持されません。",
@@ -512,7 +534,6 @@ export const ja: Messages = {
   "flow.resizePanels": "ドラッグしてパネル幅を変更",
   "flow.paletteStructural": "パイプライン構成",
   "flow.structuralSourceView": "ソースビュー",
-  "flow.structuralSubflow": "サブフロー",
   "flow.structuralSubgraph": "サブグラフ",
   "flow.structuralExtraction": "抽出",
   "flow.structuralAliasing": "エイリアス",
@@ -528,7 +549,6 @@ export const ja: Messages = {
   "flow.paletteAliasingHandlers": "エイリアスハンドラー",
   "flow.paletteAnnotations": "注釈",
   "flow.paletteCdfTasks": "CDF 関数",
-  "flow.seedFromScope": "リセット",
   "flow.alignLeft": "選択ノードを左揃え",
   "flow.alignCenterHorizontal": "選択ノードを水平方向の中央揃え",
   "flow.alignRight": "選択ノードを右揃え",
@@ -537,12 +557,12 @@ export const ja: Messages = {
   "flow.alignBottom": "選択ノードを下揃え",
   "flow.alignSelectionGroup": "選択範囲を揃える",
   "flow.canvasHint":
-    "レイアウトは対になる .canvas.yaml に保存されます。スコープを保存し、パレットからドラッグしてください。ノードをサブフローの枠内にドロップすると関連付けます。サブフローを選択し、角や辺のバーをドラッグして横方向・縦方向にリサイズできます。",
+    "レイアウトはスコープ YAML 内の canvas に保存されます。フローまたはスコープを保存し、パレットからドラッグしてください。ノードをサブフローの枠内にドロップすると関連付けます。サブフローを選択し、角や辺のバーをドラッグして横方向・縦方向にリサイズできます。",
   "flow.workflowCompileModeLabel": "ワークフローコンパイル",
   "flow.workflowCompileModeAuto": "自動（実行ノードがあるときはキャンバス）",
   "flow.workflowCompileModeCanvas": "キャンバス DAG（常にグラフ由来）",
   "flow.workflowCompileModeHint":
-    "CDF とローカル実行向けに、フロー キャンバスから ``compiled_workflow`` をどう組み立てるかを制御します。自動とキャンバスは同じキャンバスコンパイルを使います（無効なグラフはビルド、実行、または保存で失敗します）。スコープまたはキャンバスを保存すると、スコープ YAML に ``compiled_workflow`` が再埋め込みされます。",
+    "ローカル実行向けにフロー グラフからキャンバス DAG をどうコンパイルするかを制御します。自動とキャンバスは同じコンパイルです（無効なグラフはビルド、実行、または保存で失敗します）。CDF では ``python module.py build`` の WorkflowVersion が IR を保持します。保存するとスコープ YAML の ``canvas`` が更新されます。",
   "flow.handleOrientationLabel": "ハンドル",
   "flow.handleOrientationLr": "左 → 右",
   "flow.handleOrientationTb": "上 → 下",
@@ -552,12 +572,10 @@ export const ja: Messages = {
   "flow.ctxMenuRemoveNode": "ノードを削除",
   "flow.confirmSubgraphDeleteLift":
     "このサブグラフには内部のワークフロー手順があります。\n\nOK — 親キャンバスへ移動し、サブグラフ枠を削除します。\nキャンセル — サブグラフを削除し、内部手順を破棄します。",
-  "flow.ctxMenuWrapSelectionInSubflow": "Group selection in new subflow (layout)",
   "flow.ctxMenuCollapseSelectionToSubgraph": "Collapse selection to subgraph (drill-in)",
-  "flow.ctxMenuPromoteNodeToOwningGraph": "親グラフへ昇格",
-  "flow.ctxMenuConvertSubflowToSubgraph": "サブフローをサブグラフに変換（ドリルイン）",
-  "flow.ctxMenuConvertSubgraphToSubflow": "サブグラフをサブフローに変換（グループ）",
   "flow.subgraphDrillTitle": "Subgraph",
+  "flow.ctxMenuFlattenSubgraph": "Flatten subgraph to parent canvas",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Promote to parent graph",
   "flow.subgraphBack": "Save & close",
   "flow.subgraphCancel": "キャンセル",
   "flow.subgraphCancelNestedTooltip":
@@ -579,8 +597,6 @@ export const ja: Messages = {
   "flow.nodeEditorDone": "完了",
   "flow.nodeEditorPipelineStubBody":
     "開始・終了ノードはレイアウトのみです。ソースビュー・抽出・エイリアスは他のノードまたは設定タブで編集してください。",
-  "flow.nodeEditorSubflowBody":
-    "Resize the frame on the canvas, nest nodes inside, and use the inspector for parent nesting and subgraph ports. Named input/output ports on the frame connect to the inner “graph inputs” / “graph outputs” hubs; scope sync rewrites those paths so workflow YAML stays consistent.",
   "flow.nodeEditorSubgraphBody":
     "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
   "flow.nodeEditorGraphHubBody":
@@ -591,6 +607,8 @@ export const ja: Messages = {
   "flow.editWorkflow": "ワークフローを編集",
   "flow.canvasPreviewHint":
     "読み取り専用プレビュー。編集で全画面のワークフロー エディターを開きます。",
+  "flow.subtabCanvas": "キャンバス",
+  "flow.subtabRunWorkflow": "コンソール",
   "flow.previewRunLocal": "ローカルで実行",
   "flow.previewRunLocalHint":
     "「ワークフローを実行」タブの「ローカルで実行」と同じ処理です（ディスク上の保存済み YAML を使用—先に保存）。実行中のタスクはグラフ上で枠線表示されます。",
@@ -612,10 +630,6 @@ export const ja: Messages = {
   "flow.validationContextSourceView": "ソースビュー（一覧）",
   "flow.validationContextExtraction": "キー抽出ルール",
   "flow.validationContextAliasing": "エイリアスルール",
-  "flow.inspectorSubflowHint":
-    "Child positions are relative to this frame. Use named ports on the frame for parent↔subgraph data edges; inner hubs expose the same port ids. Scope sync expands those edges when writing workflow YAML.",
-  "flow.inspectorSubflowOrganizationalHint":
-    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
   "flow.inspectorSubflowPorts": "Subgraph ports",
   "flow.inspectorSubflowInputs": "Inputs",
   "flow.inspectorSubflowOutputs": "Outputs",
@@ -634,7 +648,6 @@ export const ja: Messages = {
     "Sources on this node match the parent subflow’s input port ids. Connect the parent graph into the subflow frame, then wire from here to steps inside the subgraph.",
   "flow.inspectorSubflowGraphOutHint":
     "Targets on this node match the parent subflow’s output port ids. Wire steps inside the subgraph here, then connect the subflow frame to the parent graph.",
-  "flow.inspectorParentSubflow": "親サブフロー",
   "flow.inspectorNodeTitle": "ノード",
   "flow.inspectorEdgeTitle": "エッジ",
   "flow.inspectorEdgeKind": "エッジの種類",

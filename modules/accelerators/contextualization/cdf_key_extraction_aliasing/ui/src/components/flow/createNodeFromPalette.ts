@@ -18,14 +18,6 @@ export function createNodeFromPalette(
           position,
           data: { label: "Source view" },
         };
-      case "subflow":
-        return {
-          id,
-          type: "keaSubflow",
-          position,
-          data: { label: "Subflow" },
-          style: { width: 380, height: 260 },
-        };
       case "subgraph":
         return {
           id,
@@ -71,28 +63,6 @@ export function createNodeFromPalette(
             validation_rule_context: "aliasing",
             validation_rule_name: "",
             ref: {},
-          },
-        };
-      case "reference_index":
-        return {
-          id,
-          type: "keaReferenceIndex",
-          position,
-          data: {
-            label: "Reference index",
-            handler_family: "persistence",
-            persistence_step: "reference_index",
-          },
-        };
-      case "alias_persistence":
-        return {
-          id,
-          type: "keaAliasPersistence",
-          position,
-          data: {
-            label: "Alias write-back",
-            handler_family: "persistence",
-            persistence_step: "alias_writeback",
           },
         };
     }

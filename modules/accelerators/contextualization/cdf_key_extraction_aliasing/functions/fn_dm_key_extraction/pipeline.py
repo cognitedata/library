@@ -7,8 +7,11 @@ from CDF data model views and extracts keys using the KeyExtractionEngine.
 
 import json
 import logging
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Row
@@ -27,6 +30,7 @@ from cdf_fn_common.key_discovery_state_fdm import (
     is_key_discovery_cdm_deployed,
     key_discovery_view_ids_from_parameters,
     upsert_key_discovery_processing_state_success,
+    upsert_key_discovery_processing_state_success_batch,
 )
 from cdf_fn_common.property_path import get_value_by_property_path
 from cdf_fn_common.workflow_associations import coerce_association_source_view_index
@@ -304,6 +308,15 @@ def _load_incremental_cohort_entities(
     )
     source_tables = getattr(config.data, "source_tables", None) or []
 
+    cohort_bs = 500
+    try:
+        _pr = getattr(config, "parameters", None)
+        if _pr is not None:
+            cohort_bs = int(getattr(_pr, "cohort_retrieve_batch_size", 500) or 500)
+    except (TypeError, ValueError):
+        cohort_bs = 500
+    cohort_bs = max(1, min(1000, cohort_bs))
+
     # Retrieve instances in batches grouped by view
     batch: List[Any] = []
     batch_meta: List[Dict[str, Any]] = []
@@ -449,7 +462,7 @@ def _load_incremental_cohort_entities(
                 "source_view_index": _find_source_view_index_for_row(source_views, cols),
             }
         )
-        if len(batch) >= 100:
+        if len(batch) >= cohort_bs:
             flush_batch()
     flush_batch()
 
@@ -463,6 +476,153 @@ def _load_incremental_cohort_entities(
         f"Incremental cohort loaded {len(entities_source)} entities for run_id={run_id}"
     )
     return entities_source
+
+
+def _thread_local_engine_factory(
+    engine_config: Dict[str, Any],
+) -> Callable[[], KeyExtractionEngine]:
+    """One ``KeyExtractionEngine`` per worker thread (for parallel extraction)."""
+    tls = threading.local()
+
+    def factory() -> KeyExtractionEngine:
+        eng = getattr(tls, "kex_engine", None)
+        if eng is None:
+            tls.kex_engine = KeyExtractionEngine(engine_config)
+            eng = tls.kex_engine
+        return eng
+
+    return factory
+
+
+def _parallel_workers_from_cdf_config(cdf_config: Any) -> int:
+    raw = os.environ.get("CDF_KEY_EXTRACTION_PARALLEL_WORKERS", "").strip()
+    if raw:
+        try:
+            n = int(raw)
+            if n > 0:
+                return max(1, min(32, n))
+        except (TypeError, ValueError):
+            pass
+    if cdf_config is None:
+        return 0
+    p = getattr(cdf_config, "parameters", None)
+    if p is None:
+        return 0
+    try:
+        n = int(getattr(p, "key_extraction_parallel_workers", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(32, n))
+
+
+def _extract_one_entity_row(
+    entity_id: str,
+    entity_fields: Dict[str, Any],
+    *,
+    engine: Optional[KeyExtractionEngine],
+    engine_factory: Optional[Callable[[], KeyExtractionEngine]],
+    cdf_config: Optional[Any],
+    rule_source_fields_map: Dict[str, List[Any]],
+    logger: Any,
+) -> Tuple[str, Dict[str, Any], int, Dict[str, int]]:
+    """Run ``extract_keys`` for one entity. Returns (entity_id, row, keys_delta, rules_used_partial)."""
+    if engine_factory is not None:
+        engine = engine_factory()
+    if engine is None:
+        raise RuntimeError("key extraction requires engine or engine_factory")
+
+    ef = dict(entity_fields)
+    kex_iso = ef.pop("_kex_exclude_self_referencing_keys", None)
+    cohort_columns = ef.pop("_cohort_columns", None)
+    raw_row_key = ef.pop("_raw_row_key", None)
+    entity = {"id": entity_id, "externalId": entity_id, **ef}
+    entity_type = entity_fields.get("entity_type", "asset")
+    _src_view = (
+        getattr(getattr(cdf_config, "data", None), "source_view", None)
+        if cdf_config
+        else None
+    )
+    base_meta = {
+        "view_space": entity_fields.get("view_space"),
+        "view_external_id": entity_fields.get("view_external_id"),
+        "view_version": entity_fields.get("view_version"),
+        "instance_space": entity_fields.get("instance_space"),
+        "entity_type": entity_type,
+        "resource_property": getattr(_src_view, "resource_property", None),
+        "space": (
+            getattr(_src_view, "instance_space", None)
+            or entity_fields.get("instance_space")
+        ),
+        "_cohort_columns": cohort_columns,
+        "_raw_row_key": raw_row_key,
+    }
+    rules_partial: Dict[str, int] = {}
+    try:
+        sv_ix = _source_view_index_for_extraction_entity(entity_fields, cdf_config)
+        result = engine.extract_keys(
+            entity,
+            entity_type,
+            exclude_self_referencing_keys=kex_iso,
+            source_view_index=sv_ix,
+        )
+    except Exception as ex:
+        logger.warning(f"Extraction failed for entity {entity_id!r}: {ex!s}")
+        return (
+            entity_id,
+            {
+                **base_meta,
+                "keys": {},
+                "foreign_key_references": [],
+                "document_references": [],
+                "_extraction_failed": True,
+                "_extraction_error": str(ex)[:4000],
+            },
+            0,
+            rules_partial,
+        )
+
+    for k in result.candidate_keys:
+        rule_name = getattr(k, "rule_name", None) or getattr(k, "rule_id", None)
+        if rule_name:
+            rn = str(rule_name)
+            rules_partial[rn] = rules_partial.get(rn, 0) + 1
+
+    keys: Dict[str, Any] = {}
+    for key in result.candidate_keys:
+        field_name = key.source_field
+        if field_name not in keys:
+            keys[field_name] = {}
+        key_rule_name = getattr(key, "rule_name", None) or getattr(key, "rule_id", None)
+        keys[field_name][key.value] = {
+            "confidence": key.confidence,
+            "extraction_type": key.extraction_type.value,
+            "rule_name": key_rule_name,
+            "matched_source_field": key.source_field,
+            "rule_source_fields": rule_source_fields_map.get(key_rule_name, []),
+            "source_inputs": getattr(key, "source_inputs", None) or {},
+        }
+
+    fk_refs = _dedupe_foreign_key_references(result)
+    doc_refs = _dedupe_document_references(result)
+    # Flat source fields from cohort / DM (same bag as extract_keys) must appear on the
+    # returned row so incremental EXTRACTION_INPUTS_HASH matches extraction inputs.
+    _source_field_bag = {
+        k: v
+        for k, v in ef.items()
+        if isinstance(k, str) and not k.startswith("_")
+    }
+    return (
+        entity_id,
+        {
+            **base_meta,
+            **_source_field_bag,
+            "keys": keys,
+            "foreign_key_references": fk_refs,
+            "document_references": doc_refs,
+        },
+        len(result.candidate_keys),
+        rules_partial,
+    )
 
 
 def require_incremental_change_processing_for_cdf(cdf_config: Any) -> None:
@@ -488,6 +648,8 @@ def key_extraction(
     data: Dict[str, Any],
     engine: KeyExtractionEngine,
     cdf_config: Any = None,
+    *,
+    parallel_engine_config: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Main pipeline function for key extraction in CDF format.
@@ -501,6 +663,8 @@ def key_extraction(
         data: Dictionary containing pipeline parameters and results
         engine: Initialized KeyExtractionEngine instance
         cdf_config: Optional CDF Config object (if using CDF format)
+        parallel_engine_config: Dict passed to ``KeyExtractionEngine`` per thread when
+            ``key_extraction_parallel_workers`` (or env ``CDF_KEY_EXTRACTION_PARALLEL_WORKERS``) is > 0.
     """
     # When running from Workflows we do NOT use Extraction Pipelines.
     # Keep a name for logging/state derived from workflow config if present.
@@ -603,88 +767,55 @@ def key_extraction(
             _inc_mode = True
         incremental_mode = bool(cdf_config) and bool(_inc_mode)
 
-        # Serial extraction per entity (cohort from fn_dm_incremental_state_update when using CDF).
-        for entity_id, entity_fields in entities_source_fields.items():
-            ef = dict(entity_fields)
-            kex_iso = ef.pop("_kex_exclude_self_referencing_keys", None)
-            cohort_columns = ef.pop("_cohort_columns", None)
-            raw_row_key = ef.pop("_raw_row_key", None)
-            entity = {"id": entity_id, "externalId": entity_id, **ef}
-            entity_type = entity_fields.get("entity_type", "asset")
-            _src_view = (
-                getattr(getattr(cdf_config, "data", None), "source_view", None)
-                if cdf_config
-                else None
+        parallel_workers = (
+            _parallel_workers_from_cdf_config(cdf_config) if use_cdf_format else 0
+        )
+        if not parallel_engine_config or not isinstance(parallel_engine_config, dict):
+            parallel_workers = 0
+
+        if parallel_workers > 0:
+            eng_factory = _thread_local_engine_factory(parallel_engine_config)
+            items = list(entities_source_fields.items())
+            with ThreadPoolExecutor(max_workers=parallel_workers) as pool:
+                futures = {
+                    pool.submit(
+                        _extract_one_entity_row,
+                        eid,
+                        ef,
+                        engine=None,
+                        engine_factory=eng_factory,
+                        cdf_config=cdf_config,
+                        rule_source_fields_map=rule_source_fields_map,
+                        logger=logger,
+                    ): eid
+                    for eid, ef in items
+                }
+                for fut in as_completed(futures):
+                    eid, row, kd, ru = fut.result()
+                    entities_keys_extracted[eid] = row
+                    keys_extracted += kd
+                    for rk, rv in ru.items():
+                        rules_used_counts[rk] = rules_used_counts.get(rk, 0) + rv
+            logger.info(
+                "Parallel extraction (%s worker(s)): extracted keys for %s entities",
+                parallel_workers,
+                len(entities_keys_extracted),
             )
-            base_meta = {
-                "view_space": entity_fields.get("view_space"),
-                "view_external_id": entity_fields.get("view_external_id"),
-                "view_version": entity_fields.get("view_version"),
-                "instance_space": entity_fields.get("instance_space"),
-                "entity_type": entity_type,
-                "resource_property": getattr(_src_view, "resource_property", None),
-                "space": (
-                    getattr(_src_view, "instance_space", None)
-                    or entity_fields.get("instance_space")
-                ),
-                "_cohort_columns": cohort_columns,
-                "_raw_row_key": raw_row_key,
-            }
-            try:
-                sv_ix = _source_view_index_for_extraction_entity(entity_fields, cdf_config)
-                result = engine.extract_keys(
-                    entity,
-                    entity_type,
-                    exclude_self_referencing_keys=kex_iso,
-                    source_view_index=sv_ix,
+        else:
+            for entity_id, entity_fields in entities_source_fields.items():
+                eid, row, kd, ru = _extract_one_entity_row(
+                    entity_id,
+                    entity_fields,
+                    engine=engine,
+                    engine_factory=None,
+                    cdf_config=cdf_config,
+                    rule_source_fields_map=rule_source_fields_map,
+                    logger=logger,
                 )
-            except Exception as ex:
-                logger.warning(
-                    f"Extraction failed for entity {entity_id!r}: {ex!s}"
-                )
-                entities_keys_extracted[entity_id] = {
-                    **base_meta,
-                    "keys": {},
-                    "foreign_key_references": [],
-                    "document_references": [],
-                    "_extraction_failed": True,
-                    "_extraction_error": str(ex)[:4000],
-                }
-                continue
-
-            for k in result.candidate_keys:
-                rule_name = getattr(k, "rule_name", None) or getattr(k, "rule_id", None)
-                if rule_name:
-                    rules_used_counts[str(rule_name)] = rules_used_counts.get(
-                        str(rule_name), 0
-                    ) + 1
-
-            keys = {}
-            for key in result.candidate_keys:
-                field_name = key.source_field
-                if field_name not in keys:
-                    keys[field_name] = {}
-                key_rule_name = getattr(key, "rule_name", None) or getattr(
-                    key, "rule_id", None
-                )
-                keys[field_name][key.value] = {
-                    "confidence": key.confidence,
-                    "extraction_type": key.extraction_type.value,
-                    "rule_name": key_rule_name,
-                    "matched_source_field": key.source_field,
-                    "rule_source_fields": rule_source_fields_map.get(key_rule_name, []),
-                    "source_inputs": getattr(key, "source_inputs", None) or {},
-                }
-
-            fk_refs = _dedupe_foreign_key_references(result)
-            doc_refs = _dedupe_document_references(result)
-            entities_keys_extracted[entity_id] = {
-                **base_meta,
-                "keys": keys,
-                "foreign_key_references": fk_refs,
-                "document_references": doc_refs,
-            }
-            keys_extracted += len(result.candidate_keys)
+                entities_keys_extracted[eid] = row
+                keys_extracted += kd
+                for rk, rv in ru.items():
+                    rules_used_counts[rk] = rules_used_counts.get(rk, 0) + rv
 
         logger.info(
             f"Extracted {keys_extracted} keys from {len(entities_keys_extracted)} entities"
@@ -737,6 +868,7 @@ def key_extraction(
                         client, _pv, _cv, logger=logger
                     )
 
+            post_raw_kd_work: List[Dict[str, Any]] = []
             for ext_id, entity_metadata in entities_keys_extracted.items():
                 field_keys = entity_metadata.get("keys", {})
                 fk_refs = entity_metadata.get("foreign_key_references") or []
@@ -844,50 +976,26 @@ def key_extraction(
                         )
                         if use_kd:
                             if workflow_scope:
-                                proc_view, _ = key_discovery_view_ids_from_parameters(
-                                    cdf_config.parameters
+                                cohort_cols_for_kd = (
+                                    entity_metadata.get("_cohort_columns") or {}
                                 )
-                                cohort_columns = entity_metadata.get("_cohort_columns") or {}
                                 node_inst = str(
-                                    cohort_columns.get(NODE_INSTANCE_ID_COLUMN) or ""
+                                    cohort_cols_for_kd.get(NODE_INSTANCE_ID_COLUMN) or ""
                                 )
-                                try:
-                                    upsert_key_discovery_processing_state_success(
-                                        client,
-                                        proc_view,
-                                        str(kd_space).strip(),
-                                        workflow_scope,
-                                        sv_fp,
-                                        node_inst,
-                                        str(ext_id),
-                                        inputs_hash,
-                                        None,
-                                        hash_version=2,
-                                        logger=logger,
-                                    )
-                                except (CogniteAPIError, CogniteNotFoundError) as ex:
-                                    logger.warning(
-                                        "Key Discovery processing state upsert failed; "
-                                        "writing EXTRACTION_INPUTS_HASH to RAW instead: %s",
-                                        ex,
-                                    )
-                                    inputs_hash_raw = (
-                                        compute_extraction_inputs_hash_from_entity_row(
-                                            entity_metadata,
-                                            extraction_rules_for_hash,
-                                            svc,
-                                            workflow_scope=None,
-                                            source_view_fingerprint=None,
-                                            logger=logger,
-                                            association_pairs=_hash_assoc_set,
-                                            source_view_index=_source_view_index_for_extraction_entity(
-                                                entity_metadata, cdf_config
-                                            ),
-                                        )
-                                    )
-                                    columns[
-                                        EXTRACTION_INPUTS_HASH_COLUMN
-                                    ] = inputs_hash_raw
+                                post_raw_kd_work.append(
+                                    {
+                                        "columns": columns,
+                                        "entity_metadata": entity_metadata,
+                                        "svc": svc,
+                                        "kd_item": {
+                                            "workflow_scope": workflow_scope,
+                                            "source_view_fingerprint": sv_fp,
+                                            "record_instance_key": node_inst,
+                                            "record_external_id": str(ext_id),
+                                            "last_seen_hash": inputs_hash,
+                                        },
+                                    }
+                                )
                             else:
                                 logger.error(
                                     "key_discovery_instance_space is set but workflow_scope is missing; "
@@ -902,6 +1010,91 @@ def key_extraction(
                     table=raw_table_key,
                     raw_row=Row(key=raw_key, columns=columns),
                 )
+
+            if post_raw_kd_work:
+                proc_view_kd, _ = key_discovery_view_ids_from_parameters(
+                    cdf_config.parameters
+                )
+                kd_space_flush = str(
+                    getattr(
+                        getattr(cdf_config, "parameters", None),
+                        "key_discovery_instance_space",
+                        None,
+                    )
+                    or ""
+                ).strip()
+                try:
+                    kd_apply_bs = int(
+                        getattr(
+                            cdf_config.parameters,
+                            "key_discovery_processing_state_apply_batch_size",
+                            100,
+                        )
+                        or 100
+                    )
+                except (TypeError, ValueError):
+                    kd_apply_bs = 100
+                kd_apply_bs = max(1, min(500, kd_apply_bs))
+                for i0 in range(0, len(post_raw_kd_work), kd_apply_bs):
+                    chunk = post_raw_kd_work[i0 : i0 + kd_apply_bs]
+                    items = [c["kd_item"] for c in chunk]
+                    try:
+                        upsert_key_discovery_processing_state_success_batch(
+                            client,
+                            proc_view_kd,
+                            kd_space_flush,
+                            items,
+                            hash_version=2,
+                            logger=logger,
+                        )
+                    except (CogniteAPIError, CogniteNotFoundError) as batch_ex:
+                        logger.warning(
+                            "Key Discovery processing state batch upsert failed; "
+                            "retrying per record: %s",
+                            batch_ex,
+                        )
+                        for entry in chunk:
+                            it = entry["kd_item"]
+                            try:
+                                upsert_key_discovery_processing_state_success(
+                                    client,
+                                    proc_view_kd,
+                                    kd_space_flush,
+                                    it["workflow_scope"],
+                                    it["source_view_fingerprint"],
+                                    it["record_instance_key"],
+                                    it["record_external_id"],
+                                    it["last_seen_hash"],
+                                    None,
+                                    hash_version=2,
+                                    logger=logger,
+                                )
+                            except (CogniteAPIError, CogniteNotFoundError) as one_ex:
+                                logger.warning(
+                                    "Key Discovery processing state upsert failed; "
+                                    "writing EXTRACTION_INPUTS_HASH to RAW instead: %s",
+                                    one_ex,
+                                )
+                                em = entry["entity_metadata"]
+                                svc_e = entry["svc"]
+                                inputs_hash_raw = (
+                                    compute_extraction_inputs_hash_from_entity_row(
+                                        em,
+                                        extraction_rules_for_hash,
+                                        svc_e,
+                                        workflow_scope=None,
+                                        source_view_fingerprint=None,
+                                        logger=logger,
+                                        association_pairs=_hash_assoc_set,
+                                        source_view_index=_source_view_index_for_extraction_entity(
+                                            em, cdf_config
+                                        ),
+                                    )
+                                )
+                                entry["columns"][
+                                    EXTRACTION_INPUTS_HASH_COLUMN
+                                ] = inputs_hash_raw
+
             logger.debug(f"Uploading {raw_uploader.upload_queue_size} rows to RAW")
             try:
                 raw_uploader.upload()

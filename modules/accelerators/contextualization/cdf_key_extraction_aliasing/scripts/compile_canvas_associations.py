@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Merge source_view → extraction edges from ``workflow.local.canvas.yaml`` into scope YAML.
+"""Merge source_view → extraction edges from a workflow canvas into a v1 scope file.
 
 Writes ``associations`` on the scope document (same contract as ``syncWorkflowScopeFromCanvas`` for this slice only).
+
+By default reads the embedded ``canvas`` mapping from ``--scope`` (e.g. ``workflow.local.config.yaml``). Pass
+``--canvas`` for a separate WorkflowCanvasDocument YAML (top-level ``nodes`` / ``edges``).
 
 Usage (from module root ``cdf_key_extraction_aliasing/``)::
 
@@ -23,6 +26,7 @@ _FUNCS = _MODULE_ROOT / "functions"
 if str(_FUNCS) not in sys.path:
     sys.path.insert(0, str(_FUNCS))
 
+from cdf_fn_common.scope_canvas_merge import canvas_dict_from_layout_yaml  # noqa: E402
 from cdf_fn_common.workflow_associations import (  # noqa: E402
     apply_canvas_dict_to_scope_associations,
     validate_workflow_associations,
@@ -34,8 +38,8 @@ def main() -> int:
     p.add_argument(
         "--canvas",
         type=Path,
-        default=_MODULE_ROOT / "workflow.local.canvas.yaml",
-        help="WorkflowCanvasDocument YAML",
+        default=None,
+        help="WorkflowCanvasDocument YAML (optional). Default: embedded ``canvas`` in ``--scope``.",
     )
     p.add_argument(
         "--scope",
@@ -50,22 +54,43 @@ def main() -> int:
     )
     args = p.parse_args()
 
-    if not args.canvas.is_file():
-        print(f"Missing canvas file: {args.canvas}", file=sys.stderr)
-        return 1
-    if not args.scope.is_file():
-        print(f"Missing scope file: {args.scope}", file=sys.stderr)
+    scope_path = args.scope.resolve()
+    if not scope_path.is_file():
+        print(f"Missing scope file: {scope_path}", file=sys.stderr)
         return 1
 
-    canvas = yaml.safe_load(args.canvas.read_text(encoding="utf-8"))
-    if not isinstance(canvas, dict):
-        print("Canvas YAML must be a mapping", file=sys.stderr)
-        return 1
-
-    scope_doc = yaml.safe_load(args.scope.read_text(encoding="utf-8"))
+    scope_doc = yaml.safe_load(scope_path.read_text(encoding="utf-8"))
     if not isinstance(scope_doc, dict):
         print("Scope YAML must be a mapping", file=sys.stderr)
         return 1
+
+    canvas: dict
+    canvas_label: str
+    if args.canvas is not None:
+        canvas_path = args.canvas.resolve()
+        if not canvas_path.is_file():
+            print(f"Missing canvas file: {canvas_path}", file=sys.stderr)
+            return 1
+        raw_c = yaml.safe_load(canvas_path.read_text(encoding="utf-8"))
+        if not isinstance(raw_c, dict):
+            print("Canvas YAML must be a mapping", file=sys.stderr)
+            return 1
+        cd = canvas_dict_from_layout_yaml(raw_c)
+        if cd is None:
+            print(f"No graph nodes in canvas file: {canvas_path}", file=sys.stderr)
+            return 1
+        canvas = cd
+        canvas_label = str(canvas_path)
+    else:
+        cd = canvas_dict_from_layout_yaml(scope_doc)
+        if cd is None:
+            print(
+                f"No embedded canvas with nodes in {scope_path}; add canvas.nodes or pass --canvas.",
+                file=sys.stderr,
+            )
+            return 1
+        canvas = cd
+        canvas_label = f"embedded canvas in {scope_path}"
 
     apply_canvas_dict_to_scope_associations(canvas, scope_doc)
     errs = validate_workflow_associations(scope_doc)
@@ -79,11 +104,11 @@ def main() -> int:
         print("OK (dry-run): associations reconciled; not writing")
         return 0
 
-    args.scope.write_text(
+    scope_path.write_text(
         yaml.dump(scope_doc, default_flow_style=False, allow_unicode=True, sort_keys=False, width=1000),
         encoding="utf-8",
     )
-    print(f"Updated {args.scope} from {args.canvas}")
+    print(f"Updated {scope_path} using {canvas_label}")
     return 0
 
 

@@ -123,6 +123,27 @@ class Parameters(BaseModel):
         "v1",
         description="cdf_cdm CogniteDescribable view version used for state node upserts.",
     )
+    cohort_retrieve_batch_size: int = Field(
+        500,
+        ge=1,
+        le=1000,
+        description="Max nodes per retrieve_nodes batch when loading incremental cohort entities from DM.",
+    )
+    key_discovery_processing_state_apply_batch_size: int = Field(
+        100,
+        ge=1,
+        le=500,
+        description="Max Key Discovery processing-state nodes per instances.apply during key extraction.",
+    )
+    key_extraction_parallel_workers: int = Field(
+        0,
+        ge=0,
+        le=32,
+        description=(
+            "If >0, run per-entity extraction with up to this many threads (thread-local engine). "
+            "Env CDF_KEY_EXTRACTION_PARALLEL_WORKERS (positive int) overrides when set."
+        ),
+    )
     exclude_self_referencing_keys: Union[bool, Dict[str, Any]] = Field(
         True,
         description=(

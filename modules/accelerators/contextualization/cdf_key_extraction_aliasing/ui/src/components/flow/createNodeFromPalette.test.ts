@@ -5,19 +5,10 @@ import { canvasToFlowNodes } from "./flowDocumentBridge";
 import { nodeFlowSize } from "./flowNodeGeometry";
 
 describe("createNodeFromPalette", () => {
-  it("creates reference index and alias persistence nodes", () => {
-    const ri = createNodeFromPalette(
-      { kind: "structural", nodeKind: "reference_index" },
-      { x: 0, y: 0 }
-    );
-    expect(ri.type).toBe("keaReferenceIndex");
-    expect((ri.data as Record<string, unknown>).persistence_step).toBe("reference_index");
-    const ap = createNodeFromPalette(
-      { kind: "structural", nodeKind: "alias_persistence" },
-      { x: 1, y: 1 }
-    );
-    expect(ap.type).toBe("keaAliasPersistence");
-    expect((ap.data as Record<string, unknown>).persistence_step).toBe("alias_writeback");
+  it("creates a structural source view node", () => {
+    const n = createNodeFromPalette({ kind: "structural", nodeKind: "source_view" }, { x: 0, y: 0 });
+    expect(n.type).toBe("keaSourceView");
+    expect((n.data as Record<string, unknown>).label).toBe("Source view");
   });
 
   it("creates a card-sized keaSubgraph with default ports and empty inner canvas", () => {

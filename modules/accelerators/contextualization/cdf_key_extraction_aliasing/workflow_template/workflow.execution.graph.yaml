@@ -7,17 +7,9 @@ description: Cognite workflow task nodes from compiled_workflow IR; edges follow
 nodes:
 - id: kea__incremental_state
   role: incremental_cohort
-- id: kea__al_document_aliases
-  role: aliasing
-- id: kea__ext_equipment_tag_ck
-  role: key_extraction
-- id: kea__ext_instance_description_asset_fk
-  role: key_extraction
-- id: kea__ext_instance_name_asset_fk
-  role: key_extraction
-- id: kea__ext_timeseries_instrument_tag_candidate
-  role: key_extraction
 - id: kea__al_cogniteasset_explicit_aliases_from_raw
+  role: aliasing
+- id: kea__al_document_aliases
   role: aliasing
 - id: kea__al_leading_zero_normalization
   role: aliasing
@@ -27,31 +19,26 @@ nodes:
   role: aliasing
 - id: kea__ext_asset_tag_candidate
   role: key_extraction
+- id: kea__ext_equipment_tag_ck
+  role: key_extraction
 - id: kea__ext_file_basename_candidate
   role: key_extraction
-- id: kea__n_1776968044470_89wvovc3
-  role: reference_index
-- id: kea__n_1776968047289_da4zzh3o
-  role: alias_persistence
+- id: kea__ext_instance_description_asset_fk
+  role: key_extraction
+- id: kea__ext_instance_name_asset_fk
+  role: key_extraction
+- id: kea__ext_timeseries_instrument_tag_candidate
+  role: key_extraction
 edges:
-- from: kea__ext_file_basename_candidate
-  to: kea__al_document_aliases
-  channel: kea__ext_file_basename_candidate_to_kea__al_document_aliases
-- from: kea__incremental_state
-  to: kea__ext_equipment_tag_ck
-  channel: kea__incremental_state_to_kea__ext_equipment_tag_ck
-- from: kea__incremental_state
-  to: kea__ext_instance_description_asset_fk
-  channel: kea__incremental_state_to_kea__ext_instance_description_asset_fk
-- from: kea__incremental_state
-  to: kea__ext_instance_name_asset_fk
-  channel: kea__incremental_state_to_kea__ext_instance_name_asset_fk
-- from: kea__incremental_state
-  to: kea__ext_timeseries_instrument_tag_candidate
-  channel: kea__incremental_state_to_kea__ext_timeseries_instrument_tag_candidate
 - from: kea__ext_asset_tag_candidate
   to: kea__al_cogniteasset_explicit_aliases_from_raw
   channel: kea__ext_asset_tag_candidate_to_kea__al_cogniteasset_explicit_aliases_from_raw
+- from: kea__ext_equipment_tag_ck
+  to: kea__al_cogniteasset_explicit_aliases_from_raw
+  channel: kea__ext_equipment_tag_ck_to_kea__al_cogniteasset_explicit_aliases_from_raw
+- from: kea__ext_file_basename_candidate
+  to: kea__al_document_aliases
+  channel: kea__ext_file_basename_candidate_to_kea__al_document_aliases
 - from: kea__ext_asset_tag_candidate
   to: kea__al_leading_zero_normalization
   channel: kea__ext_asset_tag_candidate_to_kea__al_leading_zero_normalization
@@ -71,23 +58,17 @@ edges:
   to: kea__ext_asset_tag_candidate
   channel: kea__incremental_state_to_kea__ext_asset_tag_candidate
 - from: kea__incremental_state
+  to: kea__ext_equipment_tag_ck
+  channel: kea__incremental_state_to_kea__ext_equipment_tag_ck
+- from: kea__incremental_state
   to: kea__ext_file_basename_candidate
   channel: kea__incremental_state_to_kea__ext_file_basename_candidate
-- from: kea__ext_equipment_tag_ck
-  to: kea__n_1776968044470_89wvovc3
-  channel: kea__ext_equipment_tag_ck_to_kea__n_1776968044470_89wvovc3
-- from: kea__ext_instance_description_asset_fk
-  to: kea__n_1776968044470_89wvovc3
-  channel: kea__ext_instance_description_asset_fk_to_kea__n_1776968044470_89wvovc3
-- from: kea__ext_instance_name_asset_fk
-  to: kea__n_1776968044470_89wvovc3
-  channel: kea__ext_instance_name_asset_fk_to_kea__n_1776968044470_89wvovc3
-- from: kea__ext_timeseries_instrument_tag_candidate
-  to: kea__n_1776968044470_89wvovc3
-  channel: kea__ext_timeseries_instrument_tag_candidate_to_kea__n_1776968044470_89wvovc3
-- from: kea__al_document_aliases
-  to: kea__n_1776968047289_da4zzh3o
-  channel: kea__al_document_aliases_to_kea__n_1776968047289_da4zzh3o
-- from: kea__al_strip_delimiter
-  to: kea__n_1776968047289_da4zzh3o
-  channel: kea__al_strip_delimiter_to_kea__n_1776968047289_da4zzh3o
+- from: kea__incremental_state
+  to: kea__ext_instance_description_asset_fk
+  channel: kea__incremental_state_to_kea__ext_instance_description_asset_fk
+- from: kea__incremental_state
+  to: kea__ext_instance_name_asset_fk
+  channel: kea__incremental_state_to_kea__ext_instance_name_asset_fk
+- from: kea__incremental_state
+  to: kea__ext_timeseries_instrument_tag_candidate
+  channel: kea__incremental_state_to_kea__ext_timeseries_instrument_tag_candidate

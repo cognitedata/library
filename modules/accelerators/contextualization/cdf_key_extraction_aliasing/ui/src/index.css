@@ -426,6 +426,77 @@ code {
   font-size: 0.875rem;
 }
 
+/* Configure sub-tabs (Flow, Source views, …): panel + underline row */
+.kea-config-subpanel-shell {
+  margin: 0.3rem 0 1rem;
+  border: 1px solid var(--kea-border);
+  border-left: 3px solid var(--kea-primary);
+  border-radius: var(--kea-radius);
+  background: var(--kea-surface);
+  box-shadow: var(--kea-shadow);
+  overflow: hidden;
+}
+
+/* Inner row (Canvas / Console / Results) inside Flow — compact pill bar */
+.kea-flow-inner-subtabs {
+  margin-top: 0;
+  margin-bottom: 0.65rem;
+}
+
+.kea-tabs.kea-tabs--nested {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0;
+  margin: 0;
+  padding: 0 0.25rem;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--kea-bg-elevated);
+  border-bottom: 1px solid var(--kea-border);
+}
+
+.kea-tabs--nested .kea-tab {
+  position: relative;
+  z-index: 0;
+  padding: 0.45rem 0.8rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--kea-text-muted);
+  box-shadow: none;
+}
+
+.kea-tabs--nested .kea-tab:hover {
+  background: var(--kea-surface);
+  color: var(--kea-text);
+}
+
+.kea-tabs--nested .kea-tab--active {
+  z-index: 1;
+  background: var(--kea-surface);
+  color: var(--kea-primary);
+  border-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: var(--kea-radius-sm) var(--kea-radius-sm) 0 0;
+  box-shadow: none;
+}
+
+.kea-tabs--nested .kea-tab:focus-visible {
+  outline: 2px solid var(--kea-primary);
+  outline-offset: 2px;
+}
+
+.kea-config-subpanel-shell__body {
+  padding: 0.55rem 0.65rem 0.7rem;
+  background: var(--kea-surface);
+}
+
 .kea-configure {
   display: grid;
   grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
@@ -519,8 +590,61 @@ code {
   max-width: 42rem;
 }
 
-.kea-config-display-name .kea-label {
-  margin-bottom: 0;
+.kea-config-display-name .kea-input--display-name {
+  margin-top: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--kea-text);
+  cursor: text;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.kea-config-display-name .kea-input--display-name::placeholder {
+  color: var(--kea-text-muted);
+  font-weight: 400;
+}
+
+.kea-config-display-name .kea-input--display-name:placeholder-shown::placeholder {
+  color: var(--kea-text);
+  opacity: 1;
+  font-weight: 500;
+}
+
+.kea-config-display-name .kea-input--display-name:hover:not(:read-only) {
+  background: var(--kea-bg-elevated);
+}
+
+.kea-config-display-name .kea-input--display-name:focus {
+  outline: none;
+  border-color: var(--kea-primary);
+  background: var(--kea-bg-elevated);
+  box-shadow: 0 0 0 3px var(--kea-primary-ring);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.kea-config-display-name .kea-input--display-name:read-only {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.kea-config-display-name .kea-input--display-name:read-only:hover {
+  background: transparent;
+}
+
+.kea-config-display-name .kea-input--display-name:read-only:focus {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+  font-size: 1.05rem;
+  font-weight: 500;
 }
 
 .kea-config-sidenav__btn:hover {
@@ -687,6 +811,44 @@ code {
   margin-bottom: 1rem;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.kea-config-main-toolbar {
+  row-gap: 0.5rem;
+}
+
+.kea-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.kea-toolbar-btn svg {
+  flex-shrink: 0;
+}
+
+.kea-config-main-toolbar__tail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.kea-toolbar-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--kea-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.kea-toolbar-check input {
+  cursor: pointer;
 }
 
 .kea-status {
@@ -1984,13 +2146,8 @@ code {
   margin-bottom: 1rem;
 }
 
-.kea-trigger-editor-top {
-  margin-bottom: 0.65rem;
-}
-
-.kea-trigger-pipeline-sub {
+.kea-config-subpanel-shell.kea-trigger-pipeline-sub {
   margin-top: 0.25rem;
-  margin-bottom: 0.65rem;
 }
 
 .kea-trigger-editor-section-title {
@@ -2328,20 +2485,6 @@ code {
   margin: 0;
   flex: 1 1 12rem;
   min-width: 0;
-}
-
-.kea-flow-preview__runbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem 1rem;
-}
-
-.kea-flow-preview__runbar-hint {
-  margin: 0;
-  flex: 1 1 18rem;
-  max-width: 56ch;
-  font-size: 0.875rem;
 }
 
 .kea-flow-preview__canvas {

@@ -118,15 +118,14 @@ def _set_workflow_scope_parameter(doc: Dict[str, Any], ctx: ScopeBuildContext) -
 
 
 def scope_configuration_for_workflow_trigger(scope_document: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a deep copy of a prepared scope document suitable for ``workflow.input.configuration``.
+    """Return a trimmed scope document suitable for ``workflow.input.configuration``.
 
-    Omits the ``canvas`` key: layout is carried only in ``workflow.input.compiled_workflow`` so trigger
-    payloads stay smaller (CDF task I/O limits). Compile and persistence overlays still use the full
-    document including ``canvas`` before this helper runs.
+    Flattens subgraphs, strips layout positions, prunes extraction/aliasing rules not referenced by
+    executable canvas nodes, and omits ``compiled_workflow`` (task slices live on WorkflowVersion).
     """
-    out = copy.deepcopy(scope_document)
-    out.pop("canvas", None)
-    return out
+    from scope_build.scope_configuration_trim import trim_scope_document_for_trigger_input
+
+    return trim_scope_document_for_trigger_input(scope_document)
 
 
 def prepare_scope_document_for_context(doc: Dict[str, Any], ctx: ScopeBuildContext) -> Dict[str, Any]:

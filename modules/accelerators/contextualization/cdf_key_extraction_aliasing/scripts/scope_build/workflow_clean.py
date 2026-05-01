@@ -16,6 +16,7 @@ _WORKFLOW_ARTIFACT_SUFFIXES = (
     ".Workflow.yaml",
     ".WorkflowVersion.yaml",
     ".WorkflowTrigger.yaml",
+    ".config.yaml",
     ".canvas.yaml",
 )
 

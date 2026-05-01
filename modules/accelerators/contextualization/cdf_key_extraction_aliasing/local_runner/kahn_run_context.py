@@ -49,3 +49,5 @@ class KahnRunContext:
     # Merged across multiple fn_dm_aliasing tasks (canvas DAG).
     accumulated_aliasing_results: List[Any] = field(default_factory=list)
     persistence_summary: Optional[Dict[str, Any]] = None
+    # Populated by kahn_workflow_executor for operator timing (seconds per task).
+    task_timings: List[Dict[str, Any]] = field(default_factory=list)

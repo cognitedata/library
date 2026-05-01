@@ -8,14 +8,12 @@ import {
   KeaStartNode,
   KeaSubflowGraphInNode,
   KeaSubflowGraphOutNode,
-  KeaSubflowNode,
   KeaSubgraphNode,
   KeaValidationNode,
   KeaValidationRuleNode,
 } from "./keaNodes";
 
 export const KEA_FLOW_NODE_TYPES = {
-  keaSubflow: KeaSubflowNode,
   keaSubgraph: KeaSubgraphNode,
   keaSubflowGraphIn: KeaSubflowGraphInNode,
   keaSubflowGraphOut: KeaSubflowGraphOutNode,

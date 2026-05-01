@@ -15,10 +15,11 @@ export const de: Messages = {
   "tabs.keyExtraction": "Schlüsselerkennung",
   "tabs.aliasing": "Aliasing",
   "tabs.flowCanvas": "Flow",
-  "tabs.runPipeline": "Workflow ausführen",
+  "tabs.runPipeline": "Konsole",
   "tabs.configure": "Konfigurieren",
   "tabs.build": "Build",
   "tabs.artifacts": "Artefakte",
+  "tabs.results": "Ergebnisse",
   "controls.theme": "Design",
   "controls.themeLight": "Hell",
   "controls.themeDark": "Dunkel",
@@ -33,7 +34,8 @@ export const de: Messages = {
   "unsaved.save": "Speichern",
   "unsaved.discard": "Verwerfen",
   "btn.saveDefault": "default.config.yaml speichern",
-  "btn.saveScope": "Geltungsbereichsdokument speichern",
+  "btn.save": "Speichern",
+  "btn.saveScope": "Speichern",
   "btn.saveTemplateFile": "Workflow-Vorlage speichern",
   "btn.saveFile": "Datei speichern",
   "btn.refreshList": "Liste aktualisieren",
@@ -77,13 +79,13 @@ export const de: Messages = {
   "config.fileHint.workflowTemplate": "workflow.template.config.yaml",
   "config.updateTemplate": "Vorlage aktualisieren",
   "config.updateTemplateTooltip":
-    "Überschreibt workflow_template/workflow.template.config.yaml und workflow.template.canvas.yaml mit den gespeicherten lokalen Dateien (wie ``python module.py promote-local-templates``). Zuerst speichern, wenn der Editor noch ungespeicherte Änderungen hat.",
+    "Überschreibt workflow_template/workflow.template.config.yaml mit der gespeicherten workflow.local.config.yaml (Canvas eingebettet; wie ``python module.py promote-local-templates``). Zuerst speichern, wenn der Editor noch ungespeicherte Änderungen hat.",
   "config.promoteTemplateConfirm":
-    "workflow.template.config.yaml und workflow.template.canvas.yaml auf der Festplatte mit den gespeicherten workflow.local.config.yaml und workflow.local.canvas.yaml überschreiben? In der UI nicht rückgängig zu machen (z. B. mit Git zurücksetzen).",
+    "workflow.template.config.yaml auf der Festplatte mit der gespeicherten workflow.local.config.yaml überschreiben (einheitliche Datei inkl. Canvas)? In der UI nicht rückgängig zu machen (z. B. mit Git zurücksetzen).",
   "config.promoteTemplateDirtyConfirm":
     "Es gibt ungespeicherte Änderungen im Editor. Die Vorlage wird aus dem Stand auf der Festplatte aktualisiert, nicht aus dem Editor. Fortfahren?",
   "config.templatePromoted":
-    "Vorlagen-Config und -Canvas auf der Festplatte aus workflow.local.config.yaml und workflow.local.canvas.yaml aktualisiert.",
+    "Vorlagen-Config auf der Festplatte aus workflow.local.config.yaml aktualisiert (Canvas eingebettet).",
   "build.warnForce": "Erzwingen überschreibt generiertes Workflow-YAML. Vor dem Ausführen bestätigen.",
   "build.confirmForce": "Generierte Workflow-Dateien mit --force überschreiben?",
   "build.outputPlaceholder": "Build-Ausgabe erscheint hier.",
@@ -485,6 +487,26 @@ export const de: Messages = {
   "artifacts.plainEditor": "Einfacher YAML-Editor",
   "artifacts.treeExpand": "Ausklappen",
   "artifacts.treeCollapse": "Einklappen",
+  "runResults.title": "Lauf-Ergebnisse",
+  "runResults.hint":
+    "Unter Konfigurieren → Fluss: innere Registerkarte „Ergebnisse“ neben Canvas und Workflow ausführen. JSON unter local_run_results/ für die in der Seitenleiste gewählte Workflow-Quelle. Nur Läufe von diesem Ziel; ältere Dateien ohne Metadaten werden bei Trigger-Auswahl ausgeblendet. Entfernte CDF-Workflow-Läufe schreiben hier keine Dateien.",
+  "runResults.empty": "Keine Paare aus Extraktion/Aliasing. Lokale Pipeline zuerst ausführen.",
+  "runResults.refresh": "Liste aktualisieren",
+  "runResults.runLabel": "Lauf",
+  "runResults.viewExtraction": "Extraktion",
+  "runResults.viewAliasing": "Aliasing",
+  "runResults.totalRows": "{count} Zeilen",
+  "runResults.showing": "{from}–{to} von {total}",
+  "runResults.filterPlaceholder": "Geladene Zeilen filtern (Entität, Tag …)",
+  "runResults.loadMore": "Mehr laden",
+  "runResults.error": "Ergebnisse konnten nicht geladen werden.",
+  "runResults.table.entity": "Entität",
+  "runResults.table.entityType": "Entitätstyp",
+  "runResults.table.baseTag": "Basistag",
+  "runResults.table.aliases": "Aliase",
+  "runResults.table.keys": "Kandidatenschlüssel",
+  "runResults.table.fk": "FK-Refs",
+  "runResults.openRaw": "Roh-JSON öffnen",
   "advanced.toggle": "Erweitertes YAML…",
   "advanced.warning1": "Rohbearbeitung kann Kommentare verlieren. Ungültiges YAML wird abgelehnt.",
   "advanced.warning2": "Kommentare bleiben bei Hin- und Rückweg nicht erhalten.",
@@ -512,7 +534,6 @@ export const de: Messages = {
   "flow.resizePanels": "Ziehen, um Panels zu skalieren",
   "flow.paletteStructural": "Pipeline-Struktur",
   "flow.structuralSourceView": "Quellansicht",
-  "flow.structuralSubflow": "Subflow",
   "flow.structuralSubgraph": "Subgraph",
   "flow.structuralExtraction": "Extraktion",
   "flow.structuralAliasing": "Aliasing",
@@ -528,7 +549,6 @@ export const de: Messages = {
   "flow.paletteAliasingHandlers": "Aliasing-Handler",
   "flow.paletteAnnotations": "Annotationen",
   "flow.paletteCdfTasks": "CDF-Funktionen",
-  "flow.seedFromScope": "Zurücksetzen",
   "flow.alignLeft": "Ausgewählte Knoten links ausrichten",
   "flow.alignCenterHorizontal": "Ausgewählte Knoten horizontal zentrieren",
   "flow.alignRight": "Ausgewählte Knoten rechts ausrichten",
@@ -537,12 +557,12 @@ export const de: Messages = {
   "flow.alignBottom": "Ausgewählte Knoten unten ausrichten",
   "flow.alignSelectionGroup": "Auswahl ausrichten",
   "flow.canvasHint":
-    "Layout wird in einer gleichnamigen .canvas.yaml gespeichert. Scope speichern. Palettenelemente auf die Fläche ziehen. Knoten in einen Subflow-Rahmen fallen lassen zum Zuordnen; Subflow wählen und an Ecken oder Kantenbalken ziehen, um horizontal und vertikal zu skalieren.",
+    "Layout wird unter canvas in der Scope-YAML gespeichert. Flow oder Scope speichern. Palettenelemente auf die Fläche ziehen. Knoten in einen Subflow-Rahmen fallen lassen zum Zuordnen; Subflow wählen und an Ecken oder Kantenbalken ziehen, um horizontal und vertikal zu skalieren.",
   "flow.workflowCompileModeLabel": "Workflow-Kompilierung",
   "flow.workflowCompileModeAuto": "Auto (Canvas, wenn ausführbare Knoten vorhanden)",
   "flow.workflowCompileModeCanvas": "Canvas-DAG (immer aus dem Graphen)",
   "flow.workflowCompileModeHint":
-    "Steuert den Aufbau von ``compiled_workflow`` für CDF und lokale Läufe aus dem Flow-Canvas. Auto und Canvas nutzen dieselbe Canvas-Kompilierung (ungültige Graphen schlagen beim Build, Lauf oder Speichern fehl). Beim Speichern von Scope oder Canvas wird ``compiled_workflow`` im Scope-YAML neu eingebettet.",
+    "Steuert die Canvas-DAG-Kompilierung für lokale Läufe. Auto und Canvas nutzen dieselbe Kompilierung (ungültige Graphen schlagen beim Build, Lauf oder Speichern fehl). CDF nutzt WorkflowVersion aus ``python module.py build``; Speichern aktualisiert ``canvas`` in der Scope-YAML.",
   "flow.handleOrientationLabel": "Handles",
   "flow.handleOrientationLr": "Links → rechts",
   "flow.handleOrientationTb": "Oben → unten",
@@ -552,12 +572,10 @@ export const de: Messages = {
   "flow.ctxMenuRemoveNode": "Knoten entfernen",
   "flow.confirmSubgraphDeleteLift":
     "Dieser Subgraph enthält innere Workflow-Schritte.\n\nOK — auf die übergeordnete Leinwand verschieben und den Subgraph-Rahmen entfernen.\nAbbrechen — Subgraph entfernen und innere Schritte verwerfen.",
-  "flow.ctxMenuWrapSelectionInSubflow": "Auswahl in neuem Subflow gruppieren (Layout)",
   "flow.ctxMenuCollapseSelectionToSubgraph": "Auswahl zu Subgraph reduzieren (Drill-in)",
-  "flow.ctxMenuPromoteNodeToOwningGraph": "Zum übergeordneten Graph befördern",
-  "flow.ctxMenuConvertSubflowToSubgraph": "Subflow in Subgraph umwandeln (Drill-in)",
-  "flow.ctxMenuConvertSubgraphToSubflow": "Subgraph in Subflow umwandeln (Gruppe)",
   "flow.subgraphDrillTitle": "Subgraph",
+  "flow.ctxMenuFlattenSubgraph": "Flatten subgraph to parent canvas",
+  "flow.ctxMenuPromoteNodeToOwningGraph": "Zum übergeordneten Graph befördern",
   "flow.subgraphBack": "Save & close",
   "flow.subgraphCancel": "Abbrechen",
   "flow.subgraphCancelNestedTooltip":
@@ -579,8 +597,6 @@ export const de: Messages = {
   "flow.nodeEditorDone": "Fertig",
   "flow.nodeEditorPipelineStubBody":
     "Start- und Endknoten sind nur Layout. Quellansichten, Extraktion und Aliasing über andere Knoten oder die Konfigurations-Tabs bearbeiten.",
-  "flow.nodeEditorSubflowBody":
-    "Rahmen auf der Fläche skalieren, Knoten einbetten; im Inspektor übergeordneten Subflow und Subgraph-Ports pflegen. Benannte Ein-/Ausgänge am Rahmen verbinden sich mit den inneren „Graph inputs“ / „Graph outputs“-Knoten; die Scope-Synchronisation expandiert diese Pfade für das Workflow-YAML.",
   "flow.nodeEditorSubgraphBody":
     "Double-click the node on the canvas to open the inner workflow editor. Configure frame ports in the inspector; outer edges attach to those handles.",
   "flow.nodeEditorGraphHubBody":
@@ -591,6 +607,8 @@ export const de: Messages = {
   "flow.editWorkflow": "Workflow bearbeiten",
   "flow.canvasPreviewHint":
     "Schreibgeschützte Vorschau. Bearbeiten öffnet den vollständigen Workflow-Editor.",
+  "flow.subtabCanvas": "Canvas",
+  "flow.subtabRunWorkflow": "Konsole",
   "flow.previewRunLocal": "Lokal ausführen",
   "flow.previewRunLocalHint":
     "Gleiche Pipeline wie „Lokal ausführen“ auf der Registerkarte „Workflow ausführen“ (gespeichertes YAML auf der Platte—zuerst speichern). Aktuell laufende Aufgaben sind im Graphen umrandet.",
@@ -612,10 +630,6 @@ export const de: Messages = {
   "flow.validationContextSourceView": "Quellansicht (Listing)",
   "flow.validationContextExtraction": "Schlüssel-Extraktionsregel",
   "flow.validationContextAliasing": "Aliasing-Regel",
-  "flow.inspectorSubflowHint":
-    "Kinderpositionen sind relativ zum Rahmen. Benannte Ports am Rahmen für Datenkanten zwischen übergeordnetem Graph und Subgraph; innere Hubs nutzen dieselben Port-IDs. Scope-Sync expandiert diese Kanten beim Schreiben des Workflow-YAML.",
-  "flow.inspectorSubflowOrganizationalHint":
-    "Organizational group only: resize the frame and nest nodes. No boundary ports—edges run between normal nodes inside the frame (or use a subgraph for named inputs/outputs and a drill-in inner graph).",
   "flow.inspectorSubflowPorts": "Subgraph-Ports",
   "flow.inspectorSubflowInputs": "Eingänge",
   "flow.inspectorSubflowOutputs": "Ausgänge",
@@ -634,7 +648,6 @@ export const de: Messages = {
     "Quellen dieses Knotens entsprechen den Eingangs-Port-IDs des übergeordneten Subflows. Übergeordneten Graph mit dem Subflow-Rahmen verbinden, dann von hier zu inneren Schritten.",
   "flow.inspectorSubflowGraphOutHint":
     "Ziele dieses Knotens entsprechen den Ausgangs-Port-IDs des übergeordneten Subflows. Innere Schritte hierher verbinden, dann den Subflow-Rahmen mit dem übergeordneten Graph.",
-  "flow.inspectorParentSubflow": "Übergeordneter Subflow",
   "flow.inspectorNodeTitle": "Knoten",
   "flow.inspectorEdgeTitle": "Kante",
   "flow.inspectorEdgeKind": "Kantenart",

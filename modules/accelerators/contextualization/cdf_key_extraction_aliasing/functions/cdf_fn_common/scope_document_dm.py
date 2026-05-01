@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import copy
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set
 
 from .aliasing_rule_refs import resolve_aliasing_pipeline_refs_in_scope_document
 from .confidence_match_rule_refs import resolve_confidence_match_rule_refs_in_scope_document
+
+# Task ``data`` keys that may carry the v1 scope mapping (workflow.input.configuration vs legacy).
+_TASK_DATA_SCOPE_KEYS: tuple[str, str] = ("configuration", "scope_document")
+
+
 def materialize_scope_confidence_refs_on_task_data(data: MutableMapping[str, Any]) -> None:
     """Expand confidence-match and extraction aliasing pipeline refs on task ``configuration`` / ``scope_document``.
 
@@ -15,7 +20,7 @@ def materialize_scope_confidence_refs_on_task_data(data: MutableMapping[str, Any
     rule dicts; ``aliasing_rule_definitions`` / ``aliasing_rule_sequences`` expand
     ``extraction_rules[].aliasing_pipeline``). Safe to call more than once on the same mapping.
     """
-    for key in ("configuration", "scope_document"):
+    for key in _TASK_DATA_SCOPE_KEYS:
         raw = data.get(key)
         if isinstance(raw, dict) and raw:
             doc = copy.deepcopy(raw)
@@ -33,7 +38,7 @@ def _workflow_v1_from_task_data(data: Mapping[str, Any]) -> Dict[str, Any]:
     Callers must run :func:`materialize_scope_confidence_refs_on_task_data` on *data* first when
     the task may carry ``validation_rule_definitions`` / ``sequence`` indirections.
     """
-    for key in ("configuration", "scope_document"):
+    for key in _TASK_DATA_SCOPE_KEYS:
         raw = data.get(key)
         if isinstance(raw, dict) and raw:
             return copy.deepcopy(raw)
@@ -276,6 +281,33 @@ def incremental_change_processing_in_task_configuration(
     return bool(params.get("incremental_change_processing"))
 
 
+def _filter_extraction_rules_on_data(data: MutableMapping[str, Any], cfg: Dict[str, Any]) -> None:
+    """When ``data`` carries ``extraction_rule_names`` (inlined WorkflowVersion task), drop other rules."""
+    raw = data.get("extraction_rule_names")
+    if not isinstance(raw, list) or not raw:
+        return
+    wanted = {str(x).strip() for x in raw if x is not None and str(x).strip()}
+    if not wanted:
+        return
+    inner = cfg.get("config")
+    if not isinstance(inner, dict):
+        return
+    sec = inner.get("data")
+    if not isinstance(sec, dict):
+        return
+    rules = sec.get("extraction_rules")
+    if not isinstance(rules, list):
+        return
+    kept: List[Any] = []
+    for r in rules:
+        if not isinstance(r, dict):
+            continue
+        rid = str(r.get("rule_id") or r.get("name") or "").strip()
+        if rid and rid in wanted:
+            kept.append(r)
+    sec["extraction_rules"] = kept
+
+
 def ensure_key_extraction_config_from_scope_dm(
     data: MutableMapping[str, Any],
     client: Any,
@@ -291,18 +323,147 @@ def ensure_key_extraction_config_from_scope_dm(
     doc = _workflow_v1_from_task_data(data)
     space = ensure_instance_space_from_scope_document(data, doc)
     fr_override: Optional[bool] = bool(data["run_all"]) if "run_all" in data else None
-    data["config"] = build_key_extraction_workflow_config(
+    cfg = build_key_extraction_workflow_config(
         doc,
         run_all=fr_override,
         instance_space=str(space),
         incremental_change_processing=incremental_change_processing,
     )
+    _filter_extraction_rules_on_data(data, cfg)
+    data["config"] = cfg
     ke = doc.get("key_extraction")
     ke_cfg = ke.get("config") if isinstance(ke, dict) else None
     ke_params = ke_cfg.get("parameters") if isinstance(ke_cfg, dict) else None
     raw_key = str(ke_params.get("raw_table_key") or "").strip() if isinstance(ke_params, dict) else ""
     if raw_key:
         data["key_extraction_raw_table_key"] = raw_key
+
+
+def narrow_aliasing_engine_config_for_inline_rule_names(
+    engine_cfg: Dict[str, Any],
+    aliasing_rule_names: Any,
+) -> Dict[str, Any]:
+    """Deep-copy *engine_cfg* and keep only rules named in *aliasing_rule_names* (flat + pathways).
+
+    Used by the local Kahn runner, which builds :class:`AliasingEngine` from pre-merged engine
+    config while per-canvas task ``aliasing_rule_names`` live on task ``data`` (same as CDF
+    WorkflowVersion inlining).
+    """
+    if not isinstance(engine_cfg, dict):
+        return {}
+    out = copy.deepcopy(engine_cfg)
+    raw = aliasing_rule_names
+    if not isinstance(raw, list) or not raw:
+        return out
+    wanted = {str(x).strip() for x in raw if x is not None and str(x).strip()}
+    if not wanted:
+        return out
+    rules = out.get("rules")
+    if isinstance(rules, list):
+        out["rules"] = [
+            r
+            for r in rules
+            if isinstance(r, dict) and str(r.get("name") or "").strip() in wanted
+        ]
+    restrict_aliasing_pathways_to_wanted_names(out, wanted)
+    return out
+
+
+def restrict_aliasing_pathways_to_wanted_names(
+    data_section: MutableMapping[str, Any], wanted: Set[str]
+) -> None:
+    """Keep only pathway rule rows whose ``name`` is in *wanted*; drop empty steps / ``pathways``."""
+    if not wanted:
+        return
+    pw = data_section.get("pathways")
+    if not isinstance(pw, dict):
+        return
+    steps_in = pw.get("steps")
+    if not isinstance(steps_in, list):
+        return
+    new_steps: List[Dict[str, Any]] = []
+    for step in steps_in:
+        if not isinstance(step, dict):
+            continue
+        mode = str(step.get("mode") or "sequential").strip().lower()
+        if mode == "sequential":
+            rules_raw = step.get("rules")
+            if not isinstance(rules_raw, list):
+                continue
+            kept = [
+                r
+                for r in rules_raw
+                if isinstance(r, dict) and str(r.get("name") or "").strip() in wanted
+            ]
+            if kept:
+                out_step = dict(step)
+                out_step["rules"] = kept
+                new_steps.append(out_step)
+        elif mode == "parallel":
+            branches_in = step.get("branches")
+            if not isinstance(branches_in, list):
+                continue
+            new_branches: List[Any] = []
+            for br in branches_in:
+                rules_raw: List[Any] = []
+                if isinstance(br, dict):
+                    rules_raw = br.get("rules") or []
+                elif isinstance(br, list):
+                    rules_raw = br
+                if not isinstance(rules_raw, list):
+                    continue
+                kept_br = [
+                    r
+                    for r in rules_raw
+                    if isinstance(r, dict) and str(r.get("name") or "").strip() in wanted
+                ]
+                if not kept_br:
+                    continue
+                if isinstance(br, dict):
+                    nb = dict(br)
+                    nb["rules"] = kept_br
+                    new_branches.append(nb)
+                else:
+                    new_branches.append(kept_br)
+            if new_branches:
+                out_step = dict(step)
+                out_step["branches"] = new_branches
+                new_steps.append(out_step)
+    if new_steps:
+        data_section["pathways"] = {**pw, "steps": new_steps}
+    else:
+        data_section.pop("pathways", None)
+
+
+def _filter_aliasing_rules_on_data(data: MutableMapping[str, Any], cfg: Dict[str, Any]) -> None:
+    """When ``data`` carries ``aliasing_rule_names``, keep only those rules in ``config.config.data``.
+
+    Applies to flat ``aliasing_rules`` and to ``pathways.steps`` (per canvas aliasing node /
+    WorkflowVersion inlined payload), so pathway-only scopes match codegen intent.
+    """
+    raw = data.get("aliasing_rule_names")
+    if not isinstance(raw, list) or not raw:
+        return
+    wanted = {str(x).strip() for x in raw if x is not None and str(x).strip()}
+    if not wanted:
+        return
+    inner = cfg.get("config")
+    if not isinstance(inner, dict):
+        return
+    sec = inner.get("data")
+    if not isinstance(sec, dict):
+        return
+    rules = sec.get("aliasing_rules")
+    if isinstance(rules, list):
+        kept: List[Any] = []
+        for r in rules:
+            if not isinstance(r, dict):
+                continue
+            nm = str(r.get("name") or "").strip()
+            if nm and nm in wanted:
+                kept.append(r)
+        sec["aliasing_rules"] = kept
+    restrict_aliasing_pathways_to_wanted_names(sec, wanted)
 
 
 def ensure_aliasing_config_from_scope_dm(data: MutableMapping[str, Any], client: Any) -> None:
@@ -313,7 +474,9 @@ def ensure_aliasing_config_from_scope_dm(data: MutableMapping[str, Any], client:
         return
     doc = _workflow_v1_from_task_data(data)
     space = ensure_instance_space_from_scope_document(data, doc)
-    data["config"] = build_aliasing_workflow_config(doc, instance_space=str(space))
+    cfg = build_aliasing_workflow_config(doc, instance_space=str(space))
+    _filter_aliasing_rules_on_data(data, cfg)
+    data["config"] = cfg
     ke = doc.get("key_extraction")
     ke_cfg = ke.get("config") if isinstance(ke, dict) else None
     ke_params = ke_cfg.get("parameters") if isinstance(ke_cfg, dict) else None

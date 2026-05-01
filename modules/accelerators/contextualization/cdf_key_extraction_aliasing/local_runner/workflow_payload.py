@@ -8,17 +8,12 @@ from typing import Any, Dict, List, Mapping, Optional
 
 import yaml
 
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.workflow_associations import (
+from cdf_fn_common.workflow_associations import (
     KIND_SOURCE_VIEW_TO_EXTRACTION,
     coerce_association_source_view_index,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.scope_canvas_merge import (
-    canvas_sibling_path,
-    merge_sibling_canvas_yaml_into_scope,
-)
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.workflow_compile.canvas_dag import (
-    compiled_workflow_for_scope_document,
-)
+from cdf_fn_common.workflow_compile.canvas_dag import compiled_workflow_for_scope_document
+from cdf_fn_common.scope_canvas_merge import normalize_root_graph_into_canvas
 
 
 def _view_identity(v: Dict[str, Any]) -> tuple:
@@ -90,7 +85,7 @@ def merged_scope_document_for_local_run(
     out = copy.deepcopy(doc)
     if not isinstance(out.get("key_extraction"), dict):
         raise ValueError("Scope YAML requires key_extraction mapping")
-    merge_sibling_canvas_yaml_into_scope(out, scope_yaml_path)
+    normalize_root_graph_into_canvas(out)
     original_svs = out.get("source_views")
     filtered_svs = copy.deepcopy(source_views)
     raw_assoc = out.get("associations")

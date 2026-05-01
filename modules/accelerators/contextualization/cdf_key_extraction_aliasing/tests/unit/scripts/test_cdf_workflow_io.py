@@ -42,19 +42,18 @@ def test_workflow_input_from_trigger_yaml(tmp_path: Path) -> None:
             "run_all": False,
             "run_id": "",
             "configuration": {"source_views": []},
-            "compiled_workflow": {"schemaVersion": 1, "tasks": []},
         },
     }
     p.write_text(yaml.dump(body), encoding="utf-8")
     inp = workflow_input_from_trigger_yaml(p)
     assert_expected_workflow_input_keys(inp)
     assert inp["run_all"] is False
-    assert "configuration" in inp and "compiled_workflow" in inp
+    assert "configuration" in inp
 
 
 def test_assert_expected_workflow_input_keys_missing() -> None:
     with pytest.raises(ValueError, match="configuration"):
-        assert_expected_workflow_input_keys({"compiled_workflow": {}})
+        assert_expected_workflow_input_keys({"run_all": False})
 
 
 def test_shallow_has_toolkit_placeholder() -> None:
@@ -70,7 +69,6 @@ def test_substitute_instance_space_placeholder() -> None:
                 {"filters": [{"values": ["{{instance_space}}", "other"]}]},
             ]
         },
-        "compiled_workflow": {},
         "run_all": False,
         "run_id": "",
     }
@@ -89,6 +87,6 @@ def test_workflow_input_from_json_roundtrip(tmp_path: Path) -> None:
     from cdf_workflow_io import workflow_input_from_json
 
     p = tmp_path / "in.json"
-    payload = {"configuration": {}, "compiled_workflow": {}}
+    payload = {"configuration": {}}
     p.write_text(json.dumps(payload), encoding="utf-8")
     assert workflow_input_from_json(p) == payload

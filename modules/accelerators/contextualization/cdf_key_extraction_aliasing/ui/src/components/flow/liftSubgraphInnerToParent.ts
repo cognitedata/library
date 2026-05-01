@@ -81,9 +81,6 @@ export function liftSubgraphInnerToParentWorkflow(
   }
 
   const subAbs = absoluteNodePosition(nodes, subgraphId);
-  const parentId =
-    S.parentId != null && String(S.parentId).trim() ? String(S.parentId).trim() : "";
-  const parentNode = parentId ? nodes.find((n) => n.id === parentId) : undefined;
 
   const stripRfParent = (n: Node): Node => {
     const { parentId: _p, extent: _e, expandParent: _x, ...rest } = n as Node & {
@@ -102,10 +99,7 @@ export function liftSubgraphInnerToParentWorkflow(
   for (const cn of contentNodes) {
     const ln = stripRfParent(cn);
     nextNodes = [...nextNodes, ln];
-    nextNodes =
-      parentId && parentNode?.type === "keaSubflow"
-        ? assignFlowNodeSubflowParent(nextNodes, ln.id, parentId)
-        : assignFlowNodeSubflowParent(nextNodes, ln.id, null);
+    nextNodes = assignFlowNodeSubflowParent(nextNodes, ln.id, null);
   }
 
   const contentIdSet = new Set(contentNodes.map((n) => n.id));

@@ -81,6 +81,5 @@ def shallow_has_toolkit_placeholder(obj: Any) -> bool:
 
 def assert_expected_workflow_input_keys(inp: Mapping[str, Any]) -> None:
     """Minimal shape check for key-extraction-aliasing triggers."""
-    for key in ("configuration", "compiled_workflow"):
-        if key not in inp:
-            raise ValueError(f"workflow input missing required key {key!r}")
+    if "configuration" not in inp:
+        raise ValueError("workflow input missing required key 'configuration'")

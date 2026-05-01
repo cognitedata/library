@@ -21,6 +21,7 @@ except ImportError:
 from cdf_fn_common.function_logging import resolve_function_logger
 from cdf_fn_common.scope_document_dm import apply_reference_index_scope_document
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
+from cdf_fn_common.workflow_task_lineage import apply_predecessor_extraction_allowlist_to_task_data
 from fn_dm_reference_index.dependencies import create_client, get_env_variables
 from fn_dm_reference_index.pipeline import persist_reference_index
 
@@ -79,6 +80,7 @@ def handle(
             raise ValueError("CogniteClient is required")
 
         merge_compiled_task_into_data(data)
+        apply_predecessor_extraction_allowlist_to_task_data(data)
 
         apply_reference_index_scope_document(data, client)
 

@@ -10,6 +10,7 @@ import {
 } from "./aliasingScopeData";
 import { expandCanvasForScopeSync } from "./subgraphBoundaryVirtualization";
 import { applySourceViewExtractionAssociationsFromCanvas } from "./workflowScopeAssociations";
+import { ALIASING_PIPELINE_NAME_NOISE } from "./aliasingPipelineTokens";
 import { patchExtractionRuleAliasingPipeline } from "./workflowScopePatch";
 /**
  * Merge flow canvas structure into the workflow scope document (YAML model).
@@ -52,42 +53,11 @@ function isRecordObj(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
 
-/** Strings / keys in pipeline JSON that are not tag-transform rule names. */
-const _PIPELINE_NOISE: ReadonlySet<string> = new Set(
-  [
-    "sequential",
-    "parallel",
-    "concurrent",
-    "ordered",
-    "hierarchy",
-    "mode",
-    "children",
-    "branches",
-    "rules",
-    "config",
-    "validation",
-    "scope_filters",
-    "conditions",
-    "description",
-    "enabled",
-    "priority",
-    "preserve_original",
-    "name",
-    "handler",
-    "type",
-    "match",
-    "expression",
-    "expressions",
-    "extraction",
-    "aliasing",
-  ].map((s) => s.toLowerCase())
-);
-
 function collectRuleNamesFromPipelineValue(x: unknown, out: Set<string>): void {
   if (x === null || x === undefined) return;
   if (typeof x === "string") {
     const t = x.trim();
-    if (t && t.length < 512 && !_PIPELINE_NOISE.has(t.toLowerCase())) {
+    if (t && t.length < 512 && !ALIASING_PIPELINE_NAME_NOISE.has(t.toLowerCase())) {
       out.add(t);
     }
     return;
@@ -101,7 +71,7 @@ function collectRuleNamesFromPipelineValue(x: unknown, out: Set<string>): void {
   if (isRecordObj(x)) {
     for (const [k, v] of Object.entries(x)) {
       const kt = k.trim();
-      if (kt && kt.length < 512 && !_PIPELINE_NOISE.has(kt.toLowerCase())) {
+      if (kt && kt.length < 512 && !ALIASING_PIPELINE_NAME_NOISE.has(kt.toLowerCase())) {
         out.add(kt);
       }
       collectRuleNamesFromPipelineValue(v, out);
