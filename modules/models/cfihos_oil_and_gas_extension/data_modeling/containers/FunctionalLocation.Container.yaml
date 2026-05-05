@@ -1,6 +1,6 @@
 space: "{{space}}"
 externalId: FunctionalLocation
-description: A hierarchical location in the plant structure representing where equipment is installed and maintained.
+description: A hierarchical location in the plant structure where equipment is installed and maintained. FunctionalLocationProperties are typically sourced from ERP or maintenance systems such as SAP or IFS.
 properties:
   flocInspCritCost:
     type:

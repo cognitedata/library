@@ -16,16 +16,16 @@ config:
     targetView: # target view to match timeseries to, ex: Asset, Tags, Equipment, etc.
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ assetInstanceSpace }}
-      externalId: YourOrgAsset
+      externalId: {{ targetViewExternalId }}
       version: {{ viewVersion }}
-      searchProperty: {{ AssetSearchProperty }}
+      searchProperty: {{ targetViewSearchProperty }}
       filterProperty: tags
-      filterValues: {{ AssetFilterValues }}
+      filterValues: {{ targetViewFilterValues }}
     entityView: # entity our source for values to be matched against, ex: TimeSeries, etc.
       schemaSpace: {{ schemaSpace }}
       instanceSpace: {{ timeseriesInstanceSpace }}
-      externalId: YourOrgTimeSeries
+      externalId: {{ entityViewExternalId }}
       version: {{ viewVersion }}
-      searchProperty: {{ EntitySearchProperty }}
+      searchProperty: {{ entityViewSearchProperty }}
       filterProperty: tags
-      filterValues: {{ EntityFilterValues }}
+      filterValues: {{ entityViewFilterValues }}

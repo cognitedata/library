@@ -23,8 +23,36 @@ EXTRACTION_PIPELINE_EXTERNAL_ID = "ctx_files_direct_relation_write"
 EXTERNAL_ID_LIMIT = 256
 EXTRACTION_RUN_MESSAGE_LIMIT = 1000
 
+# ---------------------------------------------------------------------------
+# Usage tracking
+# ---------------------------------------------------------------------------
+_SOURCE = "dp:cdf_common"
+_DP_VERSION = "1"
+_TRACKER_VERSION = "1"
+
+
+def _report_usage(client: CogniteClient) -> None:
+    try:
+        import threading
+        from mixpanel import Consumer, Mixpanel
+        mp = Mixpanel("8f28374a6614237dd49877a0d27daa78", consumer=Consumer(api_host="api-eu.mixpanel.com"))
+        distinct_id = f"{client.config.project}:{client.config.cdf_cluster}"
+        def _send() -> None:
+            mp.track(distinct_id, "fn-handle", {
+                "source": _SOURCE,
+                "tracker_version": _TRACKER_VERSION,
+                "dp_version": _DP_VERSION,
+                "type": "py-function",
+                "cdf_cluster": client.config.cdf_cluster,
+                "cdf_project": client.config.project,
+            })
+        threading.Thread(target=_send, daemon=False).start()
+    except Exception:
+        pass
+
 
 def handle(data: dict, client: CogniteClient) -> dict:
+    _report_usage(client)
     try:
         connection_count = execute(data, client)
     except Exception as e:

@@ -1,0 +1,211 @@
+---
+description: CDF naming conventions for all artifacts — data models, spaces, views, containers, building blocks, access groups, and more. Use when creating or renaming any CDF resource.
+globs: 
+alwaysApply: false
+---
+
+# CDF Naming Conventions
+
+## General Principles
+
+- Include necessary concepts to make identifiers unique
+- Balance uniqueness and readability for human-readable names
+- Keep concept order consistent across artifacts
+- Use abbreviations when names are very long or for artifact type prefixes
+- Use English, singular form, present tense, essential words only
+- Attributes with same semantics across objects should share the same identifier
+- No two names/identifiers should differ only by capitalization
+- Use `all` for location concept when artifact is not scoped to a specific site
+
+## Structure
+
+```
+<artifact_type_prefix><separator><concept_1><separator><concept_n>
+```
+
+Common concepts: source system, enterprise, location (region/country/site/area), industry segment, resource categorization, data model tier (`src`/`dm`/`dom`/`inst`/`sol`).
+
+## Capitalization Rules
+
+### Data Modeling Resources
+
+| Resource | External ID | Name | Properties |
+|---|---|---|---|
+| Data model | `PascalCase` | General principles | — |
+| View | `PascalCase` | General principles | `camelCase` |
+| Container | `PascalCase` | General principles | `camelCase` |
+| Edge | `PascalCase` | General principles | `camelCase` |
+| DM space | `snake_case` | General principles | — |
+| Instance space | `snake_case` | General principles | — |
+| Instance | `snake_case` | N/A | — |
+
+### Building Blocks
+
+| Resource | External ID | Name |
+|---|---|---|
+| CDF Project | N/A | `kebab-case` |
+| CDF Organization | N/A | `kebab-case` |
+| All other building blocks | `snake_case` | General principles |
+
+### Other Resources
+
+| Resource | External ID | Name |
+|---|---|---|
+| Time series / Records | `snake_case` | General principles |
+| 3D model | N/A | `PascalCase` |
+| Scene / Location filter | `snake_case` | General principles |
+| File | Source-defined | Source-defined |
+
+## Data Model Naming
+
+### Data Models
+
+```yaml
+# External ID: {PascalCase}_src|dom|sol
+# Name: {Human readable} SRC|DOM|SOL
+# Description: Up to 1024 chars, US English
+
+# Example:
+externalId: Process_Industry_Data_Model_DOM
+name: Process industry data model DOM
+```
+
+### Spaces
+
+```yaml
+# DM space: dm_{src|dom|sol}_{snake_case}
+# Instance space: inst_{snake_case}
+
+# Examples:
+# DM space
+identifier: dm_dom_maintenance_management
+name: Maintenance management - DM - DOM
+
+# Instance space
+identifier: inst_yggdrasil
+name: Yggdrasil instance space - INST
+```
+
+### Views, Containers, Edges
+
+```yaml
+# External ID: PascalCase (no prefix)
+# Name: Human-readable
+externalId: FailureCause
+name: Failure cause
+```
+
+### Properties
+
+```yaml
+# Identifier: camelCase
+# Must have AI-friendly description
+errorCode:
+  description: Numeric code identifying the specific failure mode.
+```
+
+### Instances
+
+```yaml
+# External ID: snake_case (no type prefix for instances)
+# Name: N/A
+```
+
+## Building Block Prefixes
+
+| Building Block | Prefix |
+|---|---|
+| Extraction pipeline | `ep` |
+| Extraction config | `ec` |
+| Hosted extractor | `he` |
+| Raw database | `raw` (optional) |
+| Transformation | `tr` |
+| Data workflow | `wf` |
+| Function | `fn` |
+| Dataset | `ds` |
+| Location filter | `loc` |
+| IDP access group | `gp_cdf` |
+| CDF access group | `gp` |
+| App registration | `app` |
+| CDF Project / Org / Charts / Canvas | None |
+
+## Building Block Naming
+
+### CDF Project
+```
+{enterprise}-{segment}-{region}-{country}-{project_level}
+# Example: am-long-europe-dev
+```
+
+### Extraction Pipelines
+```
+ep_{data_type}_{location}_{source_system}
+# Example: ep_files_valhall_sharepoint
+```
+
+### Hosted Extractors
+```
+he_{data_type}_{location}_{messaging_provider}_{source_system}_{suffix}
+# Suffix: source|job|destination|mapping
+# Example: he_timeseries_valhall_kafka_pi_source
+```
+
+### Data Workflows
+```
+wf_{location}_{intent}_{source_data_structure}_{target_data_structure}
+# Examples:
+# wf_all_sap_assets_to_cdm
+# wf_valhall_calculate_asset_downtime
+```
+
+### Raw Databases
+```
+# DB: {data_type}_{location}_{source_system}
+# Table: from source, or follow general guidelines
+```
+
+### Transformations
+```
+tr_{source_data_structure}_{location}_to_{target_data_structure}
+```
+
+### Functions
+```
+fn_{source_data_structure}_{location}_{intent}_{target_data_structure}
+```
+
+### Datasets
+```
+ds_{data_type}_{location}
+```
+
+## Access Management
+
+### IDP Access Groups
+```
+gp_cdf_{location}_{persona|resource_type|data_domain}_{action}_{project_level}
+# Examples:
+# gp_cdf_valhall_timeseries_read
+# gp_cdf_valhall_process_engineer
+```
+
+Common schemes: persona-based, ACL-based, data-domain-based, source-system-based, or a combination.
+
+### CDF Access Groups
+```
+gp_{mirror_idp_convention}
+```
+
+### App Registrations
+```
+app_{location}_{persona}_{source_system}_{data_type}_{action}_{project_level}
+# Example: app_valhall_extractor_pi_timeseries_write_dev
+```
+
+## External Standards
+
+Use codes from these standards when the concept applies:
+- **CFIHOS**: Disciplines, document types
+- **ISO 3166**: Country codes
+- **ISO 639-1/2**: Language codes
+- **ISA-95**: Equipment hierarchy levels (manufacturing/downstream O&G)

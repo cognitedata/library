@@ -1,0 +1,14 @@
+externalId: tr_electrical_equipment_all_to_electrical_equipment_class
+name: Electrical equipment class
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: ElectricalEquipmentClass
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

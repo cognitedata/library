@@ -49,6 +49,18 @@ class AnnotationStatus(str, Enum):
     ANNOTATED = "Annotated"
     FAILED = "Failed"
 
+class CacheMarker(str, Enum):
+    """
+    Lightweight in-memory markers indicating transient search outcomes.
+
+    - `AMBIGUOUS`: multiple candidate entities found for the text
+    - `NO_MATCH`: no entities found for the text
+
+    Use these to avoid repeated server-side lookups during the same process/run.
+    """
+
+    AMBIGUOUS = "AMBIGUOUS"
+    NO_MATCH = "NO_MATCH"
 
 class FilterOperator(str, Enum):
     """

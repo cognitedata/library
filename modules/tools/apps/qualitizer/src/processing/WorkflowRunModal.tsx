@@ -11,6 +11,7 @@ type WorkflowRunModalProps = {
   workflowDetailsStatus: LoadState;
   workflowDetailsError: string | null;
   formatTimeFields: (input: unknown) => unknown;
+  contentClassName?: string;
 };
 
 export function WorkflowRunModal({
@@ -22,6 +23,7 @@ export function WorkflowRunModal({
   workflowDetailsStatus,
   workflowDetailsError,
   formatTimeFields,
+  contentClassName,
 }: WorkflowRunModalProps) {
   const { t } = useI18n();
   if (!open || !selectedExecution) return null;
@@ -32,7 +34,7 @@ export function WorkflowRunModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl ${contentClassName ?? ""}`.trim()}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">

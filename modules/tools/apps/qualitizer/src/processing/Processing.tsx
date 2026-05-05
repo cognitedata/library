@@ -15,6 +15,7 @@ import { useFunctionData } from "./useFunctionData";
 import { useTransformationData } from "./useTransformationData";
 import { useWorkflowData } from "./useWorkflowData";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import { ApiError } from "@/shared/ApiError";
 import {
   formatTimeFields,
@@ -24,13 +25,88 @@ import {
   getUserTimeZone,
   toTimestamp,
 } from "@/shared/time-utils";
+import {
+  getFunctionsPageUrl,
+  getTransformationPreviewUrl,
+  getWorkflowEditorUrl,
+} from "@/shared/cdf-browser-url";
 import type {
   ExtPipeRunSummary,
   FunctionRunSummary,
   LoadState,
+  ProcessingDataLoadProgress,
   TransformationJobSummary,
   WorkflowExecutionSummary,
 } from "./types";
+
+function formatProcessingDataProgress(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  p: ProcessingDataLoadProgress
+): string {
+  switch (p.kind) {
+    case "functions_list":
+      return t("processing.progress.functions.list", { count: p.loaded ?? 0 });
+    case "functions_runs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.functions.runs", { current, total, remaining });
+    }
+    case "transformations_list":
+      return t("processing.progress.transformations.list");
+    case "transformations_jobs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.transformations.jobs", { current, total, remaining });
+    }
+    case "workflows_executions":
+      return t("processing.progress.workflows.executions", { loaded: p.loaded ?? 0 });
+    case "extractors_list":
+      return t("processing.progress.extractors.list", { loaded: p.loaded ?? 0 });
+    case "extractors_runs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.extractors.runs", { current, total, remaining });
+    }
+    default:
+      return "";
+  }
+}
+
+function formatProcessingBandCaption(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  p: ProcessingDataLoadProgress
+): string {
+  switch (p.kind) {
+    case "functions_list":
+      return t("processing.progress.band.functions.list", { count: p.loaded ?? 0 });
+    case "functions_runs":
+      return t("processing.progress.band.functions.runs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    case "transformations_list":
+      return t("processing.progress.band.transformations.list");
+    case "transformations_jobs":
+      return t("processing.progress.band.transformations.jobs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    case "workflows_executions":
+      return t("processing.progress.band.workflows", { loaded: p.loaded ?? 0 });
+    case "extractors_list":
+      return t("processing.progress.band.extractors.list", { loaded: p.loaded ?? 0 });
+    case "extractors_runs":
+      return t("processing.progress.band.extractors.runs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    default:
+      return "";
+  }
+}
 
 const hoursWindow = 1;
 const bucketSeconds = 15;
@@ -38,6 +114,8 @@ const bucketSeconds = 15;
 export function Processing() {
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const privateCls = isPrivateMode ? "private-mask" : "";
   const [windowOffsetHours, setWindowOffsetHours] = useState(0);
   const [windowRange, setWindowRange] = useState<{ start: number; end: number } | null>(null);
   const [showLoader, setShowLoader] = useState(false);
@@ -71,30 +149,27 @@ export function Processing() {
   const [scheduleStatus, setScheduleStatus] = useState<LoadState>("idle");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   type ScheduleEntryType = "function" | "transformation" | "workflow";
-  const [scheduleEntries, setScheduleEntries] = useState<
-    Array<{ cron: string; name: string; type: ScheduleEntryType }>
-  >([]);
+  type ScheduleEntry = { cron: string; name: string; type: ScheduleEntryType; id: string };
+  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [heatmapVisibleTypes, setHeatmapVisibleTypes] = useState({
     functions: true,
     transformations: true,
     workflows: true,
   });
-  const [hoverCell, setHoverCell] = useState<{
-    hour: number;
-    minute: number;
-    count: number;
-    names: string[];
-  } | null>(null);
-  const [pinnedHeatmapCell, setPinnedHeatmapCell] = useState<{
-    hour: number;
-    minute: number;
-    count: number;
-    names: string[];
-  } | null>(null);
+  type HeatmapItem = { name: string; type: ScheduleEntryType; id: string };
+  type HeatmapCell = { hour: number; minute: number; count: number; names: string[]; items: HeatmapItem[] };
+  const [hoverCell, setHoverCell] = useState<HeatmapCell | null>(null);
+  const [pinnedHeatmapCell, setPinnedHeatmapCell] = useState<HeatmapCell | null>(null);
   const lastHoverKeyRef = useRef<string | null>(null);
+  const [nowUtc, setNowUtc] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNowUtc(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const {
     status,
+    loadProgress: functionLoadProgress,
     errorMessage,
     availabilityMessage,
     runs,
@@ -108,6 +183,7 @@ export function Processing() {
 
   const {
     transformationsStatus,
+    loadProgress: transformationLoadProgress,
     transformationsError,
     transformationNameMap,
     transformationMetaMap,
@@ -119,6 +195,7 @@ export function Processing() {
 
   const {
     workflowsStatus,
+    loadProgress: workflowLoadProgress,
     workflowsError,
     filteredWorkflowExecutions,
     workflowDetails,
@@ -133,6 +210,7 @@ export function Processing() {
 
   const {
     extractorsStatus,
+    loadProgress: extractorLoadProgress,
     extractorsError,
     extractorConfigMap,
     filteredExtractorRuns,
@@ -145,6 +223,43 @@ export function Processing() {
     transformationsStatus === "loading" ||
     workflowsStatus === "loading" ||
     extractorsStatus === "loading";
+
+  const loaderProgressDetails = useMemo(() => {
+    const lines: string[] = [];
+    if (status === "loading" && functionLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, functionLoadProgress));
+    }
+    if (transformationsStatus === "loading" && transformationLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, transformationLoadProgress));
+    }
+    if (workflowsStatus === "loading" && workflowLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, workflowLoadProgress));
+    }
+    if (extractorsStatus === "loading" && extractorLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, extractorLoadProgress));
+    }
+    if (lines.length === 0) return null;
+    return (
+      <>
+        <p className="text-xs font-medium text-slate-600">{t("processing.progress.panelTitle")}</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-snug text-slate-800">
+          {lines.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }, [
+    t,
+    status,
+    functionLoadProgress,
+    transformationsStatus,
+    transformationLoadProgress,
+    workflowsStatus,
+    workflowLoadProgress,
+    extractorsStatus,
+    extractorLoadProgress,
+  ]);
 
   useEffect(() => {
     const wasLoading = loaderWasLoadingRef.current;
@@ -164,16 +279,25 @@ export function Processing() {
   useEffect(() => {
     if (isSdkLoading) return;
     const now = new Date();
-    const currentHourStart = new Date(now);
-    currentHourStart.setMinutes(0, 0, 0);
+    const currentHourStart = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours(),
+        0,
+        0,
+        0
+      )
+    );
     if (windowOffsetHours === 0) {
       setWindowRange({ start: currentHourStart.getTime(), end: now.getTime() });
       return;
     }
     const endWindow = new Date(currentHourStart);
-    endWindow.setHours(endWindow.getHours() - windowOffsetHours);
+    endWindow.setUTCHours(endWindow.getUTCHours() - windowOffsetHours);
     const startWindow = new Date(endWindow);
-    startWindow.setHours(startWindow.getHours() - hoursWindow);
+    startWindow.setUTCHours(startWindow.getUTCHours() - hoursWindow);
     setWindowRange({ start: startWindow.getTime(), end: endWindow.getTime() });
   }, [isSdkLoading, windowOffsetHours]);
 
@@ -198,7 +322,7 @@ export function Processing() {
       setScheduleError(null);
       setScheduleEntries([]);
       try {
-        const entries: Array<{ cron: string; name: string; type: ScheduleEntryType }> = [];
+        const entries: ScheduleEntry[] = [];
 
         const functionSchedules = (await sdk.post(
           `/api/v1/projects/${sdk.project}/functions/schedules/list`,
@@ -209,12 +333,13 @@ export function Processing() {
         for (const item of functionSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
-          const name =
-            (item.name as string | undefined) ??
+          const fnId =
             (item.functionExternalId as string | undefined) ??
             (item.functionId as string | undefined) ??
-            t("processing.heatmap.unknownFunction");
-          entries.push({ cron, name, type: "function" });
+            "";
+          const name =
+            (item.name as string | undefined) ?? (fnId || t("processing.heatmap.unknownFunction"));
+          entries.push({ cron, name, type: "function", id: fnId });
         }
 
         const transformationSchedules = (await sdk.get(
@@ -226,12 +351,13 @@ export function Processing() {
         for (const item of transformationSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
-          const name =
-            (item.name as string | undefined) ??
-            (item.transformationExternalId as string | undefined) ??
+          const txId =
             (item.transformationId as string | undefined) ??
-            t("processing.heatmap.unknownTransformation");
-          entries.push({ cron, name, type: "transformation" });
+            (item.transformationExternalId as string | undefined) ??
+            "";
+          const name =
+            (item.name as string | undefined) ?? (txId || t("processing.heatmap.unknownTransformation"));
+          entries.push({ cron, name, type: "transformation", id: txId });
         }
 
         let triggerCursor: string | undefined;
@@ -251,7 +377,7 @@ export function Processing() {
               (item.id as string | undefined) ??
               "trigger";
             const name = workflowId ? `${workflowId} · ${triggerId}` : triggerId;
-            entries.push({ cron, name, type: "workflow" });
+            entries.push({ cron, name, type: "workflow", id: workflowId ?? triggerId });
           }
           triggerCursor = workflowTriggers.data?.nextCursor;
         } while (triggerCursor);
@@ -315,7 +441,11 @@ export function Processing() {
     };
 
     const counts = Array.from({ length: 60 }, () =>
-      Array.from({ length: 24 }, () => ({ count: 0, names: [] as string[] }))
+      Array.from({ length: 24 }, () => ({
+        count: 0,
+        names: [] as string[],
+        items: [] as HeatmapItem[],
+      }))
     );
     for (const entry of filtered) {
       const parts = entry.cron.trim().split(/\s+/);
@@ -327,6 +457,11 @@ export function Processing() {
         for (const hour of hours) {
           counts[minute][hour].count += 1;
           counts[minute][hour].names.push(entry.name);
+          counts[minute][hour].items.push({
+            name: entry.name,
+            type: entry.type,
+            id: entry.id,
+          });
         }
       }
     }
@@ -560,42 +695,70 @@ export function Processing() {
           extractorsStatus !== "success" ? (
             <div className="mb-3 space-y-2 text-xs text-slate-600">
               {status !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.functions")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.functions")}</span>
                   {status === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {functionLoadProgress
+                          ? formatProcessingDataProgress(t, functionLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
               {transformationsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.transformations")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.transformations")}</span>
                   {transformationsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {transformationLoadProgress
+                          ? formatProcessingDataProgress(t, transformationLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
               {workflowsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.workflows")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.workflows")}</span>
                   {workflowsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {workflowLoadProgress
+                          ? formatProcessingDataProgress(t, workflowLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
               {extractorsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.extractors")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.extractors")}</span>
                   {extractorsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {extractorLoadProgress
+                          ? formatProcessingDataProgress(t, extractorLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
@@ -770,7 +933,9 @@ export function Processing() {
                   bandStatusLabels={{
                     functions:
                       status === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? functionLoadProgress
+                          ? formatProcessingBandCaption(t, functionLoadProgress)
+                          : t("processing.bubbles.loading")
                         : status === "error"
                           ? t("processing.status.error")
                           : runs.length === 0
@@ -778,7 +943,9 @@ export function Processing() {
                             : "",
                     transformations:
                       transformationsStatus === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? transformationLoadProgress
+                          ? formatProcessingBandCaption(t, transformationLoadProgress)
+                          : t("processing.bubbles.loading")
                         : transformationsStatus === "error"
                           ? t("processing.status.error")
                           : filteredTransformationJobs.length === 0
@@ -786,7 +953,9 @@ export function Processing() {
                             : "",
                     workflows:
                       workflowsStatus === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? workflowLoadProgress
+                          ? formatProcessingBandCaption(t, workflowLoadProgress)
+                          : t("processing.bubbles.loading")
                         : workflowsStatus === "error"
                           ? t("processing.status.error")
                           : filteredWorkflowExecutions.length === 0
@@ -794,7 +963,9 @@ export function Processing() {
                             : "",
                     extractors:
                       extractorsStatus === "loading"
-                        ? t("processing.bubbles.loading")
+                        ? extractorLoadProgress
+                          ? formatProcessingBandCaption(t, extractorLoadProgress)
+                          : t("processing.bubbles.loading")
                         : extractorsStatus === "error"
                           ? t("processing.status.error")
                           : filteredExtractorRuns.length === 0
@@ -822,7 +993,11 @@ export function Processing() {
         </CardHeader>
         <CardContent>
           {status === "loading" ? (
-            <div className="text-sm text-slate-600">{t("processing.loading.stats")}</div>
+            <div className="text-sm text-slate-600">
+              {functionLoadProgress
+                ? formatProcessingDataProgress(t, functionLoadProgress)
+                : t("processing.loading.stats")}
+            </div>
           ) : null}
           {status === "error" ? (
             <ApiError
@@ -946,14 +1121,22 @@ export function Processing() {
                             const cell = heatmapCounts[minute]?.[hour];
                             const count = cell?.count ?? 0;
                             const names = cell?.names ?? [];
+                            const items = cell?.items ?? [];
                             const hoverKey = `${hour}:${minute}:${count}:${names.length}`;
                             const isPinned =
                               pinnedHeatmapCell?.hour === hour &&
                               pinnedHeatmapCell?.minute === minute;
+                            const isNow =
+                              nowUtc.getUTCHours() === hour &&
+                              nowUtc.getUTCMinutes() === minute;
                             return (
                               <div
                                 key={`cell-${minute}-${hour}`}
-                                className="h-3 w-full rounded-sm border border-slate-100 cursor-pointer"
+                                className={`relative h-3 w-full cursor-pointer rounded-sm border ${
+                                  isNow
+                                    ? "border-slate-800 border-dashed ring-2 ring-inset ring-slate-950/70 z-[1]"
+                                    : "border-slate-100"
+                                }`}
                                 style={{
                                   backgroundColor: getHeatColor(count),
                                   outline: isPinned ? "2px solid #3b82f6" : undefined,
@@ -962,14 +1145,21 @@ export function Processing() {
                                 onMouseMove={() => {
                                   if (lastHoverKeyRef.current === hoverKey) return;
                                   lastHoverKeyRef.current = hoverKey;
-                                  setHoverCell({ hour, minute, count, names });
+                                  setHoverCell({ hour, minute, count, names, items });
                                 }}
                                 onClick={() => {
-                                  setPinnedHeatmapCell((prev) =>
-                                    prev?.hour === hour && prev?.minute === minute
-                                      ? null
-                                      : { hour, minute, count, names }
+                                  const isUnpinning =
+                                    pinnedHeatmapCell?.hour === hour &&
+                                    pinnedHeatmapCell?.minute === minute;
+                                  setPinnedHeatmapCell(
+                                    isUnpinning ? null : { hour, minute, count, names, items }
                                   );
+                                  if (!isUnpinning) {
+                                    const currentHourUtc = new Date().getUTCHours();
+                                    const offset =
+                                      (currentHourUtc - hour - 1 + 24) % 24;
+                                    setWindowOffsetHours(offset);
+                                  }
                                 }}
                               />
                             );
@@ -1002,6 +1192,10 @@ export function Processing() {
                           style={{ backgroundColor: getHeatColor(10) }}
                         />
                         {t("processing.heatmap.legend.high")}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="relative z-[1] h-3 w-3 rounded-sm border border-dashed border-slate-800 bg-sky-100 ring-2 ring-inset ring-slate-950/70" />
+                        {t("processing.heatmap.legend.now")}
                       </span>
                     </div>
                   </div>
@@ -1048,9 +1242,15 @@ export function Processing() {
                                 {t("processing.heatmap.copyList")}
                               </button>
                             </div>
-                            <ul className="mt-1 flex-1 min-h-0 list-disc space-y-0.5 overflow-auto pl-4">
-                              {(pinnedHeatmapCell ?? hoverCell)!.names.map((name, index) => (
-                                <li key={`${name}-${index}`}>{name}</li>
+                            <ul className={`mt-1 flex-1 min-h-0 space-y-1 overflow-auto pl-1 ${privateCls}`}>
+                              {(pinnedHeatmapCell ?? hoverCell)!.items.map((item, index) => (
+                                <li key={`${item.name}-${index}`} className="flex items-center gap-1.5">
+                                  <ScheduleTypeBadge type={item.type} />
+                                  <ScheduleItemLink
+                                    item={item}
+                                    project={sdk.project}
+                                  />
+                                </li>
                               ))}
                             </ul>
                           </>
@@ -1094,6 +1294,7 @@ export function Processing() {
         selectedLogsStatus={selectedLogsStatus}
         selectedLogsError={selectedLogsError}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <TransformationRunModal
         open={!!selectedTransformationJob}
@@ -1109,6 +1310,7 @@ export function Processing() {
         selectedTransformation={selectedTransformation}
         selectedTransformationJob={selectedTransformationJob as Record<string, unknown> | null}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <WorkflowRunModal
         open={!!selectedWorkflowExecution}
@@ -1125,6 +1327,7 @@ export function Processing() {
         workflowDetailsStatus={workflowDetailsStatus}
         workflowDetailsError={workflowDetailsError}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <ExtractionPipelineRunModal
         open={!!selectedExtractorRun}
@@ -1136,6 +1339,7 @@ export function Processing() {
         selectedPipeline={selectedExtractorConfig}
         selectedRun={selectedExtractorRun as Record<string, unknown> | null}
         formatTimeFields={formatTimeFields}
+        contentClassName={privateCls}
       />
       <Loader
         open={showLoader}
@@ -1144,6 +1348,7 @@ export function Processing() {
           setLoaderDismissed(true);
         }}
         title={t("processing.loader.title")}
+        progressDetails={loaderProgressDetails}
       />
       <ProcessingHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <ProcessingHeatmapHelpModal
@@ -1152,4 +1357,53 @@ export function Processing() {
       />
     </section>
   );
+}
+
+const TYPE_BADGE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  function: { bg: "bg-blue-100", text: "text-blue-700", label: "fn" },
+  transformation: { bg: "bg-purple-100", text: "text-purple-700", label: "tx" },
+  workflow: { bg: "bg-emerald-100", text: "text-emerald-700", label: "wf" },
+};
+
+function ScheduleTypeBadge({ type }: { type: string }) {
+  const style = TYPE_BADGE_STYLES[type] ?? { bg: "bg-slate-100", text: "text-slate-600", label: type };
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded px-1 py-0.5 text-[9px] font-semibold uppercase leading-none ${style.bg} ${style.text}`}
+    >
+      {style.label}
+    </span>
+  );
+}
+
+function ScheduleItemLink({
+  item,
+  project,
+}: {
+  item: { name: string; type: string; id: string };
+  project: string;
+}) {
+  let url: string | null = null;
+  if (item.type === "function") {
+    url = getFunctionsPageUrl(project);
+  } else if (item.type === "transformation" && item.id) {
+    url = getTransformationPreviewUrl(project, item.id);
+  } else if (item.type === "workflow" && item.id) {
+    url = getWorkflowEditorUrl(project, item.id);
+  }
+
+  if (url) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="truncate text-blue-600 hover:underline"
+        title={item.name}
+      >
+        {item.name}
+      </a>
+    );
+  }
+  return <span className="truncate" title={item.name}>{item.name}</span>;
 }

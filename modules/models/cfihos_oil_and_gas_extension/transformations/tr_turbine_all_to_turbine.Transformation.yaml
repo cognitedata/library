@@ -1,0 +1,14 @@
+externalId: tr_turbine_all_to_turbine
+name: Turbine
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: Turbine
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

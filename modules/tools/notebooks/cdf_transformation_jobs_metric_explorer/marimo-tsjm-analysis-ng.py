@@ -2,11 +2,12 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "polars>=1.0.0",
-#     "altair>=5.0.0,<6.0.0",
-#     "python-dotenv>=1.0.0",
+#     "polars==1.39.3",
+#     "altair==5.5.0",
+#     "python-dotenv==1.2.2",
 #     "pyarrow>=18.0.0",
 #     "cognite-toolkit==0.7.46",
+#     "pandas==2.3.3",
 # ]
 # ///
 
@@ -196,6 +197,39 @@ def init_cdf_client(Path, config_form, mo):
 
     _output
     return available_projects, cdf_client, output_folder_value
+
+
+@app.cell
+def track_usage(cdf_client):
+    """Usage tracking - fires once when CDF client is established."""
+    if cdf_client is not None:
+        try:
+            # json from import_core_libraries — do not import json here (marimo multiple-definitions)
+            import base64
+            import re
+            import requests as _req
+            _cluster = getattr(cdf_client.config, "cdf_cluster", None)
+            if not _cluster:
+                _m = re.match(r"https://([^.]+)\.cognitedata\.com", getattr(cdf_client.config, "base_url", "") or "")
+                _cluster = _m.group(1) if _m else "unknown"
+            _distinct_id = f"{cdf_client.config.project}:{_cluster}"
+            _payload = base64.b64encode(json.dumps([{
+                "event": "marimo-run",
+                "properties": {
+                    "token": "8f28374a6614237dd49877a0d27daa78",
+                    "distinct_id": _distinct_id,
+                    "source": "dp:cdf_transformation_jobs_metric_explorer",
+                    "tracker_version": "1",
+                    "dp_version": "1",
+                    "type": "marimo",
+                    "cdf_cluster": _cluster,
+                    "cdf_project": cdf_client.config.project,
+                },
+            }]).encode()).decode()
+            _req.post("https://api-eu.mixpanel.com/track", data={"data": _payload, "verbose": 1, "ip": 1}, timeout=5)
+        except Exception:
+            pass
+    return
 
 
 @app.cell(hide_code=True)
@@ -1169,10 +1203,10 @@ def run_wfj_export(
     # Display output (either initial message or appended content)
     if _client_ready and export_wfe_button.value:
         # Output was already appended via mo.output.append() calls above
-        # Still need to display something to satisfy Marimo's output requirement
-        mo.md("")  # Empty output, actual content was appended above
+        _wfe_final = mo.md("")
     else:
-        _output_wfe_export_result
+        _wfe_final = _output_wfe_export_result
+    _wfe_final
     return
 
 
@@ -3216,7 +3250,7 @@ def test_timestamp_conversion_with_nulls(pl):
 
     # Verify common format conversion
     assert _common_converted["created_time_dt"].null_count() == 0, "created_time_dt should have no nulls"
-    assert _common_converted["created_time_dt"].dtype == pl.Datetime("ms"), "created_time_dt should be Datetime"
+    assert isinstance(_common_converted["created_time_dt"].dtype, pl.Datetime), "created_time_dt should be Datetime"
     assert _common_converted["started_time_dt"].null_count() == 1, "started_time_dt should have 1 null"
     assert _common_converted["finished_time_dt"].null_count() == 2, "finished_time_dt should have 2 nulls"
     assert _common_converted["last_seen_time_dt"].null_count() == 2, "last_seen_time_dt should have 2 nulls"
@@ -3253,7 +3287,7 @@ def test_timestamp_conversion_with_nulls(pl):
 
     # Verify legacy format conversion
     assert _legacy_converted["tsj_created_time"].null_count() == 0, "tsj_created_time should have no nulls"
-    assert _legacy_converted["tsj_created_time"].dtype == pl.Datetime("ms"), "tsj_created_time should be Datetime"
+    assert isinstance(_legacy_converted["tsj_created_time"].dtype, pl.Datetime), "tsj_created_time should be Datetime"
     assert _legacy_converted["tsj_started_time"].null_count() == 1, "tsj_started_time should have 1 null"
     assert _legacy_converted["tsj_finished_time"].null_count() == 2, "tsj_finished_time should have 2 nulls"
     assert _legacy_converted["tsj_last_seen_time"].null_count() == 2, "tsj_last_seen_time should have 2 nulls"

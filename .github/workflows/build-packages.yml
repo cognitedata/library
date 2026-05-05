@@ -28,10 +28,10 @@ jobs:
     - name: Build packages
       id: build
       run: |
-        python build_packages.py > build_output.txt
-        cat build_output.txt
-        HASH=$(grep "🔐 Hash:" build_output.txt | cut -d' ' -f3)
+        python build_packages.py
+        HASH=$(sha256sum packages.zip | awk '{print $1}')
         echo "hash=$HASH" >> $GITHUB_OUTPUT
+        echo "sha256:$HASH" > checksum.txt
         
     
         
@@ -53,9 +53,11 @@ jobs:
           
           **Download:** [packages.zip](https://github.com/${{ github.repository }}/releases/download/latest/packages.zip)
           
-          **Checksum:** `${{ steps.build.outputs.hash }}`
+          **Checksum (SHA256):** [checksum.txt](https://github.com/${{ github.repository }}/releases/download/latest/checksum.txt)
           
           This release is automatically updated on every merge to main.
-        files: packages.zip
+        files: |
+          packages.zip
+          checksum.txt
         draft: false
         prerelease: false

@@ -1,0 +1,14 @@
+externalId: tr_mechanical_equipment_all_to_mechanical_equipment_class
+name: Mechanical equipment class
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: MechanicalEquipmentClass
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

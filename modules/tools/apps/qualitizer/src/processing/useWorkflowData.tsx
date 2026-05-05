@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
-import type { LoadState, WorkflowExecutionSummary } from "./types";
+import type { LoadState, ProcessingDataLoadProgress, WorkflowExecutionSummary } from "./types";
 import { useI18n } from "@/shared/i18n";
+
+type WorkflowExecutionsListApiResponse = {
+  data?: {
+    items?: WorkflowExecutionSummary[];
+    nextCursor?: string | null;
+  };
+};
+
+type WorkflowExecutionDetailApiResponse = {
+  data?: Record<string, unknown>;
+};
 
 type UseWorkflowDataArgs = {
   isSdkLoading: boolean;
@@ -17,6 +28,7 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
   const [workflowDetails, setWorkflowDetails] = useState<Record<string, unknown> | null>(null);
   const [workflowDetailsStatus, setWorkflowDetailsStatus] = useState<LoadState>("idle");
   const [workflowDetailsError, setWorkflowDetailsError] = useState<string | null>(null);
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
 
   useEffect(() => {
     if (isSdkLoading) return;
@@ -25,26 +37,32 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
       setWorkflowsStatus("loading");
       setWorkflowsError(null);
       setWorkflowExecutionsAll([]);
+      setLoadProgress({ kind: "workflows_executions", loaded: 0 });
       try {
         const executions: WorkflowExecutionSummary[] = [];
         let cursor: string | undefined;
         do {
-          const response = await sdk.post<{
-            items?: WorkflowExecutionSummary[];
-            nextCursor?: string | null;
-          }>(`/api/v1/projects/${sdk.project}/workflows/executions/list`, {
-            data: { limit: 1000, cursor },
-          });
+          const response = (await sdk.post(
+            `/api/v1/projects/${sdk.project}/workflows/executions/list`,
+            {
+              data: { limit: 1000, cursor },
+            }
+          )) as WorkflowExecutionsListApiResponse;
           executions.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
+          if (!cancelled) {
+            setLoadProgress({ kind: "workflows_executions", loaded: executions.length });
+          }
         } while (cursor);
 
         if (!cancelled) {
           setWorkflowExecutionsAll(executions);
+          setLoadProgress(null);
           setWorkflowsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setWorkflowsError(error instanceof Error ? error.message : t("processing.error.workflows"));
           setWorkflowsStatus("error");
         }
@@ -97,9 +115,9 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
     setWorkflowDetailsError(null);
     setWorkflowDetails(null);
     try {
-      const response = await sdk.get<Record<string, unknown>>(
+      const response = (await sdk.get(
         `/api/v1/projects/${sdk.project}/workflows/executions/${executionId}`
-      );
+      )) as WorkflowExecutionDetailApiResponse;
       setWorkflowDetails(response.data ?? null);
       setWorkflowDetailsStatus("success");
     } catch (error) {
@@ -118,6 +136,7 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
 
   return {
     workflowsStatus,
+    loadProgress,
     workflowsError,
     workflowExecutionsAll,
     filteredWorkflowExecutions,

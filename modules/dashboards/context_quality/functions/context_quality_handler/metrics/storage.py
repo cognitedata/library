@@ -12,11 +12,13 @@ import json
 import logging
 import tempfile
 import os
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from cognite.client import CogniteClient
 
 from .common import BATCH_FILE_PREFIX, CombinedAccumulator
+from .file_annotation import FileAnnotationAccumulator
+from .model_3d import Model3DAccumulator
 
 
 logger = logging.getLogger(__name__)
@@ -66,7 +68,10 @@ def save_batch_file(
     client: CogniteClient,
     accumulator: CombinedAccumulator,
     batch_index: int,
-    batch_metadata: Optional[dict] = None
+    batch_metadata: Optional[dict] = None,
+    *,
+    model3d_accumulator: Optional[Model3DAccumulator] = None,
+    file_annotation_accumulator: Optional[FileAnnotationAccumulator] = None,
 ):
     """
     Save accumulator data to a batch file for later aggregation.
@@ -76,6 +81,8 @@ def save_batch_file(
         accumulator: CombinedAccumulator with collected data
         batch_index: Index of this batch (0, 1, 2, ...)
         batch_metadata: Optional metadata about the batch
+        model3d_accumulator: 3D metrics accumulator (same phases as quick run)
+        file_annotation_accumulator: Diagram annotation accumulator (same phases as quick run)
     """
     file_external_id = get_batch_file_external_id(batch_index)
     file_name = f"{file_external_id}.json"
@@ -85,6 +92,10 @@ def save_batch_file(
         "batch_index": batch_index,
         "batch_metadata": batch_metadata or {},
         "accumulator": accumulator.to_dict(),
+        "model3d_accumulator": (model3d_accumulator or Model3DAccumulator()).to_dict(),
+        "file_annotation_accumulator": (
+            file_annotation_accumulator or FileAnnotationAccumulator()
+        ).to_dict(),
     }
     
     # Create temp file
@@ -164,22 +175,30 @@ def load_batch_file(client: CogniteClient, file_external_id: str) -> Optional[di
         return None
 
 
-def load_and_merge_all_batches(client: CogniteClient) -> Optional[CombinedAccumulator]:
+def load_and_merge_all_batches(
+    client: CogniteClient,
+) -> Tuple[
+    Optional[CombinedAccumulator],
+    Model3DAccumulator,
+    FileAnnotationAccumulator,
+]:
     """
-    Load all batch files and merge them into a single accumulator.
-    
+    Load all batch files and merge into combined + 3D + annotation accumulators.
+
     Returns:
-        Merged CombinedAccumulator or None if no batches found
+        (merged CombinedAccumulator or None, merged Model3DAccumulator, merged FileAnnotationAccumulator)
     """
     batch_files = list_batch_files(client)
     
     if not batch_files:
         logger.warning("No batch files found")
-        return None
+        return None, Model3DAccumulator(), FileAnnotationAccumulator()
     
     logger.info(f"Found {len(batch_files)} batch files to merge")
     
-    merged_acc = None
+    merged_acc: Optional[CombinedAccumulator] = None
+    merged_m3d: Optional[Model3DAccumulator] = None
+    merged_ann: Optional[FileAnnotationAccumulator] = None
     
     for file_ext_id in batch_files:
         logger.info(f"Loading batch file: {file_ext_id}")
@@ -196,17 +215,37 @@ def load_and_merge_all_batches(client: CogniteClient) -> Optional[CombinedAccumu
             merged_acc = batch_acc
         else:
             merged_acc.merge_from(batch_acc)
+
+        m3d_part = Model3DAccumulator.from_dict(batch_data.get("model3d_accumulator") or {})
+        ann_part = FileAnnotationAccumulator.from_dict(
+            batch_data.get("file_annotation_accumulator") or {}
+        )
+        if merged_m3d is None:
+            merged_m3d = m3d_part
+        else:
+            merged_m3d.merge_from(m3d_part)
+        if merged_ann is None:
+            merged_ann = ann_part
+        else:
+            merged_ann.merge_from(ann_part)
         
         logger.info(f"Merged batch {batch_data.get('batch_index', '?')}: "
                    f"assets={batch_acc.total_assets:,}, ts={batch_acc.total_ts:,}")
     
-    if merged_acc:
-        logger.info(f"✅ Merged all batches: "
-                   f"total_assets={merged_acc.total_assets:,}, "
-                   f"total_ts={merged_acc.total_ts:,}, "
-                   f"total_equipment={merged_acc.total_equipment:,}")
+    if merged_acc is None:
+        return None, Model3DAccumulator(), FileAnnotationAccumulator()
+
+    if merged_m3d is None:
+        merged_m3d = Model3DAccumulator()
+    if merged_ann is None:
+        merged_ann = FileAnnotationAccumulator()
+
+    logger.info(f"✅ Merged all batches: "
+               f"total_assets={merged_acc.total_assets:,}, "
+               f"total_ts={merged_acc.total_ts:,}, "
+               f"total_equipment={merged_acc.total_equipment:,}")
     
-    return merged_acc
+    return merged_acc, merged_m3d, merged_ann
 
 
 def delete_batch_files(client: CogniteClient) -> int:

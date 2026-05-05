@@ -1,0 +1,32 @@
+name: gp_{{environment}}_owner_shared_ops_data_model
+sourceId: {{owner_source_id}}
+capabilities:
+  - datasetsAcl:
+      actions:
+        - OWNER
+        - READ
+        - WRITE
+      scope:
+        idScope:
+          ids:
+            - {{dataset_external_id}}
+  - dataModelsAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - {{space}}
+            - {{search_space}}
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - {{instance_space}}
+metadata:
+  origin: {{admin_user}}

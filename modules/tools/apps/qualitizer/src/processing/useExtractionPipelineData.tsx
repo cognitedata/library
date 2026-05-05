@@ -1,7 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestampLoose } from "@/shared/time-utils";
-import type { ExtPipeConfigSummary, ExtPipeRunSummary, LoadState } from "./types";
+import type {
+  ExtPipeConfigSummary,
+  ExtPipeRunSummary,
+  LoadState,
+  ProcessingDataLoadProgress,
+} from "./types";
 import { useI18n } from "@/shared/i18n";
+
+type ExtPipesListApiResponse = {
+  data?: {
+    items?: ExtPipeConfigSummary[];
+    nextCursor?: string | null;
+  };
+};
+
+type ExtPipeRunsListApiResponse = {
+  data?: {
+    items?: Array<ExtPipeRunSummary & { createdTime?: unknown }>;
+    nextCursor?: string | null;
+  };
+};
 
 type UseExtractionPipelineDataArgs = {
   isSdkLoading: boolean;
@@ -21,6 +40,7 @@ export function useExtractionPipelineData({
   const [extractorRunsAll, setExtractorRunsAll] = useState<
     Array<ExtPipeRunSummary & { externalId: string }>
   >([]);
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
 
   useEffect(() => {
     if (isSdkLoading) return;
@@ -30,26 +50,29 @@ export function useExtractionPipelineData({
       setExtractorsError(null);
       setExtractorConfigs([]);
       setExtractorRunsAll([]);
+      setLoadProgress({ kind: "extractors_list", loaded: 0 });
       try {
         const configs: ExtPipeConfigSummary[] = [];
         let cursor: string | undefined;
         do {
-          const response = await sdk.get<{
-            items?: ExtPipeConfigSummary[];
-            nextCursor?: string | null;
-          }>(`/api/v1/projects/${sdk.project}/extpipes`, {
+          const response = (await sdk.get(`/api/v1/projects/${sdk.project}/extpipes`, {
             params: { limit: "100", cursor },
-          });
+          })) as ExtPipesListApiResponse;
           configs.push(...(response.data?.items ?? []));
           cursor = response.data?.nextCursor ?? undefined;
+          if (!cancelled) {
+            setLoadProgress({ kind: "extractors_list", loaded: configs.length });
+          }
         } while (cursor);
 
         if (!cancelled) {
           setExtractorConfigs(configs);
+          setLoadProgress(null);
           setExtractorsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setExtractorsError(
             error instanceof Error ? error.message : t("processing.error.extractors")
           );
@@ -75,8 +98,13 @@ export function useExtractionPipelineData({
       setExtractorsStatus("loading");
       setExtractorsError(null);
       setExtractorRunsAll([]);
+      const totalPipelines = extractorConfigs.length;
+      if (totalPipelines > 0) {
+        setLoadProgress({ kind: "extractors_runs", current: 0, total: totalPipelines });
+      }
       try {
         const runs: Array<ExtPipeRunSummary & { externalId: string }> = [];
+        let pipelineIndex = 0;
         for (const config of extractorConfigs) {
           let cursor: string | undefined;
           const seenTimes: number[] = [];
@@ -84,10 +112,7 @@ export function useExtractionPipelineData({
           const stopMessages: Array<ExtPipeRunSummary & { createdTime: number }> = [];
           const otherEvents: Array<ExtPipeRunSummary & { createdTime: number }> = [];
           do {
-            const response = await sdk.post<{
-              items?: Array<ExtPipeRunSummary & { createdTime?: unknown }>;
-              nextCursor?: string | null;
-            }>(`/api/v1/projects/${sdk.project}/extpipes/runs/list`, {
+            const response = (await sdk.post(`/api/v1/projects/${sdk.project}/extpipes/runs/list`, {
               data: {
                 limit: 100,
                 cursor,
@@ -99,7 +124,7 @@ export function useExtractionPipelineData({
                   },
                 },
               },
-            });
+            })) as ExtPipeRunsListApiResponse;
             for (const item of response.data?.items ?? []) {
               const createdTime = toTimestampLoose(item.createdTime);
               if (createdTime == null) continue;
@@ -160,14 +185,24 @@ export function useExtractionPipelineData({
               externalId: config.externalId,
             });
           }
+          pipelineIndex += 1;
+          if (!cancelled && (pipelineIndex % 3 === 0 || pipelineIndex === totalPipelines)) {
+            setLoadProgress({
+              kind: "extractors_runs",
+              current: pipelineIndex,
+              total: totalPipelines,
+            });
+          }
         }
 
         if (!cancelled) {
           setExtractorRunsAll(runs);
+          setLoadProgress(null);
           setExtractorsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setExtractorsError(
             error instanceof Error ? error.message : t("processing.error.extractors")
           );
@@ -216,6 +251,7 @@ export function useExtractionPipelineData({
 
   return {
     extractorsStatus,
+    loadProgress,
     extractorsError,
     extractorConfigs,
     extractorRunsAll,

@@ -1,11 +1,21 @@
+import type { CogniteClient } from "@cognite/sdk";
 import { useEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
-import type { LoadState, TransformationJobSummary, TransformationSummary } from "./types";
+import type {
+  LoadState,
+  ProcessingDataLoadProgress,
+  TransformationJobSummary,
+  TransformationSummary,
+} from "./types";
 import { useI18n } from "@/shared/i18n";
+import {
+  cachedTransformationJobs,
+  cachedTransformationsList,
+} from "@/transformations/transformations-cache";
 
 type UseTransformationDataArgs = {
   isSdkLoading: boolean;
-  sdk: { project: string; get: Function };
+  sdk: Pick<CogniteClient, "project" | "get">;
   windowRange: { start: number; end: number } | null;
 };
 
@@ -18,6 +28,7 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
   const [transformationMetaMap, setTransformationMetaMap] = useState<
     Record<string, TransformationSummary>
   >({});
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
 
   useEffect(() => {
     if (isSdkLoading) return;
@@ -28,12 +39,12 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
       setTransformationJobsAll([]);
       setTransformationNameMap({});
       setTransformationMetaMap({});
+      setLoadProgress({ kind: "transformations_list" });
       try {
-        const response = await sdk.get<{
-          items?: TransformationSummary[];
-        }>(`/api/v1/projects/${sdk.project}/transformations`, {
-          params: { includePublic: "true", limit: "1000" },
-        });
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
+        })) as { data?: { items?: TransformationSummary[] } };
         const transformations = response.data?.items ?? [];
 
         const nameMap: Record<string, string> = {};
@@ -45,24 +56,36 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
           metaMap[String(transformation.id)] = transformation;
         }
 
+        const total = transformations.length;
+        if (!cancelled) {
+          setLoadProgress({ kind: "transformations_jobs", current: 0, total });
+        }
+
         const jobs: TransformationJobSummary[] = [];
+        let index = 0;
         for (const transformation of transformations) {
-          const jobResponse = await sdk.get<{
-            items?: TransformationJobSummary[];
-          }>(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
-            params: { limit: "1000", transformationId: String(transformation.id) },
-          });
+          const jobResponse = (await cachedTransformationJobs(
+            sdk,
+            String(transformation.id),
+            "1000"
+          )) as { data?: { items?: TransformationJobSummary[] } };
           jobs.push(...(jobResponse.data?.items ?? []));
+          index += 1;
+          if (!cancelled && (index % 5 === 0 || index === total)) {
+            setLoadProgress({ kind: "transformations_jobs", current: index, total });
+          }
         }
 
         if (!cancelled) {
           setTransformationJobsAll(jobs);
           setTransformationNameMap(nameMap);
           setTransformationMetaMap(metaMap);
+          setLoadProgress(null);
           setTransformationsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           setTransformationsError(
             error instanceof Error ? error.message : t("processing.error.transformations")
           );
@@ -115,6 +138,7 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
 
   return {
     transformationsStatus,
+    loadProgress,
     transformationsError,
     transformationJobsAll,
     transformationNameMap,

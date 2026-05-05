@@ -8,7 +8,7 @@ datamodelVersion: v1
 instanceSpace: springfield_instances
 rawSourceDatabase: ingestion
 reservedWordPrefix: Enterprise_
-groupSourceId: <GROUP_SOURCE_ID>
+groupSourceId: ${GROUP_SOURCE_ID}
 workflow: aveva_pi_population
 # TODO: Update to use the actual client ID and secret 'workflowClientId: ${AVEVA_PI_SPRINGFIELD_CLIENT_ID} & workflowClientSecret: ${AVEVA_PI_SPRINGFIELD_CLIENT_SECRET}'
 workflowClientId: ${IDP_CLIENT_ID}

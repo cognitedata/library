@@ -1,5 +1,23 @@
 export type LoadState = "idle" | "loading" | "success" | "error";
 
+/** Granular progress while a processing data hook is in the loading state. */
+export type ProcessingDataLoadProgress = {
+  kind:
+    | "functions_list"
+    | "functions_runs"
+    | "transformations_list"
+    | "transformations_jobs"
+    | "workflows_executions"
+    | "extractors_list"
+    | "extractors_runs";
+  /** Count already loaded (functions, workflow rows, extractor configs, etc.). */
+  loaded?: number;
+  /** 1-based index of the entity currently being fetched (function, transformation, pipeline). */
+  current?: number;
+  /** Total entities to walk (known after the list step). */
+  total?: number;
+};
+
 export type FunctionSummary = {
   id: string;
   name?: string;

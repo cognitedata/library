@@ -5,8 +5,8 @@
   functionPath: handler.py
   secrets:
     oid-secret: "{{openIdClientSecret}}"
-  cpu: 0.25
-  memory: 1.0
+  cpu: 1.0
+  memory: 1.5
   metadata:
     version: "v1.0.0"
   space: {{ functionSpace }}

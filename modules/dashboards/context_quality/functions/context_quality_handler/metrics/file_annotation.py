@@ -76,6 +76,90 @@ class FileAnnotationAccumulator:
         """Unique annotation count."""
         return len(self.annotation_ids_seen)
 
+    def to_dict(self) -> dict:
+        """Serialize for batch JSON storage."""
+        return {
+            "total_annotations": self.total_annotations,
+            "annotation_ids_seen": list(self.annotation_ids_seen),
+            "annotation_duplicate_ids": list(self.annotation_duplicate_ids),
+            "asset_annotations": self.asset_annotations,
+            "file_annotations": self.file_annotations,
+            "equipment_annotations": self.equipment_annotations,
+            "other_annotations": self.other_annotations,
+            "status_approved": self.status_approved,
+            "status_suggested": self.status_suggested,
+            "status_rejected": self.status_rejected,
+            "status_other": self.status_other,
+            "confidence_high": self.confidence_high,
+            "confidence_medium": self.confidence_medium,
+            "confidence_low": self.confidence_low,
+            "confidence_missing": self.confidence_missing,
+            "confidence_sum": self.confidence_sum,
+            "confidence_count": self.confidence_count,
+            "unique_source_files": list(self.unique_source_files),
+            "unique_target_assets": list(self.unique_target_assets),
+            "unique_target_files": list(self.unique_target_files),
+            "annotations_with_page": self.annotations_with_page,
+            "unique_pages_annotated": [list(p) for p in self.unique_pages_annotated],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "FileAnnotationAccumulator":
+        acc = cls()
+        if not data:
+            return acc
+        acc.total_annotations = data.get("total_annotations", 0)
+        acc.annotation_ids_seen = set(data.get("annotation_ids_seen", []))
+        acc.annotation_duplicate_ids = list(data.get("annotation_duplicate_ids", []))
+        acc.asset_annotations = data.get("asset_annotations", 0)
+        acc.file_annotations = data.get("file_annotations", 0)
+        acc.equipment_annotations = data.get("equipment_annotations", 0)
+        acc.other_annotations = data.get("other_annotations", 0)
+        acc.status_approved = data.get("status_approved", 0)
+        acc.status_suggested = data.get("status_suggested", 0)
+        acc.status_rejected = data.get("status_rejected", 0)
+        acc.status_other = data.get("status_other", 0)
+        acc.confidence_high = data.get("confidence_high", 0)
+        acc.confidence_medium = data.get("confidence_medium", 0)
+        acc.confidence_low = data.get("confidence_low", 0)
+        acc.confidence_missing = data.get("confidence_missing", 0)
+        acc.confidence_sum = float(data.get("confidence_sum", 0.0))
+        acc.confidence_count = data.get("confidence_count", 0)
+        acc.unique_source_files = set(data.get("unique_source_files", []))
+        acc.unique_target_assets = set(data.get("unique_target_assets", []))
+        acc.unique_target_files = set(data.get("unique_target_files", []))
+        acc.annotations_with_page = data.get("annotations_with_page", 0)
+        acc.unique_pages_annotated = set()
+        for p in data.get("unique_pages_annotated", []):
+            if isinstance(p, (list, tuple)) and len(p) >= 2:
+                acc.unique_pages_annotated.add((p[0], p[1]))
+        return acc
+
+    def merge_from(self, other: "FileAnnotationAccumulator") -> None:
+        """Merge another batch accumulator (disjoint instance ranges)."""
+        self.total_annotations += other.total_annotations
+        self.annotation_ids_seen.update(other.annotation_ids_seen)
+        self.annotation_duplicate_ids.extend(other.annotation_duplicate_ids)
+        self.asset_annotations += other.asset_annotations
+        self.file_annotations += other.file_annotations
+        self.equipment_annotations += other.equipment_annotations
+        self.other_annotations += other.other_annotations
+        self.status_approved += other.status_approved
+        self.status_suggested += other.status_suggested
+        self.status_rejected += other.status_rejected
+        self.status_other += other.status_other
+        self.confidence_high += other.confidence_high
+        self.confidence_medium += other.confidence_medium
+        self.confidence_low += other.confidence_low
+        self.confidence_missing += other.confidence_missing
+        self.confidence_sum += other.confidence_sum
+        self.confidence_count += other.confidence_count
+        self.unique_source_files.update(other.unique_source_files)
+        self.unique_target_assets.update(other.unique_target_assets)
+        self.unique_target_files.update(other.unique_target_files)
+        self.annotations_with_page += other.annotations_with_page
+        self.unique_pages_annotated.update(other.unique_pages_annotated)
+
 
 def get_edge_props(edge, view: ViewId) -> dict:
     """Safely retrieves properties from an edge instance for a given view."""

@@ -10,6 +10,7 @@ type TransformationRunModalProps = {
   selectedTransformation: Record<string, unknown> | null;
   selectedTransformationJob: Record<string, unknown> | null;
   formatTimeFields: (input: unknown) => unknown;
+  contentClassName?: string;
 };
 
 function ExternalLinkIcon({ className }: { className?: string }) {
@@ -42,6 +43,7 @@ export function TransformationRunModal({
   selectedTransformation,
   selectedTransformationJob,
   formatTimeFields,
+  contentClassName,
 }: TransformationRunModalProps) {
   const { t } = useI18n();
   const nav = useNavigation();
@@ -67,7 +69,7 @@ export function TransformationRunModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl ${contentClassName ?? ""}`.trim()}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">

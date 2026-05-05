@@ -64,7 +64,6 @@ cdf_entity_matching/
 │   ├── 📄 contextualization_manual_input.Table.*   # Manual mapping definitions
 │   ├── 📄 contextualization_good.Table.yaml        # Validated good matches
 │   ├── 📄 contextualization_bad.Table.yaml         # Rejected matches
-│   └── 📄 timeseries_state_store.yaml              # Processing state
 ├── 📁 extraction_pipelines/               # Pipeline configurations
 ├── 📁 data_sets/                          # Data set definitions
 ├── 📁 auth/                               # Authentication and permissions

@@ -1,0 +1,4 @@
+key,tagNumber,name,description,area,facility,system,parentTag,labels,approvalAuthority,equipmentIdentifier,manufacturer,modelNumber,serialNumber,weightDry,weightOperating,fireSafe,thermalInsulationClass
+23-IF-8201,23-IF-8201,Platform Main Deck,Main deck structural module area 23,23,Valhall PH,Structure,VAL-PH-23-UT,infrastructure,DNV,IF-8201,Aker Solutions,N/A,AKS-2007-3301,950000,950000,Yes,None
+23-IF-8202,23-IF-8202,Module Support Structure,Compressor module support steel structure,23,Valhall PH,Structure,VAL-PH-23-GC,infrastructure,DNV,IF-8202,Aker Solutions,N/A,AKS-2007-3302,420000,420000,Yes,PFP
+23-IF-8203,23-IF-8203,Helideck,Helideck platform structure,23,Valhall PH,Structure,VAL-PH-23-UT,infrastructure,DNV,IF-8203,Aker Solutions,N/A,AKS-2007-3303,180000,180000,Yes,None

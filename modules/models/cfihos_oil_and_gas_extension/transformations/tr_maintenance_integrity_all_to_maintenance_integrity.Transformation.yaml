@@ -1,0 +1,14 @@
+externalId: tr_maintenance_integrity_all_to_maintenance_integrity
+name: Maintenance and integrity
+destination:
+  dataModel:
+    space: '{{ space }}'
+    externalId: '{{ data_model_external_id }}'
+    version: '{{ dm_version }}'
+    destinationType: MaintenanceAndIntegrity
+  instanceSpace: '{{ instance_space }}'
+  type: instances
+dataSetExternalId: '{{ dataset_external_id }}'
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

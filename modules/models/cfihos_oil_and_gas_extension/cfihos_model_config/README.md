@@ -24,11 +24,13 @@ Provide step-by-step instructions on how to use this artefact. Be clear and spec
 
 1. Clone or download the GSS Knowledge Base repository.
 
-2. Navigate to the `[others]/[cfihos_cdm_extension]` directory.
+2. Navigate to the `[others]/[cfihos_oil_and_gas_extension]` directory.
 
 3. Copy the contents of this folder into your project repository.
 
 4. Setup the virtual environment with the defined dependencies in the pyproject.toml or defined below.
+   - poetry lock    # build lock file and .venv folder
+   - poetry install # build env
 
 5. Run the `src/cfihos.ipynb` notebook to generate a JSON output that contains the parsed contents of the CFIHOS tag classes, either from CFIHOS 1.5.1 or CFIHOS 2.0.
    1. More information is also available in the notebook itself.

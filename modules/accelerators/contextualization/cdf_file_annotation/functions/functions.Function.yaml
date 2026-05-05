@@ -5,7 +5,7 @@
   metadata:
     version: {{ prepareFunctionVersion }}
   space: {{ functionSpace }}
-  runtime: "py311"
+  runtime: "py312"
   functionPath: "handler.py"
 
 - name: Launch File Annotations
@@ -15,7 +15,7 @@
   metadata:
     version: {{ launchFunctionVersion }}
   space: {{ functionSpace }}
-  runtime: "py311"
+  runtime: "py312"
   functionPath: "handler.py"
 
 - name: Finalize File Annotations
@@ -25,7 +25,7 @@
   metadata:
     version: {{ finalizeFunctionVersion }}
   space: {{ functionSpace }}
-  runtime: "py311"
+  runtime: "py312"
   functionPath: "handler.py"
 
 - name: Promote File Annotations
@@ -35,6 +35,6 @@
   metadata:
     version: {{ promoteFunctionVersion }}
   space: {{ functionSpace }}
-  runtime: "py311"
+  runtime: "py312"
   functionPath: "handler.py"
 

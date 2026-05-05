@@ -165,11 +165,24 @@ class DataModelServiceConfig(BaseModel, alias_generator=to_camel):
     get_file_entities_query: QueryConfig | list[QueryConfig]
 
 
-class CacheServiceConfig(BaseModel, alias_generator=to_camel):
-    cache_time_limit: int
+class RawTablesConfig(BaseModel, alias_generator=to_camel):
+    """
+    Consolidated configuration for RAW database and tables used across all functions.
+    This section centralizes all RAW storage configuration to avoid duplication
+    and ensure consistency across prepare, launch, finalize, and promote functions.
+    """
+
     raw_db: str
     raw_table_cache: str
+    raw_table_doc_tag: str
+    raw_table_doc_doc: str
+    raw_table_doc_pattern: str
+    raw_table_promote_cache: str
     raw_manual_patterns_catalog: str
+
+
+class CacheServiceConfig(BaseModel, alias_generator=to_camel):
+    cache_time_limit: int
 
 
 class AnnotationServiceConfig(BaseModel, alias_generator=to_camel):
@@ -207,10 +220,6 @@ class ApplyServiceConfig(BaseModel, alias_generator=to_camel):
     auto_approval_threshold: float = Field(gt=0.0, le=1.0)
     auto_suggest_threshold: float = Field(gt=0.0, le=1.0)
     sink_node: NodeId
-    raw_db: str
-    raw_table_doc_tag: str
-    raw_table_doc_doc: str
-    raw_table_doc_pattern: str
 
 
 class FinalizeFunction(BaseModel, alias_generator=to_camel):
@@ -274,20 +283,16 @@ class PromoteFunctionConfig(BaseModel, alias_generator=to_camel):
 
     Configuration is organized by service interface:
     - entitySearchService: Controls entity search strategies
-    - cacheService: Controls caching behavior
 
     Batch size is controlled via getCandidatesQuery.limit field.
     """
 
     get_candidates_query: QueryConfig | list[QueryConfig]
-    raw_db: str
-    raw_table_doc_pattern: str
-    raw_table_doc_tag: str
-    raw_table_doc_doc: str
     delete_rejected_edges: bool
     delete_suggested_edges: bool
+    promote_file_entities: bool = True
+    promote_target_entities: bool = True
     entity_search_service: EntitySearchServiceConfig
-    cache_service: PromoteCacheServiceConfig
 
 
 class DataModelViews(BaseModel, alias_generator=to_camel):
@@ -298,6 +303,7 @@ class DataModelViews(BaseModel, alias_generator=to_camel):
 
 
 class Config(BaseModel, alias_generator=to_camel):
+    raw_tables: RawTablesConfig
     data_model_views: DataModelViews
     prepare_function: PrepareFunction
     launch_function: LaunchFunction
@@ -422,6 +428,8 @@ def _format_diagram_detect_config(config: DiagramDetectConfigModel | None) -> st
             lines.append(f"      • Customize fuzziness: {', '.join(fuzz_parts)}")
     if config.direction_delta is not None:
         lines.append(f"      • Direction delta: {config.direction_delta}")
+    if config.direction_weights is not None:
+        lines.append(f"      • Direction weights: {config.direction_weights}")
     if config.min_fuzzy_score is not None:
         lines.append(f"      • Min fuzzy score: {config.min_fuzzy_score}")
     if config.read_embedded_text is not None:
@@ -501,14 +509,15 @@ def format_launch_config(config: Config, pipeline_ext_id: str) -> str:
 
     # Cache service
     cache = launch.cache_service
+    raw = config.raw_tables
     lines.extend(
         [
             "",
             "CACHE SERVICE",
             f"  • Cache time limit: {cache.cache_time_limit} hours",
-            f"  • RAW DB: {cache.raw_db}",
-            f"  • Cache table: {cache.raw_table_cache}",
-            f"  • Manual patterns catalog: {cache.raw_manual_patterns_catalog}",
+            f"  • RAW DB: {raw.raw_db}",
+            f"  • Cache table: {raw.raw_table_cache}",
+            f"  • Manual patterns catalog: {raw.raw_manual_patterns_catalog}",
         ]
     )
 
@@ -559,6 +568,7 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
 
     # Apply service
     apply = finalize.apply_service
+    raw = config.raw_tables
     lines.extend(
         [
             "",
@@ -566,10 +576,10 @@ def format_finalize_config(config: Config, pipeline_ext_id: str) -> str:
             f"  • Auto approval threshold: {apply.auto_approval_threshold}",
             f"  • Auto suggest threshold: {apply.auto_suggest_threshold}",
             f"  • Sink node: {apply.sink_node.space}/{apply.sink_node.external_id}",
-            f"  • RAW DB: {apply.raw_db}",
-            f"  • Doc-Tag table: {apply.raw_table_doc_tag}",
-            f"  • Doc-Doc table: {apply.raw_table_doc_doc}",
-            f"  • Doc-Pattern table: {apply.raw_table_doc_pattern}",
+            f"  • RAW DB: {raw.raw_db}",
+            f"  • Doc-Tag table: {raw.raw_table_doc_tag}",
+            f"  • Doc-Doc table: {raw.raw_table_doc_doc}",
+            f"  • Doc-Pattern table: {raw.raw_table_doc_pattern}",
         ]
     )
 
@@ -589,7 +599,7 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
         Formatted configuration string ready for logging
     """
     promote = config.promote_function
-
+    raw = config.raw_tables
     lines = [
         "=" * 80,
         f"FUNCTION: Promote ({pipeline_ext_id})",
@@ -598,10 +608,13 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
         "PROMOTE SERVICE CONFIG",
         f"  • Delete rejected edges: {promote.delete_rejected_edges}",
         f"  • Delete suggested edges: {promote.delete_suggested_edges}",
-        f"  • RAW DB: {promote.raw_db}",
-        f"  • Doc-Tag table: {promote.raw_table_doc_tag}",
-        f"  • Doc-Doc table: {promote.raw_table_doc_doc}",
-        f"  • Doc-Pattern table: {promote.raw_table_doc_pattern}",
+        f"  • Promote file entities: {promote.promote_file_entities}",
+        f"  • Promote target entities: {promote.promote_target_entities}",
+        f"  • RAW DB: {raw.raw_db}",
+        f"  • Doc-Tag table: {raw.raw_table_doc_tag}",
+        f"  • Doc-Doc table: {raw.raw_table_doc_doc}",
+        f"  • Doc-Pattern table: {raw.raw_table_doc_pattern}",
+        f"  • Promote cache table: {raw.raw_table_promote_cache}",
         "",
     ]
 
@@ -620,15 +633,6 @@ def format_promote_config(config: Config, pipeline_ext_id: str) -> str:
             f"    - Remove special characters: {text_norm.remove_special_characters}",
             f"    - Convert to lowercase: {text_norm.convert_to_lowercase}",
             f"    - Strip leading zeros: {text_norm.strip_leading_zeros}",
-        ]
-    )
-
-    # Cache service
-    lines.extend(
-        [
-            "",
-            "CACHE SERVICE",
-            f"  • Cache table name: {promote.cache_service.cache_table_name}",
         ]
     )
 

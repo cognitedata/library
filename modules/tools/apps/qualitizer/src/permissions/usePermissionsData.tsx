@@ -1,5 +1,7 @@
+import type { CogniteClient } from "@cognite/sdk";
 import { useEffect, useState } from "react";
 import { normalizeCapability } from "@/shared/permissions-utils";
+import { cachedSecurityGroupsList } from "@/shared/security-groups-cache";
 import { useI18n } from "@/shared/i18n";
 import type {
   DataSetSummary,
@@ -28,6 +30,7 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
   const [dataSetAccess, setDataSetAccess] = useState<Record<number, string[]>>({});
   const [spaces, setSpaces] = useState<SpaceSummary[]>([]);
   const [spaceAccess, setSpaceAccess] = useState<Record<string, string[]>>({});
+  const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
 
   useEffect(() => {
     if (isDuneLoading) return;
@@ -36,14 +39,23 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
     const loadPermissions = async () => {
       setStatus("loading");
       setErrorMessage(null);
+      setLoadingDetail(t("permissions.loadingDetail.groups"));
       try {
-        const groupResponse = (await sdk.groups.list({ all: true })) as GroupSummary[];
+        const groupResponse = (await cachedSecurityGroupsList(
+          sdk as CogniteClient,
+          sdk.project
+        )) as GroupSummary[];
+        if (cancelled) return;
+        setLoadingDetail(t("permissions.loadingDetail.datasets"));
         const datasetResponse = (await sdk.post(
           `/api/v1/projects/${sdk.project}/datasets/list`,
           { data: { limit: 1000 } }
         )) as { data?: { items?: DataSetSummary[] } };
+        if (cancelled) return;
+        setLoadingDetail(t("permissions.loadingDetail.spacesStarting"));
         const spaceItems: SpaceSummary[] = [];
         let spaceCursor: string | undefined;
+        let spacePage = 0;
         do {
           const spaceResponse = await sdk.spaces.list({
             includeGlobal: true,
@@ -52,6 +64,12 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
           }) as { items?: SpaceSummary[]; nextCursor?: string | null };
           spaceItems.push(...(spaceResponse.items ?? []));
           spaceCursor = spaceResponse.nextCursor ?? undefined;
+          spacePage += 1;
+          if (!cancelled) {
+            setLoadingDetail(
+              t("permissions.loadingDetail.spaces", { count: spaceItems.length, page: spacePage })
+            );
+          }
         } while (spaceCursor);
         const datasets = (datasetResponse.data?.items ?? []) as DataSetSummary[];
         const datasetMap = new Map<number, DataSetSummary>(datasets.map((ds) => [ds.id, ds]));
@@ -60,7 +78,18 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
         const accessMap: Record<number, string[]> = {};
         const spaceMap: Record<string, string[]> = {};
 
+        const groupTotal = groupResponse.length;
+        let groupIndex = 0;
         for (const group of groupResponse) {
+          if (!cancelled && (groupIndex % 20 === 0 || groupIndex === groupTotal - 1)) {
+            setLoadingDetail(
+              t("permissions.loadingDetail.analyzing", {
+                current: groupIndex + 1,
+                total: groupTotal,
+              })
+            );
+          }
+          groupIndex += 1;
           for (const cap of group.capabilities ?? []) {
             const normalized = normalizeCapability(cap);
             utilized.add(normalized.name);
@@ -107,6 +136,7 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
         }
 
         if (!cancelled) {
+          setLoadingDetail(null);
           setGroups(
             [...groupResponse].sort((a, b) =>
               (a.name ?? a.id).toString().localeCompare((b.name ?? b.id).toString())
@@ -121,6 +151,7 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadingDetail(null);
           setErrorMessage(error instanceof Error ? error.message : t("permissions.error"));
           setStatus("error");
         }
@@ -130,12 +161,14 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
     loadPermissions();
     return () => {
       cancelled = true;
+      setLoadingDetail(null);
     };
   }, [isDuneLoading, sdk, t]);
 
   return {
     status,
     errorMessage,
+    loadingDetail,
     groups,
     capabilityNames,
     dataSets,

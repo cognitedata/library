@@ -1,7 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestamp } from "@/shared/time-utils";
-import type { FunctionRunSummary, FunctionSummary, LoadState } from "./types";
+import type {
+  FunctionRunSummary,
+  FunctionSummary,
+  LoadState,
+  ProcessingDataLoadProgress,
+} from "./types";
 import { useI18n } from "@/shared/i18n";
+
+type FunctionCallLogsApiResponse = {
+  data?: {
+    items?: { message?: string }[];
+  };
+};
+
+type FunctionsListApiResponse = {
+  data?: {
+    items?: FunctionSummary[];
+    nextCursor?: string | null;
+  };
+};
+
+type FunctionCallsListApiResponse = {
+  data?: {
+    items?: FunctionRunSummary[];
+    nextCursor?: string | null;
+  };
+};
 
 type UseFunctionDataArgs = {
   isSdkLoading: boolean;
@@ -18,6 +43,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
   const [logMap, setLogMap] = useState<Record<string, Record<string, { message?: string }[]>>>({});
   const [functionNameMap, setFunctionNameMap] = useState<Record<string, string>>({});
   const [functionMetaMap, setFunctionMetaMap] = useState<Record<string, FunctionSummary>>({});
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
 
   const getFailureColor = (run: FunctionRunSummary) => {
     const funcId = run.functionId ?? "";
@@ -71,9 +97,9 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
   const fetchRunLogs = async (run: FunctionRunSummary) => {
     if (!run.functionId || !run.id) return;
     try {
-      const response = await sdk.get<{
-        items?: { message?: string }[];
-      }>(`/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`);
+      const response = (await sdk.get(
+        `/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`
+      )) as FunctionCallLogsApiResponse;
       const logs = response.data?.items ?? [];
       if (logs.length > 0) {
         setLogMap((prev) => ({
@@ -102,6 +128,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
       setLogMap({});
       setFunctionNameMap({});
       setFunctionMetaMap({});
+      setLoadProgress({ kind: "functions_list", loaded: 0 });
 
       try {
         const endWindow = windowRange.end;
@@ -111,14 +138,14 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
           const items: FunctionSummary[] = [];
           let cursor: string | undefined;
           do {
-            const response = await sdk.post<{
-              items?: FunctionSummary[];
-              nextCursor?: string | null;
-            }>(`/api/v1/projects/${sdk.project}/functions/list`, {
+            const response = (await sdk.post(`/api/v1/projects/${sdk.project}/functions/list`, {
               data: JSON.stringify({ limit: 100, cursor }),
-            });
+            })) as FunctionsListApiResponse;
             items.push(...(response.data?.items ?? []));
             cursor = response.data?.nextCursor ?? undefined;
+            if (!cancelled) {
+              setLoadProgress({ kind: "functions_list", loaded: items.length });
+            }
           } while (cursor);
           return items;
         };
@@ -134,12 +161,12 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
             limit: 10000,
             cursor,
           };
-          const response = await sdk.post<{
-            items?: FunctionRunSummary[];
-            nextCursor?: string | null;
-          }>(`/api/v1/projects/${sdk.project}/functions/${functionId}/calls/list`, {
-            data: JSON.stringify(requestBody),
-          });
+          const response = (await sdk.post(
+            `/api/v1/projects/${sdk.project}/functions/${functionId}/calls/list`,
+            {
+              data: JSON.stringify(requestBody),
+            }
+          )) as FunctionCallsListApiResponse;
           return {
             items: response.data?.items ?? [],
             nextCursor: response.data?.nextCursor ?? null,
@@ -158,7 +185,13 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
           setFunctionMetaMap(metaMap);
         }
 
+        const totalFns = functions.length;
+        if (!cancelled) {
+          setLoadProgress({ kind: "functions_runs", current: 0, total: totalFns });
+        }
+
         const collected: FunctionRunSummary[] = [];
+        let fnIndex = 0;
         for (const fn of functions) {
           let cursor: string | undefined;
           do {
@@ -175,6 +208,10 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
             }
             cursor = response.nextCursor ?? undefined;
           } while (cursor);
+          fnIndex += 1;
+          if (!cancelled && (fnIndex % 3 === 0 || fnIndex === totalFns)) {
+            setLoadProgress({ kind: "functions_runs", current: fnIndex, total: totalFns });
+          }
           if (!cancelled) {
             setRuns([...collected]);
           }
@@ -182,6 +219,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
 
         if (!cancelled) {
           setRuns(collected);
+          setLoadProgress(null);
           setStatus("success");
         }
 
@@ -194,6 +232,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
         }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
           const message = error instanceof Error ? error.message : t("processing.error.runs");
           setErrorMessage(message);
           if (message.toLowerCase().includes("404")) {
@@ -226,6 +265,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
 
   return {
     status,
+    loadProgress,
     errorMessage,
     availabilityMessage,
     runs,

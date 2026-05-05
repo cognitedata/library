@@ -7,6 +7,7 @@ type ExtractionPipelineRunModalProps = {
   selectedPipeline: Record<string, unknown> | null;
   selectedRun: Record<string, unknown> | null;
   formatTimeFields: (input: unknown) => unknown;
+  contentClassName?: string;
 };
 
 export function ExtractionPipelineRunModal({
@@ -16,6 +17,7 @@ export function ExtractionPipelineRunModal({
   selectedPipeline,
   selectedRun,
   formatTimeFields,
+  contentClassName,
 }: ExtractionPipelineRunModalProps) {
   const { t } = useI18n();
   if (!open || !selectedRun) return null;
@@ -26,7 +28,7 @@ export function ExtractionPipelineRunModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl ${contentClassName ?? ""}`.trim()}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">

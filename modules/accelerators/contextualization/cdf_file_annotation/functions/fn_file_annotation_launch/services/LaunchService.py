@@ -8,6 +8,7 @@ from cognite.client import CogniteClient
 from cognite.client.data_classes.contextualization import FileReference
 from cognite.client.data_classes.data_modeling import (
     Node,
+    NodeApply,
     NodeList,
 )
 from cognite.client.exceptions import CogniteAPIError
@@ -113,13 +114,13 @@ class GeneralLaunchService(AbstractLaunchService):
             CogniteAPIError: If query timeout (408) or max jobs reached (429), handled gracefully.
         """
         self.logger.info(
-            message="Starting Launch Function",
+            message=f"Starting Launch Function",
             section="START",
         )
         try:
             file_nodes, file_to_state_map = self.data_model_service.get_files_to_process()
             if not file_nodes or not file_to_state_map:
-                self.logger.info(message="No files found to launch")
+                self.logger.info(message=f"No files found to launch")
                 return "Done"
             self.logger.info(message=f"Launching {len(file_nodes)} files", section="END")
         except CogniteAPIError as e:
@@ -171,6 +172,10 @@ class GeneralLaunchService(AbstractLaunchService):
                     "END",
                 )
                 return "Done"
+            elif e.code == 408:
+                self.logger.error(message="Query timeout. Retrying in 30 seconds.", error=e)
+                time.sleep(30)
+                return
             else:
                 raise e
         finally:
@@ -246,7 +251,7 @@ class GeneralLaunchService(AbstractLaunchService):
             or self._cached_secondary_scope != secondary_scope_value
             or not self.in_memory_cache
         ):
-            self.logger.info("Refreshing in memory cache")
+            self.logger.info(f"Refreshing in memory cache")
             try:
                 self.in_memory_cache, self.in_memory_patterns = self.cache_service.get_entities(
                     self.data_model_service,
@@ -256,16 +261,7 @@ class GeneralLaunchService(AbstractLaunchService):
                 self._cached_primary_scope = primary_scope_value
                 self._cached_secondary_scope = secondary_scope_value
             except CogniteAPIError as e:
-                # NOTE: Reliant on the CogniteAPI message to stay the same across new releases. If unexpected changes were to occur please refer to this section of the code and check if error message is now different.
-                if (
-                    e.code == 408
-                    and e.message == "Graph query timed out. Reduce load or contention, or optimise your query."
-                ):
-                    # NOTE: 408 indicates a timeout error. Keep retrying the query if a timeout occurs.
-                    self.logger.error(message="Ran into the following error", error=e)
-                    return
-                else:
-                    raise e
+                raise e
 
     def _process_batch(self, batch: BatchOfPairedNodes):
         """
@@ -285,71 +281,59 @@ class GeneralLaunchService(AbstractLaunchService):
         """
         if batch.is_empty():
             return
+
         try:
-            self._run_diagram_detect_and_update_state(batch)
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
+            job_id, job_token = self.annotation_service.run_diagram_detect(
+                files=batch.file_references, entities=self.in_memory_cache
+            )
+            update_properties = {
+                "annotationStatus": AnnotationStatus.PROCESSING,
+                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "diagramDetectJobId": job_id,
+                "diagramDetectJobToken": job_token,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
+            }
+
+            # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
+            pattern_job_token: str | None = None
+            if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", [])) + len(
+                        self.in_memory_patterns[1].get("sample", [])
+                    )
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", []))
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
+                )
+                if total_patterns:
+                    pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
+                        files=batch.file_references, pattern_samples=self.in_memory_patterns
+                    )
+                    update_properties["patternModeJobId"] = pattern_job_id
+                    update_properties["patternModeJobToken"] = pattern_job_token
+                else:
+                    self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
+
+
+            batch.batch_states.update_node_properties(
+                new_properties=update_properties,
+                view_id=self.annotation_state_view.as_view_id(),
+            )
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.logger.info(
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job set to (id: {job_id}, token: {job_token})\n- pattern mode job set to (id: {pattern_job_id}, token: {pattern_job_token})",
+                section="END",
+            )
         finally:
             batch.clear_pair()
-
-    def _run_diagram_detect_and_update_state(self, batch: BatchOfPairedNodes):
-        """
-        Core logic for running diagram detection and updating annotation state.
-
-        Args:
-            batch: BatchOfPairedNodes containing file references and their annotation state nodes.
-        """
-        self.logger.info(
-            f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
-        )
-        job_id, job_token = self.annotation_service.run_diagram_detect(
-            files=batch.file_references, entities=self.in_memory_cache
-        )
-        update_properties = {
-            "annotationStatus": AnnotationStatus.PROCESSING,
-            "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-            "diagramDetectJobId": job_id,
-            "diagramDetectJobToken": job_token,
-            "launchFunctionId": self.function_id,
-            "launchFunctionCallId": self.call_id,
-        }
-
-        pattern_job_id, pattern_job_token = self._run_pattern_mode_if_enabled(batch)
-        if pattern_job_id:
-            update_properties["patternModeJobId"] = pattern_job_id
-            update_properties["patternModeJobToken"] = pattern_job_token
-
-        batch.batch_states.update_node_properties(
-            new_properties=update_properties,
-            view_id=self.annotation_state_view.as_view_id(),
-        )
-        self.data_model_service.update_annotation_state(batch.batch_states.apply)
-        self.logger.info(
-            message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job set to (id: {job_id}, token: {job_token})\n- pattern mode job set to (id: {pattern_job_id}, token: {pattern_job_token})",
-            section="END",
-        )
-
-    def _run_pattern_mode_if_enabled(self, batch: BatchOfPairedNodes) -> tuple[int | None, str | None]:
-        """
-        Runs pattern mode diagram detection if enabled in configuration.
-
-        Args:
-            batch: BatchOfPairedNodes containing file references.
-
-        Returns:
-            Tuple of (pattern_job_id, pattern_job_token) or (None, None) if pattern mode is disabled.
-        """
-        if not self.config.launch_function.pattern_mode:
-            return None, None
-
-        total_patterns = sum(
-            len(p.get("sample", [])) for p in self.in_memory_patterns[:2]
-        ) if self.in_memory_patterns else 0
-
-        self.logger.info(
-            f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
-        )
-        return self.annotation_service.run_pattern_mode_detect(
-            files=batch.file_references, pattern_samples=self.in_memory_patterns
-        )
 
 
 class LocalLaunchService(GeneralLaunchService):
@@ -380,17 +364,67 @@ class LocalLaunchService(GeneralLaunchService):
             return
 
         try:
-            self._run_diagram_detect_and_update_state(batch)
+            # Run regular diagram detect
+            self.logger.info(
+                f"Running diagram detect on {batch.size()} files with {len(self.in_memory_cache)} entities"
+            )
+            job_id, job_token = self.annotation_service.run_diagram_detect(
+                files=batch.file_references, entities=self.in_memory_cache
+            )
+            update_properties = {
+                "annotationStatus": AnnotationStatus.PROCESSING,
+                "sourceUpdatedTime": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "diagramDetectJobId": job_id,
+                "diagramDetectJobToken": job_token,
+                "launchFunctionId": self.function_id,
+                "launchFunctionCallId": self.call_id,
+            }
+
+            # Run diagram detect on pattern mode
+            pattern_job_id: int | None = None
+            pattern_job_token: str | None = None
+            if self.config.launch_function.pattern_mode:
+                total_patterns = 0
+                if self.in_memory_patterns and len(self.in_memory_patterns) >= 2:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", [])) + len(
+                        self.in_memory_patterns[1].get("sample", [])
+                    )
+                elif self.in_memory_patterns and len(self.in_memory_patterns) >= 1:
+                    total_patterns = len(self.in_memory_patterns[0].get("sample", []))
+                self.logger.info(
+                    f"Running pattern mode diagram detect on {batch.size()} files with {total_patterns} sample patterns"
+                )
+                if total_patterns:
+                    pattern_job_id, pattern_job_token = self.annotation_service.run_pattern_mode_detect(
+                        files=batch.file_references, pattern_samples=self.in_memory_patterns
+                    )
+                    update_properties["patternModeJobId"] = pattern_job_id
+                    update_properties["patternModeJobToken"] = pattern_job_token
+                else:
+                    self.logger.info("Skipping pattern-mode diagram detect: no sample patterns available.")
+
+            batch.batch_states.update_node_properties(
+                new_properties=update_properties,
+                view_id=self.annotation_state_view.as_view_id(),
+            )
+            self.data_model_service.update_annotation_state(batch.batch_states.apply)
+            self.logger.info(
+                message=f"Updated the annotation state instances:\n- annotation status set to 'Processing'\n- job set to (id: {job_id}, token: {job_token})\n- pattern mode job set to (id: {pattern_job_id}, token: {pattern_job_token})",
+                section="END",
+            )
         except CogniteAPIError as e:
             if e.code == 429:
-                self.logger.debug(str(e))
+                self.logger.debug(f"{str(e)}")
                 self.logger.info(
                     "Reached the max amount of jobs that can be processed by the server at once.\nSleeping for 15 minutes",
                     "END",
                 )
-                time.sleep(900)  # Local run: wait and retry instead of terminating
+                time.sleep(
+                    900
+                )  # in a local run the ideal behavior is to not terminate the program because of this error, since it's expected
                 return
-            self.logger.error(message="Ran into the following error", error=e)
-            raise
+            else:
+                self.logger.error(message="Ran into the following error", error=e)
+                raise Exception(e)
         finally:
             batch.clear_pair()

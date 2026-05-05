@@ -374,7 +374,7 @@ workflowExternalId: wf_file_annotation
 workflowSchedule: "3-59/15 * * * *"             # Every 15 min with 3 min offset
 
 # Auth Group (UPDATE REQUIRED)
-groupSourceId: <GROUP_SOURCE_ID>
+groupSourceId: ${GROUP_SOURCE_ID}
 ```
 
 ### Pipeline Configuration (`ep_file_annotation.config.yaml`)

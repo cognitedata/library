@@ -1,3 +1,4 @@
 cognite-extractor-utils>=7
 cognite-sdk == 7.*
 pyyaml >= 6.0.1
+mixpanel>=4.10.0

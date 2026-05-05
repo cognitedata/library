@@ -117,7 +117,7 @@ workflow: ingestion
 dataset: ingestion
 
 # Authentication (UPDATE REQUIRED)
-groupSourceId: <GROUP_SOURCE_ID>              # Your IdP group source ID
+groupSourceId: ${GROUP_SOURCE_ID}              # Your IdP group source ID
 
 # Service Account Credentials for Scheduled Runs
 ingestionClientId: ${INGESTION_CLIENT_ID}

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/shared/ApiError";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import type { LoadState, RawDatabaseSummary, RawTableSummary } from "./types";
 
 type RawHealthPanelProps = {
@@ -41,6 +42,8 @@ export function RawHealthPanel({
   onLoadAll,
 }: RawHealthPanelProps) {
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
+  const pc = isPrivateMode ? " private-mask" : "";
 
   return (
     <>
@@ -125,7 +128,7 @@ export function RawHealthPanel({
                   <div className="font-medium">
                     {t("healthChecks.raw.emptyTables.count", { count: emptyRawTables.length })}
                   </div>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-amber-900">
+                  <ul className={`mt-2 list-disc space-y-1 pl-5 text-amber-900${pc}`}>
                     {emptyRawTables.map((table) => (
                       <li key={`${table.dbName}:${table.name}`}>
                         <span>{table.name}</span> · <span>{table.dbName}</span> ·{" "}

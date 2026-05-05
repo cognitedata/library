@@ -8,6 +8,7 @@
       - OIL AND GAS
       - DOMAIN MODEL
       - CFIHOS
+      - ISO 14224
     consoleOwners:
       - email: "{{integrationOwnerEmail}}"
         name: "{{integrationOwnerName}}"

@@ -1,0 +1,4 @@
+key,tagNumber,name,description,area,facility,system,parentTag,labels,approvalAuthority,equipmentIdentifier,manufacturer,modelNumber,serialNumber,weightDry,weightOperating,iOType,signalType
+23-HS-8101,23-HS-8101,Deluge Fire Protection Station A,Deluge system fire protection station A process area,23,Valhall PH,Fire Protection,VAL-PH-23-UT,safety-equipment,DNV,HS-8101,Tyco,DV-5,TYC-2008-6601,450,450,DI,24VDC
+23-HS-8102,23-HS-8102,Emergency Shower Station,Emergency shower and eye wash station area 23,23,Valhall PH,Safety,VAL-PH-23-UT,safety-equipment,DNV,HS-8102,Hughes Safety,STD-45G/S,HUG-2009-6701,85,85,Manual,None
+23-HS-8103,23-HS-8103,Gas Detection System,Combustible gas detection system area 23,23,Valhall PH,Safety,VAL-PH-23-UT,safety-equipment,DNV,HS-8103,Dräger,Polytron 8100 EC,DRA-2008-6801,12,12,AI,4-20mA

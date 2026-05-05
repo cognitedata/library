@@ -35,6 +35,7 @@ type FunctionRunModalProps = {
   selectedLogsError: string | null;
   formatTimeFields: (input: unknown) => unknown;
   extraActions?: ReactNode;
+  contentClassName?: string;
 };
 
 export function FunctionRunModal({
@@ -48,6 +49,7 @@ export function FunctionRunModal({
   selectedLogsError,
   formatTimeFields,
   extraActions,
+  contentClassName,
 }: FunctionRunModalProps) {
   const { t } = useI18n();
   if (!open || !selectedRun) return null;
@@ -58,7 +60,7 @@ export function FunctionRunModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl ${contentClassName ?? ""}`.trim()}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">

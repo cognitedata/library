@@ -3,7 +3,4 @@ externalId: contextualization_connection_writer
 owner: Anonymous
 description: Writes all approved Annotations as direct relations connections.
 functionPath: handler.py
-dataSetExternalId: {{ dataset }}
-
-# In DM only projects function files are stored as Node so space needs to be set.
 space: {{ functionSpace }}
