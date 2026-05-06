@@ -108,6 +108,30 @@ export function createNodeFromPalette(
       },
     };
   }
+  if (payload.kind === "persistence") {
+    if (payload.variant === "alias_persistence") {
+      return {
+        id,
+        type: "keaAliasPersistence",
+        position,
+        data: {
+          handler_family: "persistence",
+          persistence_step: "alias_writeback",
+          preset_from_palette: true,
+        },
+      };
+    }
+    return {
+      id,
+      type: "keaInvertedIndex",
+      position,
+      data: {
+        handler_family: "persistence",
+        persistence_step: "inverted_index",
+        preset_from_palette: true,
+      },
+    };
+  }
   const _exhaustive: never = payload;
   throw new Error(`Unhandled palette payload: ${JSON.stringify(_exhaustive)}`);
 }

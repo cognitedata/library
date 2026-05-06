@@ -509,7 +509,7 @@ export const ar: Messages = {
   "flow.structuralExtraction": "اِستِخلاص",
   "flow.structuralAliasing": "التعرج",
   "flow.structuralAliasPersistence": "الاسم المستعار الكتابة مرة أخرى",
-  "flow.structuralReferenceIndex": "الفهرس المرجعي",
+  "flow.structuralInvertedIndex": "الفهرس المقلوب",
   "flow.validationRuleLayoutSourceView": "قاعدة التحقق من الصحة (عرض المصدر)",
   "flow.validationRuleLayoutExtraction": "قاعدة التحقق (الاستخراج)",
   "flow.validationRuleLayoutAliasing": "قاعدة التحقق (الاسم المستعار)",
@@ -518,6 +518,7 @@ export const ar: Messages = {
     "لا توجد تعريفات حتى الآن — قم بإضافتها في علامة التبويب التحقق من الصحة (بعد طرق عرض المصدر في التكوين).",
   "flow.paletteExtractionHandlers": "معالجو الاستخراج",
   "flow.paletteAliasingHandlers": "معالجات التعرج",
+  "flow.palettePersistence": "الاستمرارية",
   "flow.paletteAnnotations": "الشروح",
   "flow.paletteCdfTasks": "وظائف CDF",
   "flow.alignLeft": "محاذاة العقد المحددة إلى اليسار",
@@ -585,11 +586,11 @@ export const ar: Messages = {
   "flow.inspectorEmpty": "حدد عقدة أو حافة.",
   "flow.inspectorStartHint": "دخول خط الأنابيب. اتصل بطرق العرض المصدر (أو بالاستخراج في حالة عدم وجود طرق عرض المصدر).",
   "flow.inspectorEndHint":
-    "خروج خط الأنابيب. الاتصال من خلال الاستخراج أو الاسم المستعار أو التعليق التوضيحي أو عقد قاعدة التحقق من الثقة أو كتابة الاسم المستعار أو الفهرس المرجعي.",
+    "خروج خط الأنابيب. الاتصال من خلال الاستخراج أو الاسم المستعار أو التعليق التوضيحي أو عقد قاعدة التحقق من الثقة أو كتابة الاسم المستعار أو الفهرس المقلوب.",
   "flow.inspectorAliasPersistenceHint":
     "تعيينات إلى fn_dm_alias_persistence: يقرأ الاسم المستعار RAW ويكتب قوائم الأسماء المستعارة (وسلاسل مرجعية FK الاختيارية) على مثيلات قابلة للوصف. تكوين خصائص إعادة الكتابة في النطاق أو بيانات المهمة.",
-  "flow.inspectorReferenceIndexHint":
-    "التعيينات إلى fn_dm_reference_index: إنشاء فهرس RAW مقلوب من FOREIGN_KEY_REFERENCES_JSON وDOCUMENT_REFERENCES_JSON في مخزن استخراج المفاتيح. تمكين عبر النطاق (على سبيل المثال،enable_reference_index).",
+  "flow.inspectorInvertedIndexHint":
+    "التعيينات إلى fn_dm_inverted_index: إنشاء فهرس RAW مقلوب من FOREIGN_KEY_REFERENCES_JSON وDOCUMENT_REFERENCES_JSON في مخزن استخراج المفاتيح. تمكين عبر النطاق (على سبيل المثال،enable_inverted_index).",
   "flow.inspectorValidationRuleHint":
     "يرتبط بإدخال validation_rules في النطاق: يُستخدم عند تقييم المفاتيح (key_extraction.config.data.validation و extraction_rules[].validation) أو عند التحقق من الأسماء البديلة (aliasing_rules[].validation). صفوف عرض المصدر لا تحمل تحققاً منفصلاً. أجسام القواعد تعريفات مستقلة. استخدم قائمة YAML، أو الاختصار { rule_id: [ tail... ] }، أو hierarchy: { mode: ordered | concurrent, children: [...] }. على اللوحة استخدم حواف بيانات من الاستخراج أو الأسماء البديلة إلى أول عقدة تخطيط للتحقق؛ ثم سلسل عقد التحقق بحواف sequence أو parallel_group.",
   "flow.inspectorValidationRuleContext": "نطاق القاعدة",

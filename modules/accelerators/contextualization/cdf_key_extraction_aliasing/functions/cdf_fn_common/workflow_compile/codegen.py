@@ -187,8 +187,8 @@ def build_workflow_version_document(
             "Extract candidate keys and FK/document references; write key-extraction RAW.",
             7200,
         ),
-        "fn_dm_reference_index": (
-            "Reference index",
+        "fn_dm_inverted_index": (
+            "Inverted index",
             "Build RAW inverted index for FK and document references.",
             7200,
         ),

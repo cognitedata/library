@@ -7,8 +7,10 @@ top-level ``workflowDefinition.description`` are aligned with
 wording for each ``fn_*`` function.
 ``Workflow.yaml`` still comes from ``workflow.template.Workflow.yaml``.
 
-**``workflow_template/workflow.execution.graph.yaml``** is refreshed from the first leaf’s
-``compiled_workflow`` on **every** build (no ``--force`` required).
+**``workflow_template/workflow.execution.graph.yaml``** is refreshed from the **unpatched** scope
+template’s ``compiled_workflow`` on **every** build (no ``--force`` required), so the committed macro
+graph matches ``workflow.template.config.yaml`` canvas IR; per-leaf ``WorkflowVersion`` still uses
+each leaf’s patched scope document.
 
 **Scoped ``Workflow.yaml`` / ``WorkflowVersion.yaml``:** created when missing; existing files are
 **skipped** unless ``overwrite=True`` (``--force``), so deployed flow definitions are not overwritten
@@ -17,6 +19,7 @@ after initial creation unless the operator opts in.
 
 from __future__ import annotations
 
+import copy
 import logging
 from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence, Tuple
@@ -149,14 +152,16 @@ class ScopedWorkflowDefinitionsBuilder:
             graph_path = default_execution_graph_path(module_root)
             if ctx.dry_run:
                 logger.info(
-                    "[dry-run] would refresh %s from first scoped leaf compiled_workflow",
+                    "[dry-run] would refresh %s from scope template compiled_workflow (unpatched)",
                     graph_path.name,
                 )
             else:
-                dump_execution_graph_yaml_for_compiled_workflow(module_root, cw, dry_run=False)
+                cw_template_ir = compiled_workflow_for_scope_document(copy.deepcopy(scope_tpl))
+                dump_execution_graph_yaml_for_compiled_workflow(module_root, cw_template_ir, dry_run=False)
                 logger.info(
-                    "Refreshed %s from first scoped leaf compiled_workflow",
+                    "Refreshed %s from scope template IR (%s)",
                     graph_path,
+                    scope_abs.name,
                 )
             self._dumped_execution_graph = True
         wv_tmpl = self._workflow_version_template_override

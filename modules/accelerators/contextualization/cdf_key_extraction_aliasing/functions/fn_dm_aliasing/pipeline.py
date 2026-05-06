@@ -363,13 +363,22 @@ def tag_aliasing(
                         )
                         if src_run:
                             data["source_run_id"] = src_run
-                    wf_src = data.get("source_workflow_status") or (
-                        WORKFLOW_STATUS_EXTRACTED if src_run else None
-                    )
+                    # Do not default to WORKFLOW_STATUS_EXTRACTED. Multi-step aliasing shares one
+                    # RUN_ID: the first task transitions key-extraction rows to ALIASED, so later
+                    # tasks filtering EXTRACTED load zero tags and never upload db_tag_aliasing.
+                    # Callers may set source_workflow_status for a stricter cohort (optional).
+                    wf_src = data.get("source_workflow_status")
+                    if wf_src in (None, ""):
+                        wf_src = None
                     logger.info(
                         "No entities_keys_extracted provided; loading tags from RAW "
                         f"db={source_raw_db} table={source_raw_table_key} limit={raw_limit}"
                         + (f" run_id={src_run}" if src_run else "")
+                        + (
+                            f" workflow_status={wf_src!r}"
+                            if wf_src
+                            else " workflow_status=(any)"
+                        )
                     )
                     tag_to_entity_map = _load_candidate_keys_from_raw(
                         client=client,

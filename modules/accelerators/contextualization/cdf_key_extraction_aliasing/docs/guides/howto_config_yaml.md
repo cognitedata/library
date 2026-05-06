@@ -22,7 +22,7 @@ This guide walks through **authoring and maintaining** the key discovery and ali
 
 1. **Start from the committed default:** `workflow.local.config.yaml` (CDM-oriented asset / file / timeseries scope), **or** copy an example such as `config/examples/key_extraction/…` or `config/examples/aliasing/…` (see [config/examples README](../../config/examples/README.md)).
 2. **Edit** top-level **`source_views`** (which DM views and filters), then **`key_extraction.config`** (`parameters`, `data.validation`, `data.extraction_rules`), then **`aliasing.config`** if you need transforms beyond identity passthrough.
-3. **Validate mentally** against [Configuration guide](configuration_guide.md): incremental parameters (`incremental_change_processing`, Key Discovery spaces, `run_all` inside **`key_extraction.config.parameters`** for workflow semantics), RAW table names, alias write-back property.
+3. **Validate mentally** against [Configuration guide](configuration_guide.md): incremental parameters (`incremental_change_processing`, Key Discovery spaces, `run_all` inside **`key_extraction.config.parameters`** for workflow semantics), RAW table names, optional inverted index (`enable_inverted_index`, `inverted_index_raw_table_key` — see [Inverted index parameters](configuration_guide.md#inverted-index-parameters)), alias write-back property.
 
 For **incremental** runs, local **`module.py run`** follows **workflow parity** (state update → extraction → …) when `incremental_change_processing` is true; **`run_all: true`** in YAML (or **`module.py run --all`**) forces processing of the full filtered instance set—see [module README — Incremental cohort processing](../../README.md#incremental-cohort-processing-raw-cohort-cdm-state).
 

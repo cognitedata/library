@@ -16,7 +16,7 @@ from .legacy_ir import (
     TASK_INCREMENTAL,
     _default_alias_persistence_payload,
     _default_aliasing_payload,
-    _default_reference_index_payload,
+    _default_inverted_index_payload,
 )
 
 # Canvas node kinds that never become Cognite function tasks.
@@ -42,7 +42,7 @@ PASS_THROUGH_KINDS: FrozenSet[str] = frozenset(
 _KIND_FN: Dict[str, Tuple[str, str, Optional[str]]] = {
     "extraction": ("fn_dm_key_extraction", "key_extraction", None),
     "aliasing": ("fn_dm_aliasing", "aliasing", "aliasing"),
-    "reference_index": ("fn_dm_reference_index", "reference_index", "reference_index"),
+    "inverted_index": ("fn_dm_inverted_index", "inverted_index", "inverted_index"),
     "alias_persistence": ("fn_dm_alias_persistence", "alias_persistence", "alias_persistence"),
 }
 
@@ -381,7 +381,7 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
 
     if not executable_canvas_ids:
         raise CanvasCompileError(
-            "canvas has no executable nodes (extraction, aliasing, reference_index, alias_persistence)"
+            "canvas has no executable nodes (extraction, aliasing, inverted_index, alias_persistence)"
         )
 
     executable_id_set = set(executable_canvas_ids)
@@ -432,8 +432,8 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
                 payload["aliasing_rule_names"] = [an.strip()]
 
         persistence: Optional[Dict[str, Any]] = None
-        if pers_key == "reference_index":
-            persistence = dict(_default_reference_index_payload(doc))
+        if pers_key == "inverted_index":
+            persistence = dict(_default_inverted_index_payload(doc))
         elif pers_key == "aliasing":
             persistence = dict(_default_aliasing_payload(doc))
         elif pers_key == "alias_persistence":

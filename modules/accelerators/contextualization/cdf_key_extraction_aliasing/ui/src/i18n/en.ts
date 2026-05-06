@@ -537,7 +537,7 @@ export const en: Messages = {
   "flow.structuralExtraction": "Extraction",
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "Alias write-back",
-  "flow.structuralReferenceIndex": "Reference index",
+  "flow.structuralInvertedIndex": "Inverted index",
   "flow.validationRuleLayoutSourceView": "Validation rule (source view)",
   "flow.validationRuleLayoutExtraction": "Validation rule (extraction)",
   "flow.validationRuleLayoutAliasing": "Validation rule (aliasing)",
@@ -546,6 +546,7 @@ export const en: Messages = {
     "No definitions yet — add them on the Validation tab (after Source views in Configure).",
   "flow.paletteExtractionHandlers": "Extraction handlers",
   "flow.paletteAliasingHandlers": "Aliasing handlers",
+  "flow.palettePersistence": "Persistence",
   "flow.paletteAnnotations": "Annotations",
   "flow.paletteCdfTasks": "CDF functions",
   "flow.alignLeft": "Align selected nodes to the left",
@@ -614,11 +615,11 @@ export const en: Messages = {
   "flow.inspectorEmpty": "Select a node or edge.",
   "flow.inspectorStartHint": "Pipeline entry. Connect to source views (or to extraction if there are no source views).",
   "flow.inspectorEndHint":
-    "Pipeline exit. Connect from extraction, aliasing, annotation or confidence validation-rule nodes. Reference index and alias write-back are inserted by the deployed workflow when enabled in scope.",
+    "Pipeline exit. Connect from extraction, aliasing, annotation or confidence validation-rule nodes. Inverted index and alias write-back are inserted by the deployed workflow when enabled in scope.",
   "flow.inspectorAliasPersistenceHint":
     "Maps to fn_dm_alias_persistence: reads aliasing RAW and writes alias lists (and optional FK reference strings) onto describable instances. Configure write-back properties in scope or task data.",
-  "flow.inspectorReferenceIndexHint":
-    "Maps to fn_dm_reference_index: builds an inverted RAW index from FOREIGN_KEY_REFERENCES_JSON and DOCUMENT_REFERENCES_JSON in the key-extraction store. Enable via scope (e.g. enable_reference_index).",
+  "flow.inspectorInvertedIndexHint":
+    "Maps to fn_dm_inverted_index: builds an inverted RAW index from FOREIGN_KEY_REFERENCES_JSON and DOCUMENT_REFERENCES_JSON in the key-extraction store. Enable via scope (e.g. enable_inverted_index).",
   "flow.inspectorValidationRuleHint":
     "Links to a validation_rules entry in scope: used when scoring keys (global key_extraction data.validation plus extraction_rules[].validation) or when validating aliases (aliasing_rules[].validation). Source view rows do not carry validation. Rule bodies are standalone definitions. Use a YAML list, shorthand { rule_id: [ tail... ] }, or hierarchy: { mode: ordered | concurrent, children: [...] }. On the canvas, use data edges from extraction or aliasing to the first validation-rule layout node; chain further validation-rule layout nodes with sequence or parallel_group edges.",
   "flow.inspectorValidationRuleContext": "Rule scope",

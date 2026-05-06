@@ -9,11 +9,12 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     narrow_aliasing_engine_config_for_inline_rule_names,
     build_aliasing_workflow_config,
     build_key_extraction_workflow_config,
-    build_reference_index_config_block,
+    build_inverted_index_config_block,
+    ensure_aliasing_config_from_scope_dm,
     ensure_instance_space_from_scope_document,
     ensure_key_extraction_config_from_scope_dm,
-    read_enable_reference_index,
-    reference_index_raw_table_key_from_scope,
+    read_enable_inverted_index,
+    inverted_index_raw_table_key_from_scope,
     resolve_instance_space_from_scope_document,
     resolve_scope_document_source_views,
     restrict_aliasing_pathways_to_wanted_names,
@@ -159,29 +160,83 @@ def test_build_aliasing_merges_raw_tables() -> None:
     assert p["raw_db"] == "db_tag_aliasing"
 
 
-def test_reference_index_raw_table_key_from_scope_convention() -> None:
-    assert reference_index_raw_table_key_from_scope({}, "key_extraction_state") == "reference_index"
+def test_ensure_aliasing_rebuilds_when_stub_config_missing_raw_parameters() -> None:
+    """A non-empty ``data['config']`` stub must not skip scope merge (RAW db + tables)."""
+    doc = {
+        "source_views": [{"view_external_id": "CogniteFile", "instance_space": "sp1"}],
+        "key_extraction": {
+            "config": {
+                "parameters": {
+                    "raw_db": "db_key_extraction",
+                    "raw_table_key": "key_extraction_state",
+                },
+                "data": {"extraction_rules": []},
+            }
+        },
+        "aliasing": {
+            "externalId": "ctx_aliasing_x",
+            "config": {
+                "parameters": {
+                    "raw_db": "db_tag_aliasing",
+                    "raw_table_aliases": "default_aliases",
+                    "raw_table_state": "tag_aliasing_state",
+                },
+                "data": {
+                    "pathways": {
+                        "steps": [
+                            {
+                                "mode": "sequential",
+                                "rules": [
+                                    {
+                                        "name": "Strip Delimiter",
+                                        "handler": "regex_substitution",
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                },
+            },
+        },
+    }
+    stub = {
+        "externalId": "noise",
+        "config": {
+            "data": {"pathways": {"steps": []}},
+            "parameters": {},
+        },
+    }
+    data: dict = {"configuration": doc, "config": stub}
+    ensure_aliasing_config_from_scope_dm(data, None)
+    inner = data["config"]["config"]
+    assert inner["parameters"]["raw_db"] == "db_tag_aliasing"
+    assert inner["parameters"]["raw_table_aliases"] == "default_aliases"
+    assert data["config"]["externalId"] == "ctx_aliasing_x"
+
+
+def test_inverted_index_raw_table_key_from_scope_convention() -> None:
+    assert inverted_index_raw_table_key_from_scope({}, "key_extraction_state") == "inverted_index"
     assert (
-        reference_index_raw_table_key_from_scope({}, "site_a_key_extraction_state")
-        == "site_a_reference_index"
+        inverted_index_raw_table_key_from_scope({}, "site_a_key_extraction_state")
+        == "site_a_inverted_index"
     )
-    assert reference_index_raw_table_key_from_scope({}, "other") == "other_reference_index"
+    assert inverted_index_raw_table_key_from_scope({}, "other") == "other_inverted_index"
 
 
-def test_reference_index_raw_table_key_from_scope_explicit() -> None:
+def test_inverted_index_raw_table_key_from_scope_explicit() -> None:
     assert (
-        reference_index_raw_table_key_from_scope(
-            {"reference_index_raw_table_key": "custom_idx"}, "site_a_key_extraction_state"
+        inverted_index_raw_table_key_from_scope(
+            {"inverted_index_raw_table_key": "custom_idx"}, "site_a_key_extraction_state"
         )
         == "custom_idx"
     )
 
 
-def test_read_enable_reference_index() -> None:
-    assert read_enable_reference_index({}) is False
+def test_read_enable_inverted_index() -> None:
+    assert read_enable_inverted_index({}) is False
     assert (
-        read_enable_reference_index(
-            {"key_extraction": {"config": {"parameters": {"enable_reference_index": True}}}}
+        read_enable_inverted_index(
+            {"key_extraction": {"config": {"parameters": {"enable_inverted_index": True}}}}
         )
         is True
     )
@@ -271,7 +326,7 @@ def test_ensure_instance_space_accepts_legacy_scope_document_key() -> None:
     assert ensure_instance_space_from_scope_document(data) == "legacy-sp"
 
 
-def test_build_reference_index_config_block() -> None:
+def test_build_inverted_index_config_block() -> None:
     doc = {
         "aliasing": {
             "config": {
@@ -280,7 +335,7 @@ def test_build_reference_index_config_block() -> None:
             }
         }
     }
-    blk = build_reference_index_config_block(doc)
+    blk = build_inverted_index_config_block(doc)
     assert "config" in blk
     assert blk["config"]["data"]["aliasing_rules"] == []
 

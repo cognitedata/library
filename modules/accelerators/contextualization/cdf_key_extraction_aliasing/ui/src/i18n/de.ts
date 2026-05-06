@@ -538,7 +538,7 @@ export const de: Messages = {
   "flow.structuralExtraction": "Extraktion",
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "Alias-Zurückschreiben",
-  "flow.structuralReferenceIndex": "Referenzindex",
+  "flow.structuralInvertedIndex": "Invertierter Index",
   "flow.validationRuleLayoutSourceView": "Übereinstimmungsregel (Quellansicht)",
   "flow.validationRuleLayoutExtraction": "Übereinstimmungsregel (Extraktion)",
   "flow.validationRuleLayoutAliasing": "Übereinstimmungsregel (Aliasing)",
@@ -547,6 +547,7 @@ export const de: Messages = {
     "Noch keine Definitionen — bitte auf der Registerkarte Validierung (nach Quellansichten unter Konfigurieren) anlegen.",
   "flow.paletteExtractionHandlers": "Extraktions-Handler",
   "flow.paletteAliasingHandlers": "Aliasing-Handler",
+  "flow.palettePersistence": "Persistenz",
   "flow.paletteAnnotations": "Annotationen",
   "flow.paletteCdfTasks": "CDF-Funktionen",
   "flow.alignLeft": "Ausgewählte Knoten links ausrichten",
@@ -618,11 +619,11 @@ export const de: Messages = {
   "flow.inspectorStartHint":
     "Pipeline-Einstieg. Mit Quellansichten verbinden (oder mit Extraktion, wenn keine Quellansichten existieren).",
   "flow.inspectorEndHint":
-    "Pipeline-Ende. Von Extraktions-, Alias-, Validierungs-, Alias-Zurückschreiben- oder Referenzindex-Knoten verbinden.",
+    "Pipeline-Ende. Von Extraktions-, Alias-, Validierungs-, Alias-Zurückschreiben- oder invertierten Index-Knoten verbinden.",
   "flow.inspectorAliasPersistenceHint":
     "Entspricht fn_dm_alias_persistence: liest Aliasing-RAW und schreibt Aliaslisten (optional FK-Referenzstrings) auf Describable-Instanzen. Write-back in Scope oder Task-Daten konfigurieren.",
-  "flow.inspectorReferenceIndexHint":
-    "Entspricht fn_dm_reference_index: baut einen invertierten RAW-Index aus FOREIGN_KEY_REFERENCES_JSON und DOCUMENT_REFERENCES_JSON im Key-Extraction-Store. Über Scope aktivieren (z. B. enable_reference_index).",
+  "flow.inspectorInvertedIndexHint":
+    "Entspricht fn_dm_inverted_index: baut einen invertierten RAW-Index aus FOREIGN_KEY_REFERENCES_JSON und DOCUMENT_REFERENCES_JSON im Key-Extraction-Store. Über Scope aktivieren (z. B. enable_inverted_index).",
   "flow.inspectorValidationRuleHint":
     "Verweist auf einen validation_rules-Eintrag im Scope: Auswertung bei Schlüssel-Extraktion (globale key_extraction data.validation plus extraction_rules[].validation) oder Aliasing (aliasing_rules[].validation). Quellansichts-Zeilen tragen kein validation. Regelkörper sind eigenständige Definitionen. Verwenden Sie eine YAML-Liste, Kurzschreibweise { rule_id: [ tail... ] } oder hierarchy: { mode: ordered | concurrent, children: [...] }. Auf dem Canvas: Datenkanten von Extraktion oder Aliasing zum ersten Match-Regel-Knoten; weitere Match-Regel-Knoten mit sequence- oder parallel_group-Kanten verketten.",
   "flow.inspectorValidationRuleContext": "Regel-Geltungsbereich",

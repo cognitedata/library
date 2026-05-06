@@ -1,14 +1,14 @@
 """
-CDF Pipeline: reference index (inverted index for foreign-key and document references).
+CDF Pipeline: inverted index (RAW lookup for foreign-key and document references).
 
 Populates a RAW table keyed by normalized lookup tokens; postings list which source
 instances reference each token. Candidate keys from extraction are never indexed.
 
-Performance-related ``data`` keys: ``reference_index_prefetch_table`` (full index list once),
-``reference_index_retrieve_concurrency`` (parallel cold ``retrieve``),
+Performance-related ``data`` keys: ``inverted_index_prefetch_table`` (full index list once),
+``inverted_index_retrieve_concurrency`` (parallel cold ``retrieve``),
 ``source_raw_list_page_size`` / ``source_raw_read_limit`` (paged source reads),
-``reference_index_insert_batch_size``, ``skip_reference_index_ddl``.
-The handler no-ops unless ``enable_reference_index`` is true (see ``handler.py``).
+``inverted_index_insert_batch_size``, ``skip_inverted_index_ddl``.
+The handler no-ops unless ``enable_inverted_index`` is true (see ``handler.py``).
 """
 
 from __future__ import annotations
@@ -72,14 +72,14 @@ INVERTED_KEY_PREFIX = "t_"
 
 # Chunk size for final RAW insert; Cognite SDK also splits large insert calls internally.
 # Wider rows (many posting_* columns) may need a lower batch size to stay under request limits.
-DEFAULT_REFERENCE_INDEX_INSERT_BATCH_SIZE = 5000
+DEFAULT_INVERTED_INDEX_INSERT_BATCH_SIZE = 5000
 
 # Sentinel: key present in disk cache but RAW row does not exist.
 _DISK_ABSENT: Any = object()
 
 
 class _IndexRowStore:
-    """Loads reference-index RAW rows into memory or fetches on demand (with optional concurrency)."""
+    """Loads inverted-index RAW rows into memory or fetches on demand (with optional concurrency)."""
 
     def __init__(
         self,
@@ -110,7 +110,7 @@ class _IndexRowStore:
                 self._cache[row.key] = dict(getattr(row, "columns", {}) or {})
                 n += 1
         self.full_prefetch = True
-        self.logger.info(f"Reference index: prefetched {n} index RAW row(s) into memory")
+        self.logger.info(f"Inverted index: prefetched {n} index RAW row(s) into memory")
         return n
 
     def ensure_loaded(self, keys: Set[str]) -> None:
@@ -214,7 +214,7 @@ def _merge_remove_entity_postings(
 def _build_aliasing_engine(data: Dict[str, Any], logger: Any) -> Any:
     if AliasingEngine is None or _convert_yaml_direct_to_aliasing_config is None:
         logger.warning(
-            "AliasingEngine not available; reference index will only index canonical values (no alias expansion)."
+            "AliasingEngine not available; inverted index will only index canonical values (no alias expansion)."
         )
 
         class _NoOpResult:
@@ -230,7 +230,7 @@ def _build_aliasing_engine(data: Dict[str, Any], logger: Any) -> Any:
         return _NoOpEngine()
     provided = data.get("config")
     if not isinstance(provided, dict):
-        raise ValueError("reference index requires config with aliasing rules (data.config)")
+        raise ValueError("inverted index requires config with aliasing rules (data.config)")
     unwrapped = provided.get("config", provided)
     scope_doc = data.get("configuration") or data.get("scope_document")
     al_data = (
@@ -312,7 +312,7 @@ def _load_source_raw_rows(
         chunks += 1
         out.extend(row_list)
     logger.info(
-        "Reference index: loaded "
+        "Inverted index: loaded "
         f"{len(out)} source RAW row(s) in {chunks} list chunk(s) "
         f"(max_rows={max_rows if max_rows is not None else 'unlimited'} page_size={page})"
     )
@@ -341,7 +341,7 @@ def _resolve_run_id_filter(
     return None
 
 
-def persist_reference_index(
+def persist_inverted_index(
     client: Optional[CogniteClient],
     logger: Any,
     data: Dict[str, Any],
@@ -351,7 +351,7 @@ def persist_reference_index(
     value via inline AliasingEngine, upsert inverted index + per-source snapshots in RAW.
     """
     if not client:
-        raise ValueError("CogniteClient is required for reference index persistence")
+        raise ValueError("CogniteClient is required for inverted index persistence")
     if not CDF_AVAILABLE or RowWrite is None:
         raise ValueError("CDF client/RowWrite not available")
 
@@ -362,19 +362,19 @@ def persist_reference_index(
     if not source_raw_db or not source_raw_table_key:
         raise ValueError("source_raw_db and source_raw_table_key are required")
 
-    index_db = str(data.get("reference_index_raw_db") or data.get("index_raw_db") or source_raw_db)
-    index_table = str(data.get("reference_index_raw_table") or data.get("index_raw_table") or "")
+    index_db = str(data.get("inverted_index_raw_db") or data.get("index_raw_db") or source_raw_db)
+    index_table = str(data.get("inverted_index_raw_table") or data.get("index_raw_table") or "")
     if not index_table:
         raise ValueError(
-            "reference_index_raw_table (or index_raw_table) is required — e.g. {site}_reference_index"
+            "inverted_index_raw_table (or index_raw_table) is required — e.g. {site}_inverted_index"
         )
 
-    if not data.get("skip_reference_index_ddl"):
+    if not data.get("skip_inverted_index_ddl"):
         create_table_if_not_exists(client, index_db, index_table, logger)
-    logger.info(f"Reference index: target RAW db={index_db} table={index_table}")
+    logger.info(f"Inverted index: target RAW db={index_db} table={index_table}")
 
-    prefetch_table = bool(data.get("reference_index_prefetch_table", False))
-    retrieve_concurrency = int(data.get("reference_index_retrieve_concurrency", 1) or 1)
+    prefetch_table = bool(data.get("inverted_index_prefetch_table", False))
+    retrieve_concurrency = int(data.get("inverted_index_retrieve_concurrency", 1) or 1)
     index_store = _IndexRowStore(
         client,
         index_db,
@@ -388,7 +388,7 @@ def persist_reference_index(
 
     progress_every = max(
         0,
-        int(data.get("progress_every", data.get("reference_index_progress_every", 0)) or 0),
+        int(data.get("progress_every", data.get("inverted_index_progress_every", 0)) or 0),
     )
 
     src_run = _resolve_run_id_filter(client, data, source_raw_db, source_raw_table_key)
@@ -397,8 +397,8 @@ def persist_reference_index(
     )
     wf_filter_n = norm_workflow_status(wf_filter) if wf_filter else None
 
-    fk_entity_type = str(data.get("reference_index_fk_entity_type") or "asset")
-    doc_entity_type = str(data.get("reference_index_document_entity_type") or "file")
+    fk_entity_type = str(data.get("inverted_index_fk_entity_type") or "asset")
+    doc_entity_type = str(data.get("inverted_index_document_entity_type") or "file")
 
     default_inst = data.get("source_instance_space")
     default_vs = data.get("source_view_space")
@@ -408,14 +408,14 @@ def persist_reference_index(
     run_tag = str(data.get("run_id") or src_run or "")
 
     logger.info(
-        f"Reference index: listing source RAW db={source_raw_db} "
+        f"Inverted index: listing source RAW db={source_raw_db} "
         f"table={source_raw_table_key}"
         f"{f' run_id={src_run}' if src_run else ''}"
     )
     rows, source_list_chunks = _load_source_raw_rows(
         client, source_raw_db, source_raw_table_key, data, logger
     )
-    data["reference_index_source_list_chunks"] = source_list_chunks
+    data["inverted_index_source_list_chunks"] = source_list_chunks
 
     pred_allow = None
     _cw = data.get("compiled_workflow")
@@ -425,7 +425,7 @@ def persist_reference_index(
 
     if progress_every > 0:
         logger.info(
-            "Reference index: progress log every "
+            "Inverted index: progress log every "
             f"{progress_every} entity/entities with references"
         )
 
@@ -441,10 +441,10 @@ def persist_reference_index(
         1,
         int(
             data.get(
-                "reference_index_insert_batch_size",
-                DEFAULT_REFERENCE_INDEX_INSERT_BATCH_SIZE,
+                "inverted_index_insert_batch_size",
+                DEFAULT_INVERTED_INDEX_INSERT_BATCH_SIZE,
             )
-            or DEFAULT_REFERENCE_INDEX_INSERT_BATCH_SIZE
+            or DEFAULT_INVERTED_INDEX_INSERT_BATCH_SIZE
         ),
     )
 
@@ -499,7 +499,7 @@ def persist_reference_index(
         view_version = str(cols.get("view_version") or default_vv or "")
         if not (instance_space and view_space and view_external_id and view_version):
             logger.warning(
-                f"Skipping reference index for {external_id!r}: missing view/instance metadata "
+                f"Skipping inverted index for {external_id!r}: missing view/instance metadata "
                 "(set source_instance_space, source_view_* on task data or ensure cohort columns)"
             )
             continue
@@ -508,7 +508,7 @@ def persist_reference_index(
         entities_processed += 1
         if progress_every > 0 and entities_processed % progress_every == 0:
             logger.info(
-                "Reference index progress: "
+                "Inverted index progress: "
                 f"entities_with_refs={entities_processed}, "
                 f"inverted_row_writes={inverted_writes}, "
                 f"posting_events={postings_written} "
@@ -665,7 +665,7 @@ def persist_reference_index(
             inverted_writes += 1
 
         pending_snapshots[snap_key] = {
-            "record_kind": "reference_index_source",
+            "record_kind": "inverted_index_source",
             "source_external_id": external_id,
             "source_instance_space": instance_space,
             "inverted_keys_json": json.dumps(sorted(new_inverted_keys)),
@@ -696,21 +696,21 @@ def persist_reference_index(
         )
 
     logger.info(
-        "Reference index: "
+        "Inverted index: "
         f"entities_with_refs={entities_processed}, "
         f"inverted_row_writes={inverted_writes}, "
         f"posting_events={postings_written} "
         f"(foreign_key={fk_postings_written}, document={doc_postings_written}), "
         f"insert_batches={insert_batches}"
     )
-    data["reference_index_entities_processed"] = entities_processed
-    data["reference_index_inverted_writes"] = inverted_writes
-    data["reference_index_posting_events"] = postings_written
-    data["reference_index_fk_posting_events"] = fk_postings_written
-    data["reference_index_document_posting_events"] = doc_postings_written
-    data["reference_index_raw_db"] = index_db
-    data["reference_index_raw_table"] = index_table
-    data["reference_index_insert_batches"] = insert_batches
+    data["inverted_index_entities_processed"] = entities_processed
+    data["inverted_index_inverted_writes"] = inverted_writes
+    data["inverted_index_posting_events"] = postings_written
+    data["inverted_index_fk_posting_events"] = fk_postings_written
+    data["inverted_index_document_posting_events"] = doc_postings_written
+    data["inverted_index_raw_db"] = index_db
+    data["inverted_index_raw_table"] = index_table
+    data["inverted_index_insert_batches"] = insert_batches
 
 
 def _raw_insert_batched(

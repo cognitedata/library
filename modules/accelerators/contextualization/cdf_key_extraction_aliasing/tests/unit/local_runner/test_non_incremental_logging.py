@@ -24,7 +24,7 @@ def _args(**overrides: object) -> argparse.Namespace:
         write_foreign_keys=False,
         foreign_key_writeback_property=None,
         run_all=False,
-        skip_reference_index=False,
+        skip_inverted_index=False,
         progress_every=0,
     )
     base.update(overrides)

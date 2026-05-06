@@ -538,7 +538,7 @@ export const ja: Messages = {
   "flow.structuralExtraction": "抽出",
   "flow.structuralAliasing": "エイリアス",
   "flow.structuralAliasPersistence": "エイリアス書き戻し",
-  "flow.structuralReferenceIndex": "参照インデックス",
+  "flow.structuralInvertedIndex": "転置インデックス",
   "flow.validationRuleLayoutSourceView": "マッチ規則（ソースビュー）",
   "flow.validationRuleLayoutExtraction": "マッチ規則（抽出）",
   "flow.validationRuleLayoutAliasing": "マッチ規則（エイリアス）",
@@ -547,6 +547,7 @@ export const ja: Messages = {
     "定義がありません — 構成の「検証」タブ（ソースビューの後）で追加してください。",
   "flow.paletteExtractionHandlers": "抽出ハンドラー",
   "flow.paletteAliasingHandlers": "エイリアスハンドラー",
+  "flow.palettePersistence": "永続化",
   "flow.paletteAnnotations": "注釈",
   "flow.paletteCdfTasks": "CDF 関数",
   "flow.alignLeft": "選択ノードを左揃え",
@@ -618,11 +619,11 @@ export const ja: Messages = {
   "flow.inspectorStartHint":
     "パイプラインの開始。ソースビューへ接続（ソースビューがない場合は抽出へ）。",
   "flow.inspectorEndHint":
-    "パイプラインの終了。抽出・エイリアス・検証・エイリアス書き戻し、または参照インデックスの各ノードから接続。",
+    "パイプラインの終了。抽出・エイリアス・検証・エイリアス書き戻し、または転置インデックスの各ノードから接続。",
   "flow.inspectorAliasPersistenceHint":
     "fn_dm_alias_persistence に対応: エイリアス用 RAW を読み、Describable インスタンスへエイリアス一覧（任意で FK 参照文字列）を書き込みます。書き戻しはスコープまたはタスク data で設定。",
-  "flow.inspectorReferenceIndexHint":
-    "fn_dm_reference_index に対応: キー抽出ストアの FOREIGN_KEY_REFERENCES_JSON と DOCUMENT_REFERENCES_JSON から逆引き RAW インデックスを更新します。スコープで有効化（例: enable_reference_index）。",
+  "flow.inspectorInvertedIndexHint":
+    "fn_dm_inverted_index に対応: キー抽出ストアの FOREIGN_KEY_REFERENCES_JSON と DOCUMENT_REFERENCES_JSON から逆引き RAW インデックスを更新します。スコープで有効化（例: enable_inverted_index）。",
   "flow.inspectorValidationRuleHint":
     "スコープの validation_rules エントリに対応: キー採点（グローバルな key_extraction の data.validation と extraction_rules[].validation）またはエイリアス検証（aliasing_rules[].validation）で使用。ソースビュー行には validation はありません。ルール本体は独立した定義です。YAML リスト、簡略形 { rule_id: [ tail... ] }、または hierarchy: { mode: ordered | concurrent, children: [...] } を使用します。キャンバスでは抽出／エイリアスから最初のマッチルールノードへデータエッジ、その後のマッチルールノード同士は sequence または parallel_group エッジで連鎖します。",
   "flow.inspectorValidationRuleContext": "ルールの適用範囲",

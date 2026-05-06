@@ -50,7 +50,7 @@ def create_client(env_config: EnvConfig, debug: bool = False) -> CogniteClient:
         scopes=SCOPES,
     )
     cnf = ClientConfig(
-        client_name="ReferenceIndex_Client",
+        client_name="InvertedIndex_Client",
         project=env_config.cdf_project,
         base_url=f"https://p001.plink.{env_config.cdf_cluster}.cognitedata.com",
         credentials=creds,

@@ -340,7 +340,7 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         metavar="N",
         help=(
             "Log long-running steps every N items (0 = off). Non-incremental: extraction/aliasing "
-            "per view. Incremental (workflow parity): reference-index entities with refs + tag "
+            "per view. Incremental (workflow parity): inverted-index entities with refs + tag "
             "aliasing. Example: --progress-every 100"
         ),
     )
@@ -396,12 +396,13 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         ),
     )
     p.add_argument(
-        "--skip-reference-index",
+        "--skip-inverted-index",
+        dest="skip_inverted_index",
         action="store_true",
         help=(
-            "In incremental/workflow-parity mode, skip fn_dm_reference_index even when "
-            "key_extraction.config.parameters.enable_reference_index is true. "
-            "When the scope flag is false (default), the reference index step is skipped regardless. "
+            "In incremental/workflow-parity mode, skip fn_dm_inverted_index even when "
+            "key_extraction.config.parameters.enable_inverted_index is true. "
+            "When the scope flag is false (default), the inverted index step is skipped regardless. "
             "No effect when incremental workflow parity is not used (local CLI always uses incremental parity)."
         ),
     )
@@ -410,7 +411,7 @@ def _add_run_arguments(p: argparse.ArgumentParser) -> None:
         "--clean-state",
         action="store_true",
         help=(
-            "Delete RAW state tables for this scope (key extraction, reference index, aliasing state/aliases) "
+            "Delete RAW state tables for this scope (key extraction, inverted index, aliasing state/aliases) "
             "then run the pipeline. With incremental mode, combine with --all for a full reprocess."
         ),
     )

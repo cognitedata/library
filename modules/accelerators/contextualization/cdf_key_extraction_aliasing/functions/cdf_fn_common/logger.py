@@ -1,5 +1,15 @@
 from re import match
-from typing import Literal, cast
+from typing import Any, Literal, cast
+
+
+def _format_log_message(message: str, args: tuple[Any, ...]) -> str:
+    """``logging``-style ``%`` formatting when *args* are supplied; else *message* unchanged."""
+    if not args:
+        return message
+    try:
+        return message % args
+    except (TypeError, ValueError):
+        return f"{message} {' '.join(str(a) for a in args)}"
 
 
 # Logger using print
@@ -22,20 +32,20 @@ class CogniteFunctionLogger:
         for line in lines[1:]:
             print(f"{' ' * prefix_len} {line}")
 
-    def debug(self, message: str) -> None:
+    def debug(self, message: str, *args: Any) -> None:
         if self.log_level == "DEBUG":
-            self._print("[DEBUG]", message)
+            self._print("[DEBUG]", _format_log_message(message, args))
 
-    def info(self, message: str) -> None:
+    def info(self, message: str, *args: Any) -> None:
         if self.log_level in ("DEBUG", "INFO"):
-            self._print("[INFO]", message)
+            self._print("[INFO]", _format_log_message(message, args))
 
-    def warning(self, message: str) -> None:
+    def warning(self, message: str, *args: Any) -> None:
         if self.log_level in ("DEBUG", "INFO", "WARNING"):
-            self._print("[WARNING]", message)
+            self._print("[WARNING]", _format_log_message(message, args))
 
-    def error(self, message: str) -> None:
-        self._print("[ERROR]", message)
+    def error(self, message: str, *args: Any) -> None:
+        self._print("[ERROR]", _format_log_message(message, args))
 
     def verbose(
         self, log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"], message: str

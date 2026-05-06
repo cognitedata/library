@@ -32,7 +32,7 @@ import { patchExtractionRuleAliasingPipeline } from "./workflowScopePatch";
  *
  * **Associations** — top-level ``associations`` from source view → extraction **data** edges.
  *
- * **Persistence** — ``alias_persistence`` / ``reference_index`` placement and ``persistence_config`` are
+ * **Persistence** — ``alias_persistence`` / ``inverted_index`` placement and ``persistence_config`` are
  * carried in the canvas and merged into IR ``persistence`` by Python ``compiled_workflow_for_scope_document``
  * (not rewritten into ``key_extraction`` / ``aliasing`` text by this TS sync). ``expandCanvasForScopeSync``
  * flattens ``subgraph`` ``inner_canvas`` nodes first so the graph here matches compile.

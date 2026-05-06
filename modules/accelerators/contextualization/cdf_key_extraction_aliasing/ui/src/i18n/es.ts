@@ -539,7 +539,7 @@ export const es: Messages = {
   "flow.structuralExtraction": "Extracción",
   "flow.structuralAliasing": "Alias",
   "flow.structuralAliasPersistence": "Escritura de alias",
-  "flow.structuralReferenceIndex": "Índice de referencias",
+  "flow.structuralInvertedIndex": "Índice invertido",
   "flow.validationRuleLayoutSourceView": "Regla de coincidencia (vista origen)",
   "flow.validationRuleLayoutExtraction": "Regla de coincidencia (extracción)",
   "flow.validationRuleLayoutAliasing": "Regla de coincidencia (alias)",
@@ -548,6 +548,7 @@ export const es: Messages = {
     "Aún no hay definiciones — añádalas en la pestaña Validación (después de las vistas de origen en Configurar).",
   "flow.paletteExtractionHandlers": "Handlers de extracción",
   "flow.paletteAliasingHandlers": "Handlers de alias",
+  "flow.palettePersistence": "Persistencia",
   "flow.paletteAnnotations": "Anotaciones",
   "flow.paletteCdfTasks": "Funciones CDF",
   "flow.alignLeft": "Alinear nodos seleccionados a la izquierda",
@@ -619,11 +620,11 @@ export const es: Messages = {
   "flow.inspectorStartHint":
     "Entrada de la canalización. Conecte a las vistas de origen (o a extracción si no hay vistas de origen).",
   "flow.inspectorEndHint":
-    "Salida de la canalización. Conecte desde extracción, alias, validación, escritura de alias o índice de referencias.",
+    "Salida de la canalización. Conecte desde extracción, alias, validación, escritura de alias o índice invertido.",
   "flow.inspectorAliasPersistenceHint":
     "Equivale a fn_dm_alias_persistence: lee RAW de alias y escribe listas de alias (y opcionalmente cadenas FK) en instancias describibles. Configure write-back en el scope o en los datos de la tarea.",
-  "flow.inspectorReferenceIndexHint":
-    "Equivale a fn_dm_reference_index: mantiene un índice RAW invertido a partir de FOREIGN_KEY_REFERENCES_JSON y DOCUMENT_REFERENCES_JSON en el almacén de extracción. Actívelo en el scope (p. ej. enable_reference_index).",
+  "flow.inspectorInvertedIndexHint":
+    "Equivale a fn_dm_inverted_index: mantiene un índice RAW invertido a partir de FOREIGN_KEY_REFERENCES_JSON y DOCUMENT_REFERENCES_JSON en el almacén de extracción. Actívelo en el scope (p. ej. enable_inverted_index).",
   "flow.inspectorValidationRuleHint":
     "Apunta a una entrada validation_rules en el ámbito: se usa al puntuar claves (data.validation global de key_extraction más extraction_rules[].validation) o al validar alias (aliasing_rules[].validation). Las filas de vista origen no llevan validation. Los cuerpos de regla son definiciones independientes. Use una lista YAML, la forma abreviada { rule_id: [ tail... ] }, o hierarchy: { mode: ordered | concurrent, children: [...] }. En el lienzo, use aristas de datos desde extracción o alias al primer nodo de regla de coincidencia; encadene nodos posteriores con aristas sequence o parallel_group.",
   "flow.inspectorValidationRuleContext": "Ámbito de la regla",

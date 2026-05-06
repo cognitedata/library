@@ -47,13 +47,13 @@
   functionPath: 'handler.py'
   # Data set id for the zip file with the code that is uploaded.
 
-- name: 'dm:context:reference:index'
-  externalId: 'fn_dm_reference_index'
+- name: 'dm:context:inverted:index'
+  externalId: 'fn_dm_inverted_index'
   dataSetExternalId: 'ds_key_extraction'
   owner: 'Anonymous'
   description: 'Maintain RAW inverted index for foreign-key and document references (lookup by token)'
   metadata:
-    version: '{{reference_index_function_version}}'
+    version: '{{inverted_index_function_version}}'
   envVars:
     ENV_TYPE: '${CDF_BUILD_TYPE}'
     CDF_ENV: '${CDF_ENVIRON}'

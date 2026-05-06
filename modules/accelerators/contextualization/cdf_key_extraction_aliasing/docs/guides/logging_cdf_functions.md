@@ -11,7 +11,7 @@ Do not require new keys for logging; optional handler arguments are for tests an
 
 ## Logger interface (pipelines and engines)
 
-Pipelines (`key_extraction`, `tag_aliasing`, `persist_reference_index`, `incremental_state_update`, `persist_aliases_to_entities`) and engines expect a logger that supports:
+Pipelines (`key_extraction`, `tag_aliasing`, `persist_inverted_index`, `incremental_state_update`, `persist_aliases_to_entities`) and engines expect a logger that supports:
 
 | Method | Role |
 |--------|------|

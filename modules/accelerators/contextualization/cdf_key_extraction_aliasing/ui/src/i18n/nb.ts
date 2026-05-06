@@ -538,7 +538,7 @@ export const nb: Messages = {
   "flow.structuralExtraction": "Ekstraksjon",
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "Alias tilbakeskriving",
-  "flow.structuralReferenceIndex": "Referanseindeks",
+  "flow.structuralInvertedIndex": "Invertert indeks",
   "flow.validationRuleLayoutSourceView": "Samsvarsregel (kildevisning)",
   "flow.validationRuleLayoutExtraction": "Samsvarsregel (ekstraksjon)",
   "flow.validationRuleLayoutAliasing": "Samsvarsregel (alias)",
@@ -547,6 +547,7 @@ export const nb: Messages = {
     "Ingen definisjoner ennå — legg dem til på fanen Validering (etter kildevisninger under Konfigurer).",
   "flow.paletteExtractionHandlers": "Ekstraksjonshåndterere",
   "flow.paletteAliasingHandlers": "Aliasing-håndterere",
+  "flow.palettePersistence": "Persistens",
   "flow.paletteAnnotations": "Annotasjoner",
   "flow.paletteCdfTasks": "CDF-funksjoner",
   "flow.alignLeft": "Juster valgte noder til venstre",
@@ -618,11 +619,11 @@ export const nb: Messages = {
   "flow.inspectorStartHint":
     "Pipeline-inngang. Koble til kildevisninger (eller til ekstraksjon hvis det ikke finnes kilder).",
   "flow.inspectorEndHint":
-    "Pipeline-utgang. Koble fra ekstraksjon, alias, validering, alias tilbakeskriving eller referanseindeks.",
+    "Pipeline-utgang. Koble fra ekstraksjon, alias, validering, alias tilbakeskriving eller invertert indeks.",
   "flow.inspectorAliasPersistenceHint":
     "Tilsvarer fn_dm_alias_persistence: leser aliasing-RAW og skriver aliaslister (valgfritt FK-strenger) til describable-instanser. Konfigurer tilbakeskriving i scope eller oppgavedata.",
-  "flow.inspectorReferenceIndexHint":
-    "Tilsvarer fn_dm_reference_index: vedlikeholder en invertert RAW-indeks fra FOREIGN_KEY_REFERENCES_JSON og DOCUMENT_REFERENCES_JSON i nøkkelekstraksjonslageret. Aktiver i scope (f.eks. enable_reference_index).",
+  "flow.inspectorInvertedIndexHint":
+    "Tilsvarer fn_dm_inverted_index: vedlikeholder en invertert RAW-indeks fra FOREIGN_KEY_REFERENCES_JSON og DOCUMENT_REFERENCES_JSON i nøkkelekstraksjonslageret. Aktiver i scope (f.eks. enable_inverted_index).",
   "flow.inspectorValidationRuleHint":
     "Lenker til validation_rules i scope: brukes ved nøkkelscoring (global key_extraction data.validation pluss extraction_rules[].validation) eller aliasvalidering (aliasing_rules[].validation). Kildevisningsrader har ikke validation. Regelkroppene er frittstående definisjoner. Bruk YAML-liste, kortform { rule_id: [ tail... ] }, eller hierarchy: { mode: ordered | concurrent, children: [...] }. På lerretet: datakanter fra ekstraksjon eller aliasing til første match-regelnode; koble videre match-regelnoder med sequence- eller parallel_group-kanter.",
   "flow.inspectorValidationRuleContext": "Regelomfang",

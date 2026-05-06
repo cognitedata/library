@@ -23,6 +23,11 @@ Examples::
 
   PYTHONPATH=functions:scripts:. python scripts/cdf_workflow_run.py \\
     --scope-suffix site_01 --poll-interval 5 --timeout-seconds 7200
+
+  # Full incremental reprocess + omit node ``space`` filters on ``configuration.source_views``
+  # for a one-off test run (not persisted in generated trigger YAML)::
+  PYTHONPATH=functions:scripts:. python scripts/cdf_workflow_run.py \\
+    --scope-suffix site_01 --all --omit-node-space-filter
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +56,30 @@ def _bootstrap_paths() -> Path:
         if p not in sys.path:
             sys.path.insert(0, p)
     return root
+
+
+def _omit_node_space_scoping_from_configuration(configuration: dict[str, Any]) -> None:
+    """Strip DM node space filters and per-view instance_space (in-place; ad-hoc test runs only)."""
+    views = configuration.get("source_views")
+    if not isinstance(views, list):
+        return
+    for v in views:
+        if not isinstance(v, dict):
+            continue
+        v.pop("instance_space", None)
+        raw_filters = v.get("filters")
+        if not isinstance(raw_filters, list) or not raw_filters:
+            continue
+
+        def _is_node_space(f: object) -> bool:
+            if not isinstance(f, dict):
+                return False
+            scope = str(f.get("property_scope", "view")).lower()
+            return scope == "node" and f.get("target_property") == "space"
+
+        kept = [f for f in raw_filters if not _is_node_space(f)]
+        if len(kept) != len(raw_filters):
+            v["filters"] = kept
 
 
 def _status_str(status: object) -> str:
@@ -101,6 +131,21 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         metavar="SPACE",
         help="Replace {{instance_space}} in workflow input (overrides KEA_INSTANCE_SPACE / CDF_INSTANCE_SPACE).",
+    )
+    p.add_argument(
+        "--all",
+        action="store_true",
+        dest="run_all",
+        help="Set workflow input run_all=true (full reprocess; same semantics as local ``module.py run --all``).",
+    )
+    p.add_argument(
+        "--omit-node-space-filter",
+        action="store_true",
+        help=(
+            "Before executions.run, strip node space (EQUALS/IN on property_scope=node, target_property=space) "
+            "filters from input.configuration.source_views and remove per-view instance_space. "
+            "One-off test helper; does not change generated WorkflowTrigger YAML."
+        ),
     )
     p.add_argument(
         "--timeout-seconds",
@@ -156,6 +201,19 @@ def main(argv: list[str] | None = None) -> int:
         wf_input = workflow_input_from_trigger_yaml(trig_path)
     assert_expected_workflow_input_keys(wf_input)
 
+    if args.run_all:
+        wf_input["run_all"] = True
+        logger.info("Set workflow input run_all=true (--all).")
+
+    if args.omit_node_space_filter:
+        cfg = wf_input.get("configuration")
+        if isinstance(cfg, dict):
+            _omit_node_space_scoping_from_configuration(cfg)
+            logger.info(
+                "Stripped node space filters and per-view instance_space from "
+                "workflow input.configuration (--omit-node-space-filter)."
+            )
+
     inst_space = (
         (args.instance_space or "").strip()
         or (os.environ.get("KEA_INSTANCE_SPACE") or "").strip()
@@ -172,6 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     logger.info("workflow_external_id=%s version=%s", wf_ext, version)
+
     if args.dry_run:
         logger.info("dry-run: would run executions.run with input keys %s", sorted(wf_input.keys()))
         return 0

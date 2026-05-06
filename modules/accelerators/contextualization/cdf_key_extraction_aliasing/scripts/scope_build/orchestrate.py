@@ -125,7 +125,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
             "and key_extraction_aliasing.<suffix>.config.yaml (full scope; always refreshed on build). "
             "Existing Workflow/Version/Trigger are only overwritten with --force; the leaf *.config.yaml "
             "is always rewritten. "
-            "workflow_template/workflow.execution.graph.yaml is refreshed from IR on every build (no --force). "
+            "workflow_template/workflow.execution.graph.yaml is refreshed from the unpatched scope template IR on every build (no --force). "
             "WorkflowVersion is generated from compiled_workflow IR (canvas); Workflow.yaml uses workflow_template/. "
             "Scope template is unified YAML (``canvas`` embedded). "
             "Use --clean to remove generated YAML under workflows/ (with confirmation or --yes); no build runs after clean."
@@ -139,7 +139,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
             "WorkflowTrigger.yaml from templates + compiled IR. Without --force, those files are created if "
             "missing but left unchanged when already present; the sibling *.config.yaml (full scope) is still "
             "refreshed every build. workflow.execution.graph.yaml is refreshed every "
-            "build without --force. Does not apply to --check-workflow-triggers."
+            "build (from the unpatched scope template) without --force. Does not apply to --check-workflow-triggers."
         ),
     )
     p.add_argument(

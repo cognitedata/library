@@ -21,7 +21,7 @@ export type CanvasNodeRfType =
   | "keaAliasing"
   | "keaValidation"
   | "keaAliasPersistence"
-  | "keaReferenceIndex"
+  | "keaInvertedIndex"
   | "keaMatchValidationRuleSourceView"
   | "keaMatchValidationRuleExtraction"
   | "keaMatchValidationRuleAliasing"
@@ -102,22 +102,22 @@ export type AliasPersistenceConfig = PersistenceProfileRef & {
   foreign_key_writeback_property?: string;
 };
 
-/** Reference index RAW sink for ``kind: reference_index`` nodes. */
-export type ReferenceIndexPersistenceConfig = PersistenceProfileRef & {
-  kind: "reference_index";
+/** Inverted-index RAW sink for ``kind: inverted_index`` nodes. */
+export type InvertedIndexPersistenceConfig = PersistenceProfileRef & {
+  kind: "inverted_index";
   source_raw_db?: string;
   source_raw_table_key?: string;
   source_raw_read_limit?: number;
-  reference_index_raw_db?: string;
-  reference_index_raw_table?: string;
-  reference_index_fk_entity_type?: string;
-  reference_index_document_entity_type?: string;
+  inverted_index_raw_db?: string;
+  inverted_index_raw_table?: string;
+  inverted_index_fk_entity_type?: string;
+  inverted_index_document_entity_type?: string;
   source_view_space?: string;
   source_view_external_id?: string;
   source_view_version?: string;
 };
 
-export type PersistenceConfig = AliasPersistenceConfig | ReferenceIndexPersistenceConfig;
+export type PersistenceConfig = AliasPersistenceConfig | InvertedIndexPersistenceConfig;
 
 export type CanvasEdgeKind = "data" | "sequence" | "parallel_group";
 
@@ -130,7 +130,7 @@ export type CanvasNodeKind =
   | "aliasing"
   | "validation"
   | "alias_persistence"
-  | "reference_index"
+  | "inverted_index"
   | "match_validation_source_view"
   | "match_validation_extraction"
   | "match_validation_aliasing"
@@ -178,8 +178,8 @@ export interface WorkflowCanvasNodeData {
   label?: string;
   /** extraction | aliasing | annotation | persistence | incremental — which handler family */
   handler_family?: "extraction" | "aliasing" | "annotation" | "persistence" | "incremental";
-  /** fn_dm_alias_persistence vs fn_dm_reference_index (layout / future compile) */
-  persistence_step?: "alias_writeback" | "reference_index";
+  /** fn_dm_alias_persistence vs fn_dm_inverted_index (layout / future compile) */
+  persistence_step?: "alias_writeback" | "inverted_index";
   /** fn_dm_incremental_state_update — cohort rows before key extraction when incremental is on */
   incremental_step?: "state_update";
   /** e.g. regex_handler, heuristic, character_substitution */
@@ -221,7 +221,7 @@ export interface WorkflowCanvasNodeData {
    */
   inner_canvas?: WorkflowCanvasDocument;
   /**
-   * Per-node persistence settings for ``alias_persistence`` / ``reference_index``.
+   * Per-node persistence settings for ``alias_persistence`` / ``inverted_index``.
    * Compiler merges with ``persistence_profiles`` and scope defaults into IR ``persistence``.
    */
   persistence_config?: PersistenceConfig;
@@ -430,7 +430,7 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
         kind !== "aliasing" &&
         kind !== "validation" &&
         kind !== "alias_persistence" &&
-        kind !== "reference_index" &&
+        kind !== "inverted_index" &&
         kind !== "match_validation_source_view" &&
         kind !== "match_validation_extraction" &&
         kind !== "match_validation_aliasing" &&
@@ -548,8 +548,8 @@ export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
       return "keaValidation";
     case "alias_persistence":
       return "keaAliasPersistence";
-    case "reference_index":
-      return "keaReferenceIndex";
+    case "inverted_index":
+      return "keaInvertedIndex";
     case "match_validation_source_view":
       return "keaMatchValidationRuleSourceView";
     case "match_validation_extraction":
@@ -583,8 +583,8 @@ export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
       return "validation";
     case "keaAliasPersistence":
       return "alias_persistence";
-    case "keaReferenceIndex":
-      return "reference_index";
+    case "keaInvertedIndex":
+      return "inverted_index";
     case "keaMatchValidationRuleSourceView":
       return "match_validation_source_view";
     case "keaMatchValidationRuleExtraction":

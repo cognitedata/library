@@ -544,7 +544,7 @@ export const zh: Messages = {
   "flow.structuralExtraction": "提取",
   "flow.structuralAliasing": "别名",
   "flow.structuralAliasPersistence": "别名写回",
-  "flow.structuralReferenceIndex": "引用索引",
+  "flow.structuralInvertedIndex": "倒排索引",
   "flow.validationRuleLayoutSourceView": "匹配规则（源视图）",
   "flow.validationRuleLayoutExtraction": "匹配规则（提取）",
   "flow.validationRuleLayoutAliasing": "匹配规则（别名）",
@@ -553,6 +553,7 @@ export const zh: Messages = {
     "尚无定义 — 请在配置页的「验证」选项卡（源视图之后）添加。",
   "flow.paletteExtractionHandlers": "提取处理器",
   "flow.paletteAliasingHandlers": "别名处理器",
+  "flow.palettePersistence": "持久化",
   "flow.paletteAnnotations": "注释",
   "flow.paletteCdfTasks": "CDF 函数",
   "flow.alignLeft": "将所选节点左对齐",
@@ -621,11 +622,11 @@ export const zh: Messages = {
   "flow.inspectorEmpty": "请选择节点或边。",
   "flow.inspectorStartHint": "管道入口。连接到源视图（若无源视图则连到提取）。",
   "flow.inspectorEndHint":
-    "管道出口。由提取、别名、验证、别名写回或引用索引节点连入。",
+    "管道出口。由提取、别名、验证、别名写回或倒排索引节点连入。",
   "flow.inspectorAliasPersistenceHint":
     "对应 fn_dm_alias_persistence：读取别名 RAW，将别名列表（及可选的外键引用字符串）写回可描述实例。在作用域或任务数据中配置写回。",
-  "flow.inspectorReferenceIndexHint":
-    "对应 fn_dm_reference_index：根据键提取存储中的 FOREIGN_KEY_REFERENCES_JSON 与 DOCUMENT_REFERENCES_JSON 维护倒排 RAW 索引。在作用域中启用（如 enable_reference_index）。",
+  "flow.inspectorInvertedIndexHint":
+    "对应 fn_dm_inverted_index：根据键提取存储中的 FOREIGN_KEY_REFERENCES_JSON 与 DOCUMENT_REFERENCES_JSON 维护倒排 RAW 索引。在作用域中启用（如 enable_inverted_index）。",
   "flow.inspectorValidationRuleHint":
     "对应作用域中的 validation_rules：用于键置信度评分（全局 key_extraction 的 data.validation 以及 extraction_rules[].validation）或别名验证（aliasing_rules[].validation）。源视图行不包含 validation。规则体为独立定义。可使用 YAML 列表、简写 { rule_id: [ tail... ] }，或 hierarchy: { mode: ordered | concurrent, children: [...] }。画布上从提取/别名用数据边连到首个匹配规则节点；后续匹配规则节点之间使用 sequence 或 parallel_group 边链接。",
   "flow.inspectorValidationRuleContext": "规则作用域",

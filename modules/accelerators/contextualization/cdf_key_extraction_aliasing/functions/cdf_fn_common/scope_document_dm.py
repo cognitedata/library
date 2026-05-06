@@ -29,7 +29,7 @@ def materialize_scope_confidence_refs_on_task_data(data: MutableMapping[str, Any
             data[key] = doc
 
 
-from .reference_index_naming import reference_index_raw_table_from_key_extraction_table
+from .inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
 
 
 def _workflow_v1_from_task_data(data: Mapping[str, Any]) -> Dict[str, Any]:
@@ -231,15 +231,15 @@ def build_aliasing_workflow_config(
     return {"externalId": ext, "config": inner}
 
 
-def reference_index_raw_table_key_from_scope(ke_params: Mapping[str, Any], raw_table_key: str) -> str:
-    """Resolve reference-index RAW table key from scope parameters or naming convention."""
-    explicit = ke_params.get("reference_index_raw_table_key")
+def inverted_index_raw_table_key_from_scope(ke_params: Mapping[str, Any], raw_table_key: str) -> str:
+    """Resolve inverted-index RAW table key from scope parameters or naming convention."""
+    explicit = ke_params.get("inverted_index_raw_table_key")
     if explicit is not None and str(explicit).strip():
         return str(explicit).strip()
-    return reference_index_raw_table_from_key_extraction_table(str(raw_table_key))
+    return inverted_index_raw_table_from_key_extraction_table(str(raw_table_key))
 
 
-def read_enable_reference_index(doc: Dict[str, Any]) -> bool:
+def read_enable_inverted_index(doc: Dict[str, Any]) -> bool:
     ke = doc.get("key_extraction")
     if not isinstance(ke, dict):
         return False
@@ -249,14 +249,14 @@ def read_enable_reference_index(doc: Dict[str, Any]) -> bool:
     params = cfg.get("parameters")
     if not isinstance(params, dict):
         return False
-    return bool(params.get("enable_reference_index", False))
+    return bool(params.get("enable_inverted_index", False))
 
 
-def build_reference_index_config_block(doc: Dict[str, Any]) -> Dict[str, Any]:
-    """Shape expected under ``data['config']`` for fn_dm_reference_index."""
+def build_inverted_index_config_block(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Shape expected under ``data['config']`` for fn_dm_inverted_index."""
     al = doc.get("aliasing")
     if not isinstance(al, dict):
-        raise ValueError("scope document missing aliasing for reference index config")
+        raise ValueError("scope document missing aliasing for inverted index config")
     inner = copy.deepcopy(al.get("config"))
     if not isinstance(inner, dict):
         raise ValueError("scope document missing aliasing.config")
@@ -466,11 +466,38 @@ def _filter_aliasing_rules_on_data(data: MutableMapping[str, Any], cfg: Dict[str
     restrict_aliasing_pathways_to_wanted_names(sec, wanted)
 
 
+def _aliasing_task_config_ready_for_engine(existing: Any) -> bool:
+    """True only when *existing* already carries a full workflow-shaped aliasing package.
+
+    CDF / compiled task slices sometimes pre-populate ``data['config']`` with a small,
+    non-empty stub. Treating any truthy dict as "ready" skips :func:`build_aliasing_workflow_config`,
+    which drops ``aliasing.config.parameters`` (``raw_db``, ``raw_table_aliases``, …). The
+    aliasing handler then never sets ``upload_to_raw`` / ``raw_db`` and no tag-aliasing RAW
+    database is created — alias persistence reads zero rows.
+    """
+    if not isinstance(existing, dict) or not existing:
+        return False
+    inner = existing.get("config", existing)
+    if not isinstance(inner, dict):
+        return False
+    inner_data = inner.get("data")
+    if not isinstance(inner_data, dict):
+        return False
+    if not (inner_data.get("pathways") or inner_data.get("aliasing_rules")):
+        return False
+    params = inner.get("parameters")
+    if not isinstance(params, dict):
+        return False
+    if not str(params.get("raw_db") or "").strip():
+        return False
+    return True
+
+
 def ensure_aliasing_config_from_scope_dm(data: MutableMapping[str, Any], client: Any) -> None:
     del client
     materialize_scope_confidence_refs_on_task_data(data)
     existing = data.get("config")
-    if isinstance(existing, dict) and existing:
+    if _aliasing_task_config_ready_for_engine(existing):
         return
     doc = _workflow_v1_from_task_data(data)
     space = ensure_instance_space_from_scope_document(data, doc)
@@ -490,21 +517,21 @@ def ensure_aliasing_config_from_scope_dm(data: MutableMapping[str, Any], client:
     data.setdefault("source_instance_space", str(space))
 
 
-def apply_reference_index_scope_document(
+def apply_inverted_index_scope_document(
     data: MutableMapping[str, Any],
     client: Any,
 ) -> None:
-    """Load reference-index settings from v1 ``configuration`` when present."""
+    """Load inverted-index settings from v1 ``configuration`` when present."""
     del client
-    if data.get("enable_reference_index") is False:
+    if data.get("enable_inverted_index") is False:
         return
     try:
         materialize_scope_confidence_refs_on_task_data(data)
         doc = _workflow_v1_from_task_data(data)
     except ValueError:
         return
-    if "enable_reference_index" not in data:
-        data["enable_reference_index"] = read_enable_reference_index(doc)
+    if "enable_inverted_index" not in data:
+        data["enable_inverted_index"] = read_enable_inverted_index(doc)
     ke = doc.get("key_extraction")
     ke_cfg = ke.get("config") if isinstance(ke, dict) else None
     ke_params = ke_cfg.get("parameters") if isinstance(ke_cfg, dict) else None
@@ -517,18 +544,18 @@ def apply_reference_index_scope_document(
         data.setdefault("source_raw_db", str(ke_params.get("raw_db") or "db_key_extraction"))
         data.setdefault("source_instance_space", str(space))
         data.setdefault(
-            "reference_index_raw_table",
-            reference_index_raw_table_key_from_scope(ke_params, raw_key),
+            "inverted_index_raw_table",
+            inverted_index_raw_table_key_from_scope(ke_params, raw_key),
         )
         data.setdefault(
-            "reference_index_raw_db",
+            "inverted_index_raw_db",
             str(data.get("source_raw_db") or "db_key_extraction"),
         )
-    if not data.get("enable_reference_index"):
+    if not data.get("enable_inverted_index"):
         return
     if isinstance(data.get("config"), dict) and data["config"]:
         return
-    data["config"] = build_reference_index_config_block(doc)
+    data["config"] = build_inverted_index_config_block(doc)
 
 
 def ensure_alias_persistence_from_scope_dm(data: MutableMapping[str, Any], client: Any) -> None:

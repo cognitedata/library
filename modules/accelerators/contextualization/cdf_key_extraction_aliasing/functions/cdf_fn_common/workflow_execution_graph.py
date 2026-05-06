@@ -30,9 +30,9 @@ FUNCTION_CHANNEL_METADATA: Mapping[str, Mapping[str, Any]] = {
         ],
         "outputs": ["key-extraction RAW rows", "FOREIGN_KEY_REFERENCES_JSON", "DOCUMENT_REFERENCES_JSON"],
     },
-    "kea__reference_index": {
+    "kea__inverted_index": {
         "inputs": ["configuration", "source RAW db/table", "run_id", "task_id", "persistence (inlined)"],
-        "outputs": ["reference index RAW rows"],
+        "outputs": ["inverted index RAW rows"],
     },
     "kea__aliasing": {
         "inputs": [
@@ -248,7 +248,7 @@ def load_workflow_version_yaml(path: Path) -> Dict[str, Any]:
 _FN_TO_ROLE: Dict[str, str] = {
     "fn_dm_incremental_state_update": "incremental_cohort",
     "fn_dm_key_extraction": "key_extraction",
-    "fn_dm_reference_index": "reference_index",
+    "fn_dm_inverted_index": "inverted_index",
     "fn_dm_aliasing": "aliasing",
     "fn_dm_alias_persistence": "alias_persistence",
 }

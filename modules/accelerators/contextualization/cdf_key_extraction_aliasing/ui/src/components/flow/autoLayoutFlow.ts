@@ -42,7 +42,7 @@ function estimateNodeRect(n: Node): Rect {
   if (t === "keaValidation") {
     return { w: 192, h: 108 };
   }
-  if (t === "keaAliasPersistence" || t === "keaReferenceIndex") {
+  if (t === "keaAliasPersistence" || t === "keaInvertedIndex") {
     return { w: 192, h: 120 };
   }
   if (t === "keaSubflowGraphIn" || t === "keaSubflowGraphOut") {

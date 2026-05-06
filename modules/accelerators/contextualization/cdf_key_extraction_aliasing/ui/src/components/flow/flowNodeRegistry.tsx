@@ -3,7 +3,7 @@ import {
   KeaAliasPersistenceNode,
   KeaEndNode,
   KeaExtractionNode,
-  KeaReferenceIndexNode,
+  KeaInvertedIndexNode,
   KeaSourceViewNode,
   KeaStartNode,
   KeaSubflowGraphInNode,
@@ -27,5 +27,5 @@ export const KEA_FLOW_NODE_TYPES = {
   keaMatchValidationRuleExtraction: KeaValidationRuleNode,
   keaMatchValidationRuleAliasing: KeaValidationRuleNode,
   keaAliasPersistence: KeaAliasPersistenceNode,
-  keaReferenceIndex: KeaReferenceIndexNode,
+  keaInvertedIndex: KeaInvertedIndexNode,
 };

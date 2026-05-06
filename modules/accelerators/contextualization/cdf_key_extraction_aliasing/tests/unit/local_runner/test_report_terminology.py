@@ -9,11 +9,11 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.local_ru
 )
 
 
-def test_workflow_overview_step_uses_reference_index_not_catalog() -> None:
+def test_workflow_overview_step_uses_inverted_index_not_catalog() -> None:
     src = Path(report_mod.__file__).read_text(encoding="utf-8")
-    assert "5. **Reference Index**" in src
+    assert "5. **Inverted index**" in src
     assert "Reference Catalog" not in src
-    assert "fn_dm_reference_index" in src
+    assert "fn_dm_inverted_index" in src
     assert "workflow_diagram.png" not in src
     assert "workflow_diagram.md" in src
     assert "future implementation" not in src

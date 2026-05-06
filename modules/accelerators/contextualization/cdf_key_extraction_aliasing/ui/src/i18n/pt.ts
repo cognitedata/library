@@ -543,7 +543,7 @@ export const pt: Messages = {
   "flow.structuralExtraction": "Extração",
   "flow.structuralAliasing": "Alias",
   "flow.structuralAliasPersistence": "Gravação de alias",
-  "flow.structuralReferenceIndex": "Índice de referências",
+  "flow.structuralInvertedIndex": "Índice invertido",
   "flow.validationRuleLayoutSourceView": "Regra de correspondência (vista de origem)",
   "flow.validationRuleLayoutExtraction": "Regra de correspondência (extração)",
   "flow.validationRuleLayoutAliasing": "Regra de correspondência (alias)",
@@ -552,6 +552,7 @@ export const pt: Messages = {
     "Ainda sem definições — adicione-as no separador Validação (após as vistas de origem em Configurar).",
   "flow.paletteExtractionHandlers": "Handlers de extração",
   "flow.paletteAliasingHandlers": "Handlers de alias",
+  "flow.palettePersistence": "Persistência",
   "flow.paletteAnnotations": "Anotações",
   "flow.paletteCdfTasks": "Funções CDF",
   "flow.alignLeft": "Alinhar nós selecionados à esquerda",
@@ -623,11 +624,11 @@ export const pt: Messages = {
   "flow.inspectorStartHint":
     "Entrada do pipeline. Ligue às visualizações de origem (ou à extração se não houver origens).",
   "flow.inspectorEndHint":
-    "Saída do pipeline. Ligue a partir de extração, alias, validação, gravação de alias ou índice de referências.",
+    "Saída do pipeline. Ligue a partir de extração, alias, validação, gravação de alias ou índice invertido.",
   "flow.inspectorAliasPersistenceHint":
     "Corresponde a fn_dm_alias_persistence: lê o RAW de alias e grava listas de alias (opcionalmente cadeias FK) em instâncias describibles. Configure a gravação no âmbito ou nos dados da tarefa.",
-  "flow.inspectorReferenceIndexHint":
-    "Corresponde a fn_dm_reference_index: mantém um índice RAW invertido a partir de FOREIGN_KEY_REFERENCES_JSON e DOCUMENT_REFERENCES_JSON no armazenamento de extração. Ative no âmbito (ex.: enable_reference_index).",
+  "flow.inspectorInvertedIndexHint":
+    "Corresponde a fn_dm_inverted_index: mantém um índice RAW invertido a partir de FOREIGN_KEY_REFERENCES_JSON e DOCUMENT_REFERENCES_JSON no armazenamento de extração. Ative no âmbito (ex.: enable_inverted_index).",
   "flow.inspectorValidationRuleHint":
     "Liga a uma entrada validation_rules no âmbito: usada na pontuação de chaves (data.validation global de key_extraction mais extraction_rules[].validation) ou na validação de alias (aliasing_rules[].validation). As linhas de vista de origem não incluem validation. Os corpos de regra são definições autónomas. Use uma lista YAML, a forma abreviada { rule_id: [ tail... ] }, ou hierarchy: { mode: ordered | concurrent, children: [...] }. No canvas, use arestas de dados da extração ou alias ao primeiro nó de regra de correspondência; encadeie nós seguintes com arestas sequence ou parallel_group.",
   "flow.inspectorValidationRuleContext": "Âmbito da regra",

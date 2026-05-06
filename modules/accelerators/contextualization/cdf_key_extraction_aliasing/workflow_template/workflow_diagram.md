@@ -12,7 +12,7 @@ graph TD
 
     KeyExtraction --> RawKeys[RAW: candidate keys<br/>FOREIGN_KEY_REFERENCES_JSON<br/>DOCUMENT_REFERENCES_JSON]
 
-    RawKeys --> RefIndex[Reference index<br/>fn_dm_reference_index]
+    RawKeys --> RefIndex[Inverted index<br/>fn_dm_inverted_index]
 
     RawKeys --> Aliasing[Aliasing<br/>fn_dm_aliasing]
 
@@ -59,7 +59,7 @@ graph TD
 ### 2. RAW handoff (between tasks)
 - **Why**: CDF Workflows do not automatically pass function outputs to the next task.
 - **Key extraction** writes rows to a configured RAW table (candidate keys per field, plus `FOREIGN_KEY_REFERENCES_JSON` / `DOCUMENT_REFERENCES_JSON` when rules produce references).
-- **`fn_dm_reference_index`** (parallel to aliasing) reads only the FK/document JSON columns and maintains an inverted index RAW table; it does **not** consume candidate-key columns.
+- **`fn_dm_inverted_index`** (parallel to aliasing) reads only the FK/document JSON columns and maintains an inverted index RAW table; it does **not** consume candidate-key columns.
 - **Aliasing** reads **candidate keys** from that table and writes alias rows to a second RAW table.
 
 ### 3. Aliasing Phase
@@ -79,17 +79,17 @@ graph TD
   - Optionally writes deduplicated FK reference strings to **`foreign_key_writeback_property`** on the same or another view (task `data`)
 - **Output**: Updated entities; handler summary includes `aliases_persisted`, and when FK write is enabled `foreign_keys_persisted` / `entities_fk_updated`
 
-### 5. Reference index (RAW inverted lookup)
-- **Component**: `fn_dm_reference_index`
+### 5. Inverted index (RAW lookup)
+- **Component**: `fn_dm_inverted_index`
 - **Input**: Key-extraction RAW (`FOREIGN_KEY_REFERENCES_JSON`, `DOCUMENT_REFERENCES_JSON`); inline `AliasingEngine` config for alias tokens of each referenced value (not `fn_dm_aliasing` RAW output).
-- **Output**: Reference index RAW (e.g. `*_reference_index`) plus per-source snapshot rows for removals when refs shrink.
+- **Output**: Inverted index RAW (e.g. `*_inverted_index`) plus per-source snapshot rows for removals when refs shrink.
 - **DM projection** (optional): future — see module README roadmap.
 
 ## Data Flow
 
 ```
 DM entities → fn_dm_key_extraction → RAW (keys + FK/doc JSON)
-                → fn_dm_reference_index → RAW (inverted reference index)
+                → fn_dm_inverted_index → RAW (inverted index)
                 → fn_dm_aliasing (candidate keys only) → RAW (aliases + entities_json)
                 → fn_dm_alias_persistence (reads RAW) → DM apply (CogniteDescribable; optional FK property)
 ```
@@ -98,12 +98,12 @@ DM entities → fn_dm_key_extraction → RAW (keys + FK/doc JSON)
 
 ### Current workflow (`key_extraction_aliasing` v5)
 1. **Key extraction** — queries source views, writes extraction output to RAW.
-2. **Reference index** — reads FK/document JSON from extraction RAW, updates inverted index table.
+2. **Inverted index** — reads FK/document JSON from extraction RAW, updates inverted index table.
 3. **Aliasing** — reads candidate keys from extraction RAW, writes alias rows to RAW.
 4. **Alias persistence** — reads alias RAW, applies aliases to `CogniteDescribable`; optional FK strings from extraction RAW when configured.
 
 ### Possible extensions
-- **DM sync** for the reference index (RAW remains source of truth today).
+- **DM sync** for the inverted index (RAW remains source of truth today).
 
 ## Component Details
 

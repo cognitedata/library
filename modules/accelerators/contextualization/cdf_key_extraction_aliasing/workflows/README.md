@@ -7,11 +7,11 @@
 This module ships a workflow that:
 1) (**incremental / default in WorkflowVersion**) runs **`fn_dm_incremental_state_update`** to detect scoped instance changes, advance the **listing watermark** and **skip-unchanged hash state** (prefer **Key Discovery** FDM views under [`data_modeling/`](../data_modeling/) when deployed — `KeyDiscoveryScopeCheckpoint`, `KeyDiscoveryProcessingState`; otherwise **RAW** `scope_wm_*` + `EXTRACTION_INPUTS_HASH`), and write **cohort** entity rows in the unified key-extraction RAW table with **`WORKFLOW_STATUS=detected`** and a per-run **`RUN_ID`**,
 2) runs **`fn_dm_key_extraction`** on that cohort (reads **`RUN_ID` + `WORKFLOW_STATUS=detected`**, then sets **`extracted`** on success or **`failed`** on row failure),
-3) runs **`fn_dm_reference_index`** in parallel with aliasing (depends only on key extraction): reads **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** from key-extraction RAW and maintains an inverted **reference index** RAW table whose key comes from the scope document (`key_extraction.config.parameters.reference_index_raw_table_key`, or the `*_key_extraction_state` → `*_reference_index` convention) — candidate keys are **not** sent through this task,
+3) runs **`fn_dm_inverted_index`** in parallel with aliasing (depends only on key extraction): reads **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** from key-extraction RAW and maintains an **inverted index** RAW table whose key comes from the scope document (`key_extraction.config.parameters.inverted_index_raw_table_key`, or the `*_key_extraction_state` → `*_inverted_index` convention) — candidate keys are **not** sent through this task,
 4) runs **`fn_dm_aliasing`** reading **candidate keys** from RAW (optionally filtered by run + status), writes alias rows, then advances **`WORKFLOW_STATUS`** to **`aliased`** for that cohort where applicable,
 5) runs **`fn_dm_alias_persistence`** and advances **`WORKFLOW_STATUS`** to **`persisted`** (or leaves failures for operator review).
 
-For deployments that omit incremental mode, the same pipeline can be described as: key extraction → (reference index ∥ aliasing) → alias persistence. Authoring source for rules and views is the v1 scope mapping embedded in each schedule trigger as **`input.configuration`** (template: [`../workflow_template/workflow.template.config.yaml`](../workflow_template/workflow.template.config.yaml)), patched per leaf by **`scripts/build_scopes.py`**. Local default scope (same v1 shape): [`../workflow.local.config.yaml`](../workflow.local.config.yaml) at module root.
+For deployments that omit incremental mode, the same pipeline can be described as: key extraction → (inverted index ∥ aliasing) → alias persistence. Authoring source for rules and views is the v1 scope mapping embedded in each schedule trigger as **`input.configuration`** (template: [`../workflow_template/workflow.template.config.yaml`](../workflow_template/workflow.template.config.yaml)), patched per leaf by **`scripts/build_scopes.py`**. Local default scope (same v1 shape): [`../workflow.local.config.yaml`](../workflow.local.config.yaml) at module root.
 
 ### Workflow: `key_extraction_aliasing` (version `v5`)
 
@@ -28,7 +28,7 @@ For a leaf in [`default.config.yaml`](../default.config.yaml), **`key_extraction
 - **`run_all`** (bool, default `false`): when sent on **`workflow.input`**, overrides **`key_extraction.config.parameters.run_all`** after the scope document is applied; same semantics as before for incremental + key extraction (see configuration guide).
 - **`run_id`** (string, optional): reserved for operator/trigger use when wiring task outputs; when unset, downstream tasks may use `incremental_auto_run_id` to discover a single active `RUN_ID` in RAW (single-run deployments only).
 - **`configuration`**: v1 scope mapping (`key_extraction`, `aliasing`, optional `scope` metadata, embedded **`canvas`**) — **required** for deployed runs; generated triggers embed the **trimmed** document per leaf (see **Configuration** above). **`instance_space`** for DM/RAW is derived from top-level **`source_views`** in **`configuration`** when not set on task **`data`**.
-- **RAW keys** (extraction, aliasing, reference index): authored under **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`; optional **`reference_index_raw_table_key`**, otherwise derived from `raw_table_key` by replacing the `_key_extraction_state` suffix with `_reference_index`).
+- **RAW keys** (extraction, aliasing, inverted index): authored under **`key_extraction.config.parameters`** / **`aliasing.config.parameters`** inside **`configuration`** (`raw_table_key`, `raw_table_aliases`, `raw_table_state`; optional **`inverted_index_raw_table_key`**, otherwise derived from `raw_table_key` by replacing the `_key_extraction_state` suffix with `_inverted_index`).
 
 #### Task 1 — Incremental state (`fn_dm_incremental_state_update`)
 
@@ -41,10 +41,10 @@ For a leaf in [`default.config.yaml`](../default.config.yaml), **`key_extraction
   - **Entity rows** (`RECORD_KIND=entity`): with incremental mode, row key is the cohort **`RAW_ROW_KEY`** (stable per run + scope + instance); otherwise row key is typically the node **external id**. Columns include extraction payloads; **`WORKFLOW_STATUS`** moves to **`extracted`** (or **`failed`**); `RULES_USED_JSON`; optional `FOREIGN_KEY_REFERENCES_JSON` and **`DOCUMENT_REFERENCES_JSON`**; `EXTRACTION_STATUS`, `UPDATED_AT`, `RUN_ID`
   - **Run summary rows** (`RECORD_KIND=run`): timestamp row key; counts, durations, `rules_used_counts_json`, `skip_entity_policy`, etc.
 
-#### Task 3 — Reference index (optional branch)
-- **Function**: `fn_dm_reference_index`
+#### Task 3 — Inverted index (optional branch)
+- **Function**: `fn_dm_inverted_index`
 - **Reads** key-extraction RAW (`FOREIGN_KEY_REFERENCES_JSON`, `DOCUMENT_REFERENCES_JSON`); **does not** read candidate-key list columns.
-- **Writes** inverted index RAW (`db_key_extraction/<reference_index_raw_table>` resolved from scope parameters) — see [`functions/fn_dm_reference_index/README.md`](../functions/fn_dm_reference_index/README.md).
+- **Writes** inverted index RAW (`db_key_extraction/<inverted_index_raw_table>` resolved from scope parameters) — see [`functions/fn_dm_inverted_index/README.md`](../functions/fn_dm_inverted_index/README.md).
 
 #### Task 4 — Key aliasing
 - **Function**: `fn_dm_aliasing`

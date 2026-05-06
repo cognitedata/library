@@ -42,7 +42,7 @@ function modalTitleKey(kind: string | undefined): MessageKey {
     case "keaMatchValidationRuleSourceView":
       return "flow.nodeEditorTitleSourceViews";
     case "keaExtraction":
-    case "keaReferenceIndex":
+    case "keaInvertedIndex":
       return "flow.nodeEditorTitleKeyExtraction";
     case "keaMatchValidationRuleExtraction":
     case "keaValidation":
@@ -128,7 +128,7 @@ export function FlowNodeEditorModal({
       );
       break;
     case "keaExtraction":
-    case "keaReferenceIndex":
+    case "keaInvertedIndex":
       body = (
         <KeyExtractionControls
           key={node.id}

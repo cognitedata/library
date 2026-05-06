@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from ..reference_index_naming import reference_index_raw_table_from_key_extraction_table
+from ..inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
 
 COMPILED_WORKFLOW_SCHEMA_VERSION = 1
 
 # Stable task ids (must match WorkflowVersion task externalIds and codegen).
 TASK_INCREMENTAL = "kea__incremental_state"
 TASK_KEY_EXTRACTION = "kea__key_extraction"
-TASK_REFERENCE_INDEX = "kea__reference_index"
+TASK_INVERTED_INDEX = "kea__inverted_index"
 TASK_ALIASING = "kea__aliasing"
 TASK_ALIAS_PERSISTENCE = "kea__alias_persistence"
 
@@ -75,26 +75,26 @@ def _default_alias_persistence_payload(doc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _default_reference_index_payload(doc: Dict[str, Any]) -> Dict[str, Any]:
+def _default_inverted_index_payload(doc: Dict[str, Any]) -> Dict[str, Any]:
     kep = _ke_parameters(doc)
     v0 = _first_source_view(doc)
     rtk = str(kep.get("raw_table_key") or "")
-    ref_table = reference_index_raw_table_from_key_extraction_table(rtk) if rtk else ""
+    ref_table = inverted_index_raw_table_from_key_extraction_table(rtk) if rtk else ""
     return {
         "source_raw_db": str(kep.get("raw_db") or "db_key_extraction"),
         "source_raw_table_key": rtk,
         "source_raw_read_limit": int(kep.get("raw_read_limit") or 10000),
         "incremental_auto_run_id": True,
-        "reference_index_raw_db": str(kep.get("raw_db") or "db_key_extraction"),
-        "reference_index_raw_table": ref_table,
+        "inverted_index_raw_db": str(kep.get("raw_db") or "db_key_extraction"),
+        "inverted_index_raw_table": ref_table,
         "source_view_space": str(v0.get("view_space") or "cdf_cdm"),
         "source_view_external_id": str(v0.get("view_external_id") or "CogniteFile"),
         "source_view_version": str(v0.get("view_version") or "v1"),
-        "reference_index_fk_entity_type": str(kep.get("reference_index_fk_entity_type") or "asset"),
-        "reference_index_document_entity_type": str(
-            kep.get("reference_index_document_entity_type") or "file"
+        "inverted_index_fk_entity_type": str(kep.get("inverted_index_fk_entity_type") or "asset"),
+        "inverted_index_document_entity_type": str(
+            kep.get("inverted_index_document_entity_type") or "file"
         ),
-        "enable_reference_index": bool(kep.get("enable_reference_index", False)),
+        "enable_inverted_index": bool(kep.get("enable_inverted_index", False)),
     }
 
 

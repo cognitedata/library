@@ -48,17 +48,17 @@ export function isValidDirectRfDataEdgeSourceToTarget(
       st === "keaValidation" ||
       validationRuleLayoutRfTypes.has(st) ||
       isAliasPersistenceLayoutRfType(st) ||
-      st === "keaReferenceIndex"
+      st === "keaInvertedIndex"
     );
   }
 
-  if (tt === "keaReferenceIndex") return st === "keaExtraction";
+  if (tt === "keaInvertedIndex") return st === "keaExtraction";
 
   if (isAliasPersistenceLayoutRfType(tt)) {
     return st === "keaAliasing" || st === "keaValidation" || st === "keaExtraction";
   }
 
-  if (st === "keaReferenceIndex") return tt === "keaEnd";
+  if (st === "keaInvertedIndex") return tt === "keaEnd";
 
   if (isAliasPersistenceLayoutRfType(st)) return tt === "keaEnd";
 
@@ -127,7 +127,7 @@ function allowedExternalSourceToSubflowInput(st: string): boolean {
   if (st === "keaStart") return true;
   if (st === "keaSourceView") return true;
   if (st === "keaExtraction" || st === "keaAliasing" || st === "keaValidation") return true;
-  if (isAliasPersistenceLayoutRfType(st) || st === "keaReferenceIndex") return true;
+  if (isAliasPersistenceLayoutRfType(st) || st === "keaInvertedIndex") return true;
   if (keaValidationRuleLayoutRfTypes.has(st)) return true;
   return false;
 }
@@ -138,7 +138,7 @@ function allowedSubflowOutputToExternalTarget(tt: string, validationRuleLayoutRf
   if (tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
   if (tt === "keaEnd") return true;
   if (tt === "keaSourceView") return false;
-  if (tt === "keaReferenceIndex" || isAliasPersistenceLayoutRfType(tt)) return true;
+  if (tt === "keaInvertedIndex" || isAliasPersistenceLayoutRfType(tt)) return true;
   if (tt === "keaExtraction" || tt === "keaAliasing" || tt === "keaValidation") return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return true;
@@ -165,7 +165,7 @@ function validInteriorToGraphOut(
   if (st === "keaEnd" || st === "keaStart" || st === "keaSubgraph" || isSubflowGraphHubRfType(st)) return false;
   if (st === "keaSourceView") return false;
   if (st === "keaExtraction" || st === "keaAliasing" || st === "keaValidation") return true;
-  if (isAliasPersistenceLayoutRfType(st) || st === "keaReferenceIndex") return true;
+  if (isAliasPersistenceLayoutRfType(st) || st === "keaInvertedIndex") return true;
   if (validationRuleLayoutRfTypes.has(st)) return true;
   return false;
 }
@@ -186,7 +186,7 @@ function validGraphInToInterior(getNode: GetNode, c: Connection | Edge, validati
   }
   if (tt === "keaEnd" || tt === "keaStart" || tt === "keaSubgraph" || isSubflowGraphHubRfType(tt)) return false;
   if (tt === "keaSourceView") return false;
-  if (isAliasPersistenceLayoutRfType(tt) || tt === "keaReferenceIndex") return false;
+  if (isAliasPersistenceLayoutRfType(tt) || tt === "keaInvertedIndex") return false;
   if (tt === "keaExtraction" || tt === "keaAliasing" || tt === "keaValidation") return true;
   if (validationRuleLayoutRfTypes.has(tt)) return true;
   return false;

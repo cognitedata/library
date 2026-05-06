@@ -165,7 +165,7 @@ key_extraction:
       cdm_view_version: v1
       workflow_scope: SITE_01__PLANT_A__AREA_01__COOLING_SYS
       incremental_skip_unchanged_source_inputs: true
-      enable_reference_index: true
+      enable_inverted_index: true
       exclude_self_referencing_keys: true
     data:
       extraction_rules:
@@ -207,6 +207,8 @@ key_extraction:
             - leading_zero_normalization:
               - Strip Delimiter
             - strip_numeric_unit_prefix:
+              - Strip Delimiter
+            - character_substitution_1:
               - Strip Delimiter
       - name: file_basename_candidate
         handler: regex_handler
@@ -290,6 +292,7 @@ key_extraction:
           entity_type:
           - file
           - timeseries
+          - equipment
         validation:
           validation_rules:
           - blacklist:
@@ -317,7 +320,12 @@ key_extraction:
           priority: 1
           preprocessing:
           - trim
-        scope_filters: {}
+        scope_filters:
+          entity_type:
+          - asset
+          - file
+          - timeseries
+          - equipment
         validation:
           validation_rules:
           - blacklist:
@@ -446,12 +454,6 @@ aliasing:
       write_foreign_key_references: false
       foreign_key_writeback_property: references_found
     data:
-      aliasing_rules: []
-      validation:
-        max_aliases_per_tag: 100
-        min_confidence: 0.01
-        validation_rules:
-        - alias_shape_invalid
       pathways:
         steps:
         - mode: sequential
@@ -495,8 +497,7 @@ aliasing:
             preserve_original: true
             config:
               patterns:
-              # Stdlib ``re`` (no ``\p{}``): strip non-word chars and ``_`` (underscore is not Unicode L/N).
-              - pattern: '(?:\W|_)'
+              - pattern: (?:\W|_)
                 replacement: ''
             conditions: {}
             scope_filters:
@@ -562,6 +563,23 @@ aliasing:
               tags already starting with type (P-1234).'
             validation:
               validation_rules: []
+          - name: character_substitution_1
+            handler: character_substitution
+            enabled: true
+            priority: 60
+            preserve_original: true
+            config:
+              substitutions:
+                _: '-'
+            conditions: {}
+            scope_filters: {}
+            validation:
+              validation_rules: []
+      validation:
+        max_aliases_per_tag: 100
+        min_confidence: 0.01
+        validation_rules:
+        - alias_shape_invalid
 associations:
 - kind: source_view_to_extraction
   source_view_index: 0
@@ -657,6 +675,15 @@ canvas:
       ref:
         aliasing_rule_name: strip_numeric_unit_prefix
       pipeline_rank: 3
+  - id: ap_inverted_index_persistence
+    kind: inverted_index
+    position:
+      x: 1240
+      y: 60
+    data:
+      label: Inverted Index
+      handler_family: persistence
+      persistence_step: inverted_index
   - id: ext_asset_tag_candidate
     kind: extraction
     position:
@@ -693,8 +720,8 @@ canvas:
   - id: ext_instance_description_asset_fk
     kind: extraction
     position:
-      x: 400
-      y: 1
+      x: 400.87449022764605
+      y: 6.246941365876655
     data:
       label: instance_description_asset_fk
       handler_id: regex_handler
@@ -792,6 +819,28 @@ canvas:
       validation_rule_name: blacklist
       ref:
         extraction_rule_name: file_basename_candidate
+  - id: n_1777986297597_i1mvff4m
+    kind: aliasing
+    position:
+      x: 668.8093385214008
+      y: -598.6972315811662
+    data:
+      label: character_substitution_1
+      handler_id: character_substitution
+      handler_family: aliasing
+      preset_from_palette: true
+      ref:
+        aliasing_rule_name: character_substitution_1
+  - id: n_1778071140569_htzb07sb
+    kind: alias_persistence
+    position:
+      x: 1235.7069456083855
+      y: -153.29141381041168
+    data:
+      handler_family: persistence
+      persistence_step: alias_writeback
+      preset_from_palette: true
+      label: Alias write-back
   - id: sv_0
     kind: source_view
     position:
@@ -955,14 +1004,20 @@ canvas:
     source_handle: out
     target_handle: in
     kind: data
-  - id: e_al_strip_delimiter_flow_end_23
-    source: al_strip_delimiter
-    target: flow_end
+  - id: e_ext_instance_description_asset_fk_ap_inverted_index_persistence
+    source: ext_instance_description_asset_fk
+    target: ap_inverted_index_persistence
     source_handle: out
     target_handle: in
     kind: data
-  - id: e_al_document_aliases_flow_end_26
-    source: al_document_aliases
+  - id: e_ext_instance_name_asset_fk_ap_inverted_index_persistence
+    source: ext_instance_name_asset_fk
+    target: ap_inverted_index_persistence
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: e_ap_inverted_index_persistence_flow_end
+    source: ap_inverted_index_persistence
     target: flow_end
     source_handle: out
     target_handle: in
@@ -1037,6 +1092,30 @@ canvas:
     source: ext_equipment_tag_ck
     target: mve_e1_blacklist_0
     source_handle: validation
+    target_handle: in
+    kind: data
+  - id: xy-edge__ext_asset_tag_candidateout-n_1777986297597_i1mvff4min
+    source: ext_asset_tag_candidate
+    target: n_1777986297597_i1mvff4m
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1777986297597_i1mvff4mout-al_strip_delimiterin
+    source: n_1777986297597_i1mvff4m
+    target: al_strip_delimiter
+    source_handle: out
+    target_handle: in
+    kind: sequence
+  - id: xy-edge__al_strip_delimiterout-n_1778071140569_htzb07sbin
+    source: al_strip_delimiter
+    target: n_1778071140569_htzb07sb
+    source_handle: out
+    target_handle: in
+    kind: data
+  - id: xy-edge__n_1778071140569_htzb07sbout-flow_endin
+    source: n_1778071140569_htzb07sb
+    target: flow_end
+    source_handle: out
     target_handle: in
     kind: data
   handle_orientation: lr

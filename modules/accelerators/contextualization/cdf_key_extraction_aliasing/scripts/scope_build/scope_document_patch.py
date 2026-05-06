@@ -117,6 +117,135 @@ def _set_workflow_scope_parameter(doc: Dict[str, Any], ctx: ScopeBuildContext) -
                 params["workflow_scope"] = ctx.scope_id
 
 
+def inject_site_01_pre_prefix_aliasing(out: Dict[str, Any]) -> None:
+    """Append ``pre_`` prefix transform after ``Strip Delimiter`` for scope ``site_01`` (debug / CDF test)."""
+    rule_key = "pre_prefix_site01"
+    defs = out.get("aliasing_rule_definitions")
+    if not isinstance(defs, dict):
+        defs = {}
+        out["aliasing_rule_definitions"] = defs
+    defs[rule_key] = {
+        "name": rule_key,
+        "handler": "prefix_suffix",
+        "description": "Debug: prefix aliases with pre_ after strip delimiter (site_01).",
+        "enabled": True,
+        "priority": 70,
+        "preserve_original": True,
+        "config": {
+            "operation": "add_prefix",
+            "prefix": "pre_",
+            "conditions": {"missing_prefix": True},
+        },
+        "conditions": {},
+        "scope_filters": {
+            "entity_type": ["asset", "equipment", "timeseries"],
+        },
+    }
+
+    al = out.get("aliasing")
+    if isinstance(al, dict):
+        acfg = al.get("config")
+        if isinstance(acfg, dict):
+            adata = acfg.get("data")
+            if isinstance(adata, dict):
+                pw = adata.get("pathways")
+                if isinstance(pw, dict):
+                    steps = pw.get("steps")
+                    if isinstance(steps, list) and steps:
+                        step0 = steps[0]
+                        if isinstance(step0, dict):
+                            rules = step0.get("rules")
+                            if isinstance(rules, list):
+                                step0["rules"] = list(rules) + [
+                                    {
+                                        "name": rule_key,
+                                        "handler": "prefix_suffix",
+                                        "enabled": True,
+                                        "priority": 70,
+                                        "preserve_original": True,
+                                        "config": {
+                                            "operation": "add_prefix",
+                                            "prefix": "pre_",
+                                            "conditions": {"missing_prefix": True},
+                                        },
+                                        "conditions": {},
+                                        "scope_filters": {
+                                            "entity_type": [
+                                                "asset",
+                                                "equipment",
+                                                "timeseries",
+                                            ],
+                                        },
+                                        "description": defs[rule_key]["description"],
+                                        "validation": {"validation_rules": []},
+                                    }
+                                ]
+
+    canvas = out.get("canvas")
+    if not isinstance(canvas, dict):
+        return
+    nodes = canvas.get("nodes")
+    edges = canvas.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        return
+
+    node_id = "al_pre_prefix_site01"
+    if any(isinstance(n, dict) and n.get("id") == node_id for n in nodes):
+        return
+
+    nodes.append(
+        {
+            "id": node_id,
+            "kind": "aliasing",
+            "position": {"x": 1210, "y": -290},
+            "data": {
+                "label": "pre_prefix_site01",
+                "handler_id": "prefix_suffix",
+                "handler_family": "aliasing",
+                "ref": {"aliasing_rule_name": rule_key},
+                "pipeline_rank": 5,
+            },
+        }
+    )
+
+    new_edges: List[Any] = []
+    replaced = False
+    for e in edges:
+        if not isinstance(e, dict):
+            new_edges.append(e)
+            continue
+        if (
+            e.get("source") == "al_strip_delimiter"
+            and e.get("target") == "ap_alias_persistence"
+            and e.get("kind") == "data"
+        ):
+            replaced = True
+            new_edges.append(
+                {
+                    "id": "e_al_strip_delimiter_al_pre_prefix_site01",
+                    "source": "al_strip_delimiter",
+                    "target": node_id,
+                    "source_handle": "out",
+                    "target_handle": "in",
+                    "kind": "sequence",
+                }
+            )
+            new_edges.append(
+                {
+                    "id": "e_al_pre_prefix_site01_ap_alias_persistence",
+                    "source": node_id,
+                    "target": "ap_alias_persistence",
+                    "source_handle": "out",
+                    "target_handle": "in",
+                    "kind": "data",
+                }
+            )
+        else:
+            new_edges.append(e)
+    if replaced:
+        canvas["edges"] = new_edges
+
+
 def scope_configuration_for_workflow_trigger(scope_document: Dict[str, Any]) -> Dict[str, Any]:
     """Return a trimmed scope document suitable for ``workflow.input.configuration``.
 
@@ -136,6 +265,8 @@ def prepare_scope_document_for_context(doc: Dict[str, Any], ctx: ScopeBuildConte
     inject_leaf_instance_space_filters(out, ctx)
     out["scope"] = build_scope_block(ctx)
     _set_workflow_scope_parameter(out, ctx)
+    if suffix == "site_01":
+        inject_site_01_pre_prefix_aliasing(out)
     return out
 
 

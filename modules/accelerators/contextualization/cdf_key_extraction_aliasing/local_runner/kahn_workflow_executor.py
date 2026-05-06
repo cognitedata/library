@@ -11,7 +11,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Dict, List, Optional, Sequence, Set
 
-from cdf_fn_common.reference_index_naming import reference_index_raw_table_from_key_extraction_table
+from cdf_fn_common.inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
 from cdf_fn_common.scope_document_dm import narrow_aliasing_engine_config_for_inline_rule_names
 from cdf_fn_common.task_runtime import merge_compiled_task_into_data
 from cdf_fn_common.workflow_task_lineage import apply_predecessor_extraction_allowlist_to_task_data
@@ -20,7 +20,7 @@ from cdf_fn_common.workflow_compile.legacy_ir import (
     TASK_ALIASING,
     TASK_INCREMENTAL,
     TASK_KEY_EXTRACTION,
-    TASK_REFERENCE_INDEX,
+    TASK_INVERTED_INDEX,
 )
 from cdf_fn_common.workflow_execution_graph import (
     default_execution_graph_path,
@@ -33,7 +33,7 @@ from fn_dm_aliasing.pipeline import tag_aliasing
 from fn_dm_incremental_state_update.pipeline import incremental_state_update
 from fn_dm_key_extraction.engine.key_extraction_engine import KeyExtractionEngine
 from fn_dm_key_extraction.pipeline import key_extraction
-from fn_dm_reference_index.pipeline import persist_reference_index
+from fn_dm_inverted_index.pipeline import persist_inverted_index
 
 from .kahn_run_context import KahnRunContext
 from .ui_progress import emit_ui_progress
@@ -41,7 +41,7 @@ from .ui_progress import emit_ui_progress
 LEGACY_MACRO_TASK_IDS: Set[str] = {
     TASK_INCREMENTAL,
     TASK_KEY_EXTRACTION,
-    TASK_REFERENCE_INDEX,
+    TASK_INVERTED_INDEX,
     TASK_ALIASING,
     TASK_ALIAS_PERSISTENCE,
 }
@@ -174,13 +174,13 @@ def step_key_extraction(
         _merge()
 
 
-def _reference_index_aliasing_data_from_engine_config(
+def _inverted_index_aliasing_data_from_engine_config(
     aliasing_config: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Build ``config.config.data`` for reference index from the merged engine aliasing dict.
+    """Build ``config.config.data`` for inverted index from the merged engine aliasing dict.
 
     Pathway-only scopes have empty ``rules`` while transforms live under ``pathways``; passing
-    only ``rules`` made reference-index alias expansion see zero workflow rules for assets.
+    only ``rules`` made inverted-index alias expansion see zero workflow rules for assets.
     """
     out: Dict[str, Any] = {
         "aliasing_rules": list(aliasing_config.get("rules") or []),
@@ -192,28 +192,28 @@ def _reference_index_aliasing_data_from_engine_config(
     return out
 
 
-def _reference_index_branch(ctx: KahnRunContext, task_id: str = TASK_REFERENCE_INDEX) -> Dict[str, Any]:
+def _inverted_index_branch(ctx: KahnRunContext, task_id: str = TASK_INVERTED_INDEX) -> Dict[str, Any]:
     args = ctx.args
     logger = ctx.logger
     cdf_config = ctx.cdf_config
-    ref_from_scope = bool(getattr(cdf_config.parameters, "enable_reference_index", False))
-    if getattr(args, "skip_reference_index", False):
-        logger.info("Skipping reference index (--skip-reference-index).")
-        return {"status": "skipped", "reason": "skip_reference_index"}
+    ref_from_scope = bool(getattr(cdf_config.parameters, "enable_inverted_index", False))
+    if getattr(args, "skip_inverted_index", False):
+        logger.info("Skipping inverted index (--skip-inverted-index).")
+        return {"status": "skipped", "reason": "skip_inverted_index"}
     if not ref_from_scope:
         logger.info(
-            "Skipping reference index: enable_reference_index is false in scope "
-            "(set key_extraction.config.parameters.enable_reference_index: true)."
+            "Skipping inverted index: enable_inverted_index is false in scope "
+            "(set key_extraction.config.parameters.enable_inverted_index: true)."
         )
-        return {"status": "skipped", "reason": "enable_reference_index_false"}
+        return {"status": "skipped", "reason": "enable_inverted_index_false"}
     if args.dry_run:
         logger.info(
-            "Dry-run: skipping reference index RAW writes (same as alias persistence)."
+            "Dry-run: skipping inverted index RAW writes (same as alias persistence)."
         )
         return {"status": "skipped", "reason": "dry_run"}
     if not ctx.raw_db or not ctx.raw_table_key:
         logger.warning(
-            "Reference index skipped: raw_db or raw_table_key missing in key_extraction parameters."
+            "Inverted index skipped: raw_db or raw_table_key missing in key_extraction parameters."
         )
         return {"status": "skipped", "reason": "missing_raw_db_or_table"}
 
@@ -229,8 +229,8 @@ def _reference_index_branch(ctx: KahnRunContext, task_id: str = TASK_REFERENCE_I
         "source_raw_table_key": ctx.raw_table_key,
         "source_raw_read_limit": 10000,
         "incremental_auto_run_id": True,
-        "reference_index_raw_db": ctx.raw_db,
-        "reference_index_raw_table": reference_index_raw_table_from_key_extraction_table(
+        "inverted_index_raw_db": ctx.raw_db,
+        "inverted_index_raw_table": inverted_index_raw_table_from_key_extraction_table(
             ctx.raw_table_key
         ),
         "source_instance_space": str(
@@ -239,34 +239,34 @@ def _reference_index_branch(ctx: KahnRunContext, task_id: str = TASK_REFERENCE_I
         "source_view_space": ctx.v0.get("view_space", "cdf_cdm"),
         "source_view_external_id": ctx.v0.get("view_external_id", "CogniteAsset"),
         "source_view_version": ctx.v0.get("view_version", "v1"),
-        "reference_index_fk_entity_type": "asset",
-        "reference_index_document_entity_type": "file",
+        "inverted_index_fk_entity_type": "asset",
+        "inverted_index_document_entity_type": "file",
         "config": {
             "config": {
                 "parameters": {"debug": True},
-                "data": _reference_index_aliasing_data_from_engine_config(ctx.aliasing_config),
+                "data": _inverted_index_aliasing_data_from_engine_config(ctx.aliasing_config),
             },
         },
     }
     merge_compiled_task_into_data(ref_data)
     apply_predecessor_extraction_allowlist_to_task_data(ref_data)
-    persist_reference_index(ctx.client, ctx.pipe_logger, ref_data)
+    persist_inverted_index(ctx.client, ctx.pipe_logger, ref_data)
     logger.info(
-        "✓ Reference index: %s entities processed, %s inverted writes, %s postings "
+        "✓ Inverted index: %s entities processed, %s inverted writes, %s postings "
         "(%s foreign_key, %s document)",
-        ref_data.get("reference_index_entities_processed", 0),
-        ref_data.get("reference_index_inverted_writes", 0),
-        ref_data.get("reference_index_posting_events", 0),
-        ref_data.get("reference_index_fk_posting_events", 0),
-        ref_data.get("reference_index_document_posting_events", 0),
+        ref_data.get("inverted_index_entities_processed", 0),
+        ref_data.get("inverted_index_inverted_writes", 0),
+        ref_data.get("inverted_index_posting_events", 0),
+        ref_data.get("inverted_index_fk_posting_events", 0),
+        ref_data.get("inverted_index_document_posting_events", 0),
     )
     return {
         "status": "ok",
-        "entities": int(ref_data.get("reference_index_entities_processed", 0) or 0),
-        "inverted_writes": int(ref_data.get("reference_index_inverted_writes", 0) or 0),
-        "postings": int(ref_data.get("reference_index_posting_events", 0) or 0),
-        "fk_postings": int(ref_data.get("reference_index_fk_posting_events", 0) or 0),
-        "doc_postings": int(ref_data.get("reference_index_document_posting_events", 0) or 0),
+        "entities": int(ref_data.get("inverted_index_entities_processed", 0) or 0),
+        "inverted_writes": int(ref_data.get("inverted_index_inverted_writes", 0) or 0),
+        "postings": int(ref_data.get("inverted_index_posting_events", 0) or 0),
+        "fk_postings": int(ref_data.get("inverted_index_fk_posting_events", 0) or 0),
+        "doc_postings": int(ref_data.get("inverted_index_document_posting_events", 0) or 0),
     }
 
 
@@ -489,8 +489,8 @@ def _dispatch_task(ctx: KahnRunContext, task_id: str, merge_lock: Lock) -> None:
         step_incremental_state_update(ctx, task_id)
     elif fn_ext == "fn_dm_key_extraction":
         step_key_extraction(ctx, task_id, merge_lock)
-    elif fn_ext == "fn_dm_reference_index":
-        ctx.ref_summary = _reference_index_branch(ctx, task_id)
+    elif fn_ext == "fn_dm_inverted_index":
+        ctx.ref_summary = _inverted_index_branch(ctx, task_id)
     elif fn_ext == "fn_dm_aliasing":
         _aliasing_branch(ctx, task_id)
     elif fn_ext == "fn_dm_alias_persistence":
@@ -562,14 +562,14 @@ def run_deferred_alias_persistence_tasks(ctx: KahnRunContext) -> None:
 
 def run_post_extraction_parallel(ctx: KahnRunContext) -> None:
     """
-    Run fn_dm_reference_index and fn_dm_aliasing concurrently (matches CDF DAG after key extraction).
+    Run fn_dm_inverted_index and fn_dm_aliasing concurrently (matches CDF DAG after key extraction).
 
     On failure in either branch, raises (aligns with onFailure: abortWorkflow per task).
     """
     ref_box: Dict[str, Any] = {}
 
     def run_ref() -> None:
-        ref_box["summary"] = _reference_index_branch(ctx)
+        ref_box["summary"] = _inverted_index_branch(ctx)
 
     def run_alias() -> None:
         _aliasing_branch(ctx)

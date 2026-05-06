@@ -89,11 +89,11 @@ Implementation must leave these **end-to-end paths working** after config migrat
 
 - **`fn_dm_key_extraction`**: Handler still loads scope / `configuration` from workflow task data; `materialize_scope_confidence_refs_on_task_data` (or combined materialize) runs before config parse; key extraction succeeds with migrated `extraction_rules` (including `aliasing_pipeline` keys where required).
 - **`fn_dm_aliasing`**: Handler resolves aliasing engine config from the same v1 scope document pattern (`data["config"]` / nested `config.config`); `ensure_aliasing_config_from_scope_dm` and pipeline entrypoints remain callable; no regression on JSON-serializable return shape.
-- **`fn_dm_reference_index`** / **`fn_dm_incremental_state_update`** (if present in module): Any shared config expectations (e.g. aliasing block shape) updated in lockstep so optional workflow steps do not fail at import or first request.
+- **`fn_dm_inverted_index`** / **`fn_dm_incremental_state_update`** (if present in module): Any shared config expectations (e.g. aliasing block shape) updated in lockstep so optional workflow steps do not fail at import or first request.
 
 ### Local runner
 
-- **`local_runner/run.py`** and **`local_runner/config_loading.py`**: Loading `workflow.local.config.yaml` (or `--config-path`) produces valid extraction + aliasing configs; combined run (extract → alias → optional reference index) completes or fails with **clear validation errors**, not silent empty pipelines.
+- **`local_runner/run.py`** and **`local_runner/config_loading.py`**: Loading `workflow.local.config.yaml` (or `--config-path`) produces valid extraction + aliasing configs; combined run (extract → alias → optional inverted index) completes or fails with **clear validation errors**, not silent empty pipelines.
 - **`run_fn_dm_*_local.py` scripts**: Still runnable for smoke testing after path/config updates.
 
 ### Workflows (Toolkit / CDF)

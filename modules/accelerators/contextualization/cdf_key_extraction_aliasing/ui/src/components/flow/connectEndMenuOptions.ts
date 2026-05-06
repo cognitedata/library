@@ -59,11 +59,17 @@ export function connectEndMenuOptionsForSourceType(
         },
       ];
     }
-    return ALIASING_HANDLER_IDS.map((id) => ({
+    const fromExtraction: ConnectEndMenuOption[] = ALIASING_HANDLER_IDS.map((id) => ({
       id: `aliasing-${id}`,
       payload: { kind: "aliasing", handlerId: id, preset: true } as const,
       labelText: id,
     }));
+    fromExtraction.push({
+      id: "persistence-inverted_index",
+      payload: { kind: "persistence", variant: "inverted_index" },
+      labelKey: "flow.structuralInvertedIndex",
+    });
+    return fromExtraction;
   }
 
   if (sourceType === "keaMatchValidationRuleSourceView") {
@@ -104,11 +110,17 @@ export function connectEndMenuOptionsForSourceType(
         },
       ];
     }
-    return ALIASING_HANDLER_IDS.map((id) => ({
+    const fromAliasing: ConnectEndMenuOption[] = ALIASING_HANDLER_IDS.map((id) => ({
       id: `aliasing-${id}`,
       payload: { kind: "aliasing", handlerId: id, preset: true } as const,
       labelText: id,
     }));
+    fromAliasing.push({
+      id: "persistence-alias_persistence",
+      payload: { kind: "persistence", variant: "alias_persistence" },
+      labelKey: "flow.structuralAliasPersistence",
+    });
+    return fromAliasing;
   }
 
   return [];

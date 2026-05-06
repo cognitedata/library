@@ -19,11 +19,11 @@ from cdf_fn_common.workflow_task_lineage import (  # noqa: E402
 )
 from local_runner.kahn_workflow_executor import (  # noqa: E402
     _alias_persistence_topological_layers,
-    _reference_index_aliasing_data_from_engine_config,
+    _inverted_index_aliasing_data_from_engine_config,
 )
 
 
-def test_reference_index_payload_includes_pathways_when_flat_rules_empty() -> None:
+def test_inverted_index_payload_includes_pathways_when_flat_rules_empty() -> None:
     acfg = {
         "rules": [],
         "validation": {"min_confidence": 0.01},
@@ -42,7 +42,7 @@ def test_reference_index_payload_includes_pathways_when_flat_rules_empty() -> No
             ]
         },
     }
-    data = _reference_index_aliasing_data_from_engine_config(acfg)
+    data = _inverted_index_aliasing_data_from_engine_config(acfg)
     assert data["aliasing_rules"] == []
     assert "pathways" in data
     assert len((data["pathways"]["steps"][0]["rules"])) == 1

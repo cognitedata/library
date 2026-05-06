@@ -289,16 +289,16 @@ export function KeaAliasPersistenceNode({ data, selected }: NodeProps) {
   );
 }
 
-/** fn_dm_reference_index — inverted RAW index from FK / document reference JSON in extraction store. */
-export function KeaReferenceIndexNode({ data, selected }: NodeProps) {
+/** fn_dm_inverted_index — inverted RAW index from FK / document reference JSON in extraction store. */
+export function KeaInvertedIndexNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;
   const h = useDataHandles();
   return (
     <div className={nodeClass(!!selected, "ref-index")} style={mergeNodeCardStyle(d)}>
       <Handle type="target" position={h.in} id="in" />
       <div className="kea-flow-node__badge">index</div>
-      <div className="kea-flow-node__title">{d.label || "Reference index"}</div>
-      <div className="kea-flow-node__meta">fn_dm_reference_index</div>
+      <div className="kea-flow-node__title">{d.label || "Inverted index"}</div>
+      <div className="kea-flow-node__meta">fn_dm_inverted_index</div>
       <Handle type="source" position={h.out} id="out" />
     </div>
   );

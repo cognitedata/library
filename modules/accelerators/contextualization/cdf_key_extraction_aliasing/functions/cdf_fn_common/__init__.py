@@ -10,7 +10,7 @@ from .function_logging import (
     function_logger_from_data,
     resolve_function_logger,
 )
-from .reference_index_naming import reference_index_raw_table_from_key_extraction_table
+from .inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
 from .logger import CogniteFunctionLogger
 from .raw_upload import create_raw_upload_queue
 
@@ -23,7 +23,7 @@ __all__ = [
     "create_table_if_not_exists",
     "function_logger_from_data",
     "load_config_from_yaml",
-    "reference_index_raw_table_from_key_extraction_table",
+    "inverted_index_raw_table_from_key_extraction_table",
     "resolve_run_all",
     "resolve_function_logger",
 ]

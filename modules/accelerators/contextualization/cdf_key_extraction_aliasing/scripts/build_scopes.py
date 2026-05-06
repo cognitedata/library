@@ -12,7 +12,7 @@ Trigger shell: ``workflow_template/workflow.template.WorkflowTrigger.yaml``
 ``workflow_template/workflow.template.WorkflowVersion.yaml``
 (``--workflow-template``, ``--workflow-version-template``).
 
-``workflow_template/workflow.execution.graph.yaml`` is refreshed from IR on **every** build (no ``--force``).
+``workflow_template/workflow.execution.graph.yaml`` is refreshed from the **unpatched** scope template IR on **every** build (no ``--force``).
 ``--force`` overwrites existing **WorkflowTrigger** files and scoped **Workflow** / **WorkflowVersion** when they
 already exist (initial creation does not require ``--force``).
 ``--check-workflow-triggers`` validates triggers and Workflow/WorkflowVersion vs templates (no writes).

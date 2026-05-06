@@ -538,7 +538,7 @@ export const hi: Messages = {
   "flow.structuralExtraction": "निष्कर्षण",
   "flow.structuralAliasing": "Aliasing",
   "flow.structuralAliasPersistence": "उपनाम वापस लेखन",
-  "flow.structuralReferenceIndex": "संदर्भ अनुक्रमणिका",
+  "flow.structuralInvertedIndex": "उलटा अनुक्रमणिका",
   "flow.validationRuleLayoutSourceView": "मिलान नियम (स्रोत दृश्य)",
   "flow.validationRuleLayoutExtraction": "मिलान नियम (निष्कर्षण)",
   "flow.validationRuleLayoutAliasing": "मिलान नियम (उपनाम)",
@@ -547,6 +547,7 @@ export const hi: Messages = {
     "अभी कोई परिभाषा नहीं — कॉन्फ़िगर में सत्यापन टैब (स्रोत दृश्यों के बाद) पर जोड़ें।",
   "flow.paletteExtractionHandlers": "निष्कर्षण हैंडलर",
   "flow.paletteAliasingHandlers": "Aliasing हैंडलर",
+  "flow.palettePersistence": "स्थायित्व",
   "flow.paletteAnnotations": "टिप्पणियाँ",
   "flow.paletteCdfTasks": "CDF फ़ंक्शन",
   "flow.alignLeft": "चयनित नोड बाएँ संरेखित करें",
@@ -618,11 +619,11 @@ export const hi: Messages = {
   "flow.inspectorStartHint":
     "पाइपलाइन प्रवेश। स्रोत दृश्यों से जोड़ें (यदि कोई स्रोत दृश्य नहीं तो निष्कर्षण से)।",
   "flow.inspectorEndHint":
-    "पाइपलाइन निकास। निष्करण, उपनाम, सत्यापन, उपनाम वापस लेखन या संदर्भ अनुक्रमणिका नोड से जोड़ें।",
+    "पाइपलाइन निकास। निष्करण, उपनाम, सत्यापन, उपनाम वापस लेखन या उलटा अनुक्रमणिका नोड से जोड़ें।",
   "flow.inspectorAliasPersistenceHint":
     "fn_dm_alias_persistence से मेल: aliasing RAW पढ़कर describable इंस्टेंस पर उपनाम सूचियाँ (वैकल्पिक FK स्ट्रिंग) लिखता है। स्कोप या टास्क डेटा में वापस लेखन सेट करें।",
-  "flow.inspectorReferenceIndexHint":
-    "fn_dm_reference_index से मेल: कुंजी-निष्कर्षण स्टोर में FOREIGN_KEY_REFERENCES_JSON व DOCUMENT_REFERENCES_JSON से उलटा RAW अनुक्रमणिका बनाए रखता है। स्कोप में सक्षम करें (जैसे enable_reference_index)।",
+  "flow.inspectorInvertedIndexHint":
+    "fn_dm_inverted_index से मेल: कुंजी-निष्कर्षण स्टोर में FOREIGN_KEY_REFERENCES_JSON व DOCUMENT_REFERENCES_JSON से उलटा RAW अनुक्रमणिका बनाए रखता है। स्कोप में सक्षम करें (जैसे enable_inverted_index)।",
   "flow.inspectorValidationRuleHint":
     "स्कोप में validation_rules प्रविष्टि से जोड़ता है: कुंजी स्कोरिंग (वैश्विक key_extraction data.validation और extraction_rules[].validation) या उपनाम सत्यापन (aliasing_rules[].validation) के दौरान उपयोग। स्रोत दृश्य पंक्तियों में validation नहीं होता। नियम स्वतंत्र परिभाषाएँ हैं। YAML सूची, संक्षिप्त { rule_id: [ tail... ] }, या hierarchy: { mode: ordered | concurrent, children: [...] } उपयोग करें। कैनवास पर निष्कर्षण/उपनाम से पहले मिलान-नियम तक डेटा किनारे; आगे मिलान-नियमों को sequence या parallel_group किनारों से जोड़ें।",
   "flow.inspectorValidationRuleContext": "नियम दायरा",

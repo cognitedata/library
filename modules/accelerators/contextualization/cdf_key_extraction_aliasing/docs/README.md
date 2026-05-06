@@ -68,7 +68,7 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 | [Workflow diagram source](../workflow_template/workflow_diagram.md)                  | Mermaid diagram source (no committed PNG; lives in `workflow_template/`)                                                            |
 | [fn_dm_key_extraction](../functions/fn_dm_key_extraction/README.md)          | Key extraction function I/O                                                                                            |
 | [fn_dm_aliasing](../functions/fn_dm_aliasing/README.md)                      | Aliasing function I/O                                                                                                  |
-| [fn_dm_reference_index](../functions/fn_dm_reference_index/README.md)      | RAW inverted index for FK + document reference strings                                                                 |
+| [fn_dm_inverted_index](../functions/fn_dm_inverted_index/README.md)      | RAW inverted index for FK + document reference strings                                                                 |
 | [fn_dm_alias_persistence](../functions/fn_dm_alias_persistence/README.md) | Describable write-back, optional FK strings                                                                            |
 | [ISA patterns (aliasing)](../functions/fn_dm_aliasing/ISA_PATTERNS_USAGE.md) | Pattern-based rules and example config                                                                                 |
 | [Tag pattern library (paths)](../functions/fn_dm_aliasing/TAG_PATTERNS_LIBRARY.md) | Where `tag_patterns.yaml` lives and how registries load it                                                          |
@@ -79,8 +79,8 @@ Incremental **listing cursor**, **per-record content hash**, and **prior classif
 
 | Document                                                     | Contents                                     |
 | ------------------------------------------------------------ | -------------------------------------------- |
-| [Key extraction spec](specifications/1.%20key_extraction.md) | Methods, rules, extraction types, handlers, incremental / Key Discovery pointers   |
-| [Aliasing spec](specifications/2.%20aliasing.md)             | Transformation types, rules, engine behavior |
+| [Key extraction spec](specifications/1.%20key_extraction.md) | Methods, rules, extraction types, handlers; FK/document JSON on RAW and optional **inverted index** (`fn_dm_inverted_index`); incremental / Key Discovery pointers |
+| [Aliasing spec](specifications/2.%20aliasing.md)             | Transformation types, rules, engine behavior; same config shape reused inside **`fn_dm_inverted_index`** to expand **referenced** tokens (not candidate keys) when the inverted index is enabled |
 
 
 ## Generated reports and troubleshooting

@@ -1,4 +1,4 @@
-"""Tests for cdf_fn_common.clean_state_tables and reference_index_naming."""
+"""Tests for cdf_fn_common.clean_state_tables and inverted_index_naming."""
 
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -10,22 +10,22 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
     _collect_db_table_pairs_from_scope_doc,
     clean_state_tables_from_scope_yaml,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.reference_index_naming import (
-    reference_index_raw_table_from_key_extraction_table,
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.cdf_fn_common.inverted_index_naming import (
+    inverted_index_raw_table_from_key_extraction_table,
 )
 
 
 @pytest.mark.parametrize(
     "key_table,expected",
     [
-        ("", "reference_index"),
-        ("key_extraction_state", "reference_index"),
-        ("site_key_extraction_state", "site_reference_index"),
-        ("custom", "custom_reference_index"),
+        ("", "inverted_index"),
+        ("key_extraction_state", "inverted_index"),
+        ("site_key_extraction_state", "site_inverted_index"),
+        ("custom", "custom_inverted_index"),
     ],
 )
-def test_reference_index_raw_table_from_key_extraction_table(key_table, expected):
-    assert reference_index_raw_table_from_key_extraction_table(key_table) == expected
+def test_inverted_index_raw_table_from_key_extraction_table(key_table, expected):
+    assert inverted_index_raw_table_from_key_extraction_table(key_table) == expected
 
 
 def test_collect_pairs_key_extraction_only():
@@ -42,19 +42,19 @@ def test_collect_pairs_key_extraction_only():
     pairs = _collect_db_table_pairs_from_scope_doc(doc)
     assert pairs == [
         ("db_ke", "key_extraction_state"),
-        ("db_ke", "reference_index"),
+        ("db_ke", "inverted_index"),
     ]
 
 
-def test_collect_pairs_custom_reference_index_override():
+def test_collect_pairs_custom_inverted_index_override():
     doc = {
         "key_extraction": {
             "config": {
                 "parameters": {
                     "raw_db": "db_ke",
                     "raw_table_key": "key_extraction_state",
-                    "reference_index_raw_db": "db_other",
-                    "reference_index_raw_table": "custom_ref_idx",
+                    "inverted_index_raw_db": "db_other",
+                    "inverted_index_raw_table": "custom_ref_idx",
                 }
             }
         }
@@ -89,7 +89,7 @@ def test_collect_pairs_includes_aliasing_tables():
     pairs = _collect_db_table_pairs_from_scope_doc(doc)
     assert pairs == [
         ("db_ke", "key_extraction_state"),
-        ("db_ke", "reference_index"),
+        ("db_ke", "inverted_index"),
         ("db_al", "tag_aliasing_state"),
         ("db_al", "default_aliases"),
     ]
@@ -117,4 +117,4 @@ def test_clean_state_tables_from_scope_yaml_invokes_delete(tmp_path):
     assert client.raw.tables.delete.call_count == 2
     calls = [c.args for c in client.raw.tables.delete.call_args_list]
     assert ("db_ke", ["key_extraction_state"]) in calls
-    assert ("db_ke", ["reference_index"]) in calls
+    assert ("db_ke", ["inverted_index"]) in calls

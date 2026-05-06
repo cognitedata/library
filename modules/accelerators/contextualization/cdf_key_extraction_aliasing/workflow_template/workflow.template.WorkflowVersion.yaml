@@ -53,20 +53,20 @@ workflowDefinition:
       dependsOn:
         - externalId: kea__incremental_state
 
-    - externalId: kea__reference_index
+    - externalId: kea__inverted_index
       type: function
       parameters:
         function:
-          externalId: fn_dm_reference_index
+          externalId: fn_dm_inverted_index
           data:
             logLevel: INFO
             run_all: ${workflow.input.run_all}
             configuration: ${workflow.input.configuration}
-            task_id: kea__reference_index
-      name: Reference index
+            task_id: kea__inverted_index
+      name: Inverted index
       description: >-
         Build RAW inverted index for FK and document references from key-extraction output.
-        Skips RAW writes when enable_reference_index is false in merged task persistence.
+        Skips RAW writes when enable_inverted_index is false in merged task persistence.
       retries: 3
       timeout: 7200
       onFailure: abortWorkflow

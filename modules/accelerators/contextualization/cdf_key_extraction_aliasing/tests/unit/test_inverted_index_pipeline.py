@@ -1,4 +1,4 @@
-"""Unit tests for fn_dm_reference_index pipeline helpers."""
+"""Unit tests for fn_dm_inverted_index pipeline helpers."""
 import json
 import unittest
 from types import SimpleNamespace
@@ -12,18 +12,18 @@ from modules.accelerators.contextualization.cdf_key_extraction_aliasing.function
 from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_key_extraction.pipeline import (
     FOREIGN_KEY_REFERENCES_JSON_COLUMN,
 )
-from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline import (
+from modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_inverted_index.pipeline import (
     REFERENCE_KIND_DOCUMENT,
     REFERENCE_KIND_FOREIGN_KEY,
     _merge_remove_entity_postings,
     _parse_reference_json,
     inverted_row_key,
     normalize_lookup_token,
-    persist_reference_index,
+    persist_inverted_index,
     source_snapshot_row_key,
 )
 
-_REFERENCE_INDEX_TEST_VALIDATION = {
+_INVERTED_INDEX_TEST_VALIDATION = {
     "max_aliases_per_tag": 50,
     "min_confidence": 0.01,
     "validation_rules": [
@@ -60,7 +60,7 @@ def _fk_rows(*entities):
     ]
 
 
-class TestReferenceIndexHelpers(unittest.TestCase):
+class TestInvertedIndexHelpers(unittest.TestCase):
     def test_normalize_lookup_token(self):
         self.assertEqual(normalize_lookup_token("  P-101  "), "p-101")
 
@@ -104,18 +104,18 @@ class TestReferenceIndexHelpers(unittest.TestCase):
         self.assertEqual(REFERENCE_KIND_FOREIGN_KEY, "foreign_key")
         self.assertEqual(REFERENCE_KIND_DOCUMENT, "document")
 
-    def test_persist_reference_index_creates_target_raw_table(self):
+    def test_persist_inverted_index_creates_target_raw_table(self):
         data = {
             "source_raw_db": "db_ke",
             "source_raw_table_key": "key_extraction_state",
-            "reference_index_raw_db": "db_ke",
-            "reference_index_raw_table": "reference_index",
+            "inverted_index_raw_db": "db_ke",
+            "inverted_index_raw_table": "inverted_index",
             "config": {
                 "config": {
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
+                        "validation": _INVERTED_INDEX_TEST_VALIDATION,
                     },
                 }
             },
@@ -127,26 +127,26 @@ class TestReferenceIndexHelpers(unittest.TestCase):
 
         client.raw.rows.side_effect = _empty_source
         with patch(
-            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline.create_table_if_not_exists"
+            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_inverted_index.pipeline.create_table_if_not_exists"
         ) as mock_ct:
-            persist_reference_index(client, MagicMock(), data)
+            persist_inverted_index(client, MagicMock(), data)
         mock_ct.assert_called_once()
         self.assertEqual(mock_ct.call_args[0][1], "db_ke")
-        self.assertEqual(mock_ct.call_args[0][2], "reference_index")
+        self.assertEqual(mock_ct.call_args[0][2], "inverted_index")
 
-    def test_skip_reference_index_ddl_skips_create(self):
+    def test_skip_inverted_index_ddl_skips_create(self):
         data = {
             "source_raw_db": "db_ke",
             "source_raw_table_key": "key_extraction_state",
-            "reference_index_raw_db": "db_ke",
-            "reference_index_raw_table": "reference_index",
-            "skip_reference_index_ddl": True,
+            "inverted_index_raw_db": "db_ke",
+            "inverted_index_raw_table": "inverted_index",
+            "skip_inverted_index_ddl": True,
             "config": {
                 "config": {
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
+                        "validation": _INVERTED_INDEX_TEST_VALIDATION,
                     },
                 }
             },
@@ -154,9 +154,9 @@ class TestReferenceIndexHelpers(unittest.TestCase):
         client = MagicMock()
         client.raw.rows.side_effect = lambda *a, **k: iter([[]])
         with patch(
-            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline.create_table_if_not_exists"
+            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_inverted_index.pipeline.create_table_if_not_exists"
         ) as mock_ct:
-            persist_reference_index(client, MagicMock(), data)
+            persist_inverted_index(client, MagicMock(), data)
         mock_ct.assert_not_called()
 
     def test_persist_batches_writes_chunked_insert_and_reuses_inv_cache(self):
@@ -166,16 +166,16 @@ class TestReferenceIndexHelpers(unittest.TestCase):
                 "parameters": {"debug": True},
                 "data": {
                     "aliasing_rules": [],
-                    "validation": _REFERENCE_INDEX_TEST_VALIDATION,
+                    "validation": _INVERTED_INDEX_TEST_VALIDATION,
                 },
             }
         }
         data = {
             "source_raw_db": "db_ke",
             "source_raw_table_key": "key_extraction_state",
-            "reference_index_raw_db": "db_ke",
-            "reference_index_raw_table": "reference_index",
-            "reference_index_insert_batch_size": 2,
+            "inverted_index_raw_db": "db_ke",
+            "inverted_index_raw_table": "inverted_index",
+            "inverted_index_insert_batch_size": 2,
             "config": config,
         }
         row1, row2 = _fk_rows("f1", "f2")
@@ -187,13 +187,13 @@ class TestReferenceIndexHelpers(unittest.TestCase):
         client.raw.rows.side_effect = _source_only
         client.raw.rows.retrieve.return_value = None
         with patch(
-            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline.create_table_if_not_exists"
+            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_inverted_index.pipeline.create_table_if_not_exists"
         ):
-            persist_reference_index(client, MagicMock(), data)
+            persist_inverted_index(client, MagicMock(), data)
         self.assertEqual(client.raw.rows.retrieve.call_count, 3)
         self.assertEqual(client.raw.rows.insert.call_count, 2)
-        self.assertEqual(data["reference_index_insert_batches"], 2)
-        self.assertEqual(data["reference_index_source_list_chunks"], 1)
+        self.assertEqual(data["inverted_index_insert_batches"], 2)
+        self.assertEqual(data["inverted_index_source_list_chunks"], 1)
         chunks = [call.args[2] for call in client.raw.rows.insert.call_args_list]
         self.assertEqual(len(chunks[0]), 2)
         self.assertEqual(len(chunks[1]), 1)
@@ -205,7 +205,7 @@ class TestReferenceIndexHelpers(unittest.TestCase):
         self.assertEqual(len(postings), 2)
         ext_ids = {p["source_external_id"] for p in postings}
         self.assertEqual(ext_ids, {"f1", "f2"})
-        self.assertEqual(data["reference_index_inverted_writes"], 2)
+        self.assertEqual(data["inverted_index_inverted_writes"], 2)
 
     def test_prefetch_table_avoids_retrieve(self):
         row1, row2 = _fk_rows("f1", "f2")
@@ -213,7 +213,7 @@ class TestReferenceIndexHelpers(unittest.TestCase):
         client.raw.rows.retrieve.return_value = None
 
         def _rows_router(db, table, **_kwargs):
-            if table == "reference_index":
+            if table == "inverted_index":
                 return iter([[]])
             return iter([[row1, row2]])
 
@@ -221,30 +221,30 @@ class TestReferenceIndexHelpers(unittest.TestCase):
         data = {
             "source_raw_db": "db_ke",
             "source_raw_table_key": "key_extraction_state",
-            "reference_index_raw_db": "db_ke",
-            "reference_index_raw_table": "reference_index",
-            "reference_index_prefetch_table": True,
+            "inverted_index_raw_db": "db_ke",
+            "inverted_index_raw_table": "inverted_index",
+            "inverted_index_prefetch_table": True,
             "config": {
                 "config": {
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
+                        "validation": _INVERTED_INDEX_TEST_VALIDATION,
                     },
                 }
             },
         }
         with patch(
-            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline.create_table_if_not_exists"
+            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_inverted_index.pipeline.create_table_if_not_exists"
         ):
-            persist_reference_index(client, MagicMock(), data)
+            persist_inverted_index(client, MagicMock(), data)
         client.raw.rows.retrieve.assert_not_called()
 
     def test_source_raw_pagination_two_chunks(self):
         row1, row2 = _fk_rows("f1", "f2")
 
         def _two_chunks(db, table, **_kwargs):
-            if table == "reference_index":
+            if table == "inverted_index":
                 return iter([[]])
             return iter([[row1], [row2]])
 
@@ -254,25 +254,25 @@ class TestReferenceIndexHelpers(unittest.TestCase):
         data = {
             "source_raw_db": "db_ke",
             "source_raw_table_key": "key_extraction_state",
-            "reference_index_raw_db": "db_ke",
-            "reference_index_raw_table": "reference_index",
-            "reference_index_prefetch_table": True,
+            "inverted_index_raw_db": "db_ke",
+            "inverted_index_raw_table": "inverted_index",
+            "inverted_index_prefetch_table": True,
             "source_raw_list_page_size": 1,
             "config": {
                 "config": {
                     "parameters": {"debug": True},
                     "data": {
                         "aliasing_rules": [],
-                        "validation": _REFERENCE_INDEX_TEST_VALIDATION,
+                        "validation": _INVERTED_INDEX_TEST_VALIDATION,
                     },
                 }
             },
         }
         with patch(
-            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_reference_index.pipeline.create_table_if_not_exists"
+            "modules.accelerators.contextualization.cdf_key_extraction_aliasing.functions.fn_dm_inverted_index.pipeline.create_table_if_not_exists"
         ):
-            persist_reference_index(client, MagicMock(), data)
-        self.assertEqual(data["reference_index_source_list_chunks"], 2)
+            persist_inverted_index(client, MagicMock(), data)
+        self.assertEqual(data["inverted_index_source_list_chunks"], 2)
 
 
 if __name__ == "__main__":

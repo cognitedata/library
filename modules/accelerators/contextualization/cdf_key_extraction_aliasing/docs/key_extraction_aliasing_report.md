@@ -10,7 +10,7 @@ This document describes the **current** default configuration and pipeline behav
 
 ## Workflow overview
 
-Diagram (Mermaid): [workflow_template/workflow_diagram.md](../workflow_template/workflow_diagram.md).
+Diagram (Mermaid): [workflow_template/workflow_diagram.md](../workflow_template/workflow_diagram.md). Inverted index behavior and scope flags: [Key extraction specification — Inverted index (downstream RAW)](specifications/1.%20key_extraction.md#inverted-index-downstream-raw).
 
 **Incremental / Key Discovery:** When **`incremental_change_processing`** is on, **`fn_dm_incremental_state_update`** advances watermarks and optional hash-based skip using **Key Discovery** FDM views ([`data_modeling/`](../data_modeling/)) when deployed, then emits **cohort** rows on RAW (`WORKFLOW_STATUS=detected`). If FDM views are missing, behavior falls back to RAW watermark rows and `EXTRACTION_INPUTS_HASH`. Parameters: **`key_discovery_instance_space`**, **`workflow_scope`**, **`cdm_view_version`**, **`incremental_skip_unchanged_source_inputs`** — see [module README — Incremental cohort processing](../README.md#incremental-cohort-processing-raw-cohort-cdm-state).
 
@@ -18,7 +18,7 @@ Diagram (Mermaid): [workflow_template/workflow_diagram.md](../workflow_template/
 2. **Result splitting** — Routes results by extraction type / downstream consumer.
 3. **Aliasing** — Expands candidate keys with format variants and normalizations (scoped by entity type).
 4. **Write aliases** — Persists aliases on CogniteDescribable (default property `aliases`; see `alias_writeback_property` in aliasing config).
-5. **Reference index / FK write-back** — Optional; default scope sets `write_foreign_key_references: false` for aliasing parameters.
+5. **Inverted index / FK write-back** — Optional; default scope sets `write_foreign_key_references: false` for aliasing parameters.
 
 Deployed workflow YAML may add **scope-specific** rules (for example extra file-name patterns). The **repo default** for full asset + file + timeseries CDM-style extraction is the scope file above; keep workflow inline config in sync per generated **`workflows/.../key_extraction_aliasing*.WorkflowVersion.yaml`** (see [workflows/README.md](../workflows/README.md)) header comment.
 

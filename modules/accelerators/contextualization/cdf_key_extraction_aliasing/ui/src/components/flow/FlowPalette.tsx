@@ -6,6 +6,7 @@ export type PaletteDragPayload =
   | { kind: "extraction"; handlerId: string; preset: true }
   | { kind: "aliasing"; handlerId: string; preset: true }
   | { kind: "match_definition"; ruleId: string }
+  | { kind: "persistence"; variant: "alias_persistence" | "inverted_index" }
   | {
       kind: "structural";
       nodeKind:
@@ -122,6 +123,29 @@ export function FlowPalette({ t, scopeDocument }: Props) {
           </li>
         ))}
       </ul>
+      <p className="kea-flow-palette__heading">{t("flow.palettePersistence")}</p>
+      <div className="kea-flow-palette__buttons">
+        <button
+          type="button"
+          className="kea-btn kea-btn--sm"
+          draggable
+          onDragStart={(e) =>
+            setPaletteDragData(e, { kind: "persistence", variant: "alias_persistence" })
+          }
+        >
+          {t("flow.structuralAliasPersistence")}
+        </button>
+        <button
+          type="button"
+          className="kea-btn kea-btn--sm"
+          draggable
+          onDragStart={(e) =>
+            setPaletteDragData(e, { kind: "persistence", variant: "inverted_index" })
+          }
+        >
+          {t("flow.structuralInvertedIndex")}
+        </button>
+      </div>
     </div>
   );
 }

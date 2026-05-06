@@ -13,7 +13,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 1. **Extracts** structured identifiers from configured data-model views: **candidate keys** (an entity’s own tags), **foreign key references** (mentions of other entities’ tags), and **document references**.
 2. **Generates alias sets** for candidate keys so search, matching, and contextualization can recognize variant forms.
 3. **Persists** aliases (and optionally foreign-key reference strings) back onto **`cdf_cdm:CogniteDescribable:v1`** (or equivalent views that expose the configured properties).
-4. **Optionally maintains** a **RAW inverted reference index** from extracted FK and document references for lookup-style use cases.
+4. **Optionally maintains** a **RAW inverted index** from extracted FK and document references for lookup-style use cases.
 
 ### 1.2 Technical boundaries
 
@@ -33,7 +33,7 @@ Industrial and engineering data in Cognite Data Fusion (CDF) often encodes equip
 | **Config author** | Maintains v1 scope YAML at module root / trigger template (`workflow_template/workflow.template.config.yaml`) and runs `build_scopes` for multi-site triggers (via editor, git, or the [local operator UI](guides/howto_config_ui.md)). |
 | **CDF operator** | Deploys Toolkit manifests, monitors workflow runs and RAW/DM outcomes. |
 | **Application / search** | Consumes **`aliases`** (and optional FK list properties) on describable instances. |
-| **Downstream jobs** | May read **reference index** RAW for “who references tag X” style queries. |
+| **Downstream jobs** | May read **inverted index** RAW for “who references tag X” style queries. |
 
 ---
 
@@ -106,9 +106,9 @@ When **`incremental_change_processing`** is enabled in scope parameters:
 - **`run_all`**: overrides incremental narrowing (workflow input or scope); local runner mirrors this via `module.py --all`.
 - **Deployable artifacts:** Key Discovery view/container YAML is under [`data_modeling/`](../data_modeling/) (`KeyDiscoveryProcessingState`, `KeyDiscoveryScopeCheckpoint`); deploy with Cognite Toolkit alongside functions. **FDM** = listing cursor + per-record hash state; **RAW** = high-volume cohort queue (`WORKFLOW_STATUS=detected`).
 
-### 3.5 Reference index
+### 3.5 Inverted index
 
-When enabled (`enable_reference_index` in scope), **`fn_dm_reference_index`** reads FK and document reference JSON from key-extraction RAW and writes an **inverted index** table (key from `reference_index_raw_table_key` or naming convention derived from `raw_table_key`). Candidate keys are **not** indexed here.
+When enabled (`enable_inverted_index` in scope), **`fn_dm_inverted_index`** reads FK and document reference JSON from key-extraction RAW and writes an **inverted index** table (key from `inverted_index_raw_table_key` or naming convention derived from `raw_table_key`). Candidate keys are **not** indexed here.
 
 ---
 
@@ -124,7 +124,7 @@ flowchart LR
   subgraph wf [Workflow v5]
     INC[fn_dm_incremental_state_update]
     KE[fn_dm_key_extraction]
-    RI[fn_dm_reference_index]
+    RI[fn_dm_inverted_index]
     AL[fn_dm_aliasing]
     AP[fn_dm_alias_persistence]
   end
@@ -132,7 +132,7 @@ flowchart LR
   subgraph raw [RAW]
     R1[db_key_extraction / state + entities]
     R2[db_tag_aliasing / aliases]
-    R3[reference index table]
+    R3[inverted index table]
   end
 
   DM --> INC
@@ -162,7 +162,7 @@ flowchart LR
 | -------- | ----------------- |
 | `fn_dm_incremental_state_update` | Watermarks + cohort detection to RAW. |
 | `fn_dm_key_extraction` | Query DM / process cohort → write extraction RAW; status **`extracted`** / **`failed`**. |
-| `fn_dm_reference_index` | Inverted FK/document index RAW (parallel to aliasing after extraction). |
+| `fn_dm_inverted_index` | Inverted FK/document index RAW (parallel to aliasing after extraction). |
 | `fn_dm_aliasing` | Read extraction RAW → write aliasing RAW; advance **`aliased`**. |
 | `fn_dm_alias_persistence` | Read aliasing RAW (+ optional extraction RAW for FKs) → patch describables; advance **`persisted`**. |
 
@@ -219,7 +219,7 @@ Shared **`aliasing_rule_definitions`** / **`aliasing_rule_sequences`** at the to
 | -------- | ----------------- | --------- |
 | **`db_key_extraction`** | Entity rows, run summaries, watermarks, cohort keys | `raw_table_key`, `raw_table_state` (and related parameters) in scope |
 | **`db_tag_aliasing`** | Rows keyed by **`original_tag`** with `aliases`, metadata, entity map | `raw_table_aliases` |
-| **`db_key_extraction`** (index) | Inverted reference rows | `reference_index_raw_table_key` or derived suffix |
+| **`db_key_extraction`** (index) | Inverted index rows | `inverted_index_raw_table_key` or derived suffix |
 
 Exact column semantics: function READMEs under `functions/fn_dm_*`.
 
@@ -254,7 +254,7 @@ Per-step compiled DAG and full rule payloads are **not** on **`workflow.input`**
 
 ### 7.2 CLI (`module.py`)
 
-**`module.py run`** carries the pipeline (limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, `--all` (run all), skip reference index for incremental parity). **`module.py build`** runs the scope builder; bare **`module.py`** prints help. Documented in the [module README](../README.md). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
+**`module.py run`** carries the pipeline (limits, verbosity, dry-run, FK write-back flags, scope vs `--config-path`, clean-state, `--all` (run all), skip inverted index for incremental parity). **`module.py build`** runs the scope builder; bare **`module.py`** prints help. Documented in the [module README](../README.md). **Short path:** [Quickstart](guides/howto_quickstart.md); **scope build and deploy:** [Scoped deployment](guides/howto_scoped_deployment.md).
 
 ### 7.3 Python API (minimal)
 

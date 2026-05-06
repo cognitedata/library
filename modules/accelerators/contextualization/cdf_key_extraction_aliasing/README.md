@@ -51,11 +51,11 @@ python modules/accelerators/contextualization/cdf_key_extraction_aliasing/script
 ## Roadmap
 
 - [x] Key Discovery FDM state for incremental watermark/hash (`data_modeling/`; RAW cohort unchanged; RAW fallback if views not deployed)
-- [x] RAW inverted **reference index** for FK + document refs (`fn_dm_reference_index`; see [workflows/README.md](workflows/README.md))
-- [ ] DM projection / sync for the reference index (RAW remains source of truth)
+- [x] RAW **inverted index** for FK + document refs (`fn_dm_inverted_index`; see [workflows/README.md](workflows/README.md))
+- [ ] DM projection / sync for the inverted index (RAW remains source of truth)
 - [x] Default scope rules differentiated per `entity_type` / source view (separate extraction, validation, and aliasing scopes in [`workflow.local.config.yaml`](workflow.local.config.yaml); asset vs file vs timeseries)
 - [ ] Broader non-ISA tag testing
-- [ ] Reference-index relationships beyond inverted lookup
+- [ ] Inverted-index relationships beyond token lookup
 
 ## Local runs (module.py)
 
@@ -109,8 +109,9 @@ If your project uses Poetry at repo root, prefix with `poetry run` as usual.
 | `--instance-space` | Keep `source_views` whose `instance_space` matches **or** whose `filters` constrain node `space` (`property_scope: node`, `EQUALS`/`IN`) | all |
 | `--scope` | Only `default` supported without `--config-path` (loads module-root `workflow.local.config.yaml`) | `default` |
 | `--config-path` | v1 scope document (overrides `--scope`) | none |
-| `--clean-state` | Drop incremental RAW tables from the scope (key extraction state, reference index, aliasing RAW), then run the pipeline | false |
+| `--clean-state` | Drop incremental RAW tables from the scope (key extraction state, inverted index, aliasing RAW), then run the pipeline | false |
 | `--clean-state-only` | Same RAW drops as `--clean-state`, then exit (no pipeline) | false |
+| `--skip-inverted-index` | Skip **`fn_dm_inverted_index`** during `module.py run` (workflow parity testing) | false |
 
 **RAW clean does not** remove alias or FK values already written on data-model instances. For incremental runs, a typical full reprocess is `--clean-state --all`.
 
@@ -238,7 +239,7 @@ cdf_key_extraction_aliasing/
 |------|------|
 | `workflow.local.config.yaml` | Default v1 scope document at module root (local CLI) |
 | `config/examples/` | Demos and reference YAML — [config/examples/README.md](config/examples/README.md) |
-| `functions/fn_dm_*` | CDF functions + engines (`fn_dm_reference_index` = RAW reference index) |
+| `functions/fn_dm_*` | CDF functions + engines (`fn_dm_inverted_index` = RAW inverted index) |
 | `workflow_template/` | `workflow.template.Workflow*.yaml`, `workflow.template.WorkflowTrigger.yaml`, `workflow.template.config.yaml`, diagram |
 | `workflows/` | Generated Workflow / WorkflowVersion / WorkflowTrigger YAML |
 | `tests/` | Pytest suite and `tests/results/` for test-harness JSON (distinct from `local_run_results/` pipeline outputs) |

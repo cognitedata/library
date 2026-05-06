@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import yaml
 from cognite.client.exceptions import CogniteAPIError
 
-from .reference_index_naming import reference_index_raw_table_from_key_extraction_table
+from .inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
 
 
 def _delete_raw_table_if_exists(
@@ -55,10 +55,10 @@ def _collect_db_table_pairs_from_scope_doc(doc: Dict[str, Any]) -> List[Tuple[st
     raw_table_key = str(ke_params.get("raw_table_key") or "").strip()
     add(raw_db_ke, raw_table_key)
     if raw_db_ke and raw_table_key:
-        idx_db = str(ke_params.get("reference_index_raw_db") or "").strip() or raw_db_ke
-        idx_tbl = str(ke_params.get("reference_index_raw_table") or "").strip()
+        idx_db = str(ke_params.get("inverted_index_raw_db") or "").strip() or raw_db_ke
+        idx_tbl = str(ke_params.get("inverted_index_raw_table") or "").strip()
         if not idx_tbl:
-            idx_tbl = reference_index_raw_table_from_key_extraction_table(raw_table_key)
+            idx_tbl = inverted_index_raw_table_from_key_extraction_table(raw_table_key)
         add(idx_db, idx_tbl)
 
     al = doc.get("aliasing")
@@ -80,7 +80,7 @@ def clean_state_tables_from_scope_yaml(
     scope_yaml_path: Path,
 ) -> List[str]:
     """
-    Drop RAW tables declared in the scope document for key extraction state, reference index,
+    Drop RAW tables declared in the scope document for key extraction state, inverted index,
     and aliasing (state + aliases). The next incremental run rebuilds cohorts and downstream steps.
 
     Returns labels ``db/table`` for each attempted drop.

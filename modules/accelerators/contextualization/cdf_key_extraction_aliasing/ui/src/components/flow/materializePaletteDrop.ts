@@ -58,6 +58,20 @@ export function materializePaletteDrop(input: MaterializePaletteDropInput): Mate
 
   let extraEdgesFromSv: Edge[] = [];
   let node = createNodeFromPalette(payload, position);
+  if (payload.kind === "persistence") {
+    const label =
+      payload.variant === "alias_persistence"
+        ? t("flow.structuralAliasPersistence")
+        : t("flow.structuralInvertedIndex");
+    const data = (node.data ?? {}) as Record<string, unknown>;
+    node = {
+      ...node,
+      data: {
+        ...data,
+        label,
+      },
+    };
+  }
   const rfType = node.type ?? "";
   if (keaValidationRuleLayoutRfTypes.has(rfType)) {
     const data = (node.data ?? {}) as Record<string, unknown>;

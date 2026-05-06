@@ -7,6 +7,7 @@
 1. [Overview](#overview) (includes [Default CDM scope](#default-cdm-scope))
 2. [Key Extraction Pipeline Configuration](#key-extraction-pipeline-configuration)
    - [Pipeline Structure](#pipeline-structure)
+   - [Inverted index parameters](#inverted-index-parameters)
    - [Source Views Configuration](#source-views-configuration)
    - [Validation Settings](#validation-settings)
    - [Extraction Rules](#extraction-rules)
@@ -28,6 +29,7 @@ The Key Discovery and Aliasing system uses YAML-based pipeline configuration fil
 
 - **Key Extraction Pipelines**: Extract candidate keys, foreign key references, and document references from CDF data model views
 - **Aliasing Pipelines**: Generate alternative representations (aliases) of extracted keys for improved matching
+- **Inverted index (optional)**: After extraction, **`fn_dm_inverted_index`** can build a RAW **token → postings** table from FK/document JSON columns only; enable with **`enable_inverted_index`** under **`key_extraction.config.parameters`** (see [Inverted index parameters](#inverted-index-parameters) and the [key extraction specification](../specifications/1.%20key_extraction.md#inverted-index-downstream-raw))
 
 Configuration files are located in:
 - **Scope YAML (recommended for local runs):** `modules/accelerators/contextualization/cdf_key_extraction_aliasing/workflow.local.config.yaml` at module root when using `--scope default`, or any path via `--config-path`. One v1 scope document per file: required `key_extraction`, optional `aliasing`, embedded **`canvas`** for the operator graph — the authoring shape for this pipeline; deployed triggers carry a **trimmed** copy on **`workflow.input.configuration`** (**v5**).
@@ -102,7 +104,20 @@ key_extraction:
         # ... extraction rule configurations
 ```
 
-**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Key extraction writes **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** (when rules produce FKs / document refs). **Per–source-field candidate lists** are stored under column names equal to the rule’s **`source_field`** string **uppercased** (e.g. `description` → `DESCRIPTION`; `metadata.code` → `METADATA.CODE`, including any dots). **`fn_dm_reference_index`** reads only the FK/document JSON columns (not these candidate-key list columns) and maintains a separate inverted index RAW table (e.g. `{site}_reference_index`). **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `run_all: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
+**RAW extraction store (`raw_table_key`):** Use table names such as **`key_extraction_state`** (default scope) or **`{site}_key_extraction_state`** (deployed workflows). Per-entity rows use `RECORD_KIND=entity` and `EXTRACTION_STATUS` (`success`, `failed`, `empty`). Run audit rows use `RECORD_KIND=run` and a timestamp row key; they are ignored when building instance skip lists. Key extraction writes **`FOREIGN_KEY_REFERENCES_JSON`** and **`DOCUMENT_REFERENCES_JSON`** (when rules produce FKs / document refs). **Per–source-field candidate lists** are stored under column names equal to the rule’s **`source_field`** string **uppercased** (e.g. `description` → `DESCRIPTION`; `metadata.code` → `METADATA.CODE`, including any dots). **`fn_dm_inverted_index`** reads only the FK/document JSON columns (not these candidate-key list columns) and maintains a separate inverted index RAW table (e.g. `{site}_inverted_index`). **`skip_entity_policy`:** `successful_only` (default) excludes instances only when their RAW row has `EXTRACTION_STATUS` `success` or `empty`; `failed` or missing `EXTRACTION_STATUS` means the instance is listed again. `none` never excludes from RAW (same listing effect as `run_all: true`). **`write_empty_extraction_rows`:** avoids re-querying instances that genuinely produce no keys when using `successful_only`.
+
+#### Inverted index parameters
+
+These keys live on **`key_extraction.config.parameters`** in the v1 scope document (same block as `raw_table_key`, `incremental_change_processing`, etc.). They control whether the workflow’s **`fn_dm_inverted_index`** task runs meaningfully and where inverted rows are stored. Task **`data`** produced by **`module.py build`** may also carry performance keys (`inverted_index_insert_batch_size`, `skip_inverted_index_ddl`, …); see [`functions/fn_dm_inverted_index/handler.py`](../../functions/fn_dm_inverted_index/handler.py) and [`functions/fn_dm_inverted_index/README.md`](../../functions/fn_dm_inverted_index/README.md).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| **`enable_inverted_index`** | bool | When **`true`**, scope build / handlers populate **`fn_dm_inverted_index`** task data (including a deep copy of **`aliasing.config`** for inline **`AliasingEngine`** expansion of **referenced** FK/document strings). Default **`false`** if omitted. |
+| **`inverted_index_raw_table_key`** | string (optional) | RAW **table** name for inverted-index rows (typically same RAW **database** as `raw_db`). If omitted, the name is derived from **`raw_table_key`** by replacing the suffix **`_key_extraction_state`** with **`_inverted_index`** (see `inverted_index_naming.py`). |
+
+**Not indexed on this path:** candidate-key list columns written for **`fn_dm_aliasing`** — only FK/document reference payloads feed the inverted index.
+
+**Local CLI:** `module.py run --skip-inverted-index` skips the inverted-index step for parity testing (see [module README](../../README.md) — *Local runs (module.py)*).
 
 #### Incremental mode, Key Discovery FDM, and RAW cohort
 

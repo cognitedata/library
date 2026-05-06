@@ -356,26 +356,26 @@ def _log_cli_run_summary(logger: logging.Logger, payload: Dict[str, Any]) -> Non
             f"extraction_failed={rollup.get('extraction_failed_count', 0)}"
         )
 
-    ref = payload.get("reference_index")
+    ref = payload.get("inverted_index")
     if ref is None or (isinstance(ref, dict) and ref.get("status") == "n_a"):
         lines.append(
-            "Reference index: n/a (non-incremental path or not configured for RAW index)"
+            "Inverted index: n/a (non-incremental path or not configured for RAW index)"
         )
     elif isinstance(ref, dict):
         st = ref.get("status")
         if st == "ok":
             lines.append(
-                f"Reference index: entities={ref.get('entities', 0)}, "
+                f"Inverted index: entities={ref.get('entities', 0)}, "
                 f"inverted_writes={ref.get('inverted_writes', 0)}, "
                 f"postings={ref.get('postings', 0)} "
                 f"(fk={ref.get('fk_postings', 0)}, document={ref.get('doc_postings', 0)})"
             )
         elif st == "skipped":
             lines.append(
-                f"Reference index: skipped ({ref.get('reason', 'unknown')})"
+                f"Inverted index: skipped ({ref.get('reason', 'unknown')})"
             )
         elif st == "failed":
-            lines.append(f"Reference index: failed ({ref.get('error', 'unknown')})")
+            lines.append(f"Inverted index: failed ({ref.get('error', 'unknown')})")
 
     if "aliasing" in payload:
         al = payload.get("aliasing") or {}
@@ -599,7 +599,7 @@ def _run_workflow_parity(
                 "cohort_skipped_hash": cohort_skipped_hash,
                 "keys_extracted": keys_extracted,
                 "rollup": rollup,
-                "reference_index": ref_summary,
+                "inverted_index": ref_summary,
                 "aliasing": {
                     "tags": alias_data.get("total_tags_processed", 0),
                     "aliases": alias_data.get("total_aliases_generated", 0),
@@ -651,7 +651,7 @@ def _run_workflow_parity(
                 "cohort_skipped_hash": cohort_skipped_hash,
                 "keys_extracted": keys_extracted,
                 "rollup": rollup,
-                "reference_index": ref_summary,
+                "inverted_index": ref_summary,
                 "aliasing": {
                     "tags": alias_data.get("total_tags_processed", 0),
                     "aliases": alias_data.get("total_aliases_generated", 0),
@@ -682,7 +682,7 @@ def _run_workflow_parity(
                 "cohort_skipped_hash": cohort_skipped_hash,
                 "keys_extracted": keys_extracted,
                 "rollup": rollup,
-                "reference_index": ref_summary,
+                "inverted_index": ref_summary,
                 "aliasing": {
                     "tags": alias_data.get("total_tags_processed", 0),
                     "aliases": alias_data.get("total_aliases_generated", 0),
@@ -711,7 +711,7 @@ def _run_workflow_parity(
                 "cohort_skipped_hash": cohort_skipped_hash,
                 "keys_extracted": keys_extracted,
                 "rollup": rollup,
-                "reference_index": ref_summary,
+                "inverted_index": ref_summary,
                 "aliasing": {
                     "tags": alias_data.get("total_tags_processed", 0),
                     "aliases": alias_data.get("total_aliases_generated", 0),

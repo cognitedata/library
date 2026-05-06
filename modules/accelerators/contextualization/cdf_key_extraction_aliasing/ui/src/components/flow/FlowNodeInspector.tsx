@@ -6,7 +6,7 @@ import type { JsonObject } from "../../types/scopeConfig";
 import type {
   AliasPersistenceConfig,
   CanvasEdgeKind,
-  ReferenceIndexPersistenceConfig,
+  InvertedIndexPersistenceConfig,
   SubflowPortsConfig,
   SubflowPortEntry,
   WorkflowCanvasNodeData,
@@ -725,11 +725,11 @@ export function FlowNodeInspector({
     );
   }
 
-  if (kind === "keaAliasPersistence" || kind === "keaReferenceIndex") {
+  if (kind === "keaAliasPersistence" || kind === "keaInvertedIndex") {
     const persistenceHint =
       kind === "keaAliasPersistence"
         ? t("flow.inspectorAliasPersistenceHint")
-        : t("flow.inspectorReferenceIndexHint");
+        : t("flow.inspectorInvertedIndexHint");
     return (
       <aside className="kea-flow-inspector">
         <h4 className="kea-flow-inspector__title">{t("flow.inspectorNodeTitle")}</h4>
@@ -797,9 +797,9 @@ export function FlowNodeInspector({
           </>
           );
         })()}
-        {kind === "keaReferenceIndex" && (() => {
+        {kind === "keaInvertedIndex" && (() => {
           const nd = data as WorkflowCanvasNodeData;
-          const rpc = nd.persistence_config?.kind === "reference_index" ? nd.persistence_config : undefined;
+          const rpc = nd.persistence_config?.kind === "inverted_index" ? nd.persistence_config : undefined;
           return (
           <label className="kea-label kea-label--block">
             Persistence profile id (optional)
@@ -811,10 +811,10 @@ export function FlowNodeInspector({
                 const prof = v.trim();
                 const rawNd = (selectedNode.data ?? {}) as WorkflowCanvasNodeData;
                 const cur =
-                  rawNd.persistence_config?.kind === "reference_index"
+                  rawNd.persistence_config?.kind === "inverted_index"
                     ? rawNd.persistence_config
-                    : { kind: "reference_index" as const };
-                const merged: ReferenceIndexPersistenceConfig = { ...cur, kind: "reference_index" };
+                    : { kind: "inverted_index" as const };
+                const merged: InvertedIndexPersistenceConfig = { ...cur, kind: "inverted_index" };
                 if (prof) merged.profile = prof;
                 else delete merged.profile;
                 onPatchNode(selectedNode.id, { ...data, persistence_config: merged });
