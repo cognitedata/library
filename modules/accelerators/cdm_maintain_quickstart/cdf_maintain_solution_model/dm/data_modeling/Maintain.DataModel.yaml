@@ -1,0 +1,38 @@
+space: maintain_solution_model
+externalId: Maintain
+name: Maintain
+version: v1
+description: Data model for the Maintain application
+views:
+  - type: view
+    space: maintain_solution_model
+    externalId: Plan
+    version: v1
+  - type: view
+    space: maintain_solution_model
+    externalId: MaintainLayout
+    version: v1
+  - type: view
+    space: maintain_solution_model
+    externalId: MaintainCanvas
+    version: v1
+  - type: view
+    space: maintain_solution_model
+    externalId: MaintainWorkOrder
+    version: v1
+  - type: view
+    space: maintain_solution_model
+    externalId: ManualMappings3D
+    version: v1
+  - type: view
+    space: maintain_solution_model
+    externalId: FileGridZoneAnnotation
+    version: v1
+  - type: view
+    space: maintain_solution_model
+    externalId: APM_Comment
+    version: v1
+  - type: view
+    space: maintain_solution_model
+    externalId: APM_Optimisation
+    version: v1

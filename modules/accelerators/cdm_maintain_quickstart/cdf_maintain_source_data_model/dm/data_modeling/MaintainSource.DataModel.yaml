@@ -1,0 +1,30 @@
+space: maintain_source_data
+externalId: MaintainSource
+name: Maintain Source Data
+version: v1
+description: Data model for customer-provided source data used by the Maintain application
+views:
+  - type: view
+    externalId: SourceMaintenanceOrder
+    space: maintain_source_data
+    version: v1
+  - type: view
+    externalId: CogniteMaintenanceOrder
+    space: cdf_idm
+    version: v1
+  - type: view
+    externalId: CogniteOperation
+    space: cdf_idm
+    version: v1
+  - type: view
+    externalId: CogniteAsset
+    space: cdf_cdm
+    version: v1
+  - type: view
+    externalId: CogniteFile
+    space: cdf_cdm
+    version: v1
+  - type: view
+    externalId: CogniteTimeSeries
+    space: cdf_cdm
+    version: v1

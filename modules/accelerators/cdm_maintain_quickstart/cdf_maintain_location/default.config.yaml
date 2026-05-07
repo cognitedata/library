@@ -1,0 +1,4 @@
+# Location identifier — used as the externalId of the LocationFilter and as a key in APM config
+location: <change_me>
+# Human-readable display name of the location shown in the app
+location_name: <change_me>

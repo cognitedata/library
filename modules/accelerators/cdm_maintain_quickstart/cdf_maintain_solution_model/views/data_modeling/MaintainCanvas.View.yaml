@@ -1,0 +1,65 @@
+space: maintain_solution_model
+externalId: MaintainCanvas
+version: v1
+name: MaintainCanvas
+filter:
+  hasData:
+    - type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+properties:
+  name:
+    description: Human readable name of the canvas
+    container:
+      type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+    containerPropertyIdentifier: name
+  canvasData:
+    description: Files and annotation data defining the canvas
+    container:
+      type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+    containerPropertyIdentifier: canvasData
+  createdAt:
+    description: Time when the canvas was originally created
+    container:
+      type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+    containerPropertyIdentifier: createdAt
+  updatedAt:
+    description: Time when the canvas was last updated by a user
+    container:
+      type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+    containerPropertyIdentifier: updatedAt
+  metadata:
+    description: Additional metadata for the canvas
+    container:
+      type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+    containerPropertyIdentifier: metadata
+  version:
+    description: Version of the canvas schema. Ie. defining the structure of the canvasData field
+    container:
+      type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+    containerPropertyIdentifier: version
+  owner:
+    description: User who owns the canvas, null if system created
+    source:
+      type: view
+      space: cdf_apps_shared
+      externalId: CDF_User
+      version: v1
+    container:
+      type: container
+      space: maintain_solution_model
+      externalId: MaintainCanvas
+    containerPropertyIdentifier: owner
+

@@ -1,0 +1,67 @@
+space: maintain_solution_model
+externalId: ManualMappings3D
+name: ManualMappings3D
+usedFor: node
+properties:
+  activityId:
+    type:
+      type: text
+      list: false
+    nullable: false
+  nodeId:
+    type:
+      type: text
+      list: false
+    nullable: false
+  cameraX:
+    type:
+      type: float64
+      list: false
+    nullable: false
+  cameraY:
+    type:
+      type: float64
+      list: false
+    nullable: false
+  cameraZ:
+    type:
+      type: float64
+      list: false
+    nullable: false
+  targetX:
+    type:
+      type: float64
+      list: false
+    nullable: false
+  targetY:
+    type:
+      type: float64
+      list: false
+    nullable: false
+  targetZ:
+    type:
+      type: float64
+      list: false
+    nullable: false
+  modelId:
+    type:
+      type: text
+      list: false
+    nullable: true
+  revisionId:
+    type:
+      type: text
+      list: false
+    nullable: true
+constraints: {}
+indexes:
+  activityId:
+    properties:
+      - activityId
+    indexType: btree
+    cursorable: false
+  modelId:
+    properties:
+      - modelId
+    indexType: btree
+    cursorable: false

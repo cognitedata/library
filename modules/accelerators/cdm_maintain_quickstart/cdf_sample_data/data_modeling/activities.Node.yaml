@@ -1,0 +1,81 @@
+# Activity 1 - Preventive Maintenance on ABC 12345
+- space: maintain_source_data
+  externalId: abc_12345_activity_1
+  sources:
+    - source:
+        type: view
+        space: cdf_idm
+        externalId: CogniteMaintenanceOrder
+        version: v1
+      properties:
+        name: "ABC 12345 - Preventive Maintenance"
+        description: "Scheduled preventive maintenance for ABC 12345"
+        tags:
+          - maintenance-order
+          - preventive
+        type: PM01
+        status: Ready for execution
+        priority: 2
+        priorityDescription: Medium
+        scheduledStartTime: "2025-11-23T08:00:00.000+00:00"
+        scheduledEndTime: "2025-11-24T16:00:00.000+00:00"
+        mainAsset:
+          space: maintain_source_data
+          externalId: abc_12345
+        assets:
+          - space: maintain_source_data
+            externalId: abc_12345
+    - source:
+        type: view
+        space: maintain_source_data
+        externalId: SourceMaintenanceOrder
+        version: v1
+      properties:
+        sourceId: abc_12345_activity_1
+        isActive: "true"
+        isCompleted: "false"
+        isCancelled: "false"
+        files:
+          - space: maintain_source_data
+            externalId: DEMO-FILE
+
+# Activity 2 - Corrective Maintenance on ABC 12345
+- space: maintain_source_data
+  externalId: abc_12345_activity_2
+  sources:
+    - source:
+        type: view
+        space: cdf_idm
+        externalId: CogniteMaintenanceOrder
+        version: v1
+      properties:
+        name: "ABC 12345 - Corrective Maintenance"
+        description: "Corrective maintenance following valve inspection on ABC 12345"
+        tags:
+          - maintenance-order
+          - corrective
+        type: CM01
+        status: In Progress
+        priority: 1
+        priorityDescription: High
+        scheduledStartTime: "2025-12-01T08:00:00.000+00:00"
+        scheduledEndTime: "2025-12-02T17:00:00.000+00:00"
+        mainAsset:
+          space: maintain_source_data
+          externalId: abc_12345
+        assets:
+          - space: maintain_source_data
+            externalId: abc_12345
+    - source:
+        type: view
+        space: maintain_source_data
+        externalId: SourceMaintenanceOrder
+        version: v1
+      properties:
+        sourceId: abc_12345_activity_2
+        isActive: "true"
+        isCompleted: "false"
+        isCancelled: "false"
+        files:
+          - space: maintain_source_data
+            externalId: DEMO-FILE

@@ -1,0 +1,75 @@
+space: maintain_solution_model
+externalId: ManualMappings3D
+name: ManualMappings3D
+version: v1
+properties:
+  activityId:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: activityId
+    name: activityId
+  nodeId:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: nodeId
+    name: nodeId
+  cameraX:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: cameraX
+    name: cameraX
+  cameraY:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: cameraY
+    name: cameraY
+  cameraZ:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: cameraZ
+    name: cameraZ
+  targetX:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: targetX
+    name: targetX
+  targetY:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: targetY
+    name: targetY
+  targetZ:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: targetZ
+    name: targetZ
+  modelId:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: modelId
+    name: modelId
+  revisionId:
+    container:
+      space: maintain_solution_model
+      externalId: ManualMappings3D
+      type: container
+    containerPropertyIdentifier: revisionId
+    name: revisionId

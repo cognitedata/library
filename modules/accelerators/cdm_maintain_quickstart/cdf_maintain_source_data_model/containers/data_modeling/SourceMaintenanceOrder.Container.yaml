@@ -1,0 +1,72 @@
+space: maintain_source_data
+externalId: SourceMaintenanceOrder
+name: SourceMaintenanceOrder
+usedFor: node
+properties:
+  isCompleted:
+    type:
+      type: text
+      list: false
+    nullable: true
+  isSafetyCritical:
+    type:
+      type: text
+      list: false
+    nullable: true
+  workPackageNumber:
+    type:
+      type: text
+      list: false
+    nullable: true
+  workOrderNumber:
+    type:
+      type: text
+      list: false
+    nullable: true
+  createdDate:
+    type:
+      type: text
+      list: false
+    nullable: true
+  actualHours:
+    type:
+      type: text
+      list: false
+    nullable: true
+  isCancelled:
+    type:
+      type: text
+      list: false
+    nullable: true
+  durationHours:
+    type:
+      type: text
+      list: false
+    nullable: true
+  isActive:
+    type:
+      type: text
+      list: false
+    nullable: true
+  dueDate:
+    type:
+      type: text
+      list: false
+    nullable: true
+  percentageProgress:
+    type:
+      type: text
+      list: false
+    nullable: true
+  files:
+    type:
+      type: direct
+      list: true
+    nullable: true
+  sourceId:
+    type:
+      type: text
+      list: false
+    nullable: true
+constraints: {}
+indexes: {}

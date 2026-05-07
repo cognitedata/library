@@ -1,0 +1,13 @@
+- space: maintain_source_data
+  externalId: DEMO-FILE
+  name: DEMO-FILE.pdf
+  description: "Demo Document"
+  tags:
+    - demo
+    - document
+  mimeType: application/pdf
+  assets:
+    - space: maintain_source_data
+      externalId: root_root
+    - space: maintain_source_data
+      externalId: abc_12345

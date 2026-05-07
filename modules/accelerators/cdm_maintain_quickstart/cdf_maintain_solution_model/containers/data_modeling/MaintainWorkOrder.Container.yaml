@@ -1,0 +1,10 @@
+space: maintain_solution_model
+externalId: MaintainWorkOrder
+usedFor: node
+properties:
+  gridReference:
+    type:
+      type: text
+      list: false
+    nullable: true
+

@@ -1,0 +1,52 @@
+space: APM_Config
+externalId: APM_Config
+name: APM_Config
+usedFor: node
+properties:
+  name:
+    type:
+      type: text
+      list: false
+    nullable: true
+  appDataSpaceId:
+    type:
+      type: text
+      list: false
+    nullable: true
+  appDataSpaceVersion:
+    type:
+      type: text
+      list: false
+    nullable: true
+  customerDataSpaceId:
+    type:
+      type: text
+      list: false
+    nullable: true
+  customerDataSpaceVersion:
+    type:
+      type: text
+      list: false
+    nullable: true
+  featureConfiguration:
+    type:
+      type: json
+      list: false
+    nullable: true
+  fieldConfiguration:
+    type:
+      type: json
+      list: false
+    nullable: true
+  rootLocationsConfiguration:
+    type:
+      type: json
+      list: false
+    nullable: true
+  isDefault:
+    type:
+      type: boolean
+      list: false
+    nullable: true
+constraints: {}
+indexes: {}
