@@ -3,7 +3,7 @@
 These rules apply to **`usedFor: node`** containers only. **`usedFor: record`** containers must **not** define `indexes` (records are not tuned as graph nodes for reverse relations or btree-backed view queries).
 
 ## Index Limits
-- Max **20 indexes per container** (`usedFor: node`). Use slots strategically — don't index everything.
+- Max **10 indexes per container** (`usedFor: node`). Use slots strategically — don't index everything.
 - Never modify indexes or constraints on CDM types (`cdf_cdm` space) — they are immutable.
 
 ## What to Index
