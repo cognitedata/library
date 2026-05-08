@@ -1,0 +1,62 @@
+# Template admins can manage Infield templates and app data for the configured location.
+name: "gp_infield_{{location}}_template_admin_users"
+sourceId: "{{infield_location_template_admin_users_source_id}}"
+metadata:
+  origin: "cognite-toolkit"
+  module_version: "{{module_version}}"
+capabilities:
+  - groupsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        currentuserscope: {}
+
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - cdf_cdm_3d
+            - cdf_idm
+            - cdf_infield
+            - cdf_apps_shared
+            - {{infield_cdm_global_space}}
+            - {{idm_extension_space}}
+
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cognite_app_data
+            - {{infield_cdm_global_space}}
+            - sp_infield_{{location}}_cfg_inst
+            - sp_infield_{{location}}_assets
+            - sp_infield_{{location}}_maintenance
+            - sp_infield_{{location}}_timeseries
+            - sp_infield_{{location}}_files_1
+            - sp_infield_{{location}}_files_2
+            - sp_infield_{{location}}_three_d
+            - sp_infield_{{location}}_app_inst
+            - cdf_cdm_units
+
+  - dataModelInstancesAcl:
+      actions:
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cognite_app_data
+            - sp_infield_{{location}}_app_inst
+
+  - locationFiltersAcl:
+      actions:
+        - READ
+      scope:
+        idScope:
+          ids:
+            - loc_fltr_{{location}}

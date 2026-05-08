@@ -1,0 +1,80 @@
+space: sp_infield_{{location}}_cfg_inst
+externalId: {{location}}
+name: {{location_name}}_obs_rounds_dx_all
+description: {{location_description}}
+featureToggles:
+  threeD: true
+  trends: true
+  documents: true
+  workorders: true
+  notifications: true
+  media: true
+  templateChecklistFlow: true
+  observations: true
+  copilot: true
+dataFilters:
+  assets:
+    instanceSpaces:
+      - sp_infield_{{location}}_assets
+  files:
+    instanceSpaces:
+      - sp_infield_{{location}}_files_1
+      - sp_infield_{{location}}_files_2
+  timeseries:
+    instanceSpaces:
+      - sp_infield_{{location}}_timeseries
+      - sp_infield_{{location}}_timeseries_1
+  maintenanceOrders:
+    instanceSpaces:
+      - sp_infield_{{location}}_maintenance
+  operations:
+    instanceSpaces:
+      - sp_infield_{{location}}_maintenance
+  notifications:
+    instanceSpaces:
+      - sp_infield_{{location}}_maintenance
+dataStorage:
+  rootLocation:
+    space: sp_infield_{{location}}_assets
+    externalId: {{location}}_root
+  appInstanceSpace: sp_infield_{{location}}_app_inst
+viewMappings:
+  asset:
+    space: {{idm_extension_space}}
+    version: {{idm_extension_data_model_version}}
+    externalId: ExtendedAsset
+  operation:
+    space: {{idm_extension_space}}
+    version: {{idm_extension_data_model_version}}
+    externalId: ExtendedOperation
+  notification:
+    space: {{idm_extension_space}}
+    version: {{idm_extension_data_model_version}}
+    externalId: ExtendedNotification
+  maintenanceOrder:
+    space: {{idm_extension_space}}
+    version: {{idm_extension_data_model_version}}
+    externalId: ExtendedMaintenanceOrder
+  file:
+    space: {{idm_extension_space}}
+    version: {{idm_extension_data_model_version}}
+    externalId: ExtendedFile
+accessManagement:
+  templateAdmins:
+    - gp_infield_{{location}}_template_admin_users
+  checklistAdmins:
+    - gp_infield_{{location}}_checklist_admin_users
+disciplines:
+  - name: Automation
+    externalId: f84cf669-9e64-4aa4-972a-4f497359880f
+  - name: Electrical
+    externalId: 39061c6e-d45d-4735-b485-c7d0d0e5a7e3
+  - name: Mechanical
+    externalId: 550fe38b-b16e-4a47-8af0-86f51ed15696
+  - name: Process
+    externalId: 361683bf-f25d-450a-bceb-bd22c8a37553
+dataExplorationConfig:
+  documents:
+    type: documentCategory
+    title: name
+    description: description
