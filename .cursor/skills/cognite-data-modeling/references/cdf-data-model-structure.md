@@ -24,6 +24,9 @@ Only create separate views when one of these is true:
 ### Anti-Pattern
 - Do not create fragmented "technical" views that force consumers to join many views just to read core business context.
 
+### Where to denormalize
+Denormalize at **solution boundaries**, not in the enterprise model. The enterprise layer stays normalized to preserve canonical semantics (one container per concept, clean relations). Solution views — especially search and AI-facing views — flatten aggressively (e.g. merging PI + OPC UA properties with `pi_*` / `opcua_*` prefixes, or flattening document → revision → file into one view) for one-shot retrieval. See `cdf-enterprise-vs-solution.md` §11.
+
 
 ## Extending CDM Types
 When extending a Cognite Data Model type (CogniteAsset, CogniteTimeSeries, etc.):
@@ -70,8 +73,10 @@ Always run `cdf build` or deploy to check for "not optimized for querying" warni
 - `usedFor: node` — standard entity data (assets, equipment, work orders). Requires a corresponding view. Use **`constraints`** (including `requires` where valid) and **`indexes`** for ingest dependencies, query optimization, and btree-backed filters or reverse relations.
 - `usedFor: record` — event/time-stamped record data (alarms, log entries). Does **not** need a view; records are queried directly against the container, not through the data model API. **Omit `constraints` and `indexes`** entirely on record containers — they are not graph nodes; do not model `requires` or btree tuning there. Optional relations (e.g. a `tag` pointer on an alarm row) stay as plain properties only.
 
-## CogniteAsset — Single Implementation Only
-Only **one view** in your data model should `implements: CogniteAsset`. Multiple views implementing CogniteAsset causes UI navigation problems in CDF applications (e.g., IndustryCanvas, Asset Explorer). If you need multiple asset-like entities, have one primary asset view implement CogniteAsset and use direct relations from the others.
+## CogniteAsset — Single Implementation Per Data Model
+Only **one view per data model** should `implements: CogniteAsset`. Multiple views implementing CogniteAsset causes UI navigation problems in CDF applications (e.g., IndustryCanvas, Asset Explorer). If you need multiple asset-like entities, have one primary asset view implement CogniteAsset and use direct relations from the others.
+
+This rule applies **per data model**, not per space. A solution data model that needs asset semantics must define its own single `CogniteAsset` implementer; it should not reuse the enterprise model's implementer if the solution is meant to be self-contained. Solution models that don't need asset hierarchy semantics should avoid `CogniteAsset` entirely — use `CogniteDescribable` plus direct relations. See `cdf-enterprise-vs-solution.md` §6.
 
 ## IDM Types for Work Management
 Prefer implementing the **IDM types** from `cdf_idm` for work order, notification, and operation entities. This gives standardized semantics (`mainAsset`, `type`, `status`, `priority`, etc.) that CDF applications expect.
