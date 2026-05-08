@@ -13,16 +13,12 @@ read_source_id: "source_id"                             # Source ID for the read
 
 # Data modeling spaces
 space: "dm_dom_oil_and_gas"                             # Primary space for all containers, views, and data model definitions
-search_space: "dm_sol_oil_and_gas_search"               # Space for the search-optimized data model and its views
-instance_space: "inst_location"                         # Space where node/edge instances (location filter data) are stored
+instance_space: "inst_location"                         # Space where node/edge instances are stored (shared with the search solution module)
 
-# Data model versioning
-dm_version: v1                                          # Version used for all views in the domain data model
-search_dm_version: v1                                   # Version used for all views in the search data model
+# Data model versioning (enterprise model only — search has its own search_dm_version)
+dm_version: v1
 
 # Data model identifiers
-search_data_model_external_id: dm_oil_and_gas_domain_model_search  # External ID for the search data model
-search_data_model_name: "Oil and Gas Domain Model Search"          # Display name for the search data model
 data_model_external_id: dm_oil_and_gas_domain_model                # External ID for the domain data model
 data_model_name: "Oil and Gas Domain Model"                        # Display name for the domain data model
 

@@ -1,0 +1,58 @@
+space: "{{search_space}}"
+externalId: "{{search_data_model_external_id}}"
+name: "{{search_data_model_name}}"
+description: >
+  Search-optimized solution data model for oil and gas operations. Maps to enterprise
+  containers in the cfihos_oil_and_gas_extension module without inheriting enterprise
+  views, so this model can evolve independently. Reverse direct relations live here
+  rather than on the enterprise model.
+version: "{{search_dm_version}}"
+views:
+- space: "{{search_space}}"
+  externalId: Tag
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Equipment
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: TimeSeriesData
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Files
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: WorkOrder
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: WorkOrderOperation
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: Notification
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: FailureMode
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: FunctionalLocation
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: FunctionalLocationProperties
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: MaintenanceAndIntegrity
+  version: "{{search_dm_version}}"
+  type: view
+- space: "{{search_space}}"
+  externalId: CommonLCIProperties
+  version: "{{search_dm_version}}"
+  type: view

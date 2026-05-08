@@ -1,0 +1,296 @@
+space: "{{search_space}}"
+externalId: Notification
+name: Notification
+description: Search-optimized notification view. Maps to enterprise Notification and
+  CDM/IDM activity containers.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  maintenanceOrder:
+    name: Work Order
+    description: The work order the notification is related to.
+    container:
+      space: cdf_idm
+      externalId: CogniteNotification
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrder
+      version: "{{search_dm_version}}"
+      type: view
+  assets:
+    name: Tags
+    description: A list of tags the notification is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  failureMode:
+    name: Failure Mode
+    description: Failure mode reference
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: failureMode
+    source:
+      space: "{{search_space}}"
+      externalId: FailureMode
+      version: "{{search_dm_version}}"
+      type: view
+  mainWorkCenter:
+    name: Main Work Center
+    description: Main work center
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: mainWorkCenter
+  detectionMethodCode:
+    name: Detection Method Code
+    description: Detection method code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: detectionMethodCode
+  detectionMethodCodeDesc:
+    name: Detection Method Code Description
+    description: Detection method code description
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: detectionMethodCodeDesc
+  systemStatusCode:
+    name: System Status Code
+    description: System status codes
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: systemStatusCode
+  systemStatusCodeDesc:
+    name: System Status Code Description
+    description: System status code descriptions
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: systemStatusCodeDesc
+  notificationPriorityType:
+    name: Notification Priority Type
+    description: Notification priority type
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: notificationPriorityType
+  plannerGroup:
+    name: Planner Group
+    description: Planner group
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: plannerGroup
+  failureModeCode:
+    name: Failure Mode Code
+    description: Failure mode code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: failureModeCode
+  failureModeCodeDesc:
+    name: Failure Mode Code Description
+    description: Failure mode code description
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: failureModeCodeDesc
+  failureEffectCode:
+    name: Failure Effect Code
+    description: Failure effect code
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: failureEffectCode
+  failureEffectCodeDesc:
+    name: Failure Effect Code Description
+    description: Failure effect code description
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: failureEffectCodeDesc
+  catalogType:
+    name: Catalog Type
+    description: Catalog type
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: catalogType
+  catalogGroup:
+    name: Catalog Group
+    description: Catalog group
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: catalogGroup
+  newDueDate:
+    name: New Due Date
+    description: Revised due date
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: newDueDate
+  dueDate:
+    name: Due Date
+    description: Due date for the notification
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: dueDate
+  locationId:
+    name: Location Id
+    description: Location identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: locationId
+  mainWorkCenterID:
+    name: Main Work Center ID
+    description: Main work center ID
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: mainWorkCenterID
+  mainWctrDiscipline:
+    name: Main Work Center Discipline
+    description: Main work center discipline
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: mainWctrDiscipline
+  maintPlant:
+    name: Maint Plant
+    description: Maintenance plant
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: maintPlant
+  objectNo:
+    name: Object No
+    description: Object number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: objectNo
+  notificationTypeDesc:
+    name: Notification Type Description
+    description: Notification type description
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: notificationTypeDesc
+  additionalProperties:
+    name: Additional Properties
+    description: Additional properties stored as JSON
+    container:
+      space: "{{enterprise_space}}"
+      externalId: Notification
+      type: container
+    containerPropertyIdentifier: additionalProperties
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the notification
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the notification
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source Id
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  startTime:
+    name: Start Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: startTime
+    description: The actual start time of the activity
+  endTime:
+    name: End Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: endTime
+    description: The actual end time of the activity

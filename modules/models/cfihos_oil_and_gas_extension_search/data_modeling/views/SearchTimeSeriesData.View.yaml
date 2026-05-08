@@ -1,0 +1,451 @@
+space: "{{search_space}}"
+externalId: TimeSeriesData
+name: Time Series Data
+description: Search-optimized time series view merging PI and OPC UA properties. Maps
+  to enterprise TimeSeriesData and CogniteTimeSeries containers.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  assets:
+    name: Tags
+    description: A list of tags the time series is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  equipment:
+    name: Equipment
+    description: A list of equipment the time series is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteTimeSeries
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{search_space}}"
+      externalId: Equipment
+      version: "{{search_dm_version}}"
+      type: view
+  timeSeriesType:
+    name: Time series type
+    description: Type of the time series.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: timeSeriesType
+  assetName:
+    name: Asset Name
+    description: Name of the asset the time series is related to.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: assetName
+  facility:
+    name: Facility
+    description: Facility code where the time series originates
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: facility
+  assetDescription:
+    name: Asset Description
+    description: Description of the asset linked to the time series
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: assetDescription
+  additionalProperties:
+    name: Additional Properties
+    description: Additional properties stored as JSON
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: additionalProperties
+  pi_archiving:
+    name: PI Archiving
+    description: PI archiving enabled flag.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_archiving
+  pi_compDev:
+    name: PI Compression Deviation
+    description: PI compression deviation threshold
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compDev
+  pi_compDevPercent:
+    name: PI Compression Deviation Percent
+    description: PI compression deviation as percentage
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compDevPercent
+  pi_compDevPercent_UOM:
+    name: PI Compression Deviation Percent UOM
+    description: Unit of measure for compression deviation percentage
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compDevPercent_UOM
+  pi_compDev_UOM:
+    name: PI Compression Deviation UOM
+    description: Unit of measure for compression deviation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compDev_UOM
+  pi_compMax:
+    name: PI Compression Max
+    description: PI maximum compression time in seconds
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compMax
+  pi_compMax_UOM:
+    name: PI Compression Max UOM
+    description: Unit of measure for maximum compression time
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compMax_UOM
+  pi_compMin:
+    name: PI Compression Min
+    description: PI minimum compression time in seconds
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compMin
+  pi_compMin_UOM:
+    name: PI Compression Min UOM
+    description: Unit of measure for minimum compression time
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compMin_UOM
+  pi_compressing:
+    name: PI Compressing
+    description: PI compression enabled flag.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_compressing
+  pi_digitalSet:
+    name: PI Digital Set
+    description: PI digital state set name for discrete tags
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_digitalSet
+  pi_exDesc:
+    name: PI Exception Description
+    description: PI extended descriptor text
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_exDesc
+  pi_excDev:
+    name: PI Exception Deviation
+    description: PI exception deviation threshold
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excDev
+  pi_excDevPercent:
+    name: PI Exception Deviation Percent
+    description: PI exception deviation as percentage
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excDevPercent
+  pi_excDevPercent_UOM:
+    name: PI Exception Deviation Percent UOM
+    description: Unit of measure for exception deviation percentage
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excDevPercent_UOM
+  pi_excDev_UOM:
+    name: PI Exception Deviation UOM
+    description: Unit of measure for exception deviation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excDev_UOM
+  pi_excMax:
+    name: PI Exception Max
+    description: PI maximum exception time in seconds
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excMax
+  pi_excMax_UOM:
+    name: PI Exception Max UOM
+    description: Unit of measure for maximum exception time
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excMax_UOM
+  pi_excMin:
+    name: PI Exception Min
+    description: PI minimum exception time in seconds
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excMin
+  pi_excMin_UOM:
+    name: PI Exception Min UOM
+    description: Unit of measure for minimum exception time
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_excMin_UOM
+  pi_pointId:
+    name: PI Point ID
+    description: PI point numeric identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_pointId
+  pi_pointSource:
+    name: PI Point Source
+    description: PI point source character identifying the data collector
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_pointSource
+  pi_pointType:
+    name: PI Point Type
+    description: PI point type (e.g. float32, digital, string)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_pointType
+  pi_ptClassId:
+    name: PI Point Class ID
+    description: PI point class identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_ptClassId
+  pi_ptClassName:
+    name: PI Point Class Name
+    description: PI point class name
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_ptClassName
+  pi_ptClassRev:
+    name: PI Point Class Revision
+    description: PI point class revision number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_ptClassRev
+  pi_recNo:
+    name: PI Record Number
+    description: PI record number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_recNo
+  pi_shutdown:
+    name: PI Shutdown
+    description: PI shutdown flag.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_shutdown
+  pi_sourceTag:
+    name: PI Source Tag
+    description: Original source tag name from PI
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_sourceTag
+  pi_tag:
+    name: PI Tag
+    description: PI tag name
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_tag
+  pi_typicalValue:
+    name: PI Typical Value
+    description: Typical expected value for the tag
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: pi_typicalValue
+  opcua_definition:
+    name: OPC UA Definition
+    description: OPC UA node definition
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcua_definition
+  opcua_euRange:
+    name: OPC UA Engineering Unit Range
+    description: OPC UA engineering unit range (low-high)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcua_euRange
+  opcua_terminal:
+    name: OPC UA Terminal
+    description: OPC UA terminal identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcua_terminal
+  opcua_typeDefinition:
+    name: OPC UA Type Definition
+    description: OPC UA type definition node
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcua_typeDefinition
+  opcua_dataType:
+    name: OPC UA Data Type
+    description: OPC UA data type (e.g. Double, Float, Boolean)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: TimeSeriesData
+      type: container
+    containerPropertyIdentifier: opcua_dataType
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the time series
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the time series
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source Id
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  activities:
+    name: Work Orders
+    description: An automatically updated list of activities the time series is related to.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrder
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrder
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: timeSeries
+  operations:
+    name: Operations
+    description: An automatically updated list of operations the time series is related to.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrderOperation
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: WorkOrderOperation
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: timeSeries

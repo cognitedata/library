@@ -1,0 +1,519 @@
+space: "{{search_space}}"
+externalId: WorkOrderOperation
+name: Work Order Operation
+description: Search-optimized work order operation view. Maps to enterprise WorkOrderOperation
+  and CDM/IDM activity containers.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  assets:
+    name: Tags
+    description: A list of tags the operation is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  maintenanceOrder:
+    name: Work Order
+    description: The work order the operation is related to.
+    container:
+      space: cdf_idm
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: maintenanceOrder
+    source:
+      space: "{{search_space}}"
+      externalId: WorkOrder
+      version: "{{search_dm_version}}"
+      type: view
+  mainAsset:
+    name: Main Tag
+    description: The primary tag the operation refers to.
+    container:
+      space: cdf_idm
+      externalId: CogniteOperation
+      type: container
+    containerPropertyIdentifier: mainAsset
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  timeSeries:
+    name: Time series
+    description: A list of time series the operation is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: timeSeries
+    source:
+      space: "{{search_space}}"
+      externalId: TimeSeriesData
+      version: "{{search_dm_version}}"
+      type: view
+  equipment:
+    name: Equipment
+    description: The equipment the operation is related to.
+    container:
+      space: cdf_cdm
+      externalId: CogniteActivity
+      type: container
+    containerPropertyIdentifier: equipment
+    source:
+      space: "{{search_space}}"
+      externalId: Equipment
+      version: "{{search_dm_version}}"
+      type: view
+  functionalLocation:
+    name: Functional Location
+    description: The functional location the operation is related to.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: functionalLocation
+    source:
+      space: "{{search_space}}"
+      externalId: FunctionalLocation
+      version: "{{search_dm_version}}"
+      type: view
+  routingNo:
+    name: Routing No
+    description: SAP routing number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: routingNo
+  operationCounter:
+    name: Operation Counter
+    description: SAP operation counter
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: operationCounter
+  opWctr:
+    name: Op Work Center
+    description: Operation work center
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: opWctr
+  plannedWork:
+    name: Planned Work
+    description: Planned work hours
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: plannedWork
+  actualWork:
+    name: Actual Work
+    description: Actual work hours
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: actualWork
+  remainingWork:
+    name: Remaining Work
+    description: Remaining work hours
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: remainingWork
+  operation:
+    name: Operation
+    description: SAP operation identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: operation
+  opWctrPlant:
+    name: Op Work Center Plant
+    description: Plant of the operation work center
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: opWctrPlant
+  wctrDesc:
+    name: Work Center Description
+    description: Work center description
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: wctrDesc
+  wctrDiscipline:
+    name: Work Center Discipline
+    description: Discipline of the work center (e.g. mechanical, electrical)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: wctrDiscipline
+  longText:
+    name: Long Text
+    description: Detailed operation description text
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: longText
+  totalCapacity:
+    name: Total Capacity
+    description: Total capacity required for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: totalCapacity
+  totalCapacity_UOM:
+    name: Total Capacity UOM
+    description: Unit of measure for total capacity
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: totalCapacity_UOM
+  capacity:
+    name: Capacity
+    description: Capacity value for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: capacity
+  operatingTime:
+    name: Operating Time
+    description: Operating time for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: operatingTime
+  operatingTime_UOM:
+    name: Operating Time UOM
+    description: Unit of measure for operating time
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: operatingTime_UOM
+  plannedWork_UOM:
+    name: Planned Work UOM
+    description: Unit of measure for planned work
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: plannedWork_UOM
+  plannedPersons:
+    name: Planned Persons
+    description: Number of persons planned for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: plannedPersons
+  duration:
+    name: Duration
+    description: Planned duration of the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: duration
+  duration_UOM:
+    name: Duration UOM
+    description: Unit of measure for duration
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: duration_UOM
+  actualWork_UOM:
+    name: Actual Work UOM
+    description: Unit of measure for actual work
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: actualWork_UOM
+  criticalWork:
+    name: Critical Work
+    description: Indicates if the operation involves critical work
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: criticalWork
+  remoteFirst:
+    name: Remote First
+    description: Indicates if remote preparation is required before on-site work
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: remoteFirst
+  workAboveSeas:
+    name: Work Above Seas
+    description: Indicates if the operation involves work above sea level
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: workAboveSeas
+  ssdCode:
+    name: SSD Code
+    description: Safe Shutdown code for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: ssdCode
+  operationalConsequence:
+    name: Operational Consequence
+    description: Operational consequence classification for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: operationalConsequence
+  systemCondition:
+    name: System Condition
+    description: System condition code required for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: systemCondition
+  barrierCharacteristic:
+    name: Barrier Characteristic
+    description: Safety barrier characteristic for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: barrierCharacteristic
+  earliestStartDateTime:
+    name: Earliest Start Date Time
+    description: Earliest possible start date and time
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: earliestStartDateTime
+  earliestEndDateTime:
+    name: Earliest End Date Time
+    description: Earliest possible end date and time
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: earliestEndDateTime
+  actualStartDateTime:
+    name: Actual Start Date Time
+    description: Actual start date and time of the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: actualStartDateTime
+  actualEndDateTime:
+    name: Actual End Date Time
+    description: Actual end date and time of the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: actualEndDateTime
+  mustStartOn:
+    name: Must Start On
+    description: Mandatory start constraint for scheduling
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: mustStartOn
+  mustEndOn:
+    name: Must End On
+    description: Mandatory end constraint for scheduling
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: mustEndOn
+  subOperation:
+    name: Sub Operation
+    description: Sub-operation identifier within the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: subOperation
+  wctrID:
+    name: Work Center ID
+    description: Work center numeric identifier
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: wctrID
+  forecastWork:
+    name: Forecast Work
+    description: Forecasted work hours for the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: forecastWork
+  systemStatusCode:
+    name: System Status Code
+    description: SAP system status codes (e.g. REL, TECO, CLSD)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: systemStatusCode
+  systemStatusCodeDesc:
+    name: System Status Code Description
+    description: Human-readable descriptions of the system status codes
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: systemStatusCodeDesc
+  userStatusCode:
+    name: User Status Code
+    description: User-defined status codes
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: userStatusCode
+  userStatusCodeDesc:
+    name: User Status Code Description
+    description: Human-readable descriptions of the user status codes
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: userStatusCodeDesc
+  operationDesc:
+    name: Operation Description
+    description: Short description of the operation
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: operationDesc
+  objectNo:
+    name: Object No
+    description: SAP object number
+    container:
+      space: "{{enterprise_space}}"
+      externalId: WorkOrderOperation
+      type: container
+    containerPropertyIdentifier: objectNo
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the operation
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the operation
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  sourceId:
+    name: Source Id
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: sourceId
+    description: Identifier from the source system
+  source:
+    name: Source
+    container:
+      space: cdf_cdm
+      externalId: CogniteSourceable
+      type: container
+    containerPropertyIdentifier: source
+    description: Direct relation to a source system
+    source:
+      space: cdf_cdm
+      externalId: CogniteSourceSystem
+      version: v1
+      type: view
+  startTime:
+    name: Start Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: startTime
+    description: The actual start time of the activity
+  endTime:
+    name: End Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: endTime
+    description: The actual end time of the activity
+  scheduledStartTime:
+    name: Scheduled Start Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: scheduledStartTime
+    description: The planned start time of the activity
+  scheduledEndTime:
+    name: Scheduled End Time
+    container:
+      space: cdf_cdm
+      externalId: CogniteSchedulable
+      type: container
+    containerPropertyIdentifier: scheduledEndTime
+    description: The planned end time of the activity

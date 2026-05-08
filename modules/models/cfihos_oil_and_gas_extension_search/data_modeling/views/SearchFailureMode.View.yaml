@@ -1,0 +1,112 @@
+space: "{{search_space}}"
+externalId: FailureMode
+name: Failure Mode
+description: Search-optimized failure mode view. Maps to enterprise FailureMode container.
+implements:
+- space: cdf_cdm
+  externalId: CogniteDescribable
+  version: v1
+  type: view
+version: "{{search_dm_version}}"
+properties:
+  assets:
+    name: Tags
+    description: A list of tags the failure mode is related to.
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: assets
+    source:
+      space: "{{search_space}}"
+      externalId: Tag
+      version: "{{search_dm_version}}"
+      type: view
+  code:
+    name: Code
+    description: The code of the failure mode according to ISO 14224
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: code
+  mainAssets:
+    name: Main Assets
+    description: Main asset identifiers associated with this failure mode
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: mainAssets
+  facilities:
+    name: Facilities
+    description: Facility codes where this failure mode has been observed
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: facilities
+  standard:
+    name: Standard
+    description: Standard the failure mode is defined in (e.g. ISO 14224)
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: standard
+  additionalProperties:
+    name: Additional Properties
+    description: Additional properties stored as JSON
+    container:
+      space: "{{enterprise_space}}"
+      externalId: FailureMode
+      type: container
+    containerPropertyIdentifier: additionalProperties
+  name:
+    name: Name
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: name
+    description: Name of the failure mode
+  description:
+    name: Description
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: description
+    description: Description of the failure mode
+  labels:
+    name: Labels
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: tags
+    description: Text-based labels for generic use, limited to 1000.
+  aliases:
+    name: Aliases
+    container:
+      space: cdf_cdm
+      externalId: CogniteDescribable
+      type: container
+    containerPropertyIdentifier: aliases
+    description: Alternative names for the node
+  notifications:
+    name: Notifications
+    description: Notifications that reference this failure mode.
+    connectionType: multi_reverse_direct_relation
+    source:
+      space: "{{search_space}}"
+      externalId: Notification
+      version: "{{search_dm_version}}"
+      type: view
+    through:
+      source:
+        space: "{{search_space}}"
+        externalId: Notification
+        version: "{{search_dm_version}}"
+        type: view
+      identifier: failureMode
