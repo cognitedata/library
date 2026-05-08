@@ -1,12 +1,12 @@
-# Note: Template variables must use double braces format without spaces.
-# Do not auto-format this file as it will break template variable syntax.
+# This is making an equivalent location in Fusion to display the same data as InField.
+# This is optional and not needed for InField to work, just for convinient data exploration based on InField locations in Fusion.
 externalId: loc_fltr_{{location}}
 name: Infield - {{location_name}}
 description: Infield {{location_description}}
 dataModels:
-  - space: {{idm_extension_space}}
-    externalId: {{idm_extension_data_model_external_id}}
-    version: {{idm_extension_data_model_version}}
+  - space: cdf_infield
+    externalId: InFieldOnCDM
+    version: v1
 instanceSpaces:
   - sp_infield_{{location}}_assets
   - sp_infield_{{location}}_maintenance
@@ -15,19 +15,19 @@ instanceSpaces:
   - sp_infield_{{location}}_files_2
   - sp_infield_{{location}}_app_inst
 views:
-  - externalId: ExtendedMaintenanceOrder
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
+  - externalId: CogniteMaintenanceOrder
+    space: cdf_idm
+    version: v1
     representsEntity: MAINTENANCE_ORDER
-  - externalId: ExtendedOperation
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
+  - externalId: CogniteOperation
+    space: cdf_idm
+    version: v1
     representsEntity: OPERATION
-  - externalId: ExtendedNotification
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
+  - externalId: CogniteNotification
+    space: cdf_idm
+    version: v1
     representsEntity: NOTIFICATION
-  - externalId: ExtendedAsset
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
+  - externalId: CogniteAsset
+    space: cdf_cdm
+    version: v1
     representsEntity: ASSET

@@ -1,6 +1,6 @@
 space: sp_infield_{{location}}_cfg_inst
 externalId: {{location}}
-name: {{location_name}}_obs_rounds_dx_all
+name: {{location_name}}
 description: {{location_description}}
 featureToggles:
   threeD: true
@@ -12,59 +12,57 @@ featureToggles:
   templateChecklistFlow: true
   observations: true
   copilot: true
-dataFilters:
+dataFilters: # mandatory fields. Spaces that should apply in the data filters for specific resources.
   assets:
-    instanceSpaces:
+    instanceSpaces: # only one space is supported for now.
       - sp_infield_{{location}}_assets
   files:
-    instanceSpaces:
-      - sp_infield_{{location}}_files_1
-      - sp_infield_{{location}}_files_2
+    instanceSpaces: # multiple spaces are supported.
+      - sp_infield_{{location}}_files
   timeseries:
-    instanceSpaces:
+    instanceSpaces: # multiple spaces are supported.
       - sp_infield_{{location}}_timeseries
-      - sp_infield_{{location}}_timeseries_1
-  maintenanceOrders:
-    instanceSpaces:
+  maintenanceOrders: # must be same as operations and notification.
+    instanceSpaces: # only one space is supported for now.
       - sp_infield_{{location}}_maintenance
-  operations:
-    instanceSpaces:
+  operations: # must be same as maintenance orders and notification.
+    instanceSpaces: # only one space is supported for now.
       - sp_infield_{{location}}_maintenance
-  notifications:
-    instanceSpaces:
+  notifications: # must be same as maintenance orders and operations.
+    instanceSpaces: # only one space is supported for now.
       - sp_infield_{{location}}_maintenance
 dataStorage:
-  rootLocation:
+  rootLocation: # mandatory field. Stores a default asset contextualization on Template and Checklist
     space: sp_infield_{{location}}_assets
     externalId: {{location}}_root
-  appInstanceSpace: sp_infield_{{location}}_app_inst
-viewMappings:
-  asset:
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
-    externalId: ExtendedAsset
+  appInstanceSpace: sp_infield_{{location}}_app_inst # mandatory field. Space for InField to store app data (e.g., uploaded images from Infield, templates, checklists, observations etc.)
+viewMappings: # Replace with customer extended views if needed.
+  asset: 
+    space: cdf_cdm
+    version: v1
+    externalId: CogniteAsset
   operation:
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
-    externalId: ExtendedOperation
+    space: cdf_idm
+    version: v1
+    externalId: CogniteOperation
   notification:
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
-    externalId: ExtendedNotification
+    space: cdf_idm
+    version: v1
+    externalId: CogniteNotification
   maintenanceOrder:
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
-    externalId: ExtendedMaintenanceOrder
+    space: cdf_idm
+    version: v1
+    externalId: CogniteMaintenanceOrder
   file:
-    space: {{idm_extension_space}}
-    version: {{idm_extension_data_model_version}}
-    externalId: ExtendedFile
-accessManagement:
+    space: cdf_cdm
+    version: v1
+    externalId: CogniteFile
+accessManagement: # optional. If not configured, all users will have template and checklist admin rights.
   templateAdmins:
     - gp_infield_{{location}}_template_admin_users
   checklistAdmins:
     - gp_infield_{{location}}_checklist_admin_users
-disciplines:
+disciplines: # optional.
   - name: Automation
     externalId: f84cf669-9e64-4aa4-972a-4f497359880f
   - name: Electrical
@@ -73,8 +71,3 @@ disciplines:
     externalId: 550fe38b-b16e-4a47-8af0-86f51ed15696
   - name: Process
     externalId: 361683bf-f25d-450a-bceb-bd22c8a37553
-dataExplorationConfig:
-  documents:
-    type: documentCategory
-    title: name
-    description: description

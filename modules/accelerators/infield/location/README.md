@@ -18,9 +18,6 @@ variables:
       location: oslo_refinery
       location_name: Oslo Refinery
       location_description: Oslo Refinery demo
-      idm_extension_space: customer_idm_extention
-      idm_extension_data_model_external_id: ExtensionDataModel
-      idm_extension_data_model_version: v1
       infield_location_read_only_users_source_id: <idp-group-source-id>
       infield_location_normal_users_source_id: <idp-group-source-id>
       infield_location_template_admin_users_source_id: <idp-group-source-id>

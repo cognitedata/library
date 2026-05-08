@@ -1,15 +1,7 @@
-location: oslo_refinery
-location_name: Oslo Refinery
-location_description: Oslo Refinery demo from toolkit
+location: oslo_refinery # change me
+location_name: Oslo Refinery # change me
+location_description: Oslo Refinery demo from toolkit # change me
 module_version: "1"
-
-# Data model containing the customer-specific CDM/IDM extension views.
-idm_extension_space: customer_idm_extention
-idm_extension_data_model_external_id: ExtensionDataModel
-idm_extension_data_model_version: v1
-
-# Temporary/global Infield CDM space used by the source example for shared nodes.
-infield_cdm_global_space: infield_cdm_source_desc_sche_asset_file_ts
 
 # Source IDs from your identity provider for the Infield user groups.
 infield_location_read_only_users_source_id: <change_me>
