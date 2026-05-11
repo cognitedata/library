@@ -843,41 +843,48 @@ export function TransformationsList({
               <div className="text-sm text-slate-600">{t("transformations.list.empty")}</div>
             ) : (
               <div className="space-y-4">
-                <div className="rounded-md border border-slate-200 bg-white p-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      {t("transformations.title")}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!selectedId ? (
-                        <input
-                          type="search"
-                          placeholder={t("transformations.list.searchPlaceholder")}
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
-                        />
-                      ) : null}
-                      {selectedId ? (
-                        <button
-                          type="button"
-                          className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
-                          onClick={() => setSelectedId(null)}
-                        >
-                          {t("transformations.list.backToList")}
-                        </button>
-                      ) : null}
+                <div className="flex flex-wrap items-end gap-3">
+                  {!selectedId ? (
+                    <label
+                      htmlFor="transformations-list-search"
+                      className="flex min-w-[12rem] flex-1 flex-col gap-1.5 text-sm text-slate-700"
+                    >
+                      {t("transformations.list.filterLabel")}
+                      <input
+                        id="transformations-list-search"
+                        type="search"
+                        placeholder={t("transformations.list.searchPlaceholder")}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        autoComplete="off"
+                        className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </label>
+                  ) : (
+                    <div className="min-w-0 flex-1" />
+                  )}
+                  <div className="flex shrink-0 items-end gap-2">
+                    {selectedId ? (
                       <button
                         type="button"
-                        onClick={() => setShowHelp(true)}
-                        className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                        className="h-9 shrink-0 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        onClick={() => setSelectedId(null)}
                       >
-                        {t("shared.help.button")}
+                        {t("transformations.list.backToList")}
                       </button>
-                    </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setShowHelp(true)}
+                      className="h-9 shrink-0 rounded-md bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      {t("shared.help.button")}
+                    </button>
                   </div>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-2">
                   {!selectedId ? (
-                    <div className="mt-2 max-h-[620px] overflow-auto">
+                    <div className="max-h-[620px] overflow-auto">
                       <table className="w-full border-collapse text-left text-xs">
                         <thead className="sticky top-0 bg-slate-50 text-slate-600">
                           <tr>
@@ -1158,7 +1165,7 @@ export function TransformationsList({
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
                       <span>
                         {t("transformations.list.selected")}{" "}
                         <span className={`font-semibold text-slate-900${pc}`}>

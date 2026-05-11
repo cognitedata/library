@@ -35,9 +35,11 @@ import type {
   FunctionRunSummary,
   LoadState,
   ProcessingDataLoadProgress,
+  ProcessingRequestStats,
   TransformationJobSummary,
   WorkflowExecutionSummary,
 } from "./types";
+import { withTransientRetries } from "@/shared/transient-http-retry";
 
 function formatProcessingDataProgress(
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -118,6 +120,21 @@ export function Processing() {
   const privateCls = isPrivateMode ? "private-mask" : "";
   const [windowOffsetHours, setWindowOffsetHours] = useState(0);
   const [windowRange, setWindowRange] = useState<{ start: number; end: number } | null>(null);
+  type ConcurrencyDiagramPhase =
+    | "idle"
+    | "functions"
+    | "transformations"
+    | "workflows"
+    | "extractors"
+    | "complete";
+  const [concurrencyDiagramPhase, setConcurrencyDiagramPhase] =
+    useState<ConcurrencyDiagramPhase>("idle");
+  const concurrencyDiagramPassRef = useRef({
+    functions: false,
+    transformations: false,
+    workflows: false,
+    extractors: false,
+  });
   const [showLoader, setShowLoader] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showHeatmapHelp, setShowHeatmapHelp] = useState(false);
@@ -148,6 +165,9 @@ export function Processing() {
   } | null>(null);
   const [scheduleStatus, setScheduleStatus] = useState<LoadState>("idle");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleRequestStats, setScheduleRequestStats] = useState<ProcessingRequestStats | null>(
+    null
+  );
   type ScheduleEntryType = "function" | "transformation" | "workflow";
   type ScheduleEntry = { cron: string; name: string; type: ScheduleEntryType; id: string };
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
@@ -167,9 +187,20 @@ export function Processing() {
     return () => clearInterval(id);
   }, []);
 
+  const fetchConcurrencyDiagram = useMemo(
+    () => ({
+      functions: concurrencyDiagramPhase === "functions",
+      transformations: concurrencyDiagramPhase === "transformations",
+      workflows: concurrencyDiagramPhase === "workflows",
+      extractors: concurrencyDiagramPhase === "extractors",
+    }),
+    [concurrencyDiagramPhase]
+  );
+
   const {
     status,
     loadProgress: functionLoadProgress,
+    requestStats: functionRequestStats,
     errorMessage,
     availabilityMessage,
     runs,
@@ -179,11 +210,17 @@ export function Processing() {
     getRunDuration,
     getRadius,
     getColor,
-  } = useFunctionData({ isSdkLoading, sdk, windowRange });
+  } = useFunctionData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.functions,
+  });
 
   const {
     transformationsStatus,
     loadProgress: transformationLoadProgress,
+    requestStats: transformationRequestStats,
     transformationsError,
     transformationNameMap,
     transformationMetaMap,
@@ -191,11 +228,17 @@ export function Processing() {
     getTransformationDuration,
     getTransformationRadius,
     getTransformationColor,
-  } = useTransformationData({ isSdkLoading, sdk, windowRange });
+  } = useTransformationData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.transformations,
+  });
 
   const {
     workflowsStatus,
     loadProgress: workflowLoadProgress,
+    requestStats: workflowRequestStats,
     workflowsError,
     filteredWorkflowExecutions,
     workflowDetails,
@@ -206,17 +249,86 @@ export function Processing() {
     getWorkflowColor,
     fetchWorkflowDetails,
     resetWorkflowDetails,
-  } = useWorkflowData({ isSdkLoading, sdk, windowRange });
+  } = useWorkflowData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.workflows,
+  });
 
   const {
     extractorsStatus,
     loadProgress: extractorLoadProgress,
+    requestStats: extractorRequestStats,
     extractorsError,
     extractorConfigMap,
     filteredExtractorRuns,
     getExtractorRadius,
     getExtractorColor,
-  } = useExtractionPipelineData({ isSdkLoading, sdk, windowRange });
+  } = useExtractionPipelineData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.extractors,
+  });
+
+  useEffect(() => {
+    if (isSdkLoading || !windowRange) {
+      setConcurrencyDiagramPhase("idle");
+      return;
+    }
+    concurrencyDiagramPassRef.current = {
+      functions: false,
+      transformations: false,
+      workflows: false,
+      extractors: false,
+    };
+    setConcurrencyDiagramPhase("functions");
+  }, [isSdkLoading, windowRange?.start, windowRange?.end]);
+
+  useEffect(() => {
+    const r = concurrencyDiagramPassRef.current;
+    if (status === "loading") r.functions = true;
+    if (transformationsStatus === "loading") r.transformations = true;
+    if (workflowsStatus === "loading") r.workflows = true;
+    if (extractorsStatus === "loading") r.extractors = true;
+
+    if (concurrencyDiagramPhase === "functions" && (status === "success" || status === "error")) {
+      if (!r.functions) return;
+      r.functions = false;
+      setConcurrencyDiagramPhase("transformations");
+      return;
+    }
+    if (
+      concurrencyDiagramPhase === "transformations" &&
+      (transformationsStatus === "success" || transformationsStatus === "error")
+    ) {
+      if (!r.transformations) return;
+      r.transformations = false;
+      setConcurrencyDiagramPhase("workflows");
+      return;
+    }
+    if (concurrencyDiagramPhase === "workflows" && (workflowsStatus === "success" || workflowsStatus === "error")) {
+      if (!r.workflows) return;
+      r.workflows = false;
+      setConcurrencyDiagramPhase("extractors");
+      return;
+    }
+    if (
+      concurrencyDiagramPhase === "extractors" &&
+      (extractorsStatus === "success" || extractorsStatus === "error")
+    ) {
+      if (!r.extractors) return;
+      r.extractors = false;
+      setConcurrencyDiagramPhase("complete");
+    }
+  }, [
+    concurrencyDiagramPhase,
+    status,
+    transformationsStatus,
+    workflowsStatus,
+    extractorsStatus,
+  ]);
 
   const isProcessingLoading =
     status === "loading" ||
@@ -320,16 +432,20 @@ export function Processing() {
     const loadSchedules = async () => {
       setScheduleStatus("loading");
       setScheduleError(null);
+      setScheduleRequestStats(null);
       setScheduleEntries([]);
       try {
         const entries: ScheduleEntry[] = [];
+        let failedRequests = 0;
+        let totalRequests = 0;
 
-        const functionSchedules = (await sdk.post(
-          `/api/v1/projects/${sdk.project}/functions/schedules/list`,
-          {
-            data: { limit: 1000 },
-          }
-        )) as { data?: { items?: Array<Record<string, unknown>> } };
+        totalRequests++;
+        try {
+          const functionSchedules = (await withTransientRetries(() =>
+            sdk.post(`/api/v1/projects/${sdk.project}/functions/schedules/list`, {
+              data: { limit: 1000 },
+            })
+          )) as { data?: { items?: Array<Record<string, unknown>> } };
         for (const item of functionSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
@@ -341,13 +457,17 @@ export function Processing() {
             (item.name as string | undefined) ?? (fnId || t("processing.heatmap.unknownFunction"));
           entries.push({ cron, name, type: "function", id: fnId });
         }
+        } catch {
+          failedRequests++;
+        }
 
-        const transformationSchedules = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations/schedules`,
-          {
-            params: { limit: "1000" },
-          }
-        )) as { data?: { items?: Array<Record<string, unknown>> } };
+        totalRequests++;
+        try {
+          const transformationSchedules = (await withTransientRetries(() =>
+            sdk.get(`/api/v1/projects/${sdk.project}/transformations/schedules`, {
+              params: { limit: "1000" },
+            })
+          )) as { data?: { items?: Array<Record<string, unknown>> } };
         for (const item of transformationSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
@@ -359,15 +479,26 @@ export function Processing() {
             (item.name as string | undefined) ?? (txId || t("processing.heatmap.unknownTransformation"));
           entries.push({ cron, name, type: "transformation", id: txId });
         }
+        } catch {
+          failedRequests++;
+        }
 
         let triggerCursor: string | undefined;
         do {
-          const workflowTriggers = (await sdk.get(
-            `/api/v1/projects/${sdk.project}/workflows/triggers`,
-            {
-              params: { limit: "1000", cursor: triggerCursor },
-            }
-          )) as { data?: { items?: Array<Record<string, unknown>>; nextCursor?: string } };
+          totalRequests++;
+          let workflowTriggers: {
+            data?: { items?: Array<Record<string, unknown>>; nextCursor?: string };
+          };
+          try {
+            workflowTriggers = (await withTransientRetries(() =>
+              sdk.get(`/api/v1/projects/${sdk.project}/workflows/triggers`, {
+                params: { limit: "1000", cursor: triggerCursor },
+              })
+            )) as { data?: { items?: Array<Record<string, unknown>>; nextCursor?: string } };
+          } catch {
+            failedRequests++;
+            break;
+          }
           for (const item of workflowTriggers.data?.items ?? []) {
             const cron = readCron(item);
             if (!cron) continue;
@@ -384,10 +515,19 @@ export function Processing() {
 
         if (!cancelled) {
           setScheduleEntries(entries);
-          setScheduleStatus("success");
+          if (failedRequests > 0) {
+            setScheduleRequestStats({ failed: failedRequests, total: totalRequests });
+          }
+          if (entries.length === 0 && failedRequests === totalRequests && totalRequests > 0) {
+            setScheduleError(t("processing.heatmap.error"));
+            setScheduleStatus("error");
+          } else {
+            setScheduleStatus("success");
+          }
         }
       } catch (error) {
         if (!cancelled) {
+          setScheduleRequestStats(null);
           setScheduleError(
             error instanceof Error ? error.message : t("processing.heatmap.error")
           );
@@ -607,6 +747,31 @@ export function Processing() {
     return extractorSeries.reduce((max, bucket) => Math.max(max, bucket.count), 0);
   }, [extractorSeries]);
 
+  const partialStatsCombined = useMemo(() => {
+    const segments: { label: string; stats: ProcessingRequestStats }[] = [];
+    const push = (label: string, s: ProcessingRequestStats | null | undefined) => {
+      if (s && s.failed > 0) segments.push({ label, stats: s });
+    };
+    push(t("processing.legend.functions"), functionRequestStats);
+    push(t("processing.legend.transformations"), transformationRequestStats);
+    push(t("processing.legend.workflows"), workflowRequestStats);
+    push(t("processing.legend.extractors"), extractorRequestStats);
+    push(t("processing.partial.schedulesLabel"), scheduleRequestStats);
+    const failed = segments.reduce((acc, seg) => acc + seg.stats.failed, 0);
+    const total = segments.reduce((acc, seg) => acc + seg.stats.total, 0);
+    return { segments, failed, total };
+  }, [
+    t,
+    functionRequestStats,
+    transformationRequestStats,
+    workflowRequestStats,
+    extractorRequestStats,
+    scheduleRequestStats,
+  ]);
+
+  const showPartialDataBanner =
+    partialStatsCombined.segments.length > 0 && partialStatsCombined.total > 0;
+
   const visibleParallelSeries = visibleSeries.functions ? parallelSeries : [];
   const visibleTransformationSeries = visibleSeries.transformations ? transformationSeries : [];
   const visibleWorkflowSeries = visibleSeries.workflows ? workflowSeries : [];
@@ -622,9 +787,11 @@ export function Processing() {
     setSelectedLogsError(null);
     setSelectedLogs([]);
     try {
-      const response = await sdk.get<{
-        items?: { message?: string }[];
-      }>(`/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`);
+      const response = await withTransientRetries(() =>
+        sdk.get<{
+          items?: { message?: string }[];
+        }>(`/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`)
+      );
       setSelectedLogs(response.data?.items ?? []);
       setSelectedLogsStatus("success");
     } catch (error) {
@@ -681,6 +848,36 @@ export function Processing() {
           </div>
         ) : null}
       </header>
+      {showPartialDataBanner ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-medium">{t("processing.partial.title")}</p>
+          <p className="mt-1 text-xs text-amber-900">
+            {t("processing.partial.summary", {
+              failed: partialStatsCombined.failed,
+              total: partialStatsCombined.total,
+              percent:
+                partialStatsCombined.total > 0
+                  ? Math.round((100 * partialStatsCombined.failed) / partialStatsCombined.total)
+                  : 0,
+            })}
+          </p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-amber-900">
+            {partialStatsCombined.segments.map((seg, i) => (
+              <li key={`${seg.label}-${i}`}>
+                {t("processing.partial.detailLine", {
+                  label: seg.label,
+                  failed: seg.stats.failed,
+                  total: seg.stats.total,
+                  percent:
+                    seg.stats.total > 0
+                      ? Math.round((100 * seg.stats.failed) / seg.stats.total)
+                      : 0,
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{t("processing.card.concurrency.title")}</CardTitle>

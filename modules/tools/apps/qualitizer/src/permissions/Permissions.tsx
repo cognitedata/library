@@ -97,6 +97,7 @@ export function Permissions() {
   const [pasteText, setPasteText] = useState("");
   const [pasteDisplayName, setPasteDisplayName] = useState("");
   const [compareGroupSearch, setCompareGroupSearch] = useState("");
+  const [groupCapabilitiesFilter, setGroupCapabilitiesFilter] = useState("");
   const [compareOnlyUtilized, setCompareOnlyUtilized] = useState(false);
   const [compareIncludeOtherProjects, setCompareIncludeOtherProjects] = useState(false);
   const [compareShowAllGroups, setCompareShowAllGroups] = useState(false);
@@ -222,6 +223,16 @@ export function Permissions() {
       ])
     );
   }, [groups, t]);
+
+  const groupsForCapabilitiesTable = useMemo(() => {
+    const q = groupCapabilitiesFilter.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) => {
+      const name = g.name ?? t("permissions.group.fallback", { id: g.id });
+      const hay = `${name} ${g.id} ${g.sourceId ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [groups, groupCapabilitiesFilter, t]);
 
   const comparisonRows = useMemo(() => {
     return [...groups].sort((a, b) =>
@@ -679,6 +690,31 @@ export function Permissions() {
               <div className="text-sm text-slate-600">{t("permissions.groups.none")}</div>
             ) : (
               <div className="space-y-3">
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="flex min-w-[12rem] flex-1 flex-col gap-1.5 text-sm text-slate-700">
+                    {t("permissions.groups.filterLabel")}
+                    <input
+                      id="permissions-groups-capabilities-filter"
+                      type="search"
+                      className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      placeholder={t("permissions.compare.searchPlaceholder")}
+                      value={groupCapabilitiesFilter}
+                      onChange={(e) => setGroupCapabilitiesFilter(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </label>
+                  {groupCapabilitiesFilter.trim() ? (
+                    <span className="text-xs text-slate-500">
+                      {t("permissions.groups.filterSummary", {
+                        shown: groupsForCapabilitiesTable.length,
+                        total: groups.length,
+                      })}
+                    </span>
+                  ) : null}
+                </div>
+                {groupsForCapabilitiesTable.length === 0 ? (
+                  <div className="text-sm text-slate-600">{t("permissions.groups.noFilterMatches")}</div>
+                ) : (
                 <div className="overflow-auto rounded-md border border-slate-200">
                   <table className="w-full border-collapse text-left text-xs">
                     <thead className="bg-slate-50 text-slate-600">
@@ -700,7 +736,7 @@ export function Permissions() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {groups.map((group) => (
+                      {groupsForCapabilitiesTable.map((group) => (
                         <tr key={group.id}>
                           <td className={`px-2 py-2 text-sm text-slate-800${pc}`}>
                             <button
@@ -754,6 +790,7 @@ export function Permissions() {
                     </tbody>
                   </table>
                 </div>
+                )}
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
                   <span className="font-medium text-slate-700">{t("permissions.legend.label")}</span>
                   <span className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1">
@@ -826,7 +863,7 @@ export function Permissions() {
                       <input
                         id="permissions-compare-group-search"
                         type="search"
-                        className="h-9 rounded-md border border-slate-200 px-3 text-sm"
+                        className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
                         placeholder={t("permissions.compare.searchPlaceholder")}
                         value={compareGroupSearch}
                         onChange={(event) => setCompareGroupSearch(event.target.value)}
@@ -1113,7 +1150,7 @@ export function Permissions() {
                 </div>
               ) : null}
             </div>
-            <PermissionsCrossProject state={crossProjectState} privateMaskClass={pc} />
+            <PermissionsCrossProject state={crossProjectState} />
           </CardContent>
         </Card>
       ) : null}

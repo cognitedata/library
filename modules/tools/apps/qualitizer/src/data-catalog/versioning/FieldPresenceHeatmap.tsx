@@ -19,9 +19,17 @@ function formatDmViewKey(key: string): string {
   return `${key.slice(0, i)}/${key.slice(i + 1)}`;
 }
 
+export type WinnerContainerMapping = {
+  containerSpace: string;
+  containerExternalId: string;
+  containerPropertyIdentifier: string;
+};
+
 type EffectivePropEntry = {
   winnerKey: string;
   shadowed: string[];
+  /** View property maps instance data here (DMS containers API `space`/`externalId` + property id). */
+  winnerMapping: WinnerContainerMapping | null;
 };
 
 type HeatmapRootContrib = {
@@ -52,11 +60,16 @@ function absorbImplementsLaterWins(
   for (const [prop, e] of sub) {
     const cur = target.get(prop);
     if (!cur) {
-      target.set(prop, { winnerKey: e.winnerKey, shadowed: [...e.shadowed] });
+      target.set(prop, {
+        winnerKey: e.winnerKey,
+        shadowed: [...e.shadowed],
+        winnerMapping: e.winnerMapping,
+      });
     } else {
       target.set(prop, {
         winnerKey: e.winnerKey,
         shadowed: uniqueViewKeyChain([...cur.shadowed, cur.winnerKey, ...e.shadowed]),
+        winnerMapping: e.winnerMapping,
       });
     }
   }
@@ -71,6 +84,65 @@ function uniqueViewKeyChain(keys: string[]): string[] {
     out.push(k);
   }
   return out;
+}
+
+/** Parsed `container` + `containerPropertyIdentifier` from a view property definition (storage backing). */
+function parseViewPropContainerMapping(propDef: unknown): WinnerContainerMapping | null {
+  if (!propDef || typeof propDef !== "object") return null;
+  const o = propDef as Record<string, unknown>;
+  const cpid = o.containerPropertyIdentifier;
+  const cont = o.container;
+  if (typeof cpid !== "string" || !cpid.trim()) return null;
+  if (!cont || typeof cont !== "object") return null;
+  const c = cont as Record<string, unknown>;
+  const space = typeof c.space === "string" ? c.space : "";
+  const externalId = typeof c.externalId === "string" ? c.externalId : "";
+  if (!space || !externalId) return null;
+  return {
+    containerSpace: space,
+    containerExternalId: externalId,
+    containerPropertyIdentifier: cpid.trim(),
+  };
+}
+
+function winnerMappingStorageKey(m: WinnerContainerMapping): string {
+  return `${m.containerSpace}:${m.containerExternalId}\x1f${m.containerPropertyIdentifier}`;
+}
+
+function WinnerMappingDetailBlock({
+  mapping,
+  labelCell,
+  valueCell,
+  t,
+}: {
+  mapping: WinnerContainerMapping | null | undefined;
+  labelCell: string;
+  valueCell: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  return (
+    <div className="col-span-2 space-y-1 rounded border border-violet-200/70 bg-violet-50/50 px-2 py-1.5">
+      <p className="font-sans text-[9px] leading-snug text-slate-700">
+        {t("dataCatalog.versionHistory.fieldHeatmapResolutionStorageWhatThisIs")}
+      </p>
+      {mapping ? (
+        <dl className="grid grid-cols-[minmax(0,8.5rem)_1fr] gap-x-2 gap-y-1">
+          <dt className={`${labelCell} !uppercase tracking-wide`}>
+            {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowUnderlyingContainer")}
+          </dt>
+          <dd className={`${valueCell} break-all`}>
+            {mapping.containerSpace}/{mapping.containerExternalId}
+          </dd>
+          <dt className={`${labelCell} !uppercase tracking-wide`}>
+            {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowContainerPropertyId")}
+          </dt>
+          <dd className={`${valueCell} break-all`}>{mapping.containerPropertyIdentifier}</dd>
+        </dl>
+      ) : (
+        <p className={`${valueCell} text-slate-600`}>{t("dataCatalog.versionHistory.fieldHeatmapResolutionRowStorageUnknown")}</p>
+      )}
+    </div>
+  );
 }
 
 /** Resolves effective properties for one view using DMS rules: process `implements` in order (later overrides earlier); own properties override inherited. */
@@ -98,13 +170,15 @@ function resolveEffectivePropsForViewKey(
 
     const own = (def.properties as Record<string, unknown>) ?? {};
     for (const prop of Object.keys(own)) {
+      const mapping = parseViewPropContainerMapping(own[prop]);
       const cur = merged.get(prop);
       if (!cur) {
-        merged.set(prop, { winnerKey: viewKey, shadowed: [] });
+        merged.set(prop, { winnerKey: viewKey, shadowed: [], winnerMapping: mapping });
       } else {
         merged.set(prop, {
           winnerKey: viewKey,
           shadowed: uniqueViewKeyChain([...cur.shadowed, cur.winnerKey]),
+          winnerMapping: mapping,
         });
       }
     }
@@ -123,9 +197,14 @@ function fallbackPropsFromRawView(raw: unknown): Map<string, EffectivePropEntry>
   const externalId = typeof o.externalId === "string" ? o.externalId : "";
   if (!space || !externalId) return null;
   const rk = dmViewKey(space, externalId);
+  const propsRec = props as Record<string, unknown>;
   const m = new Map<string, EffectivePropEntry>();
-  for (const propName of Object.keys(props as Record<string, unknown>)) {
-    m.set(propName, { winnerKey: rk, shadowed: [] });
+  for (const propName of Object.keys(propsRec)) {
+    m.set(propName, {
+      winnerKey: rk,
+      shadowed: [],
+      winnerMapping: parseViewPropContainerMapping(propsRec[propName]),
+    });
   }
   return m.size > 0 ? m : null;
 }
@@ -223,6 +302,7 @@ type HeatmapResolutionRowData = {
   rootKey: string;
   winnerKey: string;
   shadowed: string[];
+  winnerMapping: WinnerContainerMapping | null;
 };
 
 type HeatmapWinnerDriftChange = {
@@ -264,11 +344,42 @@ function contributorsToResolutionRows(
     rootKey: c.rootKey,
     winnerKey: c.entry.winnerKey,
     shadowed: [...c.entry.shadowed],
+    winnerMapping: c.entry.winnerMapping,
   }));
 }
 
 function isTrivialResolutionRow(row: HeatmapResolutionRowData): boolean {
   return row.shadowed.length === 0 && row.rootKey === row.winnerKey;
+}
+
+function detailUnderlyingStorageSummary(rows: HeatmapResolutionRowData[]): {
+  kind:
+    | "none-mapped"
+    | "unified-all"
+    | "unified-partial"
+    | "distinct"
+    | "distinct-partial";
+  total: number;
+  mapped?: number;
+  distinct?: number;
+  m?: WinnerContainerMapping;
+} {
+  const total = rows.length;
+  const withMap = rows.map((r) => r.winnerMapping).filter(Boolean) as WinnerContainerMapping[];
+  if (total === 0 || withMap.length === 0) {
+    return { kind: "none-mapped", total };
+  }
+  const keys = [...new Set(withMap.map((wm) => winnerMappingStorageKey(wm)))];
+  const allMapped = withMap.length === total;
+  if (keys.length === 1) {
+    const m = withMap.find((wm) => winnerMappingStorageKey(wm) === keys[0])!;
+    return allMapped
+      ? { kind: "unified-all", total, m }
+      : { kind: "unified-partial", total, mapped: withMap.length, m };
+  }
+  return allMapped
+    ? { kind: "distinct", total, mapped: withMap.length, distinct: keys.length }
+    : { kind: "distinct-partial", total, mapped: withMap.length, distinct: keys.length };
 }
 
 /** Heatmap cells merge a property name across all model member views; details only list meaningful chains. */
@@ -453,44 +564,164 @@ function buildWinnerDriftBlocksForCell(
   return blocks;
 }
 
+export function HeatmapResolutionFlowExplainer({
+  t,
+}: {
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  return (
+    <div className="mb-2 border-l-2 border-slate-300 pl-2.5">
+      <p className="mb-1.5 text-[10px] font-medium leading-snug text-slate-800">
+        {t("dataCatalog.versionHistory.fieldHeatmapResolutionFlowTitle")}
+      </p>
+      <ol className="list-decimal space-y-1.5 pl-4 text-[10px] leading-snug text-slate-600 marker:text-slate-500">
+        <li>{t("dataCatalog.versionHistory.fieldHeatmapResolutionStep1")}</li>
+        <li>{t("dataCatalog.versionHistory.fieldHeatmapResolutionStep2")}</li>
+        <li>{t("dataCatalog.versionHistory.fieldHeatmapResolutionStep3")}</li>
+      </ol>
+    </div>
+  );
+}
+
 function HeatmapResolutionChips({
   rows,
   emphasizeSupplyingWinner = false,
+  t,
 }: {
   rows: HeatmapResolutionRowData[];
   emphasizeSupplyingWinner?: boolean;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   if (rows.length === 0) return null;
+  const labelCell = "min-w-0 shrink-0 text-[9px] font-medium uppercase tracking-wide text-slate-500";
+  const valueCell = "min-w-0 font-mono text-[10px] leading-snug text-slate-800";
+
+  const storageMappings = rows.map((r) => r.winnerMapping).filter(Boolean) as WinnerContainerMapping[];
+  const uniqueStorageKeys = [...new Set(storageMappings.map((m) => winnerMappingStorageKey(m)))];
+
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      {rows.map((row) => (
-        <div key={row.rootKey} className="flex min-w-0 flex-wrap items-center gap-1 text-[10px] leading-tight">
-          <span className="rounded border border-slate-300 bg-white px-1 py-px font-mono text-slate-600 break-all">
-            {formatDmViewKey(row.rootKey)}
-          </span>
-          {row.shadowed.length > 0 ? (
-            <>
-              <span className="text-slate-400">·</span>
-              {row.shadowed.map((s) => (
-                <span
-                  key={`${row.rootKey}:${s}`}
-                  className="rounded bg-slate-200/90 px-1 py-px font-mono text-slate-500 line-through break-all"
-                >
-                  {formatDmViewKey(s)}
-                </span>
-              ))}
-            </>
-          ) : null}
-          <span className="text-slate-500">→</span>
-          <span
-            className={`rounded bg-blue-100 px-1 py-px font-mono font-medium text-blue-900 break-all ${
-              emphasizeSupplyingWinner ? "border-2 border-sky-600" : ""
-            }`}
+    <div className="flex min-w-0 flex-col gap-2">
+      <p className="text-[9px] leading-snug text-slate-600">
+        {rows.length <= 1
+          ? t("dataCatalog.versionHistory.fieldHeatmapResolutionSingleMemberLead")
+          : t("dataCatalog.versionHistory.fieldHeatmapResolutionMultiMemberLead", {
+              count: String(rows.length),
+            })}
+      </p>
+      {rows.map((row) => {
+        const selfOnly = row.shadowed.length === 0 && row.rootKey === row.winnerKey;
+        const appliesTo = formatDmViewKey(row.rootKey);
+        return (
+          <div
+            key={row.rootKey}
+            className="rounded-md border border-slate-200 bg-slate-50/60 px-2 py-1.5"
           >
-            {formatDmViewKey(row.winnerKey)}
-          </span>
-        </div>
-      ))}
+            {selfOnly ? (
+              <div className="grid grid-cols-[minmax(0,7rem)_1fr] items-start gap-x-2 gap-y-1">
+                <span className={labelCell}>
+                  {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowMember")}
+                </span>
+                <span className={`${valueCell} rounded border border-slate-300 bg-white px-1.5 py-0.5 break-all`}>
+                  {formatDmViewKey(row.rootKey)}
+                </span>
+                <span className="col-span-2 text-[9px] leading-snug text-slate-600">
+                  {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowSelfOnly")}
+                </span>
+                <WinnerMappingDetailBlock
+                  mapping={row.winnerMapping}
+                  labelCell={labelCell}
+                  valueCell={valueCell}
+                  t={t}
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-[minmax(0,7rem)_1fr] items-start gap-x-2 gap-y-1.5">
+                <span className={labelCell}>
+                  {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowMember")}
+                </span>
+                <span className={`${valueCell} rounded border border-slate-300 bg-white px-1.5 py-0.5 break-all`}>
+                  {formatDmViewKey(row.rootKey)}
+                </span>
+                <span className="col-span-2 text-[9px] leading-snug text-slate-600">
+                  {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowEffectiveWho", {
+                    member: appliesTo,
+                  })}
+                </span>
+                {row.shadowed.length > 0 ? (
+                  <>
+                    <span className={`${labelCell} self-center`}>
+                      {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowSuperseded")}
+                    </span>
+                    <div className="flex min-w-0 flex-wrap gap-1">
+                      {row.shadowed.map((s) => (
+                        <span
+                          key={`${row.rootKey}:${s}`}
+                          className="rounded bg-slate-200/90 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 line-through break-all"
+                        >
+                          {formatDmViewKey(s)}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+                <span className={`${labelCell} self-center text-slate-700`}>
+                  {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowWinner")}
+                </span>
+                <div className="min-w-0">
+                  <span
+                    className={`inline-block ${valueCell} rounded bg-blue-100 px-1.5 py-0.5 font-medium text-blue-950 break-all ${
+                      emphasizeSupplyingWinner ? "border-2 border-sky-600" : ""
+                    }`}
+                  >
+                    {formatDmViewKey(row.winnerKey)}
+                  </span>
+                  <p className="mt-0.5 font-sans text-[9px] leading-snug text-slate-600">
+                    {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowWinnerForMember", {
+                      member: appliesTo,
+                    })}
+                  </p>
+                </div>
+                <span className="col-span-2">
+                  <WinnerMappingDetailBlock
+                    mapping={row.winnerMapping}
+                    labelCell={labelCell}
+                    valueCell={valueCell}
+                    t={t}
+                  />
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {rows.length > 1 && rows.some((r) => !r.winnerMapping) ? (
+        <p className="text-[9px] leading-snug text-slate-600">
+          {t("dataCatalog.versionHistory.fieldHeatmapResolutionStorageIncomplete")}
+        </p>
+      ) : null}
+      {rows.length > 1 && uniqueStorageKeys.length > 0 ? (
+        <p
+          className={
+            uniqueStorageKeys.length === 1
+              ? "rounded border border-emerald-200/90 bg-emerald-50/50 px-2 py-1 text-[9px] leading-snug text-emerald-900"
+              : "rounded border border-amber-200/90 bg-amber-50/50 px-2 py-1 text-[9px] leading-snug text-amber-950"
+          }
+        >
+          {uniqueStorageKeys.length === 1
+            ? (() => {
+                const only = storageMappings.find(
+                  (m) => winnerMappingStorageKey(m) === uniqueStorageKeys[0]
+                )!;
+                return t("dataCatalog.versionHistory.fieldHeatmapResolutionStorageUnified", {
+                  container: `${only.containerSpace}/${only.containerExternalId}`,
+                  propertyId: only.containerPropertyIdentifier,
+                });
+              })()
+            : t("dataCatalog.versionHistory.fieldHeatmapResolutionStorageDistinct", {
+                count: String(uniqueStorageKeys.length),
+              })}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -642,6 +873,8 @@ export type FieldPresenceHeatmapModel = {
   matrix: boolean[][];
   resolutionRowsByCellKey: ReadonlyMap<string, HeatmapResolutionRowData[]>;
   winnerSigByCellKey: ReadonlyMap<string, string>;
+  /** Member views that declare this property name for this version (≥1 when matrix cell is true). */
+  contributorCountByCellKey: ReadonlyMap<string, number>;
 };
 
 export function buildFieldPresenceHeatmap(
@@ -665,6 +898,7 @@ export function buildFieldPresenceHeatmap(
 
   const resolutionRowsByCellKey = new Map<string, HeatmapResolutionRowData[]>();
   const winnerSigByCellKey = new Map<string, string>();
+  const contributorCountByCellKey = new Map<string, number>();
   for (let vi = 0; vi < versions.length; vi++) {
     const ver = versions[vi];
     const byProp = perVersion[vi];
@@ -672,13 +906,22 @@ export function buildFieldPresenceHeatmap(
     for (const propName of columns) {
       const contribs = byProp.get(propName);
       if (contribs == null || contribs.length === 0) continue;
-      resolutionRowsByCellKey.set(heatmapCellKey(ver, propName), contributorsToResolutionRows(contribs));
+      const cellKey = heatmapCellKey(ver, propName);
+      resolutionRowsByCellKey.set(cellKey, contributorsToResolutionRows(contribs));
+      contributorCountByCellKey.set(cellKey, contribs.length);
       const sig = heatmapWinnerSignatureForProp(byProp, propName);
-      if (sig) winnerSigByCellKey.set(heatmapCellKey(ver, propName), sig);
+      if (sig) winnerSigByCellKey.set(cellKey, sig);
     }
   }
 
-  return { columns, rowVersions: versions, matrix, resolutionRowsByCellKey, winnerSigByCellKey };
+  return {
+    columns,
+    rowVersions: versions,
+    matrix,
+    resolutionRowsByCellKey,
+    winnerSigByCellKey,
+    contributorCountByCellKey,
+  };
 }
 
 /** Matches `DEST_DM_VERSION_UNSPECIFIED` in DataModelVersions (destination.dataModel without version). */
@@ -735,19 +978,29 @@ export type HeatmapRowVisual = {
   rowTooltip: string;
 };
 
+const HEAT_PRESENT = "#2563eb";
+const HEAT_PRESENT_WINNER_DRIFT = "#93c5fd";
+
+/** Member count 2…10 (10+ treated as 10): interpolate fill between similar blue and deeper violet. */
+function heatmapMultiMemberBaseFill(memberCount: number): string {
+  const n = Math.min(Math.max(memberCount, 2), 10);
+  const t = (n - 2) / 8;
+  const h = 218 + t * 48;
+  const s = 72 - t * 22;
+  const l = 58 - t * 12;
+  return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`;
+}
+
 type FieldPresenceHeatmapProps = {
   columns: string[];
   rows: string[];
   matrix: boolean[][];
   resolutionRowsByCellKey: ReadonlyMap<string, HeatmapResolutionRowData[]>;
   winnerSigByCellKey: ReadonlyMap<string, string>;
+  contributorCountByCellKey: ReadonlyMap<string, number>;
   rowsMeta: HeatmapRowVisual[];
-  showTxSqlLegend: boolean;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
-
-const HEAT_PRESENT = "#2563eb";
-const HEAT_PRESENT_WINNER_DRIFT = "#93c5fd";
 
 export function FieldPresenceHeatmap({
   columns,
@@ -755,8 +1008,8 @@ export function FieldPresenceHeatmap({
   matrix,
   resolutionRowsByCellKey,
   winnerSigByCellKey,
+  contributorCountByCellKey,
   rowsMeta,
-  showTxSqlLegend,
   t,
 }: FieldPresenceHeatmapProps) {
   const [hover, setHover] = useState<{ ri: number; ci: number } | null>(null);
@@ -768,7 +1021,7 @@ export function FieldPresenceHeatmap({
     setHover(null);
     setPinned(null);
     setLabelHoverRow(null);
-  }, [columns, rows, resolutionRowsByCellKey, winnerSigByCellKey]);
+  }, [columns, rows, resolutionRowsByCellKey, winnerSigByCellKey, contributorCountByCellKey]);
 
   const svgW = HEAT_ROW_LABEL_W + columns.length * HEAT_CELL_W;
   const svgH = rows.length * HEAT_ROW_H;
@@ -782,8 +1035,9 @@ export function FieldPresenceHeatmap({
       const propName = columns[ci];
       if (ver == null || propName == null) return null;
       const exists = matrix[ri]?.[ci] ?? false;
-      const resolutionRows =
-        resolutionRowsByCellKey.get(heatmapCellKey(ver, propName)) ?? [];
+      const cellKey = heatmapCellKey(ver, propName);
+      const resolutionRows = resolutionRowsByCellKey.get(cellKey) ?? [];
+      const contributorCount = contributorCountByCellKey.get(cellKey) ?? 0;
       const hasWinnerDriftColor =
         exists && heatmapWinnerDriftVsNeighbor(matrix, rows, columns, winnerSigByCellKey, ri, ci);
       const winnerDriftBlocks = hasWinnerDriftColor
@@ -793,11 +1047,12 @@ export function FieldPresenceHeatmap({
         version: ver,
         propName,
         exists,
+        contributorCount,
         resolutionRows,
         winnerDriftBlocks,
       };
     },
-    [rows, columns, matrix, resolutionRowsByCellKey, winnerSigByCellKey]
+    [rows, columns, matrix, resolutionRowsByCellKey, winnerSigByCellKey, contributorCountByCellKey]
   );
 
   const primary = pinned ?? hover;
@@ -827,19 +1082,8 @@ export function FieldPresenceHeatmap({
 
   return (
     <div className="mb-3 rounded-md border border-slate-200 bg-white p-2">
-      <p className="mb-1 text-[11px] leading-snug text-slate-600">
-        {t("dataCatalog.versionHistory.fieldHeatmapCaption")}
-      </p>
-      {showTxSqlLegend ? (
-        <p className="mb-1 text-[10px] leading-snug text-slate-600">
-          {t("dataCatalog.versionHistory.fieldHeatmapLegendTxSql")}
-        </p>
-      ) : null}
-      <p className="mb-2 text-[10px] leading-snug text-amber-900/90">
-        {t("dataCatalog.versionHistory.fieldHeatmapLegendOrange")}
-      </p>
       <p className="mb-2 text-[10px] leading-snug text-slate-600">
-        {t("dataCatalog.versionHistory.fieldHeatmapLegendLightBlue")}
+        {t("dataCatalog.versionHistory.fieldHeatmapPromptForHelp")}
       </p>
 
       <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-2">
@@ -892,6 +1136,91 @@ export function FieldPresenceHeatmap({
                   ? t("dataCatalog.versionHistory.fieldHeatmapDetailYes")
                   : t("dataCatalog.versionHistory.fieldHeatmapDetailNo")}
               </dd>
+              {primaryDetail.exists && primaryDetail.contributorCount > 0 ? (
+                <>
+                  <dt className="text-slate-500">
+                    {t("dataCatalog.versionHistory.fieldHeatmapDetailMemberViews")}
+                  </dt>
+                  <dd className="font-mono text-slate-900">{primaryDetail.contributorCount}</dd>
+                </>
+              ) : null}
+              {primaryDetail.exists && primaryDetail.resolutionRows.length > 0 ? (
+                <>
+                  <dt className="self-start text-slate-500">
+                    {t("dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorage")}
+                  </dt>
+                  <dd className="min-w-0 text-[10px] leading-snug text-slate-800">
+                    {(() => {
+                      const sum = detailUnderlyingStorageSummary(primaryDetail.resolutionRows);
+                      const cid = (m: WinnerContainerMapping) =>
+                        `${m.containerSpace}/${m.containerExternalId}`;
+                      if (sum.kind === "none-mapped") {
+                        return (
+                          <p className="text-slate-600">
+                            {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowStorageUnknown")}
+                          </p>
+                        );
+                      }
+                      if (sum.kind === "unified-all" && sum.m) {
+                        return (
+                          <div className="space-y-1">
+                            <p>
+                              {t("dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageUnifiedAll", {
+                                total: sum.total,
+                                container: cid(sum.m),
+                                propertyId: sum.m.containerPropertyIdentifier,
+                              })}
+                            </p>
+                            <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono text-[10px] text-slate-900">
+                              <dt className="text-slate-500">
+                                {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowUnderlyingContainer")}
+                              </dt>
+                              <dd className="break-all">{cid(sum.m)}</dd>
+                              <dt className="text-slate-500">
+                                {t("dataCatalog.versionHistory.fieldHeatmapResolutionRowContainerPropertyId")}
+                              </dt>
+                              <dd className="break-all">{sum.m.containerPropertyIdentifier}</dd>
+                            </dl>
+                          </div>
+                        );
+                      }
+                      if (sum.kind === "unified-partial" && sum.m && sum.mapped != null) {
+                        return (
+                          <p className="text-slate-800">
+                            {t("dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageUnifiedPartial", {
+                              mapped: sum.mapped,
+                              total: sum.total,
+                              container: cid(sum.m),
+                              propertyId: sum.m.containerPropertyIdentifier,
+                            })}
+                          </p>
+                        );
+                      }
+                      if (sum.kind === "distinct" && sum.mapped != null && sum.distinct != null) {
+                        return (
+                          <p className="text-amber-950">
+                            {t("dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageDistinct", {
+                              mapped: sum.mapped,
+                              distinct: sum.distinct,
+                            })}
+                          </p>
+                        );
+                      }
+                      if (sum.kind === "distinct-partial" && sum.mapped != null && sum.distinct != null) {
+                        return (
+                          <p className="text-amber-950">
+                            {t("dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageDistinctPartial", {
+                              mapped: sum.mapped,
+                              distinct: sum.distinct,
+                            })}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </dd>
+                </>
+              ) : null}
               {primaryDetail.resolutionRows.length > 0 ? (
                 <>
                   <dt className="self-start text-slate-500">
@@ -907,9 +1236,6 @@ export function FieldPresenceHeatmap({
                       </p>
                     ) : (
                       <>
-                        <p className="mb-1.5 text-[10px] leading-snug text-slate-500">
-                          {t("dataCatalog.versionHistory.fieldHeatmapResolutionRuleShort")}
-                        </p>
                         {primaryResolutionDetail != null && primaryResolutionDetail.displayRows.length > 0 ? (
                           <HeatmapResolutionChips
                             rows={primaryResolutionDetail.displayRows}
@@ -917,6 +1243,7 @@ export function FieldPresenceHeatmap({
                               primaryDetail.winnerDriftBlocks.length > 0 &&
                               primaryResolutionDetail.displayRows.length > 0
                             }
+                            t={t}
                           />
                         ) : null}
                         {primaryResolutionDetail != null && primaryResolutionDetail.omittedTrivialCount > 0 ? (
@@ -990,6 +1317,7 @@ export function FieldPresenceHeatmap({
                           alsoHovering.winnerDriftBlocks.length > 0 &&
                           alsoHoverResolutionDetail.displayRows.length > 0
                         }
+                        t={t}
                       />
                       {alsoHoverResolutionDetail.omittedTrivialCount > 0 ? (
                         <p className="mt-1.5 text-[10px] leading-snug text-slate-500">
@@ -1131,31 +1459,100 @@ export function FieldPresenceHeatmap({
                     heatmapWinnerDriftVsNeighbor(matrix, rows, columns, winnerSigByCellKey, ri, ci);
                   const stroke = isPinned ? "#1d4ed8" : isHover ? "#64748b" : "#e2e8f0";
                   const strokeW = isPinned ? 1.25 : isHover ? 0.9 : 0.35;
-                  const fill = exists
-                    ? winnerDrift
-                      ? HEAT_PRESENT_WINNER_DRIFT
-                      : HEAT_PRESENT
-                    : addedGapOrange
-                      ? "#fb923c"
-                      : "#ffffff";
+                  const memCount = exists
+                    ? Math.max(
+                        contributorCountByCellKey.get(heatmapCellKey(ver, colKey)) ?? 1,
+                        1
+                      )
+                    : 0;
+                  const absentFill = addedGapOrange ? "#fb923c" : "#ffffff";
+                  const solidLightBlueDrift = exists && winnerDrift && memCount <= 1;
+                  const basePresentFill =
+                    memCount <= 1 ? HEAT_PRESENT : heatmapMultiMemberBaseFill(memCount);
                   return (
-                    <rect
-                      key={colKey}
-                      x={cx}
-                      y={cy}
-                      width={HEAT_CELL_W}
-                      height={HEAT_CELL_H}
-                      fill={fill}
-                      stroke={stroke}
-                      strokeWidth={strokeW}
-                      pointerEvents="none"
-                    />
+                    <g key={colKey} pointerEvents="none">
+                      {!exists ? (
+                        <rect x={cx} y={cy} width={HEAT_CELL_W} height={HEAT_CELL_H} fill={absentFill} />
+                      ) : solidLightBlueDrift ? (
+                        <rect
+                          x={cx}
+                          y={cy}
+                          width={HEAT_CELL_W}
+                          height={HEAT_CELL_H}
+                          fill={HEAT_PRESENT_WINNER_DRIFT}
+                        />
+                      ) : (
+                        <>
+                          <rect x={cx} y={cy} width={HEAT_CELL_W} height={HEAT_CELL_H} fill={basePresentFill} />
+                          {winnerDrift ? (
+                            <rect
+                              x={cx}
+                              y={cy}
+                              width={HEAT_CELL_W}
+                              height={HEAT_CELL_H}
+                              fill={HEAT_PRESENT_WINNER_DRIFT}
+                              fillOpacity={0.52}
+                            />
+                          ) : null}
+                        </>
+                      )}
+                      <rect
+                        x={cx}
+                        y={cy}
+                        width={HEAT_CELL_W}
+                        height={HEAT_CELL_H}
+                        fill="none"
+                        stroke={stroke}
+                        strokeWidth={strokeW}
+                      />
+                    </g>
                   );
                 })}
               </g>
             );
           })}
         </svg>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-1.5 text-[9px] text-slate-600">
+          <span className="font-medium text-slate-700">
+            {t("dataCatalog.versionHistory.fieldHeatmapCellLegendTitle")}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 shrink-0 border border-slate-300 bg-white" />
+            {t("dataCatalog.versionHistory.fieldHeatmapLegendSwatchAbsent")}
+          </span>
+          <span className="flex items-center gap-1">
+            <span
+              className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+              style={{ backgroundColor: HEAT_PRESENT }}
+            />
+            {t("dataCatalog.versionHistory.fieldHeatmapLegendSwatchOneMember")}
+          </span>
+          <span className="flex items-center gap-1" title={t("dataCatalog.versionHistory.fieldHeatmapLegendSwatchMultiTitle")}>
+            <span className="flex shrink-0 gap-px">
+              {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                <span
+                  key={n}
+                  className="inline-block h-2.5 w-1.5"
+                  style={{ backgroundColor: heatmapMultiMemberBaseFill(n) }}
+                />
+              ))}
+            </span>
+            {t("dataCatalog.versionHistory.fieldHeatmapLegendSwatchMultiScale")}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="relative inline-block h-2.5 w-3 shrink-0 overflow-hidden rounded-sm">
+              <span
+                className="absolute inset-0"
+                style={{ backgroundColor: heatmapMultiMemberBaseFill(5) }}
+              />
+              <span
+                className="absolute inset-0"
+                style={{ backgroundColor: HEAT_PRESENT_WINNER_DRIFT, opacity: 0.52 }}
+              />
+            </span>
+            {t("dataCatalog.versionHistory.fieldHeatmapLegendSwatchDrift")}
+          </span>
+        </div>
       </div>
     </div>
   );

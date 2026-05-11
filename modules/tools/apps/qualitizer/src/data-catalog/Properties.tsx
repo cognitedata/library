@@ -356,7 +356,7 @@ export function Properties() {
               Search
               <input
                 className="h-9 rounded-md border border-slate-200 px-3 text-sm"
-                placeholder="Property name..."
+                placeholder={t("dataCatalog.filter.placeholder.propertyExplorer")}
                 value={searchText}
                 onChange={(event) => setSearchText(event.target.value)}
               />
