@@ -441,12 +441,12 @@ def resolve_dm_cad_contextualization_config(config: Config) -> DMCadContextualiz
         or "scene"
     )
 
-    scene_ext_id = _get_opt(config, "scene_external_id", None)
-    if not scene_ext_id:
-        raise ValueError(
-            "Scene external ID is not configured. "
-            "Set 'scene_external_id' in your pipeline config or default.config.yaml."
-        )
+    # Use configured value; fall back to a generic derived ID based on the model name.
+    # Override via sceneExternalId in the pipeline config when you need a specific scene node.
+    scene_ext_id = (
+        _get_opt(config, "scene_external_id", None)
+        or f"scene_{config.three_d_model_name}"
+    )
 
     scene_model_ext_id = _get_opt(config, "scene_model_external_id", None)
     # batch_size, cad_model_type are operational defaults — not customer-specific
