@@ -112,6 +112,13 @@ function formatProcessingBandCaption(
 
 const hoursWindow = 1;
 const bucketSeconds = 15;
+const PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS = 3;
+const PROCESSING_EXTERNAL_ID_FILTER_DEBOUNCE_MS = 350;
+
+function effectiveProcessingExternalIdNeedle(raw: string): string {
+  const q = raw.trim();
+  return q.length >= PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS ? raw : "";
+}
 
 export function Processing() {
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
@@ -182,10 +189,35 @@ export function Processing() {
   const [pinnedHeatmapCell, setPinnedHeatmapCell] = useState<HeatmapCell | null>(null);
   const lastHoverKeyRef = useRef<string | null>(null);
   const [nowUtc, setNowUtc] = useState(() => new Date());
+  const [filterExternalId, setFilterExternalId] = useState("");
+  const [debouncedFilterExternalId, setDebouncedFilterExternalId] = useState("");
   useEffect(() => {
     const id = setInterval(() => setNowUtc(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!filterExternalId.trim()) {
+      setDebouncedFilterExternalId("");
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setDebouncedFilterExternalId(filterExternalId);
+    }, PROCESSING_EXTERNAL_ID_FILTER_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [filterExternalId]);
+
+  const effectiveExternalIdNeedle = useMemo(
+    () => effectiveProcessingExternalIdNeedle(debouncedFilterExternalId),
+    [debouncedFilterExternalId]
+  );
+
+  const filtersExternalIdPendingDebounce =
+    filterExternalId.trim() !== "" && filterExternalId !== debouncedFilterExternalId;
+
+  const filterExternalIdTooShort =
+    filterExternalId.trim().length > 0 &&
+    filterExternalId.trim().length < PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS;
 
   const fetchConcurrencyDiagram = useMemo(
     () => ({
@@ -206,7 +238,6 @@ export function Processing() {
     runs,
     functionNameMap,
     functionMetaMap,
-    failureDurationMs,
     getRunDuration,
     getRadius,
     getColor,
@@ -271,6 +302,56 @@ export function Processing() {
     windowRange,
     fetchEnabled: fetchConcurrencyDiagram.extractors,
   });
+
+  const displayRuns = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return runs;
+    return runs.filter((run) => {
+      const fid = String(run.functionId ?? "");
+      const name = String(functionNameMap[fid] ?? "");
+      return fid.toLowerCase().includes(needle) || name.toLowerCase().includes(needle);
+    });
+  }, [runs, effectiveExternalIdNeedle, functionNameMap]);
+
+  const displayTransformationJobs = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return filteredTransformationJobs;
+    return filteredTransformationJobs.filter((job) => {
+      const tid = String(job.transformationId ?? "");
+      const name = String(transformationNameMap[tid] ?? "");
+      return tid.toLowerCase().includes(needle) || name.toLowerCase().includes(needle);
+    });
+  }, [filteredTransformationJobs, transformationNameMap, effectiveExternalIdNeedle]);
+
+  const displayWorkflowExecutions = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return filteredWorkflowExecutions;
+    return filteredWorkflowExecutions.filter((ex) =>
+      String(ex.workflowExternalId ?? "").toLowerCase().includes(needle)
+    );
+  }, [filteredWorkflowExecutions, effectiveExternalIdNeedle]);
+
+  const displayExtractorRuns = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return filteredExtractorRuns;
+    return filteredExtractorRuns.filter((run) => {
+      const id = String(run.externalId ?? "");
+      const name = String(extractorConfigMap[id]?.name ?? "");
+      return id.toLowerCase().includes(needle) || name.toLowerCase().includes(needle);
+    });
+  }, [filteredExtractorRuns, extractorConfigMap, effectiveExternalIdNeedle]);
+
+  const filteredFailureDurationMs = useMemo(() => {
+    const failureStatuses = ["failed", "failure", "timeout", "timed_out"];
+    return displayRuns.reduce((total, run) => {
+      const statusValue = run.status?.toLowerCase() ?? "";
+      if (!failureStatuses.some((value) => statusValue.includes(value))) return total;
+      const start = toTimestamp(run.startTime ?? run.createdTime);
+      const end = toTimestamp(run.endTime ?? run.lastUpdatedTime);
+      if (!start || !end || end <= start) return total;
+      return total + (end - start);
+    }, 0);
+  }, [displayRuns]);
 
   useEffect(() => {
     if (isSdkLoading || !windowRange) {
@@ -549,7 +630,15 @@ export function Processing() {
       transformation: "transformations",
       workflow: "workflows",
     };
-    const filtered = scheduleEntries.filter(
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    const entriesForHeatmap = needle
+      ? scheduleEntries.filter(
+          (entry) =>
+            String(entry.id).toLowerCase().includes(needle) ||
+            String(entry.name).toLowerCase().includes(needle)
+        )
+      : scheduleEntries;
+    const filtered = entriesForHeatmap.filter(
       (entry) => heatmapVisibleTypes[typeToKey[entry.type]]
     );
     const parseField = (field: string, min: number, max: number) => {
@@ -606,7 +695,7 @@ export function Processing() {
       }
     }
     return counts;
-  }, [scheduleEntries, scheduleStatus, heatmapVisibleTypes]);
+  }, [scheduleEntries, scheduleStatus, heatmapVisibleTypes, effectiveExternalIdNeedle]);
 
   const getHeatColor = (count: number) => {
     if (count <= 0) return "#e0f2fe";
@@ -642,7 +731,7 @@ export function Processing() {
     const getRunEnd = (run: FunctionRunSummary) =>
       toTimestamp(run.endTime ?? run.lastUpdatedTime) ?? endWindow;
 
-    for (const run of runs) {
+    for (const run of displayRuns) {
       const start = getRunStart(run);
       const end = getRunEnd(run);
       for (const bucket of buckets) {
@@ -654,7 +743,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [runs, windowRange]);
+  }, [displayRuns, windowRange]);
 
   const transformationSeries = useMemo(() => {
     if (!windowRange) return [];
@@ -667,7 +756,7 @@ export function Processing() {
       count: 0,
     }));
 
-    for (const job of filteredTransformationJobs) {
+    for (const job of displayTransformationJobs) {
       const start = job.startedTime ?? startWindow;
       const end = job.finishedTime ?? endWindow;
       for (const bucket of buckets) {
@@ -679,7 +768,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [filteredTransformationJobs, windowRange]);
+  }, [displayTransformationJobs, windowRange]);
 
   const workflowSeries = useMemo(() => {
     if (!windowRange) return [];
@@ -692,7 +781,7 @@ export function Processing() {
       count: 0,
     }));
 
-    for (const execution of filteredWorkflowExecutions) {
+    for (const execution of displayWorkflowExecutions) {
       const start = execution.startTime ?? execution.createdTime;
       const end = execution.endTime ?? execution.startTime ?? execution.createdTime;
       for (const bucket of buckets) {
@@ -704,7 +793,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [filteredWorkflowExecutions, windowRange]);
+  }, [displayWorkflowExecutions, windowRange]);
 
   const extractorSeries = useMemo(() => {
     if (!windowRange) return [];
@@ -717,7 +806,7 @@ export function Processing() {
       count: 0,
     }));
 
-    for (const run of filteredExtractorRuns) {
+    for (const run of displayExtractorRuns) {
       const start = run.createdTime;
       const end = run.endTime ?? run.createdTime;
       for (const bucket of buckets) {
@@ -729,7 +818,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [filteredExtractorRuns, windowRange]);
+  }, [displayExtractorRuns, windowRange]);
 
   const maxParallel = useMemo(() => {
     return parallelSeries.reduce((max, bucket) => Math.max(max, bucket.count), 0);
@@ -817,7 +906,7 @@ export function Processing() {
         return functionLoadProgress ? formatProcessingBandCaption(t, functionLoadProgress) : loading;
       if (status === "error") return err;
       if (fnWaiting) return wait;
-      if (runs.length === 0) return empty;
+      if (displayRuns.length === 0) return empty;
       return "";
     };
     const bandTx = () => {
@@ -827,7 +916,7 @@ export function Processing() {
           : loading;
       if (transformationsStatus === "error") return err;
       if (txWaiting) return wait;
-      if (filteredTransformationJobs.length === 0) return empty;
+      if (displayTransformationJobs.length === 0) return empty;
       return "";
     };
     const bandWf = () => {
@@ -837,7 +926,7 @@ export function Processing() {
           : loading;
       if (workflowsStatus === "error") return err;
       if (wfWaiting) return wait;
-      if (filteredWorkflowExecutions.length === 0) return empty;
+      if (displayWorkflowExecutions.length === 0) return empty;
       return "";
     };
     const bandEx = () => {
@@ -847,7 +936,7 @@ export function Processing() {
           : loading;
       if (extractorsStatus === "error") return err;
       if (exWaiting) return wait;
-      if (filteredExtractorRuns.length === 0) return empty;
+      if (displayExtractorRuns.length === 0) return empty;
       return "";
     };
 
@@ -880,14 +969,14 @@ export function Processing() {
     functionLoadProgress,
     transformationsStatus,
     transformationLoadProgress,
-    filteredTransformationJobs.length,
+    displayTransformationJobs.length,
     workflowsStatus,
     workflowLoadProgress,
-    filteredWorkflowExecutions.length,
+    displayWorkflowExecutions.length,
     extractorsStatus,
     extractorLoadProgress,
-    filteredExtractorRuns.length,
-    runs.length,
+    displayExtractorRuns.length,
+    displayRuns.length,
   ]);
 
   const visibleParallelSeries = visibleSeries.functions ? parallelSeries : [];
@@ -966,6 +1055,51 @@ export function Processing() {
           </div>
         ) : null}
       </header>
+      {windowRange ? (
+        <div className="rounded-md border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block font-medium text-slate-700" htmlFor="processing-external-id-filter">
+                {t("processing.filter.externalIdLabel")}
+              </label>
+              <input
+                id="processing-external-id-filter"
+                type="search"
+                value={filterExternalId}
+                onChange={(e) => setFilterExternalId(e.target.value)}
+                placeholder={t("dataCatalog.filter.placeholder.substringMinChars", {
+                  min: PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS,
+                })}
+                autoComplete="off"
+                className="h-9 w-full max-w-md rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+              <p className="mt-1 text-[10px] leading-snug text-slate-500">
+                {t("processing.filter.externalIdLead")}
+              </p>
+            </div>
+            {effectiveExternalIdNeedle.trim() ? (
+              <button
+                type="button"
+                className="shrink-0 self-start rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 sm:self-center"
+                onClick={() => {
+                  setFilterExternalId("");
+                  setDebouncedFilterExternalId("");
+                }}
+              >
+                {t("dataCatalog.filter.clear")}
+              </button>
+            ) : null}
+          </div>
+          {filterExternalIdTooShort ? (
+            <p className="mt-2 text-[10px] leading-snug text-slate-500">
+              {t("dataCatalog.filter.minCharsHint", { min: PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS })}
+            </p>
+          ) : null}
+          {filtersExternalIdPendingDebounce ? (
+            <p className="mt-1 text-[11px] text-slate-500">{t("dataCatalog.filter.debouncePending")}</p>
+          ) : null}
+        </div>
+      ) : null}
       {showPartialDataBanner ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           <p className="font-medium">{t("processing.partial.title")}</p>
@@ -1190,19 +1324,19 @@ export function Processing() {
                   maxTransformParallel={visibleMaxTransform}
                   maxWorkflowParallel={visibleMaxWorkflow}
                   maxExtractorParallel={visibleMaxExtractor}
-                  runs={runs}
+                  runs={displayRuns}
                   getRunDuration={getRunDuration}
                   getRadius={getRadius}
                   getColor={getColor}
-                  transformationJobs={filteredTransformationJobs}
+                  transformationJobs={displayTransformationJobs}
                   getTransformationDuration={getTransformationDuration}
                   getTransformationRadius={getTransformationRadius}
                   getTransformationColor={getTransformationColor}
-                  workflowExecutions={filteredWorkflowExecutions}
+                  workflowExecutions={displayWorkflowExecutions}
                   getWorkflowDuration={getWorkflowDuration}
                   getWorkflowRadius={getWorkflowRadius}
                   getWorkflowColor={getWorkflowColor}
-                  extractorRuns={filteredExtractorRuns}
+                  extractorRuns={displayExtractorRuns}
                   extractorConfigMap={extractorConfigMap}
                   getExtractorRadius={getExtractorRadius}
                   getExtractorColor={getExtractorColor}
@@ -1290,7 +1424,7 @@ export function Processing() {
           {status !== "error" && !availabilityMessage ? (
             <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
               {t("processing.failed.minutes", {
-                minutes: Math.round(failureDurationMs / 60000),
+                minutes: Math.round(filteredFailureDurationMs / 60000),
               })}
             </div>
           ) : null}
