@@ -5,6 +5,9 @@ modules.zip
 # macOS system files
 .DS_Store
 
+# Binary pickle files (never commit cached data)
+*.pkl
+
 # Python cache and environment
 __pycache__/
 *.py[cod]
