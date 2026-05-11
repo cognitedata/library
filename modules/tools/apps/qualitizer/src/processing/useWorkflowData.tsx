@@ -51,6 +51,7 @@ export function useWorkflowData({
   useEffect(() => {
     if (!fetchEnabled) return;
     if (isSdkLoading) return;
+    if (!windowRange) return;
     let cancelled = false;
     const loadWorkflows = async () => {
       setWorkflowsStatus("loading");
@@ -58,6 +59,8 @@ export function useWorkflowData({
       setRequestStats(null);
       setWorkflowExecutionsAll([]);
       setLoadProgress({ kind: "workflows_executions", loaded: 0 });
+      const startMs = windowRange.start;
+      const endMs = windowRange.end;
       try {
         const executions: WorkflowExecutionSummary[] = [];
         let cursor: string | undefined;
@@ -68,7 +71,14 @@ export function useWorkflowData({
           try {
             const response = (await withTransientRetries(() =>
               sdk.post(`/api/v1/projects/${sdk.project}/workflows/executions/list`, {
-                data: { limit: 1000, cursor },
+                data: {
+                  filter: {
+                    createdTimeStart: startMs,
+                    createdTimeEnd: endMs,
+                  },
+                  limit: 1000,
+                  cursor,
+                },
               })
             )) as WorkflowExecutionsListApiResponse;
             executions.push(...(response.data?.items ?? []));
@@ -104,13 +114,15 @@ export function useWorkflowData({
     return () => {
       cancelled = true;
     };
-  }, [fetchEnabled, isSdkLoading, sdk, t]);
+  }, [fetchEnabled, isSdkLoading, sdk, windowRange?.start, windowRange?.end, t]);
 
   const filteredWorkflowExecutions = useMemo(() => {
     if (!windowRange) return [];
     const startWindow = windowRange.start;
     const endWindow = windowRange.end;
     return workflowExecutionsAll.filter((execution) => {
+      const created = execution.createdTime;
+      if (created < startWindow || created > endWindow) return false;
       const start = execution.startTime ?? execution.createdTime;
       const end = execution.endTime ?? execution.startTime ?? execution.createdTime;
       return start <= endWindow && end >= startWindow;
