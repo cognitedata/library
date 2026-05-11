@@ -772,6 +772,124 @@ export function Processing() {
   const showPartialDataBanner =
     partialStatsCombined.segments.length > 0 && partialStatsCombined.total > 0;
 
+  const diagramConcurrencyUi = useMemo(() => {
+    const p = concurrencyDiagramPhase;
+    const wait = t("processing.bubbles.waiting");
+    const loading = t("processing.bubbles.loading");
+    const err = t("processing.status.error");
+    const empty = t("processing.bubbles.empty");
+
+    const beforeTransformations = p === "idle" || p === "functions";
+    const beforeWorkflows = beforeTransformations || p === "transformations";
+    const beforeExtractors = beforeWorkflows || p === "workflows";
+
+    const fnWaiting =
+      (status === "idle" && !!windowRange && p === "idle") ||
+      (status === "success" && p === "idle" && !!windowRange);
+    const txWaiting =
+      (transformationsStatus === "idle" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations")) ||
+      (transformationsStatus === "success" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions"));
+    const wfWaiting =
+      (workflowsStatus === "idle" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations" || p === "workflows")) ||
+      (workflowsStatus === "success" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations"));
+    const exWaiting =
+      (extractorsStatus === "idle" &&
+        !!windowRange &&
+        (p === "idle" ||
+          p === "functions" ||
+          p === "transformations" ||
+          p === "workflows" ||
+          p === "extractors")) ||
+      (extractorsStatus === "success" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations" || p === "workflows"));
+
+    const bandFn = () => {
+      if (status === "loading")
+        return functionLoadProgress ? formatProcessingBandCaption(t, functionLoadProgress) : loading;
+      if (status === "error") return err;
+      if (fnWaiting) return wait;
+      if (runs.length === 0) return empty;
+      return "";
+    };
+    const bandTx = () => {
+      if (transformationsStatus === "loading")
+        return transformationLoadProgress
+          ? formatProcessingBandCaption(t, transformationLoadProgress)
+          : loading;
+      if (transformationsStatus === "error") return err;
+      if (txWaiting) return wait;
+      if (filteredTransformationJobs.length === 0) return empty;
+      return "";
+    };
+    const bandWf = () => {
+      if (workflowsStatus === "loading")
+        return workflowLoadProgress
+          ? formatProcessingBandCaption(t, workflowLoadProgress)
+          : loading;
+      if (workflowsStatus === "error") return err;
+      if (wfWaiting) return wait;
+      if (filteredWorkflowExecutions.length === 0) return empty;
+      return "";
+    };
+    const bandEx = () => {
+      if (extractorsStatus === "loading")
+        return extractorLoadProgress
+          ? formatProcessingBandCaption(t, extractorLoadProgress)
+          : loading;
+      if (extractorsStatus === "error") return err;
+      if (exWaiting) return wait;
+      if (filteredExtractorRuns.length === 0) return empty;
+      return "";
+    };
+
+    const fnHeader =
+      status !== "success" || (status === "success" && p === "idle" && !!windowRange);
+    const txHeader =
+      transformationsStatus !== "success" ||
+      (transformationsStatus === "success" && beforeTransformations);
+    const wfHeader =
+      workflowsStatus !== "success" || (workflowsStatus === "success" && beforeWorkflows);
+    const exHeader =
+      extractorsStatus !== "success" || (extractorsStatus === "success" && beforeExtractors);
+
+    return {
+      band: {
+        functions: bandFn(),
+        transformations: bandTx(),
+        workflows: bandWf(),
+        extractors: bandEx(),
+      },
+      waiting: { functions: fnWaiting, transformations: txWaiting, workflows: wfWaiting, extractors: exWaiting },
+      headerRow: { functions: fnHeader, transformations: txHeader, workflows: wfHeader, extractors: exHeader },
+      waitLabel: wait,
+    };
+  }, [
+    t,
+    concurrencyDiagramPhase,
+    windowRange,
+    status,
+    functionLoadProgress,
+    transformationsStatus,
+    transformationLoadProgress,
+    filteredTransformationJobs.length,
+    workflowsStatus,
+    workflowLoadProgress,
+    filteredWorkflowExecutions.length,
+    extractorsStatus,
+    extractorLoadProgress,
+    filteredExtractorRuns.length,
+    runs.length,
+  ]);
+
   const visibleParallelSeries = visibleSeries.functions ? parallelSeries : [];
   const visibleTransformationSeries = visibleSeries.transformations ? transformationSeries : [];
   const visibleWorkflowSeries = visibleSeries.workflows ? workflowSeries : [];
@@ -886,16 +1004,18 @@ export function Processing() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {status !== "success" ||
-          transformationsStatus !== "success" ||
-          workflowsStatus !== "success" ||
-          extractorsStatus !== "success" ? (
+          {diagramConcurrencyUi.headerRow.functions ||
+          diagramConcurrencyUi.headerRow.transformations ||
+          diagramConcurrencyUi.headerRow.workflows ||
+          diagramConcurrencyUi.headerRow.extractors ? (
             <div className="mb-3 space-y-2 text-xs text-slate-600">
-              {status !== "success" ? (
+              {diagramConcurrencyUi.headerRow.functions ? (
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="w-28 shrink-0">{t("processing.legend.functions")}</span>
                   {status === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.functions ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
@@ -908,11 +1028,13 @@ export function Processing() {
                   )}
                 </div>
               ) : null}
-              {transformationsStatus !== "success" ? (
+              {diagramConcurrencyUi.headerRow.transformations ? (
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="w-28 shrink-0">{t("processing.legend.transformations")}</span>
                   {transformationsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.transformations ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
@@ -925,11 +1047,13 @@ export function Processing() {
                   )}
                 </div>
               ) : null}
-              {workflowsStatus !== "success" ? (
+              {diagramConcurrencyUi.headerRow.workflows ? (
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="w-28 shrink-0">{t("processing.legend.workflows")}</span>
                   {workflowsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.workflows ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
@@ -942,11 +1066,13 @@ export function Processing() {
                   )}
                 </div>
               ) : null}
-              {extractorsStatus !== "success" ? (
+              {diagramConcurrencyUi.headerRow.extractors ? (
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="w-28 shrink-0">{t("processing.legend.extractors")}</span>
                   {extractorsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.extractors ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
                     <>
                       <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
@@ -1127,48 +1253,7 @@ export function Processing() {
                     setSelectedWorkflowExecution(null);
                   }}
                   functionNameMap={functionNameMap}
-                  bandStatusLabels={{
-                    functions:
-                      status === "loading"
-                        ? functionLoadProgress
-                          ? formatProcessingBandCaption(t, functionLoadProgress)
-                          : t("processing.bubbles.loading")
-                        : status === "error"
-                          ? t("processing.status.error")
-                          : runs.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                    transformations:
-                      transformationsStatus === "loading"
-                        ? transformationLoadProgress
-                          ? formatProcessingBandCaption(t, transformationLoadProgress)
-                          : t("processing.bubbles.loading")
-                        : transformationsStatus === "error"
-                          ? t("processing.status.error")
-                          : filteredTransformationJobs.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                    workflows:
-                      workflowsStatus === "loading"
-                        ? workflowLoadProgress
-                          ? formatProcessingBandCaption(t, workflowLoadProgress)
-                          : t("processing.bubbles.loading")
-                        : workflowsStatus === "error"
-                          ? t("processing.status.error")
-                          : filteredWorkflowExecutions.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                    extractors:
-                      extractorsStatus === "loading"
-                        ? extractorLoadProgress
-                          ? formatProcessingBandCaption(t, extractorLoadProgress)
-                          : t("processing.bubbles.loading")
-                        : extractorsStatus === "error"
-                          ? t("processing.status.error")
-                          : filteredExtractorRuns.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                  }}
+                  bandStatusLabels={diagramConcurrencyUi.band}
                 />
               </div>
               <details className="mt-4 rounded-md border border-slate-200 bg-white text-xs text-slate-600">
