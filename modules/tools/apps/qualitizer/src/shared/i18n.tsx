@@ -149,6 +149,9 @@ const translations: Record<Language, Record<string, string>> = {
       "{failed} of {total} API requests failed after automatic retries ({percent}% failure rate). Charts use data that loaded successfully.",
     "processing.partial.detailLine": "{label}: {failed}/{total} failed ({percent}%)",
     "processing.partial.schedulesLabel": "Schedule data (heatmap)",
+    "processing.filter.externalIdLabel": "External ID substring",
+    "processing.filter.externalIdLead":
+      "Matches function id, transformation id or name, workflow external id, extraction pipeline external id or name, and schedule ids/names in the heatmap.",
     "processing.loader.title": "Loading processing data",
     "processing.unknown.transformation": "Unknown transformation",
     "processing.legend.functions.title": "Function bubbles",
@@ -1146,6 +1149,9 @@ const translations: Record<Language, Record<string, string>> = {
       "自動再試行後も {total} 件中 {failed} 件の API リクエストが失敗しました（失敗率 {percent}%）。読み込めたデータのみグラフに表示しています。",
     "processing.partial.detailLine": "{label}: {failed}/{total} 件失敗 ({percent}%)",
     "processing.partial.schedulesLabel": "スケジュール（ヒートマップ）",
+    "processing.filter.externalIdLabel": "外部 ID の部分一致",
+    "processing.filter.externalIdLead":
+      "関数 ID、変換 ID または名前、ワークフロー外部 ID、抽出パイプラインの外部 ID または名前、ヒートマップのスケジュール ID／名前に一致します。",
     "processing.loader.title": "処理データを読み込み中",
     "processing.unknown.transformation": "不明な変換",
     "processing.legend.functions.title": "関数バブル",
