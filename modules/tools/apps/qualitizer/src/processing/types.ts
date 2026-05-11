@@ -1,5 +1,11 @@
 export type LoadState = "idle" | "loading" | "success" | "error";
 
+/** Counts of retried API sub-requests; used when some calls fail but partial data is shown. */
+export type ProcessingRequestStats = {
+  failed: number;
+  total: number;
+};
+
 /** Granular progress while a processing data hook is in the loading state. */
 export type ProcessingDataLoadProgress = {
   kind:

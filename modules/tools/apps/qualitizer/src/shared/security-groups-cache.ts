@@ -1,5 +1,6 @@
 import type { CogniteClient } from "@cognite/sdk";
 import { LRUCache } from "lru-cache";
+import { isAppCachingEnabled } from "@/shared/app-caching-flag";
 
 export type SecurityGroupListItem = {
   id: number;
@@ -24,6 +25,9 @@ export async function cachedSecurityGroupsList(
   sdkForProject: CogniteClient,
   projectUrlName: string
 ): Promise<SecurityGroupListItem[]> {
+  if (!isAppCachingEnabled()) {
+    return (await sdkForProject.groups.list({ all: true })) as SecurityGroupListItem[];
+  }
   const key = listKey(projectUrlName);
   const hit = groupsListCache.get(key);
   if (hit) return hit;

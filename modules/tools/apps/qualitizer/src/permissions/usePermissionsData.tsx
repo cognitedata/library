@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { normalizeCapability } from "@/shared/permissions-utils";
 import { cachedSecurityGroupsList } from "@/shared/security-groups-cache";
 import { useI18n } from "@/shared/i18n";
+import { listAllCachedSpaces } from "@/shared/spaces-cache";
 import type {
   DataSetSummary,
   GroupSummary,
@@ -53,24 +54,14 @@ export function usePermissionsData({ isDuneLoading, sdk }: UsePermissionsDataArg
         )) as { data?: { items?: DataSetSummary[] } };
         if (cancelled) return;
         setLoadingDetail(t("permissions.loadingDetail.spacesStarting"));
-        const spaceItems: SpaceSummary[] = [];
-        let spaceCursor: string | undefined;
-        let spacePage = 0;
-        do {
-          const spaceResponse = await sdk.spaces.list({
-            includeGlobal: true,
-            limit: 100,
-            cursor: spaceCursor,
-          }) as { items?: SpaceSummary[]; nextCursor?: string | null };
-          spaceItems.push(...(spaceResponse.items ?? []));
-          spaceCursor = spaceResponse.nextCursor ?? undefined;
-          spacePage += 1;
-          if (!cancelled) {
-            setLoadingDetail(
-              t("permissions.loadingDetail.spaces", { count: spaceItems.length, page: spacePage })
-            );
-          }
-        } while (spaceCursor);
+        const spaceItems = (await listAllCachedSpaces(
+          sdk as unknown as CogniteClient,
+          { includeGlobal: true },
+          { pageLimit: 100 }
+        )) as SpaceSummary[];
+        if (!cancelled) {
+          setLoadingDetail(t("permissions.loadingDetail.spaces", { count: spaceItems.length, page: 1 }));
+        }
         const datasets = (datasetResponse.data?.items ?? []) as DataSetSummary[];
         const datasetMap = new Map<number, DataSetSummary>(datasets.map((ds) => [ds.id, ds]));
 

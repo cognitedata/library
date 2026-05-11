@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
-import type { LoadState, ProcessingDataLoadProgress, WorkflowExecutionSummary } from "./types";
+import type {
+  LoadState,
+  ProcessingDataLoadProgress,
+  ProcessingRequestStats,
+  WorkflowExecutionSummary,
+} from "./types";
 import { useI18n } from "@/shared/i18n";
+import { withTransientRetries } from "@/shared/transient-http-retry";
 
 type WorkflowExecutionsListApiResponse = {
   data?: {
@@ -18,9 +24,15 @@ type UseWorkflowDataArgs = {
   isSdkLoading: boolean;
   sdk: { project: string; post: Function; get: Function };
   windowRange: { start: number; end: number } | null;
+  fetchEnabled?: boolean;
 };
 
-export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowDataArgs) {
+export function useWorkflowData({
+  isSdkLoading,
+  sdk,
+  windowRange,
+  fetchEnabled = true,
+}: UseWorkflowDataArgs) {
   const { t } = useI18n();
   const [workflowsStatus, setWorkflowsStatus] = useState<LoadState>("idle");
   const [workflowsError, setWorkflowsError] = useState<string | null>(null);
@@ -29,27 +41,42 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
   const [workflowDetailsStatus, setWorkflowDetailsStatus] = useState<LoadState>("idle");
   const [workflowDetailsError, setWorkflowDetailsError] = useState<string | null>(null);
   const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
+  const [requestStats, setRequestStats] = useState<ProcessingRequestStats | null>(null);
+
+  useLayoutEffect(() => {
+    if (!fetchEnabled || isSdkLoading) return;
+    setWorkflowsStatus("loading");
+  }, [fetchEnabled, isSdkLoading]);
 
   useEffect(() => {
+    if (!fetchEnabled) return;
     if (isSdkLoading) return;
     let cancelled = false;
     const loadWorkflows = async () => {
       setWorkflowsStatus("loading");
       setWorkflowsError(null);
+      setRequestStats(null);
       setWorkflowExecutionsAll([]);
       setLoadProgress({ kind: "workflows_executions", loaded: 0 });
       try {
         const executions: WorkflowExecutionSummary[] = [];
         let cursor: string | undefined;
+        let failedRequests = 0;
+        let totalRequests = 0;
         do {
-          const response = (await sdk.post(
-            `/api/v1/projects/${sdk.project}/workflows/executions/list`,
-            {
-              data: { limit: 1000, cursor },
-            }
-          )) as WorkflowExecutionsListApiResponse;
-          executions.push(...(response.data?.items ?? []));
-          cursor = response.data?.nextCursor ?? undefined;
+          totalRequests++;
+          try {
+            const response = (await withTransientRetries(() =>
+              sdk.post(`/api/v1/projects/${sdk.project}/workflows/executions/list`, {
+                data: { limit: 1000, cursor },
+              })
+            )) as WorkflowExecutionsListApiResponse;
+            executions.push(...(response.data?.items ?? []));
+            cursor = response.data?.nextCursor ?? undefined;
+          } catch {
+            failedRequests++;
+            break;
+          }
           if (!cancelled) {
             setLoadProgress({ kind: "workflows_executions", loaded: executions.length });
           }
@@ -58,11 +85,15 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
         if (!cancelled) {
           setWorkflowExecutionsAll(executions);
           setLoadProgress(null);
+          if (failedRequests > 0) {
+            setRequestStats({ failed: failedRequests, total: totalRequests });
+          }
           setWorkflowsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
           setLoadProgress(null);
+          setRequestStats(null);
           setWorkflowsError(error instanceof Error ? error.message : t("processing.error.workflows"));
           setWorkflowsStatus("error");
         }
@@ -73,7 +104,7 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, t]);
+  }, [fetchEnabled, isSdkLoading, sdk, t]);
 
   const filteredWorkflowExecutions = useMemo(() => {
     if (!windowRange) return [];
@@ -115,8 +146,8 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
     setWorkflowDetailsError(null);
     setWorkflowDetails(null);
     try {
-      const response = (await sdk.get(
-        `/api/v1/projects/${sdk.project}/workflows/executions/${executionId}`
+      const response = (await withTransientRetries(() =>
+        sdk.get(`/api/v1/projects/${sdk.project}/workflows/executions/${executionId}`)
       )) as WorkflowExecutionDetailApiResponse;
       setWorkflowDetails(response.data ?? null);
       setWorkflowDetailsStatus("success");
@@ -137,6 +168,7 @@ export function useWorkflowData({ isSdkLoading, sdk, windowRange }: UseWorkflowD
   return {
     workflowsStatus,
     loadProgress,
+    requestStats,
     workflowsError,
     workflowExecutionsAll,
     filteredWorkflowExecutions,

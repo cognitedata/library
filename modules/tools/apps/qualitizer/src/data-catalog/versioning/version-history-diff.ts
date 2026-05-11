@@ -1,6 +1,35 @@
 import type { DmVersionSnapshot, PropChange, TransitionDiff, ViewRef, ViewVersionDiff } from "./version-history-types";
 import { truncJson } from "./version-history-utils";
 
+/**
+ * Semantic line from explainViewRefDelta / humanizeViewPropertyChange when the same view
+ * (space + externalId) is referenced but only the checksum-style version identifier changed, e.g.
+ * `reportingSite: Pump (mySpace): abc12 → def34` or `Pump (mySpace): abc12 → def34`.
+ */
+const VIEW_REF_VERSION_BUMP_LINE =
+  /^(?:(.+):\s+)?([^\s(]+)\s+\(([^)]+)\):\s+(.+?)\s+→\s+(.+)$/;
+
+export function isViewRefVersionBumpSemanticLine(line: string): boolean {
+  return VIEW_REF_VERSION_BUMP_LINE.test(line.trim());
+}
+
+/** True when the only detected edits are nested view `source` refs whose checksum-style version string changed (same space + externalId). */
+export function viewVersionDiffIsChecksumOnlyNestedViewRefs(diff: ViewVersionDiff | null | undefined): boolean {
+  if (!diff) return false;
+  if (diff.filterChanged) return false;
+  if (diff.metaChanges.length > 0) return false;
+  if (diff.propChanges.length === 0) return false;
+  for (const pc of diff.propChanges) {
+    if (pc.kind !== "modify") return false;
+    const lines = pc.semanticLines;
+    if (!lines || lines.length === 0) return false;
+    for (const ln of lines) {
+      if (!isViewRefVersionBumpSemanticLine(ln)) return false;
+    }
+  }
+  return true;
+}
+
 export function parseViewsArray(views: unknown): ViewRef[] {
   if (!Array.isArray(views)) return [];
   const out: ViewRef[] = [];
