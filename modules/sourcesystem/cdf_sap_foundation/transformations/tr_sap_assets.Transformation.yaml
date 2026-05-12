@@ -1,0 +1,14 @@
+externalId: "tr_{{location}}_sap_assets"
+name: "tr:{{location}}:sap:assets"
+dataSetExternalId: "{{dataset}}"
+destination:
+  type: instances
+  dataModel:
+    space: "{{schemaSpace}}"
+    externalId: ISAAsset
+    version: "{{dataModelVersion}}"
+    destinationType: ISAAsset
+  instanceSpace: "{{instanceSpace}}"
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

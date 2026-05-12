@@ -3,14 +3,23 @@
 # Site/location code, used in externalIds (e.g. ep_{{location}}_pi)
 location: "site1"
 
-# DM space where the extractor writes ExtractorTimeSeries instances (CDM destination)
+# DM space where ISATimeSeries instances are written
 instanceSpace: "sp_isa_instance_space"
+
+# Schema space for ISA Manufacturing Extension views (used by transformations)
+schemaSpace: "sp_isa_manufacturing"
+
+# Data model view version
+dataModelVersion: "v1"
 
 # dataSetExternalId for the extraction pipeline
 dataset: "ds_pi"
 
-# External ID prefix for PI tag timeseries instances (used by the extractor)
+# External ID prefix for PI tag timeseries instances
 piIdPrefix: "pi:"
+
+# Set to false to omit sysTagsFound population (used by downstream SQL contextualization)
+populateSysTagsFound: true
 
 # Integration owner (technical contact for the pipeline)
 integration_owner_name: "Integration Owner"
