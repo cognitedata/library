@@ -6,16 +6,32 @@ location: "site1"
 # DM space where ISA Manufacturing Extension instances are written
 instanceSpace: "sp_isa_instance_space"
 
+# Schema space for ISA Manufacturing Extension views (used by transformations)
+schemaSpace: "sp_isa_manufacturing"
+
+# Data model view version
+dataModelVersion: "v1"
+
 # dataSetExternalId for the extraction pipeline and RAW database
 dataset: "ds_sap"
 
-# SAP plant code — used in OData filter expressions (e.g. MaintPlant eq '{{sapPlant}}')
+# SAP system label — used in external IDs and source naming
+sapSystem: s4hana
+
+# Single-plant deployment (default)
 sapPlant: "1000"
+
+# Multi-plant override — set a list to expand extraction per plant, e.g. ["1000","2000","3000"]
+# When non-empty this takes precedence over sapPlant
+sapPlants: []
 
 # Disable SSL verification for the SAP gateway connection.
 # Set to true ONLY if the SAP server uses a self-signed certificate that is
 # not trusted by the extractor host.
 sapDisableSsl: false
+
+# Set to false to omit sysTagsFound population on MaintenanceOrder instances
+populateSysTagsFound: true
 
 # Integration owner (technical contact for the pipeline)
 integration_owner_name: "Integration Owner"
