@@ -1,2 +1,4 @@
-# No user-configurable variables required for this module.
-# The solution model spaces and data model are fixed as part of the Maintain CDM quickstart.
+# Space where the Maintain solution data model (containers, views, data model) is deployed
+schemaSpace: maintain_solution_model
+# Space where source data instances are stored (must match schemaSpace in cdf_maintain_source_data_model)
+sourceDataSpace: maintain_source_data

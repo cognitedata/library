@@ -39,36 +39,46 @@ cdm_maintain_quickstart/
 ├── 📁 cdf_maintain_config_base/          # Base Maintain configuration
 │   ├── 📄 module.toml                    # Module metadata
 │   ├── 📄 default.config.yaml            # Configuration
-│   └── 📁 containers/                    # Data model containers (APM Config)
-│   └── 📁 dm/                            # Data models and spaces
-│   └── 📁 views/                         # Data model views
+│   └── 📁 data_modeling/
+│       ├── 📁 containers/                # Data model containers (APM Config)
+│       ├── 📁 views/                     # Data model views
+│       ├── 📄 *.Space.yaml               # Data model spaces
+│       └── 📄 *.DataModel.yaml           # Data models
 │
 ├── 📁 cdf_maintain_location/             # Location hierarchy setup
 │   ├── 📄 module.toml
 │   ├── 📄 default.config.yaml
-│   └── 📁 locations/                     # Location filters
-│   └── 📁 nodes/                         # Location nodes
+│   ├── 📁 locations/                     # Location filters
+│   └── 📁 data_modeling/
+│       └── 📁 nodes/                     # Location nodes
 │
 ├── 📁 cdf_maintain_solution_model/       # Maintain solution data model
 │   ├── 📄 module.toml
 │   ├── 📄 default.config.yaml
-│   ├── 📁 containers/                    # Solution model containers
-│   ├── 📁 dm/                            # Solution data models
-│   ├── 📁 views/                         # Solution views
-│   └── 📁 globalNodes/                   # Global node definitions
+│   └── 📁 data_modeling/
+│       ├── 📁 containers/                # Solution model containers
+│       ├── 📁 views/                     # Solution views
+│       ├── 📁 nodes/                     # Global node definitions
+│       ├── 📄 *.Space.yaml               # Solution spaces
+│       └── 📄 *.DataModel.yaml           # Solution data models
 │
 ├── 📁 cdf_maintain_source_data_model/    # Source system data model
 │   ├── 📄 module.toml
 │   ├── 📄 default.config.yaml
-│   ├── 📁 containers/                    # Source containers
-│   ├── 📁 dm/                            # Source data models
-│   └── 📁 views/                         # Source views
+│   └── 📁 data_modeling/
+│       ├── 📁 containers/                # Source containers
+│       ├── 📁 views/                     # Source views
+│       ├── 📄 *.Space.yaml               # Source spaces
+│       └── 📄 *.DataModel.yaml           # Source data models
 │
 └── 📁 cdf_sample_data/                   # Sample data for validation
     ├── 📄 module.toml
     ├── 📄 default.config.yaml
-    ├── 📁 data_modeling/                 # Sample maintenance records
-    └── 📁 files/                         # Sample attachments
+    ├── 📁 data_modeling/
+    │   └── 📁 nodes/                     # Sample maintenance records
+    └── 📁 upload_data/                   # Files uploaded via `cdf upload` command
+        ├── 📄 *.Manifest.yaml            # Upload manifests
+        └── 📁 files/                     # Sample attachments
 ```
 
 ## 🚀 Core Components
@@ -100,27 +110,25 @@ Template for integrating source system data:
 ### 5. Sample Data
 Ready-to-load sample records to validate your setup:
 - **Sample activities and assets**
-- **Test documents and attachments**
+- **Test documents and attachments** (uploaded via `cdf upload` command)
 
 ## 🔧 Configuration
 
 ### Module Configuration (`default.config.yaml`)
 
-```yaml
-# Data Model Configuration
-schemaSpace: sp_maintain_quickstart
-instanceSpace: maintain_instances
-dataset: maintain
+Each module's `default.config.yaml` declares the variables used by that module. The toolkit uses these to auto-populate your `config.<env>.yaml` when you download the modules from the library.
 
-# Naming
-organization: CDM
-```
-
-Each module includes its own `default.config.yaml` that you should customize for your environment:
-- `schemaSpace`: Where data models are deployed
-- `instanceSpace`: Where instances are stored
-- `dataset`: CDF dataset for all data
-- `organization`: Prefix for your organization's naming
+| Module | Variable | Default | Description |
+|---|---|---|---|
+| `cdf_maintain_solution_model` | `schemaSpace` | `maintain_solution_model` | Space for the solution data model |
+| `cdf_maintain_solution_model` | `sourceDataSpace` | `maintain_source_data` | Source data space (cross-module ref) |
+| `cdf_maintain_source_data_model` | `schemaSpace` | `maintain_source_data` | Space for the source data model |
+| `cdf_maintain_location` | `location` | *(required)* | LocationFilter externalId |
+| `cdf_maintain_location` | `location_name` | *(required)* | Display name shown in the app |
+| `cdf_maintain_location` | `appDataSpace` | `maintain_solution_model` | Solution model space (cross-module ref) |
+| `cdf_maintain_location` | `sourceDataSpace` | `maintain_source_data` | Source data space (cross-module ref) |
+| `cdf_sample_data` | `instanceSpace` | `maintain_source_data` | Space where sample instances are written |
+| `cdf_sample_data` | `location` | *(required)* | Root asset externalId prefix (must match `cdf_maintain_location`) |
 
 ## 🏃‍♂️ Getting Started
 
@@ -131,6 +139,11 @@ Each module includes its own `default.config.yaml` that you should customize for
   - Data model deployment
   - Instance creation
   - File uploads (for sample data)
+- `data` plugin enabled in `cdf.toml` (required for `cdf upload` to upload sample files):
+  ```toml
+  [plugins]
+  data = true
+  ```
 
 ### 2. Configure the Package
 
@@ -139,27 +152,24 @@ Update your environment config with module variables:
 ```yaml
 variables:
   modules:
-    cdf_maintain_config_base:
-      schemaSpace: sp_maintain_quickstart
-      instanceSpace: maintain_instances
-      dataset: maintain
-    cdf_maintain_location:
-      schemaSpace: sp_maintain_quickstart
-      instanceSpace: maintain_instances
     cdf_maintain_solution_model:
-      schemaSpace: sp_maintain_quickstart
-      instanceSpace: maintain_instances
+      schemaSpace: maintain_solution_model
+      sourceDataSpace: maintain_source_data
     cdf_maintain_source_data_model:
-      schemaSpace: sp_maintain_quickstart
-      instanceSpace: maintain_instances
+      schemaSpace: maintain_source_data
+    cdf_maintain_location:
+      location: <your_location_id>
+      location_name: <Your Location Name>
+      appDataSpace: maintain_solution_model
+      sourceDataSpace: maintain_source_data
     cdf_sample_data:
-      dataset: maintain
-      instanceSpace: maintain_instances
+      instanceSpace: maintain_source_data
+      location: <your_location_id>
 ```
 
 ### 3. Deploy the Package
 
-Deploy using the CDF Toolkit. See [CDF Toolkit Usage Guide](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/usage) for deployment instructions.
+Deploy using the Cognite Toolkit. See [Cognite Toolkit Usage Guide](https://docs.cognite.com/cdf/deploy/cdf_toolkit/guides/usage) for deployment instructions.
 
 ## 🔧 Customization
 
@@ -168,7 +178,7 @@ Deploy using the CDF Toolkit. See [CDF Toolkit Usage Guide](https://docs.cognite
 Add new work order properties by editing `cdf_maintain_solution_model`:
 
 ```yaml
-# In views/data_modeling/MaintainWorkOrder.View.yaml
+# In cdf_maintain_solution_model/data_modeling/views/MaintainWorkOrder.View.yaml
 properties:
   - name: customField
     type: TEXT
@@ -180,7 +190,7 @@ properties:
 Extend `cdf_sample_data` with your own records:
 
 ```yaml
-# In data_modeling/your_records.Node.yaml
+# In cdf_sample_data/data_modeling/nodes/your_records.Node.yaml
 externalId: custom_asset_01
 data:
   name: Custom Asset

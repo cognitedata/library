@@ -2,3 +2,7 @@
 location: <change_me>
 # Human-readable display name of the location shown in the app
 location_name: <change_me>
+# Space for the solution data model (must match schemaSpace in cdf_maintain_solution_model)
+appDataSpace: maintain_solution_model
+# Space for the source data model (must match schemaSpace in cdf_maintain_source_data_model)
+sourceDataSpace: maintain_source_data

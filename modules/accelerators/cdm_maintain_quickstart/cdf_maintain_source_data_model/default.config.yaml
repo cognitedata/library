@@ -1,2 +1,2 @@
-# No user-configurable variables required for this module.
-# The source data model space and container are fixed as part of the Maintain CDM quickstart.
+# Space where the source data model (containers, views, data model) is deployed
+schemaSpace: maintain_source_data

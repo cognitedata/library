@@ -1,12 +1,12 @@
 externalId: "{{location}}"
 name: "{{location_name}}"
 dataModels:
-  - space: maintain_solution_model
+  - space: {{appDataSpace}}
     externalId: Maintain
     version: v1
-  - space: maintain_source_data
+  - space: {{sourceDataSpace}}
     externalId: MaintainSource
     version: v1
 instanceSpaces:
-  - maintain_solution_model
-  - maintain_source_data
+  - {{appDataSpace}}
+  - {{sourceDataSpace}}

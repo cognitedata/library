@@ -1,3 +1,4 @@
-# No user-configurable variables required for this module.
-# Sample data uses the same fixed spaces as the rest of the Maintain CDM quickstart.
-# Disable this module in production deployments — it is for demo/testing purposes only.
+# Space where sample data instances are written (must match schemaSpace in cdf_maintain_source_data_model)
+instanceSpace: maintain_source_data
+# Location identifier — must match the location variable in cdf_maintain_location
+location: <change_me>
