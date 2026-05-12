@@ -76,7 +76,7 @@ cdm_maintain_quickstart/
     ├── 📄 default.config.yaml
     ├── 📁 data_modeling/
     │   └── 📁 nodes/                     # Sample maintenance records
-    └── 📁 upload_data/                   # Files uploaded via `cdf upload` command
+    └── 📁 upload_data/                   # Files uploaded via `cdf data upload` command
         ├── 📄 *.Manifest.yaml            # Upload manifests
         └── 📁 files/                     # Sample attachments
 ```
@@ -110,7 +110,7 @@ Template for integrating source system data:
 ### 5. Sample Data
 Ready-to-load sample records to validate your setup:
 - **Sample activities and assets**
-- **Test documents and attachments** (uploaded via `cdf upload` command)
+- **Test documents and attachments** (uploaded via `cdf data upload` command, manifests in `upload_data/`)
 
 ## 🔧 Configuration
 
@@ -139,7 +139,7 @@ Each module's `default.config.yaml` declares the variables used by that module. 
   - Data model deployment
   - Instance creation
   - File uploads (for sample data)
-- `data` plugin enabled in `cdf.toml` (required for `cdf upload` to upload sample files):
+- `data` plugin enabled in `cdf.toml` (required for `cdf data upload` to upload sample files):
   ```toml
   [plugins]
   data = true
