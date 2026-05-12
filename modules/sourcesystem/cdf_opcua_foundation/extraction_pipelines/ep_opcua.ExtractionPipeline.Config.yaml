@@ -1,110 +1,198 @@
-externalId: "ep_{{location}}_opcua"
-
+externalId: '{{ep_id_prefix}}_extractor-pipeline'
+dataSetExternalId: {{dataset_external_id}}
 config:
-  # OPC-UA Extractor configuration template
-  # Source: gss-knowledge-base/extractors/toolkit_examples/opcua_extractor_speira_quickstart
-  #
-  # Environment variables required (set in extractor host environment):
-  #   OPCUA_ENDPOINT_URL   — OPC-UA server URL, e.g. opc.tcp://192.168.1.10:4840
-  #   OPCUA_USER           — OPC-UA server username (omit section if anonymous)
-  #   OPCUA_PASSWORD       — OPC-UA server password
-  #   COGNITE_PROJECT      — CDF project name
-  #   COGNITE_HOST         — CDF base URL, e.g. https://api.cognitedata.com
-  #   COGNITE_TENANT_ID    — IDP tenant ID
-  #   COGNITE_CLIENT_ID    — Service account client ID
-  #   COGNITE_CLIENT_SECRET — Service account client secret
-
   version: 1
-
-  logger:
-    console:
-      level: information
-    file:
-      level: information
-      path: "logs/log.log"
-      retention-limit: 31
-      rolling-interval: day
-
-  cognite:
-    project: ${COGNITE_PROJECT}
-    host: ${COGNITE_HOST}
-    idp-authentication:
-      tenant: ${COGNITE_TENANT_ID}
-      client-id: ${COGNITE_CLIENT_ID}
-      secret: ${COGNITE_CLIENT_SECRET}
-      scopes:
-        - ${COGNITE_HOST}/.default
-    extraction-pipeline:
-      external-id: "ep_{{location}}_opcua"
-
-  extraction:
-    # External ID prefix — all OPC-UA nodes will be created as "opcua:<node-id>" in CDF
-    id-prefix: "{{opcuaIdPrefix}}"
-
-    status-codes:
-      status-codes-to-ingest: GoodOnly
-      ingest-status-codes: false
-
-  # Write node metadata to RAW for transformation into ISATimeSeries DM instances
-  raw:
-    database: "db_{{location}}_opcua"
-    table: nodes
-    # Store the OPC-UA node id as a column for use in the transformation externalId
-    store-raw-metadata: true
-
-  # Dataset for timeseries resources
-  data-set:
-    external-id: "{{dataset}}"
-
   source:
-    endpoint-url: ${OPCUA_ENDPOINT_URL}
+    # Primary OPC-UA server endpoint. Replace host/port with your server.
+    endpoint-url: opc.tcp://opcua-server-primary.example.com:4840
+    # Optional redundant endpoints — used when the primary becomes unavailable
+    # or when monitor-service-level switches to a healthier server.
+    alt-endpoint-urls:
+    - opc.tcp://opcua-server-secondary.example.com:4840
+    redundancy:
+      service-level-threshold: 200
+      reconnect-interval: 10m
+      monitor-service-level: true
+    # Service account on the OPC-UA server with read access.
     username: ${OPCUA_USER}
     password: ${OPCUA_PASSWORD}
-    # Accept server certificate automatically (set to false and configure certificates for production)
-    auto-accept: true
+    secure: true
+    auto-accept: false
+    publishing-interval: 500
+    browse-nodes-chunk: 1000
+    browse-chunk: 1000
+    subscription-chunk: 500
+    attributes-chunk: 5000
+    keep-alive-interval: 60000
     browse-throttling:
-      max-per-minute: 200
-      max-parallelism: 3
-
+      max-per-minute: 60
+      max-parallelism: 1
+      max-node-parallelism: 0
+    retries:
+      timeout: 0
+      max-tries: 10
+      max-delay: 20s
+      initial-delay: 2s
+      retry-status-codes:
+      - 2150694912
+      - 2148007936
+      - 2150105088
+      - 2156199936
+  extraction:
+    # Prefix used for all CDF externalIds created from OPC-UA nodes.
+    id-prefix: "opcua_site1_"
+    # Map verbose OPC-UA namespace URIs to short prefixes used in node IDs.
+    # Replace the example URIs with the namespaces exposed by your server.
+    namespace-map:
+      http://opcfoundation.org/UA/: 'base:'
+      http://www.example.com/: 'c:'
+      http://www.example.com/Site1: 's1:'
+      http://www.example.com/Site2: 's2:'
+      http://www.OPCFoundation.org/UA/2013/01/ISA95: 'isa95:'
+    # Root node to start browsing from. Adjust namespace and node-id to your server.
+    root-node:
+      namespace-uri: "http://www.example.com/Site1"
+      node-id: "s=Site1.Root"
+    update:
+      objects:
+        name: true
+        description: true
+        context: true
+        metadata: true
+      variables:
+        name: true
+        description: true
+        context: true
+        metadata: true
+    deletes:
+      enabled: true
+      delete-marker: "deleted"
+    status-codes:
+      status-codes-to-ingest: All
+      ingest-status-codes: true
+    data-types:
+      allow-string-variables: true
+      auto-identify-types: true
+      data-type-metadata: true
+      expand-node-ids: true
+      append-internal-values: true
+    node-types:
+      metadata: true
+    # Re-browse the server tree daily at 22:10 to pick up new/removed nodes.
+    auto-rebrowse-period: 10 22 * * *
   subscriptions:
-    publishing-interval: {{opcuaPublishingInterval}}
-    sampling-interval: {{opcuaSamplingInterval}}
+    sampling-interval: 0
+    queue-length: 20
+    data-points: true
+    events: true
+    log-bad-values: true
+    data-change-filter:
+      trigger: "StatusValueTimestamp"
+  events:
+    enabled: true
+    history: true
+    discover-emitters: false
+    read-server: false
+    # Emit events from the server root node. Replace with site-specific emitter
+    # node IDs if your server exposes dedicated event sources.
+    emitter-ids:
+    - namespace-uri: "http://www.example.com/Site1"
+      node-id: "i=0"
+    historizing-emitter-ids:
+    - namespace-uri: "http://www.example.com/Site1"
+      node-id: "i=0"
+  history:
+    error-threshold: 100
+    enabled: true
+    restart-period: 0 */6 * * *
+    data: true
+    backfill: false
+    data-chunk: 1000
+    data-nodes-chunk: 1000
+    event-chunk: 0
+    event-nodes-chunk: 10
+    start-time: 30d-ago
+    end-time: 1d
+    throttling:
+      max-per-minute: 8000
+      max-parallelism: 1
+      max-node-parallelism: 0
+  state-storage:
+    location: '{{raw_db_name_prefix}}_opcua_site1'
+    database: Raw
+    variable-store: state-store-variables
+    event-store: state-store-events
+    interval: 10
+  cognite:
+    cdf-throttling:
+      time-series: 5
+      assets: 10
+      # Tune these down from defaults if you see HTTP 429 responses from CDF.
+      data-points: 5
+      raw: 5
+      ranges: 10
+      events: 1
+    cdf-retries:
+      max-retries: 10
+      max-delay: 20000
+    cdf-chunking:
+      time-series: 500
+      assets: 500
+      data-point-time-series: 5000
+      data-point-delete: 5000
+      data-point-list: 50
+      data-points: 50000
+      raw-rows: 5000
+      events: 500
+    sdk-logging:
+      disable: false
+      level: information
+    read-extracted-ranges: true
+    data-set:
+      external-id: '{{dataset_external_id}}'
+    metadata-targets:
+      clean:
+        assets: true
+        timeseries: true
+        relationships: true
+        space: '{{instance_space}}'
+        source: "OPCUA"
 
-  # IMPORTANT: Node filters MUST be configured before production use.
-  # Without filters the extractor browses the full OPC-UA server tree.
-  # Ask the site OPC-UA administrator for the correct node IDs or browse paths.
-  #
-  # Example: include specific Object nodes by name, then include Variable nodes of interest
-  # Uncomment and adapt the block below:
-  #
-  # extraction:
-  #   transformations:
-  #     # Step 1 — include the root object nodes that contain your data
-  #     - type: Include
-  #       filter:
-  #         node-class: Object
-  #         name:
-  #           - "Objects"
-  #           - "Site_Area_1"
-  #           - "Site_Area_2"
-  #     # Step 2 — include only the Variable nodes you need (sensors, measurements)
-  #     - type: Include
-  #       filter:
-  #         node-class: Variable
-  #         name:
-  #           - "Temperature_Tag_1"
-  #           - "Pressure_Tag_2"
-  #     # Step 3 — optionally exclude noisy or irrelevant nodes
-  #     - type: Ignore
-  #       filter:
-  #         node-class: Variable
-  #         name:
-  #           - "InternalDiagnostic_*"
-
-  # History backfill (disabled by default — enable for initial data load)
-  # history:
-  #   enabled: true
-  #   start-time: "2024-01-01T00:00:00Z"
-  #   throttling:
-  #     max-per-minute: 200
-  #     max-parallelism: 3
+      raw:
+        database: '{{raw_db_name_prefix}}_opcua_site1'
+        assets-table: 'assets'
+        timeseries-table: 'timeseries'
+        relationships-table: 'relationships'
+    raw-node-buffer:
+      enable: true
+      database: '{{raw_db_name_prefix}}_opcua_site1'
+      assets-table: 'assets'
+      timeseries-table: 'timeseries'
+      browse-on-empty: true
+    metadata-mapping:
+      timeseries:
+        "EngineeringUnits": "unit"
+  logger:
+    console:
+      level: debug
+    file:
+      level: information
+      path: logs/opcua_log.txt
+      retention-limit: 336
+      rolling-interval: hour
+    ua-trace-level: info
+    trace-listener:
+      level: info
+  failure-buffer:
+    enabled: true
+    datapoint-path: buffer.bin
+    event-path: "buffer-events.bin"
+    # 10 GB local buffer for datapoints + events when CDF is unreachable.
+    max-buffer-size: 10000000000
+  metrics:
+    # Optional Prometheus push-gateway for extractor metrics.
+    push-gateways:
+    - host: https://opcua-pushgw.example.com/
+      job: '{{prometheus-job-name}}'
+      username: ${PROMETHEUS_USER}
+      password: ${PROMETHEUS_PASSWORD}

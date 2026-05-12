@@ -1,21 +1,135 @@
-externalId: "ep_{{location}}_opcua"
-name: "ep:{{location}}:opcua"
-dataSetExternalId: "{{dataset}}"
-description: "OPC-UA Extractor pipeline for site {{location}} — writes node metadata to RAW for transformation into ISATimeSeries DM instances"
+externalId: '{{ep_id_prefix}}_extractor-pipeline'
+name: '{{ep_name_prefix}}_extractor-pipeline'
+dataSetExternalId: {{dataset_external_id}}
+description: Extraction pipeline for an OPC-UA data source.
+# RAW tables used by the OPC-UA extractor for staging and state storage.
+# These names align with the database/table references in
+# ep_opcua.ExtractionPipeline.Config.yaml (raw-node-buffer, metadata-targets.raw,
+# and state-storage). Update the suffix per site if you run multiple pipelines.
 rawTables:
-  - dbName: "db_{{location}}_opcua"
-    tableName: "nodes"
-source: OPC-UA
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: assets
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: timeseries
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: relationships
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: known_objects
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: known_references
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: known_variables
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: state-store-variables
+- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+  tableName: state-store-events
 schedule: Continuous
+contacts:
+- name: {{integration_owner_name}}
+  email: {{integration_owner_email}}
+  role: Owner
+  sendNotification: {{send-notifications}}
+- name: Cognite Support
+  email: {{cognite-support}}
+  role: Operational Owner
+  sendNotification: {{send-notifications}}
+- name: {{data_owner_name}}
+  email: {{data_owner_email}}
+  role: Data Owner
+  sendNotification: {{send-notifications}}
 notificationConfig:
-  allowedNotSeenRangeInMinutes: 720
-documentation: >
-  Extraction pipeline for OPC-UA node metadata at site {{location}}.
-  The OPC-UA Extractor writes timeseries values directly to CDF and
-  node metadata (name, description, data type, engineering unit) to RAW table
-  db_{{location}}_opcua.nodes. The transformation tr_{{location}}_opcua_timeseries
-  then maps that metadata to ISATimeSeries DM view instances in {{instanceSpace}}.
+  allowedNotSeenRangeInMinutes: 30
+source: {{source}}
+createdBy: {{origin}}
+documentation: |
+  ## OPC-UA extraction pipeline
 
-  IMPORTANT: Configure node filters in the extractor config (ep_opcua.ExtractionPipeline.Config.yaml)
-  before running in production. Without filters the extractor browses the full OPC-UA server tree,
-  which may be very large and cause slow or incomplete extractions.
+  This extraction pipeline reads data from an OPC-UA server and writes Assets,
+  Timeseries, Events, and Relationships to CDF. The runtime configuration lives
+  in `ep_opcua.ExtractionPipeline.Config.yaml` and is fetched by the extractor
+  using its `pipeline-id`.
+
+  ### Endpoints (example — replace with your server addresses)
+
+  * Primary  : `opc.tcp://opcua-server-primary.example.com:4840`
+  * Secondary: `opc.tcp://opcua-server-secondary.example.com:4840`
+
+  ### Required environment variables on the extractor host
+
+  | Variable                | Purpose                                  |
+  | ----------------------- | ---------------------------------------- |
+  | `COGNITE_PROJECT`       | CDF project name                         |
+  | `COGNITE_HOST`          | CDF base URL                             |
+  | `COGNITE_TENANT_ID`     | IdP tenant ID                            |
+  | `COGNITE_CLIENT_ID`     | Service account client ID                |
+  | `COGNITE_CLIENT_SECRET` | Service account client secret            |
+  | `OPCUA_USER`            | OPC-UA server username (omit if anonymous) |
+  | `OPCUA_PASSWORD`        | OPC-UA server password                   |
+  | `PROMETHEUS_USER`       | (optional) Push-gateway username         |
+  | `PROMETHEUS_PASSWORD`   | (optional) Push-gateway password         |
+
+  ### Install the OPC-UA extractor
+
+  1. **Download the installer** from Cognite Hub or Fusion (Extractors page).
+  2. **Install on the extractor host**, e.g. `C:\Cognite\OPCUA\` on Windows or
+     `/opt/cognite/opcua/` on Linux. Follow the README that ships with the
+     installer to create a service.
+  3. **Point the extractor at this pipeline** by giving it a minimal local
+     `config.yml` containing only credentials and the pipeline ID:
+
+     ```yaml
+     version: 1
+     type: remote
+     cognite:
+       project: ${COGNITE_PROJECT}
+       host: ${COGNITE_HOST}
+       idp-authentication:
+         tenant: ${COGNITE_TENANT_ID}
+         client-id: ${COGNITE_CLIENT_ID}
+         secret: ${COGNITE_CLIENT_SECRET}
+         scopes:
+           - ${COGNITE_HOST}/.default
+       extraction-pipeline:
+         pipeline-id: {{ep_id_prefix}}_extractor-pipeline
+     ```
+
+     The full runtime configuration (source, extraction filters, history,
+     subscriptions, throttling, RAW targets, metrics, …) is delivered from this
+     extraction pipeline's remote config.
+
+  4. **Configure certificate storage** by editing
+     `config/opc.ua.net.extractor.Config.xml` so certificates are stored in a
+     known directory rather than the OS user store:
+
+     ```xml
+     <ApplicationCertificate>
+       <StoreType>Directory</StoreType>
+       <StorePath>./certificates/pki/app</StorePath>
+       <SubjectName>CN=Opcua-extractor, C=NO, S=Oslo, O=Cognite, DC=localhost</SubjectName>
+     </ApplicationCertificate>
+     ```
+
+  ### RAW tables written by this pipeline
+
+  | Table                    | Purpose                                                    |
+  | ------------------------ | ---------------------------------------------------------- |
+  | `assets`                 | Asset rows staged from OPC-UA Object nodes                 |
+  | `timeseries`             | Timeseries rows staged from OPC-UA Variable nodes          |
+  | `relationships`          | Relationship rows derived from OPC-UA references           |
+  | `known_objects`          | Browse cache of seen Object nodes                          |
+  | `known_references`       | Browse cache of seen References                            |
+  | `known_variables`        | Browse cache of seen Variable nodes                        |
+  | `state-store-variables`  | Extractor state for variable subscriptions / history       |
+  | `state-store-events`     | Extractor state for event subscriptions / history          |
+
+  ### Browse / rebrowse behaviour
+
+  * **Time-based rebrowse:** daily (configured via `auto-rebrowse-period`
+    in the runtime config).
+  * **Event-based rebrowse:** triggered by changes to *NamespacePublicationDate*
+    (where supported by the server).
+
+  ### References
+
+  * OPC-UA extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/opc_ua/>
+  * OPC-UA configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/opcua>
