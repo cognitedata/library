@@ -1,0 +1,110 @@
+externalId: "ep_{{location}}_opcua"
+
+config:
+  # OPC-UA Extractor configuration template
+  # Source: gss-knowledge-base/extractors/toolkit_examples/opcua_extractor_speira_quickstart
+  #
+  # Environment variables required (set in extractor host environment):
+  #   OPCUA_ENDPOINT_URL   — OPC-UA server URL, e.g. opc.tcp://192.168.1.10:4840
+  #   OPCUA_USER           — OPC-UA server username (omit section if anonymous)
+  #   OPCUA_PASSWORD       — OPC-UA server password
+  #   COGNITE_PROJECT      — CDF project name
+  #   COGNITE_HOST         — CDF base URL, e.g. https://api.cognitedata.com
+  #   COGNITE_TENANT_ID    — IDP tenant ID
+  #   COGNITE_CLIENT_ID    — Service account client ID
+  #   COGNITE_CLIENT_SECRET — Service account client secret
+
+  version: 1
+
+  logger:
+    console:
+      level: information
+    file:
+      level: information
+      path: "logs/log.log"
+      retention-limit: 31
+      rolling-interval: day
+
+  cognite:
+    project: ${COGNITE_PROJECT}
+    host: ${COGNITE_HOST}
+    idp-authentication:
+      tenant: ${COGNITE_TENANT_ID}
+      client-id: ${COGNITE_CLIENT_ID}
+      secret: ${COGNITE_CLIENT_SECRET}
+      scopes:
+        - ${COGNITE_HOST}/.default
+    extraction-pipeline:
+      external-id: "ep_{{location}}_opcua"
+
+  extraction:
+    # External ID prefix — all OPC-UA nodes will be created as "opcua:<node-id>" in CDF
+    id-prefix: "{{opcuaIdPrefix}}"
+
+    status-codes:
+      status-codes-to-ingest: GoodOnly
+      ingest-status-codes: false
+
+  # Write node metadata to RAW for transformation into ISATimeSeries DM instances
+  raw:
+    database: "db_{{location}}_opcua"
+    table: nodes
+    # Store the OPC-UA node id as a column for use in the transformation externalId
+    store-raw-metadata: true
+
+  # Dataset for timeseries resources
+  data-set:
+    external-id: "{{dataset}}"
+
+  source:
+    endpoint-url: ${OPCUA_ENDPOINT_URL}
+    username: ${OPCUA_USER}
+    password: ${OPCUA_PASSWORD}
+    # Accept server certificate automatically (set to false and configure certificates for production)
+    auto-accept: true
+    browse-throttling:
+      max-per-minute: 200
+      max-parallelism: 3
+
+  subscriptions:
+    publishing-interval: {{opcuaPublishingInterval}}
+    sampling-interval: {{opcuaSamplingInterval}}
+
+  # IMPORTANT: Node filters MUST be configured before production use.
+  # Without filters the extractor browses the full OPC-UA server tree.
+  # Ask the site OPC-UA administrator for the correct node IDs or browse paths.
+  #
+  # Example: include specific Object nodes by name, then include Variable nodes of interest
+  # Uncomment and adapt the block below:
+  #
+  # extraction:
+  #   transformations:
+  #     # Step 1 — include the root object nodes that contain your data
+  #     - type: Include
+  #       filter:
+  #         node-class: Object
+  #         name:
+  #           - "Objects"
+  #           - "Site_Area_1"
+  #           - "Site_Area_2"
+  #     # Step 2 — include only the Variable nodes you need (sensors, measurements)
+  #     - type: Include
+  #       filter:
+  #         node-class: Variable
+  #         name:
+  #           - "Temperature_Tag_1"
+  #           - "Pressure_Tag_2"
+  #     # Step 3 — optionally exclude noisy or irrelevant nodes
+  #     - type: Ignore
+  #       filter:
+  #         node-class: Variable
+  #         name:
+  #           - "InternalDiagnostic_*"
+
+  # History backfill (disabled by default — enable for initial data load)
+  # history:
+  #   enabled: true
+  #   start-time: "2024-01-01T00:00:00Z"
+  #   throttling:
+  #     max-per-minute: 200
+  #     max-parallelism: 3

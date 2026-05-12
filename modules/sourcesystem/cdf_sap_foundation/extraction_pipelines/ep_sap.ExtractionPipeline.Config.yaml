@@ -1,0 +1,158 @@
+externalId: "ep_{{location}}_sap"
+
+config:
+  # SAP OData Extractor configuration template
+  # Source: gss-knowledge-base/extractors/toolkit_examples/sap_odata_extractor_remote
+  #
+  # Environment variables required (set in extractor host environment):
+  #   SAP_GATEWAY_URL      — SAP NW Gateway base URL, e.g. https://sap-host:8000
+  #   SAP_SOURCE_NAME      — Unique label for this SAP source, e.g. s4hana_oslo
+  #   SAP_CLIENT           — SAP client number, e.g. 100
+  #   SAP_USERNAME         — SAP service account username
+  #   SAP_PASSWORD         — SAP service account password
+  #   COGNITE_PROJECT      — CDF project name
+  #   COGNITE_HOST         — CDF base URL, e.g. https://api.cognitedata.com
+  #   COGNITE_TENANT_ID    — IDP tenant ID
+  #   COGNITE_CLIENT_ID    — Service account client ID
+  #   COGNITE_CLIENT_SECRET — Service account client secret
+  #
+  # IMPORTANT: SAP OData service names (sap_service) and entity keys (sap_key) vary
+  # across SAP versions and NW Gateway configurations. Verify all service names and
+  # field names against your SAP landscape before deploying.
+
+  version: 1
+
+  logger:
+    console:
+      level: INFO
+    file:
+      level: INFO
+      path: logs/log.log
+      retention: 14
+
+  extractor:
+    mode: continuous
+    upload-queue-size: 50000
+    parallelism: 4
+    delta_padding_minutes: 1
+    chunk_size: 1000
+    state-store:
+      raw:
+        database: "db_{{location}}_sap"
+        table: state_store
+
+  cognite:
+    project: ${COGNITE_PROJECT}
+    host: ${COGNITE_HOST}
+    idp-authentication:
+      tenant: ${COGNITE_TENANT_ID}
+      client-id: ${COGNITE_CLIENT_ID}
+      secret: ${COGNITE_CLIENT_SECRET}
+      scopes:
+        - ${COGNITE_HOST}/.default
+    extraction-pipeline:
+      external-id: "ep_{{location}}_sap"
+
+  sap:
+    - type: odata
+      source_name: ${SAP_SOURCE_NAME}
+      gateway_url: ${SAP_GATEWAY_URL}
+      client: ${SAP_CLIENT}
+      username: ${SAP_USERNAME}
+      password: ${SAP_PASSWORD}
+      disable-ssl: false   # set to true only if SAP server uses self-signed certificate
+
+  endpoints:
+
+    ############################# FUNCTIONAL LOCATIONS #############################
+    - source_name: ${SAP_SOURCE_NAME}
+      name: "FunclocListSet - {{sapPlant}}"
+      destination:
+        type: raw
+        database: "db_{{location}}_sap"
+        table: functional_location
+      sap_service: ZGW_FUNCLOC_SRV          # verify service name in your SAP NW Gateway
+      sap_entity: FunclocListSet
+      sap_key: [Functlocation]
+      filter: "MaintPlant eq '{{sapPlant}}'"
+      pagination_type: "no-pagination"
+      schedule:
+        type: cron
+        expression: "0 1 * * 0"             # weekly Sunday 01:00 UTC
+
+    ############################# EQUIPMENT #############################
+    - source_name: ${SAP_SOURCE_NAME}
+      name: "EquipmentListSet - {{sapPlant}}"
+      destination:
+        type: raw
+        database: "db_{{location}}_sap"
+        table: equipment
+      sap_service: ZGW_GETEQIP_SRV          # verify service name in your SAP NW Gateway
+      sap_entity: EquipmentListSet
+      sap_key: [Equipment]
+      filter: "Maintplant eq '{{sapPlant}}'"
+      pagination_type: "no-pagination"
+      schedule:
+        type: cron
+        expression: "0 1 * * 0"             # weekly Sunday 01:00 UTC
+
+    ############################# WORK ORDERS #############################
+    - source_name: ${SAP_SOURCE_NAME}
+      name: "ExHeaderSet (Work Orders)"
+      destination:
+        type: raw
+        database: "db_{{location}}_sap"
+        table: workorder
+      sap_service: ZPM_ORDER_DATA_EXPORT_SRV  # verify service name in your SAP NW Gateway
+      sap_entity: ExHeaderSet
+      sap_key: [Equipment, OrderId]
+      pagination_type: "no-pagination"
+      schedule:
+        type: cron
+        expression: "0 2 * * *"             # daily 02:00 UTC
+
+    ############################# WORK PACKAGES (order list) #############################
+    - source_name: ${SAP_SOURCE_NAME}
+      name: "ExOlistSet (Work Packages)"
+      destination:
+        type: raw
+        database: "db_{{location}}_sap"
+        table: workpackage
+      sap_service: ZPM_ORDER_DATA_EXPORT_SRV
+      sap_entity: ExOlistSet
+      sap_key: [OrderId, Counter, FunctLoc]
+      pagination_type: "no-pagination"
+      schedule:
+        type: cron
+        expression: "0 2 * * *"             # daily 02:00 UTC
+
+    ############################# WORK TASKS (operations) #############################
+    - source_name: ${SAP_SOURCE_NAME}
+      name: "ExOperationsSet (Work Tasks)"
+      destination:
+        type: raw
+        database: "db_{{location}}_sap"
+        table: worktask
+      sap_service: ZPM_ORDER_DATA_EXPORT_SRV
+      sap_entity: ExOperationsSet
+      sap_key: [OrderId, Activity]
+      pagination_type: "no-pagination"
+      schedule:
+        type: cron
+        expression: "0 2 * * *"             # daily 02:00 UTC
+
+    ############################# NOTIFICATIONS #############################
+    - source_name: ${SAP_SOURCE_NAME}
+      name: "ExNotifheader (Notifications)"
+      destination:
+        type: raw
+        database: "db_{{location}}_sap"
+        table: workitem
+      sap_service: ZPM_NOTI_EXTRACT_DATA_SRV  # verify service name in your SAP NW Gateway
+      sap_entity: ExNotifheader
+      sap_key: [NotifNo]
+      filter: "Mainplant eq '{{sapPlant}}'"
+      pagination_type: "no-pagination"
+      schedule:
+        type: cron
+        expression: "0 2 * * *"             # daily 02:00 UTC

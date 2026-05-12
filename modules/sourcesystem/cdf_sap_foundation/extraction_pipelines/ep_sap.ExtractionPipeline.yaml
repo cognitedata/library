@@ -1,0 +1,32 @@
+externalId: "ep_{{location}}_sap"
+name: "ep:{{location}}:sap"
+dataSetExternalId: "{{dataset}}"
+description: "SAP OData Extractor pipeline for site {{location}} — single pipeline with multiple entity queries writing to RAW"
+rawTables:
+  - dbName: "db_{{location}}_sap"
+    tableName: "functional_location"
+  - dbName: "db_{{location}}_sap"
+    tableName: "equipment"
+  - dbName: "db_{{location}}_sap"
+    tableName: "workorder"
+  - dbName: "db_{{location}}_sap"
+    tableName: "workpackage"
+  - dbName: "db_{{location}}_sap"
+    tableName: "worktask"
+  - dbName: "db_{{location}}_sap"
+    tableName: "workitem"
+  - dbName: "db_{{location}}_sap"
+    tableName: "state_store"
+source: "SAP OData"
+schedule: Continuous
+notificationConfig:
+  allowedNotSeenRangeInMinutes: 120
+documentation: >
+  Single SAP OData extraction pipeline for site {{location}} covering all entity types:
+  functional locations, equipment, work orders, work packages, work tasks, and notifications.
+  All entities write to separate RAW tables in db_{{location}}_sap.
+  Six transformations then map each entity type to the ISA Manufacturing Extension data model.
+
+  SAP OData service names and entity keys vary across SAP versions and NW Gateway configurations.
+  Verify endpoint configuration in ep_sap.ExtractionPipeline.Config.yaml against your SAP landscape
+  before deploying.

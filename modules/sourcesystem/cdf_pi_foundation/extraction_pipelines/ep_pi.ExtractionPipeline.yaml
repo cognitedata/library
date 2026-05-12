@@ -1,0 +1,18 @@
+externalId: "ep_{{location}}_pi"
+name: "ep:{{location}}:pi"
+dataSetExternalId: "{{dataset}}"
+description: "PI .NET Extractor pipeline for site {{location}} — writes tag metadata to RAW for transformation into ISATimeSeries DM instances"
+rawTables:
+  - dbName: "db_{{location}}_pi"
+    tableName: "timeseries_metadata"
+source: PI
+schedule: Continuous
+notificationConfig:
+  allowedNotSeenRangeInMinutes: 720
+documentation: >
+  Extraction pipeline for PI tag metadata at site {{location}}.
+  The PI .NET Extractor writes timeseries values directly to CDF and
+  tag metadata (name, description, unit, engineering range) to RAW table
+  db_{{location}}_pi.timeseries_metadata. The transformation
+  tr_{{location}}_pi_timeseries then maps that metadata to ISATimeSeries
+  DM view instances in {{instanceSpace}}.

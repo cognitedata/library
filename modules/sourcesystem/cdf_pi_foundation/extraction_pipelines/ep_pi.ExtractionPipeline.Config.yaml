@@ -1,0 +1,76 @@
+externalId: "ep_{{location}}_pi"
+
+config:
+  # PI .NET Extractor configuration template
+  # Source: gss-knowledge-base/extractors/toolkit_examples/pi_net_extractor
+  #
+  # Environment variables required (set in extractor host environment):
+  #   PI_HOST              — PI Data Archive hostname or IP
+  #   PI_USER              — PI server username
+  #   PI_PASSWORD          — PI server password
+  #   COGNITE_PROJECT      — CDF project name
+  #   COGNITE_HOST         — CDF base URL, e.g. https://api.cognitedata.com
+  #   COGNITE_TENANT_ID    — IDP tenant ID
+  #   COGNITE_CLIENT_ID    — Service account client ID
+  #   COGNITE_CLIENT_SECRET — Service account client secret
+
+  version: 1
+
+  logger:
+    file:
+      level: "information"
+      path: "logs/log.log"
+    console:
+      level: "warning"
+
+  cognite:
+    project: ${COGNITE_PROJECT}
+    host: ${COGNITE_HOST}
+    idp-authentication:
+      tenant: ${COGNITE_TENANT_ID}
+      client-id: ${COGNITE_CLIENT_ID}
+      secret: ${COGNITE_CLIENT_SECRET}
+      scopes:
+        - ${COGNITE_HOST}/.default
+    extraction-pipeline:
+      external-id: "ep_{{location}}_pi"
+
+  time-series:
+    # External ID prefix — all PI tags will be created as "pi:<tagname>" in CDF
+    external-id-prefix: "{{piIdPrefix}}"
+    # Write timeseries metadata to RAW for transformation into ISATimeSeries DM instances
+    # The transformation tr_{{location}}_pi_timeseries maps this to {{instanceSpace}}
+    raw:
+      database: "db_{{location}}_pi"
+      table: "timeseries_metadata"
+    # Data set for timeseries resources
+    data-set:
+      external-id: "{{dataset}}"
+
+  pi:
+    host: ${PI_HOST}
+    username: ${PI_USER}
+    password: ${PI_PASSWORD}
+
+    # Optional: filter which PI tags are extracted
+    # Uncomment and configure for your site:
+    # tag-filter:
+    #   # Include tags matching these glob patterns
+    #   whitelist:
+    #     - "SITE.*"
+    #     - "TAG_PREFIX.*"
+    #   # Exclude tags matching these glob patterns
+    #   blacklist:
+    #     - "*.BAD"
+    #     - "*.SHUTDOWN"
+
+    # Optional: PI Data Archive connection settings
+    # connection-timeout: 60
+    # command-timeout: 120
+
+  # Optional: extraction schedule
+  # history:
+  #   # Backfill start time (ISO 8601)
+  #   start-time: "2020-01-01T00:00:00Z"
+  #   # Maximum number of parallel history reads
+  #   max-parallelism: 10

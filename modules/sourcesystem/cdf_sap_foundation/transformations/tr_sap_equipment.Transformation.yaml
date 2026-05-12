@@ -1,0 +1,14 @@
+externalId: "tr_{{location}}_sap_equipment"
+name: "tr:{{location}}:sap:equipment"
+dataSetExternalId: "{{dataset}}"
+destination:
+  type: instances
+  dataModel:
+    space: "{{schemaSpace}}"
+    externalId: Equipment
+    version: "{{dataModelVersion}}"
+    destinationType: Equipment
+  instanceSpace: "{{instanceSpace}}"
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

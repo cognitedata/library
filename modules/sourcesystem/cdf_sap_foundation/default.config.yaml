@@ -1,0 +1,15 @@
+# SAP Foundation — configuration variables
+# Inherits: location, instanceSpace, dataset, schemaSpace, dataModelVersion from cdf_foundation
+
+# SAP system label — used in external IDs and source naming
+sapSystem: s4hana
+
+# Single-plant deployment (default)
+sapPlant: "1000"
+
+# Multi-plant override — set a list to expand extraction per plant, e.g. ["1000","2000","3000"]
+# When non-empty this takes precedence over sapPlant
+sapPlants: []
+
+# Set to false to omit sysTagsFound population on MaintenanceOrder instances
+populateSysTagsFound: true

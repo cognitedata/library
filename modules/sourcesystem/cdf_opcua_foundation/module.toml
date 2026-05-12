@@ -1,0 +1,4 @@
+[module]
+title = "OPC-UA Foundation"
+id = "cdf_opcua_foundation"
+package_id = "dp:foundation"

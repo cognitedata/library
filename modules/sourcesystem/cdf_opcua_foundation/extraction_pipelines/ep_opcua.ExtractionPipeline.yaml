@@ -1,0 +1,21 @@
+externalId: "ep_{{location}}_opcua"
+name: "ep:{{location}}:opcua"
+dataSetExternalId: "{{dataset}}"
+description: "OPC-UA Extractor pipeline for site {{location}} — writes node metadata to RAW for transformation into ISATimeSeries DM instances"
+rawTables:
+  - dbName: "db_{{location}}_opcua"
+    tableName: "nodes"
+source: OPC-UA
+schedule: Continuous
+notificationConfig:
+  allowedNotSeenRangeInMinutes: 720
+documentation: >
+  Extraction pipeline for OPC-UA node metadata at site {{location}}.
+  The OPC-UA Extractor writes timeseries values directly to CDF and
+  node metadata (name, description, data type, engineering unit) to RAW table
+  db_{{location}}_opcua.nodes. The transformation tr_{{location}}_opcua_timeseries
+  then maps that metadata to ISATimeSeries DM view instances in {{instanceSpace}}.
+
+  IMPORTANT: Configure node filters in the extractor config (ep_opcua.ExtractionPipeline.Config.yaml)
+  before running in production. Without filters the extractor browses the full OPC-UA server tree,
+  which may be very large and cause slow or incomplete extractions.

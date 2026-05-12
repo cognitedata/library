@@ -1,0 +1,14 @@
+externalId: "tr_{{location}}_sap_operation_to_order"
+name: "tr:{{location}}:sap:operation_to_order"
+dataSetExternalId: "{{dataset}}"
+destination:
+  type: instances
+  dataModel:
+    space: "{{schemaSpace}}"
+    externalId: Operation
+    version: "{{dataModelVersion}}"
+    destinationType: Operation
+  instanceSpace: "{{instanceSpace}}"
+ignoreNullFields: true
+isPublic: true
+conflictMode: upsert

@@ -1,0 +1,8 @@
+# PI Foundation — configuration variables
+# Inherits: location, instanceSpace, dataset, rawSourceDatabase, schemaSpace from cdf_foundation
+
+# External ID prefix for PI tag timeseries instances
+piIdPrefix: "pi:"
+
+# Set to false to omit sysTagsFound population (used by downstream SQL contextualization)
+populateSysTagsFound: true
