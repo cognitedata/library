@@ -15,9 +15,9 @@ Update the module variables before deploying:
 variables:
   modules:
     location:
-      location: oslo_refinery
-      location_name: Oslo Refinery
-      location_description: Oslo Refinery demo
+      location: springfield
+      location_name: Springfield
+      location_description: Springfield site demo
       infield_location_read_only_users_source_id: <idp-group-source-id>
       infield_location_normal_users_source_id: <idp-group-source-id>
       infield_location_template_admin_users_source_id: <idp-group-source-id>

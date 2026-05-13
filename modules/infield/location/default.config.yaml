@@ -1,6 +1,6 @@
-location: oslo_refinery # change me
-location_name: Oslo Refinery # change me
-location_description: Oslo Refinery demo from toolkit # change me
+location: springfield
+location_name: Springfield
+location_description: Springfield site demo
 module_version: "1"
 
 # Source IDs from your identity provider for the Infield user groups.
