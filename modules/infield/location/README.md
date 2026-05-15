@@ -1,6 +1,6 @@
 # Infield Location
 
-This module configures an Infield location backed by CDM/IDM extension views. It is based on the Oslo location extension example and deploys:
+This module configures an Infield location backed by CDM/IDM extension views. It is based on the Springfield example and deploys:
 
 - Location-specific instance spaces for assets, maintenance, time series, files, 3D, app data, and app configuration.
 - An `InFieldCDMLocationConfig` instance, which is the location config for the InField application.
