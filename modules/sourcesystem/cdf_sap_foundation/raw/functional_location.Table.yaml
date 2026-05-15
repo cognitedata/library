@@ -1,2 +1,0 @@
-dbName: "db_{{location}}_sap"
-tableName: functional_location
