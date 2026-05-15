@@ -6,7 +6,7 @@ The Root Cause Analysis (RCA) module provides intelligent Atlas AI agents for ad
 
 ## Dependencies
 
-> ⚠️ **Important:** This module requires the **data_models/rmdm_v1/** module to be deployed in your CDF project **before** deploying these agents.
+> ⚠️ **Important:** This module requires the **data_models/rmdm/** module to be deployed in your CDF project **before** deploying these agents.
 
 All agents in this module connect to and query the RMDM data model within CDF to access equipment, failure notifications, time series, and other maintenance-related data.
 
@@ -21,7 +21,7 @@ Before you start, ensure you have the following:
 - You already have a Cognite Toolkit project set up locally
 - Your project contains the standard `cdf.toml` file
 - You have valid authentication to your target CDF environment
-- **The RMDM v1 data model is already deployed** (see `data_models/rmdm_v1/`)
+- **The RMDM v1 data model is already deployed** (see `data_models/rmdm/`)
 
 ### Step 1: Enable External Libraries and Agents
 

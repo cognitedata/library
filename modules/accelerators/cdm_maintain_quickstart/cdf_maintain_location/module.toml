@@ -1,5 +1,0 @@
-[module]
-title = "Maintain Location"
-is_selected_by_default = true
-id = "Maintain Quickstart"
-package_id = "dp:cdm_maintain_quickstart"
