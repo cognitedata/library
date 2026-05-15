@@ -62,7 +62,7 @@ accessManagement: # optional. If not configured, all users will have template an
     - gp_infield_{{location}}_template_admin_users
   checklistAdmins:
     - gp_infield_{{location}}_checklist_admin_users
-disciplines: # optional.
+disciplines: # optional. Examples below — replace with your own disciplines or remove this section if not needed.
   - name: Automation
     externalId: f84cf669-9e64-4aa4-972a-4f497359880f
   - name: Electrical
