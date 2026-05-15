@@ -37,8 +37,9 @@ contacts:
   role: Data Owner
   sendNotification: true
 notificationConfig:
+  # OPC-UA extractor streams continuously; alert if not seen for >30 minutes
   allowedNotSeenRangeInMinutes: 30
-source: OPC-UA
+source: OPCUA
 createdBy: cognite-toolkit
 documentation: |
   ## OPC-UA extraction pipeline

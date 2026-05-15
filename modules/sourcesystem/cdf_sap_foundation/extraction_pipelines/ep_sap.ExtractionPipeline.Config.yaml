@@ -1,24 +1,9 @@
 externalId: "ep_{{location}}_sap"
 
 config:
-  # SAP OData Extractor configuration template
-  # Source: gss-knowledge-base/extractors/toolkit_examples/sap_odata_extractor_remote
-  #
-  # Environment variables required (set in extractor host environment):
-  #   SAP_GATEWAY_URL      — SAP NW Gateway base URL, e.g. https://sap-host:8000
-  #   SAP_SOURCE_NAME      — Unique label for this SAP source, e.g. s4hana_oslo
-  #   SAP_CLIENT           — SAP client number, e.g. 100
-  #   SAP_USERNAME         — SAP service account username
-  #   SAP_PASSWORD         — SAP service account password
-  #   COGNITE_PROJECT      — CDF project name
-  #   COGNITE_HOST         — CDF base URL, e.g. https://api.cognitedata.com
-  #   COGNITE_TENANT_ID    — IDP tenant ID
-  #   COGNITE_CLIENT_ID    — Service account client ID
-  #   COGNITE_CLIENT_SECRET — Service account client secret
-  #
-  # IMPORTANT: SAP OData service names (sap_service) and entity keys (sap_key) vary
-  # across SAP versions and NW Gateway configurations. Verify all service names and
-  # field names against your SAP landscape before deploying.
+  # Runtime config for the SAP OData Extractor — see ep_sap.ExtractionPipeline.yaml
+  # documentation block for required environment variables and install steps.
+  # Source template: gss-knowledge-base/extractors/toolkit_examples/sap_odata_extractor_remote
 
   version: 1
 
@@ -42,14 +27,14 @@ config:
         table: state_store
 
   cognite:
-    project: ${COGNITE_PROJECT}
-    host: ${COGNITE_HOST}
+    project: ${CDF_PROJECT}
+    host: ${CDF_URL}
     idp-authentication:
-      tenant: ${COGNITE_TENANT_ID}
-      client-id: ${COGNITE_CLIENT_ID}
-      secret: ${COGNITE_CLIENT_SECRET}
+      tenant: ${IDP_TENANT_ID}
+      client-id: ${IDP_CLIENT_ID}
+      secret: ${IDP_CLIENT_SECRET}
       scopes:
-        - ${COGNITE_HOST}/.default
+        - ${CDF_URL}/.default
     extraction-pipeline:
       external-id: "ep_{{location}}_sap"
 
@@ -60,7 +45,7 @@ config:
       client: ${SAP_CLIENT}
       username: ${SAP_USERNAME}
       password: ${SAP_PASSWORD}
-      disable-ssl: false   # set to true only if SAP server uses self-signed certificate
+      disable-ssl: {{sapDisableSsl}}
 
   endpoints:
 

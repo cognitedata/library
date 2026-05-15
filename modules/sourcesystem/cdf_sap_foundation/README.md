@@ -14,17 +14,22 @@ cdf_sap_foundation/
 │   ├── ep_sap.ExtractionPipeline.yaml          # Single pipeline, all entity types
 │   └── ep_sap.ExtractionPipeline.Config.yaml   # Full SAP OData extractor config template
 ├── raw/
-│   └── db_sap.Database.yaml                    # db_{{location}}_sap
-├── transformations/
-│   ├── tr_sap_assets.Transformation.yaml/.sql             # Functional locations → ISAAsset
-│   ├── tr_sap_equipment.Transformation.yaml/.sql          # Equipment → Equipment
-│   ├── tr_sap_equipment_to_asset.Transformation.yaml/.sql # Equipment.asset relation
-│   ├── tr_sap_maintenance_orders.Transformation.yaml/.sql # Work orders → WorkOrder
-│   ├── tr_sap_operations.Transformation.yaml/.sql         # Work tasks → Operation
-│   └── tr_sap_operation_to_order.Transformation.yaml/.sql # Operation.workOrder relation
+│   ├── db_sap.Database.yaml                    # db_{{location}}_sap
+│   ├── functional_location.Table.yaml          # SAP FunclocListSet  (master, weekly)
+│   ├── equipment.Table.yaml                    # SAP EquipmentListSet (master, weekly)
+│   ├── workorder.Table.yaml                    # SAP ExHeaderSet      (orders, daily)
+│   ├── workpackage.Table.yaml                  # SAP ExOlistSet       (order list, daily)
+│   ├── worktask.Table.yaml                     # SAP ExOperationsSet  (operations, daily)
+│   ├── workitem.Table.yaml                     # SAP ExNotifheader    (notifications, daily)
+│   └── state_store.Table.yaml                  # Extractor state (managed by extractor)
 ├── default.config.yaml
 └── module.toml
 ```
+
+> **Note:** This foundation module ingests SAP data into RAW only. Transformations
+> from RAW into the ISA Manufacturing Extension data model are not yet shipped
+> with this module — see `.cursor/rules/cdf-transformations.mdc` for guidance on
+> authoring them, and the table below for the intended target instance types.
 
 ## Data Flow
 
@@ -34,64 +39,32 @@ SAP NW Gateway
       ▼
 SAP OData Extractor (single pipeline, 6 entity queries)
       │
-      ├── FunclocListSet  ──► RAW: functional_location
-      ├── EquipmentListSet ──► RAW: equipment
-      ├── ExHeaderSet     ──► RAW: workorder
-      ├── ExOlistSet      ──► RAW: workpackage
-      ├── ExOperationsSet ──► RAW: worktask
-      └── ExNotifheader   ──► RAW: workitem
-                                    │
-                          ┌─────────┴──────────┐
-                          ▼  (6 transformations, run in order)
-               ISA Manufacturing Extension DM
-               ├── ISAAsset instances        (functional locations)
-               ├── Equipment instances       (equipment master)
-               ├── Equipment.asset relation  (equipment → asset link)
-               ├── WorkOrder instances       (maintenance orders)
-               ├── Operation instances       (work tasks)
-               └── Operation.workOrder relation
+      ├── FunclocListSet   ──► RAW: functional_location   ──► ISAAsset
+      ├── EquipmentListSet ──► RAW: equipment             ──► Equipment + Equipment.asset relation
+      ├── ExHeaderSet      ──► RAW: workorder             ──► WorkOrder
+      ├── ExOlistSet       ──► RAW: workpackage           ──► (target TBD — order line items)
+      ├── ExOperationsSet  ──► RAW: worktask              ──► Operation + Operation.workOrder relation
+      └── ExNotifheader    ──► RAW: workitem              ──► (target TBD — notifications)
+
+      State checkpoints  ───► RAW: state_store            (delta tracking, extractor-managed)
 ```
 
-## Transformation Run Order
 
-Transformations must be run in this sequence to ensure referential integrity. The ingestion workflow (`cdf_ingestion_foundation`) enforces this order via `dependsOn`:
-
-| Order | Transformation | Depends on |
-|---|---|---|
-| 1 | `tr_sap_assets` | — |
-| 2 | `tr_sap_equipment` | `tr_sap_assets` |
-| 3 | `tr_sap_equipment_to_asset` | `tr_sap_assets`, `tr_sap_equipment` |
-| 4 | `tr_sap_maintenance_orders` | `tr_sap_assets` |
-| 5 | `tr_sap_operations` | `tr_sap_maintenance_orders` |
-| 6 | `tr_sap_operation_to_order` | `tr_sap_maintenance_orders`, `tr_sap_operations` |
-
-## Resources Created
-
-| Resource | External ID | Purpose |
-|---|---|---|
-| ExtractionPipeline | `ep_{{location}}_sap` | Single pipeline with all SAP entity queries |
-| RAW Database | `db_{{location}}_sap` | SAP data landing zone |
-| Transformation | `tr_{{location}}_sap_assets` | Functional locations → ISAAsset |
-| Transformation | `tr_{{location}}_sap_equipment` | Equipment master → Equipment |
-| Transformation | `tr_{{location}}_sap_equipment_to_asset` | Equipment.asset relation |
-| Transformation | `tr_{{location}}_sap_maintenance_orders` | Work orders → WorkOrder |
-| Transformation | `tr_{{location}}_sap_operations` | Work tasks → Operation |
-| Transformation | `tr_{{location}}_sap_operation_to_order` | Operation.workOrder relation |
 
 ## Configuration
+
+All variables are declared locally in `default.config.yaml` (no inheritance):
 
 ```yaml
 variables:
   modules:
     cdf_sap_foundation:
-      sapSystem: s4hana          # SAP system label used in external IDs
-      sapPlant: "1000"           # Default single plant code
-      sapPlants: []              # Override for multi-plant, e.g. ["1000","2000"]
-      populateSysTagsFound: true # Set false to omit sysTagsFound on WorkOrder instances
+      location: "site1"             # Site code, used in externalIds (ep_<location>_sap, db_<location>_sap)
+      instanceSpace: "sp_instances" # DM space for ISA Manufacturing Extension instances
+      dataset: "ds_sap"             # dataSetExternalId for the pipeline and RAW database
+      sapPlant: "1000"              # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
+      sapDisableSsl: false          # Set true only if SAP server uses an untrusted self-signed certificate
 ```
-
-Variables inherited from `cdf_foundation`:
-`location`, `instanceSpace`, `dataset`, `schemaSpace`, `dataModelVersion`
 
 ## Environment Variables
 
@@ -104,38 +77,41 @@ Set these on the host running the SAP OData Extractor:
 | `SAP_CLIENT` | SAP client number, e.g. `100` |
 | `SAP_USERNAME` | SAP service account username |
 | `SAP_PASSWORD` | SAP service account password |
-| `COGNITE_PROJECT` | CDF project name |
-| `COGNITE_HOST` | CDF base URL |
-| `COGNITE_TENANT_ID` | IDP tenant ID |
-| `COGNITE_CLIENT_ID` | Service account client ID |
-| `COGNITE_CLIENT_SECRET` | Service account client secret |
+| `CDF_PROJECT` | CDF project name |
+| `CDF_URL` | CDF base URL (e.g. `https://api.cognitedata.com`) |
+| `IDP_TENANT_ID` | IdP tenant ID |
+| `IDP_CLIENT_ID` | Service account client ID |
+| `IDP_CLIENT_SECRET` | Service account client secret |
 
-## Transformation SQL — Important Note
+## Verify Before Deploy
 
-All six SQL files are **generalized scaffolds**. SAP column names vary significantly across S/4HANA versions, ECC, and NW Gateway service configurations. Key fields to verify:
+SAP OData service names (`sap_service`), entity keys (`sap_key`), and **filter
+property casing** vary across SAP versions and customer NW Gateway
+configurations. The current `ep_sap.ExtractionPipeline.Config.yaml` ships with
+plausible defaults but **must be verified against your SAP landscape**:
 
-| Entity | Key columns to verify |
-|---|---|
-| Functional Location | `Functlocation`, `Descript`, `Supfloc`, `Fltyp` |
-| Equipment | `Equipment`, `Descript`, `Eqtyp`, `Funcloc`, `Manfactur`, `Maintplant` |
-| Work Order | `OrderId`, `ShortText`, `OrderType`, `OrderStatus`, `FunctLoc`, `BasicStartDate`, `BasicFinDate` |
-| Operation | `OrderId`, `Activity`, `LongText`, `ControlKey`, `UserStatus` |
+- `sap_service` values (`ZGW_FUNCLOC_SRV`, `ZGW_GETEQIP_SRV`,
+  `ZPM_ORDER_DATA_EXPORT_SRV`, `ZPM_NOTI_EXTRACT_DATA_SRV`) are customer-specific
+  Z-services.
+- `sap_key` field names (e.g. `Functlocation`, `Equipment`, `OrderId`,
+  `Activity`, `NotifNo`) follow each gateway's naming.
+- **Filter property casing is inconsistent in the shipped template** —
+  `MaintPlant` (Funcloc), `Maintplant` (Equipment), `Mainplant` (Notifications).
+  The notifications filter in particular (`Mainplant`) is suspected to be a typo
+  for `Maintplant` or `MaintPlant`. Confirm the exact spelling against your
+  service `$metadata` document before deploying.
 
-Before running in production:
-1. Preview each transformation against your actual RAW data in CDF
-2. Verify all column names match your extractor output
-3. Adjust date format casting if your SAP exports dates differently
-
-See `.cursor/rules/cdf-transformations.mdc` for AI-assisted adaptation guidance.
+See `.cursor/rules/cdf-transformations.mdc` for AI-assisted guidance when
+authoring the downstream transformations into ISA Manufacturing Extension.
 
 ## Getting Started
 
 ### Prerequisites
 
-- `foundation/cdf_foundation` deployed
-- `models/isa_manufacturing_extension` deployed
+- `models/isa_manufacturing_extension` deployed (downstream target)
 - SAP OData Extractor installed with network access to SAP NW Gateway
-- Extractor service account added to `grp_{{location}}_extractors` group
+- Extractor service account with read/write to the `db_{{location}}_sap` RAW
+  database and read access to the `{{dataset}}` data set
 - SAP service account with READ access to PM/AM entities
 
 ### Deploy
@@ -143,22 +119,3 @@ See `.cursor/rules/cdf-transformations.mdc` for AI-assisted adaptation guidance.
 ```bash
 cdf deploy modules/sourcesystem/cdf_sap_foundation --env your-environment
 ```
-
-### Run transformations in order
-
-```bash
-cdf transformations run tr_{{location}}_sap_assets --env your-environment
-cdf transformations run tr_{{location}}_sap_equipment --env your-environment
-cdf transformations run tr_{{location}}_sap_equipment_to_asset --env your-environment
-cdf transformations run tr_{{location}}_sap_maintenance_orders --env your-environment
-cdf transformations run tr_{{location}}_sap_operations --env your-environment
-cdf transformations run tr_{{location}}_sap_operation_to_order --env your-environment
-```
-
-In production, the ingestion workflow (`cdf_ingestion_foundation`) handles ordering automatically.
-
-## Dependencies
-
-**Depends on**: `foundation/cdf_foundation`
-
-**Used by**: `foundation/cdf_ingestion_foundation` (references all 6 transformations with `dependsOn` ordering in the ingestion workflow)

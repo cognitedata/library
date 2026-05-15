@@ -1,15 +1,18 @@
 # SAP Foundation — configuration variables
-# Inherits: location, instanceSpace, dataset, schemaSpace, dataModelVersion from cdf_foundation
 
-# SAP system label — used in external IDs and source naming
-sapSystem: s4hana
+# Site/location code, used in externalIds (e.g. ep_{{location}}_sap, db_{{location}}_sap)
+location: "site1"
 
-# Single-plant deployment (default)
+# DM space where ISA Manufacturing Extension instances are written
+instanceSpace: "sp_instances"
+
+# dataSetExternalId for the extraction pipeline and RAW database
+dataset: "ds_sap"
+
+# SAP plant code — used in OData filter expressions (e.g. MaintPlant eq '{{sapPlant}}')
 sapPlant: "1000"
 
-# Multi-plant override — set a list to expand extraction per plant, e.g. ["1000","2000","3000"]
-# When non-empty this takes precedence over sapPlant
-sapPlants: []
-
-# Set to false to omit sysTagsFound population on MaintenanceOrder instances
-populateSysTagsFound: true
+# Disable SSL verification for the SAP gateway connection.
+# Set to true ONLY if the SAP server uses a self-signed certificate that is
+# not trusted by the extractor host.
+sapDisableSsl: false

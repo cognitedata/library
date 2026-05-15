@@ -1,14 +1,15 @@
 externalId: "ep_{{location}}_pi"
 name: "ep:{{location}}:pi"
 dataSetExternalId: "{{dataset}}"
-description: "PI .NET Extractor pipeline for site {{location}} — writes tag metadata to RAW for transformation into ISATimeSeries / CogniteTimeSeries DM instances"
+description: "PI .NET Extractor pipeline for site {{location}} — writes timeseries values directly to CDF and tag metadata to RAW for downstream transformation"
 rawTables:
   - dbName: "db_{{location}}_pi"
     tableName: "timeseries_metadata"
 source: PI
 schedule: Continuous
 notificationConfig:
-  allowedNotSeenRangeInMinutes: 720
+  # PI extractor streams continuously; alert if not seen for >2 hours
+  allowedNotSeenRangeInMinutes: 120
 documentation: |
   ## PI extraction pipeline
 
@@ -18,9 +19,9 @@ documentation: |
   configuration lives in `ep_pi.ExtractionPipeline.Config.yaml` and is fetched
   by the extractor using its `pipeline-id`.
 
-  Tag metadata staged in RAW (`db_{{location}}_pi.timeseries_metadata`) is then
-  mapped to data-model instances in `{{instanceSpace}}` by the transformation
-  `tr_{{location}}_pi_timeseries`.
+  Tag metadata staged in RAW (`db_{{location}}_pi.timeseries_metadata`) is
+  intended to be mapped to data-model instances in `{{instanceSpace}}` by a
+  downstream transformation (not shipped with this module).
 
   ### Required environment variables on the extractor host
 
@@ -68,7 +69,7 @@ documentation: |
 
   | Table                  | Purpose                                                              |
   | ---------------------- | -------------------------------------------------------------------- |
-  | `timeseries_metadata`  | Tag metadata (name, description, unit, engineering range) staged for the `tr_{{location}}_pi_timeseries` transformation |
+  | `timeseries_metadata`  | Tag metadata (name, description, unit, engineering range) staged for downstream transformation into `ISATimeSeries` |
 
   Timeseries values themselves are written directly to CDF as classic time
   series with external IDs prefixed `{{piIdPrefix}}` (default `pi:`). They are

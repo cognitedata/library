@@ -17,16 +17,92 @@ rawTables:
     tableName: "workitem"
   - dbName: "db_{{location}}_sap"
     tableName: "state_store"
-source: "SAP OData"
-schedule: Continuous
+source: SAP_ODATA
+schedule: On trigger
 notificationConfig:
-  allowedNotSeenRangeInMinutes: 120
-documentation: >
-  Single SAP OData extraction pipeline for site {{location}} covering all entity types:
-  functional locations, equipment, work orders, work packages, work tasks, and notifications.
-  All entities write to separate RAW tables in db_{{location}}_sap.
-  Six transformations then map each entity type to the ISA Manufacturing Extension data model.
+  # Longest endpoint cadence is weekly (Funcloc/Equipment masters) — 8 days + buffer
+  allowedNotSeenRangeInMinutes: 12960
+documentation: |
+  ## SAP OData extraction pipeline
 
-  SAP OData service names and entity keys vary across SAP versions and NW Gateway configurations.
-  Verify endpoint configuration in ep_sap.ExtractionPipeline.Config.yaml against your SAP landscape
-  before deploying.
+  This extraction pipeline reads master data and maintenance objects from SAP via
+  the NetWeaver Gateway OData services and writes them to RAW staging tables. The
+  runtime configuration lives in `ep_sap.ExtractionPipeline.Config.yaml` and is
+  fetched by the SAP OData Extractor using its `pipeline-id`. A single pipeline
+  covers all entity types: functional locations, equipment, work orders, work
+  packages, work tasks, and notifications — each landing in its own RAW table in
+  `db_{{location}}_sap`.
+
+  RAW data is then mapped to data-model instances in `{{instanceSpace}}` by six
+  transformations (one per entity type) targeting the ISA Manufacturing Extension
+  data model.
+
+  ### Required environment variables on the extractor host
+
+  | Variable                | Purpose                                                |
+  | ----------------------- | ------------------------------------------------------ |
+  | `CDF_PROJECT`           | CDF project name                                       |
+  | `CDF_URL`               | CDF base URL (e.g. `https://api.cognitedata.com`)      |
+  | `IDP_TENANT_ID`         | IdP tenant ID                                          |
+  | `IDP_CLIENT_ID`         | Service account client ID                              |
+  | `IDP_CLIENT_SECRET`     | Service account client secret                          |
+  | `SAP_GATEWAY_URL`       | SAP NW Gateway base URL, e.g. `https://sap-host:8000`  |
+  | `SAP_SOURCE_NAME`       | Unique label for this SAP source, e.g. `s4hana_oslo`   |
+  | `SAP_CLIENT`            | SAP client number, e.g. `100`                          |
+  | `SAP_USERNAME`          | SAP service account username                           |
+  | `SAP_PASSWORD`          | SAP service account password                           |
+
+  ### Install the SAP OData Extractor
+
+  1. **Download the installer** from Cognite Hub or Fusion (Extractors page) on
+     a host that has network access to both the SAP NW Gateway and to CDF. The
+     SAP OData Extractor runs on Windows or Linux.
+  2. **Install** to e.g. `C:\Cognite\SapOdataExtractor\` (Windows) or
+     `/opt/cognite/sap-odata-extractor/` (Linux) and follow the bundled README to
+     register it as a service. The SAP service account must have read access to
+     the configured OData services (`ZGW_FUNCLOC_SRV`, `ZGW_GETEQIP_SRV`,
+     `ZPM_ORDER_DATA_EXPORT_SRV`, `ZPM_NOTI_EXTRACT_DATA_SRV`).
+  3. **Point the extractor at this pipeline** by giving it a minimal local
+     `config.yml` containing only credentials and the pipeline ID — the full
+     runtime configuration is delivered remotely from this extraction pipeline:
+
+     ```yaml
+     version: 1
+     type: remote
+     cognite:
+       project: ${CDF_PROJECT}
+       host: ${CDF_URL}
+       idp-authentication:
+         tenant: ${IDP_TENANT_ID}
+         client-id: ${IDP_CLIENT_ID}
+         secret: ${IDP_CLIENT_SECRET}
+         scopes:
+           - ${CDF_URL}/.default
+       extraction-pipeline:
+         external-id: ep_{{location}}_sap
+     ```
+
+  ### RAW tables written by this pipeline
+
+  | Table                  | Purpose                                                                                  |
+  | ---------------------- | ---------------------------------------------------------------------------------------- |
+  | `functional_location`  | Functional locations from `FunclocListSet` (filtered by `{{sapPlant}}`)                  |
+  | `equipment`            | Equipment master data from `EquipmentListSet` (filtered by `{{sapPlant}}`)               |
+  | `workorder`            | Work-order headers from `ExHeaderSet`                                                    |
+  | `workpackage`          | Work packages (order list) from `ExOlistSet`                                             |
+  | `worktask`             | Work tasks (operations) from `ExOperationsSet`                                           |
+  | `workitem`             | Notifications from `ExNotifheader` (filtered by `{{sapPlant}}`)                          |
+  | `state_store`          | Extractor state checkpoints (delta tracking) — managed by the extractor, do not modify   |
+
+  ### Caveats
+
+  SAP OData service names (`sap_service`) and entity keys (`sap_key`) vary across
+  SAP versions and NW Gateway configurations. Verify all service and field names
+  in `ep_sap.ExtractionPipeline.Config.yaml` against your SAP landscape before
+  deploying.
+
+  ### References
+
+  * SAP OData extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/sap_odata>
+  * SAP OData configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/sap_odata>
+  * Minimal config sample: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/sap_odata#minimal-yaml-configuration-file>

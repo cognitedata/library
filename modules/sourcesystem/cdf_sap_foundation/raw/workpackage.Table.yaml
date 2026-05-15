@@ -1,0 +1,2 @@
+dbName: "db_{{location}}_sap"
+tableName: workpackage
