@@ -32,7 +32,7 @@ title = "Infield"
 description = "Deploy Infield configuration modules for CDM-backed locations."
 canCherryPick = true
 modules = [
-    "accelerators/infield/location"
+    "modules/infield/location"
 ]
 
 [packages.models]
