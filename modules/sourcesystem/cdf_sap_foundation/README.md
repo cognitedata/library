@@ -1,10 +1,6 @@
 # SAP Foundation Module
 
-This module ingests SAP functional locations, equipment, maintenance orders, and operations into CDF RAW via a **single SAP OData extraction pipeline** with multiple entity queries, then transforms each entity type into the ISA Manufacturing Extension data model. Transformations are split by entity type and must be run in the correct order to ensure referential integrity.
-
-The extractor configuration template is sourced from `gss-knowledge-base` and covers all standard PM/AM entity types from SAP S/4HANA.
-
-> **SAP OData service names and entity keys vary across SAP versions and NW Gateway configurations.** Verify all service names and field names in the extractor config and transformation SQL against your SAP landscape before deploying.
+This module ingests SAP functional locations, equipment, maintenance orders, and operations into CDF RAW via a **single SAP OData extraction pipeline** with multiple entity queries. Downstream transformations from RAW into the ISA Manufacturing Extension data model are not shipped with this module — author them as needed (one per entity type, run in dependency order to preserve referential integrity).
 
 ## Module Architecture
 
@@ -26,11 +22,6 @@ cdf_sap_foundation/
 └── module.toml
 ```
 
-> **Note:** This foundation module ingests SAP data into RAW only. Transformations
-> from RAW into the ISA Manufacturing Extension data model are not yet shipped
-> with this module — see `.cursor/rules/cdf-transformations.mdc` for guidance on
-> authoring them, and the table below for the intended target instance types.
-
 ## Data Flow
 
 ```
@@ -39,17 +30,23 @@ SAP NW Gateway
       ▼
 SAP OData Extractor (single pipeline, 6 entity queries)
       │
-      ├── FunclocListSet   ──► RAW: functional_location   ──► ISAAsset
-      ├── EquipmentListSet ──► RAW: equipment             ──► Equipment + Equipment.asset relation
-      ├── ExHeaderSet      ──► RAW: workorder             ──► WorkOrder
+      ├── FunclocListSet   ──► RAW: functional_location   ──► ISAAsset (downstream — not shipped)
+      ├── EquipmentListSet ──► RAW: equipment             ──► Equipment + Equipment.asset relation (downstream)
+      ├── ExHeaderSet      ──► RAW: workorder             ──► WorkOrder (downstream)
       ├── ExOlistSet       ──► RAW: workpackage           ──► (target TBD — order line items)
-      ├── ExOperationsSet  ──► RAW: worktask              ──► Operation + Operation.workOrder relation
+      ├── ExOperationsSet  ──► RAW: worktask              ──► Operation + Operation.workOrder relation (downstream)
       └── ExNotifheader    ──► RAW: workitem              ──► (target TBD — notifications)
 
       State checkpoints  ───► RAW: state_store            (delta tracking, extractor-managed)
 ```
 
+## Resources Created
 
+| Resource | External ID | Purpose |
+|---|---|---|
+| ExtractionPipeline | `ep_{{location}}_sap` | Pipeline health tracking and config delivery |
+| RAW Database | `db_{{location}}_sap` | SAP entity landing zone |
+| RAW Tables | `functional_location`, `equipment`, `workorder`, `workpackage`, `worktask`, `workitem`, `state_store` | One per OData query plus an extractor-managed state-store table |
 
 ## Configuration
 
@@ -59,11 +56,17 @@ All variables are declared locally in `default.config.yaml` (no inheritance):
 variables:
   modules:
     cdf_sap_foundation:
-      location: "site1"             # Site code, used in externalIds (ep_<location>_sap, db_<location>_sap)
-      instanceSpace: "sp_instances" # DM space for ISA Manufacturing Extension instances
-      dataset: "ds_sap"             # dataSetExternalId for the pipeline and RAW database
-      sapPlant: "1000"              # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
-      sapDisableSsl: false          # Set true only if SAP server uses an untrusted self-signed certificate
+      location: "site1"                                       # Site code, used in externalIds (ep_<location>_sap, db_<location>_sap)
+      instanceSpace: "sp_instances"                           # DM space for ISA Manufacturing Extension instances
+      dataset: "ds_sap"                                       # dataSetExternalId for the pipeline and RAW database
+      sapPlant: "1000"                                        # SAP plant code, used in OData filter expressions (MaintPlant eq '<sapPlant>')
+      sapDisableSsl: false                                    # Set true only if SAP server uses an untrusted self-signed certificate
+
+      integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
+      integration_owner_email: "integration.owner@example.com"
+
+      data_owner_name: "Data Owner"                           # Business contact for the data
+      data_owner_email: "data.owner@example.com"
 ```
 
 ## Environment Variables
@@ -119,3 +122,11 @@ authoring the downstream transformations into ISA Manufacturing Extension.
 ```bash
 cdf deploy modules/sourcesystem/cdf_sap_foundation --env your-environment
 ```
+
+### Configure and run the extractor
+
+The extractor config is delivered via the `ep_{{location}}_sap` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
+
+### Verify
+
+Check that all seven RAW tables under `db_{{location}}_sap` are populated in CDF Data Explorer (the master tables — `functional_location`, `equipment` — populate weekly; the order/notification tables populate daily).

@@ -19,9 +19,23 @@ rawTables:
     tableName: "state_store"
 source: SAP_ODATA
 schedule: On trigger
+contacts:
+  - name: {{integration_owner_name}}
+    email: {{integration_owner_email}}
+    role: Owner
+    sendNotification: true
+  - name: Cognite Support
+    email: support@cognite.com
+    role: Operational Owner
+    sendNotification: true
+  - name: {{data_owner_name}}
+    email: {{data_owner_email}}
+    role: Data Owner
+    sendNotification: true
 notificationConfig:
   # Longest endpoint cadence is weekly (Funcloc/Equipment masters) — 8 days + buffer
   allowedNotSeenRangeInMinutes: 12960
+createdBy: cognite-toolkit
 documentation: |
   ## SAP OData extraction pipeline
 

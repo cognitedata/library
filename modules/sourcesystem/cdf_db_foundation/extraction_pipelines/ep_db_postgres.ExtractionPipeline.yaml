@@ -1,0 +1,93 @@
+externalId: "ep_{{location}}_db_postgres"
+name: "ep:{{location}}:db_postgres"
+dataSetExternalId: "{{dataset}}"
+description: "DB Extractor pipeline for site {{location}} — reads from a relational database (default example: PostgreSQL) and writes rows to RAW for downstream transformation"
+rawTables:
+  - dbName: "db_{{location}}_db_postgres"
+    tableName: "mytable"
+source: POSTGRESQL
+schedule: Continuous
+contacts:
+  - name: {{integration_owner_name}}
+    email: {{integration_owner_email}}
+    role: Owner
+    sendNotification: true
+  - name: Cognite Support
+    email: support@cognite.com
+    role: Operational Owner
+    sendNotification: true
+  - name: {{data_owner_name}}
+    email: {{data_owner_email}}
+    role: Data Owner
+    sendNotification: true
+notificationConfig:
+  # DB Extractor runs queries on a schedule; alert if not seen for >2 hours
+  allowedNotSeenRangeInMinutes: 120
+createdBy: cognite-toolkit
+documentation: |
+  ## Database (DB Extractor) extraction pipeline
+
+  This extraction pipeline reads rows from a relational database via ODBC and
+  writes them to a CDF RAW table. The runtime configuration lives in
+  `ep_db_postgres.ExtractionPipeline.Config.yaml` and is fetched by the
+  extractor using its `pipeline-id`. The shipped example is configured for
+  PostgreSQL; adapt the `databases.type`, the connection string, and the SQL
+  queries in `Config.yaml` for MSSQL, Oracle, MySQL, or any other ODBC-capable
+  database (and rename this pipeline accordingly, e.g. `ep_db_mssql`).
+
+  ### Required environment variables on the extractor host
+
+  | Variable                | Purpose                                                                       |
+  | ----------------------- | ----------------------------------------------------------------------------- |
+  | `CDF_PROJECT`           | CDF project name                                                              |
+  | `CDF_URL`               | CDF base URL (e.g. `https://api.cognitedata.com`)                             |
+  | `IDP_TENANT_ID`         | IdP tenant ID                                                                 |
+  | `IDP_CLIENT_ID`         | Service account client ID                                                     |
+  | `IDP_CLIENT_SECRET`     | Service account client secret                                                 |
+  | `DB_CONNECTION_STRING`  | ODBC connection string for the source database (see format examples below)    |
+
+  Example ODBC connection strings (set as the `DB_CONNECTION_STRING` env var):
+
+  * **PostgreSQL:** `Driver={PostgreSQL Unicode};SERVER=hostname;DATABASE=dbname;PORT=5432;UID=username;PWD=password`
+  * **MSSQL:**      `Driver={ODBC Driver 17 for SQL Server};SERVER=hostname;DATABASE=dbname;UID=username;PWD=password`
+  * **Oracle:**     `Driver={Oracle in OraClient19Home1};DBQ=hostname:1521/service;UID=username;PWD=password`
+
+  ### Install the DB Extractor
+
+  1. **Download the installer** from Cognite Hub or Fusion (Extractors page) on
+     a host with network access to both the source database and CDF. The DB
+     Extractor runs on Windows or Linux; install the matching ODBC driver for
+     your database first.
+  2. **Install** to e.g. `C:\Cognite\DBExtractor\` (Windows) or
+     `/opt/cognite/db-extractor/` (Linux) and follow the bundled README to
+     register it as a service.
+  3. **Point the extractor at this pipeline** by giving it a minimal local
+     `config.yml` containing only credentials and the pipeline ID — the full
+     runtime configuration is delivered remotely from this extraction pipeline:
+
+     ```yaml
+     version: 1
+     type: remote
+     cognite:
+       project: ${CDF_PROJECT}
+       host: ${CDF_URL}
+       idp-authentication:
+         tenant: ${IDP_TENANT_ID}
+         client-id: ${IDP_CLIENT_ID}
+         secret: ${IDP_CLIENT_SECRET}
+         scopes:
+           - ${CDF_URL}/.default
+       extraction-pipeline:
+         pipeline-id: ep_{{location}}_db_postgres
+     ```
+
+  ### RAW tables written by this pipeline
+
+  | Table       | Purpose                                                          |
+  | ----------- | ---------------------------------------------------------------- |
+  | `mytable`   | Example landing table — rename and add more queries as needed    |
+
+  ### References
+
+  * DB extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/db_extractor/>
+  * DB extractor configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/db_extractor>

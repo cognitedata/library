@@ -27,7 +27,7 @@ config:
 
     # Data modeling space id, this parameter will override data-set-id and switch the extractor destination
     # from Asset-Centric model TimeSeries to Core Data Model TimeSeries with the ExtractorTimeSeries extension.
-    space-id: "sp_{{location}}_pi_timeseries"
+    space-id: "{{instanceSpace}}"
 
   # Configuration related to the PI Server
   pi:

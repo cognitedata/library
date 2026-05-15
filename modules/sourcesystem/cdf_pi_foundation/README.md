@@ -1,36 +1,28 @@
 # PI Foundation Module
 
-This module ingests PI tag metadata from an OSIsoft/AVEVA PI Data Archive into CDF RAW. PI timeseries values (measurements) are written directly to CDF by the PI .NET Extractor — RAW is used only for tag metadata (name, description, unit, engineering range), staged for downstream transformation into the ISA Manufacturing Extension `ISATimeSeries` view. Transformations are not shipped with this module; author them downstream as needed.
-
-The extractor configuration template is sourced from `gss-knowledge-base` and includes all required parameters with documentation.
+This module ingests PI tags and tag values from an OSIsoft/AVEVA PI Data Archive directly into the Core Data Model `ExtractorTimeSeries` view in `{{instanceSpace}}`, via the Cognite **PI .NET Extractor** (Windows-only). The extractor's `time-series.space-id` setting (in `ep_pi.ExtractionPipeline.Config.yaml`) enables the CDM destination — there is **no RAW staging** and no separate transformation step. Tag metadata (`name`, `description`, `unit`) lands as fields on the `ExtractorTimeSeries` instances.
 
 ## Module Architecture
 
 ```
 cdf_pi_foundation/
 ├── extraction_pipelines/
-│   ├── ep_pi.ExtractionPipeline.yaml          # Pipeline definition with RAW table reference
-│   └── ep_pi.ExtractionPipeline.Config.yaml   # Full PI .NET Extractor config template
+│   ├── ep_pi.ExtractionPipeline.yaml          # Pipeline definition (contacts, schedule, source)
+│   └── ep_pi.ExtractionPipeline.Config.yaml   # Full PI .NET Extractor config template (CDM destination)
 ├── default.config.yaml
 └── module.toml
 ```
-
-> **Note:** This foundation module ingests PI data into RAW (and Timeseries
-> directly). Transformations from RAW into the ISA Manufacturing Extension data
-> model are not yet shipped with this module — see
-> `.cursor/rules/cdf-transformations.mdc` for guidance on authoring them.
 
 ## Data Flow
 
 ```
 PI Data Archive
       │
-      ▼
-PI .NET Extractor
+      ▼  (PI SDK / PI Web API)
+PI .NET Extractor   (time-series.space-id: {{instanceSpace}})
       │
-      ├── Timeseries values ──────────────────► CDF Timeseries (direct write)
-      │
-      └── Tag metadata (name, unit, desc) ───► RAW: db_{{location}}_pi.timeseries_metadata
+      └── Tags + values ──────────► CDM ExtractorTimeSeries instances in {{instanceSpace}}
+                                    (externalId = "{{piIdPrefix}}<PI Point name>")
 ```
 
 ## Resources Created
@@ -38,7 +30,6 @@ PI .NET Extractor
 | Resource | External ID | Purpose |
 |---|---|---|
 | ExtractionPipeline | `ep_{{location}}_pi` | Pipeline health tracking and config delivery |
-| RAW Database | `db_{{location}}_pi` | PI tag metadata landing zone (declared by the pipeline's `rawTables`) |
 
 ## Configuration
 
@@ -48,10 +39,16 @@ All variables are declared locally in `default.config.yaml` (no inheritance):
 variables:
   modules:
     cdf_pi_foundation:
-      location: "site"              # Site code, used in externalIds (ep_<location>_pi, db_<location>_pi)
-      instanceSpace: "sp_instances" # DM space for ISATimeSeries / CogniteTimeSeries instances
-      dataset: "ds_pi"              # dataSetExternalId for the pipeline and RAW database
-      piIdPrefix: "pi:"             # External ID prefix for all PI tag timeseries
+      location: "site1"                                       # Site code, used in externalIds (ep_<location>_pi)
+      instanceSpace: "sp_instances"                           # DM space where ExtractorTimeSeries instances are written
+      dataset: "ds_pi"                                        # dataSetExternalId for the pipeline
+      piIdPrefix: "pi:"                                       # External ID prefix for all PI tag timeseries
+
+      integration_owner_name: "Integration Owner"             # Technical contact for the pipeline
+      integration_owner_email: "integration.owner@example.com"
+
+      data_owner_name: "Data Owner"                           # Business contact for the data
+      data_owner_email: "data.owner@example.com"
 ```
 
 ## Environment Variables
@@ -71,27 +68,32 @@ Set these on the host running the PI .NET Extractor:
 
 ## Verify Before Deploy
 
-The PI .NET Extractor RAW schema (column names in `timeseries_metadata`) varies
-across extractor versions. When you author the downstream transformation into
-`ISATimeSeries` (not shipped with this module), be prepared to:
+Confirm the following before running the extractor in production:
 
-1. Preview the transformation against your actual RAW data in CDF.
-2. Verify column names match your extractor output (defaults are `name`,
-   `description`, `unit`).
-3. Adapt any `sysTagsFound`-style regex patterns to your site's PI tag naming
-   convention.
-
-See `.cursor/rules/cdf-transformations.mdc` for AI-assisted authoring guidance.
+1. **DM space exists** — `{{instanceSpace}}` must already be deployed (the
+   extractor will not create it). Deploy whichever `models/` module owns the
+   space first.
+2. **`ExtractorTimeSeries` view available** — this is part of the Cognite Core
+   Data Model (CDM v1) `ExtractorTimeSeries` extension. Confirm CDM is enabled
+   in your project.
+3. **`piIdPrefix` is unique** — if you run multiple PI extractors against the
+   same CDF project, give each one a different prefix so external IDs don't
+   collide.
+4. **PI Point selection** — the extractor browses the PI Data Archive and
+   subscribes to all PI Points by default. Add tag filters in
+   `ep_pi.ExtractionPipeline.Config.yaml` if you need to restrict the scope
+   (large PI servers can have hundreds of thousands of tags).
 
 ## Getting Started
 
 ### Prerequisites
 
-- `models/isa_manufacturing_extension` deployed (downstream target)
+- DM space `{{instanceSpace}}` deployed and writable (Core Data Model with the
+  `ExtractorTimeSeries` extension)
 - PI .NET Extractor installed on a Windows host with network access to the PI
   Data Archive and to CDF
-- Extractor service account with read/write to the `db_{{location}}_pi` RAW
-  database and read access to the `{{dataset}}` data set
+- CDF service account with write access to the `{{dataset}}` data set and write
+  access to `{{instanceSpace}}` for `ExtractorTimeSeries` instances
 
 ### Deploy
 
@@ -105,8 +107,8 @@ The extractor config is delivered via the `ep_{{location}}_pi` extraction pipeli
 
 ### Verify
 
-Check that the `db_{{location}}_pi.timeseries_metadata` RAW table is populated and that classic timeseries with the `{{piIdPrefix}}` prefix appear in CDF Data Explorer.
+The PI extractor writes timeseries directly to the **Core Data Model `ExtractorTimeSeries`** view in `{{instanceSpace}}` (driven by `time-series.space-id` in `ep_pi.ExtractionPipeline.Config.yaml`). Open the `ExtractorTimeSeries` view in Fusion → Data Models, filter on space `{{instanceSpace}}`, and confirm instances exist with `externalId` prefixed by `{{piIdPrefix}}` (default `pi:`) and metadata fields (`name`, `description`, `unit`) populated from the PI tags.
 
 ## Dependencies
 
-**Depends on**: `models/isa_manufacturing_extension` (target data model for the downstream transformation you author on top of this module)
+**Depends on**: A deployed DM space (`{{instanceSpace}}`) with the Core Data Model `ExtractorTimeSeries` view available

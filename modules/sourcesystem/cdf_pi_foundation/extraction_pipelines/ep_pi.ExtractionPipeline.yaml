@@ -1,27 +1,39 @@
 externalId: "ep_{{location}}_pi"
 name: "ep:{{location}}:pi"
 dataSetExternalId: "{{dataset}}"
-description: "PI .NET Extractor pipeline for site {{location}} — writes timeseries values directly to CDF and tag metadata to RAW for downstream transformation"
-rawTables:
-  - dbName: "db_{{location}}_pi"
-    tableName: "timeseries_metadata"
+description: "PI .NET Extractor pipeline for site {{location}} — writes PI tags and values directly to the Core Data Model `ExtractorTimeSeries` view in {{instanceSpace}} (no RAW staging)"
 source: PI
 schedule: Continuous
+contacts:
+  - name: {{integration_owner_name}}
+    email: {{integration_owner_email}}
+    role: Owner
+    sendNotification: true
+  - name: Cognite Support
+    email: support@cognite.com
+    role: Operational Owner
+    sendNotification: true
+  - name: {{data_owner_name}}
+    email: {{data_owner_email}}
+    role: Data Owner
+    sendNotification: true
 notificationConfig:
   # PI extractor streams continuously; alert if not seen for >2 hours
   allowedNotSeenRangeInMinutes: 120
+createdBy: cognite-toolkit
 documentation: |
   ## PI extraction pipeline
 
   This extraction pipeline reads tags and tag values from a Cognite PI .NET
-  Extractor (version 2.1, config schema version 3) and writes timeseries values
-  directly to CDF and tag metadata to a RAW staging table. The runtime
-  configuration lives in `ep_pi.ExtractionPipeline.Config.yaml` and is fetched
-  by the extractor using its `pipeline-id`.
+  Extractor (version 2.1, config schema version 3) and writes them directly to
+  the **Core Data Model `ExtractorTimeSeries`** view in `{{instanceSpace}}` —
+  there is **no RAW staging step**. The CDM destination is enabled by setting
+  `time-series.space-id` in `ep_pi.ExtractionPipeline.Config.yaml`. Timeseries
+  external IDs are prefixed with `{{piIdPrefix}}` (default `pi:`) followed by
+  the PI Point name or id.
 
-  Tag metadata staged in RAW (`db_{{location}}_pi.timeseries_metadata`) is
-  intended to be mapped to data-model instances in `{{instanceSpace}}` by a
-  downstream transformation (not shipped with this module).
+  The runtime configuration lives in `ep_pi.ExtractionPipeline.Config.yaml` and
+  is fetched by the extractor using its `pipeline-id`.
 
   ### Required environment variables on the extractor host
 
@@ -64,16 +76,6 @@ documentation: |
        extraction-pipeline:
          external-id: ep_{{location}}_pi
      ```
-
-  ### RAW tables written by this pipeline
-
-  | Table                  | Purpose                                                              |
-  | ---------------------- | -------------------------------------------------------------------- |
-  | `timeseries_metadata`  | Tag metadata (name, description, unit, engineering range) staged for downstream transformation into `ISATimeSeries` |
-
-  Timeseries values themselves are written directly to CDF as classic time
-  series with external IDs prefixed `{{piIdPrefix}}` (default `pi:`). They are
-  not staged in RAW.
 
   ### References
 

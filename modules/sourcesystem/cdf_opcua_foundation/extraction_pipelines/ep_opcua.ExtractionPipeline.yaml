@@ -1,8 +1,7 @@
-
 externalId: "ep_{{location}}_opcua"
 name: "ep:{{location}}:opcua"
 dataSetExternalId: "{{dataset}}"
-description: Extraction pipeline for an OPC-UA data source.
+description: "OPC-UA Extractor pipeline for site {{location}} — reads node hierarchy and Variable subscriptions, writes timeseries values directly to CDF and node metadata + browse/state caches to RAW"
 # RAW tables used by the OPC-UA extractor for staging and state storage.
 # These names align with the database/table references in
 # ep_opcua.ExtractionPipeline.Config.yaml (raw-node-buffer, metadata-targets.raw,

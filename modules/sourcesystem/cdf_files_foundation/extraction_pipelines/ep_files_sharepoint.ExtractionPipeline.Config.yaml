@@ -1,0 +1,177 @@
+externalId: "ep_{{location}}_files_sharepoint"
+dataSetExternalId: "{{dataset}}"
+config:
+  # Runtime config for the Files Extractor — see ep_files.ExtractionPipeline.yaml
+  # documentation block for required environment variables and install steps.
+
+  # (Optional) Configure logging to standard out (console) and/or file. Level can
+  # be DEBUG, INFO, WARNING or CRITICAL
+  log-handlers:
+    # Logging to console/terminal. Remove or comment out to disable terminal
+    # logging
+    - type: console
+      level: INFO
+
+    # Logging to file. Include to enable file logging
+    # - type: file
+    #   level: INFO
+    #   path: "/path/to/file.log"
+
+      # (Optional) Log retention (in days).
+      #retention: 7
+
+
+
+  # (Optional) Where to store extraction states (progress) between runs.
+  # Required for incremental load to work.
+  state-store:
+    # Uncomment to use a local json file for state storage
+    type: local
+    path:  "/path/to/state-store.json"
+
+    # (Optional) Save interval (in seconds) for intermediate file saves. A
+    # final save will also be made on extractor shutdown.
+    #save-interval: 30s
+
+    # Uncomment to use a RAW table for state storage
+    #type: raw
+      # RAW database and table to use
+    #database:
+    #table:
+
+    # (Optional) Upload interval (in seconds) for intermediate uploads. A
+    # final upload will also be made on extractor shutdown.
+    #upload-interval: 30s
+
+
+
+
+  files:
+    # (Optional) A list of extensions to fetch. If included, only files matching
+    # these extensions will be uploaded.
+    extensions:
+      - .pdf
+      - .txt
+      - .csv
+
+    # (Optional) Destination mode for uploaded files. Whether to use the CDM data model or the classic file model.
+    destination-mode: cdm
+    #  OR
+    #destination-mode: classic
+
+    data_model:
+      space: {{instanceSpace}}
+      
+    source:
+      name: ${SP_EXTRACT_URL}
+      external_id: ${SP_EXTRACT_URL}
+    
+    # (Optional) Maximum number of consecutive errors before crashing extractor
+    #errors-threshold: 5
+
+    # (Optional) Maximum file size of files before skipping upload.
+    # Default: 100GiB
+    max-file-size: 64Mb
+
+    # (Optional) Whether to let a single failure crash the extractor or not
+    #fail-fast: false
+
+    # (Optional) Include metadata in file upload
+    #with-metadata: false
+
+    # (Optional) Whether the extractor treat a missing file on the source as deleted,
+    # the extractor will behave according to the "delete-behavior" option.
+    missing-as-deleted: true
+
+
+    # (Optional) Behavior when deleting files.
+    # "soft" means that a metadata field will be added to the file if it is deleted in the source.
+    # "hard" means that the file will be deleted from CDF.
+    #delete-behavior:
+    #  mode: soft
+    #  key: "deleted"
+    # OR
+    delete-behavior:
+      mode: hard
+
+    # (Optional) A filter on metadata properties that defines which files to extract. Files that have their metadata
+    # changed so as to no longer match the filter, will be deleted according to the "delete-behavior" option.
+    # Values may be compared with `equals` or `in`, and comparisons may be combined with `and`, `or` and `not`.
+    #filter:
+    #  or:
+    #    equals:
+    #      property: my-property
+    #      value: some-value
+    #    not:
+    #      in:
+    #        property: my-other-property
+    #        values: [value1, value2]
+
+
+    # Information about file provider
+    file-provider:
+      type: sharepoint_online
+
+      # User login for Sharepoint server
+      client-id: ${SP_CLIENT_ID}
+      client-secret: ${SP_CLIENT_SECRET}
+
+      # (Optional) Instead of client secret, it is also possible to authenticate with
+      # a certificate. The certificate can be provided as a path to a file, or as the
+      # certificate date directly (see `certificate-data` below).
+      #certificate-path: ${SP_CERTIFICATE_PATH}
+
+      # (Optional) Provide authentication certificate data directly.
+      #certificate-data: ${SP_CERTIFICATE_DATA}
+
+      # Azure tenant ID
+      tenant-id: ${SP_AZURE_TENANT_ID}
+
+      # (Optional) Turn on incremental sync mode. When this is turned on, the extractor
+      # fetch changes from Sharepoint incrementally. This is necessary to support very
+      # large datasets. Incremental sync is not compatible with specifying extraction of
+      # individual files/folders.
+      #incremental: true
+
+      paths:
+        # URL to the SharePoint location you want to extract. This can be the url to
+        # a site, to a document library, or to a file or folder inside the library.
+        - url: ${SP_EXTRACT_URL}
+
+          # (Optional) Whether to traverse into subfolders or not, for this path
+          # Default value is True.
+          #recursive: true
+
+      # (Optional) Extract Sharepoint columns as metadata. This is a dictionary where
+      # the keys are the column names in Sharepoint, and the values are the names you
+      # want the extracted metadata fields to have in CDF.
+      #extract-columns:
+      #  ColumnNameInSharepoint: metadataNameInCdf
+
+      # (Optional) Restrict to only extract files visible to a given Sharepoint Group
+      # or SiteUser.
+      # Important: In order to use this, the extractor MUST authenticate to Sharepoint
+      # online using a certificate, NOT a client secret.
+      #restrict-to:
+
+        # The id of a Sharepoint Group
+        #group-id: ${SP_RESTRICT_TO_GROUP_ID}
+
+        # The "login name" of a SiteUser. This can be useful if you for instance want
+        # to restrict extraction to the built-in "all users" SiteUser.
+        #user-login-name: ${SP_RESTRICT_TO_LOGIN_NAME}
+
+      # (Optional) Turn on automatic site discovery. This is nice if you want to extract
+      # all the files from all the libraries in all (or a subset) of your sites.
+      #site-discovery:
+
+        # (Optional) Restrict the site discovery to only sites with a given property set
+        # to a given value. The filter syntax is the same as for the file filter.
+        #filter:
+          #equals:
+            #property: PropertyName
+            #value: propertyValue
+
+        # (Optional) Force some sites to not be extracted.
+        #denylist:
+          #- ${SP_SITE_DISCOVERY_DENY_SITE_1}

@@ -125,7 +125,4 @@ cdf deploy modules/sourcesystem/cdf_opcua_foundation --env your-environment
 The extractor config is delivered via the `ep_{{location}}_opcua` extraction pipeline in CDF. Set the environment variables on the extractor host and start the extractor — it will pull its config from CDF automatically.
 
 
-### Verify
-
-Check that the RAW tables under `db_{{location}}_opcua` (`assets`, `timeseries`, `relationships`) are populated and that timeseries from your OPC-UA Variable nodes appear in CDF Data Explorer.
 

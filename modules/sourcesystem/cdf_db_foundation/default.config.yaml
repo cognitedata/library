@@ -1,0 +1,15 @@
+# DB Foundation — configuration variables
+
+# Site/location code, used in externalIds (e.g. ep_{{location}}_db_postgres, db_{{location}}_db_postgres)
+location: "site1"
+
+# dataSetExternalId for the extraction pipeline and RAW database
+dataset: "ds_db_postgres"
+
+# Integration owner (technical contact for the pipeline)
+integration_owner_name: "Integration Owner"
+integration_owner_email: "integration.owner@example.com"
+
+# Data owner (business contact for the data)
+data_owner_name: "Data Owner"
+data_owner_email: "data.owner@example.com"

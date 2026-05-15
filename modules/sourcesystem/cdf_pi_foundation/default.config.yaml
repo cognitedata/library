@@ -1,13 +1,21 @@
 # PI Foundation — configuration variables
 
-# Site/location code, used in externalIds (e.g. ep_{{location}}_pi, db_{{location}}_pi)
-location: "site"
+# Site/location code, used in externalIds (e.g. ep_{{location}}_pi)
+location: "site1"
 
-# DM space where TimeSeries / CogniteTimeSeries instances are written
+# DM space where the extractor writes ExtractorTimeSeries instances (CDM destination)
 instanceSpace: "sp_instances"
 
-# dataSetExternalId for the extraction pipeline and RAW database
+# dataSetExternalId for the extraction pipeline
 dataset: "ds_pi"
 
 # External ID prefix for PI tag timeseries instances (used by the extractor)
 piIdPrefix: "pi:"
+
+# Integration owner (technical contact for the pipeline)
+integration_owner_name: "Integration Owner"
+integration_owner_email: "integration.owner@example.com"
+
+# Data owner (business contact for the data)
+data_owner_name: "Data Owner"
+data_owner_email: "data.owner@example.com"
