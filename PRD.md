@@ -698,8 +698,6 @@ Each module defines its own `default.config.yaml`. The following variables appea
 | Atlas AI integration | `dp:atlas_ai` | OOTB agents layered on top of the foundation data model |
 | Additional source systems | `sourcesystem/cdf_<system>_foundation` | Maximo, Meridium, or other CMMS |
 | PI Asset Framework (AF) support | `sourcesystem/cdf_pi_af_foundation` | Hierarchy ingestion from PI AF |
-| Project health dashboard | `dashboards/project_health` | Extraction pipeline uptime, transformation error rates |
-| Automated quality assertions | *(new module)* | Scheduled transformation-based checks (null rates, referential integrity, coverage thresholds) |
 
 ---
 
