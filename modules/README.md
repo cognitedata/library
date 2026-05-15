@@ -13,7 +13,7 @@ modules/
 ├── solutions/              # cdm_maintain, cdm_infield, cdf_ai_extractor
 ├── sourcesystem/           # cdf_pi, cdf_sap_*, cdf_sharepoint, cdf_oid_sync
 ├── dashboards/             # context_quality, project_health, cdf_analysis, report_quality
-├── atlas_ai/               # ootb_agents, rca_with_rmdm
+├── atlas_ai/               # ootb_agents
 ├── tools/                  # notebooks, Qualitizer
 └── custom/                 # empty module template
 ```

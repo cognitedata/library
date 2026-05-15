@@ -62,10 +62,6 @@ The RMDM v1 defines a comprehensive set of entities, grouped into key categories
 - **File_ext** – Extended file metadata for maintenance documentation
 - **Timeseries_ext** – Extended time series data for monitoring and analysis
 
-## Related Modules
-
-- **atlas_ai/rca_with_rmdm/** – Contains intelligent Atlas AI agents that work with this data model to provide RCA capabilities
-
 ## Deployment
 
 ### Prerequisites

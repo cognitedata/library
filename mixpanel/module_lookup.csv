@@ -1,6 +1,5 @@
 moduleId,module name
 "Atlas AI OOTB Agents","Atlas AI OOTB Agents"
-"Atlas AI RCA With RMDM","Atlas AI RCA With RMDM"
 "CDF Common","CDF Common"
 "CDF Entity Matching","CDF Entity Matching"
 "CDF Entity Matching MPL","CDF Entity Matching MPL"
@@ -104,7 +103,6 @@ moduleId,module name
 "twb_production_context","Custom"
 "xom:emps_site_spaces","Custom"
 "d75e736","Atlas AI OOTB Agents"
-"9a82851","Atlas AI RCA With RMDM"
 "4ba697e","CDF Common"
 "b464d8d","CDF Entity Matching"
 "af0f2c6","CDF Entity Matching MPL"
