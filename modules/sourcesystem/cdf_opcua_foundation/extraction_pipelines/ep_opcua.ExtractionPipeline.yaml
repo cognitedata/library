@@ -1,46 +1,45 @@
-externalId: '{{ep_id_prefix}}_extractor-pipeline'
-name: '{{ep_name_prefix}}_extractor-pipeline'
-dataSetExternalId: {{dataset_external_id}}
+
+externalId: "ep_{{location}}_opcua"
+name: "ep:{{location}}:opcua"
+dataSetExternalId: "{{dataset}}"
 description: Extraction pipeline for an OPC-UA data source.
 # RAW tables used by the OPC-UA extractor for staging and state storage.
 # These names align with the database/table references in
 # ep_opcua.ExtractionPipeline.Config.yaml (raw-node-buffer, metadata-targets.raw,
 # and state-storage). Update the suffix per site if you run multiple pipelines.
 rawTables:
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+- dbName: 'db_{{location}}_opcua'
   tableName: assets
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+- dbName: 'db_{{location}}_opcua'
   tableName: timeseries
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+- dbName: 'db_{{location}}_opcua'
   tableName: relationships
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+- dbName: 'db_{{location}}_opcua'
   tableName: known_objects
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+- dbName: 'db_{{location}}_opcua'
   tableName: known_references
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+- dbName: 'db_{{location}}_opcua'
   tableName: known_variables
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
+- dbName: 'db_{{location}}_opcua'
   tableName: state-store-variables
-- dbName: '{{raw_db_name_prefix}}_opcua_site1'
-  tableName: state-store-events
 schedule: Continuous
 contacts:
 - name: {{integration_owner_name}}
   email: {{integration_owner_email}}
   role: Owner
-  sendNotification: {{send-notifications}}
+  sendNotification: true
 - name: Cognite Support
-  email: {{cognite-support}}
+  email: support@cognite.com
   role: Operational Owner
-  sendNotification: {{send-notifications}}
+  sendNotification: true
 - name: {{data_owner_name}}
   email: {{data_owner_email}}
   role: Data Owner
-  sendNotification: {{send-notifications}}
+  sendNotification: true
 notificationConfig:
   allowedNotSeenRangeInMinutes: 30
-source: {{source}}
-createdBy: {{origin}}
+source: OPC-UA
+createdBy: cognite-toolkit
 documentation: |
   ## OPC-UA extraction pipeline
 
@@ -56,17 +55,17 @@ documentation: |
 
   ### Required environment variables on the extractor host
 
-  | Variable                | Purpose                                  |
-  | ----------------------- | ---------------------------------------- |
-  | `COGNITE_PROJECT`       | CDF project name                         |
-  | `COGNITE_HOST`          | CDF base URL                             |
-  | `COGNITE_TENANT_ID`     | IdP tenant ID                            |
-  | `COGNITE_CLIENT_ID`     | Service account client ID                |
-  | `COGNITE_CLIENT_SECRET` | Service account client secret            |
+  | Variable                | Purpose                                    |
+  | ----------------------- | ------------------------------------------ |
+  | `CDF_PROJECT`           | CDF project name                           |
+  | `CDF_URL`               | CDF base URL                               |
+  | `IDP_TENANT_ID`         | IdP tenant ID                              |
+  | `IDP_CLIENT_ID`         | Service account client ID                  |
+  | `IDP_CLIENT_SECRET`     | Service account client secret              |
   | `OPCUA_USER`            | OPC-UA server username (omit if anonymous) |
-  | `OPCUA_PASSWORD`        | OPC-UA server password                   |
-  | `PROMETHEUS_USER`       | (optional) Push-gateway username         |
-  | `PROMETHEUS_PASSWORD`   | (optional) Push-gateway password         |
+  | `OPCUA_PASSWORD`        | OPC-UA server password                     |
+  | `PROMETHEUS_USER`       | (optional) Push-gateway username           |
+  | `PROMETHEUS_PASSWORD`   | (optional) Push-gateway password           |
 
   ### Install the OPC-UA extractor
 
@@ -81,16 +80,16 @@ documentation: |
      version: 1
      type: remote
      cognite:
-       project: ${COGNITE_PROJECT}
-       host: ${COGNITE_HOST}
+       project: ${CDF_PROJECT}
+       host: ${CDF_URL}
        idp-authentication:
-         tenant: ${COGNITE_TENANT_ID}
-         client-id: ${COGNITE_CLIENT_ID}
-         secret: ${COGNITE_CLIENT_SECRET}
+         tenant: ${IDP_TENANT_ID}
+         client-id: ${IDP_CLIENT_ID}
+         secret: ${IDP_CLIENT_SECRET}
          scopes:
-           - ${COGNITE_HOST}/.default
+           - ${CDF_URL}/.default
        extraction-pipeline:
-         pipeline-id: {{ep_id_prefix}}_extractor-pipeline
+         pipeline-id: ep_{{location}}_opcua
      ```
 
      The full runtime configuration (source, extraction filters, history,

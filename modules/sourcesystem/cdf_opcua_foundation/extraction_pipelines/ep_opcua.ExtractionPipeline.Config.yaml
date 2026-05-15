@@ -1,5 +1,5 @@
-externalId: '{{ep_id_prefix}}_extractor-pipeline'
-dataSetExternalId: {{dataset_external_id}}
+externalId: "ep_{{location}}_opcua"
+dataSetExternalId: "{{dataset}}"
 config:
   version: 1
   source:
@@ -118,7 +118,7 @@ config:
       max-parallelism: 1
       max-node-parallelism: 0
   state-storage:
-    location: '{{raw_db_name_prefix}}_opcua_site1'
+    location: 'db_{{location}}_opcua'
     database: Raw
     variable-store: state-store-variables
     event-store: state-store-events
@@ -149,23 +149,23 @@ config:
       level: information
     read-extracted-ranges: true
     data-set:
-      external-id: '{{dataset_external_id}}'
+      external-id: '{{dataset}}'
     metadata-targets:
       clean:
         assets: true
         timeseries: true
         relationships: true
-        space: '{{instance_space}}'
+        space: '{{instanceSpace}}'
         source: "OPCUA"
 
       raw:
-        database: '{{raw_db_name_prefix}}_opcua_site1'
+        database: 'db_{{location}}_opcua'
         assets-table: 'assets'
         timeseries-table: 'timeseries'
         relationships-table: 'relationships'
     raw-node-buffer:
       enable: true
-      database: '{{raw_db_name_prefix}}_opcua_site1'
+      database: 'db_{{location}}_opcua'
       assets-table: 'assets'
       timeseries-table: 'timeseries'
       browse-on-empty: true

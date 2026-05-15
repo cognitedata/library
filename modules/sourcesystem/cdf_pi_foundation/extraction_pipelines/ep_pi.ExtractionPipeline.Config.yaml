@@ -1,76 +1,39 @@
 externalId: "ep_{{location}}_pi"
 
 config:
-  # PI .NET Extractor configuration template
-  # Source: gss-knowledge-base/extractors/toolkit_examples/pi_net_extractor
-  #
-  # Environment variables required (set in extractor host environment):
-  #   PI_HOST              — PI Data Archive hostname or IP
-  #   PI_USER              — PI server username
-  #   PI_PASSWORD          — PI server password
-  #   COGNITE_PROJECT      — CDF project name
-  #   COGNITE_HOST         — CDF base URL, e.g. https://api.cognitedata.com
-  #   COGNITE_TENANT_ID    — IDP tenant ID
-  #   COGNITE_CLIENT_ID    — Service account client ID
-  #   COGNITE_CLIENT_SECRET — Service account client secret
+  # Template for the PI Extractor configuration file.
+  # Fields that are commented out are optional.
+  # The extractor requires the configuration file to be in the config/config.yml file wrt the installation/working directory.
+  # In general, all secrets should be kept out of the configuration file, using references to environment variables.
+  # Also, don't enable default values in the configuration file, as this provides a safer upgrade path.
 
+  # Version of this configuration schema
   version: 1
 
+  # Log levels: 'verbose', 'debug', 'information', 'warning', 'error', 'fatal'.
   logger:
+    # Writes log events at this level to a file. Logs will roll over to new files daily.
+    # If not present, or if the level is invalid, logging to file is disabled.
     file:
       level: "information"
+      # Path for logging output. If not present, logging to file is disabled.
       path: "logs/log.log"
-    console:
-      level: "warning"
 
-  cognite:
-    project: ${COGNITE_PROJECT}
-    host: ${COGNITE_HOST}
-    idp-authentication:
-      tenant: ${COGNITE_TENANT_ID}
-      client-id: ${COGNITE_CLIENT_ID}
-      secret: ${COGNITE_CLIENT_SECRET}
-      scopes:
-        - ${COGNITE_HOST}/.default
-    extraction-pipeline:
-      external-id: "ep_{{location}}_pi"
-
+  # Configuration related to time series in CDF
   time-series:
-    # External ID prefix — all PI tags will be created as "pi:<tagname>" in CDF
-    external-id-prefix: "{{piIdPrefix}}"
-    # Write timeseries metadata to RAW for transformation into ISATimeSeries DM instances
-    # The transformation tr_{{location}}_pi_timeseries maps this to {{instanceSpace}}
-    raw:
-      database: "db_{{location}}_pi"
-      table: "timeseries_metadata"
-    # Data set for timeseries resources
-    data-set:
-      external-id: "{{dataset}}"
+    # External Id prefix to identify time series in CDF. Leave empty for no prefix.
+    # The external Id in CDF is this optional prefix followed by the PI Point name or id
+    external-id-prefix: "pi:"
 
+    # Data modeling space id, this parameter will override data-set-id and switch the extractor destination
+    # from Asset-Centric model TimeSeries to Core Data Model TimeSeries with the ExtractorTimeSeries extension.
+    space-id: "sp_{{location}}_pi_timeseries"
+
+  # Configuration related to the PI Server
   pi:
+    # PI Data Archive host server to connect to
     host: ${PI_HOST}
+    # Username to use for authentication
     username: ${PI_USER}
+    # Password
     password: ${PI_PASSWORD}
-
-    # Optional: filter which PI tags are extracted
-    # Uncomment and configure for your site:
-    # tag-filter:
-    #   # Include tags matching these glob patterns
-    #   whitelist:
-    #     - "SITE.*"
-    #     - "TAG_PREFIX.*"
-    #   # Exclude tags matching these glob patterns
-    #   blacklist:
-    #     - "*.BAD"
-    #     - "*.SHUTDOWN"
-
-    # Optional: PI Data Archive connection settings
-    # connection-timeout: 60
-    # command-timeout: 120
-
-  # Optional: extraction schedule
-  # history:
-  #   # Backfill start time (ISO 8601)
-  #   start-time: "2020-01-01T00:00:00Z"
-  #   # Maximum number of parallel history reads
-  #   max-parallelism: 10

@@ -1,7 +1,7 @@
 externalId: "ep_{{location}}_pi"
 name: "ep:{{location}}:pi"
 dataSetExternalId: "{{dataset}}"
-description: "PI .NET Extractor pipeline for site {{location}} — writes tag metadata to RAW for transformation into ISATimeSeries DM instances"
+description: "PI .NET Extractor pipeline for site {{location}} — writes tag metadata to RAW for transformation into ISATimeSeries / CogniteTimeSeries DM instances"
 rawTables:
   - dbName: "db_{{location}}_pi"
     tableName: "timeseries_metadata"
@@ -9,10 +9,73 @@ source: PI
 schedule: Continuous
 notificationConfig:
   allowedNotSeenRangeInMinutes: 720
-documentation: >
-  Extraction pipeline for PI tag metadata at site {{location}}.
-  The PI .NET Extractor writes timeseries values directly to CDF and
-  tag metadata (name, description, unit, engineering range) to RAW table
-  db_{{location}}_pi.timeseries_metadata. The transformation
-  tr_{{location}}_pi_timeseries then maps that metadata to ISATimeSeries
-  DM view instances in {{instanceSpace}}.
+documentation: |
+  ## PI extraction pipeline
+
+  This extraction pipeline reads tags and tag values from a Cognite PI .NET
+  Extractor (version 2.1, config schema version 3) and writes timeseries values
+  directly to CDF and tag metadata to a RAW staging table. The runtime
+  configuration lives in `ep_pi.ExtractionPipeline.Config.yaml` and is fetched
+  by the extractor using its `pipeline-id`.
+
+  Tag metadata staged in RAW (`db_{{location}}_pi.timeseries_metadata`) is then
+  mapped to data-model instances in `{{instanceSpace}}` by the transformation
+  `tr_{{location}}_pi_timeseries`.
+
+  ### Required environment variables on the extractor host
+
+  | Variable                | Purpose                                                |
+  | ----------------------- | ------------------------------------------------------ |
+  | `CDF_PROJECT`       | CDF project name                                       |
+  | `CDF_URL`          | CDF base URL (e.g. `https://api.cognitedata.com`)      |
+  | `IDP_TENANT_ID`     | IdP tenant ID                                          |
+  | `IDP_CLIENT_ID`     | Service account client ID                              |
+  | `IDP_CLIENT_SECRET` | Service account client secret                          |
+  | `PI_HOST`               | PI Data Archive hostname or IP                         |
+  | `PI_USER`               | PI server username (omit for Windows authentication)   |
+  | `PI_PASSWORD`           | PI server password (omit for Windows authentication)   |
+
+  ### Install the PI .NET Extractor
+
+  1. **Download the installer** from Cognite Hub or Fusion (Extractors page) on
+     a Windows host that has network access to both the PI Data Archive and to
+     CDF. The PI extractor is Windows-only.
+  2. **Install** to e.g. `C:\Cognite\PIExtractor\` and follow the bundled
+     README to register it as a Windows service. The service account must have
+     read access to the PI Data Archive (or supply explicit `PI_USER` /
+     `PI_PASSWORD`).
+  3. **Point the extractor at this pipeline** by giving it a minimal local
+     `config.yml` containing only credentials and the pipeline ID — the full
+     runtime configuration is delivered remotely from this extraction pipeline:
+
+     ```yaml
+     version: 3
+     type: remote
+     cognite:
+       project: ${CDF_PROJECT}
+       host: ${CDF_URL}
+       idp-authentication:
+         tenant: ${IDP_TENANT_ID}
+         client-id: ${IDP_CLIENT_ID}
+         secret: ${IDP_CLIENT_SECRET}
+         scopes:
+           - ${CDF_URL}/.default
+       extraction-pipeline:
+         external-id: ep_{{location}}_pi
+     ```
+
+  ### RAW tables written by this pipeline
+
+  | Table                  | Purpose                                                              |
+  | ---------------------- | -------------------------------------------------------------------- |
+  | `timeseries_metadata`  | Tag metadata (name, description, unit, engineering range) staged for the `tr_{{location}}_pi_timeseries` transformation |
+
+  Timeseries values themselves are written directly to CDF as classic time
+  series with external IDs prefixed `{{piIdPrefix}}` (default `pi:`). They are
+  not staged in RAW.
+
+  ### References
+
+  * PI extractor docs: <https://docs.cognite.com/cdf/integration/guides/extraction/pi>
+  * PI configuration reference: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/pi>
+  * Minimal config sample: <https://docs.cognite.com/cdf/integration/guides/extraction/configuration/pi#minimal-yaml-configuration-file>

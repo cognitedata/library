@@ -1,12 +1,18 @@
 # OPC-UA Foundation — configuration variables
-# Inherits: location, instanceSpace, dataset, rawSourceDatabase, schemaSpace from cdf_foundation
 
-# External ID prefix for all OPC-UA node timeseries instances
-opcuaIdPrefix: "opcua:"
+# Site/location code, used in externalIds (e.g. ep_{{location}}_opcua, db_{{location}}_opcua)
+location: "site1"
 
-# OPC-UA subscription settings (milliseconds)
-opcuaPublishingInterval: 5000
-opcuaSamplingInterval: 5000
+# DM space where ISATimeSeries / CogniteTimeSeries instances are written
+instanceSpace: "sp_instances"
 
-# Set to false to omit sysTagsFound population (used by downstream SQL contextualization)
-populateSysTagsFound: true
+# dataSetExternalId for the extraction pipeline and RAW database
+dataset: "ds_opcua"
+
+# Integration owner (technical contact for the pipeline)
+integration_owner_name: "Integration Owner"
+integration_owner_email: "integration.owner@example.com"
+
+# Data owner (business contact for the data)
+data_owner_name: "Data Owner"
+data_owner_email: "data.owner@example.com"

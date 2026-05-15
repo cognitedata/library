@@ -69,11 +69,11 @@ Set these on the host running the PI .NET Extractor:
 | `PI_HOST` | PI Data Archive hostname or IP |
 | `PI_USER` | PI server username |
 | `PI_PASSWORD` | PI server password |
-| `COGNITE_PROJECT` | CDF project name |
-| `COGNITE_HOST` | CDF base URL (e.g. `https://api.cognitedata.com`) |
-| `COGNITE_TENANT_ID` | IDP tenant ID |
-| `COGNITE_CLIENT_ID` | Service account client ID |
-| `COGNITE_CLIENT_SECRET` | Service account client secret |
+| `CDF_PROJECT` | CDF project name |
+| `CDF_URL` | CDF base URL (e.g. `https://api.cognitedata.com`) |
+| `IDP_TENANT_ID` | IDP tenant ID |
+| `IDP_CLIENT_ID` | Service account client ID |
+| `IDP_CLIENT_SECRET` | Service account client secret |
 
 ## Transformation SQL — Important Note
 

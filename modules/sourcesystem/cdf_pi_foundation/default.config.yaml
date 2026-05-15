@@ -1,8 +1,13 @@
 # PI Foundation — configuration variables
-# Inherits: location, instanceSpace, dataset, rawSourceDatabase, schemaSpace from cdf_foundation
 
-# External ID prefix for PI tag timeseries instances
+# Site/location code, used in externalIds (e.g. ep_{{location}}_pi, db_{{location}}_pi)
+location: "site"
+
+# DM space where TimeSeries / CogniteTimeSeries instances are written
+instanceSpace: "sp_instances"
+
+# dataSetExternalId for the extraction pipeline and RAW database
+dataset: "ds_pi"
+
+# External ID prefix for PI tag timeseries instances (used by the extractor)
 piIdPrefix: "pi:"
-
-# Set to false to omit sysTagsFound population (used by downstream SQL contextualization)
-populateSysTagsFound: true

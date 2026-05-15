@@ -1,1 +1,1 @@
-dbName: "{{raw_db_name_prefix}}_opcua_site1"
+dbName: "db_{{location}}_opcua"
