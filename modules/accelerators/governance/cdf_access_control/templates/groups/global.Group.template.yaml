@@ -1,0 +1,10 @@
+name: {{ group_name }}
+sourceId: "{{ '{{ ' ~ group_name ~ ' }}' }}"
+capabilities:
+  - dataModelInstancesAcl:
+      scope:
+        spaceIdScope:
+          spaceIds:
+{%- for sid in instance_space_ids %}
+            - {{ sid }}
+{%- endfor %}

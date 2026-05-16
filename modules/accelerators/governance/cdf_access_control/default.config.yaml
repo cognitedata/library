@@ -1,0 +1,76 @@
+access_control_ui:
+  mirror_config_paths: []
+dimensions:
+  scope_tree:
+    order: 0
+    type: hierarchy
+    levels:
+    - site
+    - unit
+    - area
+    - system
+    locations:
+    - id: SITE_A
+      name: Site A
+      locations: []
+    - id: SITE_B
+      name: Site B
+      description: ''
+      locations:
+      - id: UNIT_01
+        name: 'Site B: Unit 01'
+        description: ''
+        locations: []
+  source_system:
+    order: 10
+    type: list
+    items:
+    - id: erp
+      name: ERP
+    - id: scada
+      name: SCADA
+  application:
+    order: 20
+    type: list
+    items:
+    - id: default
+      name: Default
+    - id: integration
+      name: Integration
+  access_level:
+    order: 30
+    type: list
+    items:
+    - id: reader
+      name: Reader
+    - id: editor
+      name: Editor
+spaces:
+  scope_dimension: scope_tree
+  template: templates/spaces/default.Space.template.yaml
+  combine_with:
+  - source_system
+  nodes: all
+  output_dir: spaces
+  global:
+    source_ids: {}
+    sourceId: ''
+groups:
+  scope_dimension: scope_tree
+  combine_with:
+  - application
+  - access_level
+  template: templates/groups/global.Group.template.yaml
+  nodes: all
+  output_dir: auth
+  name_template: gp_{{ scope_id_snake }}_{{ application_id }}_{{ access_level_id }}
+  global:
+    sourceId: ''
+    source_ids: {}
+    extra_instance_spaces:
+    - cdf_cdm
+    org_wide:
+      enabled: true
+      scope_id: GLOBAL
+      name: Organization
+      description: Cross-site access control roles

@@ -4,14 +4,10 @@ import type { MessageKey } from "../i18n";
 import type { JsonObject } from "../types/scopeConfig";
 import type { WorkflowCanvasDocument } from "../types/workflowCanvas";
 import {
-  QUERY_NODE_KINDS,
-  addQueryNode,
-  isQueryNodeKind,
   listQueryNodes,
   patchNodeConfig,
   queryNodeListLabel,
   readNodeConfig,
-  removeQueryNode,
   type QueryNodeKind,
 } from "../utils/queriesCanvasUtils";
 import { ClassicQueryConfigFields } from "./ClassicQueryConfigFields";
@@ -88,7 +84,6 @@ export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace }
   const { t } = useAppSettings();
   const queries = listQueryNodes(canvas);
   const [selectedId, setSelectedId] = useState<string | null>(queries[0]?.id ?? null);
-  const [addKind, setAddKind] = useState<QueryNodeKind>("query_view");
 
   useEffect(() => {
     if (queries.length === 0) {
@@ -126,37 +121,6 @@ export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace }
         <h3 className="kea-section-title" style={{ margin: 0 }}>
           {t("queries.title")}
         </h3>
-        <label className="kea-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="kea-hint" style={{ margin: 0 }}>
-            {t("queries.addKind")}
-          </span>
-          <select
-            className="kea-select"
-            style={{ marginTop: 0, minWidth: "10rem" }}
-            value={addKind}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (isQueryNodeKind(v)) setAddKind(v);
-            }}
-          >
-            {QUERY_NODE_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {kindLabel(k)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="kea-btn kea-btn--primary kea-btn--sm"
-          onClick={() => {
-            const { canvas: next, nodeId } = addQueryNode(canvas, addKind, schemaSpace);
-            onChange(next);
-            setSelectedId(nodeId);
-          }}
-        >
-          {t("queries.addQuery")}
-        </button>
       </div>
 
       <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
@@ -191,21 +155,9 @@ export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace }
             <p className="kea-hint">{t("queries.emptyEditor")}</p>
           ) : (
             <div className="kea-source-views-editor-inner">
-              <div className="kea-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
-                <span className="kea-hint" style={{ margin: 0 }}>
-                  {kindLabel(selected.kind as QueryNodeKind)} — {queryNodeListLabel(selected)}
-                </span>
-                <button
-                  type="button"
-                  className="kea-btn kea-btn--ghost kea-btn--sm"
-                  onClick={() => {
-                    const next = removeQueryNode(canvas, selected.id);
-                    onChange(next);
-                  }}
-                >
-                  {t("queries.removeQuery")}
-                </button>
-              </div>
+              <p className="kea-hint" style={{ margin: "0 0 0.85rem" }}>
+                {kindLabel(selected.kind as QueryNodeKind)} — {queryNodeListLabel(selected)}
+              </p>
               {selected.kind === "query_view" ? (
                 <ViewQueryConfigFields
                   fieldKey={selected.id}

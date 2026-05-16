@@ -181,6 +181,79 @@ def _resolve_discovery_run_report_path(rel: str) -> Path:
     return path
 
 
+_CDF_DISCOVERY_TASKS_BASENAME = re.compile(r"^\d{8}_\d{6}_cdf_discovery_tasks\.json$")
+
+
+def _rel_under_module(path: Path) -> str:
+    return str(path.relative_to(MODULE_ROOT)).replace("\\", "/")
+
+
+def _discovery_tasks_path_for_report(report_path: Path) -> Path:
+    return cdf_discovery_tasks_path_for_run_report(report_path)
+
+
+def _resolve_discovery_tasks_path(rel: str) -> Path:
+    rel_n = rel.strip().replace("\\", "/")
+    if rel_n.endswith("_local_run_report.json"):
+        report_path = _resolve_discovery_run_report_path(rel_n)
+        tasks_path = _discovery_tasks_path_for_report(report_path)
+        if not tasks_path.is_file():
+            raise HTTPException(status_code=404, detail="Discovery tasks file not found")
+        return tasks_path
+    if not rel_n.startswith(_RUN_RESULTS_PREFIX):
+        raise HTTPException(status_code=400, detail="Path must be under local_run_results/")
+    path = _safe_rel_path(rel_n)
+    root_resolved = _run_results_root().resolve()
+    try:
+        path.relative_to(root_resolved)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="Path escapes local_run_results") from e
+    if not _CDF_DISCOVERY_TASKS_BASENAME.match(path.name):
+        raise HTTPException(
+            status_code=400,
+            detail="Only YYYYMMDD_HHMMSS_cdf_discovery_tasks.json",
+        )
+    return path
+
+
+def _load_json_object(path: Path, *, max_bytes: int = _MAX_RUN_RESULT_PREVIEW_BYTES) -> Dict[str, Any]:
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    sz = path.stat().st_size
+    if sz > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large for preview ({sz} bytes; max {max_bytes})",
+        )
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}") from e
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="Expected JSON object")
+    return data
+
+
+def _discovery_tasks_rel_for_report(report_path: Path) -> str | None:
+    tasks_path = _discovery_tasks_path_for_report(report_path)
+    if tasks_path.is_file():
+        return _rel_under_module(tasks_path)
+    return None
+
+
+def _summary_from_report_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    eop = data.get("end_of_process") if isinstance(data.get("end_of_process"), dict) else {}
+    warnings = eop.get("warnings")
+    return {
+        "status": eop.get("status"),
+        "elapsed_ms": eop.get("elapsed_ms"),
+        "task_count": eop.get("task_count"),
+        "dry_run": eop.get("dry_run"),
+        "failed_task_key": eop.get("failed_task_key"),
+        "warnings": list(warnings) if isinstance(warnings, list) else [],
+    }
+
+
 def _scope_document_path(rel: str | None) -> Path:
     r = (rel or "").strip() or DEFAULT_SCOPE_DOCUMENT_REL
     return _safe_rel_path(r)
@@ -1221,108 +1294,87 @@ def list_discovery_run_results(
             if not _run_scope_matches_key(rs, scope_filter):
                 continue
         stem_ts = p.name[: -len("_local_run_report.json")]
-        runs.append(
-            {
-                "stem": stem_ts,
-                "report_rel": str(p.relative_to(MODULE_ROOT)).replace("\\", "/"),
-                "mtime_ms": int(p.stat().st_mtime * 1000),
-            }
-        )
+        entry: Dict[str, Any] = {
+            "stem": stem_ts,
+            "report_rel": _rel_under_module(p),
+            "mtime_ms": int(p.stat().st_mtime * 1000),
+        }
+        tasks_rel = _discovery_tasks_rel_for_report(p)
+        if tasks_rel:
+            entry["tasks_rel"] = tasks_rel
+        try:
+            entry.update(_summary_from_report_data(_load_json_object(p)))
+        except HTTPException:
+            pass
+        runs.append(entry)
     return {"runs": runs}
 
 
-@app.get("/api/run-results/discovery-raw-preview")
-def preview_discovery_raw_result(
+@app.get("/api/run-results/discovery-detail")
+def discovery_run_detail(
     rel: str = Query(..., description="Module-relative path to *_local_run_report.json"),
-    table_index: int = Query(0, ge=0),
+) -> dict:
+    """Run summary, paths, and scope for a discovery local run report."""
+    report_path = _resolve_discovery_run_report_path(rel)
+    data = _load_json_object(report_path)
+    paths = data.get("paths") if isinstance(data.get("paths"), dict) else {}
+    return {
+        "report_rel": _rel_under_module(report_path),
+        "tasks_rel": _discovery_tasks_rel_for_report(report_path),
+        "run_scope": _read_discovery_report_run_scope(report_path),
+        "end_of_process": data.get("end_of_process"),
+        "paths": paths,
+        "summary": _summary_from_report_data(data),
+    }
+
+
+@app.get("/api/run-results/discovery-tasks-preview")
+def preview_discovery_tasks(
+    rel: str = Query(
+        ...,
+        description="Module-relative *_local_run_report.json or *_cdf_discovery_tasks.json",
+    ),
     offset: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=500),
 ) -> dict:
-    """Paginate ``raw_results.tables[*].rows`` from a discovery local run report."""
-    path = _resolve_discovery_run_report_path(rel)
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
-    sz = path.stat().st_size
-    if sz > _MAX_RUN_RESULT_PREVIEW_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large for preview ({sz} bytes; max {_MAX_RUN_RESULT_PREVIEW_BYTES})",
+    """Paginate ``task_outputs`` from a discovery tasks snapshot."""
+    tasks_path = _resolve_discovery_tasks_path(rel)
+    data = _load_json_object(tasks_path)
+    task_outputs = data.get("task_outputs")
+    if not isinstance(task_outputs, dict):
+        return {"total": 0, "offset": offset, "limit": limit, "items": []}
+    keys = sorted(str(k) for k in task_outputs.keys())
+    total = len(keys)
+    chunk_keys = keys[offset : offset + limit]
+    items: List[Dict[str, Any]] = []
+    for task_id in chunk_keys:
+        entry = task_outputs.get(task_id)
+        if not isinstance(entry, dict):
+            items.append({"task_id": task_id, "status": None, "message": None, "parsed": None})
+            continue
+        status = entry.get("status")
+        message = entry.get("message")
+        parsed: Any = None
+        if isinstance(message, str) and message.strip():
+            try:
+                parsed = json.loads(message)
+            except json.JSONDecodeError:
+                parsed = None
+        items.append(
+            {
+                "task_id": task_id,
+                "status": status,
+                "message": message,
+                "parsed": parsed if isinstance(parsed, dict) else None,
+            }
         )
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}") from e
-    if not isinstance(data, dict):
-        raise HTTPException(status_code=400, detail="Expected JSON object")
-    raw_results = data.get("raw_results")
-    if not isinstance(raw_results, dict):
-        return {
-            "has_raw_results": False,
-            "table_count": 0,
-            "table_index": 0,
-            "total": 0,
-            "offset": offset,
-            "limit": limit,
-            "items": [],
-        }
-    tables = raw_results.get("tables")
-    if not isinstance(tables, list) or not tables:
-        return {
-            "has_raw_results": True,
-            "tables_empty": True,
-            "table_count": 0,
-            "table_index": 0,
-            "total": 0,
-            "offset": offset,
-            "limit": limit,
-            "items": [],
-        }
-    table_count = len(tables)
-    if table_index >= table_count:
-        raise HTTPException(status_code=400, detail="table_index out of range")
-    tab = tables[table_index]
-    if not isinstance(tab, dict):
-        raise HTTPException(status_code=400, detail="Invalid table entry")
-    rows = tab.get("rows")
-    if not isinstance(rows, list):
-        rows = []
-    total = len(rows)
-    chunk = rows[offset : offset + limit]
-    out: Dict[str, Any] = {
-        "has_raw_results": True,
-        "tables_empty": False,
-        "table_count": table_count,
-        "table_index": table_index,
+    return {
+        "tasks_rel": _rel_under_module(tasks_path),
         "total": total,
         "offset": offset,
         "limit": limit,
-        "items": chunk,
-        "raw_db": tab.get("raw_db"),
-        "raw_table": tab.get("raw_table"),
-        "source_task_ids": tab.get("source_task_ids"),
-        "row_count_reported": tab.get("row_count"),
-        "truncated": tab.get("truncated"),
-        "error": tab.get("error"),
+        "items": items,
     }
-    if offset == 0:
-        meta: List[Dict[str, Any]] = []
-        for i, t in enumerate(tables):
-            if not isinstance(t, dict):
-                continue
-            rws = t.get("rows")
-            rc = len(rws) if isinstance(rws, list) else 0
-            meta.append(
-                {
-                    "index": i,
-                    "raw_db": t.get("raw_db", ""),
-                    "raw_table": t.get("raw_table", ""),
-                    "row_count": rc,
-                    "truncated": t.get("truncated"),
-                    "error": t.get("error"),
-                }
-            )
-        out["all_tables"] = meta
-    return out
 
 
 @app.get("/api/file")

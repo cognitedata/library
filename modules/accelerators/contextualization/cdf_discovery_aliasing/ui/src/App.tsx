@@ -1158,6 +1158,8 @@ export default function App() {
         /* ignore */
       }
       setRunResultsRefreshKey((k) => k + 1);
+      setConfigSubTab("flowCanvas");
+      setFlowCanvasSubTab("runResults");
     }
   }, [api, configureTarget, runAll, t]);
 

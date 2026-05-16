@@ -3,11 +3,9 @@ import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
 import type { WorkflowCanvasDocument } from "../types/workflowCanvas";
 import {
-  addValidationNode,
   listValidationNodeRefs,
   patchValidationNode,
   readValidationConfig,
-  removeValidationNode,
   validationNodeContainerLabel,
   validationNodeListLabel,
   validationNodeLocationKey,
@@ -56,20 +54,6 @@ export function ValidationsControls({ canvas, onChange, initialNodeId }: Props) 
         <h3 className="kea-section-title" style={{ margin: 0 }}>
           {t("validations.title")}
         </h3>
-        <button
-          type="button"
-          className="kea-btn kea-btn--primary kea-btn--sm"
-          onClick={() => {
-            const { canvas: next, nodeId } = addValidationNode(canvas, {
-              subgraphPath: selected?.subgraphPath,
-            });
-            onChange(next);
-            const hit = listValidationNodeRefs(next).find((r) => r.node.id === nodeId);
-            if (hit) setSelectedKey(validationNodeLocationKey(hit));
-          }}
-        >
-          {t("validations.addNode")}
-        </button>
       </div>
 
       <p className="kea-hint" style={{ marginTop: "0.35rem", marginBottom: "0.85rem" }}>
@@ -113,22 +97,9 @@ export function ValidationsControls({ canvas, onChange, initialNodeId }: Props) 
             <p className="kea-hint">{t("validations.emptyEditor")}</p>
           ) : (
             <div className="kea-source-views-editor-inner">
-              <div className="kea-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
-                <span className="kea-hint" style={{ margin: 0 }}>
-                  {t("validations.stageLabel")} · {validationNodeListLabel(selected.node)}
-                </span>
-                <button
-                  type="button"
-                  className="kea-btn kea-btn--ghost kea-btn--sm"
-                  onClick={() =>
-                    onChange(
-                      removeValidationNode(canvas, selected.node.id, selected.subgraphPath)
-                    )
-                  }
-                >
-                  {t("validations.removeNode")}
-                </button>
-              </div>
+              <p className="kea-hint" style={{ margin: "0 0 0.85rem" }}>
+                {t("validations.stageLabel")} · {validationNodeListLabel(selected.node)}
+              </p>
               <ValidationNodeConfigFields
                 value={readValidationConfig(selected.node)}
                 onChange={(cfg) =>

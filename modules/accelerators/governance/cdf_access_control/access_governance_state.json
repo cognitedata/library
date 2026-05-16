@@ -1,0 +1,10 @@
+{
+  "spaces": [
+    "spaces/site_a/inst_site_a.Space.yaml",
+    "spaces/site_b/unit_01/inst_site_b_unit_01.Space.yaml"
+  ],
+  "groups": [
+    "auth/site_a/site_a.Group.yaml",
+    "auth/site_b/unit_01/site_b_unit_01.Group.yaml"
+  ]
+}

@@ -162,81 +162,53 @@ def test_discovery_run_results_filter_uses_run_scope_from_sidecar(api_client):
     assert r2.json()["runs"] == []
 
 
-def test_discovery_raw_preview_paginates_rows(api_client):
+def test_discovery_run_detail_and_tasks_preview(api_client):
     client, root = api_client
     lr = root / "local_run_results"
     lr.mkdir(parents=True)
-    stem = "20260205_121212"
-    rel = f"local_run_results/{stem}_local_run_report.json"
-    rows = [{"key": f"k{i}", "columns": {"n": i}} for i in range(5)]
-    raw_results = {
-        "schema_version": 1,
-        "tables": [
-            {
-                "raw_db": "db1",
-                "raw_table": "t1",
-                "source_task_ids": ["a"],
-                "rows": rows,
-            }
-        ],
-    }
-    (lr / f"{stem}_local_run_report.json").write_text(
-        json.dumps({"run_scope": {"target": "workflow_local"}, "raw_results": raw_results}),
-        encoding="utf-8",
-    )
-    r = client.get(
-        "/api/run-results/discovery-raw-preview",
-        params={"rel": rel, "table_index": 0, "offset": 0, "limit": 2},
-    )
-    assert r.status_code == 200
-    data = r.json()
-    assert data["has_raw_results"] is True
-    assert data["tables_empty"] is False
-    assert data["total"] == 5
-    assert len(data["items"]) == 2
-    assert data["items"][0]["key"] == "k0"
-    assert "all_tables" in data
-    assert len(data["all_tables"]) == 1
-    assert data["all_tables"][0]["raw_db"] == "db1"
-    r2 = client.get(
-        "/api/run-results/discovery-raw-preview",
-        params={"rel": rel, "table_index": 0, "offset": 1, "limit": 2},
-    )
-    assert r2.status_code == 200
-    d2 = r2.json()
-    assert d2["items"][0]["key"] == "k1"
-    assert "all_tables" not in d2
-
-
-def test_discovery_raw_preview_offset_nonzero_omits_all_tables(api_client):
-    client, root = api_client
-    lr = root / "local_run_results"
-    lr.mkdir(parents=True)
-    stem = "20260205_131313"
-    rel = f"local_run_results/{stem}_local_run_report.json"
-    rows = [{"key": f"k{i}", "columns": {}} for i in range(3)]
+    stem = "20260205_141414"
+    report_rel = f"local_run_results/{stem}_local_run_report.json"
+    tasks_rel = f"local_run_results/{stem}_cdf_discovery_tasks.json"
     (lr / f"{stem}_local_run_report.json").write_text(
         json.dumps(
             {
-                "raw_results": {
-                    "tables": [{"raw_db": "d", "raw_table": "t", "rows": rows}],
-                }
+                "end_of_process": {
+                    "status": "succeeded",
+                    "elapsed_ms": 1200,
+                    "task_count": 2,
+                    "dry_run": False,
+                    "warnings": [],
+                },
             }
         ),
         encoding="utf-8",
     )
-    r = client.get(
-        "/api/run-results/discovery-raw-preview",
-        params={"rel": rel, "offset": 2, "limit": 2},
+    (lr / f"{stem}_cdf_discovery_tasks.json").write_text(
+        json.dumps(
+            {
+                "run_scope": {"target": "workflow_local"},
+                "task_outputs": {
+                    "kea__a": {
+                        "status": "succeeded",
+                        "message": json.dumps({"function_external_id": "fn_dm_transform", "rows_read": 3}),
+                    },
+                    "kea__b": {"status": "failed", "message": "boom"},
+                },
+            }
+        ),
+        encoding="utf-8",
     )
+    r = client.get("/api/run-results/discovery-detail", params={"rel": report_rel})
     assert r.status_code == 200
-    assert "all_tables" not in r.json()
-
-
-def test_discovery_run_results_rejects_bad_rel(api_client):
-    client, _root = api_client
-    r = client.get(
-        "/api/run-results/discovery-raw-preview",
-        params={"rel": "workflow.local.config.yaml", "offset": 0, "limit": 10},
+    detail = r.json()
+    assert detail["tasks_rel"] == tasks_rel
+    assert detail["summary"]["status"] == "succeeded"
+    r2 = client.get(
+        "/api/run-results/discovery-tasks-preview",
+        params={"rel": report_rel, "offset": 0, "limit": 1},
     )
-    assert r.status_code == 400
+    assert r2.status_code == 200
+    tasks = r2.json()
+    assert tasks["total"] == 2
+    assert len(tasks["items"]) == 1
+    assert tasks["items"][0]["parsed"]["rows_read"] == 3

@@ -1,0 +1,122 @@
+/* Access control — layout extensions (discovery base in index.css) */
+
+.gov-app--wide {
+  max-width: min(1320px, 100%);
+}
+
+.gov-dimensions-editor {
+  min-width: 0;
+}
+
+.gov-dimensions-layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .gov-dimensions-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gov-dimensions-sidebar {
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  background: var(--gov-surface);
+  border: 1px solid var(--gov-border);
+  border-radius: var(--gov-radius-sm);
+}
+
+.gov-dimensions-main {
+  min-width: 0;
+}
+
+.gov-dim-chips {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.gov-dim-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--gov-radius-sm);
+  border: 1px solid var(--gov-border);
+  background: var(--gov-bg-elevated);
+  color: var(--gov-text-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: grab;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.gov-dim-chip:hover {
+  color: var(--gov-text);
+  border-color: var(--gov-border-strong);
+}
+
+.gov-dim-chip--active {
+  background: var(--gov-primary-soft);
+  color: var(--gov-primary);
+  border-color: var(--gov-primary);
+}
+
+.gov-section {
+  margin-bottom: 1.5rem;
+}
+
+.gov-section:last-child {
+  margin-bottom: 0;
+}
+
+.gov-subsection-title {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--gov-text);
+}
+
+.gov-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.gov-label--full {
+  grid-column: 1 / -1;
+}
+
+.gov-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  margin: 0.35rem 0;
+  color: var(--gov-text);
+}
+
+.gov-config-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--gov-border);
+}
+
+.gov-artifact-tree-wrap {
+  margin-top: 0.5rem;
+}

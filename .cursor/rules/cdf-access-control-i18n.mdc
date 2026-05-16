@@ -14,11 +14,8 @@ When you add or change anything that surfaces **user-visible text** in this modu
    - Add a new literal to the `MessageKey` union (use dotted keys consistent with existing entries, e.g. `tabs.*`, `dimensions.*`).
    - If you introduce a **new locale**, extend the `Locale` union here.
 
-2. **Every locale message file** — keep them aligned:
-   - `ui/src/i18n/en.ts`
-   - `ui/src/i18n/es.ts`
-   - `ui/src/i18n/nb.ts`
-   - `ui/src/i18n/ja.ts`  
+2. **Every locale message file** — keep them aligned (same set as `cdf_discovery_aliasing`):
+   - `ui/src/i18n/en.ts`, `ar.ts`, `de.ts`, `es.ts`, `fr.ts`, `nb.ts`, `pt.ts`, `hi.ts`, `ja.ts`, `zh.ts`  
    Each file exports a `Messages` object: **every `MessageKey` must have a string in every locale.**
 
 3. **`ui/src/i18n/index.ts`** (only when adding or removing a **locale**)
@@ -34,4 +31,6 @@ When you add or change anything that surfaces **user-visible text** in this modu
 
 ## Quick check
 
-After edits, `MessageKey`, `Messages`, and all four locale objects should agree so **`ui/src/i18n/types.ts` and the locale `.ts` files compile** with no missing keys.
+After edits, `MessageKey`, `Messages`, and all ten locale objects should agree so **`ui/src/i18n/types.ts` and the locale `.ts` files compile** with no missing keys.
+
+To refresh non-English strings from English (when no legacy bundle is available): `python scripts/generate_i18n_locales.py`. To extract from a full production bundle: `python scripts/extract_i18n_locales.py ui/dist/assets/index-*.js`.

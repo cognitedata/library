@@ -1,0 +1,8 @@
+name: SITE_A
+sourceId: "{{ SITE_A }}"
+capabilities:
+  - dataModelInstancesAcl:
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - inst_site_a

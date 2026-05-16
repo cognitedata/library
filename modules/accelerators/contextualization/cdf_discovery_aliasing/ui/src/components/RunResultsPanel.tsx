@@ -6,17 +6,36 @@ const PAGE = 200;
 export type DiscoveryRunResult = {
   stem: string;
   report_rel: string;
+  tasks_rel?: string;
   mtime_ms: number;
+  status?: string;
+  elapsed_ms?: number;
+  task_count?: number;
+  dry_run?: boolean;
 };
 
-type RawTableMeta = {
-  index: number;
-  raw_db: string;
-  raw_table: string;
-  row_count: number;
-  truncated?: boolean;
-  error?: string;
+type RunDetail = {
+  report_rel: string;
+  tasks_rel?: string | null;
+  end_of_process?: Record<string, unknown>;
+  summary?: {
+    status?: string;
+    elapsed_ms?: number;
+    task_count?: number;
+    dry_run?: boolean;
+    failed_task_key?: string | null;
+    warnings?: string[];
+  };
 };
+
+type TaskRow = {
+  task_id: string;
+  status?: string | null;
+  message?: string | null;
+  parsed?: Record<string, unknown> | null;
+};
+
+type ViewMode = "overview" | "tasks";
 
 type Props = {
   refreshKey: number;
@@ -24,27 +43,65 @@ type Props = {
   runScopeKey: string;
 };
 
+function formatRunStem(stem: string): string {
+  const m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$/.exec(stem);
+  if (!m) return stem;
+  return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
+}
+
+function subtabClass(active: boolean): string {
+  return `kea-tab${active ? " kea-tab--active" : ""}`;
+}
+
+function taskDetailsSummary(parsed: Record<string, unknown> | null | undefined): string {
+  if (!parsed) return "";
+  const parts: string[] = [];
+  const fn = parsed.function_external_id;
+  if (fn != null) parts.push(String(fn));
+  for (const key of [
+    "handler_id",
+    "rows_read",
+    "instances_written",
+    "instances_listed",
+    "rows_written",
+    "query_source",
+  ] as const) {
+    if (parsed[key] != null) parts.push(`${key}=${String(parsed[key])}`);
+  }
+  return parts.join(" · ");
+}
+
+async function openModuleFile(rel: string, onError: (msg: string) => void): Promise<void> {
+  try {
+    const r = await fetch(`/api/file?rel=${encodeURIComponent(rel)}`);
+    if (!r.ok) throw new Error(await r.text());
+    const d = (await r.json()) as { content?: string };
+    const blob = new Blob([d.content ?? ""], { type: "application/json;charset=utf-8" });
+    const u = URL.createObjectURL(blob);
+    window.open(u, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(u), 60_000);
+  } catch (e) {
+    onError(String(e));
+  }
+}
+
 export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
   const { t } = useAppSettings();
+  const [showAllScopes, setShowAllScopes] = useState(false);
   const [discoveryRuns, setDiscoveryRuns] = useState<DiscoveryRunResult[]>([]);
   const [selectedDiscoveryStem, setSelectedDiscoveryStem] = useState("");
-  const [rawItems, setRawItems] = useState<Record<string, unknown>[]>([]);
-  const [rawTotal, setRawTotal] = useState<number | null>(null);
-  const [rawNextOffset, setRawNextOffset] = useState(0);
-  const [rawTableIndex, setRawTableIndex] = useState(0);
-  const [rawAllTables, setRawAllTables] = useState<RawTableMeta[]>([]);
-  const [rawMeta, setRawMeta] = useState<{
-    has_raw_results: boolean;
-    tables_empty?: boolean;
-    raw_db?: unknown;
-    raw_table?: unknown;
-    truncated?: unknown;
-    error?: unknown;
-  } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("overview");
+  const [detail, setDetail] = useState<RunDetail | null>(null);
+  const [taskItems, setTaskItems] = useState<TaskRow[]>([]);
+  const [taskTotal, setTaskTotal] = useState<number | null>(null);
+  const [taskNextOffset, setTaskNextOffset] = useState(0);
   const [loadingDiscoveryList, setLoadingDiscoveryList] = useState(false);
-  const [loadingRawPage, setLoadingRawPage] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadingTasksPage, setLoadingTasksPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+
+  const effectiveScopeKey = showAllScopes ? "" : runScopeKey.trim();
 
   const selectedDiscoveryRun = useMemo(
     () => discoveryRuns.find((r) => r.stem === selectedDiscoveryStem) ?? null,
@@ -55,9 +112,8 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
     setLoadingDiscoveryList(true);
     setError(null);
     try {
-      const sk = runScopeKey.trim();
-      const url = sk
-        ? `/api/run-results/discovery?run_scope_key=${encodeURIComponent(sk)}`
+      const url = effectiveScopeKey
+        ? `/api/run-results/discovery?run_scope_key=${encodeURIComponent(effectiveScopeKey)}`
         : "/api/run-results/discovery";
       const r = await fetch(url);
       if (!r.ok) throw new Error(await r.text());
@@ -75,129 +131,105 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
     } finally {
       setLoadingDiscoveryList(false);
     }
-  }, [runScopeKey]);
+  }, [effectiveScopeKey]);
 
   useEffect(() => {
     void loadDiscoveryRuns();
   }, [loadDiscoveryRuns, refreshKey]);
 
   useEffect(() => {
-    setRawTableIndex(0);
+    setFilter("");
   }, [selectedDiscoveryStem]);
 
-  const reportRelForRaw = useMemo(
-    () => selectedDiscoveryRun?.report_rel ?? "",
-    [selectedDiscoveryRun],
-  );
+  const reportRel = selectedDiscoveryRun?.report_rel ?? "";
+  const tasksRel = selectedDiscoveryRun?.tasks_rel ?? detail?.tasks_rel ?? "";
 
-  const fetchRawPage = useCallback(
+  const loadDetail = useCallback(async () => {
+    if (!reportRel) {
+      setDetail(null);
+      return;
+    }
+    setLoadingDetail(true);
+    try {
+      const r = await fetch(`/api/run-results/discovery-detail?rel=${encodeURIComponent(reportRel)}`);
+      if (!r.ok) throw new Error(await r.text());
+      const data = (await r.json()) as RunDetail;
+      setDetail(data);
+      const taskCount = data.summary?.task_count ?? 0;
+      setViewMode((prev) => {
+        if (prev !== "overview") return prev;
+        if (taskCount > 0) return "tasks";
+        return "overview";
+      });
+    } catch (e) {
+      setError(String(e));
+      setDetail(null);
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, [reportRel]);
+
+  useEffect(() => {
+    void loadDetail();
+  }, [loadDetail, refreshKey]);
+
+  const fetchTasksPage = useCallback(
     async (offset: number, append: boolean) => {
-      if (!reportRelForRaw) {
-        setRawItems([]);
-        setRawTotal(null);
-        setRawNextOffset(0);
-        setRawAllTables([]);
-        setRawMeta(null);
+      const rel = tasksRel || reportRel;
+      if (!rel) {
+        setTaskItems([]);
+        setTaskTotal(null);
+        setTaskNextOffset(0);
         return;
       }
-      setLoadingRawPage(true);
+      setLoadingTasksPage(true);
       setError(null);
       try {
-        const url = `/api/run-results/discovery-raw-preview?rel=${encodeURIComponent(
-          reportRelForRaw,
-        )}&table_index=${rawTableIndex}&offset=${offset}&limit=${PAGE}`;
+        const url = `/api/run-results/discovery-tasks-preview?rel=${encodeURIComponent(
+          rel,
+        )}&offset=${offset}&limit=${PAGE}`;
         const r = await fetch(url);
         if (!r.ok) throw new Error(await r.text());
-        const data = (await r.json()) as {
-          has_raw_results: boolean;
-          tables_empty?: boolean;
-          total: number;
-          items: Record<string, unknown>[];
-          all_tables?: RawTableMeta[];
-          raw_db?: unknown;
-          raw_table?: unknown;
-          truncated?: unknown;
-          error?: unknown;
-        };
-        setRawMeta({
-          has_raw_results: data.has_raw_results,
-          tables_empty: data.tables_empty,
-          raw_db: data.raw_db,
-          raw_table: data.raw_table,
-          truncated: data.truncated,
-          error: data.error,
-        });
-        if (offset === 0) {
-          if (Array.isArray(data.all_tables)) {
-            setRawAllTables(data.all_tables);
-          } else {
-            setRawAllTables([]);
-          }
-        }
-        setRawTotal(data.total);
+        const data = (await r.json()) as { total: number; items: TaskRow[] };
+        setTaskTotal(data.total);
         if (append) {
-          setRawItems((prev) => [...prev, ...data.items]);
-          setRawNextOffset(offset + data.items.length);
+          setTaskItems((prev) => [...prev, ...data.items]);
+          setTaskNextOffset(offset + data.items.length);
         } else {
-          setRawItems(data.items);
-          setRawNextOffset(data.items.length);
+          setTaskItems(data.items);
+          setTaskNextOffset(data.items.length);
         }
       } catch (e) {
         setError(String(e));
         if (!append) {
-          setRawItems([]);
-          setRawTotal(null);
-          setRawNextOffset(0);
-          setRawAllTables([]);
-          setRawMeta(null);
+          setTaskItems([]);
+          setTaskTotal(null);
+          setTaskNextOffset(0);
         }
       } finally {
-        setLoadingRawPage(false);
+        setLoadingTasksPage(false);
       }
     },
-    [reportRelForRaw, rawTableIndex],
+    [reportRel, tasksRel],
   );
 
   useEffect(() => {
-    if (!reportRelForRaw) {
-      setRawItems([]);
-      setRawTotal(null);
-      setRawNextOffset(0);
-      setRawAllTables([]);
-      setRawMeta(null);
-      return;
-    }
-    void fetchRawPage(0, false);
-  }, [reportRelForRaw, rawTableIndex, fetchRawPage, refreshKey]);
+    if (viewMode !== "tasks") return;
+    void fetchTasksPage(0, false);
+  }, [viewMode, reportRel, tasksRel, fetchTasksPage, refreshKey]);
 
-  useEffect(() => {
-    if (rawAllTables.length === 0) return;
-    const maxIdx = rawAllTables.reduce((m, tab) => Math.max(m, tab.index), 0);
-    if (rawTableIndex > maxIdx) setRawTableIndex(0);
-  }, [rawAllTables, rawTableIndex]);
-
-  const filteredItems = useMemo(() => {
+  const filteredTaskItems = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return rawItems;
-    return rawItems.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
-  }, [rawItems, filter]);
+    if (!q) return taskItems;
+    return taskItems.filter((row) => JSON.stringify(row).toLowerCase().includes(q));
+  }, [taskItems, filter]);
 
-  const canLoadMoreRaw = rawTotal != null && rawNextOffset < rawTotal;
+  const canLoadMoreTasks = taskTotal != null && taskNextOffset < taskTotal;
 
-  const openRaw = async () => {
-    if (!reportRelForRaw) return;
-    try {
-      const r = await fetch(`/api/file?rel=${encodeURIComponent(reportRelForRaw)}`);
-      if (!r.ok) throw new Error(await r.text());
-      const d = (await r.json()) as { content?: string };
-      const blob = new Blob([d.content ?? ""], { type: "application/json;charset=utf-8" });
-      const u = URL.createObjectURL(blob);
-      window.open(u, "_blank", "noopener,noreferrer");
-      window.setTimeout(() => URL.revokeObjectURL(u), 60_000);
-    } catch (e) {
-      setError(String(e));
-    }
-  };
+  const summary = detail?.summary;
+  const runLabel = selectedDiscoveryRun
+    ? `${formatRunStem(selectedDiscoveryRun.stem)}${selectedDiscoveryRun.status ? ` · ${selectedDiscoveryRun.status}` : ""}`
+    : "";
 
   return (
     <section className="kea-panel">
@@ -205,10 +237,9 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
       <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
         {t("runResults.hint")}
       </p>
-      <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
-        {t("runResults.discoveryRawHint")}
-      </p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", marginBottom: 12 }}>
+      <div
+        style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center", marginBottom: 12 }}
+      >
         <button
           type="button"
           className="kea-btn kea-btn--sm"
@@ -217,6 +248,14 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
         >
           {t("runResults.refresh")}
         </button>
+        <label className="kea-toolbar-check">
+          <input
+            type="checkbox"
+            checked={showAllScopes}
+            onChange={(e) => setShowAllScopes(e.target.checked)}
+          />
+          <span>{t("runResults.showAllScopes")}</span>
+        </label>
         {discoveryRuns.length > 0 && (
           <>
             <label className="kea-hint" htmlFor="kea-run-results-discovery-select">
@@ -227,32 +266,35 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
               value={selectedDiscoveryStem}
               onChange={(e) => setSelectedDiscoveryStem(e.target.value)}
             >
-              {discoveryRuns.map((r) => (
-                <option key={r.stem} value={r.stem}>
-                  {r.stem}
-                </option>
-              ))}
+              {discoveryRuns.map((r) => {
+                const label = formatRunStem(r.stem);
+                const status = r.status ? ` · ${r.status}` : "";
+                const tasks =
+                  r.task_count != null ? ` · ${r.task_count} ${t("runResults.summaryTaskCountShort")}` : "";
+                return (
+                  <option key={r.stem} value={r.stem}>
+                    {label}
+                    {status}
+                    {tasks}
+                  </option>
+                );
+              })}
             </select>
-            {rawAllTables.length > 1 && (
-              <>
-                <label className="kea-hint" htmlFor="kea-run-results-raw-table">
-                  {t("runResults.rawTableSelect")}
-                </label>
-                <select
-                  id="kea-run-results-raw-table"
-                  value={String(rawTableIndex)}
-                  onChange={(e) => setRawTableIndex(Number(e.target.value))}
-                >
-                  {rawAllTables.map((tab) => (
-                    <option key={tab.index} value={String(tab.index)}>
-                      {tab.raw_db}/{tab.raw_table} ({tab.row_count})
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-            <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => void openRaw()}>
+            <button
+              type="button"
+              className="kea-btn kea-btn--ghost kea-btn--sm"
+              disabled={!reportRel}
+              onClick={() => void openModuleFile(reportRel, setError)}
+            >
               {t("runResults.openRaw")}
+            </button>
+            <button
+              type="button"
+              className="kea-btn kea-btn--ghost kea-btn--sm"
+              disabled={!tasksRel}
+              onClick={() => void openModuleFile(String(tasksRel), setError)}
+            >
+              {t("runResults.openTasksJson")}
             </button>
           </>
         )}
@@ -265,86 +307,149 @@ export function RunResultsPanel({ refreshKey, runScopeKey }: Props) {
       {!loadingDiscoveryList && discoveryRuns.length === 0 && (
         <p className="kea-hint">{t("runResults.emptyDiscovery")}</p>
       )}
-      {!loadingDiscoveryList &&
-        discoveryRuns.length > 0 &&
-        rawMeta &&
-        (!rawMeta.has_raw_results || rawMeta.tables_empty) && (
-          <p className="kea-hint">{t("runResults.noRawInReport")}</p>
-        )}
-      {rawTotal != null && rawItems.length > 0 && (
-        <p className="kea-hint" style={{ marginBottom: 8 }}>
-          {rawMeta?.raw_db != null && rawMeta?.raw_table != null ? (
-            <>
-              <code>
-                {String(rawMeta.raw_db)}/{String(rawMeta.raw_table)}
-              </code>
-              {" · "}
-            </>
-          ) : null}
-          {t("runResults.totalRows", { count: rawTotal })}
-          {" · "}
-          {t("runResults.showing", { from: 1, to: rawItems.length, total: rawTotal })}
-          {rawMeta?.truncated === true ? ` · ${t("runResults.rawTruncated")}` : ""}
-          {rawMeta?.error != null && String(rawMeta.error).trim() ? (
-            <>
-              {" · "}
-              <span className="kea-hint--warn">{String(rawMeta.error)}</span>
-            </>
-          ) : null}
-          {filter.trim() && filteredItems.length !== rawItems.length
-            ? ` (${filteredItems.length}/${rawItems.length})`
-            : ""}
-        </p>
-      )}
       {selectedDiscoveryRun && (
-        <input
-          type="search"
-          className="kea-input"
-          placeholder={t("runResults.filterPlaceholder")}
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          style={{ maxWidth: 420, marginBottom: 12, display: "block" }}
-        />
+        <>
+          <nav
+            className="kea-tabs kea-tabs--sub"
+            aria-label={t("runResults.viewNav")}
+            style={{ marginBottom: 12 }}
+          >
+            <button
+              type="button"
+              className={subtabClass(viewMode === "overview")}
+              onClick={() => setViewMode("overview")}
+            >
+              {t("runResults.viewOverview")}
+            </button>
+            <button
+              type="button"
+              className={subtabClass(viewMode === "tasks")}
+              onClick={() => setViewMode("tasks")}
+            >
+              {t("runResults.viewTasks")}
+            </button>
+          </nav>
+          {runLabel && (
+            <p className="kea-hint" style={{ marginBottom: 8 }}>
+              <strong>{runLabel}</strong>
+            </p>
+          )}
+        </>
       )}
-      {loadingRawPage && rawItems.length === 0 && <p className="kea-hint">{t("status.loading")}</p>}
-      {discoveryRuns.length > 0 && (!loadingRawPage || rawItems.length > 0) && (
-        <div className="kea-table-wrap">
-          <table className="kea-table">
-            <thead>
-              <tr>
-                <th>{t("runResults.table.rowKey")}</th>
-                <th>{t("runResults.table.columnValues")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map((row, i) => {
-                const rk = typeof row.key === "string" ? row.key : String(row.key ?? "");
-                const cols = row.columns;
-                const colsJson =
-                  cols && typeof cols === "object" ? JSON.stringify(cols) : cols == null ? "" : String(cols);
-                return (
-                  <tr key={`${rk}-${i}`}>
-                    <td style={{ maxWidth: 280, wordBreak: "break-all" }}>{rk}</td>
-                    <td style={{ maxWidth: 560, wordBreak: "break-word", fontFamily: "monospace", fontSize: "0.85em" }}>
-                      {colsJson}
-                    </td>
+      {viewMode === "overview" && selectedDiscoveryRun && (
+        <>
+          {loadingDetail && !summary && <p className="kea-hint">{t("status.loading")}</p>}
+          {summary && (
+            <ul className="kea-hint" style={{ marginBottom: 12, maxWidth: "72ch", listStyle: "none", padding: 0 }}>
+              {summary.status != null && (
+                <li>
+                  <strong>{t("runResults.summaryStatus")}:</strong> {String(summary.status)}
+                </li>
+              )}
+              {summary.elapsed_ms != null && (
+                <li>
+                  <strong>{t("runResults.summaryElapsed")}:</strong>{" "}
+                  {t("runResults.summaryElapsedValue", { ms: summary.elapsed_ms })}
+                </li>
+              )}
+              {summary.task_count != null && (
+                <li>
+                  <strong>{t("runResults.summaryTaskCount")}:</strong> {summary.task_count}
+                </li>
+              )}
+              {summary.dry_run === true && (
+                <li>
+                  <strong>{t("runResults.summaryDryRun")}:</strong> {t("runResults.yes")}
+                </li>
+              )}
+              {summary.failed_task_key != null && String(summary.failed_task_key).trim() && (
+                <li>
+                  <strong>{t("runResults.failedTask")}:</strong>{" "}
+                  <code>{String(summary.failed_task_key)}</code>
+                </li>
+              )}
+            </ul>
+          )}
+          {summary?.warnings && summary.warnings.length > 0 && (
+            <ul className="kea-hint" style={{ marginBottom: 12 }}>
+              {summary.warnings.map((w, i) => (
+                <li key={`${i}-${w}`}>{w}</li>
+              ))}
+            </ul>
+          )}
+          <p className="kea-hint" style={{ maxWidth: "72ch" }}>
+            {t("runResults.overviewHint")}
+          </p>
+        </>
+      )}
+      {viewMode === "tasks" && selectedDiscoveryRun && (
+        <>
+          <p className="kea-hint" style={{ marginBottom: "0.75rem", maxWidth: "72ch" }}>
+            {t("runResults.tasksHint")}
+          </p>
+          {taskTotal === 0 && !loadingTasksPage && <p className="kea-hint">{t("runResults.noTasks")}</p>}
+          {taskTotal != null && taskTotal > 0 && (
+            <p className="kea-hint" style={{ marginBottom: 8 }}>
+              {t("runResults.totalRows", { count: taskTotal })}
+              {" · "}
+              {t("runResults.showing", { from: 1, to: taskItems.length, total: taskTotal })}
+            </p>
+          )}
+          <input
+            type="search"
+            className="kea-input"
+            placeholder={t("runResults.filterPlaceholder")}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            style={{ maxWidth: 420, marginBottom: 12, display: "block" }}
+          />
+          {loadingTasksPage && taskItems.length === 0 && <p className="kea-hint">{t("status.loading")}</p>}
+          {(!loadingTasksPage || taskItems.length > 0) && filteredTaskItems.length > 0 && (
+            <div className="kea-table-wrap">
+              <table className="kea-table">
+                <thead>
+                  <tr>
+                    <th>{t("runResults.table.taskId")}</th>
+                    <th>{t("runResults.table.status")}</th>
+                    <th>{t("runResults.table.details")}</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {canLoadMoreRaw && (
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          style={{ marginTop: 12 }}
-          disabled={loadingRawPage}
-          onClick={() => void fetchRawPage(rawNextOffset, true)}
-        >
-          {t("runResults.loadMore")}
-        </button>
+                </thead>
+                <tbody>
+                  {filteredTaskItems.map((row) => {
+                    const details = taskDetailsSummary(row.parsed) || (row.message ?? "").slice(0, 240);
+                    return (
+                      <tr key={row.task_id}>
+                        <td style={{ maxWidth: 280, wordBreak: "break-all" }}>{row.task_id}</td>
+                        <td>{row.status ?? ""}</td>
+                        <td
+                          style={{
+                            maxWidth: 560,
+                            wordBreak: "break-word",
+                            fontFamily: "monospace",
+                            fontSize: "0.85em",
+                          }}
+                        >
+                          {details}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {canLoadMoreTasks && (
+            <button
+              type="button"
+              className="kea-btn kea-btn--sm"
+              style={{ marginTop: 12 }}
+              disabled={loadingTasksPage}
+              onClick={() => void fetchTasksPage(taskNextOffset, true)}
+            >
+              {t("runResults.loadMore")}
+            </button>
+          )}
+        </>
       )}
     </section>
   );
