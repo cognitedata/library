@@ -21,4 +21,4 @@ SELECT
   cast(sourceId as string) as sourceId,
   cast(source as string) as sourceContext
 FROM `cfihos_oil_and_gas`.`timeseries`
-WHERE is_new('timeseries', lastUpdatedTime)
+WHERE 1=1 -- full reload: is_new('timeseries', lastUpdatedTime)

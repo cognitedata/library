@@ -12,10 +12,24 @@ import { useAppSdk } from "@/shared/auth";
 import { useAppData } from "@/shared/data-cache";
 import { extractDataModelRefs } from "@/transformations/transformationChecks";
 import { fetchTransformationsByIds } from "@/transformations/fetchTransformationsByIds";
+import { cachedTransformationsList } from "@/transformations/transformations-cache";
+import { cachedDataModelsRetrieve, listAllCachedDataModels } from "@/shared/dms-catalog-cache";
 import { getDataModelUrl, getTransformationPreviewUrl } from "@/shared/cdf-browser-url";
+import { formatResourceDisplayLabel } from "@/shared/format-resource-display-label";
 import { useI18n } from "@/shared/i18n";
-import { compareVersionStrings, isChecksumLikeVersion } from "./versioning-utils";
+import {
+  compareVersionStrings,
+  cycleLegendFilterState,
+  implicitColumnLabelsForSlotCount,
+  isChecksumLikeVersion,
+  maxImplicitSlotCountForRows,
+  resolveMatrixColumnToRawForRow,
+  virtualImplicitLabelForRawOnRow,
+  virtualImplicitSlotNumber,
+  type LegendFilterState,
+} from "./versioning-utils";
 import { GRID_VERSION_HEADER_HEIGHT, VersioningGridScroll } from "./VersioningGridScroll";
+import { DataCatalogVersionHistory } from "./DataCatalogVersionHistory";
 
 const ROW_HEIGHT = 36;
 const COL_WIDTH = 56;
@@ -30,6 +44,7 @@ type DataModelVersionItem = {
   version: string;
   name?: string;
   createdTime?: number;
+  lastUpdatedTime?: number;
   description?: string;
   views?: unknown;
 };
@@ -39,6 +54,30 @@ type DataModelRow = {
   label: string;
   versions: Map<string, DataModelVersionItem>;
 };
+
+function dataModelRowSearchHaystack(
+  row: DataModelRow,
+  detailsMap: Map<string, DataModelVersionItem>
+): string {
+  const parts: string[] = [row.label, row.key];
+  const colon = row.key.indexOf(":");
+  if (colon >= 0) {
+    parts.push(row.key.slice(0, colon), row.key.slice(colon + 1));
+  }
+  for (const ver of row.versions.keys()) {
+    const detail = detailsMap.get(`${row.key}:${ver}`) ?? row.versions.get(ver);
+    const raw = detail?.views;
+    if (!Array.isArray(raw)) continue;
+    for (const v of raw) {
+      if (v && typeof v === "object" && "space" in v && "externalId" in v) {
+        const o = v as { space: string; externalId: string; name?: string };
+        parts.push(`${o.space}:${o.externalId}`, o.externalId, o.space);
+        if (typeof o.name === "string" && o.name.trim()) parts.push(o.name.trim());
+      }
+    }
+  }
+  return parts.join(" ").toLowerCase();
+}
 
 type CellDot = {
   x: number;
@@ -52,6 +91,24 @@ type CellDot = {
   externalId?: string;
   borderTone?: "green" | "red" | null;
 } | null;
+
+type DmGridDrawRow = {
+  label: string;
+  dmKey: string;
+  versionCount: number;
+  space: string;
+  externalId: string;
+  latestVersion: string;
+  dots: CellDot[];
+  connected: Array<{ x: number; y: number }>;
+};
+
+const LABEL_NAME_MAX_CHARS = 26;
+
+function truncateGridLabel(s: string): string {
+  if (s.length <= LABEL_NAME_MAX_CHARS) return s;
+  return `${s.slice(0, LABEL_NAME_MAX_CHARS - 1)}…`;
+}
 
 type ReferrerItem =
   | { type: "dataModel"; label: string; url?: string }
@@ -110,21 +167,26 @@ function computeDmGridCell(
   borderTone: "green" | "red" | null;
   legendFlags: Set<DmGridLegendFilterId>;
 } | null {
-  const item = row.versions.get(ver);
+  const rawVer = resolveMatrixColumnToRawForRow(row, ver, detailsMap);
+  if (rawVer == null) return null;
+  const item = row.versions.get(rawVer);
   if (!item) return null;
 
-  const rowVersionsOrdered = filteredVersions.filter((v) => row.versions.has(v));
+  const rowVersionsOrdered = filteredVersions.filter(
+    (gv) => resolveMatrixColumnToRawForRow(row, gv, detailsMap) != null
+  );
   const latestVersion = rowVersionsOrdered[rowVersionsOrdered.length - 1];
   const inCatalog = dmKeysInCatalog.has(row.key);
   const inTransformation = dmKeysInTransformation.has(row.key);
   const inUse = inCatalog || inTransformation;
 
-  const key = `${row.key}:${ver}`;
+  const key = `${row.key}:${rawVer}`;
   const details = detailsMap.get(key) ?? item;
   const idxInRow = rowVersionsOrdered.indexOf(ver);
-  const prevVerInRow = idxInRow > 0 ? rowVersionsOrdered[idxInRow - 1] : null;
-  const prevDetails = prevVerInRow
-    ? detailsMap.get(`${row.key}:${prevVerInRow}`) ?? row.versions.get(prevVerInRow) ?? null
+  const prevGridTok = idxInRow > 0 ? rowVersionsOrdered[idxInRow - 1]! : null;
+  const prevRaw = prevGridTok ? resolveMatrixColumnToRawForRow(row, prevGridTok, detailsMap) : null;
+  const prevDetails = prevRaw
+    ? detailsMap.get(`${row.key}:${prevRaw}`) ?? row.versions.get(prevRaw) ?? null
     : null;
 
   let rVal: number;
@@ -137,6 +199,7 @@ function computeDmGridCell(
   }
 
   const isLatestVersion = ver === latestVersion;
+
   let fill: string;
   if (isLatestVersion && inUse) {
     fill = "#22c55e";
@@ -148,7 +211,7 @@ function computeDmGridCell(
     fill = "white";
   }
 
-  const cellKey = `${row.key}:${ver}`;
+  const cellKey = `${row.key}:${rawVer}`;
   const destLatestKey = `${row.key}:${DEST_DM_VERSION_UNSPECIFIED}`;
   const txHasDestinationHere =
     txByCell.has(cellKey) || (isLatestVersion && txByCell.has(destLatestKey));
@@ -249,7 +312,6 @@ const DATA_MODEL_VERSION_LEGEND_ENTRIES: Array<{
   },
 ];
 
-const TAB_THRESHOLD = 10;
 const STROKE_TX_LATEST = "#4f46e5";
 
 type TransformationDestinationDataModel = {
@@ -268,6 +330,22 @@ type TransformationApiItem = {
 
 type DataModelOption = { key: string; baseKey: string; label: string; viewKeys: Set<string> };
 
+const DM_LIST_PAGE_LIMIT = 250;
+const DM_DETAILS_BATCH = 50;
+type DataModelVersionsSnapshot = {
+  project: string;
+  rows: DataModelRow[];
+  versions: string[];
+  detailsEntries: Array<[string, DataModelVersionItem]>;
+};
+let dataModelVersionsSnapshot: DataModelVersionsSnapshot | null = null;
+
+function countUniqueDataModelKeys(items: DataModelVersionItem[]): number {
+  const s = new Set<string>();
+  for (const i of items) s.add(`${i.space}:${i.externalId}`);
+  return s.size;
+}
+
 export function DataModelVersions() {
   const { t } = useI18n();
   const headerSvgRef = useRef<SVGSVGElement | null>(null);
@@ -276,11 +354,15 @@ export function DataModelVersions() {
   const { dataModels, dataModelsStatus, loadDataModels, retrieveDataModels } = useAppData();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loadProgress, setLoadProgress] = useState<
+    | { phase: "listing"; itemsLoaded: number; uniqueModels: number }
+    | { phase: "details"; batchIndex: number; batchTotal: number }
+    | null
+  >(null);
   const [dmRows, setDmRows] = useState<DataModelRow[]>([]);
   const [versions, setVersions] = useState<string[]>([]);
   const [detailsMap, setDetailsMap] = useState<Map<string, DataModelVersionItem>>(new Map());
   const [modelOptions, setModelOptions] = useState<DataModelOption[]>([]);
-  const [selectedModelKey, setSelectedModelKey] = useState<string | null>(null);
   const [dmKeysInTransformation, setDmKeysInTransformation] = useState<Set<string>>(new Set());
   const [transformationRefsByModelVersion, setTransformationRefsByModelVersion] = useState<
     Map<string, Array<{ id: string; name: string }>>
@@ -292,14 +374,13 @@ export function DataModelVersions() {
     space: string;
     externalId: string;
   } | null>(null);
-  const [modelVersionRefs, setModelVersionRefs] = useState<
-    Map<string, { versions: Set<string>; hasUnspecified: boolean }>
-  >(new Map());
   const [dmTxByCell, setDmTxByCell] = useState<Map<string, Array<{ id: string; name: string }>>>(
     new Map()
   );
-  const [dmLegendFilter, setDmLegendFilter] = useState<DmGridLegendFilterId | null>(null);
-  const [showChecksumVersions, setShowChecksumVersions] = useState(false);
+  const [dmLegendFilter, setDmLegendFilter] =
+    useState<LegendFilterState<DmGridLegendFilterId>>(null);
+  const [versionHistoryDmKey, setVersionHistoryDmKey] = useState<string | null>(null);
+  const [matrixSearch, setMatrixSearch] = useState("");
 
   useEffect(() => {
     if (!isSdkLoading) loadDataModels();
@@ -318,7 +399,7 @@ export function DataModelVersions() {
         const key =
           `${model.space}:${model.externalId}:${model.version ?? "latest"}` as string;
         const baseKey = `${model.space}:${model.externalId}`;
-        const label = model.name ?? model.externalId ?? key;
+        const label = formatResourceDisplayLabel(model.name, model.externalId, key);
 
         const viewKeys = new Set<string>();
         const modelViews = (model as { views?: Array<{ space: string; externalId: string }> })
@@ -374,10 +455,10 @@ export function DataModelVersions() {
       };
 
       try {
-        const response = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations`,
-          { params: { includePublic: "true", limit: "1000" } }
-        )) as { data?: { items?: TransformationApiItem[] } };
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
+        })) as { data?: { items?: TransformationApiItem[] } };
         const items = response.data?.items ?? [];
         const idsNeedingDetail: string[] = [];
         for (const t of items) {
@@ -392,7 +473,6 @@ export function DataModelVersions() {
         const detailById = await fetchTransformationsByIds(sdk, sdk.project, idsNeedingDetail);
 
         const modelRefs = new Set<string>();
-        const versionRefs = new Map<string, { versions: Set<string>; hasUnspecified: boolean }>();
         const txByModelVersion = new Map<string, Array<{ id: string; name: string }>>();
         const destinationDmBaseKeys = new Set<string>();
 
@@ -430,16 +510,6 @@ export function DataModelVersions() {
             if (!key || key === ":") continue;
             modelRefs.add(key);
             const ver = ref.version?.trim() ?? "";
-            let entry = versionRefs.get(key);
-            if (!entry) {
-              entry = { versions: new Set(), hasUnspecified: false };
-              versionRefs.set(key, entry);
-            }
-            if (ver) {
-              entry.versions.add(ver);
-            } else {
-              entry.hasUnspecified = true;
-            }
             const mvKey = `${key}:${ver}`;
             let arr = txByModelVersion.get(mvKey);
             if (!arr) {
@@ -450,7 +520,6 @@ export function DataModelVersions() {
           }
         }
         if (!cancelled) {
-          setModelVersionRefs(versionRefs);
           setTransformationRefsByModelVersion(txByModelVersion);
           setDmTxByCell(destinationDmTxByCell);
         }
@@ -477,43 +546,36 @@ export function DataModelVersions() {
     return set;
   }, [modelOptions]);
 
-  useEffect(() => {
-    setPinnedBubble(null);
-  }, [selectedModelKey]);
-
-  useEffect(() => {
-    setDmLegendFilter(null);
-  }, [selectedModelKey]);
-
-  useEffect(() => {
-    setShowChecksumVersions(false);
-  }, [selectedModelKey]);
-
   const filteredDmRows = useMemo(() => {
-    if (!selectedModelKey) return dmRows;
-    const opt = modelOptions.find((o) => o.key === selectedModelKey);
-    if (!opt) return dmRows;
-    return dmRows.filter((row) => row.key === opt.baseKey);
-  }, [dmRows, selectedModelKey, modelOptions]);
+    const q = matrixSearch.trim().toLowerCase();
+    if (!q) return dmRows;
+    return dmRows.filter((row) => dataModelRowSearchHaystack(row, detailsMap).includes(q));
+  }, [dmRows, matrixSearch, detailsMap]);
 
   const filteredVersions = useMemo(() => {
-    if (!selectedModelKey || filteredDmRows.length === 0) return versions;
+    if (filteredDmRows.length === 0) return versions;
     const used = new Set<string>();
     for (const row of filteredDmRows) {
       for (const v of row.versions.keys()) used.add(v);
     }
     return versions.filter((v) => used.has(v));
-  }, [versions, selectedModelKey, filteredDmRows]);
+  }, [versions, filteredDmRows]);
 
-  const hasChecksumVersions = useMemo(
-    () => filteredVersions.some((v) => isChecksumLikeVersion(v)),
-    [filteredVersions]
+  const maxImplicitSlots = useMemo(
+    () => maxImplicitSlotCountForRows(filteredDmRows, detailsMap),
+    [filteredDmRows, detailsMap]
+  );
+
+  const implicitColumnLabels = useMemo(
+    () => implicitColumnLabelsForSlotCount(maxImplicitSlots),
+    [maxImplicitSlots]
   );
 
   const gridVersions = useMemo(() => {
-    if (showChecksumVersions || !hasChecksumVersions) return filteredVersions;
-    return filteredVersions.filter((v) => !isChecksumLikeVersion(v));
-  }, [filteredVersions, showChecksumVersions, hasChecksumVersions]);
+    const explicit = filteredVersions.filter((v) => !isChecksumLikeVersion(v));
+    explicit.sort(compareVersionStrings);
+    return [...explicit, ...implicitColumnLabels];
+  }, [filteredVersions, implicitColumnLabels]);
 
   const dmRowLegendFlagsByKey = useMemo(() => {
     const m = new Map<string, Set<DmGridLegendFilterId>>();
@@ -542,7 +604,11 @@ export function DataModelVersions() {
 
   const legendFilteredDmRows = useMemo(() => {
     if (!dmLegendFilter) return filteredDmRows;
-    return filteredDmRows.filter((row) => dmRowLegendFlagsByKey.get(row.key)?.has(dmLegendFilter));
+    const { id, mode } = dmLegendFilter;
+    return filteredDmRows.filter((row) => {
+      const has = dmRowLegendFlagsByKey.get(row.key)?.has(id) ?? false;
+      return mode === "include" ? has : !has;
+    });
   }, [filteredDmRows, dmLegendFilter, dmRowLegendFlagsByKey]);
 
   const usedDmLegendIds = useMemo(() => {
@@ -553,6 +619,16 @@ export function DataModelVersions() {
     }
     return u;
   }, [filteredDmRows, dmRowLegendFlagsByKey]);
+
+  const versionHistoryRow = useMemo(() => {
+    if (!versionHistoryDmKey) return null;
+    return dmRows.find((r) => r.key === versionHistoryDmKey) ?? null;
+  }, [versionHistoryDmKey, dmRows]);
+
+  const versionHistoryVersionsOrdered = useMemo(() => {
+    if (!versionHistoryRow) return [];
+    return versions.filter((v) => versionHistoryRow.versions.has(v));
+  }, [versions, versionHistoryRow]);
 
   const visibleDmLegendIds = useMemo(() => {
     const u = new Set<DmGridLegendFilterId>();
@@ -569,7 +645,7 @@ export function DataModelVersions() {
   }, [usedDmLegendIds]);
 
   useEffect(() => {
-    if (dmLegendFilter != null && !visibleDmLegendIds.has(dmLegendFilter)) {
+    if (dmLegendFilter != null && !visibleDmLegendIds.has(dmLegendFilter.id)) {
       setDmLegendFilter(null);
     }
   }, [dmLegendFilter, visibleDmLegendIds]);
@@ -578,38 +654,40 @@ export function DataModelVersions() {
     if (isSdkLoading) return;
     setStatus("loading");
     setErrorMessage(null);
+    setLoadProgress({ phase: "listing", itemsLoaded: 0, uniqueModels: 0 });
     try {
+      const rawItems = (await listAllCachedDataModels(
+        sdk,
+        { includeGlobal: true, allVersions: true },
+        { pageLimit: DM_LIST_PAGE_LIMIT }
+      )) as Array<{
+        space: string;
+        externalId: string;
+        version?: string;
+        name?: string;
+        createdTime?: number;
+        lastUpdatedTime?: number;
+        description?: string;
+        views?: unknown;
+      }>;
       const listItems: DataModelVersionItem[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await sdk.dataModels.list({
-          includeGlobal: true,
-          allVersions: true,
-          limit: 250,
-          cursor,
+      for (const m of rawItems) {
+        listItems.push({
+          space: m.space,
+          externalId: m.externalId,
+          version: String(m.version ?? "latest"),
+          name: m.name,
+          createdTime: m.createdTime,
+          lastUpdatedTime: m.lastUpdatedTime,
+          description: m.description,
+          views: m.views,
         });
-        const items = (response.items ?? []) as Array<{
-          space: string;
-          externalId: string;
-          version?: string;
-          name?: string;
-          createdTime?: number;
-          description?: string;
-          views?: unknown;
-        }>;
-        for (const m of items) {
-          listItems.push({
-            space: m.space,
-            externalId: m.externalId,
-            version: String(m.version ?? "latest"),
-            name: m.name,
-            createdTime: m.createdTime,
-            description: m.description,
-            views: m.views,
-          });
-        }
-        cursor = response.nextCursor ?? undefined;
-      } while (cursor);
+      }
+      setLoadProgress({
+        phase: "listing",
+        itemsLoaded: listItems.length,
+        uniqueModels: countUniqueDataModelKeys(listItems),
+      });
 
       const dmMap = new Map<string, Map<string, DataModelVersionItem>>();
       const versionSet = new Set<string>();
@@ -647,13 +725,16 @@ export function DataModelVersions() {
         }));
 
       const details = new Map<string, DataModelVersionItem>();
-      for (let i = 0; i < refs.length; i += 50) {
-        const batch = refs.slice(i, i + 50).map(({ space, externalId, version }) => ({
+      const detailBatchTotal = Math.max(1, Math.ceil(refs.length / DM_DETAILS_BATCH));
+      for (let i = 0; i < refs.length; i += DM_DETAILS_BATCH) {
+        const batchIndex = Math.floor(i / DM_DETAILS_BATCH) + 1;
+        setLoadProgress({ phase: "details", batchIndex, batchTotal: detailBatchTotal });
+        const batch = refs.slice(i, i + DM_DETAILS_BATCH).map(({ space, externalId, version }) => ({
           space,
           externalId,
           version,
         }));
-        const response = (await sdk.dataModels.retrieve(batch as never, {
+        const response = (await cachedDataModelsRetrieve(sdk, batch as Array<Record<string, unknown>>, {
           inlineViews: true,
         })) as { items?: DataModelVersionItem[] };
         for (let j = 0; j < batch.length; j++) {
@@ -668,6 +749,7 @@ export function DataModelVersions() {
             version: v,
             name: item.name,
             createdTime: item.createdTime,
+            lastUpdatedTime: item.lastUpdatedTime,
             description: item.description,
             views: item.views,
           });
@@ -677,7 +759,7 @@ export function DataModelVersions() {
       const rows: DataModelRow[] = [];
       for (const [dmKey, verMap] of dmMap) {
         const first = Array.from(verMap.values())[0];
-        const label = first?.name ?? first?.externalId ?? dmKey;
+        const label = formatResourceDisplayLabel(first?.name, first?.externalId, dmKey);
         rows.push({
           key: dmKey,
           label,
@@ -689,30 +771,65 @@ export function DataModelVersions() {
       setDmRows(rows);
       setVersions(allVersions);
       setDetailsMap(details);
+      setLoadProgress(null);
+      dataModelVersionsSnapshot = {
+        project: sdk.project,
+        rows: rows.map((r) => ({ ...r, versions: new Map(r.versions) })),
+        versions: [...allVersions],
+        detailsEntries: [...details.entries()].map(([k, v]) => [k, { ...v }] as [string, DataModelVersionItem]),
+      };
       setStatus("success");
     } catch (error) {
+      setLoadProgress(null);
+      dataModelVersionsSnapshot = null;
       setErrorMessage(error instanceof Error ? error.message : "Failed to load data models.");
       setStatus("error");
     }
   }, [sdk, isSdkLoading]);
 
   useEffect(() => {
-    if (!isSdkLoading) loadData();
-  }, [isSdkLoading, loadData]);
+    if (isSdkLoading) return;
+    if (dataModelVersionsSnapshot && dataModelVersionsSnapshot.project !== sdk.project) {
+      dataModelVersionsSnapshot = null;
+    }
+    if (dataModelVersionsSnapshot && dataModelVersionsSnapshot.project === sdk.project) {
+      const restoredDetails = new Map<string, DataModelVersionItem>(dataModelVersionsSnapshot.detailsEntries);
+      setDmRows(
+        dataModelVersionsSnapshot.rows.map((r) => ({
+          ...r,
+          versions: new Map(r.versions),
+        }))
+      );
+      setVersions([...dataModelVersionsSnapshot.versions]);
+      setDetailsMap(restoredDetails);
+      setLoadProgress(null);
+      setErrorMessage(null);
+      setStatus("success");
+      return;
+    }
+    void loadData();
+  }, [isSdkLoading, loadData, sdk.project]);
 
   const { rows, linePath } = useMemo(() => {
     if (legendFilteredDmRows.length === 0 || gridVersions.length === 0) {
-      return { rows: [], linePath: line<{ x: number; y: number }>() };
+      return { rows: [] as DmGridDrawRow[], linePath: line<{ x: number; y: number }>() };
     }
 
     const lineGen = line<{ x: number; y: number }>()
       .x((d) => d.x)
       .y((d) => d.y);
 
-    const rows: Array<{ label: string; dots: CellDot[]; connected: Array<{ x: number; y: number }> }> = [];
+    const rows: DmGridDrawRow[] = [];
 
     for (let r = 0; r < legendFilteredDmRows.length; r++) {
       const row = legendFilteredDmRows[r];
+      const colonIdx = row.key.indexOf(":");
+      const space = colonIdx >= 0 ? row.key.slice(0, colonIdx) : "";
+      const externalId = colonIdx >= 0 ? row.key.slice(colonIdx + 1) : row.key;
+      const orderedRaw = gridVersions
+        .map((gv) => resolveMatrixColumnToRawForRow(row, gv, detailsMap))
+        .filter((x): x is string => x != null);
+      const latestVersion = orderedRaw[orderedRaw.length - 1] ?? "";
       const cy = PADDING + r * ROW_HEIGHT + ROW_HEIGHT / 2;
       const dots: CellDot[] = [];
       const connected: Array<{ x: number; y: number }> = [];
@@ -735,16 +852,14 @@ export function DataModelVersions() {
           continue;
         }
 
-        const colonIdx = row.key.indexOf(":");
-        const space = colonIdx >= 0 ? row.key.slice(0, colonIdx) : "";
-        const externalId = colonIdx >= 0 ? row.key.slice(colonIdx + 1) : row.key;
+        const rawVer = resolveMatrixColumnToRawForRow(row, ver, detailsMap)!;
         dots.push({
           x: cx,
           y: cy,
           r: cell.rVal,
           fill: cell.fill,
           dmKey: row.key,
-          version: ver,
+          version: rawVer,
           label: row.label,
           space,
           externalId,
@@ -753,7 +868,16 @@ export function DataModelVersions() {
         connected.push({ x: cx, y: cy });
       }
 
-      rows.push({ label: row.label, dots, connected });
+      rows.push({
+        label: row.label,
+        dmKey: row.key,
+        versionCount: row.versions.size,
+        space,
+        externalId,
+        latestVersion,
+        dots,
+        connected,
+      });
     }
 
     return { rows, linePath: lineGen };
@@ -769,9 +893,13 @@ export function DataModelVersions() {
   const referrers = useMemo((): ReferrerItem[] => {
     if (!pinnedBubble) return [];
     const items: ReferrerItem[] = [];
+    const pinRow = dmRows.find((r) => r.key === pinnedBubble.dmKey);
+    const pinVerLabel = pinRow
+      ? virtualImplicitLabelForRawOnRow(pinRow, pinnedBubble.version, detailsMap)
+      : pinnedBubble.version;
     items.push({
       type: "dataModel",
-      label: `${pinnedBubble.label} ${pinnedBubble.version}`,
+      label: `${pinnedBubble.label} ${pinVerLabel}`,
       url: getDataModelUrl(
         sdk.project,
         pinnedBubble.space,
@@ -780,8 +908,13 @@ export function DataModelVersions() {
       ),
     });
     const row = dmRows.find((r) => r.key === pinnedBubble.dmKey);
-    const orderedVers = versions.filter((v) => row?.versions.has(v) ?? false);
-    const latestV = orderedVers[orderedVers.length - 1];
+    const orderedRaw =
+      row != null
+        ? gridVersions
+            .map((gv) => resolveMatrixColumnToRawForRow(row, gv, detailsMap))
+            .filter((x): x is string => x != null)
+        : [];
+    const latestV = orderedRaw[orderedRaw.length - 1];
     const cellKey = `${pinnedBubble.dmKey}:${pinnedBubble.version}`;
     const destLatestKey = `${pinnedBubble.dmKey}:${DEST_DM_VERSION_UNSPECIFIED}`;
     const seenTx = new Set<string>();
@@ -801,7 +934,7 @@ export function DataModelVersions() {
     if (latestV != null && pinnedBubble.version === latestV) {
       pushDestTxList(dmTxByCell.get(destLatestKey));
     }
-    const latestVer = orderedVers[orderedVers.length - 1];
+    const latestVer = orderedRaw[orderedRaw.length - 1];
     const isPinnedLatest = latestVer != null && pinnedBubble.version === latestVer;
     const pushQueryRefs = (list: Array<{ id: string; name: string }> | undefined) => {
       for (const tx of list ?? []) {
@@ -820,7 +953,15 @@ export function DataModelVersions() {
       pushQueryRefs(transformationRefsByModelVersion.get(`${pinnedBubble.dmKey}:`));
     }
     return items;
-  }, [pinnedBubble, dmTxByCell, transformationRefsByModelVersion, dmRows, versions, sdk.project]);
+  }, [
+    pinnedBubble,
+    dmTxByCell,
+    transformationRefsByModelVersion,
+    dmRows,
+    gridVersions,
+    detailsMap,
+    sdk.project,
+  ]);
 
   const handleDmBubbleClick = useCallback((d: NonNullable<CellDot>) => {
     if (
@@ -840,6 +981,10 @@ export function DataModelVersions() {
     }
   }, []);
 
+  const handleRowLabelOpenHistory = useCallback((dmKey: string) => {
+    setVersionHistoryDmKey(dmKey);
+  }, []);
+
   useEffect(() => {
     if (!headerSvgRef.current || gridVersions.length === 0) return;
     const versionCount = gridVersions.length;
@@ -855,25 +1000,43 @@ export function DataModelVersions() {
       .attr("width", width)
       .attr("height", h)
       .attr("fill", "skyblue");
-    root
+    const vg = root
       .append("g")
-      .selectAll("text.version")
+      .selectAll("g.vcol")
       .data(gridVersions)
       .enter()
+      .append("g")
+      .attr("class", "vcol")
+      .attr("transform", (_, i) => `translate(${LABEL_WIDTH + PADDING + i * COL_WIDTH + COL_WIDTH / 2}, 0)`);
+    vg
+      .append("title")
+      .text((d) => {
+        const k = virtualImplicitSlotNumber(d);
+        return k != null
+          ? `${d}: each row’s ${k === 1 ? "1st" : k === 2 ? "2nd" : k === 3 ? "3rd" : `${k}th`} implicit version by created time (empty cell if the row has fewer)`
+          : d;
+      });
+    vg
       .append("text")
       .attr("class", "version")
-      .attr("x", (_, i) => LABEL_WIDTH + PADDING + i * COL_WIDTH + COL_WIDTH / 2)
+      .attr("x", 0)
       .attr("y", PADDING - 4)
       .attr("text-anchor", "middle")
       .attr("font-size", 10)
       .attr("fill", "#1e293b")
       .text((d) => d);
-  }, [gridVersions]);
+  }, [gridVersions, versionHistoryDmKey]);
 
   useEffect(() => {
     if (!bodySvgRef.current || rows.length === 0) return;
     const handler = handleDmBubbleClick;
+    const openHistory = handleRowLabelOpenHistory;
     const pinned = pinnedBubble;
+    const historyTitle = t("dataCatalog.dataModelVersions.tooltipVersionHistory");
+    const fusionTitle = t("dataCatalog.dataModelVersions.tooltipFusion");
+    const rowIdentityTitle = (space: string, externalId: string) =>
+      `${t("dataCatalog.tooltip.space", { space })}\n${t("dataCatalog.tooltip.externalId", { externalId })}`;
+    const project = sdk.project;
     const versionCount = gridVersions.length;
     const width = LABEL_WIDTH + PADDING * 2 + versionCount * COL_WIDTH;
     const height = PADDING * 2 + rows.length * ROW_HEIGHT - GRID_VERSION_HEADER_HEIGHT;
@@ -897,7 +1060,7 @@ export function DataModelVersions() {
       .enter()
       .append("g")
       .attr("class", "row")
-      .each(function (rowData) {
+      .each(function (rowData, rowIndex) {
         const g = select(this);
 
         g.append("path")
@@ -932,30 +1095,127 @@ export function DataModelVersions() {
           .on("click", (_ev, d) => {
             if (d.dmKey != null && d.version != null) handler(d);
           });
-      });
 
-    main
-      .selectAll("text.label")
-      .data(rows)
-      .enter()
-      .append("text")
-      .attr("class", "label")
-      .attr("x", LABEL_WIDTH - 8)
-      .attr("y", (_, i) => PADDING + i * ROW_HEIGHT + ROW_HEIGHT / 2 + 4)
-      .attr("text-anchor", "end")
-      .attr("font-size", 11)
-      .attr("fill", "#1e293b")
-      .attr("overflow", "hidden")
-      .attr("text-overflow", "ellipsis")
-      .text((d) => d.label);
-  }, [rows, gridVersions, linePath, handleDmBubbleClick, pinnedBubble]);
+        const labelY = PADDING + rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2 + 4;
+        const labelG = g.append("g").attr("class", "row-label");
+        const identityTip = rowIdentityTitle(rowData.space, rowData.externalId);
+        labelG
+          .append("title")
+          .text(rowData.versionCount > 1 ? `${identityTip}\n${historyTitle}` : identityTip);
+
+        if (rowData.versionCount > 1) {
+          labelG
+            .append("rect")
+            .attr("x", 0)
+            .attr("y", PADDING + rowIndex * ROW_HEIGHT)
+            .attr("width", LABEL_WIDTH - 2)
+            .attr("height", ROW_HEIGHT)
+            .attr("fill", "rgba(255,255,255,0.12)")
+            .attr("rx", 4)
+            .style("cursor", "pointer");
+          labelG
+            .append("text")
+            .attr("x", LABEL_WIDTH - 20)
+            .attr("y", labelY)
+            .attr("text-anchor", "end")
+            .attr("font-size", 11)
+            .attr("fill", "#1d4ed8")
+            .attr("text-decoration", "underline")
+            .style("cursor", "pointer")
+            .text(truncateGridLabel(rowData.label));
+          labelG
+            .style("cursor", "pointer")
+            .on("click", (ev: MouseEvent) => {
+              const el = ev.target as Element | null;
+              if (el?.closest?.("a")) return;
+              openHistory(rowData.dmKey);
+            });
+        } else {
+          labelG
+            .append("text")
+            .attr("x", LABEL_WIDTH - 20)
+            .attr("y", labelY)
+            .attr("text-anchor", "end")
+            .attr("font-size", 11)
+            .attr("fill", "#1e293b")
+            .text(truncateGridLabel(rowData.label));
+        }
+
+        if (rowData.latestVersion) {
+          const fusionUrl = getDataModelUrl(
+            project,
+            rowData.space,
+            rowData.externalId,
+            rowData.latestVersion
+          );
+          const fusionA = labelG
+            .append("a")
+            .attr("href", fusionUrl)
+            .attr("target", "_blank")
+            .attr("rel", "noopener noreferrer")
+            .style("cursor", "pointer")
+            .on("click", (ev: MouseEvent) => {
+              ev.stopPropagation();
+            });
+          fusionA.append("title").text(fusionTitle);
+          fusionA
+            .append("text")
+            .attr("x", LABEL_WIDTH - 4)
+            .attr("y", labelY)
+            .attr("text-anchor", "end")
+            .attr("font-size", 11)
+            .attr("font-weight", 600)
+            .attr("fill", "#2563eb")
+            .attr("text-decoration", "underline")
+            .text("↗");
+        }
+      });
+  }, [
+    rows,
+    gridVersions,
+    linePath,
+    handleDmBubbleClick,
+    handleRowLabelOpenHistory,
+    pinnedBubble,
+    t,
+    sdk.project,
+    versionHistoryDmKey,
+  ]);
 
   const isLoading = isSdkLoading || status === "loading";
   const dmGridContentWidth = LABEL_WIDTH + PADDING * 2 + gridVersions.length * COL_WIDTH;
   const dmGridSvgHeight =
     PADDING * 2 + rows.length * ROW_HEIGHT - GRID_VERSION_HEADER_HEIGHT;
-  const showSelect = modelOptions.length > TAB_THRESHOLD;
   const isLoadingModels = dataModelsStatus === "loading" || dataModelsStatus === "idle";
+
+  if (versionHistoryRow && versionHistoryVersionsOrdered.length > 1) {
+    return (
+      <section className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white p-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {t("dataCatalog.subnav.dataModelVersions")}
+          </div>
+          <button
+            type="button"
+            className="rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+            onClick={() => setVersionHistoryDmKey(null)}
+          >
+            {t("dataCatalog.versionHistory.backToGrid")}
+          </button>
+        </div>
+        <DataCatalogVersionHistory
+          label={versionHistoryRow.label}
+          dmKey={versionHistoryRow.key}
+          versionsOrdered={versionHistoryVersionsOrdered}
+          detailsMap={detailsMap}
+          rowVersions={versionHistoryRow.versions}
+          dmTxByCell={dmTxByCell}
+          dmKeysInCatalog={dmKeysInCatalog}
+          dmKeysInTransformation={dmKeysInTransformation}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col gap-4">
@@ -964,53 +1224,24 @@ export function DataModelVersions() {
           One row per data model; columns are published versions. Indigo/red rings mark transformation
           write destinations using <code className="rounded bg-slate-100 px-1">destination.dataModel</code>.
         </p>
+        <p className="text-sm text-slate-600">{t("dataCatalog.dataModelVersions.rowLabelsHint")}</p>
       </header>
-      {!isLoadingModels && modelOptions.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium text-slate-500">Focus data model</span>
-          {showSelect ? (
-            <select
-              value={selectedModelKey ?? ""}
-              onChange={(e) => setSelectedModelKey(e.target.value || null)}
-              className="max-w-sm rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
-            >
-              <option value="">All data models</option>
-              {modelOptions.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="flex flex-wrap gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedModelKey(null)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  selectedModelKey === null
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                All
-              </button>
-              {modelOptions.map((opt) => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setSelectedModelKey(opt.key)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                    selectedModelKey === opt.key
-                      ? "bg-slate-900 text-white"
-                      : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {dmRows.length > 0 && !isLoadingModels ? (
+        <label
+          htmlFor="dm-matrix-search"
+          className="flex min-w-[12rem] max-w-xl flex-1 flex-col gap-1.5 text-sm text-slate-700"
+        >
+          {t("dataCatalog.dataModelVersions.searchLabel")}
+          <input
+            id="dm-matrix-search"
+            type="search"
+            value={matrixSearch}
+            onChange={(e) => setMatrixSearch(e.target.value)}
+            placeholder={t("dataCatalog.dataModelVersions.searchPlaceholder")}
+            autoComplete="off"
+            className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+        </label>
       ) : null}
       <div className="flex items-stretch gap-4">
         <div className="min-w-0 flex-1 rounded-md border border-slate-200">
@@ -1019,71 +1250,88 @@ export function DataModelVersions() {
               {errorMessage}
             </div>
           ) : isLoading && dmRows.length === 0 ? (
-            <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
-              Loading data models…
+            <div className="flex min-h-64 flex-col items-center justify-center gap-2 bg-sky-100 px-4 py-8 text-sm text-slate-600">
+              <p className="font-medium text-slate-800">Loading data models…</p>
+              {loadProgress?.phase === "listing" ? (
+                <p className="max-w-md text-center text-xs text-slate-500">
+                  Listing data model definitions from CDF… {loadProgress.itemsLoaded} items fetched,{" "}
+                  {loadProgress.uniqueModels} unique data models so far.
+                </p>
+              ) : null}
+              {loadProgress?.phase === "details" ? (
+                <p className="max-w-md text-center text-xs text-slate-500">
+                  Loading data model details (inline views)… batch {loadProgress.batchIndex} of{" "}
+                  {loadProgress.batchTotal}.
+                </p>
+              ) : null}
+              {!loadProgress ? (
+                <p className="text-xs text-slate-500">Preparing request…</p>
+              ) : null}
             </div>
           ) : dmRows.length === 0 || versions.length === 0 ? (
             <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
               No data models or versions found.
             </div>
           ) : filteredDmRows.length === 0 ? (
-            <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
-              {selectedModelKey ? "No row for this data model." : "No data models or versions found."}
+            <div className="flex h-64 items-center justify-center bg-sky-100 px-4 text-center text-sm text-slate-600">
+              {matrixSearch.trim()
+                ? t("dataCatalog.dataModelVersions.noSearchResults")
+                : "No data models or versions found."}
             </div>
           ) : filteredVersions.length === 0 ? (
             <div className="flex h-64 items-center justify-center bg-sky-100 text-sm text-slate-600">
               No version columns for the current filter.
             </div>
-          ) : gridVersions.length === 0 && hasChecksumVersions ? (
-            <div className="flex flex-col items-start gap-3 bg-sky-50 px-4 py-6 text-sm text-slate-700">
-              <p>{t("dataCatalog.versionMatrix.onlyChecksumColumns")}</p>
-              <label className="flex cursor-pointer items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={showChecksumVersions}
-                  onChange={(e) => setShowChecksumVersions(e.target.checked)}
-                  className="rounded border-slate-300"
-                />
-                <span>{t("dataCatalog.versionMatrix.showChecksumVersions")}</span>
-              </label>
-            </div>
           ) : (
             <>
-              {hasChecksumVersions ? (
-                <div className="border-b border-slate-200 bg-white px-3 py-2">
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={showChecksumVersions}
-                      onChange={(e) => setShowChecksumVersions(e.target.checked)}
-                      className="rounded border-slate-300"
-                    />
-                    <span>{t("dataCatalog.versionMatrix.showChecksumVersions")}</span>
-                  </label>
-                </div>
-              ) : null}
               {visibleDmLegendIds.size > 0 ? (
                 <div className="bg-sky-50 px-3 py-2 text-xs text-slate-600">
                   <p className="mb-2 text-[11px] text-slate-500">
-                    Click a legend entry to filter rows. Click again to clear.
+                    Legend: first click shows only matching rows (include), second click hides those
+                    rows (exclude), third click clears.
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     {DATA_MODEL_VERSION_LEGEND_ENTRIES.filter((e) => visibleDmLegendIds.has(e.id)).map(
                       ({ id, swatch, label }) => {
-                        const active = dmLegendFilter === id;
+                        const isInclude =
+                          dmLegendFilter?.id === id && dmLegendFilter.mode === "include";
+                        const isExclude =
+                          dmLegendFilter?.id === id && dmLegendFilter.mode === "exclude";
                         return (
                           <button
                             key={id}
                             type="button"
-                            onClick={() => setDmLegendFilter((prev) => (prev === id ? null : id))}
+                            title={
+                              isInclude
+                                ? "Include: matching rows only. Click again for exclude."
+                                : isExclude
+                                  ? "Exclude: hide matching rows. Click again to clear."
+                                  : "Click: include → exclude → off"
+                            }
+                            onClick={() =>
+                              setDmLegendFilter((prev) => cycleLegendFilterState(prev, id))
+                            }
                             className={`flex max-w-[min(100%,20rem)] cursor-pointer items-center gap-2 rounded-md border-0 py-1 pl-1.5 pr-2 text-left transition ${
-                              active
+                              isInclude
                                 ? "bg-white/95 text-slate-900 shadow-sm ring-2 ring-slate-800 ring-offset-1 ring-offset-sky-50"
-                                : "bg-transparent text-slate-600 hover:bg-white/70"
+                                : isExclude
+                                  ? "bg-rose-50/95 text-rose-950 shadow-sm ring-2 ring-rose-600 ring-offset-1 ring-offset-sky-50"
+                                  : "bg-transparent text-slate-600 hover:bg-white/70"
                             }`}
                           >
                             {swatch}
-                            <span>{label}</span>
+                            <span className="flex min-w-0 flex-col gap-0">
+                              <span>{label}</span>
+                              {isInclude ? (
+                                <span className="text-[10px] font-medium text-slate-600">
+                                  only matching
+                                </span>
+                              ) : isExclude ? (
+                                <span className="text-[10px] font-medium text-rose-800">
+                                  hide matching
+                                </span>
+                              ) : null}
+                            </span>
                           </button>
                         );
                       }
@@ -1093,7 +1341,8 @@ export function DataModelVersions() {
               ) : null}
               {legendFilteredDmRows.length === 0 && dmLegendFilter ? (
                 <div className="flex min-h-48 items-center justify-center bg-sky-100 px-4 text-center text-sm text-slate-600">
-                  No rows match this legend filter. Click the legend entry again to clear.
+                  No rows match this legend setting. Click the same legend entry again to switch
+                  include → exclude → off.
                 </div>
               ) : (
                 <VersioningGridScroll
@@ -1112,7 +1361,13 @@ export function DataModelVersions() {
             <>
               <div className="flex shrink-0 items-center justify-between gap-2">
                 <span className="font-semibold">
-                  {pinnedBubble.label} {pinnedBubble.version}
+                  {pinnedBubble.label}{" "}
+                  {(() => {
+                    const pr = dmRows.find((r) => r.key === pinnedBubble.dmKey);
+                    return pr
+                      ? virtualImplicitLabelForRawOnRow(pr, pinnedBubble.version, detailsMap)
+                      : pinnedBubble.version;
+                  })()}
                 </span>
                 <button
                   type="button"
@@ -1122,6 +1377,19 @@ export function DataModelVersions() {
                   Unpin
                 </button>
               </div>
+              {(() => {
+                const row = dmRows.find((r) => r.key === pinnedBubble.dmKey);
+                if (!row || row.versions.size < 2) return null;
+                return (
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-[11px] font-medium text-slate-700 hover:bg-slate-100"
+                    onClick={() => setVersionHistoryDmKey(row.key)}
+                  >
+                    {t("dataCatalog.versionHistory.openPinned")}
+                  </button>
+                );
+              })()}
               <p className="mt-1 shrink-0 text-slate-500">Referrers</p>
               <ul className="mt-1 min-h-0 flex-1 space-y-1 overflow-auto pl-1">
                 {referrers.length === 0 ? (

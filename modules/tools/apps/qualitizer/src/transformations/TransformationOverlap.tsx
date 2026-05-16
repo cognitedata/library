@@ -13,6 +13,7 @@ import {
   type NearDuplicateGroup,
 } from "./overlapAnalysis";
 import { fetchTransformationsByIds } from "./fetchTransformationsByIds";
+import { cachedTransformationJobs, cachedTransformationsList } from "./transformations-cache";
 import { TransformationsHelpModal } from "./TransformationsHelpModal";
 
 type TransformationSummary = {
@@ -27,6 +28,8 @@ type ProgressState = {
   phase: string;
   current: number;
   total: number;
+  /** Extra context (e.g. why the step is slow). */
+  detail?: string;
 } | null;
 
 const OVERLAP_SAMPLE_LIMIT = 20;
@@ -53,10 +56,10 @@ export function TransformationOverlap() {
       setErrorMessage(null);
       setProgress({ phase: "Loading transformations…", current: 0, total: 0 });
       try {
-        const response = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations`,
-          { params: { includePublic: "true", limit: "1000" } }
-        )) as { data?: { items?: TransformationSummary[] } };
+        const response = (await cachedTransformationsList(sdk, {
+          includePublic: "true",
+          limit: "1000",
+        })) as { data?: { items?: TransformationSummary[] } };
         const items = response.data?.items ?? [];
         if (!cancelled) setTotalCount(items.length);
         if (items.length === 0) {
@@ -71,13 +74,24 @@ export function TransformationOverlap() {
         const windowEnd = Date.now();
         const windowStart = windowEnd - 24 * 60 * 60 * 1000;
         const totalMsById: Record<string, number> = {};
-        const jobPromises = items.map(async (t) => {
-          const id = String(t.id);
+        const jobFetchTotal = items.length;
+        const progressEvery = jobFetchTotal > 200 ? 10 : 1;
+        if (!cancelled) {
+          setProgress({
+            phase: "Loading job history per transformation…",
+            current: 0,
+            total: jobFetchTotal,
+            detail:
+              "Job requests run one at a time to avoid overloading the API. Large projects can take several minutes.",
+          });
+        }
+        for (let i = 0; i < items.length; i++) {
+          if (cancelled) return;
+          const tx = items[i];
+          const id = String(tx.id);
+          let totalMs = 0;
           try {
-            const jobResponse = await sdk.get(
-              `/api/v1/projects/${sdk.project}/transformations/jobs`,
-              { params: { limit: "1000", transformationId: id } }
-            );
+            const jobResponse = await cachedTransformationJobs(sdk, id, "1000");
             const data = (jobResponse as { data?: { items?: JobSummary[] } }).data;
             const jobs = data?.items ?? [];
             const recent = jobs.filter((job) => {
@@ -85,23 +99,30 @@ export function TransformationOverlap() {
               if (!start) return false;
               return start >= windowStart && start <= windowEnd;
             });
-            const totalMs = recent.reduce((acc, job) => {
+            totalMs = recent.reduce((acc, job) => {
               const start = toTimestamp(job.startedTime);
               const end = toTimestamp(job.finishedTime);
               if (!start || !end || end < start) return acc;
               return acc + (end - start);
             }, 0);
-            return { id, totalMs };
           } catch {
-            return { id, totalMs: 0 };
+            totalMs = 0;
           }
-        });
-
-        const jobResults = await Promise.all(jobPromises);
+          totalMsById[id] = totalMs;
+          const done = i + 1;
+          if (done % progressEvery === 0 || done === jobFetchTotal) {
+            if (!cancelled) {
+              setProgress({
+                phase: "Loading job history per transformation…",
+                current: done,
+                total: jobFetchTotal,
+                detail:
+                  "Job requests run one at a time to avoid overloading the API. Large projects can take several minutes.",
+              });
+            }
+          }
+        }
         if (cancelled) return;
-        jobResults.forEach((r) => {
-          totalMsById[r.id] = r.totalMs;
-        });
 
         let toAnalyze = items;
         if (!analyzeAll && items.length > OVERLAP_SAMPLE_LIMIT) {
@@ -115,6 +136,7 @@ export function TransformationOverlap() {
           phase: "Fetching transformation queries…",
           current: 0,
           total: toAnalyze.length,
+          detail: undefined,
         });
         const project = sdk.project;
         const idsNeedingQuery = [
@@ -136,6 +158,7 @@ export function TransformationOverlap() {
               phase: "Fetching transformation queries…",
               current: i,
               total: toAnalyze.length,
+              detail: undefined,
             });
           }
           const t = toAnalyze[i];
@@ -157,6 +180,7 @@ export function TransformationOverlap() {
             phase: "Starting overlap analysis…",
             current: 0,
             total: withQuery.length,
+            detail: undefined,
           });
         }
       } catch (error) {
@@ -186,6 +210,7 @@ export function TransformationOverlap() {
         phase: "Finding identical fragments…",
         current: 0,
         total,
+        detail: undefined,
       });
       const identicalResult = findIdenticalFragments(
         itemsWithQuery,
@@ -203,6 +228,7 @@ export function TransformationOverlap() {
         phase: "Finding near-duplicate fragments…",
         current: 0,
         total,
+        detail: undefined,
       });
       const nearResult = findNearDuplicateFragments(
         itemsWithQuery,
@@ -256,10 +282,13 @@ export function TransformationOverlap() {
           {progress ? (
             <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
               <div className="text-sm font-medium text-slate-800">{progress.phase}</div>
+              {progress.detail ? (
+                <div className="mt-1 text-xs text-slate-600">{progress.detail}</div>
+              ) : null}
               {progress.total > 0 ? (
                 <div className="mt-1 text-xs text-slate-600">
                   {progress.current} / {progress.total} transformations
-                  {progress.total > OVERLAP_SAMPLE_LIMIT
+                  {!progress.detail && progress.total > OVERLAP_SAMPLE_LIMIT
                     ? " — may take several minutes for many transformations."
                     : ""}
                 </div>

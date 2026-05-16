@@ -2,6 +2,7 @@ space: "{{space}}"
 externalId: Equipment
 name: Equipment
 description: Physical equipment used in the oil and gas industry
+usedFor: node
 properties:
   class:
     type:
@@ -66,7 +67,6 @@ properties:
     nullable: true
     autoIncrement: false
     name: standardReference
-indexes:
 constraints:
   requiresCogniteEquipment:
     constraintType: requires
@@ -74,3 +74,22 @@ constraints:
       space: cdf_cdm
       externalId: CogniteEquipment
       type: container
+indexes:
+  code:
+    indexType: btree
+    properties:
+      - code
+    bySpace: false
+    cursorable: false
+  type:
+    indexType: btree
+    properties:
+      - type
+    bySpace: false
+    cursorable: false
+  equipmentClass:
+    indexType: btree
+    properties:
+      - equipmentClass
+    bySpace: false
+    cursorable: false

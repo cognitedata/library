@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/shared/i18n";
 import {
   loadNavState,
@@ -32,6 +32,16 @@ export function DataCatalog() {
   const { t } = useI18n();
   const initialTab = useMemo(() => readInitialDataCatalogSubView(), []);
   const [tab, setTab] = useState<PersistedDataCatalogSubView>(initialTab);
+  const [mountedTabs, setMountedTabs] = useState(() => new Set<PersistedDataCatalogSubView>([initialTab]));
+
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  }, [tab]);
 
   const selectTab = useCallback((next: PersistedDataCatalogSubView) => {
     setTab(next);
@@ -93,10 +103,26 @@ export function DataCatalog() {
           {t("dataCatalog.subnav.viewVersions")}
         </button>
       </nav>
-      {tab === "overview" ? <DataCatalogOverview /> : null}
-      {tab === "propertyExplorer" ? <Properties /> : null}
-      {tab === "dataModelVersions" ? <DataModelVersions /> : null}
-      {tab === "viewVersions" ? <ViewVersions /> : null}
+      {mountedTabs.has("overview") ? (
+        <div className={tab === "overview" ? undefined : "hidden"}>
+          <DataCatalogOverview />
+        </div>
+      ) : null}
+      {mountedTabs.has("propertyExplorer") ? (
+        <div className={tab === "propertyExplorer" ? undefined : "hidden"}>
+          <Properties />
+        </div>
+      ) : null}
+      {mountedTabs.has("dataModelVersions") ? (
+        <div className={tab === "dataModelVersions" ? undefined : "hidden"}>
+          <DataModelVersions />
+        </div>
+      ) : null}
+      {mountedTabs.has("viewVersions") ? (
+        <div className={tab === "viewVersions" ? undefined : "hidden"}>
+          <ViewVersions />
+        </div>
+      ) : null}
     </section>
   );
 }

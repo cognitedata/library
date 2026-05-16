@@ -1,67 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader } from "@/shared/Loader";
 import { useAppSdk } from "@/shared/auth";
-import {
-  computePermissionScopeDrift,
-  classifyCompliantGroups,
-} from "./health-checks-utils";
 import { PermissionsHealthPanel } from "./PermissionsHealthPanel";
-import type { GroupSummary, LoadState } from "./types";
+import { usePermissionsHealthChecks } from "./usePermissionsHealthChecks";
 
 type Props = { onBack: () => void };
 
 export function PermissionsChecks({ onBack }: Props) {
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
 
-  const [permissionsStatus, setPermissionsStatus] = useState<LoadState>("idle");
-  const [permissionsError, setPermissionsError] = useState<string | null>(null);
-  const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const {
+    permissionsStatus,
+    permissionsError,
+    permissionScopeDrift,
+    compliantGroups,
+    permissionsStats,
+    checksLoadingPhase,
+  } = usePermissionsHealthChecks({ sdk, isSdkLoading });
+
   const [showLoader, setShowLoader] = useState(false);
 
   useEffect(() => {
     setShowLoader(permissionsStatus === "loading");
   }, [permissionsStatus]);
-
-  useEffect(() => {
-    if (isSdkLoading) return;
-    let cancelled = false;
-    const loadPermissions = async () => {
-      setPermissionsStatus("loading");
-      setPermissionsError(null);
-      try {
-        const groupResponse = (await sdk.groups.list({
-          all: true,
-        })) as GroupSummary[];
-        if (!cancelled) {
-          setGroups(groupResponse);
-          setPermissionsStatus("success");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setPermissionsError(
-            error instanceof Error
-              ? error.message
-              : "Failed to load permissions"
-          );
-          setPermissionsStatus("error");
-        }
-      }
-    };
-    loadPermissions();
-    return () => {
-      cancelled = true;
-    };
-  }, [isSdkLoading, sdk]);
-
-  const permissionScopeDrift = useMemo(
-    () => computePermissionScopeDrift(groups),
-    [groups]
-  );
-
-  const compliantGroups = useMemo(
-    () => classifyCompliantGroups(groups, permissionScopeDrift),
-    [groups, permissionScopeDrift]
-  );
 
   return (
     <section className="flex flex-col gap-4">
@@ -87,6 +48,8 @@ export function PermissionsChecks({ onBack }: Props) {
         permissionsError={permissionsError}
         permissionScopeDrift={permissionScopeDrift}
         compliantGroups={compliantGroups}
+        permissionsStats={permissionsStats}
+        checksLoadingPhase={checksLoadingPhase}
       />
       <Loader
         open={showLoader}

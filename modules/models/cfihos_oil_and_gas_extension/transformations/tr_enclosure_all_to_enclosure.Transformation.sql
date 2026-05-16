@@ -19,6 +19,5 @@ select
 from
   `cfihos_oil_and_gas`.`enclosure`
 where
-  is_new('enclosure', lastUpdatedTime)
-  and
+  -- full reload: is_new('enclosure', lastUpdatedTime) and
   `key` in (select `key` from `cfihos_oil_and_gas`.`tag`)

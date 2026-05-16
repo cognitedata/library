@@ -1,0 +1,12 @@
+externalId: "{{location}}"
+name: "{{location_name}}"
+dataModels:
+  - space: {{appDataSpace}}
+    externalId: Maintain
+    version: v1
+  - space: {{sourceDataSpace}}
+    externalId: MaintainSource
+    version: v1
+instanceSpaces:
+  - {{appDataSpace}}
+  - {{sourceDataSpace}}

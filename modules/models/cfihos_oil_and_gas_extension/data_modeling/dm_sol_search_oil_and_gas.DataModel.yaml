@@ -116,6 +116,10 @@ views:
   externalId: WorkOrderOperation
   version: "{{dm_version}}"
   type: view
+- space: "{{space}}"
+  externalId: FunctionalLocation
+  version: "{{dm_version}}"
+  type: view
 # CFIHOS extension views (other spaces)
 - space: "{{space}}"
   externalId: MaintenanceAndIntegrity

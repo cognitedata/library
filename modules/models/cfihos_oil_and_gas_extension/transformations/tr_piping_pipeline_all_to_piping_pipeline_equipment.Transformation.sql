@@ -35,6 +35,5 @@ select
 from
   `cfihos_oil_and_gas`.`piping_pipeline`
 where
-  is_new('piping_pipeline', lastUpdatedTime)
-  and
+  -- full reload: is_new('piping_pipeline', lastUpdatedTime) and
   `key` in (select `key` from `cfihos_oil_and_gas`.`tag`)

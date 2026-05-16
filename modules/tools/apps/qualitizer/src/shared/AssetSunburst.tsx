@@ -233,7 +233,7 @@ export function AssetSunburst({ model, view, assetViews, maxDepth, spaceFilter }
 
           const batchItems = listResponse.items as NodeSummary[];
           assets.push(...batchItems);
-          setAssetNodes(batchItems);
+          setAssetNodes(sdk.project, batchItems);
           loadedCount += batchItems.length;
           if (!cancelled && requestIdRef.current === requestId) {
             setLoadedAssets(loadedCount);

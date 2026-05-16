@@ -24,6 +24,5 @@ select
 from
   `cfihos_oil_and_gas`.`mechanical_equipment`
 where
-  is_new('mechanical_equipment', lastUpdatedTime)
-  and
+  -- full reload: is_new('mechanical_equipment', lastUpdatedTime) and
   `key` in (select `key` from `cfihos_oil_and_gas`.`tag`)

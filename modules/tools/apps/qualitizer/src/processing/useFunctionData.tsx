@@ -1,15 +1,49 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { normalizeStatus, toTimestamp } from "@/shared/time-utils";
-import type { FunctionRunSummary, FunctionSummary, LoadState } from "./types";
+import type {
+  FunctionRunSummary,
+  FunctionSummary,
+  LoadState,
+  ProcessingDataLoadProgress,
+  ProcessingRequestStats,
+} from "./types";
 import { useI18n } from "@/shared/i18n";
+import { withTransientRetries } from "@/shared/transient-http-retry";
+
+type FunctionCallLogsApiResponse = {
+  data?: {
+    items?: { message?: string }[];
+  };
+};
+
+type FunctionsListApiResponse = {
+  data?: {
+    items?: FunctionSummary[];
+    nextCursor?: string | null;
+  };
+};
+
+type FunctionCallsListApiResponse = {
+  data?: {
+    items?: FunctionRunSummary[];
+    nextCursor?: string | null;
+  };
+};
 
 type UseFunctionDataArgs = {
   isSdkLoading: boolean;
   sdk: { project: string; post: Function; get: Function };
   windowRange: { start: number; end: number } | null;
+  /** When false, diagram data for this series is not fetched (serial diagram loading). */
+  fetchEnabled?: boolean;
 };
 
-export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionDataArgs) {
+export function useFunctionData({
+  isSdkLoading,
+  sdk,
+  windowRange,
+  fetchEnabled = true,
+}: UseFunctionDataArgs) {
   const { t } = useI18n();
   const [status, setStatus] = useState<LoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -18,6 +52,8 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
   const [logMap, setLogMap] = useState<Record<string, Record<string, { message?: string }[]>>>({});
   const [functionNameMap, setFunctionNameMap] = useState<Record<string, string>>({});
   const [functionMetaMap, setFunctionMetaMap] = useState<Record<string, FunctionSummary>>({});
+  const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
+  const [requestStats, setRequestStats] = useState<ProcessingRequestStats | null>(null);
 
   const getFailureColor = (run: FunctionRunSummary) => {
     const funcId = run.functionId ?? "";
@@ -71,9 +107,11 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
   const fetchRunLogs = async (run: FunctionRunSummary) => {
     if (!run.functionId || !run.id) return;
     try {
-      const response = await sdk.get<{
-        items?: { message?: string }[];
-      }>(`/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`);
+      const response = (await withTransientRetries(() =>
+        sdk.get(
+          `/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`
+        )
+      )) as FunctionCallLogsApiResponse;
       const logs = response.data?.items ?? [];
       if (logs.length > 0) {
         setLogMap((prev) => ({
@@ -89,7 +127,13 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
     }
   };
 
+  useLayoutEffect(() => {
+    if (!fetchEnabled || isSdkLoading || !windowRange) return;
+    setStatus("loading");
+  }, [fetchEnabled, isSdkLoading, windowRange?.start, windowRange?.end]);
+
   useEffect(() => {
+    if (!fetchEnabled) return;
     if (isSdkLoading) return;
     if (!windowRange) return;
 
@@ -98,27 +142,39 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
       setStatus("loading");
       setErrorMessage(null);
       setAvailabilityMessage(null);
+      setRequestStats(null);
       setRuns([]);
       setLogMap({});
       setFunctionNameMap({});
       setFunctionMetaMap({});
+      setLoadProgress({ kind: "functions_list", loaded: 0 });
 
       try {
         const endWindow = windowRange.end;
         const startWindow = windowRange.start;
+        let failedRequests = 0;
+        let totalRequests = 0;
 
         const listFunctions = async () => {
           const items: FunctionSummary[] = [];
           let cursor: string | undefined;
           do {
-            const response = await sdk.post<{
-              items?: FunctionSummary[];
-              nextCursor?: string | null;
-            }>(`/api/v1/projects/${sdk.project}/functions/list`, {
-              data: JSON.stringify({ limit: 100, cursor }),
-            });
-            items.push(...(response.data?.items ?? []));
-            cursor = response.data?.nextCursor ?? undefined;
+            totalRequests++;
+            try {
+              const response = (await withTransientRetries(() =>
+                sdk.post(`/api/v1/projects/${sdk.project}/functions/list`, {
+                  data: JSON.stringify({ limit: 100, cursor }),
+                })
+              )) as FunctionsListApiResponse;
+              items.push(...(response.data?.items ?? []));
+              cursor = response.data?.nextCursor ?? undefined;
+            } catch (e) {
+              failedRequests++;
+              throw e;
+            }
+            if (!cancelled) {
+              setLoadProgress({ kind: "functions_list", loaded: items.length });
+            }
           } while (cursor);
           return items;
         };
@@ -134,12 +190,15 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
             limit: 10000,
             cursor,
           };
-          const response = await sdk.post<{
-            items?: FunctionRunSummary[];
-            nextCursor?: string | null;
-          }>(`/api/v1/projects/${sdk.project}/functions/${functionId}/calls/list`, {
-            data: JSON.stringify(requestBody),
-          });
+          totalRequests++;
+          const response = (await withTransientRetries(() =>
+            sdk.post(
+              `/api/v1/projects/${sdk.project}/functions/${functionId}/calls/list`,
+              {
+                data: JSON.stringify(requestBody),
+              }
+            )
+          )) as FunctionCallsListApiResponse;
           return {
             items: response.data?.items ?? [],
             nextCursor: response.data?.nextCursor ?? null,
@@ -158,31 +217,40 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
           setFunctionMetaMap(metaMap);
         }
 
+        const totalFns = functions.length;
+        if (!cancelled) {
+          setLoadProgress({ kind: "functions_runs", current: 0, total: totalFns });
+        }
+
         const collected: FunctionRunSummary[] = [];
+        let fnIndex = 0;
         for (const fn of functions) {
           let cursor: string | undefined;
-          do {
-            const response = await listRunsForFunction(fn.id, cursor);
-            const items = response.items ?? [];
-            for (const run of items) {
-              const start = toTimestamp(run.startTime ?? run.createdTime);
-              if (start && start >= startWindow) {
-                if (!run.endTime && normalizeStatus(run.status).includes("failed")) {
-                  run.endTime = (run.startTime ?? start) + 1;
+          try {
+            do {
+              const response = await listRunsForFunction(fn.id, cursor);
+              const items = response.items ?? [];
+              for (const run of items) {
+                const start = toTimestamp(run.startTime ?? run.createdTime);
+                if (start && start >= startWindow) {
+                  if (!run.endTime && normalizeStatus(run.status).includes("failed")) {
+                    run.endTime = (run.startTime ?? start) + 1;
+                  }
+                  collected.push(run);
                 }
-                collected.push(run);
               }
-            }
-            cursor = response.nextCursor ?? undefined;
-          } while (cursor);
+              cursor = response.nextCursor ?? undefined;
+            } while (cursor);
+          } catch {
+            failedRequests++;
+          }
+          fnIndex += 1;
+          if (!cancelled && (fnIndex % 3 === 0 || fnIndex === totalFns)) {
+            setLoadProgress({ kind: "functions_runs", current: fnIndex, total: totalFns });
+          }
           if (!cancelled) {
             setRuns([...collected]);
           }
-        }
-
-        if (!cancelled) {
-          setRuns(collected);
-          setStatus("success");
         }
 
         for (const run of collected) {
@@ -192,8 +260,21 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
           if (!run.functionId || !run.id) continue;
           await fetchRunLogs(run);
         }
+
+        if (!cancelled) {
+          setRuns(collected);
+          setLoadProgress(null);
+          if (failedRequests > 0) {
+            setRequestStats({ failed: failedRequests, total: totalRequests });
+          } else {
+            setRequestStats(null);
+          }
+          setStatus("success");
+        }
       } catch (error) {
         if (!cancelled) {
+          setLoadProgress(null);
+          setRequestStats(null);
           const message = error instanceof Error ? error.message : t("processing.error.runs");
           setErrorMessage(message);
           if (message.toLowerCase().includes("404")) {
@@ -210,7 +291,7 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, windowRange, t]);
+  }, [fetchEnabled, isSdkLoading, sdk, windowRange, t]);
 
   const failureDurationMs = useMemo(() => {
     const failureStatuses = ["failed", "failure", "timeout", "timed_out"];
@@ -226,6 +307,8 @@ export function useFunctionData({ isSdkLoading, sdk, windowRange }: UseFunctionD
 
   return {
     status,
+    loadProgress,
+    requestStats,
     errorMessage,
     availabilityMessage,
     runs,

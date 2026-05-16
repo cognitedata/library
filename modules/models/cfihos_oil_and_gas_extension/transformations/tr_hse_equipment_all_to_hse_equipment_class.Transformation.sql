@@ -14,6 +14,5 @@ SELECT
 FROM
   `cfihos_oil_and_gas`.`hse_equipment`
 WHERE
-  is_new('hse_equipment', lastUpdatedTime)
-  AND
+  -- full reload: is_new('hse_equipment', lastUpdatedTime)
   `key` IN (SELECT `key` FROM `cfihos_oil_and_gas`.`tag`)

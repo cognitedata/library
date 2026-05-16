@@ -53,8 +53,15 @@ export function SdkManagerProvider({
     baseUrl: string;
   } | null>(null);
   const cacheRef = useRef<Map<string, CogniteClient>>(new Map());
+  const lastCredentialsFingerprintRef = useRef<string>("__unset__");
 
   const isStandalone = import.meta.env.VITE_STANDALONE === "true";
+
+  const credentialsFingerprint = credentials ? `${credentials.baseUrl}\u0001${credentials.token}` : "__none__";
+  if (credentialsFingerprint !== lastCredentialsFingerprintRef.current) {
+    lastCredentialsFingerprintRef.current = credentialsFingerprint;
+    cacheRef.current.clear();
+  }
   const proxyUrl =
     (import.meta.env.CDF_PROXY_URL as string | undefined) ??
     (import.meta.env.VITE_CDF_PROXY_URL as string | undefined);

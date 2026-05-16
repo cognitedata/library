@@ -1,0 +1,38 @@
+space: {{schemaSpace}}
+externalId: Maintain
+name: Maintain
+version: v1
+description: Data model for the Maintain application
+views:
+  - type: view
+    space: {{schemaSpace}}
+    externalId: Plan
+    version: v1
+  - type: view
+    space: {{schemaSpace}}
+    externalId: MaintainLayout
+    version: v1
+  - type: view
+    space: {{schemaSpace}}
+    externalId: MaintainCanvas
+    version: v1
+  - type: view
+    space: {{schemaSpace}}
+    externalId: MaintainWorkOrder
+    version: v1
+  - type: view
+    space: {{schemaSpace}}
+    externalId: ManualMappings3D
+    version: v1
+  - type: view
+    space: {{schemaSpace}}
+    externalId: FileGridZoneAnnotation
+    version: v1
+  - type: view
+    space: {{schemaSpace}}
+    externalId: APM_Comment
+    version: v1
+  - type: view
+    space: {{schemaSpace}}
+    externalId: APM_Optimisation
+    version: v1

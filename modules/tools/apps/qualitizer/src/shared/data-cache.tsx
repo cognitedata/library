@@ -1,5 +1,11 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAppSdk } from "@/shared/auth";
+import {
+  cachedDataModelsRetrieve,
+  cachedViewsRetrieve,
+  listAllCachedDataModels,
+  listAllCachedViews,
+} from "@/shared/dms-catalog-cache";
 
 type LoadState = "idle" | "loading" | "success" | "error";
 
@@ -32,8 +38,6 @@ type DataCacheContextValue = {
   views: ViewSummary[];
   viewsStatus: LoadState;
   viewsError: string | null;
-  dataModelDetails: Record<string, unknown>;
-  viewDetails: Record<string, unknown>;
   loadDataModels: () => Promise<void>;
   loadViews: () => Promise<void>;
   retrieveDataModels: (
@@ -56,27 +60,26 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   const [views, setViews] = useState<ViewSummary[]>([]);
   const [viewsStatus, setViewsStatus] = useState<LoadState>("idle");
   const [viewsError, setViewsError] = useState<string | null>(null);
-  const [dataModelDetails, setDataModelDetails] = useState<Record<string, unknown>>({});
-  const [viewDetails, setViewDetails] = useState<Record<string, unknown>>({});
 
-  const loadDataModels = async () => {
-    if (dataModelsStatus === "loading" || dataModelsStatus === "success" || dataModelsStatus === "error") return;
+  useEffect(() => {
+    setDataModels([]);
+    setDataModelsStatus("idle");
+    setDataModelsError(null);
+    setViews([]);
+    setViewsStatus("idle");
+    setViewsError(null);
+  }, [sdk]);
+
+  const loadDataModels = useCallback(async () => {
+    if (dataModelsStatus === "loading" || dataModelsStatus === "success") return;
     setDataModelsStatus("loading");
     setDataModelsError(null);
     try {
-      const items: DataModelSummary[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await sdk.dataModels.list({
-          includeGlobal: true,
-          allVersions: false,
-          inlineViews: true,
-          limit: 100,
-          cursor,
-        });
-        items.push(...(response.items as DataModelSummary[]));
-        cursor = response.nextCursor ?? undefined;
-      } while (cursor);
+      const items = (await listAllCachedDataModels(
+        sdk,
+        { includeGlobal: true, allVersions: false, inlineViews: true },
+        { pageLimit: 100 }
+      )) as DataModelSummary[];
 
       setDataModels(items);
       setDataModelsStatus("success");
@@ -84,25 +87,18 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       setDataModelsError(error instanceof Error ? error.message : "Failed to load data models.");
       setDataModelsStatus("error");
     }
-  };
+  }, [sdk, dataModelsStatus]);
 
-  const loadViews = async () => {
-    if (viewsStatus === "loading" || viewsStatus === "success" || viewsStatus === "error") return;
+  const loadViews = useCallback(async () => {
+    if (viewsStatus === "loading" || viewsStatus === "success") return;
     setViewsStatus("loading");
     setViewsError(null);
     try {
-      const items: ViewSummary[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await sdk.views.list({
-          includeGlobal: true,
-          allVersions: false,
-          limit: 100,
-          cursor,
-        });
-        items.push(...(response.items as ViewSummary[]));
-        cursor = response.nextCursor ?? undefined;
-      } while (cursor);
+      const items = (await listAllCachedViews(
+        sdk,
+        { includeGlobal: true, allVersions: false },
+        { pageLimit: 100 }
+      )) as ViewSummary[];
 
       setViews(items);
       setViewsStatus("success");
@@ -110,33 +106,21 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       setViewsError(error instanceof Error ? error.message : "Failed to load views.");
       setViewsStatus("error");
     }
-  };
+  }, [sdk, viewsStatus]);
 
-  const retrieveDataModels = async (
-    params: Array<Record<string, unknown>>,
-    options?: Record<string, unknown>
-  ) => {
-    const key = `${sdk.project}:${JSON.stringify(params)}`;
-    if (dataModelDetails[key]) {
-      return dataModelDetails[key];
-    }
-    const response = await sdk.dataModels.retrieve(params as never, options as never);
-    setDataModelDetails((prev) => ({ ...prev, [key]: response }));
-    return response;
-  };
+  const retrieveDataModels = useCallback(
+    async (params: Array<Record<string, unknown>>, options?: Record<string, unknown>) => {
+      return cachedDataModelsRetrieve(sdk, params, options);
+    },
+    [sdk]
+  );
 
-  const retrieveViews = async (
-    params: Array<Record<string, unknown>>,
-    options?: Record<string, unknown>
-  ) => {
-    const key = `${sdk.project}:${JSON.stringify(params)}:${JSON.stringify(options ?? {})}`;
-    if (viewDetails[key]) {
-      return viewDetails[key];
-    }
-    const response = await sdk.views.retrieve(params as never, options as never);
-    setViewDetails((prev) => ({ ...prev, [key]: response }));
-    return response;
-  };
+  const retrieveViews = useCallback(
+    async (params: Array<Record<string, unknown>>, options?: Record<string, unknown>) => {
+      return cachedViewsRetrieve(sdk, params, options);
+    },
+    [sdk]
+  );
 
   const value = useMemo(
     () => ({
@@ -146,8 +130,6 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       views,
       viewsStatus,
       viewsError,
-      dataModelDetails,
-      viewDetails,
       loadDataModels,
       loadViews,
       retrieveDataModels,
@@ -160,8 +142,10 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       views,
       viewsStatus,
       viewsError,
-      dataModelDetails,
-      viewDetails,
+      loadDataModels,
+      loadViews,
+      retrieveDataModels,
+      retrieveViews,
     ]
   );
 

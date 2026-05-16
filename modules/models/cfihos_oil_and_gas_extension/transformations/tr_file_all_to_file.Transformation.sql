@@ -25,4 +25,4 @@ SELECT
   cast(sourceId as string) as sourceId,
   cast(source as string) as sourceContext
 FROM `cfihos_oil_and_gas`.`file`
-WHERE is_new('file', lastUpdatedTime)
+WHERE 1=1 -- full reload: is_new('file', lastUpdatedTime)

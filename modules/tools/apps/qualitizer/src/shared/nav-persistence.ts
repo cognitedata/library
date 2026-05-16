@@ -10,11 +10,23 @@ export type PersistedDataCatalogSubView =
   | "dataModelVersions"
   | "viewVersions";
 
+export type PersistedPermissionsSubView =
+  | "groups"
+  | "compare"
+  | "crossProject"
+  | "spaces"
+  | "datasets";
+
+/** Internal Assets area: catalog models with asset views vs all CogniteAsset-shaped views. */
+export type PersistedAssetsSubView = "dataModels" | "standaloneViews";
+
 export type PersistedNavState = {
   mode?: string;
   transformationsSubView?: PersistedTransformationsSubView;
   versioningSubView?: PersistedVersioningSubView;
   dataCatalogSubView?: PersistedDataCatalogSubView;
+  permissionsSubView?: PersistedPermissionsSubView;
+  assetsSubView?: PersistedAssetsSubView;
 };
 
 export function loadNavState(): PersistedNavState {
@@ -42,6 +54,18 @@ export function loadNavState(): PersistedNavState {
         obj.dataCatalogSubView === "dataModelVersions" ||
         obj.dataCatalogSubView === "viewVersions"
           ? obj.dataCatalogSubView
+          : undefined,
+      permissionsSubView:
+        obj.permissionsSubView === "groups" ||
+        obj.permissionsSubView === "compare" ||
+        obj.permissionsSubView === "crossProject" ||
+        obj.permissionsSubView === "spaces" ||
+        obj.permissionsSubView === "datasets"
+          ? obj.permissionsSubView
+          : undefined,
+      assetsSubView:
+        obj.assetsSubView === "dataModels" || obj.assetsSubView === "standaloneViews"
+          ? obj.assetsSubView
           : undefined,
     };
   } catch {

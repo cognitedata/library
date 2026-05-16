@@ -1,5 +1,6 @@
 import mixpanel from "mixpanel-browser";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDailyDeploymentPackUsageMixpanel } from "@/deployment-pack-usage";
 import { useAppSdk } from "@/shared/auth";
 import { useSdkManager } from "@/shared/SdkManager";
 import { HealthChecks } from "./health-checks";
@@ -11,8 +12,10 @@ import { DataCacheProvider } from "./shared/data-cache";
 import { I18nProvider, useI18n } from "./shared/i18n";
 import { LimitsProvider } from "./shared/LimitsContext";
 import { NavigationProvider } from "./shared/NavigationContext";
+import { AppCachingProvider } from "./shared/AppCachingContext";
 import { PrivateModeProvider, usePrivateMode } from "./shared/PrivateModeContext";
 import { loadNavState, saveNavState } from "./shared/nav-persistence";
+import { LruCacheStatsPanel } from "./shared/LruCacheStatsPanel";
 
 const productionPages = [
   { id: "health", labelKey: "nav.healthChecks" },
@@ -30,9 +33,11 @@ const internalPages = [
   { id: "streams", label: "Streams" },
   { id: "edges", label: "Edges" },
   { id: "spaces", label: "Spaces" },
-  { id: "testing", label: "Testing" },
+  { id: "dpUsage", label: "DP Usage" },
+  { id: "dpCross", label: "DP Cross Project" },
   { id: "overlap", label: "Overlap" },
   { id: "settings", label: "Settings" },
+  { id: "apiConsole", label: "API Console" },
 ] as const;
 
 type AppMode =
@@ -42,11 +47,17 @@ type AppMode =
 function AppContent() {
   const { isLoading } = useAppSdk();
   const {
+    sdk,
     project: selectedProject,
     availableProjects,
     setSelectedProject,
     projectResolved,
   } = useSdkManager();
+  useDailyDeploymentPackUsageMixpanel({
+    sdk,
+    project: selectedProject,
+    enabled: !isLoading && projectResolved && Boolean(selectedProject?.trim()),
+  });
   const { language, setLanguage, t } = useI18n();
   const { isPrivateMode } = usePrivateMode();
   const showInternal =
@@ -59,7 +70,19 @@ function AppContent() {
   const initialMode = useMemo(() => {
     const state = loadNavState();
     let stored = state.mode;
-    if (stored === "versioning") {
+    if (stored === "assetsModels") {
+      saveNavState({ mode: "assets", assetsSubView: "dataModels" });
+      stored = "assets";
+    } else if (stored === "assetsViews") {
+      saveNavState({ mode: "assets", assetsSubView: "standaloneViews" });
+      stored = "assets";
+    } else if (stored === "assets") {
+      const st = loadNavState();
+      if (st.assetsSubView !== "dataModels" && st.assetsSubView !== "standaloneViews") {
+        saveNavState({ assetsSubView: "dataModels" });
+      }
+      stored = "assets";
+    } else if (stored === "versioning") {
       const sub =
         state.versioningSubView === "dataModelVersions" ? "dataModelVersions" : "viewVersions";
       saveNavState({ mode: "meta", dataCatalogSubView: sub });
@@ -72,6 +95,7 @@ function AppContent() {
     return productionPages[0].id;
   }, [validModes]);
   const [mode, setModeState] = useState<AppMode>(initialMode);
+  const [showLruStats, setShowLruStats] = useState(false);
 
   const setMode = useCallback(
     (next: AppMode) => {
@@ -171,9 +195,32 @@ function AppContent() {
                 </>
               ) : null}
             </div>
-            <div className="flex items-start gap-3">
+            <div className="ml-auto flex shrink-0 items-start gap-3">
               <PrivateModeBadge />
-              <div className="ml-auto flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+              <button
+                type="button"
+                onClick={() => setShowLruStats(true)}
+                className="rounded p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-500"
+                title="LRU cache fill and limits"
+                aria-label="LRU cache fill and limits"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.25}
+                  stroke="currentColor"
+                  className="h-4 w-4"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375"
+                  />
+                </svg>
+              </button>
+              <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
                 <span className="text-slate-400">{t("app.language")}</span>
                 <button
                   type="button"
@@ -200,7 +247,8 @@ function AppContent() {
               </div>
             </div>
           </div>
-        <div data-private-mode={isPrivateMode && mode !== "settings" && mode !== "health" && mode !== "processing" && mode !== "permissions" && mode !== "transformations" ? "true" : undefined}>
+          {showLruStats ? <LruCacheStatsPanel onClose={() => setShowLruStats(false)} /> : null}
+        <div data-private-mode={isPrivateMode && mode !== "settings" && mode !== "apiConsole" && mode !== "dpCross" && mode !== "health" && mode !== "processing" && mode !== "permissions" && mode !== "transformations" ? "true" : undefined}>
         {mode === "health" ? <HealthChecks /> : null}
         {mode === "processing" ? <Processing /> : null}
         {mode === "permissions" ? <Permissions /> : null}
@@ -249,9 +297,11 @@ function PrivateModeBadge() {
 function App() {
   return (
     <I18nProvider>
+      <AppCachingProvider>
       <PrivateModeProvider>
       <AppContent />
       </PrivateModeProvider>
+      </AppCachingProvider>
     </I18nProvider>
   );
 }

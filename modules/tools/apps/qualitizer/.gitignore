@@ -20,6 +20,8 @@ test-results/
 .idea
 .cursor
 
+.nvmrc
+.npmrc
 # OS files
 .DS_Store
 Thumbs.db

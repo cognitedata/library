@@ -14,7 +14,7 @@ if (!fs.existsSync(envPath)) {
 
 const {
   CDF_PROJECT,
-  CDF_URL = "https://api.cognitedata.com",
+  CDF_URL,
   IDP_TOKEN_URL,
   IDP_CLIENT_ID,
   IDP_CLIENT_SECRET,
@@ -25,16 +25,24 @@ const {
   PROXY_INSECURE,
 } = process.env;
 
-if (!CDF_PROJECT || !IDP_TOKEN_URL || !IDP_CLIENT_ID || !IDP_CLIENT_SECRET) {
+const cdfUrl = CDF_URL?.trim();
+const idpScopes = IDP_SCOPES?.trim();
+
+if (!CDF_PROJECT || !cdfUrl || !idpScopes || !IDP_TOKEN_URL || !IDP_CLIENT_ID || !IDP_CLIENT_SECRET) {
   app.log.error("Missing required environment variables.");
-  app.log.error("Required: CDF_PROJECT, IDP_TOKEN_URL, IDP_CLIENT_ID, IDP_CLIENT_SECRET");
+  app.log.error(
+    "Required: CDF_PROJECT, CDF_URL, IDP_SCOPES, IDP_TOKEN_URL, IDP_CLIENT_ID, IDP_CLIENT_SECRET"
+  );
+  app.log.error(
+    "Example (dedicated cluster): CDF_URL=https://az-eastus-1.cognitedata.com  IDP_SCOPES=https://az-eastus-1.cognitedata.com/.default"
+  );
   process.exit(1);
 }
 
 const CDF_BROWSER_URL = process.env.CDF_BROWSER_URL?.trim();
 if (!CDF_BROWSER_URL) {
   app.log.warn(
-    "CDF_BROWSER_URL is not set. The UI will use default https://fusion.cognite.com for transformation preview links. " +
+    "CDF_BROWSER_URL is not set. The UI will use default https://fusion.cognite.com for Fusion links (transformations, data models, views). " +
       "Add CDF_BROWSER_URL to your .env (e.g. https://your-cluster.fusion.cognite.com/) to customize."
   );
 }
@@ -70,7 +78,7 @@ async function getAccessToken() {
     grant_type: "client_credentials",
     client_id: IDP_CLIENT_ID,
     client_secret: IDP_CLIENT_SECRET,
-    scope: IDP_SCOPES ?? `${CDF_URL.replace(/\/$/, "")}/.default`,
+    scope: idpScopes,
   });
 
   const response = await fetch(IDP_TOKEN_URL, {
@@ -96,7 +104,7 @@ app.all("/api/*", async (request, reply) => {
   //  return reply.status(204).send();
   // }
   const token = await getAccessToken();
-  const url = `${CDF_URL.replace(/\/$/, "")}${request.url}`;
+  const url = `${cdfUrl.replace(/\/$/, "")}${request.url}`;
   const headers = { ...request.headers };
   delete headers.host;
   delete headers.authorization;

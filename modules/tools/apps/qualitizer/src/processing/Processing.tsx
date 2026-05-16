@@ -34,12 +34,91 @@ import type {
   ExtPipeRunSummary,
   FunctionRunSummary,
   LoadState,
+  ProcessingDataLoadProgress,
+  ProcessingRequestStats,
   TransformationJobSummary,
   WorkflowExecutionSummary,
 } from "./types";
+import { withTransientRetries } from "@/shared/transient-http-retry";
+
+function formatProcessingDataProgress(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  p: ProcessingDataLoadProgress
+): string {
+  switch (p.kind) {
+    case "functions_list":
+      return t("processing.progress.functions.list", { count: p.loaded ?? 0 });
+    case "functions_runs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.functions.runs", { current, total, remaining });
+    }
+    case "transformations_list":
+      return t("processing.progress.transformations.list");
+    case "transformations_jobs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.transformations.jobs", { current, total, remaining });
+    }
+    case "workflows_executions":
+      return t("processing.progress.workflows.executions", { loaded: p.loaded ?? 0 });
+    case "extractors_list":
+      return t("processing.progress.extractors.list", { loaded: p.loaded ?? 0 });
+    case "extractors_runs": {
+      const total = p.total ?? 0;
+      const current = p.current ?? 0;
+      const remaining = Math.max(0, total - current);
+      return t("processing.progress.extractors.runs", { current, total, remaining });
+    }
+    default:
+      return "";
+  }
+}
+
+function formatProcessingBandCaption(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  p: ProcessingDataLoadProgress
+): string {
+  switch (p.kind) {
+    case "functions_list":
+      return t("processing.progress.band.functions.list", { count: p.loaded ?? 0 });
+    case "functions_runs":
+      return t("processing.progress.band.functions.runs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    case "transformations_list":
+      return t("processing.progress.band.transformations.list");
+    case "transformations_jobs":
+      return t("processing.progress.band.transformations.jobs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    case "workflows_executions":
+      return t("processing.progress.band.workflows", { loaded: p.loaded ?? 0 });
+    case "extractors_list":
+      return t("processing.progress.band.extractors.list", { loaded: p.loaded ?? 0 });
+    case "extractors_runs":
+      return t("processing.progress.band.extractors.runs", {
+        current: p.current ?? 0,
+        total: p.total ?? 0,
+      });
+    default:
+      return "";
+  }
+}
 
 const hoursWindow = 1;
 const bucketSeconds = 15;
+const PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS = 3;
+const PROCESSING_EXTERNAL_ID_FILTER_DEBOUNCE_MS = 350;
+
+function effectiveProcessingExternalIdNeedle(raw: string): string {
+  const q = raw.trim();
+  return q.length >= PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS ? raw : "";
+}
 
 export function Processing() {
   const { sdk, isLoading: isSdkLoading } = useAppSdk();
@@ -48,6 +127,21 @@ export function Processing() {
   const privateCls = isPrivateMode ? "private-mask" : "";
   const [windowOffsetHours, setWindowOffsetHours] = useState(0);
   const [windowRange, setWindowRange] = useState<{ start: number; end: number } | null>(null);
+  type ConcurrencyDiagramPhase =
+    | "idle"
+    | "functions"
+    | "transformations"
+    | "workflows"
+    | "extractors"
+    | "complete";
+  const [concurrencyDiagramPhase, setConcurrencyDiagramPhase] =
+    useState<ConcurrencyDiagramPhase>("idle");
+  const concurrencyDiagramPassRef = useRef({
+    functions: false,
+    transformations: false,
+    workflows: false,
+    extractors: false,
+  });
   const [showLoader, setShowLoader] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showHeatmapHelp, setShowHeatmapHelp] = useState(false);
@@ -78,6 +172,9 @@ export function Processing() {
   } | null>(null);
   const [scheduleStatus, setScheduleStatus] = useState<LoadState>("idle");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleRequestStats, setScheduleRequestStats] = useState<ProcessingRequestStats | null>(
+    null
+  );
   type ScheduleEntryType = "function" | "transformation" | "workflow";
   type ScheduleEntry = { cron: string; name: string; type: ScheduleEntryType; id: string };
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
@@ -92,26 +189,69 @@ export function Processing() {
   const [pinnedHeatmapCell, setPinnedHeatmapCell] = useState<HeatmapCell | null>(null);
   const lastHoverKeyRef = useRef<string | null>(null);
   const [nowUtc, setNowUtc] = useState(() => new Date());
+  const [filterExternalId, setFilterExternalId] = useState("");
+  const [debouncedFilterExternalId, setDebouncedFilterExternalId] = useState("");
   useEffect(() => {
     const id = setInterval(() => setNowUtc(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (!filterExternalId.trim()) {
+      setDebouncedFilterExternalId("");
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setDebouncedFilterExternalId(filterExternalId);
+    }, PROCESSING_EXTERNAL_ID_FILTER_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [filterExternalId]);
+
+  const effectiveExternalIdNeedle = useMemo(
+    () => effectiveProcessingExternalIdNeedle(debouncedFilterExternalId),
+    [debouncedFilterExternalId]
+  );
+
+  const filtersExternalIdPendingDebounce =
+    filterExternalId.trim() !== "" && filterExternalId !== debouncedFilterExternalId;
+
+  const filterExternalIdTooShort =
+    filterExternalId.trim().length > 0 &&
+    filterExternalId.trim().length < PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS;
+
+  const fetchConcurrencyDiagram = useMemo(
+    () => ({
+      functions: concurrencyDiagramPhase === "functions",
+      transformations: concurrencyDiagramPhase === "transformations",
+      workflows: concurrencyDiagramPhase === "workflows",
+      extractors: concurrencyDiagramPhase === "extractors",
+    }),
+    [concurrencyDiagramPhase]
+  );
+
   const {
     status,
+    loadProgress: functionLoadProgress,
+    requestStats: functionRequestStats,
     errorMessage,
     availabilityMessage,
     runs,
     functionNameMap,
     functionMetaMap,
-    failureDurationMs,
     getRunDuration,
     getRadius,
     getColor,
-  } = useFunctionData({ isSdkLoading, sdk, windowRange });
+  } = useFunctionData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.functions,
+  });
 
   const {
     transformationsStatus,
+    loadProgress: transformationLoadProgress,
+    requestStats: transformationRequestStats,
     transformationsError,
     transformationNameMap,
     transformationMetaMap,
@@ -119,10 +259,17 @@ export function Processing() {
     getTransformationDuration,
     getTransformationRadius,
     getTransformationColor,
-  } = useTransformationData({ isSdkLoading, sdk, windowRange });
+  } = useTransformationData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.transformations,
+  });
 
   const {
     workflowsStatus,
+    loadProgress: workflowLoadProgress,
+    requestStats: workflowRequestStats,
     workflowsError,
     filteredWorkflowExecutions,
     workflowDetails,
@@ -133,22 +280,179 @@ export function Processing() {
     getWorkflowColor,
     fetchWorkflowDetails,
     resetWorkflowDetails,
-  } = useWorkflowData({ isSdkLoading, sdk, windowRange });
+  } = useWorkflowData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.workflows,
+  });
 
   const {
     extractorsStatus,
+    loadProgress: extractorLoadProgress,
+    requestStats: extractorRequestStats,
     extractorsError,
     extractorConfigMap,
     filteredExtractorRuns,
     getExtractorRadius,
     getExtractorColor,
-  } = useExtractionPipelineData({ isSdkLoading, sdk, windowRange });
+  } = useExtractionPipelineData({
+    isSdkLoading,
+    sdk,
+    windowRange,
+    fetchEnabled: fetchConcurrencyDiagram.extractors,
+  });
+
+  const displayRuns = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return runs;
+    return runs.filter((run) => {
+      const fid = String(run.functionId ?? "");
+      const name = String(functionNameMap[fid] ?? "");
+      return fid.toLowerCase().includes(needle) || name.toLowerCase().includes(needle);
+    });
+  }, [runs, effectiveExternalIdNeedle, functionNameMap]);
+
+  const displayTransformationJobs = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return filteredTransformationJobs;
+    return filteredTransformationJobs.filter((job) => {
+      const tid = String(job.transformationId ?? "");
+      const name = String(transformationNameMap[tid] ?? "");
+      return tid.toLowerCase().includes(needle) || name.toLowerCase().includes(needle);
+    });
+  }, [filteredTransformationJobs, transformationNameMap, effectiveExternalIdNeedle]);
+
+  const displayWorkflowExecutions = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return filteredWorkflowExecutions;
+    return filteredWorkflowExecutions.filter((ex) =>
+      String(ex.workflowExternalId ?? "").toLowerCase().includes(needle)
+    );
+  }, [filteredWorkflowExecutions, effectiveExternalIdNeedle]);
+
+  const displayExtractorRuns = useMemo(() => {
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    if (!needle) return filteredExtractorRuns;
+    return filteredExtractorRuns.filter((run) => {
+      const id = String(run.externalId ?? "");
+      const name = String(extractorConfigMap[id]?.name ?? "");
+      return id.toLowerCase().includes(needle) || name.toLowerCase().includes(needle);
+    });
+  }, [filteredExtractorRuns, extractorConfigMap, effectiveExternalIdNeedle]);
+
+  const filteredFailureDurationMs = useMemo(() => {
+    const failureStatuses = ["failed", "failure", "timeout", "timed_out"];
+    return displayRuns.reduce((total, run) => {
+      const statusValue = run.status?.toLowerCase() ?? "";
+      if (!failureStatuses.some((value) => statusValue.includes(value))) return total;
+      const start = toTimestamp(run.startTime ?? run.createdTime);
+      const end = toTimestamp(run.endTime ?? run.lastUpdatedTime);
+      if (!start || !end || end <= start) return total;
+      return total + (end - start);
+    }, 0);
+  }, [displayRuns]);
+
+  useEffect(() => {
+    if (isSdkLoading || !windowRange) {
+      setConcurrencyDiagramPhase("idle");
+      return;
+    }
+    concurrencyDiagramPassRef.current = {
+      functions: false,
+      transformations: false,
+      workflows: false,
+      extractors: false,
+    };
+    setConcurrencyDiagramPhase("functions");
+  }, [isSdkLoading, windowRange?.start, windowRange?.end]);
+
+  useEffect(() => {
+    const r = concurrencyDiagramPassRef.current;
+    if (status === "loading") r.functions = true;
+    if (transformationsStatus === "loading") r.transformations = true;
+    if (workflowsStatus === "loading") r.workflows = true;
+    if (extractorsStatus === "loading") r.extractors = true;
+
+    if (concurrencyDiagramPhase === "functions" && (status === "success" || status === "error")) {
+      if (!r.functions) return;
+      r.functions = false;
+      setConcurrencyDiagramPhase("transformations");
+      return;
+    }
+    if (
+      concurrencyDiagramPhase === "transformations" &&
+      (transformationsStatus === "success" || transformationsStatus === "error")
+    ) {
+      if (!r.transformations) return;
+      r.transformations = false;
+      setConcurrencyDiagramPhase("workflows");
+      return;
+    }
+    if (concurrencyDiagramPhase === "workflows" && (workflowsStatus === "success" || workflowsStatus === "error")) {
+      if (!r.workflows) return;
+      r.workflows = false;
+      setConcurrencyDiagramPhase("extractors");
+      return;
+    }
+    if (
+      concurrencyDiagramPhase === "extractors" &&
+      (extractorsStatus === "success" || extractorsStatus === "error")
+    ) {
+      if (!r.extractors) return;
+      r.extractors = false;
+      setConcurrencyDiagramPhase("complete");
+    }
+  }, [
+    concurrencyDiagramPhase,
+    status,
+    transformationsStatus,
+    workflowsStatus,
+    extractorsStatus,
+  ]);
 
   const isProcessingLoading =
     status === "loading" ||
     transformationsStatus === "loading" ||
     workflowsStatus === "loading" ||
     extractorsStatus === "loading";
+
+  const loaderProgressDetails = useMemo(() => {
+    const lines: string[] = [];
+    if (status === "loading" && functionLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, functionLoadProgress));
+    }
+    if (transformationsStatus === "loading" && transformationLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, transformationLoadProgress));
+    }
+    if (workflowsStatus === "loading" && workflowLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, workflowLoadProgress));
+    }
+    if (extractorsStatus === "loading" && extractorLoadProgress) {
+      lines.push(formatProcessingDataProgress(t, extractorLoadProgress));
+    }
+    if (lines.length === 0) return null;
+    return (
+      <>
+        <p className="text-xs font-medium text-slate-600">{t("processing.progress.panelTitle")}</p>
+        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-snug text-slate-800">
+          {lines.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      </>
+    );
+  }, [
+    t,
+    status,
+    functionLoadProgress,
+    transformationsStatus,
+    transformationLoadProgress,
+    workflowsStatus,
+    workflowLoadProgress,
+    extractorsStatus,
+    extractorLoadProgress,
+  ]);
 
   useEffect(() => {
     const wasLoading = loaderWasLoadingRef.current;
@@ -209,16 +513,20 @@ export function Processing() {
     const loadSchedules = async () => {
       setScheduleStatus("loading");
       setScheduleError(null);
+      setScheduleRequestStats(null);
       setScheduleEntries([]);
       try {
         const entries: ScheduleEntry[] = [];
+        let failedRequests = 0;
+        let totalRequests = 0;
 
-        const functionSchedules = (await sdk.post(
-          `/api/v1/projects/${sdk.project}/functions/schedules/list`,
-          {
-            data: { limit: 1000 },
-          }
-        )) as { data?: { items?: Array<Record<string, unknown>> } };
+        totalRequests++;
+        try {
+          const functionSchedules = (await withTransientRetries(() =>
+            sdk.post(`/api/v1/projects/${sdk.project}/functions/schedules/list`, {
+              data: { limit: 1000 },
+            })
+          )) as { data?: { items?: Array<Record<string, unknown>> } };
         for (const item of functionSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
@@ -230,13 +538,17 @@ export function Processing() {
             (item.name as string | undefined) ?? (fnId || t("processing.heatmap.unknownFunction"));
           entries.push({ cron, name, type: "function", id: fnId });
         }
+        } catch {
+          failedRequests++;
+        }
 
-        const transformationSchedules = (await sdk.get(
-          `/api/v1/projects/${sdk.project}/transformations/schedules`,
-          {
-            params: { limit: "1000" },
-          }
-        )) as { data?: { items?: Array<Record<string, unknown>> } };
+        totalRequests++;
+        try {
+          const transformationSchedules = (await withTransientRetries(() =>
+            sdk.get(`/api/v1/projects/${sdk.project}/transformations/schedules`, {
+              params: { limit: "1000" },
+            })
+          )) as { data?: { items?: Array<Record<string, unknown>> } };
         for (const item of transformationSchedules.data?.items ?? []) {
           const cron = readCron(item);
           if (!cron) continue;
@@ -248,15 +560,26 @@ export function Processing() {
             (item.name as string | undefined) ?? (txId || t("processing.heatmap.unknownTransformation"));
           entries.push({ cron, name, type: "transformation", id: txId });
         }
+        } catch {
+          failedRequests++;
+        }
 
         let triggerCursor: string | undefined;
         do {
-          const workflowTriggers = (await sdk.get(
-            `/api/v1/projects/${sdk.project}/workflows/triggers`,
-            {
-              params: { limit: "1000", cursor: triggerCursor },
-            }
-          )) as { data?: { items?: Array<Record<string, unknown>>; nextCursor?: string } };
+          totalRequests++;
+          let workflowTriggers: {
+            data?: { items?: Array<Record<string, unknown>>; nextCursor?: string };
+          };
+          try {
+            workflowTriggers = (await withTransientRetries(() =>
+              sdk.get(`/api/v1/projects/${sdk.project}/workflows/triggers`, {
+                params: { limit: "1000", cursor: triggerCursor },
+              })
+            )) as { data?: { items?: Array<Record<string, unknown>>; nextCursor?: string } };
+          } catch {
+            failedRequests++;
+            break;
+          }
           for (const item of workflowTriggers.data?.items ?? []) {
             const cron = readCron(item);
             if (!cron) continue;
@@ -273,10 +596,19 @@ export function Processing() {
 
         if (!cancelled) {
           setScheduleEntries(entries);
-          setScheduleStatus("success");
+          if (failedRequests > 0) {
+            setScheduleRequestStats({ failed: failedRequests, total: totalRequests });
+          }
+          if (entries.length === 0 && failedRequests === totalRequests && totalRequests > 0) {
+            setScheduleError(t("processing.heatmap.error"));
+            setScheduleStatus("error");
+          } else {
+            setScheduleStatus("success");
+          }
         }
       } catch (error) {
         if (!cancelled) {
+          setScheduleRequestStats(null);
           setScheduleError(
             error instanceof Error ? error.message : t("processing.heatmap.error")
           );
@@ -298,7 +630,15 @@ export function Processing() {
       transformation: "transformations",
       workflow: "workflows",
     };
-    const filtered = scheduleEntries.filter(
+    const needle = effectiveExternalIdNeedle.trim().toLowerCase();
+    const entriesForHeatmap = needle
+      ? scheduleEntries.filter(
+          (entry) =>
+            String(entry.id).toLowerCase().includes(needle) ||
+            String(entry.name).toLowerCase().includes(needle)
+        )
+      : scheduleEntries;
+    const filtered = entriesForHeatmap.filter(
       (entry) => heatmapVisibleTypes[typeToKey[entry.type]]
     );
     const parseField = (field: string, min: number, max: number) => {
@@ -355,7 +695,7 @@ export function Processing() {
       }
     }
     return counts;
-  }, [scheduleEntries, scheduleStatus, heatmapVisibleTypes]);
+  }, [scheduleEntries, scheduleStatus, heatmapVisibleTypes, effectiveExternalIdNeedle]);
 
   const getHeatColor = (count: number) => {
     if (count <= 0) return "#e0f2fe";
@@ -391,7 +731,7 @@ export function Processing() {
     const getRunEnd = (run: FunctionRunSummary) =>
       toTimestamp(run.endTime ?? run.lastUpdatedTime) ?? endWindow;
 
-    for (const run of runs) {
+    for (const run of displayRuns) {
       const start = getRunStart(run);
       const end = getRunEnd(run);
       for (const bucket of buckets) {
@@ -403,7 +743,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [runs, windowRange]);
+  }, [displayRuns, windowRange]);
 
   const transformationSeries = useMemo(() => {
     if (!windowRange) return [];
@@ -416,7 +756,7 @@ export function Processing() {
       count: 0,
     }));
 
-    for (const job of filteredTransformationJobs) {
+    for (const job of displayTransformationJobs) {
       const start = job.startedTime ?? startWindow;
       const end = job.finishedTime ?? endWindow;
       for (const bucket of buckets) {
@@ -428,7 +768,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [filteredTransformationJobs, windowRange]);
+  }, [displayTransformationJobs, windowRange]);
 
   const workflowSeries = useMemo(() => {
     if (!windowRange) return [];
@@ -441,7 +781,7 @@ export function Processing() {
       count: 0,
     }));
 
-    for (const execution of filteredWorkflowExecutions) {
+    for (const execution of displayWorkflowExecutions) {
       const start = execution.startTime ?? execution.createdTime;
       const end = execution.endTime ?? execution.startTime ?? execution.createdTime;
       for (const bucket of buckets) {
@@ -453,7 +793,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [filteredWorkflowExecutions, windowRange]);
+  }, [displayWorkflowExecutions, windowRange]);
 
   const extractorSeries = useMemo(() => {
     if (!windowRange) return [];
@@ -466,7 +806,7 @@ export function Processing() {
       count: 0,
     }));
 
-    for (const run of filteredExtractorRuns) {
+    for (const run of displayExtractorRuns) {
       const start = run.createdTime;
       const end = run.endTime ?? run.createdTime;
       for (const bucket of buckets) {
@@ -478,7 +818,7 @@ export function Processing() {
       }
     }
     return buckets;
-  }, [filteredExtractorRuns, windowRange]);
+  }, [displayExtractorRuns, windowRange]);
 
   const maxParallel = useMemo(() => {
     return parallelSeries.reduce((max, bucket) => Math.max(max, bucket.count), 0);
@@ -496,6 +836,149 @@ export function Processing() {
     return extractorSeries.reduce((max, bucket) => Math.max(max, bucket.count), 0);
   }, [extractorSeries]);
 
+  const partialStatsCombined = useMemo(() => {
+    const segments: { label: string; stats: ProcessingRequestStats }[] = [];
+    const push = (label: string, s: ProcessingRequestStats | null | undefined) => {
+      if (s && s.failed > 0) segments.push({ label, stats: s });
+    };
+    push(t("processing.legend.functions"), functionRequestStats);
+    push(t("processing.legend.transformations"), transformationRequestStats);
+    push(t("processing.legend.workflows"), workflowRequestStats);
+    push(t("processing.legend.extractors"), extractorRequestStats);
+    push(t("processing.partial.schedulesLabel"), scheduleRequestStats);
+    const failed = segments.reduce((acc, seg) => acc + seg.stats.failed, 0);
+    const total = segments.reduce((acc, seg) => acc + seg.stats.total, 0);
+    return { segments, failed, total };
+  }, [
+    t,
+    functionRequestStats,
+    transformationRequestStats,
+    workflowRequestStats,
+    extractorRequestStats,
+    scheduleRequestStats,
+  ]);
+
+  const showPartialDataBanner =
+    partialStatsCombined.segments.length > 0 && partialStatsCombined.total > 0;
+
+  const diagramConcurrencyUi = useMemo(() => {
+    const p = concurrencyDiagramPhase;
+    const wait = t("processing.bubbles.waiting");
+    const loading = t("processing.bubbles.loading");
+    const err = t("processing.status.error");
+    const empty = t("processing.bubbles.empty");
+
+    const beforeTransformations = p === "idle" || p === "functions";
+    const beforeWorkflows = beforeTransformations || p === "transformations";
+    const beforeExtractors = beforeWorkflows || p === "workflows";
+
+    const fnWaiting =
+      (status === "idle" && !!windowRange && p === "idle") ||
+      (status === "success" && p === "idle" && !!windowRange);
+    const txWaiting =
+      (transformationsStatus === "idle" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations")) ||
+      (transformationsStatus === "success" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions"));
+    const wfWaiting =
+      (workflowsStatus === "idle" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations" || p === "workflows")) ||
+      (workflowsStatus === "success" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations"));
+    const exWaiting =
+      (extractorsStatus === "idle" &&
+        !!windowRange &&
+        (p === "idle" ||
+          p === "functions" ||
+          p === "transformations" ||
+          p === "workflows" ||
+          p === "extractors")) ||
+      (extractorsStatus === "success" &&
+        !!windowRange &&
+        (p === "idle" || p === "functions" || p === "transformations" || p === "workflows"));
+
+    const bandFn = () => {
+      if (status === "loading")
+        return functionLoadProgress ? formatProcessingBandCaption(t, functionLoadProgress) : loading;
+      if (status === "error") return err;
+      if (fnWaiting) return wait;
+      if (displayRuns.length === 0) return empty;
+      return "";
+    };
+    const bandTx = () => {
+      if (transformationsStatus === "loading")
+        return transformationLoadProgress
+          ? formatProcessingBandCaption(t, transformationLoadProgress)
+          : loading;
+      if (transformationsStatus === "error") return err;
+      if (txWaiting) return wait;
+      if (displayTransformationJobs.length === 0) return empty;
+      return "";
+    };
+    const bandWf = () => {
+      if (workflowsStatus === "loading")
+        return workflowLoadProgress
+          ? formatProcessingBandCaption(t, workflowLoadProgress)
+          : loading;
+      if (workflowsStatus === "error") return err;
+      if (wfWaiting) return wait;
+      if (displayWorkflowExecutions.length === 0) return empty;
+      return "";
+    };
+    const bandEx = () => {
+      if (extractorsStatus === "loading")
+        return extractorLoadProgress
+          ? formatProcessingBandCaption(t, extractorLoadProgress)
+          : loading;
+      if (extractorsStatus === "error") return err;
+      if (exWaiting) return wait;
+      if (displayExtractorRuns.length === 0) return empty;
+      return "";
+    };
+
+    const fnHeader =
+      status !== "success" || (status === "success" && p === "idle" && !!windowRange);
+    const txHeader =
+      transformationsStatus !== "success" ||
+      (transformationsStatus === "success" && beforeTransformations);
+    const wfHeader =
+      workflowsStatus !== "success" || (workflowsStatus === "success" && beforeWorkflows);
+    const exHeader =
+      extractorsStatus !== "success" || (extractorsStatus === "success" && beforeExtractors);
+
+    return {
+      band: {
+        functions: bandFn(),
+        transformations: bandTx(),
+        workflows: bandWf(),
+        extractors: bandEx(),
+      },
+      waiting: { functions: fnWaiting, transformations: txWaiting, workflows: wfWaiting, extractors: exWaiting },
+      headerRow: { functions: fnHeader, transformations: txHeader, workflows: wfHeader, extractors: exHeader },
+      waitLabel: wait,
+    };
+  }, [
+    t,
+    concurrencyDiagramPhase,
+    windowRange,
+    status,
+    functionLoadProgress,
+    transformationsStatus,
+    transformationLoadProgress,
+    displayTransformationJobs.length,
+    workflowsStatus,
+    workflowLoadProgress,
+    displayWorkflowExecutions.length,
+    extractorsStatus,
+    extractorLoadProgress,
+    displayExtractorRuns.length,
+    displayRuns.length,
+  ]);
+
   const visibleParallelSeries = visibleSeries.functions ? parallelSeries : [];
   const visibleTransformationSeries = visibleSeries.transformations ? transformationSeries : [];
   const visibleWorkflowSeries = visibleSeries.workflows ? workflowSeries : [];
@@ -511,9 +994,11 @@ export function Processing() {
     setSelectedLogsError(null);
     setSelectedLogs([]);
     try {
-      const response = await sdk.get<{
-        items?: { message?: string }[];
-      }>(`/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`);
+      const response = await withTransientRetries(() =>
+        sdk.get<{
+          items?: { message?: string }[];
+        }>(`/api/v1/projects/${sdk.project}/functions/${run.functionId}/calls/${run.id}/logs`)
+      );
       setSelectedLogs(response.data?.items ?? []);
       setSelectedLogsStatus("success");
     } catch (error) {
@@ -570,6 +1055,81 @@ export function Processing() {
           </div>
         ) : null}
       </header>
+      {windowRange ? (
+        <div className="rounded-md border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+            <div className="min-w-0 flex-1">
+              <label className="mb-1 block font-medium text-slate-700" htmlFor="processing-external-id-filter">
+                {t("processing.filter.externalIdLabel")}
+              </label>
+              <input
+                id="processing-external-id-filter"
+                type="search"
+                value={filterExternalId}
+                onChange={(e) => setFilterExternalId(e.target.value)}
+                placeholder={t("dataCatalog.filter.placeholder.substringMinChars", {
+                  min: PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS,
+                })}
+                autoComplete="off"
+                className="h-9 w-full max-w-md rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+              <p className="mt-1 text-[10px] leading-snug text-slate-500">
+                {t("processing.filter.externalIdLead")}
+              </p>
+            </div>
+            {effectiveExternalIdNeedle.trim() ? (
+              <button
+                type="button"
+                className="shrink-0 self-start rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 sm:self-center"
+                onClick={() => {
+                  setFilterExternalId("");
+                  setDebouncedFilterExternalId("");
+                }}
+              >
+                {t("dataCatalog.filter.clear")}
+              </button>
+            ) : null}
+          </div>
+          {filterExternalIdTooShort ? (
+            <p className="mt-2 text-[10px] leading-snug text-slate-500">
+              {t("dataCatalog.filter.minCharsHint", { min: PROCESSING_EXTERNAL_ID_FILTER_MIN_CHARS })}
+            </p>
+          ) : null}
+          {filtersExternalIdPendingDebounce ? (
+            <p className="mt-1 text-[11px] text-slate-500">{t("dataCatalog.filter.debouncePending")}</p>
+          ) : null}
+        </div>
+      ) : null}
+      {showPartialDataBanner ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-medium">{t("processing.partial.title")}</p>
+          <p className="mt-1 text-xs text-amber-900">
+            {t("processing.partial.summary", {
+              failed: partialStatsCombined.failed,
+              total: partialStatsCombined.total,
+              percent:
+                partialStatsCombined.total > 0
+                  ? Math.round((100 * partialStatsCombined.failed) / partialStatsCombined.total)
+                  : 0,
+            })}
+          </p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-amber-900">
+            {partialStatsCombined.segments.map((seg, i) => (
+              <li key={`${seg.label}-${i}`}>
+                {t("processing.partial.detailLine", {
+                  label: seg.label,
+                  failed: seg.stats.failed,
+                  total: seg.stats.total,
+                  percent:
+                    seg.stats.total > 0
+                      ? Math.round((100 * seg.stats.failed) / seg.stats.total)
+                      : 0,
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>{t("processing.card.concurrency.title")}</CardTitle>
@@ -578,48 +1138,84 @@ export function Processing() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {status !== "success" ||
-          transformationsStatus !== "success" ||
-          workflowsStatus !== "success" ||
-          extractorsStatus !== "success" ? (
+          {diagramConcurrencyUi.headerRow.functions ||
+          diagramConcurrencyUi.headerRow.transformations ||
+          diagramConcurrencyUi.headerRow.workflows ||
+          diagramConcurrencyUi.headerRow.extractors ? (
             <div className="mb-3 space-y-2 text-xs text-slate-600">
-              {status !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.functions")}</span>
+              {diagramConcurrencyUi.headerRow.functions ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.functions")}</span>
                   {status === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.functions ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {functionLoadProgress
+                          ? formatProcessingDataProgress(t, functionLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
-              {transformationsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.transformations")}</span>
+              {diagramConcurrencyUi.headerRow.transformations ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.transformations")}</span>
                   {transformationsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.transformations ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {transformationLoadProgress
+                          ? formatProcessingDataProgress(t, transformationLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
-              {workflowsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.workflows")}</span>
+              {diagramConcurrencyUi.headerRow.workflows ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.workflows")}</span>
                   {workflowsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.workflows ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {workflowLoadProgress
+                          ? formatProcessingDataProgress(t, workflowLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
-              {extractorsStatus !== "success" ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-28">{t("processing.legend.extractors")}</span>
+              {diagramConcurrencyUi.headerRow.extractors ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-28 shrink-0">{t("processing.legend.extractors")}</span>
                   {extractorsStatus === "error" ? (
                     <span className="text-red-600">{t("processing.status.error")}</span>
+                  ) : diagramConcurrencyUi.waiting.extractors ? (
+                    <span className="min-w-0 flex-1 text-slate-500">{diagramConcurrencyUi.waitLabel}</span>
                   ) : (
-                    <span className="h-2 w-40 rounded-sm bg-slate-200/80 animate-pulse" />
+                    <>
+                      <span className="h-2 w-40 shrink-0 rounded-sm bg-slate-200/80 animate-pulse" />
+                      <span className="min-w-0 flex-1 truncate text-slate-500">
+                        {extractorLoadProgress
+                          ? formatProcessingDataProgress(t, extractorLoadProgress)
+                          : t("processing.bubbles.loading")}
+                      </span>
+                    </>
                   )}
                 </div>
               ) : null}
@@ -728,19 +1324,19 @@ export function Processing() {
                   maxTransformParallel={visibleMaxTransform}
                   maxWorkflowParallel={visibleMaxWorkflow}
                   maxExtractorParallel={visibleMaxExtractor}
-                  runs={runs}
+                  runs={displayRuns}
                   getRunDuration={getRunDuration}
                   getRadius={getRadius}
                   getColor={getColor}
-                  transformationJobs={filteredTransformationJobs}
+                  transformationJobs={displayTransformationJobs}
                   getTransformationDuration={getTransformationDuration}
                   getTransformationRadius={getTransformationRadius}
                   getTransformationColor={getTransformationColor}
-                  workflowExecutions={filteredWorkflowExecutions}
+                  workflowExecutions={displayWorkflowExecutions}
                   getWorkflowDuration={getWorkflowDuration}
                   getWorkflowRadius={getWorkflowRadius}
                   getWorkflowColor={getWorkflowColor}
-                  extractorRuns={filteredExtractorRuns}
+                  extractorRuns={displayExtractorRuns}
                   extractorConfigMap={extractorConfigMap}
                   getExtractorRadius={getExtractorRadius}
                   getExtractorColor={getExtractorColor}
@@ -791,40 +1387,7 @@ export function Processing() {
                     setSelectedWorkflowExecution(null);
                   }}
                   functionNameMap={functionNameMap}
-                  bandStatusLabels={{
-                    functions:
-                      status === "loading"
-                        ? t("processing.bubbles.loading")
-                        : status === "error"
-                          ? t("processing.status.error")
-                          : runs.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                    transformations:
-                      transformationsStatus === "loading"
-                        ? t("processing.bubbles.loading")
-                        : transformationsStatus === "error"
-                          ? t("processing.status.error")
-                          : filteredTransformationJobs.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                    workflows:
-                      workflowsStatus === "loading"
-                        ? t("processing.bubbles.loading")
-                        : workflowsStatus === "error"
-                          ? t("processing.status.error")
-                          : filteredWorkflowExecutions.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                    extractors:
-                      extractorsStatus === "loading"
-                        ? t("processing.bubbles.loading")
-                        : extractorsStatus === "error"
-                          ? t("processing.status.error")
-                          : filteredExtractorRuns.length === 0
-                            ? t("processing.bubbles.empty")
-                            : "",
-                  }}
+                  bandStatusLabels={diagramConcurrencyUi.band}
                 />
               </div>
               <details className="mt-4 rounded-md border border-slate-200 bg-white text-xs text-slate-600">
@@ -846,7 +1409,11 @@ export function Processing() {
         </CardHeader>
         <CardContent>
           {status === "loading" ? (
-            <div className="text-sm text-slate-600">{t("processing.loading.stats")}</div>
+            <div className="text-sm text-slate-600">
+              {functionLoadProgress
+                ? formatProcessingDataProgress(t, functionLoadProgress)
+                : t("processing.loading.stats")}
+            </div>
           ) : null}
           {status === "error" ? (
             <ApiError
@@ -857,7 +1424,7 @@ export function Processing() {
           {status !== "error" && !availabilityMessage ? (
             <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">
               {t("processing.failed.minutes", {
-                minutes: Math.round(failureDurationMs / 60000),
+                minutes: Math.round(filteredFailureDurationMs / 60000),
               })}
             </div>
           ) : null}
@@ -981,8 +1548,10 @@ export function Processing() {
                             return (
                               <div
                                 key={`cell-${minute}-${hour}`}
-                                className={`h-3 w-full rounded-sm border cursor-pointer ${
-                                  isNow ? "border-slate-800 border-dashed" : "border-slate-100"
+                                className={`relative h-3 w-full cursor-pointer rounded-sm border ${
+                                  isNow
+                                    ? "border-slate-800 border-dashed ring-2 ring-inset ring-slate-950/70 z-[1]"
+                                    : "border-slate-100"
                                 }`}
                                 style={{
                                   backgroundColor: getHeatColor(count),
@@ -998,7 +1567,7 @@ export function Processing() {
                                   const isUnpinning =
                                     pinnedHeatmapCell?.hour === hour &&
                                     pinnedHeatmapCell?.minute === minute;
-                                  setPinnedHeatmapCell((prev) =>
+                                  setPinnedHeatmapCell(
                                     isUnpinning ? null : { hour, minute, count, names, items }
                                   );
                                   if (!isUnpinning) {
@@ -1041,7 +1610,7 @@ export function Processing() {
                         {t("processing.heatmap.legend.high")}
                       </span>
                       <span className="flex items-center gap-1">
-                        <span className="h-3 w-3 rounded-sm border-2 border-dashed border-slate-700 bg-transparent" />
+                        <span className="relative z-[1] h-3 w-3 rounded-sm border border-dashed border-slate-800 bg-sky-100 ring-2 ring-inset ring-slate-950/70" />
                         {t("processing.heatmap.legend.now")}
                       </span>
                     </div>
@@ -1195,6 +1764,7 @@ export function Processing() {
           setLoaderDismissed(true);
         }}
         title={t("processing.loader.title")}
+        progressDetails={loaderProgressDetails}
       />
       <ProcessingHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <ProcessingHeatmapHelpModal
