@@ -21,8 +21,8 @@ isProject: false
 
 ## Current behavior (baseline)
 
-- [`KeyExtractionEngine._validate_extraction_result`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py): dedupe, `_apply_blacklist` **removes** keys on `blacklist_keywords`, then `min_confidence`, then `regexp_match`.
-- [`ValidationConfig`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/config.py): `min_confidence`, `blacklist_keywords`, `regexp_match`.
+- [`KeyExtractionEngine._validate_extraction_result`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py): dedupe, `_apply_blacklist` **removes** keys on `blacklist_keywords`, then `min_confidence`, then `regexp_match`.
+- [`ValidationConfig`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/config.py): `min_confidence`, `blacklist_keywords`, `regexp_match`.
 
 **This plan removes `blacklist_keywords` and any separate `naming_whitelist` / `naming_blacklist` sections.** Instead, extend **`ValidationConfig`** with a single ordered list: **`confidence_match_rules`**.
 
@@ -109,13 +109,13 @@ To **only** penalize non-ISA without a bonus, omit rule 2 and keep rule 1 + rule
 
 | Area | Change |
 |------|--------|
-| [`config.py`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/config.py) | `ConfidenceModifier`, `ConfidenceMatchRule`, `ValidationConfig.confidence_match_rules: List[...]`; delete `blacklist_keywords`. Each rule’s `match` must include at least one non-empty `expressions` entry and/or `keywords` entry (no `match_all`). |
-| [`key_extraction_engine.py`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py) | Delete `_apply_blacklist`; add `_apply_confidence_match_rules`; compile regexes; integrate after dedupe, before `min_confidence`. |
-| [`KeyExtractionEngine.__init__`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py) | `validation_default` includes `confidence_match_rules`; delete `blacklist_keywords` from namespace. |
-| [`cdf_adapter.py`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/cdf_adapter.py) | Pass `confidence_match_rules` through `data.validation`. |
-| [`utils/confidence.py`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/utils/confidence.py) | Docstring: confidence match rules + explicit vs offset. |
+| [`config.py`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/config.py) | `ConfidenceModifier`, `ConfidenceMatchRule`, `ValidationConfig.confidence_match_rules: List[...]`; delete `blacklist_keywords`. Each rule’s `match` must include at least one non-empty `expressions` entry and/or `keywords` entry (no `match_all`). |
+| [`key_extraction_engine.py`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py) | Delete `_apply_blacklist`; add `_apply_confidence_match_rules`; compile regexes; integrate after dedupe, before `min_confidence`. |
+| [`KeyExtractionEngine.__init__`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py) | `validation_default` includes `confidence_match_rules`; delete `blacklist_keywords` from namespace. |
+| [`cdf_adapter.py`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/cdf_adapter.py) | Pass `confidence_match_rules` through `data.validation`. |
+| [`utils/confidence.py`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/utils/confidence.py) | Docstring: confidence match rules + explicit vs offset. |
 | Default scope + examples YAML | Replace any `blacklist_keywords` / removal semantics with `confidence_match_rules` as needed (no dual support). |
-| [`configuration_guide.md`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/docs/guides/configuration_guide.md) | Document rule order, first match wins, ISA / blacklist / catch-all pattern. |
+| [`configuration_guide.md`](modules/accelerators/contextualization/cdf_discovery_aliasing/docs/guides/configuration_guide.md) | Document rule order, first match wins, ISA / blacklist / catch-all pattern. |
 
 ## tag_patterns.yaml vs ISA-5.1
 

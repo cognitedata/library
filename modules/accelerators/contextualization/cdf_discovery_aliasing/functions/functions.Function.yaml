@@ -1,0 +1,146 @@
+# CDF Toolkit Function Definitions
+# The directory with the function code should have the same name
+# and externalId as the function itself as defined below.
+
+- name: 'dm:context:discovery:save:view'
+  externalId: 'fn_dm_view_save'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery DM instances apply from predecessor payloads (stub)'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:save:raw'
+  externalId: 'fn_dm_raw_save'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery RAW upsert from predecessor payloads (stub)'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:save:classic'
+  externalId: 'fn_dm_classic_save'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery classic upsert from predecessor payloads (stub)'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:query:view'
+  externalId: 'fn_dm_view_query'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery view query — cohort-scoped DM list; sink RAW'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:query:raw'
+  externalId: 'fn_dm_raw_query'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery RAW query — cohort reads; sink RAW'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:query:classic'
+  externalId: 'fn_dm_classic_query'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery classic resource query — cohort reads; sink RAW'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:transform'
+  externalId: 'fn_dm_transform'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery transform stage — core + ELT handler registry; predecessor RAW → sink RAW'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:join'
+  externalId: 'fn_dm_join'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery join — two cohort RAW inputs (in__left / in__right) → merged sink RAW'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:validate'
+  externalId: 'fn_dm_validate'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery payload validation — rules and confidence; sink RAW (stub)'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:inverted:index'
+  externalId: 'fn_dm_inverted_index'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery inverted index — predecessor discovery payloads → RAW index (stub)'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:raw:cleanup'
+  externalId: 'fn_dm_discovery_raw_cleanup'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery RAW cleanup — post-run delete cohort keys or truncate state tables'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'

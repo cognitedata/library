@@ -30,8 +30,8 @@ todos:
 
 | `source_fields` count (after normalizing to a list) | Behavior |
 |-----------------------------------------------------|----------|
-| **1** | Existing behavior: run [`TokenReassemblyExtractionHandler.extract`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/engine/handlers/TokenReassemblyExtractionHandler.py) on that field’s string. |
-| **2+** | **Always** use the **cross-field** pipeline (today’s [`_extract_cross_field_token_reassembly`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py)): build `field_values` from all fields, shared `parameters` (`tokenization`, `assembly_rules`, …). |
+| **1** | Existing behavior: run [`TokenReassemblyExtractionHandler.extract`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/engine/handlers/TokenReassemblyExtractionHandler.py) on that field’s string. |
+| **2+** | **Always** use the **cross-field** pipeline (today’s [`_extract_cross_field_token_reassembly`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_key_extraction/engine/key_extraction_engine.py)): build `field_values` from all fields, shared `parameters` (`tokenization`, `assembly_rules`, …). |
 
 No extra boolean. Authors choose the mode by **how many `source_fields` rows** they attach to the rule.
 
@@ -57,7 +57,7 @@ Still out of scope for the inference rule above; migrate to **`parameters`-only*
 
 ## Config migration inventory
 
-Grep under [`cdf_key_extraction_aliasing`](modules/accelerators/contextualization/cdf_key_extraction_aliasing) for `composite_strategy`, `token_reassembly`, and update examples so multi-field TR rules have **multiple `source_fields`** and **no** `composite_strategy`.
+Grep under [`cdf_discovery_aliasing`](modules/accelerators/contextualization/cdf_discovery_aliasing) for `composite_strategy`, `token_reassembly`, and update examples so multi-field TR rules have **multiple `source_fields`** and **no** `composite_strategy`.
 
 ## Verification
 

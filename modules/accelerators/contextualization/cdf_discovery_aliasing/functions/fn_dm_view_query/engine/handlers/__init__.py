@@ -1,0 +1,1 @@
+"""View query handler implementation."""

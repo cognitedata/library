@@ -1,0 +1,39 @@
+name: ''
+function_version: 1.0.0
+organization: YourOrg
+location_name: LOC
+source_name: SOURCE
+files_dataset: ingestion
+schemaSpace: cdf_cdm
+viewVersion: v1
+functionClientId: ${IDP_CLIENT_ID}
+functionClientSecret: ${IDP_CLIENT_SECRET}
+functionVersion: v1
+workflow: key_extraction_aliasing
+key_extraction_aliasing_schedule: 0 2 * * *
+files_location_processing_group_source_id: 90af3183-cf62-408f-ae4c-f078cbf0e1f8
+aliasing_scope_hierarchy:
+  order: 0
+  type: hierarchy
+  levels:
+  - site
+  - unit
+  - area
+  - system
+  locations:
+  - id: SITE_01
+    name: First Manufacturing Site
+    description: First site (display name may contain spaces; id is the stable segment)
+  - id: SITE_02
+    name: Second Manufacturing Site
+    description: Second site (display name may contain spaces; id is the stable segment)
+    locations:
+    - id: PLANT_A
+      name: Production Plant A
+      locations:
+      - id: AREA_01
+        name: Production Area 1
+        locations:
+        - id: COOLING_SYS
+          name: Cooling System
+          description: Cooling system scope leaf

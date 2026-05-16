@@ -1,0 +1,167 @@
+import type { MessageKey } from "../i18n/types";
+import type { DiscoveryTransformHandlerId } from "../components/flow/handlerRegistry";
+
+export type TransformFieldRow = Record<string, unknown>;
+
+const TRANSFORM_DEFAULTS: Record<DiscoveryTransformHandlerId, Record<string, unknown>> = {
+  regex_substitution: { patterns: [{ pattern: "^OLD", replacement: "NEW" }] },
+  leading_zero_normalize: { minimum_width: 0 },
+  sequential_literal_replace: { replacements: [{ from: "OLD", to: "NEW" }] },
+  substitution_variants: { match_literal: "FIC", variants: ["FIC", "FI", "FT", "FC"] },
+  trim_whitespace: { mode: "ends_only" },
+  change_case: { case: "lower" },
+  coerce_scalar: { type: "int", empty_as_null: true, strict: false },
+  default_if_empty: { literal: "", field: "" },
+  split_string: { delimiter: ",", trim: true, max_splits: -1 },
+  parse_json_extract: { path: "meta.id" },
+  format_datetime: { input_format: "", output_format: "%Y-%m-%dT%H:%M:%SZ" },
+  hash_stable: { algorithm: "sha256", salt: "" },
+  mask_string: { keep_last: 4, mask_char: "*" },
+  static_lookup_map: { map: {} },
+  heuristic_sampler: {
+    samples: ["P-101"],
+    on_no_match: "keep_working",
+  },
+};
+
+const TRANSFORM_DOC: Record<DiscoveryTransformHandlerId, MessageKey> = {
+  regex_substitution: "transforms.handlerDoc.regex_substitution",
+  leading_zero_normalize: "transforms.handlerDoc.leading_zero_normalize",
+  sequential_literal_replace: "transforms.handlerDoc.sequential_literal_replace",
+  substitution_variants: "transforms.handlerDoc.substitution_variants",
+  trim_whitespace: "transforms.handlerDoc.trim_whitespace",
+  change_case: "transforms.handlerDoc.change_case",
+  coerce_scalar: "transforms.handlerDoc.coerce_scalar",
+  default_if_empty: "transforms.handlerDoc.default_if_empty",
+  split_string: "transforms.handlerDoc.split_string",
+  parse_json_extract: "transforms.handlerDoc.parse_json_extract",
+  format_datetime: "transforms.handlerDoc.format_datetime",
+  hash_stable: "transforms.handlerDoc.hash_stable",
+  mask_string: "transforms.handlerDoc.mask_string",
+  static_lookup_map: "transforms.handlerDoc.static_lookup_map",
+  heuristic_sampler: "transforms.handlerDoc.heuristic_sampler",
+};
+
+export function isDiscoveryTransformHandlerId(h: string): h is DiscoveryTransformHandlerId {
+  return Object.prototype.hasOwnProperty.call(TRANSFORM_DEFAULTS, h);
+}
+
+/** When `output_multi_value` is omitted from transform config (UI + engine). */
+export function defaultOutputMultiValueForHandler(handlerId: string): "array_json" | "explode_rows" {
+  return handlerId === "split_string" ? "array_json" : "explode_rows";
+}
+
+export function defaultTransformHandlerBlock(handler: DiscoveryTransformHandlerId): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(TRANSFORM_DEFAULTS[handler])) as Record<string, unknown>;
+}
+
+export function transformHandlerDocKey(handler: string): MessageKey {
+  if (isDiscoveryTransformHandlerId(handler)) return TRANSFORM_DOC[handler];
+  return "transforms.handlerDoc.generic";
+}
+
+export type DefaultTransformNodeConfigOptions = {
+  /**
+   * When set, `fields` / `output_template` read this RAW property and `output_field` matches it
+   * (prior transform's sink key).
+   */
+  previousOutputField?: string | null;
+};
+
+/** When the node is a canvas transform, return its config `output_field` (trimmed), else null. */
+export function readTransformOutputFieldForChainedTransform(
+  node: { type?: string | null; data?: unknown } | undefined | null
+): string | null {
+  if (!node || node.type !== "keaTransform") return null;
+  const data = (node.data ?? {}) as Record<string, unknown>;
+  const cfg = data.config;
+  if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) return null;
+  const of = String((cfg as Record<string, unknown>).output_field ?? "").trim();
+  return of || null;
+}
+
+export function defaultTransformNodeConfig(
+  handler: DiscoveryTransformHandlerId = "regex_substitution",
+  options?: DefaultTransformNodeConfigOptions
+): Record<string, unknown> {
+  const prev = String(options?.previousOutputField ?? "").trim();
+  const inputField = prev.length > 0 ? prev : "name";
+  const outputField = prev.length > 0 ? prev : "discoveredKey";
+  const cfg: Record<string, unknown> = {
+    description: "Transform",
+    handler_id: handler,
+    enabled: true,
+    fields: [{ field_name: inputField }],
+    output_field: outputField,
+    output_template: `{${inputField}}`,
+    output_mode: "append",
+    [handler]: defaultTransformHandlerBlock(handler),
+  };
+  if (handler === "split_string") {
+    cfg.output_multi_value = "array_json";
+  }
+  return cfg;
+}
+
+/** CogniteAsset name → assetTag extraction (regex on fields[].name). */
+export const ASSET_TAG_FROM_NAME_REGEX =
+  String.raw`(?<![\d-])(?:\b|(?<=_))(?:\d{1,8}-?)?[A-Z]{1,8}-?\d{1,10}(?:-\d{1,6})*[A-Z]?\b`;
+
+export function defaultAssetTagFromNameTransformConfig(): Record<string, unknown> {
+  return {
+    description: "Extract asset tag from CogniteAsset name",
+    handler_id: "regex_substitution",
+    enabled: true,
+    fields: [{ field_name: "name", regex: ASSET_TAG_FROM_NAME_REGEX }],
+    output_field: "assetTag",
+    output_template: "{name}",
+    output_mode: "overwrite",
+    regex_substitution: { patterns: [] },
+  };
+}
+
+/** Drop unused top-level transform node `priority` (stage order is workflow DAG only). */
+export function sanitizeTransformNodeConfig(cfg: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...cfg };
+  delete next.priority;
+  return next;
+}
+
+export function readTransformHandlerId(cfg: Record<string, unknown>): string {
+  return String(cfg.handler_id ?? cfg.handler ?? "").trim();
+}
+
+export function readTransformHandlerBlock(
+  cfg: Record<string, unknown>,
+  handlerId: string
+): Record<string, unknown> {
+  const nested = cfg[handlerId];
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return { ...(nested as Record<string, unknown>) };
+  }
+  const legacy = cfg.config;
+  if (legacy && typeof legacy === "object" && !Array.isArray(legacy)) {
+    return { ...(legacy as Record<string, unknown>) };
+  }
+  return {};
+}
+
+export function patchTransformHandlerBlock(
+  cfg: Record<string, unknown>,
+  handlerId: string,
+  block: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...cfg, [handlerId]: block };
+  if ("config" in next) delete next.config;
+  if ("handler" in next) delete next.handler;
+  return next;
+}
+
+/** Full ``fields[]`` rows (preserves ``regex_options``, ``priority``, …). */
+export function readTransformFields(cfg: Record<string, unknown>): TransformFieldRow[] {
+  const raw = cfg.fields;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    .map((item) => ({ ...(item as Record<string, unknown>) }));
+}

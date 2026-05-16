@@ -1,0 +1,294 @@
+"""Patch v1 scope document dicts for a hierarchy leaf (trigger embedding, tests)."""
+
+from __future__ import annotations
+
+import copy
+from typing import Any, Dict, List
+
+from scope_build.context import ScopeBuildContext
+from scope_build.naming import cdf_external_id_suffix
+from scope_build.scope_document_limits import assert_scope_document_within_limit
+
+
+def build_scope_block(ctx: ScopeBuildContext) -> Dict[str, Any]:
+    leaf = ctx.path[-1]
+    return {
+        "id": ctx.scope_id,
+        "name": leaf.name,
+        "description": leaf.description,
+        "path": [
+            {
+                "level": step.level,
+                "id": step.segment_id,
+                "name": step.name,
+                "description": step.description,
+            }
+            for step in ctx.path
+        ],
+    }
+
+
+def _filter_is_node_space(f: Any) -> bool:
+    if not isinstance(f, dict):
+        return False
+    scope = str(f.get("property_scope", "view")).lower()
+    return scope == "node" and f.get("target_property") == "space"
+
+
+def strip_node_space_filters_from_top_level_source_views(doc: Dict[str, Any]) -> None:
+    """Remove node ``space`` filters from each top-level ``source_views`` entry (mutates ``doc``).
+
+    Used when copying a scope document from another leaf so
+    :func:`inject_leaf_instance_space_filters` can prepend filters for the destination leaf.
+    """
+    views = doc.get("source_views")
+    if not isinstance(views, list) or not views:
+        return
+    for v in views:
+        if not isinstance(v, dict):
+            continue
+        raw_filters = v.get("filters")
+        if not isinstance(raw_filters, list) or not raw_filters:
+            continue
+        kept = [f for f in raw_filters if not _filter_is_node_space(f)]
+        if len(kept) != len(raw_filters):
+            v["filters"] = kept
+
+
+def inject_leaf_instance_space_filters(doc: Dict[str, Any], ctx: ScopeBuildContext) -> None:
+    """Prepend a node `space` filter on each top-level source_view (unless one already exists)."""
+    views = doc.get("source_views")
+    if not isinstance(views, list) or not views:
+        return
+
+    leaf_node: Dict[str, Any] = ctx.path[-1].node if ctx.path else {}
+    inst = leaf_node.get("instance_space") if isinstance(leaf_node, dict) else None
+    if isinstance(inst, str) and inst.strip():
+        space_value = inst.strip()
+    else:
+        space_value = "{{instance_space}}"
+
+    for v in views:
+        if not isinstance(v, dict):
+            continue
+        raw_filters = v.get("filters")
+        if raw_filters is None:
+            flist: List[Any] = []
+        elif isinstance(raw_filters, list):
+            flist = list(raw_filters)
+        else:
+            flist = []
+        if any(_filter_is_node_space(f) for f in flist):
+            continue
+        node_filter: Dict[str, Any] = {
+            "operator": "EQUALS",
+            "property_scope": "node",
+            "target_property": "space",
+            "values": [space_value],
+        }
+        v["filters"] = [node_filter] + flist
+
+
+def _with_suffix(base: str, suffix: str) -> str:
+    if base.endswith("_default"):
+        stem = base[: -len("_default")]
+        return f"{stem}_{suffix}"
+    return f"{base}_{suffix}"
+
+
+def patch_external_ids(doc: Dict[str, Any], suffix: str) -> None:
+    ke = doc.get("key_extraction")
+    if isinstance(ke, dict) and "externalId" in ke:
+        base = str(ke["externalId"])
+        ke["externalId"] = _with_suffix(base, suffix)
+    al = doc.get("aliasing")
+    if isinstance(al, dict) and "externalId" in al:
+        base = str(al["externalId"])
+        al["externalId"] = _with_suffix(base, suffix)
+
+
+def _set_workflow_scope_parameter(doc: Dict[str, Any], ctx: ScopeBuildContext) -> None:
+    ke = doc.get("key_extraction")
+    if isinstance(ke, dict):
+        cfg = ke.get("config")
+        if isinstance(cfg, dict):
+            params = cfg.get("parameters")
+            if isinstance(params, dict):
+                params["workflow_scope"] = ctx.scope_id
+
+
+def inject_site_01_pre_prefix_aliasing(out: Dict[str, Any]) -> None:
+    """Append ``pre_`` prefix transform after ``Strip Delimiter`` for scope ``site_01`` (debug / CDF test)."""
+    rule_key = "pre_prefix_site01"
+    defs = out.get("aliasing_rule_definitions")
+    if not isinstance(defs, dict):
+        defs = {}
+        out["aliasing_rule_definitions"] = defs
+    defs[rule_key] = {
+        "name": rule_key,
+        "handler": "prefix_suffix",
+        "description": "Debug: prefix aliases with pre_ after strip delimiter (site_01).",
+        "enabled": True,
+        "priority": 70,
+        "preserve_original": True,
+        "config": {
+            "operation": "add_prefix",
+            "prefix": "pre_",
+            "conditions": {"missing_prefix": True},
+        },
+        "conditions": {},
+        "scope_filters": {
+            "entity_type": ["asset", "equipment", "timeseries"],
+        },
+    }
+
+    al = out.get("aliasing")
+    if isinstance(al, dict):
+        acfg = al.get("config")
+        if isinstance(acfg, dict):
+            adata = acfg.get("data")
+            if isinstance(adata, dict):
+                pw = adata.get("pathways")
+                if isinstance(pw, dict):
+                    steps = pw.get("steps")
+                    if isinstance(steps, list) and steps:
+                        step0 = steps[0]
+                        if isinstance(step0, dict):
+                            rules = step0.get("rules")
+                            if isinstance(rules, list):
+                                step0["rules"] = list(rules) + [
+                                    {
+                                        "name": rule_key,
+                                        "handler": "prefix_suffix",
+                                        "enabled": True,
+                                        "priority": 70,
+                                        "preserve_original": True,
+                                        "config": {
+                                            "operation": "add_prefix",
+                                            "prefix": "pre_",
+                                            "conditions": {"missing_prefix": True},
+                                        },
+                                        "conditions": {},
+                                        "scope_filters": {
+                                            "entity_type": [
+                                                "asset",
+                                                "equipment",
+                                                "timeseries",
+                                            ],
+                                        },
+                                        "description": defs[rule_key]["description"],
+                                        "validation": {"validation_rules": []},
+                                    }
+                                ]
+
+    canvas = out.get("canvas")
+    if not isinstance(canvas, dict):
+        return
+    nodes = canvas.get("nodes")
+    edges = canvas.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        return
+
+    node_id = "al_pre_prefix_site01"
+    if any(isinstance(n, dict) and n.get("id") == node_id for n in nodes):
+        return
+
+    nodes.append(
+        {
+            "id": node_id,
+            "kind": "aliasing",
+            "position": {"x": 1210, "y": -290},
+            "data": {
+                "label": "pre_prefix_site01",
+                "handler_id": "prefix_suffix",
+                "handler_family": "aliasing",
+                "ref": {"aliasing_rule_name": rule_key},
+                "pipeline_rank": 5,
+            },
+        }
+    )
+
+    new_edges: List[Any] = []
+    replaced = False
+    for e in edges:
+        if not isinstance(e, dict):
+            new_edges.append(e)
+            continue
+        if (
+            e.get("source") == "al_strip_delimiter"
+            and e.get("target") == "ap_alias_persistence"
+            and e.get("kind") == "data"
+        ):
+            replaced = True
+            new_edges.append(
+                {
+                    "id": "e_al_strip_delimiter_al_pre_prefix_site01",
+                    "source": "al_strip_delimiter",
+                    "target": node_id,
+                    "source_handle": "out",
+                    "target_handle": "in",
+                    "kind": "sequence",
+                }
+            )
+            new_edges.append(
+                {
+                    "id": "e_al_pre_prefix_site01_ap_alias_persistence",
+                    "source": node_id,
+                    "target": "ap_alias_persistence",
+                    "source_handle": "out",
+                    "target_handle": "in",
+                    "kind": "data",
+                }
+            )
+        else:
+            new_edges.append(e)
+    if replaced:
+        canvas["edges"] = new_edges
+
+
+def scope_configuration_for_workflow_trigger(scope_document: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a trimmed scope document suitable for ``workflow.input.configuration``.
+
+    Flattens subgraphs, strips layout positions, prunes extraction/aliasing rules not referenced by
+    executable canvas nodes, optionally shrinks ``source_views`` (and remaps indices) when
+    ``associations`` / ``source_view`` nodes reference a subset, prunes discovery stage lists
+    (``view_queries``, …) the same way, and omits ``compiled_workflow`` (task slices live on
+    WorkflowVersion).
+    """
+    from scope_build.scope_configuration_trim import trim_scope_document_for_trigger_input
+
+    return trim_scope_document_for_trigger_input(scope_document)
+
+
+def prepare_scope_document_for_context(doc: Dict[str, Any], ctx: ScopeBuildContext) -> Dict[str, Any]:
+    """Return a deep copy of ``doc`` with leaf patches (external ids, filters, scope block)."""
+    out = copy.deepcopy(doc)
+    suffix = cdf_external_id_suffix(ctx.scope_id)
+    patch_external_ids(out, suffix)
+    inject_leaf_instance_space_filters(out, ctx)
+    out["scope"] = build_scope_block(ctx)
+    _set_workflow_scope_parameter(out, ctx)
+    if suffix == "site_01":
+        inject_site_01_pre_prefix_aliasing(out)
+    return out
+
+
+def reconcile_scope_document_for_destination(
+    source_doc: Dict[str, Any],
+    dest_ctx: ScopeBuildContext,
+) -> Dict[str, Any]:
+    """Deep-copy ``source_doc`` and apply destination leaf patches (copy workflow input between scopes).
+
+    Same destination-specific fields as :func:`prepare_scope_document_for_context`, but starts from an
+    arbitrary source document: strips existing node ``space`` filters first so instance-space injection
+    matches the destination leaf.
+    """
+    out = copy.deepcopy(source_doc)
+    suffix = cdf_external_id_suffix(dest_ctx.scope_id)
+    patch_external_ids(out, suffix)
+    strip_node_space_filters_from_top_level_source_views(out)
+    inject_leaf_instance_space_filters(out, dest_ctx)
+    out["scope"] = build_scope_block(dest_ctx)
+    _set_workflow_scope_parameter(out, dest_ctx)
+    assert_scope_document_within_limit(out, scope_id=dest_ctx.scope_id)
+    return out

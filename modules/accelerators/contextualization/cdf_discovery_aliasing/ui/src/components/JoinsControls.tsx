@@ -1,0 +1,90 @@
+import { useEffect, useState } from "react";
+import type { MessageKey } from "../i18n";
+import type { WorkflowCanvasDocument } from "../types/workflowCanvas";
+import { patchNodeConfig, readNodeConfig } from "../utils/queriesCanvasUtils";
+import { joinNodeListLabel, listJoinNodes } from "../utils/joinsCanvasUtils";
+import { JoinNodeConfigFields } from "./JoinNodeConfigFields";
+
+type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
+
+type Props = {
+  canvas: WorkflowCanvasDocument;
+  onChange: (next: WorkflowCanvasDocument) => void;
+  initialNodeId?: string;
+  t: TFn;
+};
+
+export function JoinsControls({ canvas, onChange, initialNodeId, t }: Props) {
+  const joins = listJoinNodes(canvas);
+  const [selectedId, setSelectedId] = useState<string | null>(joins[0]?.id ?? null);
+
+  useEffect(() => {
+    if (joins.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId((sel) => {
+      if (sel && joins.some((n) => n.id === sel)) return sel;
+      return joins[0]?.id ?? null;
+    });
+  }, [joins]);
+
+  useEffect(() => {
+    if (!initialNodeId || joins.length === 0) return;
+    if (joins.some((n) => n.id === initialNodeId)) {
+      setSelectedId(initialNodeId);
+    }
+  }, [initialNodeId, joins]);
+
+  const selected = joins.find((n) => n.id === selectedId) ?? null;
+
+  return (
+    <div className="kea-source-views">
+      <h3 className="kea-section-title" style={{ margin: "0 0 0.35rem" }}>
+        Joins
+      </h3>
+      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.85rem", maxWidth: "42rem" }}>
+        Merge two cohort RAW streams. Incoming edges must use target handles <code>in__left</code> and{" "}
+        <code>in__right</code>.
+      </p>
+
+      <div className="kea-source-views-split">
+        <aside className="kea-source-views-sidebar">
+          <p className="kea-artifact-list-title">Join nodes</p>
+          <ul className="kea-source-views-list" role="listbox" aria-label="Join nodes">
+            {joins.map((n) => (
+              <li key={n.id} role="none">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedId === n.id}
+                  className={`kea-source-views-item${selectedId === n.id ? " kea-source-views-item--active" : ""}`}
+                  onClick={() => setSelectedId(n.id)}
+                >
+                  <span className="kea-hint" style={{ display: "block", fontSize: "0.68rem", marginBottom: 2 }}>
+                    join · {n.id}
+                  </span>
+                  {joinNodeListLabel(n)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </aside>
+
+        <div className="kea-source-views-editor">
+          {!selected ? (
+            <p className="kea-hint">No join nodes on this canvas.</p>
+          ) : (
+            <div className="kea-source-views-editor-inner">
+              <JoinNodeConfigFields
+                t={t}
+                value={readNodeConfig(selected)}
+                onChange={(cfg) => onChange(patchNodeConfig(canvas, selected.id, cfg))}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

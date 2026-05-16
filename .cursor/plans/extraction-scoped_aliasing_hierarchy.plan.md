@@ -103,17 +103,17 @@ Implementation must leave these **end-to-end paths working** after config migrat
 
 ### Verification checklist (do before merge)
 
-- Unit tests: `pytest` for `cdf_key_extraction_aliasing` (at least `tests/unit` for resolver, engine, pipeline).
+- Unit tests: `pytest` for `cdf_discovery_aliasing` (at least `tests/unit` for resolver, engine, pipeline).
 - Smoke: local runner with module default scope (or documented example path) — key extraction + aliasing stages execute without exception.
 - Grep-driven audit: no remaining references that assume **only** `aliasing_rules[]` + `entity_type` for routing without the new extraction-rule pipeline (update call sites).
 
 ## Files (indicative)
 
-- New or extended resolver: [`cdf_fn_common`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/cdf_fn_common/) (aliasing pipeline expand + flatten for **tree** execution, not a naive flat list that breaks concurrent peers).
-- [`tag_aliasing_engine.py`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_aliasing/engine/tag_aliasing_engine.py) — tree interpreter; align `ParallelPathwayStep` / new types with peer-vs-chain semantics.
-- [`pipeline.py`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/fn_dm_aliasing/pipeline.py) — context + optional per-rule runs.
-- [`scope_document_dm.py`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/functions/cdf_fn_common/scope_document_dm.py) — call resolver alongside confidence ref materialization.
-- UI: [`canvasScopeSync.ts`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/ui/src/components/flow/canvasScopeSync.ts), [`seedCanvasFromScope.ts`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/ui/src/components/flow/seedCanvasFromScope.ts), [`workflowScopePatch.ts`](modules/accelerators/contextualization/cdf_key_extraction_aliasing/ui/src/components/flow/workflowScopePatch.ts).
+- New or extended resolver: [`cdf_fn_common`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/cdf_fn_common/) (aliasing pipeline expand + flatten for **tree** execution, not a naive flat list that breaks concurrent peers).
+- [`tag_aliasing_engine.py`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_aliasing/engine/tag_aliasing_engine.py) — tree interpreter; align `ParallelPathwayStep` / new types with peer-vs-chain semantics.
+- [`pipeline.py`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/fn_dm_aliasing/pipeline.py) — context + optional per-rule runs.
+- [`scope_document_dm.py`](modules/accelerators/contextualization/cdf_discovery_aliasing/functions/cdf_fn_common/scope_document_dm.py) — call resolver alongside confidence ref materialization.
+- UI: [`canvasScopeSync.ts`](modules/accelerators/contextualization/cdf_discovery_aliasing/ui/src/components/flow/canvasScopeSync.ts), [`seedCanvasFromScope.ts`](modules/accelerators/contextualization/cdf_discovery_aliasing/ui/src/components/flow/seedCanvasFromScope.ts), [`workflowScopePatch.ts`](modules/accelerators/contextualization/cdf_discovery_aliasing/ui/src/components/flow/workflowScopePatch.ts).
 
 ## Clarification locked in
 

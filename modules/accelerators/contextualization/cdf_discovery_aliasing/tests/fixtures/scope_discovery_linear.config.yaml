@@ -1,0 +1,46 @@
+# Minimal discovery-only scope for unit tests (not the shipped workflow template).
+name: discovery-linear-fixture
+schemaVersion: 1
+compile_workflow_dag: canvas
+view_queries: []
+transforms: []
+validations: []
+raw_queries: []
+classic_queries: []
+view_saves: []
+raw_saves: []
+classic_saves: []
+canvas:
+  schemaVersion: 1
+  nodes:
+    - id: st
+      kind: start
+    - id: vq
+      kind: query_view
+      data:
+        config:
+          description: fixture view query
+          view_space: cdf_cdm
+          view_external_id: CogniteAsset
+          view_version: v1
+    - id: tr
+      kind: transform
+      data:
+        config:
+          description: fixture row for transform
+    - id: va
+      kind: validation
+      data:
+        config:
+          description: fixture row for validation 1
+    - id: en
+      kind: end
+  edges:
+    - source: st
+      target: vq
+    - source: vq
+      target: tr
+    - source: tr
+      target: va
+    - source: va
+      target: en
