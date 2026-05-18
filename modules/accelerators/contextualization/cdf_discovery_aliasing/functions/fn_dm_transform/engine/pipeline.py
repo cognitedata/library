@@ -15,6 +15,8 @@ from .constants import (
 from .field_template import apply_output_template, extract_field_values
 from .output_type import coerce_transform_output, validate_output_field_type
 from .handlers.heuristic_sampler import validate_heuristic_sampler_block
+from .handlers.split_join import validate_split_join_block
+from .handlers.split_parts import validate_split_parts_block
 from .registry import HANDLER_BY_ID
 
 
@@ -60,6 +62,10 @@ def validate_transform_config(cfg: Mapping[str, Any]) -> None:
     validate_output_field_type(cfg)
     if handler_id == "heuristic_sampler":
         validate_heuristic_sampler_block(resolve_handler_block(cfg, handler_id))
+    if handler_id in ("split_join", "split_string"):
+        validate_split_parts_block(resolve_handler_block(cfg, handler_id))
+    if handler_id == "split_join":
+        validate_split_join_block(resolve_handler_block(cfg, handler_id))
 
 
 def apply_transform_handler(

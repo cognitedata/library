@@ -33,6 +33,7 @@ from .pipeline import (
 from .handlers.regex_substitution import RegexSubstitutionHandler
 from .registry import HANDLER_BY_ID
 from .handlers.sequential_literal_replace import SequentialLiteralReplaceHandler
+from .handlers.split_join import SplitJoinHandler
 from .handlers.split_string import SplitStringHandler
 from .handlers.static_lookup_map import StaticLookupMapHandler
 from .handlers.substitution_variants import SubstitutionVariantsHandler
@@ -85,6 +86,10 @@ def apply_split_string(working: str, block: Mapping[str, Any]) -> List[str]:
     return out
 
 
+def apply_split_join(working: str, block: Mapping[str, Any]) -> str:
+    return str(SplitJoinHandler.apply(working, block))
+
+
 def apply_parse_json_extract(working: str, block: Mapping[str, Any]) -> str:
     return str(ParseJsonExtractHandler.apply(working, block))
 
@@ -131,6 +136,7 @@ __all__ = [
     "apply_parse_json_extract",
     "apply_regex_substitution",
     "apply_sequential_literal_replace",
+    "apply_split_join",
     "apply_split_string",
     "apply_static_lookup_map",
     "apply_substitution_variants",

@@ -8,11 +8,13 @@ import { MatchDefinitionsScopePanel } from "../MatchDefinitionsScopePanel";
 import { QueriesControls } from "../QueriesControls";
 import { TransformsControls } from "../TransformsControls";
 import { JoinsControls } from "../JoinsControls";
+import { FilterNodeModalEditor } from "./FilterNodeModalEditor";
+import { ConfidenceFilterNodeModalEditor } from "./ConfidenceFilterNodeModalEditor";
 import { ValidationsControls } from "../ValidationsControls";
 import { SaveNodeConfigFields } from "./SaveNodeConfigFields";
 import { InvertedIndexNodeConfigFields } from "./InvertedIndexNodeConfigFields";
 import { SourceViewsControls } from "../SourceViewsControls";
-import type { WorkflowCanvasDocument } from "../../types/workflowCanvas";
+import type { WorkflowCanvasDocument, WorkflowCanvasNodeData } from "../../types/workflowCanvas";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -24,7 +26,11 @@ type Props = {
   t: TFn;
   schemaSpace?: string;
   workflowCanvas?: WorkflowCanvasDocument;
-  onPatchWorkflowCanvas?: (next: WorkflowCanvasDocument) => void;
+  onPatchWorkflowCanvas?: (
+    patch:
+      | WorkflowCanvasDocument
+      | ((prev: WorkflowCanvasDocument) => WorkflowCanvasDocument)
+  ) => void;
 };
 
 function readRef(data: Record<string, unknown>): Record<string, unknown> {
@@ -65,6 +71,10 @@ function modalTitleKey(kind: string | undefined): MessageKey {
       return "flow.nodeEditorTitleJoins";
     case "keaDiscoveryValidate":
       return "flow.nodeEditorTitleValidations";
+    case "keaDiscoveryInstanceFilter":
+      return "flow.nodeEditorTitleInstanceFilters";
+    case "keaDiscoveryConfidenceFilter":
+      return "flow.nodeEditorTitleConfidenceFilters";
     case "keaViewSave":
     case "keaRawSave":
     case "keaClassicSave":
@@ -146,6 +156,7 @@ export function FlowNodeEditorModal({
           key={node.id}
           value={workflowDoc.source_views}
           initialViewIndex={initialSv}
+          singleView
           onChange={(v) => patch((d) => ({ ...d, source_views: v }))}
           schemaSpace={schemaSpace}
         />
@@ -199,6 +210,7 @@ export function FlowNodeEditorModal({
             onChange={onPatchWorkflowCanvas}
             initialNodeId={node.id}
             schemaSpace={schemaSpace}
+            singleNode
           />
         ) : (
           <p className="kea-hint" style={{ marginTop: 0 }}>
@@ -214,6 +226,7 @@ export function FlowNodeEditorModal({
             canvas={workflowCanvas}
             onChange={onPatchWorkflowCanvas}
             initialNodeId={node.id}
+            singleNode
           />
         ) : (
           <p className="kea-hint" style={{ marginTop: 0 }}>
@@ -230,6 +243,7 @@ export function FlowNodeEditorModal({
             onChange={onPatchWorkflowCanvas}
             initialNodeId={node.id}
             t={t}
+            singleNode
           />
         ) : (
           <p className="kea-hint" style={{ marginTop: 0 }}>
@@ -245,10 +259,43 @@ export function FlowNodeEditorModal({
             canvas={workflowCanvas}
             onChange={onPatchWorkflowCanvas}
             initialNodeId={node.id}
+            singleNode
           />
         ) : (
           <p className="kea-hint" style={{ marginTop: 0 }}>
             {t("flow.nodeEditorValidationsCanvasMissing")}
+          </p>
+        );
+      break;
+    case "keaDiscoveryInstanceFilter":
+      body =
+        workflowCanvas && onPatchWorkflowCanvas ? (
+          <FilterNodeModalEditor
+            key={node.id}
+            nodeId={node.id}
+            nodeData={(node.data ?? {}) as WorkflowCanvasNodeData}
+            onChange={onPatchWorkflowCanvas}
+            t={t}
+          />
+        ) : (
+          <p className="kea-hint" style={{ marginTop: 0 }}>
+            {t("flow.nodeEditorInstanceFiltersCanvasMissing")}
+          </p>
+        );
+      break;
+    case "keaDiscoveryConfidenceFilter":
+      body =
+        workflowCanvas && onPatchWorkflowCanvas ? (
+          <ConfidenceFilterNodeModalEditor
+            key={node.id}
+            nodeId={node.id}
+            nodeData={(node.data ?? {}) as WorkflowCanvasNodeData}
+            onChange={onPatchWorkflowCanvas}
+            t={t}
+          />
+        ) : (
+          <p className="kea-hint" style={{ marginTop: 0 }}>
+            {t("flow.nodeEditorConfidenceFiltersCanvasMissing")}
           </p>
         );
       break;

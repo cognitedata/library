@@ -256,3 +256,56 @@ def test_dispatch_task_captures_inverted_index_handler_data() -> None:
     cap = ctx.handler_data_snapshots["fn_dm_inverted_index"]
     assert cap["task_id"] == "ii1"
     assert cap["data"]["task_id"] == "ii1"
+
+
+def test_dispatch_cleanup_snapshots_raw_results_before_purge() -> None:
+    order: list[str] = []
+
+    class _FakeCleanup:
+        @staticmethod
+        def discovery_raw_cleanup(client: Any, logger: Any, data: dict, cdf_config: Any) -> None:
+            del client, logger, cdf_config
+            order.append("cleanup")
+            data["status"] = "succeeded"
+            data["message"] = "{}"
+
+    def _import(name: str):
+        if name == "fn_dm_discovery_raw_cleanup.pipeline":
+            return _FakeCleanup()
+        raise AssertionError(f"unexpected import {name!r}")
+
+    def _snapshot(ctx: KahnRunContext) -> None:
+        order.append("snapshot")
+        ctx.raw_results_snapshot = {"tables": [{"row_count": 3}]}
+
+    ctx = KahnRunContext(
+        args=Namespace(run_all=True, raw_results_rows=10, raw_results_max_tables=5),
+        logger=logging.getLogger("test_kahn_cleanup"),
+        client=object(),
+        pipe_logger=None,
+        scope_yaml_path=Path("/tmp/scope.yaml"),
+        scope_document={},
+        wf_instance_space="sp_test",
+        source_views=[],
+        cdf_config=None,
+        compiled_workflow={
+            "tasks": [
+                {
+                    "id": "clean1",
+                    "function_external_id": "fn_dm_discovery_raw_cleanup",
+                    "depends_on": [],
+                }
+            ]
+        },
+        run_id="run_cleanup_test",
+    )
+    with (
+        patch(
+            "local_runner.kahn_workflow_executor.snapshot_raw_results_for_ctx",
+            side_effect=_snapshot,
+        ),
+        patch("local_runner.kahn_workflow_executor.importlib.import_module", side_effect=_import),
+    ):
+        _dispatch_task(ctx, "clean1", Lock())
+    assert order == ["snapshot", "cleanup"]
+    assert ctx.raw_results_snapshot == {"tables": [{"row_count": 3}]}

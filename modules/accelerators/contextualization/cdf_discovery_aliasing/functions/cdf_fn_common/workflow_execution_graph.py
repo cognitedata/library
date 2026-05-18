@@ -52,6 +52,14 @@ FUNCTION_CHANNEL_METADATA: Mapping[str, Mapping[str, Any]] = {
         "inputs": ["predecessor RAW sinks", "configuration", "task_id"],
         "outputs": ["validation sink RAW (stub)"],
     },
+    "fn_dm_filter": {
+        "inputs": ["predecessor RAW sinks", "configuration", "task_id"],
+        "outputs": ["instance_filter sink RAW (cohort rows passing filters DSL)"],
+    },
+    "fn_dm_confidence_filter": {
+        "inputs": ["predecessor RAW sinks", "configuration", "task_id"],
+        "outputs": ["confidence_filter sink RAW (pruned value lists)"],
+    },
     "fn_dm_discovery_raw_cleanup": {
         "inputs": ["configuration", "compiled_workflow (optional)", "task_id", "run_id"],
         "outputs": ["RAW cohort key delete or table truncate (operator-configured)"],
@@ -262,6 +270,8 @@ _FN_TO_ROLE: Dict[str, str] = {
     "fn_dm_transform": "transform",
     "fn_dm_join": "join",
     "fn_dm_validate": "validation",
+    "fn_dm_filter": "instance_filter",
+    "fn_dm_confidence_filter": "confidence_filter",
     "fn_dm_inverted_index": "inverted_index",
     "fn_dm_discovery_raw_cleanup": "discovery_raw_cleanup",
 }

@@ -240,3 +240,23 @@ def test_workflow_instance_space_for_local(
     cli: str | None, views: list, expected: str
 ) -> None:
     assert workflow_instance_space_for_local(views, cli) == expected
+
+
+def test_workflow_instance_space_from_canvas_when_no_source_views() -> None:
+    doc = {
+        "canvas": {
+            "nodes": [
+                {
+                    "id": "vq",
+                    "kind": "query_view",
+                    "data": {
+                        "config": {
+                            "view_external_id": "CogniteAsset",
+                            "instance_space": "canvas-sp",
+                        }
+                    },
+                }
+            ]
+        }
+    }
+    assert workflow_instance_space_for_local([], None, scope_document=doc) == "canvas-sp"

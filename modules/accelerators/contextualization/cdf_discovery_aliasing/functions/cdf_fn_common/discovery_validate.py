@@ -1,12 +1,8 @@
 """Discovery validate stage: apply validation_rules to score fields on predecessor RAW cohort rows.
 
-In ``strings`` output mode, parallel per-value scores for ``aliases`` and ``discoveredKey`` use the
-top-level property ``confidence`` (parallel list to those string lists) in the in-memory properties
-dict. Legacy rows may still carry ``aliases_confidence`` or ``discoveredKey_confidence``; readers
-accept those as fallbacks when resolving input scores for ``aliases`` / ``discoveredKey``.
-
-When rows are written to RAW via :func:`build_entity_cohort_row`, ``confidence`` is stored in
-the dedicated ``CONFIDENCE`` column (JSON array string) and omitted from ``PROPERTIES_JSON``.
+In ``strings`` output mode, parallel per-value scores use ``{field}_confidence`` on the
+properties dict. When rows are written to RAW via :func:`build_entity_cohort_row`, scores are
+stored in the dedicated ``CONFIDENCE`` column and omitted from ``PROPERTIES_JSON``.
 """
 
 from __future__ import annotations
@@ -20,18 +16,12 @@ from .confidence_match_rule_refs import (
     sequences_lookup_from_scope,
     validation_rules_list_get,
 )
+from .confidence_property import confidence_property_key
 from .discovery_query_shared import _first_nonempty
 
 DEFAULT_VALIDATE_FIELDS = ("aliases", "discoveredKey")
 DEFAULT_INITIAL_CONFIDENCE = 1.0
 DEFAULT_MIN_CONFIDENCE = 0.0
-
-
-def _confidence_property_key(field: str) -> str:
-    """JSON property name for parallel per-value confidence scores (strings output mode)."""
-    if field in ("discoveredKey", "aliases"):
-        return "confidence"
-    return f"{field}_confidence"
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -113,21 +103,34 @@ def _float_conf(x: Any, *, default: float) -> float:
 
 
 def _parallel_confidence_list(field: str, src: Optional[Mapping[str, Any]]) -> Optional[List[float]]:
-    """Parallel float list for *field* values (e.g. ``confidence`` for ``aliases`` / ``discoveredKey``)."""
+    """Parallel float list for *field* at ``{field}_confidence`` only."""
     if not field or not isinstance(src, Mapping):
         return None
-    keys: List[str] = []
-    if field == "aliases":
-        keys = ["aliases_confidence", _confidence_property_key(field)]
-    elif field == "discoveredKey":
-        keys = ["discoveredKey_confidence", _confidence_property_key(field)]
-    else:
-        keys = [_confidence_property_key(field)]
-    for key in keys:
-        v = src.get(key)
-        if isinstance(v, list) and v:
-            return [_float_conf(x, default=0.0) for x in v]
+    key = confidence_property_key(field)
+    v = src.get(key)
+    if isinstance(v, list) and v:
+        return [_float_conf(x, default=0.0) for x in v]
     return None
+
+
+def _primary_confidence_field(fields: Sequence[str]) -> Optional[str]:
+    """Field whose per-value scores are written for each validated field."""
+    for cand in ("aliases", "discoveredKey"):
+        if cand in fields:
+            return cand
+    return fields[0] if fields else None
+
+
+def _write_parallel_confidence(
+    props: MutableMapping[str, Any],
+    field: str,
+    scored: Sequence[Tuple[str, float]],
+) -> None:
+    key = confidence_property_key(field)
+    if scored:
+        props[key] = [round(c, 6) for _, c in scored]
+    else:
+        props.pop(key, None)
 
 
 def _normalize_field_values(
@@ -144,6 +147,16 @@ def _normalize_field_values(
         s = raw.strip()
         return [(s, initial)] if s else []
     if isinstance(raw, list):
+        score_prop = confidence_property_key(field) if field else ""
+        if raw and field == score_prop:
+            out_num: List[Tuple[str, float]] = []
+            for x in raw:
+                try:
+                    out_num.append((str(x), float(x)))
+                except (TypeError, ValueError):
+                    continue
+            if out_num:
+                return out_num
         if field and parallel_source is not None:
             par = _parallel_confidence_list(field, parallel_source)
             all_str = all(isinstance(x, str) for x in raw)
@@ -183,7 +196,7 @@ def _write_scored_field(
     output_mode: str,
 ) -> None:
     mode = (output_mode or "strings").strip().lower()
-    conf_key = _confidence_property_key(field)
+    conf_key = confidence_property_key(field)
     if mode == "scored_objects":
         props[field] = [{"value": v, "confidence": round(c, 6)} for v, c in scored]
         props.pop(conf_key, None)
@@ -193,6 +206,7 @@ def _write_scored_field(
         props[conf_key] = [round(c, 6) for _, c in scored]
     else:
         props.pop(conf_key, None)
+    props.pop("confidence", None)
 
 
 def validate_row_properties(
@@ -206,7 +220,6 @@ def validate_row_properties(
         return out
 
     initial = _initial_confidence(cfg)
-    min_c = _min_confidence(cfg)
     default_em = cfg.get("expression_match")
     output_mode = _first_nonempty(cfg.get("output_mode"), "strings")
     fields = _parse_validate_fields(cfg)
@@ -227,12 +240,15 @@ def validate_row_properties(
             rules_raw=rules_raw,
             default_expression_match=default_em if isinstance(default_em, dict) else cfg,
         )
-        filtered = [(v, c) for v, c in scored if c >= min_c]
-        _write_scored_field(out, field, filtered, output_mode=output_mode)
+        _write_scored_field(out, field, scored, output_mode=output_mode)
 
-    if "aliases" in fields:
-        out.pop("aliases_confidence", None)
+    out.pop("confidence", None)
     return out
+
+
+def validate_primary_value_field(cfg: Mapping[str, Any]) -> str:
+    """Primary field for RAW ``CONFIDENCE`` column on validate task output."""
+    return _primary_confidence_field(_parse_validate_fields(cfg)) or "aliases"
 
 
 def discovery_handle_validate(

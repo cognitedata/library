@@ -45,6 +45,15 @@ def test_filter_dict_not_leaf() -> None:
     assert "not" in dumped
 
 
+def test_filter_dict_gte_operator() -> None:
+    vid = ViewId(space="vs", external_id="V", version="v1")
+    node = {"operator": "GTE", "target_property": "confidence", "values": [0.8]}
+    f = filter_dict_to_dm(vid, node)
+    dumped = f.dump()
+    assert "range" in dumped
+    assert dumped["range"].get("gte") == 0.8
+
+
 def test_build_query_includes_has_data() -> None:
     vid = ViewId(space="vs", external_id="V", version="v1")
     f = build_source_view_query_filter(vid, [])

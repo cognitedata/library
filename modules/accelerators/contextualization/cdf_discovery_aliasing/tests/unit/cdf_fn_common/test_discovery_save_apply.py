@@ -16,10 +16,24 @@ if str(_FUNCS) not in sys.path:
 
 from cdf_fn_common.discovery_save_apply import (  # noqa: E402
     _classic_build_update,
+    _coerce_dm_list_property_value,
+    _prepare_view_apply_properties,
     discovery_apply_classic_save,
     discovery_apply_view_save,
     run_discovery_save_with_status,
 )
+
+
+def test_coerce_dm_list_property_value() -> None:
+    assert _coerce_dm_list_property_value(["a", "b"]) == ["a", "b"]
+    assert _coerce_dm_list_property_value(["a", "a", "b", "b"]) == ["a", "b"]
+    assert _coerce_dm_list_property_value("a,a,b") == ["a", "b"]
+    assert _coerce_dm_list_property_value("TAG-1") == ["TAG-1"]
+    assert _coerce_dm_list_property_value("") is None
+    assert _prepare_view_apply_properties(
+        {"aliases": "", "name": "n"},
+        list_properties=frozenset({"aliases"}),
+    ) == {"name": "n"}
 
 
 def test_view_save_requires_view_external_id() -> None:
@@ -132,8 +146,91 @@ def test_view_save_merge_per_instance_two_rows_one_instance(
     call_kw = client.data_modeling.instances.apply.call_args[1]
     nodes = call_kw.get("nodes") or client.data_modeling.instances.apply.call_args[0][0]
     props = nodes[0].sources[0].properties
-    assert props["name"] == "newer"
-    assert props["aliases"] == "b,a"
+    assert "name" not in props
+    assert props["aliases"] == ["b", "a"]
+
+
+@patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
+@patch("cdf_fn_common.discovery_save_apply.iter_inter_node_raw_rows_for_filter_run")
+def test_view_save_resolves_space_from_node_external_id_and_props(
+    mock_iter_raw: MagicMock, _mock_pred: MagicMock
+) -> None:
+    run_id = "run_ext_1"
+    row = MagicMock()
+    row.key = "rk"
+    row.columns = {
+        "RECORD_KIND": "entity",
+        "RUN_ID": run_id,
+        "NODE_INSTANCE_ID": "my-space:asset-ext-id",
+        "EXTERNAL_ID": "asset-ext-id",
+        "PROPERTIES_JSON": json.dumps({"aliases": ["x"], "instance_space": "my-space"}),
+    }
+    mock_iter_raw.return_value = [row]
+    client = MagicMock()
+    data = {
+        "task_id": "save1",
+        "run_id": run_id,
+        "dry_run": False,
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteDescribable",
+            "view_version": "v1",
+            "save_fan_in_mode": "merge_per_instance",
+            "save_field_policies": [
+                {
+                    "property": "aliases",
+                    "strategy": "merge_list",
+                    "merge_list": {"unique": False, "branch_order": "by_score"},
+                },
+            ],
+        },
+    }
+    discovery_apply_view_save("fn_dm_view_save", data, client, None)
+    client.data_modeling.instances.apply.assert_called_once()
+    nodes = client.data_modeling.instances.apply.call_args[1].get("nodes") or client.data_modeling.instances.apply.call_args[0][0]
+    assert nodes[0].space == "my-space"
+    assert nodes[0].external_id == "asset-ext-id"
+
+
+@patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])
+@patch("cdf_fn_common.discovery_save_apply.iter_inter_node_raw_rows_for_filter_run")
+def test_view_save_coerces_string_aliases_to_list(
+    mock_iter_raw: MagicMock, _mock_pred: MagicMock
+) -> None:
+    run_id = "run_str_aliases"
+    row = MagicMock()
+    row.key = "rk"
+    row.columns = {
+        "RECORD_KIND": "entity",
+        "RUN_ID": run_id,
+        "NODE_INSTANCE_ID": "sp:11111111-1111-1111-1111-111111111111",
+        "EXTERNAL_ID": "ext1",
+        "PROPERTIES_JSON": json.dumps({"aliases": "TAG-1", "instance_space": "sp"}),
+    }
+    mock_iter_raw.return_value = [row]
+    client = MagicMock()
+    data = {
+        "task_id": "save1",
+        "run_id": run_id,
+        "dry_run": False,
+        "config": {
+            "view_space": "cdf_cdm",
+            "view_external_id": "CogniteDescribable",
+            "view_version": "v1",
+            "instance_space": "sp",
+            "save_fan_in_mode": "merge_per_instance",
+            "save_field_policies": [
+                {
+                    "property": "aliases",
+                    "strategy": "merge_list",
+                    "merge_list": {"unique": False, "branch_order": "by_score"},
+                },
+            ],
+        },
+    }
+    discovery_apply_view_save("fn_dm_view_save", data, client, None)
+    nodes = client.data_modeling.instances.apply.call_args[1].get("nodes") or client.data_modeling.instances.apply.call_args[0][0]
+    assert nodes[0].sources[0].properties["aliases"] == ["TAG-1"]
 
 
 @patch("cdf_fn_common.discovery_save_apply.iter_predecessor_raw_locations", return_value=[("db", "src")])

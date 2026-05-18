@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { JsonObject } from "../types/scopeConfig";
-import {
-  SourceViewFilterNodeEditor,
-  emptyAnd,
-  emptyLeaf,
-  emptyNot,
-  emptyOr,
-} from "./SourceViewFiltersEditor";
+import { SourceViewFiltersSection } from "./SourceViewFiltersSection";
 import { commaJoinSegments, splitCommaSegments } from "../utils/commaDelimited";
 
 type Props = {
@@ -337,74 +331,15 @@ export function ViewQueryConfigFields({ value, onChange, schemaSpace, fieldKey }
           autoComplete="off"
         />
       </label>
-      <h4 className="kea-section-title" style={{ fontSize: "0.95rem", marginTop: "0.75rem" }}>
-        {t("sourceViews.filters")}
-      </h4>
-      <p className="kea-hint" style={{ marginTop: 0, marginBottom: "0.65rem", maxWidth: "56rem" }}>
-        {t("sourceViews.filtersCombineHint")}
-      </p>
-      {(Array.isArray(value.filters) ? value.filters : []).map((f, fi) => {
-        const row = f && typeof f === "object" && !Array.isArray(f) ? (f as JsonObject) : emptyLeaf();
-        return (
-          <SourceViewFilterNodeEditor
-            key={`f-${fieldKey}-${fi}`}
-            t={t}
-            value={row}
-            onChange={(next) => {
-              const fl = [...(Array.isArray(value.filters) ? value.filters : [])];
-              fl[fi] = next;
-              setFilters(fl as JsonObject[]);
-            }}
-            onRemove={() => {
-              const fl = [...(Array.isArray(value.filters) ? value.filters : [])];
-              fl.splice(fi, 1);
-              setFilters(fl as JsonObject[]);
-            }}
-          />
-        );
-      })}
-      <div className="kea-toolbar-inline" style={{ marginTop: 10, flexWrap: "wrap", gap: 8 }}>
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          onClick={() => {
-            const fl = [...(Array.isArray(value.filters) ? value.filters : []), emptyLeaf()];
-            setFilters(fl as JsonObject[]);
-          }}
-        >
-          {t("sourceViews.filterAddLeaf")}
-        </button>
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          onClick={() => {
-            const fl = [...(Array.isArray(value.filters) ? value.filters : []), emptyAnd()];
-            setFilters(fl as JsonObject[]);
-          }}
-        >
-          {t("sourceViews.filterAddAnd")}
-        </button>
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          onClick={() => {
-            const fl = [...(Array.isArray(value.filters) ? value.filters : []), emptyOr()];
-            setFilters(fl as JsonObject[]);
-          }}
-        >
-          {t("sourceViews.filterAddOr")}
-        </button>
-        <button
-          type="button"
-          className="kea-btn kea-btn--sm"
-          onClick={() => {
-            const fl = [...(Array.isArray(value.filters) ? value.filters : []), emptyNot()];
-            setFilters(fl as JsonObject[]);
-          }}
-        >
-          {t("sourceViews.filterAddNot")}
-        </button>
-      </div>
+      <SourceViewFiltersSection
+        filters={
+          (Array.isArray(value.filters) ? value.filters : []).filter(
+            (x): x is JsonObject => x !== null && typeof x === "object" && !Array.isArray(x)
+          )
+        }
+        onFiltersChange={setFilters}
+        fieldKey={fieldKey}
+      />
     </div>
   );
 }

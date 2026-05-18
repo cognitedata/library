@@ -15,6 +15,8 @@ export type DiscoveryPaletteStage =
   | "transform"
   | "join"
   | "validation"
+  | "instance_filter"
+  | "confidence_filter"
   | "inverted_index";
 
 export type PaletteDragPayload =
@@ -101,6 +103,8 @@ export function FlowPalette({ t, scopeDocument }: Props) {
   const validateButtons = (
     [
       ["validation", "flow.discoveryValidate", "flow.paletteTooltip.validate"],
+      ["confidence_filter", "flow.discoveryConfidenceFilter", "flow.paletteTooltip.confidenceFilter"],
+      ["instance_filter", "flow.discoveryInstanceFilter", "flow.paletteTooltip.instanceFilter"],
     ] as const
   ).map(([stage, labelKey, tooltipKey]) => (
     <button
@@ -151,7 +155,7 @@ export function FlowPalette({ t, scopeDocument }: Props) {
         >
           {t("flow.discoveryJoin")}
         </button>
-        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Validate</p>
+        <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Validate / filter</p>
         {validateButtons}
         <p className="kea-hint" style={{ width: "100%", margin: "0.35rem 0 0.1rem" }}>Save</p>
         {saveButtons}

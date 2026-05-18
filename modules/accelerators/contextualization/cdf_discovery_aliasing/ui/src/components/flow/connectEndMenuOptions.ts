@@ -16,7 +16,7 @@ export type ConnectEndMenuOption = {
 };
 
 export type ConnectEndMenuGroup = {
-  id: "query" | "transform" | "validate" | "save" | "structural" | "other";
+  id: "query" | "transform" | "validate" | "filter" | "save" | "structural" | "other";
   labelText: string;
   options: ConnectEndMenuOption[];
 };
@@ -31,6 +31,8 @@ const DISCOVERY_STAGES: readonly DiscoveryPaletteStage[] = [
   "transform",
   "join",
   "validation",
+  "instance_filter",
+  "confidence_filter",
   "inverted_index",
 ] as const;
 
@@ -44,6 +46,8 @@ const DISCOVERY_LABEL_KEYS: Record<DiscoveryPaletteStage, MessageKey> = {
   transform: "flow.discoveryTransform",
   join: "flow.discoveryJoin",
   validation: "flow.discoveryValidate",
+  instance_filter: "flow.discoveryInstanceFilter",
+  confidence_filter: "flow.discoveryConfidenceFilter",
   inverted_index: "flow.discoveryInvertedIndex",
 };
 
@@ -54,6 +58,8 @@ const DISCOVERY_STAGE_TOOLTIP_KEYS: Partial<Record<DiscoveryPaletteStage, Messag
   query_classic: "flow.paletteTooltip.queryClassic",
   join: "flow.paletteTooltip.join",
   validation: "flow.paletteTooltip.validate",
+  instance_filter: "flow.paletteTooltip.instanceFilter",
+  confidence_filter: "flow.paletteTooltip.confidenceFilter",
   save_view: "flow.paletteTooltip.saveView",
   save_raw: "flow.paletteTooltip.saveRaw",
   save_classic: "flow.paletteTooltip.saveClassic",
@@ -109,6 +115,7 @@ function groupIdForOptionPayload(payload: PaletteDragPayload): ConnectEndMenuGro
   }
   if (payload.stage === "transform" || payload.stage === "join") return "transform";
   if (payload.stage === "validation") return "validate";
+  if (payload.stage === "instance_filter" || payload.stage === "confidence_filter") return "filter";
   if (
     payload.stage === "save_view" ||
     payload.stage === "save_raw" ||
@@ -128,6 +135,8 @@ function groupLabel(id: ConnectEndMenuGroup["id"]): string {
       return "Transform";
     case "validate":
       return "Validate";
+    case "filter":
+      return "Filter";
     case "save":
       return "Save";
     case "structural":
@@ -150,7 +159,7 @@ export function connectEndMenuGroupedOptionsForSourceType(
     arr.push(opt);
     byGroup.set(gid, arr);
   }
-  const order: ConnectEndMenuGroup["id"][] = ["query", "transform", "validate", "save", "structural", "other"];
+  const order: ConnectEndMenuGroup["id"][] = ["query", "transform", "validate", "filter", "save", "structural", "other"];
   return order
     .map((gid) => {
       const options = byGroup.get(gid) ?? [];
@@ -245,10 +254,16 @@ export function connectEndMenuOptionsForSourceType(
     "keaTransform",
     "keaJoin",
     "keaDiscoveryValidate",
+    "keaDiscoveryInstanceFilter",
+    "keaDiscoveryConfidenceFilter",
   ]);
   if (sourceType && discoverySourceTypes.has(sourceType)) {
     const opts = discoveryOptionsWithoutQueries(`from-${sourceType.replace(/^kea/, "").toLowerCase()}`);
-    if (sourceType === "keaDiscoveryValidate") {
+    if (
+      sourceType === "keaDiscoveryValidate" ||
+      sourceType === "keaDiscoveryInstanceFilter" ||
+      sourceType === "keaDiscoveryConfidenceFilter"
+    ) {
       return opts.filter((o) => o.payload.kind !== "discovery" || o.payload.stage !== "transform");
     }
     return opts;

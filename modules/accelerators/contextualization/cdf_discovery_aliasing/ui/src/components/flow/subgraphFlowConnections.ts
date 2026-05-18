@@ -22,6 +22,8 @@ function isDiscoveryCohortSourceRfType(t: string | undefined): boolean {
     t === "keaTransform" ||
     t === "keaJoin" ||
     t === "keaDiscoveryValidate" ||
+    t === "keaDiscoveryInstanceFilter" ||
+    t === "keaDiscoveryConfidenceFilter" ||
     t === "keaInvertedIndex"
   );
 }
@@ -81,6 +83,8 @@ export function isValidDirectRfDataEdgeSourceToTarget(
       st === "keaClassicQuery" ||
       st === "keaTransform" ||
       st === "keaDiscoveryValidate" ||
+      st === "keaDiscoveryInstanceFilter" ||
+      st === "keaDiscoveryConfidenceFilter" ||
       st === "keaJoin"
     );
   }
@@ -90,6 +94,8 @@ export function isValidDirectRfDataEdgeSourceToTarget(
       st === "keaExtraction" ||
       st === "keaAliasing" ||
       st === "keaDiscoveryValidate" ||
+      st === "keaDiscoveryInstanceFilter" ||
+      st === "keaDiscoveryConfidenceFilter" ||
       keaDiscoveryStageRfTypes.has(st) ||
       validationRuleLayoutRfTypes.has(st) ||
       isAliasPersistenceLayoutRfType(st) ||
@@ -105,12 +111,20 @@ export function isValidDirectRfDataEdgeSourceToTarget(
       st === "keaClassicQuery" ||
       st === "keaTransform" ||
       st === "keaJoin" ||
-      st === "keaDiscoveryValidate"
+      st === "keaDiscoveryValidate" ||
+      st === "keaDiscoveryInstanceFilter" ||
+      st === "keaDiscoveryConfidenceFilter"
     );
   }
 
   if (isAliasPersistenceLayoutRfType(tt)) {
-    return st === "keaAliasing" || st === "keaDiscoveryValidate" || st === "keaExtraction";
+    return (
+      st === "keaAliasing" ||
+      st === "keaDiscoveryValidate" ||
+      st === "keaDiscoveryInstanceFilter" ||
+      st === "keaDiscoveryConfidenceFilter" ||
+      st === "keaExtraction"
+    );
   }
 
   if (st === "keaStart") {
@@ -139,7 +153,13 @@ export function isValidDirectRfDataEdgeSourceToTarget(
   }
 
   if (validationRuleLayoutRfTypes.has(tt)) {
-    if (st === "keaExtraction" || st === "keaAliasing" || st === "keaDiscoveryValidate") {
+    if (
+      st === "keaExtraction" ||
+      st === "keaAliasing" ||
+      st === "keaDiscoveryValidate" ||
+      st === "keaDiscoveryInstanceFilter" ||
+      st === "keaDiscoveryConfidenceFilter"
+    ) {
       return true;
     }
     return validationRuleLayoutRfTypes.has(st);
@@ -150,7 +170,14 @@ export function isValidDirectRfDataEdgeSourceToTarget(
   }
 
   /** Discovery validate output is not a cohort input for transform (query / join / transform chain only). */
-  if (tt === "keaTransform" && st === "keaDiscoveryValidate") return false;
+  if (
+    tt === "keaTransform" &&
+    (st === "keaDiscoveryValidate" ||
+      st === "keaDiscoveryInstanceFilter" ||
+      st === "keaDiscoveryConfidenceFilter")
+  ) {
+    return false;
+  }
 
   return true;
 }

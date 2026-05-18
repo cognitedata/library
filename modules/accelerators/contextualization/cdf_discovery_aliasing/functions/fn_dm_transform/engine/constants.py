@@ -18,6 +18,7 @@ ELT_TRANSFORM_HANDLERS = frozenset(
         "coerce_scalar",
         "default_if_empty",
         "split_string",
+        "split_join",
         "parse_json_extract",
         "format_datetime",
         "hash_stable",

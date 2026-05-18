@@ -36,7 +36,9 @@ from .discovery_query_shared import (
 from .incremental_scope import iter_inter_node_raw_rows_for_filter_run
 from .raw_upload import RawRowsUploadQueue
 from .save_merge import (
+    FieldPolicy,
     SAVE_FAN_IN_MERGE,
+    STRATEGY_MERGE_LIST,
     build_merged_props_for_instance,
     filter_props_internal,
     parse_field_policies,
@@ -54,22 +56,87 @@ _INTERNAL_PROP_KEYS = frozenset(
     }
 )
 
+# CDM list properties that must not be sent as CSV strings or empty scalars.
+_DEFAULT_DM_LIST_PROPERTIES = frozenset({"aliases"})
+
+
+def _list_property_names_for_view_apply(
+    policy_map: Mapping[str, FieldPolicy],
+) -> frozenset[str]:
+    names = set(_DEFAULT_DM_LIST_PROPERTIES)
+    for prop, pol in policy_map.items():
+        if pol.strategy == STRATEGY_MERGE_LIST:
+            names.add(prop)
+    return frozenset(names)
+
+
+def _dedupe_strings_preserve_order(items: List[str]) -> List[str]:
+    seen: set[str] = set()
+    out: List[str] = []
+    for s in items:
+        if s in seen:
+            continue
+        seen.add(s)
+        out.append(s)
+    return out
+
+
+def _coerce_dm_list_property_value(value: Any) -> Optional[List[str]]:
+    """Normalize a cohort value to ``list[str]`` for DM list properties; ``None`` to skip."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        out = _dedupe_strings_preserve_order([str(x).strip() for x in value if str(x).strip()])
+        return out or None
+    if isinstance(value, dict) and "value" in value:
+        s = str(value.get("value") or "").strip()
+        return [s] if s else None
+    s = str(value).strip()
+    if not s:
+        return None
+    if "," in s:
+        parts = _dedupe_strings_preserve_order([p.strip() for p in s.split(",") if p.strip()])
+        return parts or None
+    return [s]
+
+
+def _prepare_view_apply_properties(
+    props: Mapping[str, Any],
+    *,
+    list_properties: frozenset[str],
+) -> Optional[Dict[str, Any]]:
+    out: Dict[str, Any] = {}
+    for key, val in props.items():
+        if key in list_properties:
+            coerced = _coerce_dm_list_property_value(val)
+            if coerced is None:
+                continue
+            out[key] = coerced
+        elif val is None or val == "":
+            continue
+        else:
+            out[key] = val
+    return out or None
+
 
 def _instance_space_and_external_id(
     cols: Mapping[str, Any],
     *,
     cfg: Mapping[str, Any],
     data: Mapping[str, Any],
+    props: Optional[Mapping[str, Any]] = None,
 ) -> Tuple[str, str]:
     ext_id = _first_nonempty(cols.get(EXTERNAL_ID_COLUMN))
     cfg_space = _first_nonempty(cfg.get("instance_space"), data.get("instance_space"))
+    props_space = _first_nonempty(props.get("instance_space") if isinstance(props, Mapping) else None)
     nid = str(cols.get(NODE_INSTANCE_ID_COLUMN) or "").strip()
     if nid and ":" in nid:
         head, tail = nid.split(":", 1)
+        head = head.strip()
         tail = tail.strip()
-        if _UUID_RE.match(tail):
-            return _first_nonempty(cfg_space, head), ext_id
-    return cfg_space, ext_id
+        if head and (_UUID_RE.match(tail) or not cfg_space):
+            return _first_nonempty(cfg_space, props_space, head), ext_id
+    return _first_nonempty(cfg_space, props_space), ext_id
 
 
 def _classic_instance_key(cols: Mapping[str, Any]) -> Tuple[str, str]:
@@ -113,7 +180,9 @@ def _gather_view_rows_by_instance(
         Tuple[str, str], List[Tuple[Tuple[float, str, int], int, Mapping[str, Any]]]
     ] = defaultdict(list)
     for pred_index, cols, props in rows:
-        inst_space, ext_id = _instance_space_and_external_id(cols, cfg=cfg, data=data)
+        inst_space, ext_id = _instance_space_and_external_id(
+            cols, cfg=cfg, data=data, props=props
+        )
         if not ext_id or not inst_space:
             continue
         sc = score_cohort_row(cols, pred_index)
@@ -145,7 +214,11 @@ def discovery_apply_view_save(
     log: Any,
 ) -> Dict[str, Any]:
     merge_compiled_task_into_data(data)
-    cfg = resolve_task_config(data)
+    cfg = dict(resolve_task_config(data))
+    inst_space_cfg = _first_nonempty(cfg.get("instance_space"), data.get("instance_space"))
+    if inst_space_cfg:
+        cfg["instance_space"] = inst_space_cfg
+        data["instance_space"] = inst_space_cfg
     validate_save_config(cfg, save_kind="view")
 
     view_space = _first_nonempty(cfg.get("view_space"), "cdf_cdm")
@@ -161,6 +234,7 @@ def discovery_apply_view_save(
     dry_run = bool(data.get("dry_run") or cfg.get("dry_run"))
     fan_mode = str(cfg.get("save_fan_in_mode") or "").strip()
     policy_map = parse_field_policies(cfg)
+    list_properties = _list_property_names_for_view_apply(policy_map)
 
     pred_locations = iter_predecessor_raw_locations(data, task_id)
     rows_read = 0
@@ -174,14 +248,18 @@ def discovery_apply_view_save(
 
     def emit_apply(inst_space: str, ext_id: str, props: Mapping[str, Any]) -> None:
         nonlocal instances_applied, skipped, batch
-        if not props:
+        prepared = _prepare_view_apply_properties(
+            props,
+            list_properties=list_properties,
+        )
+        if not prepared:
             skipped += 1
             return
         batch.append(
             NodeApply(
                 space=inst_space,
                 external_id=ext_id,
-                sources=[NodeOrEdgeData(view_id, dict(props))],
+                sources=[NodeOrEdgeData(view_id, prepared)],
             )
         )
         if len(batch) >= batch_size:
@@ -197,7 +275,9 @@ def discovery_apply_view_save(
             emit_apply(inst_space, ext_id, merged)
     else:
         for _pred_index, cols, props in all_rows:
-            inst_space, ext_id = _instance_space_and_external_id(cols, cfg=cfg, data=data)
+            inst_space, ext_id = _instance_space_and_external_id(
+                cols, cfg=cfg, data=data, props=props
+            )
             if not ext_id or not inst_space:
                 skipped += 1
                 continue
@@ -302,7 +382,9 @@ def discovery_replicate_raw_save(
         grouped: Dict[Tuple[str, str], List[Tuple[Tuple[float, str, int], int, Mapping[str, Any]]]] = {}
         cols_by_key: Dict[Tuple[str, str], Dict[str, Any]] = {}
         for pred_index, cols, props in all_rows:
-            inst_space, ext_id = _instance_space_and_external_id(cols, cfg=cfg, data=data)
+            inst_space, ext_id = _instance_space_and_external_id(
+                cols, cfg=cfg, data=data, props=props
+            )
             if not ext_id or not inst_space:
                 continue
             key = (inst_space, ext_id)
@@ -315,7 +397,9 @@ def discovery_replicate_raw_save(
             flush_one(cols, merged)
     else:
         for pred_index, cols, props in all_rows:
-            inst_space, ext_id = _instance_space_and_external_id(cols, cfg=cfg, data=data)
+            inst_space, ext_id = _instance_space_and_external_id(
+                cols, cfg=cfg, data=data, props=props
+            )
             if not ext_id or not inst_space:
                 continue
             scored = [(score_cohort_row(cols, pred_index), pred_index, props)]

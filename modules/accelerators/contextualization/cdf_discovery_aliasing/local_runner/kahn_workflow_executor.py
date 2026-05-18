@@ -20,6 +20,7 @@ from cdf_fn_common.workflow_execution_graph import (
 )
 
 from .kahn_run_context import KahnRunContext
+from .raw_results_attachment import snapshot_raw_results_for_ctx
 from .ui_progress import emit_ui_progress
 
 _DISCOVERY_PIPELINES: Dict[str, Tuple[str, str]] = discovery_local_pipeline_specs()
@@ -248,6 +249,8 @@ def _dispatch_task(ctx: KahnRunContext, task_id: str, merge_lock: Lock) -> None:
         raise RuntimeError(
             f"Unsupported function_external_id for local runner: {fn_ext!r} (task {task_id!r})"
         ) from ex
+    if fn_ext == "fn_dm_discovery_raw_cleanup":
+        snapshot_raw_results_for_ctx(ctx)
     _discovery_branch(ctx, task_id, merge_lock, spec)
 
 

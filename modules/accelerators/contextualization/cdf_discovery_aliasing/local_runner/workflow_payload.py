@@ -12,6 +12,7 @@ from cdf_fn_common.workflow_associations import (
     KIND_SOURCE_VIEW_TO_EXTRACTION,
     coerce_association_source_view_index,
 )
+from cdf_fn_common.scope_document_dm import resolve_instance_space_from_canvas_configuration
 from cdf_fn_common.workflow_compile.canvas_dag import compiled_workflow_for_scope_document
 from cdf_fn_common.scope_canvas_merge import normalize_root_graph_into_canvas
 
@@ -142,6 +143,7 @@ def compiled_workflow_for_local_run(doc: Dict[str, Any]) -> Dict[str, Any]:
 def workflow_instance_space_for_local(
     source_views: List[Dict[str, Any]],
     cli_instance_space: Optional[str],
+    scope_document: Optional[Mapping[str, Any]] = None,
 ) -> str:
     """Single ``instance_space`` string for local task payloads (optional override for functions).
 
@@ -174,4 +176,8 @@ def workflow_instance_space_for_local(
             elif op == "IN" and isinstance(vals, list) and len(vals) == 1:
                 if vals[0] is not None:
                     return str(vals[0]).strip()
+    if scope_document is not None:
+        from_canvas = resolve_instance_space_from_canvas_configuration(scope_document)
+        if from_canvas:
+            return from_canvas
     return ""

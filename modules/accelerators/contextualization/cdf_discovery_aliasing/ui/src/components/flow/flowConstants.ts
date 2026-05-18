@@ -35,6 +35,8 @@ export const keaDiscoveryStageRfTypes = new Set<string>([
   "keaTransform",
   "keaJoin",
   "keaDiscoveryValidate",
+  "keaDiscoveryInstanceFilter",
+  "keaDiscoveryConfidenceFilter",
 ]);
 
 /** Nodes whose React Flow card exposes a ``validation`` source handle for match-definition layout wiring. */

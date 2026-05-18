@@ -24,7 +24,7 @@ STRATEGY_MERGE_LIST = "merge_list"
 
 @dataclass(frozen=True)
 class MergeListOptions:
-    unique: bool = False
+    unique: bool = True
     branch_order: str = "by_score"  # by_score | by_dependency
 
 
@@ -104,7 +104,7 @@ def parse_field_policies(cfg: Mapping[str, Any]) -> Dict[str, FieldPolicy]:
         strat = _first_nonempty_str(entry.get("strategy")) or STRATEGY_TIE_BREAK
         ml_raw = entry.get("merge_list") if isinstance(entry.get("merge_list"), dict) else {}
         ml = MergeListOptions(
-            unique=bool(ml_raw.get("unique")),
+            unique=bool(ml_raw["unique"]) if "unique" in ml_raw else True,
             branch_order=_first_nonempty_str(ml_raw.get("branch_order")) or "by_score",
         )
         out[prop] = FieldPolicy(property_name=prop, strategy=strat, merge_list=ml)
@@ -130,6 +130,52 @@ def _segment_string_for_merge_list(v: Any) -> Optional[str]:
     if isinstance(v, dict):
         return json.dumps(v, sort_keys=True)
     return str(v)
+
+
+def _tokens_from_property_value(value: Any) -> List[str]:
+    """Extract string tokens from a cohort property value (list, scored object, or scalar)."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        out: List[str] = []
+        for item in value:
+            if isinstance(item, dict):
+                raw = item.get("value")
+                s = str(raw).strip() if raw is not None else ""
+            else:
+                s = str(item).strip()
+            if s:
+                out.append(s)
+        return out
+    if isinstance(value, dict) and "value" in value:
+        s = str(value.get("value") or "").strip()
+        return [s] if s else []
+    s = str(value).strip()
+    return [s] if s else []
+
+
+def merge_list_property_values_list(
+    rows_props_ordered: Sequence[Mapping[str, Any]],
+    property_name: str,
+    *,
+    unique: bool,
+) -> Optional[List[str]]:
+    """Merge list-valued property across rows (branch order already applied)."""
+    items: List[str] = []
+    for props in rows_props_ordered:
+        if not isinstance(props, Mapping):
+            continue
+        items.extend(_tokens_from_property_value(props.get(property_name)))
+    if unique and items:
+        seen: set[str] = set()
+        deduped: List[str] = []
+        for s in items:
+            if s in seen:
+                continue
+            seen.add(s)
+            deduped.append(s)
+        items = deduped
+    return items if items else None
 
 
 def merge_list_property_value(
@@ -189,6 +235,32 @@ def build_merged_props_for_instance(
     winner_order = sort_by_score(list(rows_scored))
     winner_props = dict(winner_order[0][2])
     out: Dict[str, Any] = {}
+    policies_only = bool(policy_map)
+
+    if policies_only:
+        for prop, pol in policy_map.items():
+            if pol.strategy == STRATEGY_TIE_BREAK:
+                if prop in winner_props:
+                    out[prop] = winner_props[prop]
+                continue
+            if pol.strategy != STRATEGY_MERGE_LIST:
+                continue
+            ordered = (
+                sort_by_dependency(rows_scored)
+                if pol.merge_list.branch_order == "by_dependency"
+                else sort_by_score(list(rows_scored))
+            )
+            order_props = [props for _, _, props in ordered]
+            merged_list = merge_list_property_values_list(
+                order_props,
+                prop,
+                unique=pol.merge_list.unique,
+            )
+            if merged_list is not None:
+                out[prop] = merged_list
+            elif prop in winner_props:
+                out[prop] = winner_props[prop]
+        return out
 
     for k, v in winner_props.items():
         pol = policy_map.get(k)
@@ -204,13 +276,13 @@ def build_merged_props_for_instance(
             else sort_by_score(list(rows_scored))
         )
         order_props = [props for _, _, props in ordered]
-        merged = merge_list_property_value(
+        merged_list = merge_list_property_values_list(
             order_props,
             prop,
             unique=pol.merge_list.unique,
         )
-        if merged is not None:
-            out[prop] = merged
+        if merged_list is not None:
+            out[prop] = merged_list
         elif prop in winner_props:
             out[prop] = winner_props[prop]
 

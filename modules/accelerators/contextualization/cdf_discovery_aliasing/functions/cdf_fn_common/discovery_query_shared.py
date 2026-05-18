@@ -1,12 +1,13 @@
 """Shared discovery query utilities: task config, RAW sink resolution, cohort row shape, flush.
 
-Cohort rows use a dedicated RAW column ``CONFIDENCE`` (JSON array of floats, parallel to
-``discoveredKey`` string list) so scores are not only embedded in ``PROPERTIES_JSON``.
+Cohort rows use a dedicated RAW column ``CONFIDENCE`` (JSON array of floats, parallel to the
+task ``value_field`` list) so ``{value_field}_confidence`` is not stored in ``PROPERTIES_JSON``.
 """
 
 from __future__ import annotations
 
 import json
+import secrets
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple
 
@@ -24,6 +25,7 @@ from .incremental_scope import (
     WORKFLOW_STATUS_UPDATED_AT_COLUMN,
     cohort_row_key,
 )
+from .confidence_property import confidence_property_key
 from .raw_upload import RawRowsUploadQueue
 
 QUERY_SOURCE_COLUMN = "QUERY_SOURCE"
@@ -39,8 +41,20 @@ DEFAULT_RAW_DB = "db_discovery"
 DEFAULT_RAW_TABLE = "discovery_state"
 
 
+def new_pipeline_run_id() -> str:
+    """
+    Generate a unique workflow run id for cohort RAW keys and ``RUN_ID`` columns.
+
+    Format: ``{utc_timestamp}Z-{random_hex}`` (e.g. ``20260516T125807.080874Z-a1b2c3d4e5f6``).
+    The UTC prefix preserves rough chronological ordering; the suffix avoids collisions when
+    multiple workflow instances start in the same microsecond.
+    """
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%f")
+    return f"{ts}Z-{secrets.token_hex(6)}"
+
+
 def _utc_run_id() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    return new_pipeline_run_id()
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -97,6 +111,48 @@ def resolve_query_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
     return raw_db, raw_table
 
 
+def resolve_inverted_index_sink(data: Mapping[str, Any]) -> Tuple[str, str]:
+    """Return ``(raw_db, inverted_index_raw_table)`` for ``fn_dm_inverted_index`` writes."""
+    from .inverted_index_naming import inverted_index_raw_table_from_key_extraction_table
+
+    persistence = _as_dict(data.get("persistence"))
+    cfg = resolve_task_config(data)
+    configuration = _as_dict(data.get("configuration"))
+    ke_params = _as_dict(
+        _as_dict(_as_dict(configuration.get("key_extraction")).get("config")).get("parameters")
+    )
+    source_table = _first_nonempty(
+        persistence.get("raw_table_key"),
+        persistence.get("raw_table"),
+        persistence.get("sink_raw_table"),
+        cfg.get("source_raw_table_key"),
+        cfg.get("raw_table_key"),
+        cfg.get("raw_table"),
+        ke_params.get("raw_table_key"),
+        DEFAULT_RAW_TABLE,
+    )
+    default_inv = inverted_index_raw_table_from_key_extraction_table(str(source_table))
+    raw_db = _first_nonempty(
+        persistence.get("raw_db"),
+        persistence.get("sink_raw_db"),
+        persistence.get("inverted_index_raw_db"),
+        cfg.get("raw_db"),
+        cfg.get("sink_raw_db"),
+        cfg.get("inverted_index_raw_db"),
+        ke_params.get("raw_db"),
+        DEFAULT_RAW_DB,
+    )
+    raw_table = _first_nonempty(
+        persistence.get("inverted_index_raw_table"),
+        persistence.get("inverted_index_raw_table_key"),
+        cfg.get("inverted_index_raw_table"),
+        cfg.get("inverted_index_raw_table_key"),
+        ke_params.get("inverted_index_raw_table_key"),
+        default_inv,
+    )
+    return raw_db, raw_table
+
+
 def _serialize_confidence_column(conf: Any) -> Optional[str]:
     """Serialize per-key scores for the dedicated RAW ``CONFIDENCE`` column (JSON array string)."""
     if conf is None:
@@ -120,18 +176,21 @@ def _serialize_confidence_column(conf: Any) -> Optional[str]:
 
 def split_properties_and_confidence_column(
     properties: Mapping[str, Any],
+    *,
+    value_field: str = "aliases",
 ) -> Tuple[Dict[str, Any], Optional[str]]:
     """
-    Remove confidence scores from the JSON blob and return them for ``CONFIDENCE``.
+    Remove ``{value_field}_confidence`` from the JSON blob and return scores for ``CONFIDENCE``.
 
-    Uses top-level ``confidence``, or derives floats from ``discoveredKey`` when it is a list
-    of ``{value, confidence}`` objects. Drops legacy ``aliases_confidence`` / ``discoveredKey_confidence``
-    keys so they are not persisted inside ``PROPERTIES_JSON``.
+    Also strips top-level ``confidence`` and any other ``*_confidence`` keys from props.
     """
     props = dict(properties)
-    props.pop("discoveredKey_confidence", None)
-    props.pop("aliases_confidence", None)
-    conf = props.pop("confidence", None)
+    props.pop("confidence", None)
+    score_key = confidence_property_key(value_field)
+    conf = props.pop(score_key, None)
+    for k in list(props.keys()):
+        if k.endswith("_confidence"):
+            props.pop(k, None)
     if conf is None:
         dk = props.get("discoveredKey")
         if isinstance(dk, list) and dk and isinstance(dk[0], dict):
@@ -179,12 +238,15 @@ def parse_confidence_column_value(raw: Any) -> Optional[List[float]]:
 
 
 def merge_confidence_column_into_properties(
-    cols: Mapping[str, Any], props: MutableMapping[str, Any]
+    cols: Mapping[str, Any],
+    props: MutableMapping[str, Any],
+    *,
+    value_field: str = "aliases",
 ) -> None:
-    """If ``CONFIDENCE`` is set on the RAW row, copy it into ``props`` as ``confidence``."""
+    """If ``CONFIDENCE`` is set on the RAW row, copy into ``props`` as ``{value_field}_confidence``."""
     lst = parse_confidence_column_value(cols.get(CONFIDENCE_COLUMN))
     if lst is not None:
-        props["confidence"] = lst
+        props[confidence_property_key(value_field)] = lst
 
 
 def build_entity_cohort_row(
@@ -202,8 +264,11 @@ def build_entity_cohort_row(
     properties: Mapping[str, Any],
     last_updated_ms: Optional[int] = None,
     extraction_inputs_hash: Optional[str] = None,
+    value_field: str = "aliases",
 ) -> Dict[str, Any]:
-    props_body, conf_cell = split_properties_and_confidence_column(properties)
+    props_body, conf_cell = split_properties_and_confidence_column(
+        properties, value_field=value_field
+    )
     cols: Dict[str, Any] = {
         RECORD_KIND_COLUMN: RECORD_KIND_ENTITY,
         WORKFLOW_STATUS_COLUMN: WORKFLOW_STATUS_DETECTED,

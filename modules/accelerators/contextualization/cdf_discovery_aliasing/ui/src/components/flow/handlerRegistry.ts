@@ -39,6 +39,7 @@ export const ELT_TRANSFORM_HANDLER_IDS = [
   "coerce_scalar",
   "default_if_empty",
   "split_string",
+  "split_join",
   "parse_json_extract",
   "format_datetime",
   "hash_stable",

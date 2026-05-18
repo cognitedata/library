@@ -39,6 +39,24 @@ Configuration files are located in:
 
 See `config/README.md` in the module for layout and CLI behavior (`module.py run` `--scope` / `--config-path`). **First local run:** [Quickstart](howto_quickstart.md). **`--instance-space`:** limits which `source_views` run — matches the view’s `instance_space` field **or** a filter entry with `property_scope: node`, `target_property: space`, and `EQUALS` / `IN` containing that space.
 
+### BREAKING: discovery canvas filters and confidence scores
+
+This release removes backward compatibility for older canvas and cohort shapes:
+
+| Before | After |
+|--------|--------|
+| Canvas `kind: filter` | **`instance_filter`** (compile fails on `filter`) |
+| Row filter only (`fn_dm_filter`) | **`confidence_filter`** (`fn_dm_confidence_filter`) for per-value pruning, then optional **`instance_filter`** |
+| Top-level `confidence` on cohort properties | **`{value_field}_confidence`** only (e.g. `aliases_confidence`, `discoveredKey_confidence`) |
+| UI type `keaDiscoveryFilter` | **`keaDiscoveryInstanceFilter`** and **`keaDiscoveryConfidenceFilter`** |
+
+**Recommended pipeline:** `validate → confidence_filter → instance_filter (optional) → save / inverted_index`.
+
+- **`confidence_filter`:** drops aligned values when `{value_field}_confidence[i]` fails `min_confidence` / `comparison`; optional `drop_row_if_empty` (default `true`). Do not use instance-filter `GTE` on `confidence` or `aliases_confidence` for pruning.
+- **`instance_filter`:** same CDF filter DSL as view query — row include/exclude only (`EXISTS`, `and` / `or`, etc.).
+
+Re-run discovery pipelines for RAW cohort rows that still store scores only under top-level `confidence` in `PROPERTIES_JSON`.
+
 ### Default CDM scope
 
 **Authoring file (local default):** `workflow.local.config.yaml` at module root; **CDF template:** `workflow_template/workflow.template.config.yaml`.

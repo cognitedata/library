@@ -20,10 +20,10 @@ from cdf_fn_common.discovery_query_shared import (
 )
 from cdf_fn_common.discovery_validate import (
     _initial_confidence,
-    _min_confidence,
     _normalize_field_values,
     _parse_validate_fields,
     materialize_validation_rules,
+    validate_primary_value_field,
     validate_row_properties,
     validate_validation_config,
 )
@@ -44,6 +44,7 @@ def discovery_handle_validate(
         raise ValueError("validation task requires non-empty config")
     validate_validation_config(cfg)
     rules_raw = materialize_validation_rules(cfg)
+    value_field = validate_primary_value_field(cfg)
 
     if not bool(cfg.get("enabled", True)):
         return {
@@ -99,6 +100,7 @@ def discovery_handle_validate(
                     task_id=task_id,
                     properties=out_props,
                     query_source="validate",
+                    value_field=value_field,
                 )
             )
             rows_written += 1
@@ -125,7 +127,7 @@ def discovery_handle_validate(
         "rows_written": rows_written,
         "values_scored": values_scored,
         "rules_applied": len(rules_raw),
-        "min_confidence": _min_confidence(cfg),
+        "confidence_column": True,
         "run_id": run_id,
         "raw_db": sink_db,
         "raw_table": sink_table,

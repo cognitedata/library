@@ -70,30 +70,72 @@ def _space_from_filter_values(vals: Any) -> Optional[str]:
     return s or None
 
 
+def resolve_instance_space_from_view_config(view: Mapping[str, Any]) -> Optional[str]:
+    """Infer instance space from one view dict (``instance_space`` or single-value node ``space`` filter)."""
+    if not isinstance(view, dict):
+        return None
+    ins = view.get("instance_space")
+    if isinstance(ins, str) and ins.strip():
+        return ins.strip()
+    for f in view.get("filters") or []:
+        if not isinstance(f, dict):
+            continue
+        if str(f.get("property_scope", "view")).lower() != "node":
+            continue
+        if f.get("target_property") != "space":
+            continue
+        op = str(f.get("operator", "")).upper()
+        vals = f.get("values")
+        if op == "EQUALS":
+            s = _space_from_filter_values(vals)
+            if s:
+                return s
+        if op == "IN" and isinstance(vals, list) and len(vals) == 1:
+            s = _space_from_filter_values(vals)
+            if s:
+                return s
+    return None
+
+
+def resolve_instance_space_from_canvas_configuration(doc: Mapping[str, Any]) -> str:
+    """
+    Infer instance space from executable canvas ``query_view`` / ``save_view`` node configs.
+
+    Returns empty string when no node yields a concrete space (canvas-only scopes).
+    """
+    canvas = doc.get("canvas")
+    if not isinstance(canvas, dict):
+        return ""
+    nodes = canvas.get("nodes")
+    if not isinstance(nodes, list):
+        return ""
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        kind = str(n.get("kind") or "").strip()
+        if kind not in ("query_view", "save_view"):
+            continue
+        data = n.get("data")
+        if not isinstance(data, dict):
+            continue
+        cfg = data.get("config")
+        if not isinstance(cfg, dict):
+            continue
+        space = resolve_instance_space_from_view_config(cfg)
+        if space:
+            return space
+    return ""
+
+
 def resolve_instance_space_from_scope_document(doc: Dict[str, Any]) -> str:
     """Infer DM instance space from top-level ``source_views`` (field or node space filter)."""
     views = resolve_scope_document_source_views(doc)
     for v in views:
         if not isinstance(v, dict):
             continue
-        ins = v.get("instance_space")
-        if isinstance(ins, str) and ins.strip():
-            return ins.strip()
-        for f in v.get("filters") or []:
-            if str(f.get("property_scope", "view")).lower() != "node":
-                continue
-            if f.get("target_property") != "space":
-                continue
-            op = str(f.get("operator", "")).upper()
-            vals = f.get("values")
-            if op == "EQUALS":
-                s = _space_from_filter_values(vals)
-                if s:
-                    return s
-            if op == "IN" and isinstance(vals, list) and len(vals) == 1:
-                s = _space_from_filter_values(vals)
-                if s:
-                    return s
+        space = resolve_instance_space_from_view_config(v)
+        if space:
+            return space
     raise ValueError(
         "Cannot derive instance_space from configuration: set "
         "source_views[].instance_space or add a node "

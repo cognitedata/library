@@ -21,6 +21,7 @@ import { mergeScopeRootsForTriggerFlowSeed } from "./components/flow/seedCanvasF
 import { QueriesControls } from "./components/QueriesControls";
 import { TransformsControls } from "./components/TransformsControls";
 import { ValidationsControls } from "./components/ValidationsControls";
+import { FiltersControls } from "./components/FiltersControls";
 import { PersistenceControls } from "./components/PersistenceControls";
 import { RunResultsPanel } from "./components/RunResultsPanel";
 import { useAppSettings } from "./context/AppSettingsContext";
@@ -37,7 +38,7 @@ import { matchConfigSearch } from "./utils/configPanelSearch";
 
 type Tab = "scope" | "configure" | "build" | "artifacts";
 
-type ConfigSubTab = "queries" | "validations" | "transforms" | "persistence" | "flowCanvas";
+type ConfigSubTab = "queries" | "validations" | "filters" | "transforms" | "persistence" | "flowCanvas";
 
 /** Nested under Configure → Flow. */
 type FlowCanvasSubTab = "canvas" | "runPipeline" | "runResults";
@@ -1900,6 +1901,7 @@ export default function App() {
     { id: "queries", labelKey: "tabs.queries" },
     { id: "transforms", labelKey: "tabs.transforms" },
     { id: "validations", labelKey: "tabs.validations" },
+    { id: "filters", labelKey: "tabs.filters" },
     { id: "persistence", labelKey: "tabs.persistence" },
   ];
 
@@ -2424,6 +2426,17 @@ export default function App() {
                       <ValidationsControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
                     </div>
                   )}
+                  {configSubTab === "filters" && (
+                    <div
+                      style={
+                        configureEditsLocked
+                          ? { pointerEvents: "none", opacity: 0.65 }
+                          : undefined
+                      }
+                    >
+                      <FiltersControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
+                    </div>
+                  )}
                   {configSubTab === "persistence" && (
                     <div
                       style={
@@ -2757,6 +2770,17 @@ export default function App() {
                             }
                           >
                             <ValidationsControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
+                          </div>
+                        )}
+                        {configSubTab === "filters" && (
+                          <div
+                            style={
+                              configureEditsLocked
+                                ? { pointerEvents: "none", opacity: 0.65 }
+                                : undefined
+                            }
+                          >
+                            <FiltersControls canvas={configureCanvasDoc} onChange={patchConfigureCanvasDoc} />
                           </div>
                         )}
                         {configSubTab === "persistence" && (

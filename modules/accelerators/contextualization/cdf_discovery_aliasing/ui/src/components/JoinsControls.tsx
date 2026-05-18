@@ -12,13 +12,25 @@ type Props = {
   onChange: (next: WorkflowCanvasDocument) => void;
   initialNodeId?: string;
   t: TFn;
+  singleNode?: boolean;
 };
 
-export function JoinsControls({ canvas, onChange, initialNodeId, t }: Props) {
+export function JoinsControls({ canvas, onChange, initialNodeId, t, singleNode }: Props) {
   const joins = listJoinNodes(canvas);
-  const [selectedId, setSelectedId] = useState<string | null>(joins[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (singleNode && initialNodeId && joins.some((n) => n.id === initialNodeId)) {
+      return initialNodeId;
+    }
+    return joins[0]?.id ?? null;
+  });
 
   useEffect(() => {
+    if (singleNode) {
+      setSelectedId(
+        initialNodeId && joins.some((n) => n.id === initialNodeId) ? initialNodeId : null
+      );
+      return;
+    }
     if (joins.length === 0) {
       setSelectedId(null);
       return;
@@ -27,16 +39,33 @@ export function JoinsControls({ canvas, onChange, initialNodeId, t }: Props) {
       if (sel && joins.some((n) => n.id === sel)) return sel;
       return joins[0]?.id ?? null;
     });
-  }, [joins]);
+  }, [joins, singleNode, initialNodeId]);
 
   useEffect(() => {
-    if (!initialNodeId || joins.length === 0) return;
+    if (singleNode || !initialNodeId || joins.length === 0) return;
     if (joins.some((n) => n.id === initialNodeId)) {
       setSelectedId(initialNodeId);
     }
-  }, [initialNodeId, joins]);
+  }, [initialNodeId, joins, singleNode]);
 
   const selected = joins.find((n) => n.id === selectedId) ?? null;
+
+  if (singleNode) {
+    if (!selected) {
+      return (
+        <p className="kea-hint" style={{ marginTop: 0 }}>
+          {t("flow.nodeEditorFocusedNodeMissing")}
+        </p>
+      );
+    }
+    return (
+      <JoinNodeConfigFields
+        t={t}
+        value={readNodeConfig(selected)}
+        onChange={(cfg) => onChange(patchNodeConfig(canvas, selected.id, cfg))}
+      />
+    );
+  }
 
   return (
     <div className="kea-source-views">

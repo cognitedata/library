@@ -98,7 +98,16 @@ def test_compile_canvas_inverted_index_uses_discovery_predecessor_payload() -> N
         "nodes": [
             {"id": "vq", "kind": "query_view", "data": dict(_VQ_DATA)},
             {"id": "va", "kind": "validation", "data": {"config": {"description": "v1"}}},
-            {"id": "ii", "kind": "inverted_index", "data": {}},
+            {
+                "id": "ii",
+                "kind": "inverted_index",
+                "data": {
+                    "config": {
+                        "description": "Inverted index",
+                        "index_kinds": {"metadata": ["discoveredKey"]},
+                    }
+                },
+            },
         ],
         "edges": [
             {"source": "vq", "target": "va"},

@@ -7,6 +7,9 @@ Leaf entries use the module YAML shape: ``operator``, ``target_property``,
 ``property_scope`` (``view`` | ``node``), ``values`` (optional), optional ``negate``.
 ``RANGE`` also accepts ``gt``, ``gte``, ``lt``, ``lte`` at the leaf object root.
 
+Comparison operators ``GT`` / ``GTE`` / ``LT`` / ``LTE`` (aliases ``>``, ``>=``, ``<``, ``<=``)
+take a single threshold in ``values``.
+
 Example::
 
     filters:
@@ -52,11 +55,43 @@ def _filter_item_as_dict(item: Any) -> Dict[str, Any] | None:
     return None
 
 
-def _normalize_operator(raw: Any) -> str:
+_COMPARISON_OPERATORS = frozenset({"GT", "GTE", "LT", "LTE"})
+
+_OPERATOR_ALIASES: Dict[str, str] = {
+    ">": "GT",
+    ">=": "GTE",
+    "GE": "GTE",
+    "<": "LT",
+    "<=": "LTE",
+    "LE": "LTE",
+}
+
+
+def normalize_filter_operator(raw: Any) -> str:
+    """Normalize leaf ``operator`` to a canonical uppercase name."""
     if raw is None:
         return "EQUALS"
     val = getattr(raw, "value", raw)
-    return str(val or "EQUALS").strip().upper()
+    s = str(val or "EQUALS").strip()
+    if s in _OPERATOR_ALIASES:
+        return _OPERATOR_ALIASES[s]
+    op = s.upper()
+    if op in ("CONTAINS_ALL",):
+        return "CONTAINSALL"
+    if op in ("CONTAINS_ANY",):
+        return "CONTAINSANY"
+    return op
+
+
+def _normalize_operator(raw: Any) -> str:
+    return normalize_filter_operator(raw)
+
+
+def _comparison_threshold(values: Any) -> Any:
+    vals = _coerce_values_list(values)
+    if not vals:
+        raise ValueError("comparison operator requires a single value in values")
+    return vals[0]
 
 
 def _as_prop_ref(view_id: Any, target_property: str, property_scope: str) -> PropertyRef:
@@ -123,6 +158,14 @@ def _leaf_dict_to_dm(view_id: Any, d: dict[str, Any]) -> Filter:
         if pv is None or (isinstance(pv, str) and not pv.strip()):
             raise ValueError("PREFIX requires a single non-empty value")
         filt = dm.filters.Prefix(property=prop_ref, value=pv)
+    elif op == "GT":
+        filt = dm.filters.Range(property=prop_ref, gt=_comparison_threshold(values))
+    elif op == "GTE":
+        filt = dm.filters.Range(property=prop_ref, gte=_comparison_threshold(values))
+    elif op == "LT":
+        filt = dm.filters.Range(property=prop_ref, lt=_comparison_threshold(values))
+    elif op == "LTE":
+        filt = dm.filters.Range(property=prop_ref, lte=_comparison_threshold(values))
     elif op == "RANGE":
         gt = d.get("gt")
         gte = d.get("gte")

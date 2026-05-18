@@ -15,14 +15,26 @@ type Props = {
   canvas: WorkflowCanvasDocument;
   onChange: (next: WorkflowCanvasDocument) => void;
   initialNodeId?: string;
+  singleNode?: boolean;
 };
 
-export function TransformsControls({ canvas, onChange, initialNodeId }: Props) {
+export function TransformsControls({ canvas, onChange, initialNodeId, singleNode }: Props) {
   const { t } = useAppSettings();
   const transforms = listTransformNodes(canvas);
-  const [selectedId, setSelectedId] = useState<string | null>(transforms[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (singleNode && initialNodeId && transforms.some((n) => n.id === initialNodeId)) {
+      return initialNodeId;
+    }
+    return transforms[0]?.id ?? null;
+  });
 
   useEffect(() => {
+    if (singleNode) {
+      setSelectedId(
+        initialNodeId && transforms.some((n) => n.id === initialNodeId) ? initialNodeId : null
+      );
+      return;
+    }
     if (transforms.length === 0) {
       setSelectedId(null);
       return;
@@ -31,16 +43,44 @@ export function TransformsControls({ canvas, onChange, initialNodeId }: Props) {
       if (sel && transforms.some((n) => n.id === sel)) return sel;
       return transforms[0]?.id ?? null;
     });
-  }, [transforms]);
+  }, [transforms, singleNode, initialNodeId]);
 
   useEffect(() => {
-    if (!initialNodeId || transforms.length === 0) return;
+    if (singleNode || !initialNodeId || transforms.length === 0) return;
     if (transforms.some((n) => n.id === initialNodeId)) {
       setSelectedId(initialNodeId);
     }
-  }, [initialNodeId, transforms]);
+  }, [initialNodeId, transforms, singleNode]);
 
   const selected = transforms.find((n) => n.id === selectedId) ?? null;
+
+  if (singleNode) {
+    if (!selected) {
+      return (
+        <p className="kea-hint" style={{ marginTop: 0 }}>
+          {t("flow.nodeEditorFocusedNodeMissing")}
+        </p>
+      );
+    }
+    return (
+      <TransformNodeConfigFields
+        value={readTransformConfig(selected)}
+        handlerLocked={isHandlerTypedTransformNode(selected)}
+        onChange={(cfg) =>
+          onChange(
+            patchTransformNode(
+              canvas,
+              selected.id,
+              cfg,
+              isHandlerTypedTransformNode(selected)
+                ? readTransformHandlerId(selected)
+                : String(cfg.handler_id ?? cfg.handler ?? "").trim() || undefined
+            )
+          )
+        }
+      />
+    );
+  }
 
   return (
     <div className="kea-source-views">

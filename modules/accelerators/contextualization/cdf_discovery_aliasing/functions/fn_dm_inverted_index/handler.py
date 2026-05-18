@@ -1,4 +1,4 @@
-"""CDF handler: inverted index from discovery predecessor task outputs (stub)."""
+"""CDF handler: inverted index from discovery predecessor cohort payloads."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ except ImportError:
     CogniteClient = None  # type: ignore[misc, assignment]
 
 from cdf_fn_common.function_logging import resolve_function_logger
-from fn_dm_inverted_index.engine.inverted_index import run_inverted_index_stub
+from fn_dm_inverted_index.engine.inverted_index import run_inverted_index
 
 
 def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]:
@@ -25,7 +25,7 @@ def handle(data: Dict[str, Any], client: CogniteClient = None) -> Dict[str, Any]
         log = resolve_function_logger(data, None)
         if not client:
             raise ValueError("CogniteClient is required")
-        return run_inverted_index_stub(data, client, log)
+        return run_inverted_index(data, client, log)
     except Exception as ex:
         message = f"fn_dm_inverted_index failed: {ex!s}"
         if log:

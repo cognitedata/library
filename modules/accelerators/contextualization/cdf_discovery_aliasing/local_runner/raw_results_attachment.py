@@ -140,6 +140,43 @@ def _fetch_rows_sample(
     return rows, truncated, err, examined, scan_truncated
 
 
+def snapshot_raw_results_for_ctx(ctx: Any) -> Optional[Dict[str, Any]]:
+    """
+    Build ``raw_results`` once while cohort rows still exist in RAW.
+
+    Called immediately before ``fn_dm_discovery_raw_cleanup`` so post-run sampling
+    does not see an empty table after ``delete_run_cohort_keys``.
+    """
+    if getattr(ctx, "raw_results_snapshot", None) is not None:
+        return ctx.raw_results_snapshot
+    args = getattr(ctx, "args", None)
+    row_limit = int(getattr(args, "raw_results_rows", 500) or 0) if args is not None else 0
+    max_tables = int(getattr(args, "raw_results_max_tables", 30) or 0) if args is not None else 0
+    client = getattr(ctx, "client", None)
+    if client is None or row_limit <= 0 or max_tables <= 0:
+        return None
+    _mrs = int(getattr(args, "raw_results_max_rows_scanned", 0) or 0) if args is not None else 0
+    task_outputs = getattr(ctx, "discovery_task_outputs", None) or {}
+    run_id = str(getattr(ctx, "run_id", "") or "").strip() or None
+    logger = getattr(ctx, "logger", None)
+    try:
+        bundle = build_raw_results_bundle(
+            client,
+            task_outputs,
+            row_limit=row_limit,
+            max_tables=max_tables,
+            logger=logger,
+            run_id=run_id,
+            max_raw_rows_scanned=_mrs if _mrs > 0 else None,
+        )
+    except Exception as exc:
+        if logger and hasattr(logger, "warning"):
+            logger.warning("Could not snapshot RAW results before cleanup: %s", exc)
+        return None
+    ctx.raw_results_snapshot = bundle
+    return bundle
+
+
 def build_raw_results_bundle(
     client: Any,
     task_outputs: Mapping[str, Any],

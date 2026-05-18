@@ -354,6 +354,52 @@ export function KeaJoinNode({ data, selected }: NodeProps) {
   );
 }
 
+/** Executable ``fn_dm_filter`` — row-level cohort filter DSL. */
+export function KeaDiscoveryInstanceFilterNode({ data, selected }: NodeProps) {
+  const d = (data ?? {}) as WorkflowCanvasNodeData;
+  const h = useDataHandles();
+  const inlineRow = d.config;
+  let summary: string | null = null;
+  if (inlineRow && typeof inlineRow === "object" && !Array.isArray(inlineRow)) {
+    const row = inlineRow as Record<string, unknown>;
+    const dsc = row.description != null ? String(row.description).trim() : "";
+    if (dsc) summary = dsc;
+  }
+  const meta = summary ?? "—";
+  return (
+    <div className={nodeClass(!!selected, "validation")} style={mergeNodeCardStyle(d)}>
+      <Handle type="target" position={h.in} id="in" style={{ zIndex: 5 }} />
+      <div className="kea-flow-node__badge">instance_filter</div>
+      <div className="kea-flow-node__title">{d.label || "Instance filter"}</div>
+      <div className="kea-flow-node__meta">{meta}</div>
+      <Handle type="source" position={h.out} id="out" style={{ zIndex: 5 }} />
+    </div>
+  );
+}
+
+/** Executable ``fn_dm_confidence_filter`` — prune values by ``{value_field}_confidence``. */
+export function KeaDiscoveryConfidenceFilterNode({ data, selected }: NodeProps) {
+  const d = (data ?? {}) as WorkflowCanvasNodeData;
+  const h = useDataHandles();
+  const inlineRow = d.config;
+  let summary: string | null = null;
+  if (inlineRow && typeof inlineRow === "object" && !Array.isArray(inlineRow)) {
+    const row = inlineRow as Record<string, unknown>;
+    const dsc = row.description != null ? String(row.description).trim() : "";
+    if (dsc) summary = dsc;
+  }
+  const meta = summary ?? "—";
+  return (
+    <div className={nodeClass(!!selected, "validation")} style={mergeNodeCardStyle(d)}>
+      <Handle type="target" position={h.in} id="in" style={{ zIndex: 5 }} />
+      <div className="kea-flow-node__badge">confidence_filter</div>
+      <div className="kea-flow-node__title">{d.label || "Confidence filter"}</div>
+      <div className="kea-flow-node__meta">{meta}</div>
+      <Handle type="source" position={h.out} id="out" style={{ zIndex: 5 }} />
+    </div>
+  );
+}
+
 /** Executable ``fn_dm_validate`` — data in / out (match-definition layout uses the same ``out`` as other stages). */
 export function KeaDiscoveryValidateNode({ data, selected }: NodeProps) {
   const d = (data ?? {}) as WorkflowCanvasNodeData;

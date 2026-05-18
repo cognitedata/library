@@ -48,6 +48,17 @@ def test_merge_list_unique_segments() -> None:
     assert out == "1,2"
 
 
+def test_parse_field_policies_merge_list_unique_defaults_true() -> None:
+    pol = parse_field_policies(
+        {
+            "save_field_policies": [
+                {"property": "aliases", "strategy": "merge_list", "merge_list": {}},
+            ]
+        }
+    )
+    assert pol["aliases"].merge_list.unique is True
+
+
 def test_build_merged_tie_break_and_merge_list() -> None:
     pol = parse_field_policies(
         {
@@ -63,5 +74,5 @@ def test_build_merged_tie_break_and_merge_list() -> None:
         ((3.0, "r1", 0), 0, winner_props),
     ]
     merged = build_merged_props_for_instance(scored, pol)
-    assert merged["name"] == "N1"
-    assert merged["aliases"] == "x,y"
+    assert "name" not in merged
+    assert merged["aliases"] == ["x", "y"]

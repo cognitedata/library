@@ -146,6 +146,12 @@ function FlowCanvasBody({
   onSyncScopeFromCanvasRef.current = onSyncScopeFromCanvas;
 
   const skipEmitRef = useRef(false);
+  const lastEmittedNodesKeyRef = useRef("");
+  const lastParentKeyRef = useRef("");
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
+  const handleOrientationRef = useRef(handleOrientation);
+  handleOrientationRef.current = handleOrientation;
   const latestInitialRef = useRef(initialDocument);
   latestInitialRef.current = initialDocument;
 
@@ -184,6 +190,8 @@ function FlowCanvasBody({
     flowHistory.reset(snap);
     setNodes(snap.nodes);
     setEdges(snap.edges);
+    lastEmittedNodesKeyRef.current = JSON.stringify(doc.nodes);
+    lastParentKeyRef.current = lastEmittedNodesKeyRef.current;
     skipEmitRef.current = true;
     const fitId = window.requestAnimationFrame(() => {
       fitView({ padding: 0.15, duration: 0 });
@@ -191,12 +199,30 @@ function FlowCanvasBody({
     return () => window.cancelAnimationFrame(fitId);
   }, [reloadNonce, setNodes, setEdges, setHandleOrientation, flowHistory.reset, fitView]);
 
+  /**
+   * Pull canvas edits made outside React Flow (Configure tab, YAML reload).
+   * Do not run when parent is merely stale after a local emit — that would revert in-flight edits.
+   */
+  useEffect(() => {
+    const parentKey = JSON.stringify(initialDocument.nodes);
+    if (parentKey === lastParentKeyRef.current) return;
+    lastParentKeyRef.current = parentKey;
+    if (parentKey === lastEmittedNodesKeyRef.current) return;
+
+    const ho = normalizeWorkflowCanvasHandleOrientation(initialDocument.handle_orientation);
+    skipEmitRef.current = true;
+    setNodes(canvasToFlowNodes(initialDocument.nodes));
+    setEdges(canvasToFlowEdges(initialDocument.edges));
+    if (ho !== handleOrientation) setHandleOrientation(ho);
+  }, [initialDocument, handleOrientation, setNodes, setEdges]);
+
   useEffect(() => {
     if (skipEmitRef.current) {
       skipEmitRef.current = false;
       return;
     }
     const doc = flowToCanvasDocument(nodes, edges, { handleOrientation });
+    lastEmittedNodesKeyRef.current = JSON.stringify(doc.nodes);
     onChangeRef.current(doc);
     onSyncScopeFromCanvasRef.current?.(doc);
   }, [nodes, edges, handleOrientation]);
@@ -221,10 +247,20 @@ function FlowCanvasBody({
     [nodes, edges, handleOrientation]
   );
 
+  type WorkflowCanvasPatch =
+    | WorkflowCanvasDocument
+    | ((prev: WorkflowCanvasDocument) => WorkflowCanvasDocument);
+
   const patchWorkflowCanvas = useCallback(
-    (next: WorkflowCanvasDocument) => {
-      setNodes(canvasToFlowNodes(next.nodes));
-      setEdges(canvasToFlowEdges(next.edges));
+    (patch: WorkflowCanvasPatch) => {
+      setNodes((nds) => {
+        const prev = flowToCanvasDocument(nds, edgesRef.current, {
+          handleOrientation: handleOrientationRef.current,
+        });
+        const next = typeof patch === "function" ? patch(prev) : patch;
+        setEdges(canvasToFlowEdges(next.edges));
+        return canvasToFlowNodes(next.nodes);
+      });
     },
     [setNodes, setEdges]
   );
@@ -1118,6 +1154,8 @@ function FlowCanvasBody({
                 selectedEdge={selectedEdge}
                 workflowDoc={workflowScopeDoc}
                 flowNodes={nodes}
+                workflowCanvas={workflowCanvas}
+                onPatchWorkflowCanvas={patchWorkflowCanvas}
                 onPatchWorkflowScope={onPatchWorkflowScope}
                 onPatchNode={patchNode}
                 onPatchEdge={patchEdge}

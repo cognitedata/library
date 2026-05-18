@@ -2224,6 +2224,11 @@ code {
   grid-template-columns: minmax(8.5rem, 0.34fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 
+/* Persistence / confidence filter leaf — property path + threshold */
+.kea-filter-row--persistence-leaf {
+  grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 8.5rem);
+}
+
 /* Match wiring step: handle + kind + target + remove */
 .kea-filter-row--match-ref-step {
   grid-template-columns: auto minmax(7.5rem, 0.3fr) minmax(0, 1fr) auto;
@@ -2257,7 +2262,8 @@ code {
 
 @media (max-width: 36rem) {
   .kea-filter-row--source-leaf,
-  .kea-filter-row--join-leaf {
+  .kea-filter-row--join-leaf,
+  .kea-filter-row--persistence-leaf {
     grid-template-columns: 1fr;
   }
 

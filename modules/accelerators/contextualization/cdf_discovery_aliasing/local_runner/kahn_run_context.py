@@ -6,7 +6,7 @@ from argparse import Namespace
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -35,3 +35,5 @@ class KahnRunContext:
     # One full RAW scan per (db, table) for extraction-input hash index (local runner only).
     raw_hash_index_lock: Lock = field(default_factory=Lock)
     raw_hash_index_cache: Dict[Tuple[str, str], Dict[str, Dict[str, str]]] = field(default_factory=dict)
+    # RAW row samples for ``*_local_run_report.json``; captured before ``fn_dm_discovery_raw_cleanup``.
+    raw_results_snapshot: Optional[Dict[str, Any]] = None

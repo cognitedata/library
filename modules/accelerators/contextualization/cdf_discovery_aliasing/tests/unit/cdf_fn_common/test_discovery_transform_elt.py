@@ -21,6 +21,7 @@ from cdf_fn_common.discovery_transform import (  # noqa: E402
     apply_heuristic_sampler,
     apply_mask_string,
     apply_parse_json_extract,
+    apply_split_join,
     apply_split_string,
     apply_static_lookup_map,
     apply_trim_whitespace,
@@ -50,6 +51,69 @@ def test_default_if_empty() -> None:
     assert apply_default_if_empty("", {"literal": "N/A"}) == "N/A"
     assert apply_default_if_empty("ok", {"literal": "N/A"}) == "ok"
     assert apply_default_if_empty("", {"field": "name"}, props={"name": "fallback"}) == "fallback"
+
+
+def test_split_join_template_reassembles_tokens() -> None:
+    block = {"delimiter": "-", "trim": True, "template": "{3}-{4}"}
+    assert apply_split_join("TS-UNIT-A-FIC-1001-VALUE", block) == "FIC-1001"
+
+
+def test_split_join_indexes_and_join() -> None:
+    block = {"delimiter": "-", "indexes": [3, 4], "join": "-"}
+    assert apply_split_join("TS-UNIT-A-FIC-1001-VALUE", block) == "FIC-1001"
+
+
+def test_split_join_negative_index() -> None:
+    block = {"delimiter": "-", "template": "{-2}-{1}"}
+    assert apply_split_join("a-b-c-d-e", block) == "d-b"
+
+
+def test_split_join_row_transform() -> None:
+    cfg = {
+        "handler_id": "split_join",
+        "fields": [{"field_name": "externalId"}],
+        "output_template": "{externalId}",
+        "output_field": "discoveredKey",
+        "output_mode": "overwrite",
+        "split_join": {"delimiter": "-", "template": "{3}-{4}"},
+    }
+    rows = transform_row_properties(
+        {"externalId": "TS-UNIT-A-FIC-1001-VALUE"},
+        cfg,
+    )
+    assert rows[0]["discoveredKey"] == "FIC-1001"
+
+
+def test_validate_split_join_requires_template_or_indexes() -> None:
+    with pytest.raises(ValueError, match="template"):
+        validate_transform_config(_minimal_transform_cfg("split_join", {"delimiter": "-"}))
+
+
+def test_split_join_mixed_delimiters_via_delimiters_list() -> None:
+    block = {
+        "delimiters": [".", "/", "-", "_"],
+        "template": "{2}-{3}",
+    }
+    assert apply_split_join("PlantA.Unit1/FIC-101.PV", block) == "FIC-101"
+
+
+def test_split_join_mixed_delimiters_via_regex() -> None:
+    block = {"delimiter_regex": r"[./_-]+", "template": "{2}-{3}"}
+    assert apply_split_join("PlantA.Unit1/FIC-101.PV", block) == "FIC-101"
+
+
+def test_split_string_mixed_delimiters() -> None:
+    from cdf_fn_common.discovery_transform import apply_split_string
+
+    parts = apply_split_string("a.b/c-d", {"delimiters": [".", "/", "-"]})
+    assert parts == ["a", "b", "c", "d"]
+
+
+def test_validate_split_parts_rejects_bad_regex() -> None:
+    with pytest.raises(ValueError, match="delimiter_regex"):
+        validate_transform_config(
+            _minimal_transform_cfg("split_string", {"delimiter_regex": "[invalid"})
+        )
 
 
 def test_split_string_explode_rows() -> None:

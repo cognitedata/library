@@ -30,6 +30,85 @@ function readPatterns(block: Record<string, unknown>): { pattern: string; replac
   });
 }
 
+function readDelimitersList(block: Record<string, unknown>): string {
+  const raw = block.delimiters;
+  if (!Array.isArray(raw)) return "";
+  return raw.map((d) => String(d ?? "").trim()).filter(Boolean).join(", ");
+}
+
+function SplitDelimiterFields({
+  block,
+  patch,
+  t,
+  literalDefault,
+}: {
+  block: Record<string, unknown>;
+  patch: (p: Record<string, unknown>) => void;
+  t: TFn;
+  literalDefault: string;
+}) {
+  const delimitersRaw = readDelimitersList(block);
+  return (
+    <>
+      <label className="kea-label kea-label--block">
+        {t("transforms.elt.delimiterRegex")}
+        <input
+          className="kea-input"
+          style={{ marginTop: "0.35rem" }}
+          value={String(block.delimiter_regex ?? "")}
+          onChange={(e) =>
+            patch({
+              delimiter_regex: e.target.value.trim() || undefined,
+            })
+          }
+          placeholder="[./_-]+"
+          spellCheck={false}
+        />
+      </label>
+      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+        {t("transforms.elt.delimiterRegexHint")}
+      </p>
+      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("transforms.elt.delimitersList")}
+        <input
+          className="kea-input"
+          style={{ marginTop: "0.35rem" }}
+          value={delimitersRaw}
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            if (!raw) {
+              patch({ delimiters: undefined });
+              return;
+            }
+            const delimiters = raw
+              .split(/[,;]+/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            patch({ delimiters: delimiters.length ? delimiters : undefined });
+          }}
+          placeholder="., /, -, _"
+          spellCheck={false}
+        />
+      </label>
+      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+        {t("transforms.elt.delimitersListHint")}
+      </p>
+      <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+        {t("transforms.elt.delimiterLiteral")}
+        <input
+          className="kea-input"
+          style={{ marginTop: "0.35rem", width: "8rem" }}
+          value={String(block.delimiter ?? literalDefault)}
+          onChange={(e) => patch({ delimiter: e.target.value })}
+        />
+      </label>
+      <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+        {t("transforms.elt.splitDelimiterPrecedenceHint")}
+      </p>
+    </>
+  );
+}
+
 function readVariants(block: Record<string, unknown>): string[] {
   const raw = block.variants;
   if (!Array.isArray(raw)) return [];
@@ -306,18 +385,71 @@ export function TransformHandlerConfigFields({
     );
   }
 
-  if (handler === "split_string") {
+  if (handler === "split_join") {
+    const indexesRaw = Array.isArray(block.indexes) ? block.indexes.join(", ") : "";
     return (
       <div className="kea-handler-fields">
-        <label className="kea-label kea-label--block">
-          {t("transforms.elt.delimiter")}
+        <SplitDelimiterFields block={block} patch={patch} t={t} literalDefault="-" />
+        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+          {t("transforms.elt.splitJoinTemplate")}
+          <input
+            className="kea-input"
+            style={{ marginTop: "0.35rem" }}
+            value={String(block.template ?? "")}
+            onChange={(e) => patch({ template: e.target.value || undefined })}
+            placeholder="{3}-{4}"
+            spellCheck={false}
+          />
+        </label>
+        <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+          {t("transforms.elt.splitJoinTemplateHint")}
+        </p>
+        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+          {t("transforms.elt.splitJoinIndexes")}
+          <input
+            className="kea-input"
+            style={{ marginTop: "0.35rem" }}
+            value={indexesRaw}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              if (!raw) {
+                patch({ indexes: undefined });
+                return;
+              }
+              const indexes = raw
+                .split(/[,;\s]+/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((s) => Number(s))
+                .filter((n) => Number.isFinite(n));
+              patch({ indexes: indexes.length ? indexes : undefined });
+            }}
+            placeholder="3, 4"
+            spellCheck={false}
+          />
+        </label>
+        <label className="kea-label kea-label--block" style={{ marginTop: "0.5rem" }}>
+          {t("transforms.elt.splitJoinJoin")}
           <input
             className="kea-input"
             style={{ marginTop: "0.35rem", width: "8rem" }}
-            value={String(block.delimiter ?? ",")}
-            onChange={(e) => patch({ delimiter: e.target.value })}
+            value={String(block.join ?? "")}
+            onChange={(e) => patch({ join: e.target.value })}
+            placeholder="-"
+            spellCheck={false}
           />
         </label>
+        <p className="kea-hint" style={{ marginTop: "0.25rem" }}>
+          {t("transforms.elt.splitJoinIndexesHint")}
+        </p>
+      </div>
+    );
+  }
+
+  if (handler === "split_string") {
+    return (
+      <div className="kea-handler-fields">
+        <SplitDelimiterFields block={block} patch={patch} t={t} literalDefault="," />
         {onOutputMultiValueChange ? (
           <label className="kea-label kea-label--block" style={{ marginTop: "0.75rem" }}>
             {t("transforms.outputMultiValue")}

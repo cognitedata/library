@@ -22,6 +22,7 @@ from .discovery_query_shared import (
     VIEW_VERSION_COLUMN,
     build_entity_cohort_row,
     resolve_query_sink,
+    new_pipeline_run_id,
     resolve_run_id,
     resolve_task_config,
     _as_dict,

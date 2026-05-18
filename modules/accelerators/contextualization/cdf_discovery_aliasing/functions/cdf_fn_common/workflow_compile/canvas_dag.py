@@ -41,6 +41,8 @@ _KIND_FN: Dict[str, Tuple[str, str]] = {
     "transform": ("fn_dm_transform", "transform"),
     "join": ("fn_dm_join", "join"),
     "validation": ("fn_dm_validate", "validate"),
+    "instance_filter": ("fn_dm_filter", "instance_filter"),
+    "confidence_filter": ("fn_dm_confidence_filter", "confidence_filter"),
     "inverted_index": ("fn_dm_inverted_index", "inverted_index"),
     "discovery_raw_cleanup": ("fn_dm_discovery_raw_cleanup", "discovery_raw_cleanup"),
 }
@@ -69,6 +71,9 @@ _DISCOVERY_KINDS_WITH_CONFIG: FrozenSet[str] = frozenset(
         "transform",
         "join",
         "validation",
+        "instance_filter",
+        "confidence_filter",
+        "inverted_index",
         "save_view",
         "save_raw",
         "save_classic",
@@ -87,6 +92,8 @@ _JOIN_INPUT_SOURCE_KINDS: FrozenSet[str] = frozenset(
         "query_classic",
         "transform",
         "validation",
+        "instance_filter",
+        "confidence_filter",
         "join",
     }
 )
@@ -110,11 +117,21 @@ def discovery_stage_inline_nonempty(kind: str, value: Any) -> bool:
         )
     if kind in ("transform", "validation"):
         return bool(str(value.get("description") or "").strip())
+    if kind == "instance_filter":
+        if not bool(str(value.get("description") or "").strip()):
+            return False
+        fl = value.get("filters")
+        return isinstance(fl, list) and bool(fl)
+    if kind == "confidence_filter":
+        return bool(str(value.get("description") or "").strip())
     if kind == "join":
         if not str(value.get("description") or "").strip():
             return False
         jo = value.get("join_on")
         return isinstance(jo, dict) and bool(jo)
+    if kind == "inverted_index":
+        kinds = value.get("index_kinds")
+        return isinstance(kinds, dict) and bool(kinds)
     return False
 
 
@@ -634,6 +651,11 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
     executable_rows: List[Tuple[str, str, str, Mapping[str, Any]]] = []
     for nid, n in by_id.items():
         k = _kind(n)
+        if k == "filter":
+            raise CanvasCompileError(
+                f"canvas node id={nid!r}: kind 'filter' was renamed to 'instance_filter' "
+                "(use confidence_filter for per-alias score pruning)"
+            )
         if k not in _KIND_FN:
             continue
         _fn_ext, exec_kind = _KIND_FN[k]
@@ -645,7 +667,8 @@ def compile_canvas_dag(doc: Dict[str, Any]) -> Dict[str, Any]:
     if not executable_canvas_ids:
         raise CanvasCompileError(
             "canvas has no executable nodes (expected one of: save_view, save_raw, save_classic, "
-            "query_view, query_raw, query_classic, transform, join, validation, inverted_index, "
+            "query_view, query_raw, query_classic, transform, join, validation, instance_filter, "
+            "confidence_filter, inverted_index, "
             "discovery_raw_cleanup)"
         )
 

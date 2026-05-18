@@ -12,6 +12,7 @@ export const es: Messages = {
   "tabs.queries": "Vistas de origen",
   "tabs.transforms": "Transforms",
   "tabs.validations": "Validación",
+  "tabs.filters": "Filters",
   "tabs.persistence": "Persistencia",
   "tabs.flowCanvas": "Flujo",
   "tabs.runPipeline": "Consola",
@@ -215,6 +216,7 @@ export const es: Messages = {
   "sourceViews.filterTargetProperty": "Propiedad objetivo",
   "sourceViews.filterPropertyScope": "Ámbito de la propiedad",
   "sourceViews.filterValues": "Valores (separados por comas o un solo valor)",
+  "sourceViews.filterComparisonValue": "Threshold value",
   "sourceViews.cdfReloadSpaces": "Recargar espacios",
   "sourceViews.cdfReloadDataModels": "Recargar modelos de datos",
   "sourceViews.cdfPickDataModel": "Modelo de datos (CDF)",
@@ -325,7 +327,10 @@ export const es: Messages = {
   "transforms.handlerDoc.change_case": "Convert working string to upper, lower, or title case.",
   "transforms.handlerDoc.coerce_scalar": "Parse string to int, float, or bool (strict or lenient).",
   "transforms.handlerDoc.default_if_empty": "Use literal or fallback field when input is blank.",
-  "transforms.handlerDoc.split_string": "Split working string into parts (multi-value output).",
+  "transforms.handlerDoc.split_string":
+    "Split working string into parts (literal delimiter, delimiters[], or delimiter_regex; multi-value output).",
+  "transforms.handlerDoc.split_join":
+    "Split working string by delimiter (literal, delimiters[], or delimiter_regex), then reassemble via {0} template or indexes[] + join.",
   "transforms.handlerDoc.parse_json_extract": "Parse JSON string and read a dot path.",
   "transforms.handlerDoc.format_datetime": "Parse datetime and format to output pattern.",
   "transforms.handlerDoc.hash_stable": "Deterministic hash (sha256/sha1/md5) with optional salt.",
@@ -342,6 +347,22 @@ export const es: Messages = {
   "transforms.elt.literal": "Literal fallback",
   "transforms.elt.fallbackField": "Fallback field",
   "transforms.elt.delimiter": "Delimiter",
+  "transforms.elt.delimiterLiteral": "Literal delimiter (fallback)",
+  "transforms.elt.delimiterRegex": "Delimiter regex",
+  "transforms.elt.delimiterRegexHint":
+    "Split on regex matches, e.g. [./_-]+ for PI-style mixed separators. Takes precedence over delimiters[] and literal.",
+  "transforms.elt.delimitersList": "Delimiters (mixed)",
+  "transforms.elt.delimitersListHint":
+    "Comma-separated characters or strings; single characters are combined into a run pattern (e.g. ., /, -, _).",
+  "transforms.elt.splitDelimiterPrecedenceHint":
+    "Precedence: delimiter_regex → delimiters[] → literal delimiter.",
+  "transforms.elt.splitJoinTemplate": "Reassembly template",
+  "transforms.elt.splitJoinTemplateHint":
+    "0-based token indexes in braces, e.g. {3}-{4}. Unfilled placeholders are removed.",
+  "transforms.elt.splitJoinIndexes": "Indexes (alternative to template)",
+  "transforms.elt.splitJoinIndexesHint":
+    "Comma-separated 0-based indexes; used when template is empty. Negative indexes count from the end.",
+  "transforms.elt.splitJoinJoin": "Join string (with indexes)",
   "transforms.elt.maxSplits": "Max splits",
   "transforms.elt.jsonPath": "JSON path",
   "transforms.elt.inputFormat": "Input format",
@@ -771,6 +792,32 @@ export const es: Messages = {
   "flow.discoveryJoin": "Join",
   "flow.nodeEditorTitleJoins": "Joins (configure tab)",
   "flow.discoveryValidate": "Validate",
+  "flow.discoveryInstanceFilter": "Instance filter",
+  "flow.discoveryConfidenceFilter": "Confidence filter",
+  "flow.paletteTooltip.instanceFilter":
+    "Include or exclude whole cohort rows using the filter DSL (fn_dm_filter).",
+  "flow.paletteTooltip.confidenceFilter":
+    "Prune aligned values using {value_field}_confidence scores (fn_dm_confidence_filter).",
+  "flow.nodeEditorTitleInstanceFilters": "Instance filter nodes",
+  "flow.nodeEditorTitleConfidenceFilters": "Confidence filter nodes",
+  "flow.nodeEditorInstanceFiltersCanvasMissing":
+    "Open this editor from the flow canvas to edit instance filter node config.",
+  "flow.nodeEditorConfidenceFiltersCanvasMissing":
+    "Open this editor from the flow canvas to edit confidence filter node config.",
+  "confidenceFilter.description": "Description",
+  "confidenceFilter.valueField": "Value field",
+  "confidenceFilter.scorePropertyHint": "Scores are read from {field}_confidence on each cohort row.",
+  "confidenceFilter.minConfidence": "Minimum confidence",
+  "confidenceFilter.comparison": "Comparison",
+  "confidenceFilter.dropRowIfEmpty": "Drop row when no values remain",
+  "flow.nodeEditorFocusedNodeMissing": "Could not find configuration for this canvas node.",
+  "filters.title": "Row filters",
+  "filters.canvasHint":
+    "Filter nodes run fn_dm_filter after transform or validation. Use the same filter DSL as view query (operators, and/or/not) to include or exclude cohort rows.",
+  "filters.empty": "Add a filter node from the flow palette or connect-end menu.",
+  "filters.description": "Description",
+  "filters.nodeCombineHint":
+    "Same CDF filter DSL as view query (operators, and/or/not, RANGE, negate). Top-level entries are AND-combined and evaluated on each cohort row by fn_dm_filter (no implicit HasData). Use property_scope view for cohort fields (aliases, discoveredKey) or node for instance metadata (space, externalId). Dot paths such as raw_columns.name are supported on cohort properties.",
   "flow.discoveryViewSave": "View save",
   "flow.discoveryRawSave": "RAW save",
   "flow.discoveryClassicSave": "Classic save",

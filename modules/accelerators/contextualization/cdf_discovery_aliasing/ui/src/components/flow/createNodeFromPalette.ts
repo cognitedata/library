@@ -4,6 +4,8 @@ import type { DiscoveryPaletteStage, PaletteDragPayload } from "./FlowPalette";
 import { TRANSFORM_HANDLER_IDS } from "./handlerRegistry";
 import { newNodeId } from "./flowDocumentBridge";
 import { DEFAULT_SUBGRAPH_FRAME_PORTS } from "./subgraphInnerBoundaryHubs";
+import { defaultFilterNodeConfig } from "../../utils/filtersCanvasUtils";
+import { defaultConfidenceFilterNodeConfig } from "../../utils/confidenceFilterCanvasUtils";
 import { defaultTransformNodeConfig, isDiscoveryTransformHandlerId } from "../../utils/transformHandlerTemplates";
 
 export type CreateNodeFromPaletteContext = {
@@ -88,6 +90,11 @@ export function createNodeFromPalette(
       transform: { type: "keaTransform", defaultLabel: "Transform" },
       join: { type: "keaJoin", defaultLabel: "Join" },
       validation: { type: "keaDiscoveryValidate", defaultLabel: "Validation" },
+      instance_filter: { type: "keaDiscoveryInstanceFilter", defaultLabel: "Instance filter" },
+      confidence_filter: {
+        type: "keaDiscoveryConfidenceFilter",
+        defaultLabel: "Confidence filter",
+      },
       inverted_index: { type: "keaInvertedIndex", defaultLabel: "Inverted index" },
     };
     const m = meta[payload.stage];
@@ -141,6 +148,12 @@ export function createNodeFromPalette(
         break;
       case "validation":
         data.config = { description: m.defaultLabel };
+        break;
+      case "instance_filter":
+        data.config = defaultFilterNodeConfig();
+        break;
+      case "confidence_filter":
+        data.config = defaultConfidenceFilterNodeConfig();
         break;
       case "save_view":
         data.config = {

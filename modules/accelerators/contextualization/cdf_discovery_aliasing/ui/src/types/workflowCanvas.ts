@@ -20,6 +20,8 @@ export type CanvasNodeRfType =
   | "keaExtraction"
   | "keaAliasing"
   | "keaDiscoveryValidate"
+  | "keaDiscoveryInstanceFilter"
+  | "keaDiscoveryConfidenceFilter"
   | "keaViewQuery"
   | "keaRawQuery"
   | "keaClassicQuery"
@@ -137,6 +139,8 @@ export type CanvasNodeKind =
   | "extraction"
   | "aliasing"
   | "validation"
+  | "instance_filter"
+  | "confidence_filter"
   | "query_view"
   | "query_raw"
   | "query_classic"
@@ -356,6 +360,13 @@ function normalizeOneWorkflowCanvasEdge(
         target_handle: tgtSubIn ? e.target_handle : "in",
       };
     }
+    if (src.kind === "instance_filter" && tgt.kind === "instance_filter") {
+      return {
+        ...e,
+        source_handle: srcSubOut ? e.source_handle : "out",
+        target_handle: tgtSubIn ? e.target_handle : "in",
+      };
+    }
     return e;
   }
 
@@ -396,6 +407,8 @@ function normalizeOneWorkflowCanvasEdge(
     "transform",
     "join",
     "validation",
+    "instance_filter",
+    "confidence_filter",
     "inverted_index",
     "alias_persistence",
   ];
@@ -436,6 +449,8 @@ function isDataPipelineStageKind(k: CanvasNodeKind): boolean {
     k === "extraction" ||
     k === "aliasing" ||
     k === "validation" ||
+    k === "instance_filter" ||
+    k === "confidence_filter" ||
     k === "save_view" ||
     k === "save_raw" ||
     k === "save_classic" ||
@@ -520,6 +535,8 @@ export function parseWorkflowCanvasDocument(raw: unknown): WorkflowCanvasDocumen
         kind !== "extraction" &&
         kind !== "aliasing" &&
         kind !== "validation" &&
+        kind !== "instance_filter" &&
+        kind !== "confidence_filter" &&
         kind !== "query_view" &&
         kind !== "query_raw" &&
         kind !== "query_classic" &&
@@ -655,6 +672,10 @@ export function kindToRfType(kind: CanvasNodeKind): CanvasNodeRfType {
       return "keaAliasing";
     case "validation":
       return "keaDiscoveryValidate";
+    case "instance_filter":
+      return "keaDiscoveryInstanceFilter";
+    case "confidence_filter":
+      return "keaDiscoveryConfidenceFilter";
     case "query_view":
       return "keaViewQuery";
     case "query_raw":
@@ -706,6 +727,10 @@ export function rfTypeToKind(t: string | undefined): CanvasNodeKind {
       return "aliasing";
     case "keaDiscoveryValidate":
       return "validation";
+    case "keaDiscoveryInstanceFilter":
+      return "instance_filter";
+    case "keaDiscoveryConfidenceFilter":
+      return "confidence_filter";
     case "keaViewQuery":
       return "query_view";
     case "keaRawQuery":

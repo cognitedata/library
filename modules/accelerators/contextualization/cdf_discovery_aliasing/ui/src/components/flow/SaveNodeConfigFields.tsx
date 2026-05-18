@@ -17,7 +17,7 @@ function defaultPolicyRow(): PolicyRow {
   return {
     property: "",
     strategy: "tie_break",
-    merge_unique: false,
+    merge_unique: true,
     branch_order: "by_score",
   };
 }
@@ -40,7 +40,7 @@ function rowsFromConfig(policies: unknown): PolicyRow[] {
     out.push({
       property,
       strategy,
-      merge_unique: Boolean(ml.unique),
+      merge_unique: ml.unique !== false,
       branch_order: branch === "by_dependency" ? "by_dependency" : "by_score",
     });
   }
@@ -249,7 +249,11 @@ export function SaveNodeConfigFields({ canvas, onChange, nodeId, t }: Props) {
                 onChange={(e) => {
                   const next = [...policyRows];
                   const strategy = e.target.value === "merge_list" ? "merge_list" : "tie_break";
-                  next[i] = { ...row, strategy };
+                  next[i] = {
+                    ...row,
+                    strategy,
+                    merge_unique: strategy === "merge_list" && row.strategy !== "merge_list" ? true : row.merge_unique,
+                  };
                   setRowsAndCommit(next);
                 }}
               >

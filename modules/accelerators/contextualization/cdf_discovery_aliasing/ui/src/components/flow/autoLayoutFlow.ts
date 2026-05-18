@@ -48,7 +48,9 @@ function estimateNodeRect(n: Node): Rect {
     t === "keaClassicQuery" ||
     t === "keaTransform" ||
     t === "keaJoin" ||
-    t === "keaDiscoveryValidate"
+    t === "keaDiscoveryValidate" ||
+    t === "keaDiscoveryInstanceFilter" ||
+    t === "keaDiscoveryConfidenceFilter"
   ) {
     return { w: 192, h: 124 };
   }

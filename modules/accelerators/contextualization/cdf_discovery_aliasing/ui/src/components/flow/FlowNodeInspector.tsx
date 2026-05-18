@@ -10,9 +10,11 @@ import type {
   InvertedIndexPersistenceConfig,
   SubflowPortsConfig,
   SubflowPortEntry,
+  WorkflowCanvasDocument,
   WorkflowCanvasNodeData,
 } from "../../types/workflowCanvas";
 import { rfTypeToKind } from "../../types/workflowCanvas";
+import { readFilters } from "../../utils/filtersConfigModel";
 import type { FlowEdgeData } from "./flowDocumentBridge";
 import {
   ALIASING_HANDLER_IDS,
@@ -36,6 +38,8 @@ import {
 import { DeferredCommitInput, DeferredCommitTextarea } from "../DeferredCommitTextField";
 import { keaDiscoveryStageRfTypes, keaValidationRuleLayoutRfTypes } from "./flowConstants";
 import { FlowNodeAccentColorFields } from "./flowNodeAccent";
+import { FilterNodeInspectorFields } from "./FilterNodeInspectorFields";
+import { ConfidenceFilterNodeInspectorFields } from "./ConfidenceFilterNodeInspectorFields";
 import { getAliasingTransformRuleRows } from "./aliasingScopeData";
 
 function validationRuleLayoutContextFromRfType(rfType: string | undefined): "source_view" | "extraction" | "aliasing" {
@@ -60,6 +64,8 @@ type Props = {
   workflowDoc: Record<string, unknown>;
   /** All flow nodes (for context). */
   flowNodes?: Node[];
+  workflowCanvas?: WorkflowCanvasDocument;
+  onPatchWorkflowCanvas?: (next: WorkflowCanvasDocument) => void;
   onPatchWorkflowScope: (recipe: (doc: Record<string, unknown>) => Record<string, unknown>) => void;
   onPatchNode: (nodeId: string, data: Record<string, unknown>) => void;
   onPatchEdge: (edgeId: string, kind: CanvasEdgeKind) => void;
@@ -180,6 +186,8 @@ function discoveryKindUsesNodeConfig(kind: CanvasNodeKind): boolean {
     case "transform":
     case "join":
     case "validation":
+    case "instance_filter":
+    case "confidence_filter":
     case "save_view":
     case "save_raw":
     case "save_classic":
@@ -216,6 +224,15 @@ function discoveryStageInlineNonempty(kind: CanvasNodeKind, value: unknown): boo
     return ve.length > 0 || dsc.length > 0 || rawDb.length > 0 || rawTk.length > 0;
   }
   if (kind === "transform" || kind === "validation") {
+    const dsc = row.description != null ? String(row.description).trim() : "";
+    return dsc.length > 0;
+  }
+  if (kind === "instance_filter") {
+    const dsc = row.description != null ? String(row.description).trim() : "";
+    if (!dsc) return false;
+    return readFilters(row).length > 0;
+  }
+  if (kind === "confidence_filter") {
     const dsc = row.description != null ? String(row.description).trim() : "";
     return dsc.length > 0;
   }
@@ -529,7 +546,9 @@ export function FlowNodeInspector({
   selectedNode,
   selectedEdge,
   workflowDoc,
-  flowNodes: _flowNodes,
+  flowNodes,
+  workflowCanvas: _workflowCanvas,
+  onPatchWorkflowCanvas: _onPatchWorkflowCanvas,
   onPatchWorkflowScope,
   onPatchNode,
   onPatchEdge,
@@ -630,8 +649,13 @@ export function FlowNodeInspector({
     );
   }
 
-  const data = (selectedNode.data ?? {}) as Record<string, unknown>;
-  const kind = selectedNode.type ?? "keaExtraction";
+  /** Resolve from ``flowNodes`` so inspector fields see patches (``selectedNode`` state can be stale). */
+  const liveSelectedNode =
+    selectedNode && flowNodes?.length
+      ? flowNodes.find((n) => n.id === selectedNode.id) ?? selectedNode
+      : selectedNode;
+  const data = (liveSelectedNode.data ?? {}) as Record<string, unknown>;
+  const kind = liveSelectedNode.type ?? "keaExtraction";
   const validationRuleLayoutCtx = validationRuleLayoutContextFromRfType(kind);
   const logicalKind = rfTypeToKind(kind);
   const drift =
@@ -1303,7 +1327,26 @@ export function FlowNodeInspector({
           </select>
         </label>
       )}
-      {(keaDiscoveryStageRfTypes.has(kind) || kind === "keaDiscoveryValidate") && (
+      {kind === "keaDiscoveryInstanceFilter" && (
+        <FilterNodeInspectorFields
+          nodeId={selectedNode.id}
+          data={data as WorkflowCanvasNodeData}
+          onPatchNode={onPatchNode}
+          t={t}
+        />
+      )}
+      {kind === "keaDiscoveryConfidenceFilter" && (
+        <ConfidenceFilterNodeInspectorFields
+          nodeId={selectedNode.id}
+          data={data as WorkflowCanvasNodeData}
+          onPatchNode={onPatchNode}
+          t={t}
+        />
+      )}
+      {(keaDiscoveryStageRfTypes.has(kind) ||
+        kind === "keaDiscoveryValidate") &&
+        kind !== "keaDiscoveryInstanceFilter" &&
+        kind !== "keaDiscoveryConfidenceFilter" && (
         <p className="kea-hint" style={{ marginTop: "0.35rem" }}>
           {t("flow.inspectorDiscoveryInlineHint")}
         </p>

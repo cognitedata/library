@@ -17,16 +17,26 @@ type Props = {
   canvas: WorkflowCanvasDocument;
   onChange: (next: WorkflowCanvasDocument) => void;
   initialNodeId?: string;
+  singleNode?: boolean;
 };
 
-export function ValidationsControls({ canvas, onChange, initialNodeId }: Props) {
+export function ValidationsControls({ canvas, onChange, initialNodeId, singleNode }: Props) {
   const { t } = useAppSettings();
   const refs = listValidationNodeRefs(canvas);
-  const [selectedKey, setSelectedKey] = useState<string | null>(
-    refs[0] ? validationNodeLocationKey(refs[0]) : null
-  );
+  const [selectedKey, setSelectedKey] = useState<string | null>(() => {
+    if (singleNode && initialNodeId) {
+      const hit = refs.find((r) => r.node.id === initialNodeId);
+      return hit ? validationNodeLocationKey(hit) : null;
+    }
+    return refs[0] ? validationNodeLocationKey(refs[0]) : null;
+  });
 
   useEffect(() => {
+    if (singleNode) {
+      const hit = initialNodeId ? refs.find((r) => r.node.id === initialNodeId) : null;
+      setSelectedKey(hit ? validationNodeLocationKey(hit) : null);
+      return;
+    }
     if (refs.length === 0) {
       setSelectedKey(null);
       return;
@@ -35,18 +45,38 @@ export function ValidationsControls({ canvas, onChange, initialNodeId }: Props) 
       if (sel && refs.some((r) => validationNodeLocationKey(r) === sel)) return sel;
       return validationNodeLocationKey(refs[0]!);
     });
-  }, [refs]);
+  }, [refs, singleNode, initialNodeId]);
 
   useEffect(() => {
-    if (!initialNodeId || refs.length === 0) return;
+    if (singleNode || !initialNodeId || refs.length === 0) return;
     const hit = refs.find((r) => r.node.id === initialNodeId);
     if (hit) {
       setSelectedKey(validationNodeLocationKey(hit));
     }
-  }, [initialNodeId, refs]);
+  }, [initialNodeId, refs, singleNode]);
 
   const selected: ValidationNodeRef | null =
     refs.find((r) => validationNodeLocationKey(r) === selectedKey) ?? null;
+
+  if (singleNode) {
+    if (!selected) {
+      return (
+        <p className="kea-hint" style={{ marginTop: 0 }}>
+          {t("flow.nodeEditorFocusedNodeMissing")}
+        </p>
+      );
+    }
+    return (
+      <ValidationNodeConfigFields
+        value={readValidationConfig(selected.node)}
+        onChange={(cfg) =>
+          onChange(
+            patchValidationNode(canvas, selected.node.id, cfg as JsonObject, selected.subgraphPath)
+          )
+        }
+      />
+    );
+  }
 
   return (
     <div className="kea-source-views">

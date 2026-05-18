@@ -11,6 +11,8 @@ type Props = {
   onChange: (next: unknown) => void;
   /** When set, selects this row in the view list (e.g. flow canvas node double-click). */
   initialViewIndex?: number;
+  /** When true (flow double-click), show only the focused view editor — no sidebar list. */
+  singleView?: boolean;
   /** Default ``schemaSpace`` from module default.config (prefills new rows and CDF view listing). */
   schemaSpace?: string;
 };
@@ -40,6 +42,7 @@ export function SourceViewsControls({
   value,
   onChange,
   initialViewIndex,
+  singleView,
   schemaSpace,
 }: Props) {
   const { t } = useAppSettings();
@@ -83,6 +86,41 @@ export function SourceViewsControls({
   const vi = selectedVi;
   const view = views[vi];
   const hasSelection = views.length > 0 && view != null;
+
+  const viewEditor = hasSelection ? (
+    <div className="kea-source-views-editor-inner">
+      {!singleView ? (
+        <div className="kea-toolbar-inline" style={{ marginBottom: "0.85rem" }}>
+          <span className="kea-hint" style={{ margin: 0 }}>
+            #{vi + 1} — {viewListLabel(view, vi, t)}
+          </span>
+          <button type="button" className="kea-btn kea-btn--ghost kea-btn--sm" onClick={() => removeView(vi)}>
+            {t("sourceViews.removeView")}
+          </button>
+        </div>
+      ) : null}
+      <ViewQueryConfigFields
+        fieldKey={`sv-${vi}`}
+        value={view}
+        schemaSpace={schemaSpace}
+        onChange={(next) => {
+          const merged = views.map((v, j) => (j === vi ? next : v));
+          setViews(merged);
+        }}
+      />
+    </div>
+  ) : null;
+
+  if (singleView) {
+    if (!hasSelection) {
+      return (
+        <p className="kea-hint" style={{ marginTop: 0 }}>
+          {t("flow.nodeEditorFocusedNodeMissing")}
+        </p>
+      );
+    }
+    return viewEditor;
+  }
 
   return (
     <div className="kea-source-views">

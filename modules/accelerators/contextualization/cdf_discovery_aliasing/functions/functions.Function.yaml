@@ -119,11 +119,37 @@
   runtime: 'py311'
   functionPath: 'handler.py'
 
+- name: 'dm:context:discovery:filter'
+  externalId: 'fn_dm_filter'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery instance filter — exclude cohort rows using query-style filters DSL'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
+- name: 'dm:context:discovery:confidence:filter'
+  externalId: 'fn_dm_confidence_filter'
+  dataSetExternalId: 'ds_discovery_aliasing'
+  owner: 'Anonymous'
+  description: 'Discovery confidence filter — prune value lists by aligned {field}_confidence scores'
+  metadata:
+    version: '{{key_extraction_function_version}}'
+  envVars:
+    ENV_TYPE: '${CDF_BUILD_TYPE}'
+    CDF_ENV: '${CDF_ENVIRON}'
+  runtime: 'py311'
+  functionPath: 'handler.py'
+
 - name: 'dm:context:discovery:inverted:index'
   externalId: 'fn_dm_inverted_index'
   dataSetExternalId: 'ds_discovery_aliasing'
   owner: 'Anonymous'
-  description: 'Discovery inverted index — predecessor discovery payloads → RAW index (stub)'
+  description: 'Discovery inverted index — config-driven lookup keys from cohort RAW → inverted index table'
   metadata:
     version: '{{key_extraction_function_version}}'
   envVars:

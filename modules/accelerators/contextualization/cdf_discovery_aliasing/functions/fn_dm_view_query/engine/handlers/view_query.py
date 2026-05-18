@@ -195,6 +195,15 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                 out[key] = props[key]
         return out
 
+    @staticmethod
+    def _inject_instance_space_on_properties(props: Dict[str, Any], inst: Any) -> Dict[str, Any]:
+        """Always set ``instance_space`` from the DM node (not from ``include_properties``)."""
+        out = dict(props)
+        space = getattr(inst, "space", None)
+        if space is not None and str(space).strip():
+            out["instance_space"] = str(space).strip()
+        return out
+
     @classmethod
     def run(
         cls,
@@ -326,7 +335,10 @@ class ViewQueryHandler(AbstractDiscoveryQueryHandler):
                 if not nid:
                     continue
                 n_listed += 1
-                props = cls._pick_properties(_extract_view_properties(inst, view_id), include_properties)
+                props = cls._inject_instance_space_on_properties(
+                    cls._pick_properties(_extract_view_properties(inst, view_id), include_properties),
+                    inst,
+                )
                 lu = node_last_updated_time_ms(inst)
                 if lu is not None:
                     max_last_updated = lu if max_last_updated is None else max(max_last_updated, lu)

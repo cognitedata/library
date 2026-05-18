@@ -38,6 +38,7 @@ def test_ensure_pipeline_run_id_generates_when_empty() -> None:
     _ensure_pipeline_run_id(ctx)
     assert str(ctx.run_id).strip()
     assert ctx.run_id[8] == "T"  # UTC timestamp fragment from strftime
+    assert "-" in ctx.run_id.split("Z", 1)[1]  # random suffix after Z
 
 
 def test_ensure_pipeline_run_id_idempotent_when_set() -> None:

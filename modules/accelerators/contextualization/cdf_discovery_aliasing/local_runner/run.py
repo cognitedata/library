@@ -45,7 +45,9 @@ def _ensure_pipeline_run_id(ctx: KahnRunContext) -> None:
     """
     if str(getattr(ctx, "run_id", None) or "").strip():
         return
-    ctx.run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    from cdf_fn_common.discovery_query_shared import new_pipeline_run_id
+
+    ctx.run_id = new_pipeline_run_id()
 
 
 def _config_rel_for_run_results(scope_yaml_path: Union[Path, str]) -> str:
@@ -207,7 +209,9 @@ def _run_workflow_parity(
 
     scope_document = merged_scope_document_for_local_run(scope_yaml_path, source_views)
     wf_instance_space = workflow_instance_space_for_local(
-        source_views, getattr(args, "instance_space", None)
+        source_views,
+        getattr(args, "instance_space", None),
+        scope_document=scope_document,
     )
     if scope_document_has_embedded_compiled_workflow(scope_document):
         logger.info(
@@ -248,10 +252,10 @@ def _run_workflow_parity(
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     discovery_path = results_dir / f"{ts}_cdf_discovery_tasks.json"
     run_scope = result_run_scope_dict(scope_yaml_path)
-    raw_results: Optional[Dict[str, Any]] = None
+    raw_results: Optional[Dict[str, Any]] = getattr(ctx, "raw_results_snapshot", None)
     row_limit = int(getattr(args, "raw_results_rows", 500) or 0)
     max_tables = int(getattr(args, "raw_results_max_tables", 30) or 0)
-    if client is not None and row_limit > 0 and max_tables > 0:
+    if raw_results is None and client is not None and row_limit > 0 and max_tables > 0:
         try:
             _mrs = int(getattr(args, "raw_results_max_rows_scanned", 0) or 0)
             raw_results = build_raw_results_bundle(
@@ -263,14 +267,14 @@ def _run_workflow_parity(
                 run_id=str(ctx.run_id or "").strip() or None,
                 max_raw_rows_scanned=_mrs if _mrs > 0 else None,
             )
-            if raw_results.get("tables"):
-                logger.info(
-                    "RAW results attachment: %s table(s), up to %s rows each",
-                    len(raw_results["tables"]),
-                    row_limit,
-                )
         except Exception as exc:
             logger.warning("Could not build RAW results attachment: %s", exc)
+    if raw_results and raw_results.get("tables"):
+        logger.info(
+            "RAW results attachment: %s table(s), up to %s rows each",
+            len(raw_results["tables"]),
+            row_limit,
+        )
 
     out_doc = {
         "run_scope": run_scope,

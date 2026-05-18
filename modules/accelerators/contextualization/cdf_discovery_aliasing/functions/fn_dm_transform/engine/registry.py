@@ -16,6 +16,7 @@ from .handlers.mask_string import MaskStringHandler
 from .handlers.parse_json_extract import ParseJsonExtractHandler
 from .handlers.regex_substitution import RegexSubstitutionHandler
 from .handlers.sequential_literal_replace import SequentialLiteralReplaceHandler
+from .handlers.split_join import SplitJoinHandler
 from .handlers.split_string import SplitStringHandler
 from .handlers.static_lookup_map import StaticLookupMapHandler
 from .handlers.substitution_variants import SubstitutionVariantsHandler
@@ -31,6 +32,7 @@ _HANDLERS: tuple[Type[AbstractTransformHandler], ...] = (
     CoerceScalarHandler,
     DefaultIfEmptyHandler,
     SplitStringHandler,
+    SplitJoinHandler,
     ParseJsonExtractHandler,
     FormatDatetimeHandler,
     HashStableHandler,

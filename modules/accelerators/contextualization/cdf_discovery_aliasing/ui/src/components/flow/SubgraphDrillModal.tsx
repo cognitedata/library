@@ -260,10 +260,25 @@ function SubgraphDrillCanvas({
     [nodes, edges, handleOrientation]
   );
 
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
+  const handleOrientationRef = useRef(handleOrientation);
+  handleOrientationRef.current = handleOrientation;
+
   const patchWorkflowCanvas = useCallback(
-    (next: WorkflowCanvasDocument) => {
-      setNodes(canvasToFlowNodes(next.nodes));
-      setEdges(canvasToFlowEdges(next.edges));
+    (
+      patch:
+        | WorkflowCanvasDocument
+        | ((prev: WorkflowCanvasDocument) => WorkflowCanvasDocument)
+    ) => {
+      setNodes((nds) => {
+        const prev = flowToCanvasDocument(nds, edgesRef.current, {
+          handleOrientation: handleOrientationRef.current,
+        });
+        const next = typeof patch === "function" ? patch(prev) : patch;
+        setEdges(canvasToFlowEdges(next.edges));
+        return canvasToFlowNodes(next.nodes);
+      });
     },
     [setNodes, setEdges]
   );

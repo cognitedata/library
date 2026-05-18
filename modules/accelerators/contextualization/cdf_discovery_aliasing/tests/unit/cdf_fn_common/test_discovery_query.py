@@ -125,11 +125,12 @@ def test_build_entity_cohort_row_moves_confidence_to_column() -> None:
         view_space="cdf_cdm",
         view_external_id="CogniteAsset",
         view_version="v1",
-        properties={"discoveredKey": ["K1"], "confidence": [0.88], "name": "A-1"},
+        properties={"discoveredKey": ["K1"], "discoveredKey_confidence": [0.88], "name": "A-1"},
+        value_field="discoveredKey",
     )
     cols = row["columns"]
     assert json.loads(cols["PROPERTIES_JSON"]) == {"discoveredKey": ["K1"], "name": "A-1"}
-    assert "confidence" not in json.loads(cols["PROPERTIES_JSON"])
+    assert "discoveredKey_confidence" not in json.loads(cols["PROPERTIES_JSON"])
     assert json.loads(cols["CONFIDENCE"]) == [0.88]
 
 
@@ -140,7 +141,7 @@ def test_props_from_row_columns_merges_confidence_column() -> None:
     }
     props = _props_from_row_columns(cols)
     assert props["discoveredKey"] == ["K1"]
-    assert props["confidence"] == [0.25]
+    assert props["aliases_confidence"] == [0.25]
 
 
 def test_build_entity_strips_discoveredKey_confidence_from_properties_json() -> None:
@@ -355,3 +356,13 @@ def test_discovery_query_handle_cdf_view(monkeypatch) -> None:
     )
     assert out["function_external_id"] == "fn_dm_view_query"
     assert called["fn"] == "fn_dm_view_query"
+
+
+def test_view_query_injects_instance_space_without_include_properties() -> None:
+    from fn_dm_view_query.engine.handlers.view_query import ViewQueryHandler
+
+    inst = _FakeInstance(external_id="A-1", space="sp-inject", properties={"name": "n"})
+    picked = ViewQueryHandler._pick_properties({"name": "n"}, ["name"])
+    out = ViewQueryHandler._inject_instance_space_on_properties(picked, inst)
+    assert out["name"] == "n"
+    assert out["instance_space"] == "sp-inject"

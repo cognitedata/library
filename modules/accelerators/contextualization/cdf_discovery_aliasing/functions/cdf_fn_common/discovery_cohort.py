@@ -124,6 +124,7 @@ def _cohort_row_from_columns(
     task_id: str,
     properties: Mapping[str, Any],
     query_source: str = "transform",
+    value_field: str = "aliases",
 ) -> Dict[str, Any]:
     nid = _first_nonempty(cols.get(NODE_INSTANCE_ID_COLUMN), row_key)
     ext_id = _first_nonempty(cols.get(EXTERNAL_ID_COLUMN), nid)
@@ -140,4 +141,5 @@ def _cohort_row_from_columns(
         view_external_id=_first_nonempty(cols.get(VIEW_EXTERNAL_ID_COLUMN), "transform"),
         view_version=_first_nonempty(cols.get(VIEW_VERSION_COLUMN)),
         properties=properties,
+        value_field=value_field,
     )

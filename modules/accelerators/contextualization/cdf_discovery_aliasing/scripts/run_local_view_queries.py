@@ -37,7 +37,9 @@ from local_runner.workflow_payload import (  # noqa: E402
 
 
 def _utc_run_id() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    from cdf_fn_common.discovery_query_shared import new_pipeline_run_id
+
+    return new_pipeline_run_id()
 
 
 def _source_view_matches_instance_space(view: Dict[str, Any], wanted: str) -> bool:

@@ -300,6 +300,16 @@ def build_workflow_version_document(
             "Validate predecessor payloads; sink RAW.",
             7200,
         ),
+        "fn_dm_filter": (
+            "Instance filter",
+            "Exclude cohort rows that fail configured instance filters (query-style DSL); sink RAW.",
+            7200,
+        ),
+        "fn_dm_confidence_filter": (
+            "Confidence filter",
+            "Prune aligned value lists by {field}_confidence threshold; sink RAW.",
+            7200,
+        ),
         "fn_dm_inverted_index": (
             "Inverted index",
             "Build inverted RAW index from discovery predecessor payloads (FK/doc refs); optional legacy RAW source.",

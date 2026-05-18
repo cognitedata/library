@@ -13,10 +13,13 @@ for _p in (str(_FUNCS), str(_MODULE_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from local_runner.kahn_run_context import KahnRunContext  # noqa: E402
 from local_runner.raw_results_attachment import (  # noqa: E402
     build_raw_results_bundle,
     collect_raw_locations_from_task_outputs,
+    snapshot_raw_results_for_ctx,
 )
+from argparse import Namespace  # noqa: E402
 
 
 def test_collect_raw_locations_from_task_outputs() -> None:
@@ -106,6 +109,31 @@ def test_build_raw_results_bundle_disabled() -> None:
         logger=None,
     )
     assert bundle["tables"] == []
+
+
+def test_snapshot_raw_results_for_ctx_caches_on_ctx() -> None:
+    ctx = KahnRunContext(
+        args=Namespace(raw_results_rows=10, raw_results_max_tables=5),
+        logger=None,
+        client=MagicMock(),
+        pipe_logger=None,
+        scope_yaml_path=Path("/tmp/scope.yaml"),
+        scope_document={},
+        wf_instance_space="sp",
+        source_views=[],
+        cdf_config=None,
+        run_id="run1",
+    )
+    bundle = {"tables": [{"row_count": 2}]}
+    with patch(
+        "local_runner.raw_results_attachment.build_raw_results_bundle",
+        return_value=bundle,
+    ) as mock_build:
+        out1 = snapshot_raw_results_for_ctx(ctx)
+        out2 = snapshot_raw_results_for_ctx(ctx)
+    assert out1 is bundle
+    assert out2 is bundle
+    mock_build.assert_called_once()
 
 
 def test_build_raw_results_bundle_raw_scan_truncated() -> None:

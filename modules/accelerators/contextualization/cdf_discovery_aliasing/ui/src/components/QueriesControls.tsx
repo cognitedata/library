@@ -19,6 +19,7 @@ type Props = {
   /** Select this canvas node when opened from flow double-click. */
   initialNodeId?: string;
   schemaSpace?: string;
+  singleNode?: boolean;
 };
 
 function SimpleQueryConfigFields({
@@ -80,12 +81,23 @@ function SimpleQueryConfigFields({
   );
 }
 
-export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace }: Props) {
+export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace, singleNode }: Props) {
   const { t } = useAppSettings();
   const queries = listQueryNodes(canvas);
-  const [selectedId, setSelectedId] = useState<string | null>(queries[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (singleNode && initialNodeId && queries.some((q) => q.id === initialNodeId)) {
+      return initialNodeId;
+    }
+    return queries[0]?.id ?? null;
+  });
 
   useEffect(() => {
+    if (singleNode) {
+      setSelectedId(
+        initialNodeId && queries.some((q) => q.id === initialNodeId) ? initialNodeId : null
+      );
+      return;
+    }
     if (queries.length === 0) {
       setSelectedId(null);
       return;
@@ -94,14 +106,14 @@ export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace }
       if (sel && queries.some((q) => q.id === sel)) return sel;
       return queries[0]?.id ?? null;
     });
-  }, [queries]);
+  }, [queries, singleNode, initialNodeId]);
 
   useEffect(() => {
-    if (!initialNodeId || queries.length === 0) return;
+    if (singleNode || !initialNodeId || queries.length === 0) return;
     if (queries.some((q) => q.id === initialNodeId)) {
       setSelectedId(initialNodeId);
     }
-  }, [initialNodeId, queries]);
+  }, [initialNodeId, queries, singleNode]);
 
   const selected = queries.find((q) => q.id === selectedId) ?? null;
 
@@ -114,6 +126,47 @@ export function QueriesControls({ canvas, onChange, initialNodeId, schemaSpace }
           : "flow.discoveryClassicQuery";
     return t(key);
   };
+
+  const renderQueryEditor = () => {
+    if (!selected) return null;
+    if (selected.kind === "query_view") {
+      return (
+        <ViewQueryConfigFields
+          fieldKey={selected.id}
+          value={readNodeConfig(selected)}
+          schemaSpace={schemaSpace}
+          onChange={(cfg) => onChange(patchNodeConfig(canvas, selected.id, cfg))}
+        />
+      );
+    }
+    if (selected.kind === "query_classic") {
+      return (
+        <ClassicQueryConfigFields
+          fieldKey={selected.id}
+          value={readNodeConfig(selected)}
+          onChange={(cfg) => onChange(patchNodeConfig(canvas, selected.id, cfg))}
+        />
+      );
+    }
+    return (
+      <SimpleQueryConfigFields
+        showRawDb={selected.kind === "query_raw"}
+        value={readNodeConfig(selected)}
+        onChange={(cfg) => onChange(patchNodeConfig(canvas, selected.id, cfg))}
+      />
+    );
+  };
+
+  if (singleNode) {
+    if (!selected) {
+      return (
+        <p className="kea-hint" style={{ marginTop: 0 }}>
+          {t("flow.nodeEditorFocusedNodeMissing")}
+        </p>
+      );
+    }
+    return <div className="kea-source-views-editor-inner">{renderQueryEditor()}</div>;
+  }
 
   return (
     <div className="kea-source-views">
