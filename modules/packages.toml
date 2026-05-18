@@ -33,6 +33,7 @@ description = "Deploy Infield configuration modules for CDM-backed locations."
 canCherryPick = true
 modules = [
     "infield/location"
+]
 
 [packages.cdm_maintain_quickstart]
 id = "dp:cdm_maintain_quickstart"
