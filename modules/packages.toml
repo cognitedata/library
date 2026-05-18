@@ -26,6 +26,15 @@ modules = [
     "accelerators/infield_quickstart/cdf_infield_location"
 ]
 
+[packages.infield]
+id = "dp:infield"
+title = "Infield"
+description = "Deploy Infield configuration modules for CDM-backed locations."
+canCherryPick = true
+modules = [
+    "infield/location"
+]
+
 [packages.cdm_maintain_quickstart]
 id = "dp:cdm_maintain_quickstart"
 title = "CDM Maintain Quickstart"

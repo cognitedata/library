@@ -1,0 +1,12 @@
+location: springfield
+location_name: Springfield
+location_description: Springfield site demo
+module_version: "v1"
+
+# IdP group source IDs (Azure AD object id of the group, etc.).
+# Set the matching variables in your project .env or environment before `cdf deploy`.
+# See README.md for the full list of environment variable names.
+infield_location_read_only_users_source_id: ${INFIELD_LOCATION_READ_ONLY_USERS_SOURCE_ID}
+infield_location_normal_users_source_id: ${INFIELD_LOCATION_NORMAL_USERS_SOURCE_ID}
+infield_location_template_admin_users_source_id: ${INFIELD_LOCATION_TEMPLATE_ADMIN_USERS_SOURCE_ID}
+infield_location_checklist_admin_users_source_id: ${INFIELD_LOCATION_CHECKLIST_ADMIN_USERS_SOURCE_ID}

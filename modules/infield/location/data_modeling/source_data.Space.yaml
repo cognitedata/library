@@ -1,0 +1,6 @@
+# Source data spaces for the InField location.
+# These are spaces were assets, maintenance orders, operations, notifications, and files coming from the customers source system should be stored.
+- space: sp_infield_{{location}}_assets
+- space: sp_infield_{{location}}_maintenance
+- space: sp_infield_{{location}}_timeseries
+- space: sp_infield_{{location}}_files
