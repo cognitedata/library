@@ -40,7 +40,7 @@
     "d3-shape": "^3.2.0",
     "dotenv": "^17.3.1",
     "dt-sql-parser": "^4.4.2",
-    "fastify": "^5.8.4",
+    "fastify": "^5.8.5",
     "lru-cache": "^11.2.7",
     "mixpanel-browser": "^2.76.0",
     "react": "^19.2.4",
