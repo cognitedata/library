@@ -30,12 +30,14 @@ export function DataCatalogGraph({
     x: number;
     y: number;
     title: string;
+    identity?: { space: string; externalId: string };
     connections: string[];
   } | null>(null);
   const [leftTooltip, setLeftTooltip] = useState<{
     x: number;
     y: number;
     title: string;
+    identity?: { space: string; externalId: string };
     connections: string[];
   } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -223,6 +225,14 @@ export function DataCatalogGraph({
     orderedViews.forEach((item) => labelMap.set(item.key, item.label));
     orderedFields.forEach((item) => labelMap.set(item.key, item.label));
 
+    const identityByKey = new Map<string, { space: string; externalId: string }>();
+    sortedModels.forEach((m) =>
+      identityByKey.set(m.key, { space: m.space, externalId: m.externalId })
+    );
+    sortedViews.forEach((v) =>
+      identityByKey.set(v.key, { space: v.space, externalId: v.externalId })
+    );
+
     const showTooltip = (key: string) => {
       const pos = positionMap.get(key);
       if (!pos) return;
@@ -243,22 +253,29 @@ export function DataCatalogGraph({
         .map((linkKey) => labelMap.get(linkKey) ?? linkKey)
         .sort((a, b) => a.localeCompare(b));
 
-      if (rightConnections.length > 0) {
+      const identity = identityByKey.get(key);
+      const title = labelMap.get(key) ?? key;
+      const hasRight = rightConnections.length > 0;
+      const hasLeft = leftConnections.length > 0;
+
+      if (hasRight || (!hasLeft && identity)) {
         setTooltip({
           x: pos.x + nodeWidth + 20,
           y: Math.max(10, pos.y - 40),
-          title: labelMap.get(key) ?? key,
+          title,
+          identity,
           connections: rightConnections,
         });
       } else {
         setTooltip(null);
       }
 
-      if (leftConnections.length > 0) {
+      if (hasLeft) {
         setLeftTooltip({
           x: Math.max(10, pos.x - tooltipWidth - 20),
           y: Math.max(10, pos.y - 40),
-          title: labelMap.get(key) ?? key,
+          title,
+          identity,
           connections: leftConnections,
         });
       } else {
@@ -351,6 +368,18 @@ export function DataCatalogGraph({
           }}
         >
           <div className="mb-1 font-semibold text-slate-800">{tooltip.title}</div>
+          {tooltip.identity ? (
+            <div className="mb-2 space-y-0.5 border-b border-slate-100 pb-2 text-[11px] leading-snug text-slate-600">
+              <div className="break-all">
+                {t("dataCatalog.tooltip.space", { space: tooltip.identity.space })}
+              </div>
+              <div className="break-all">
+                {t("dataCatalog.tooltip.externalId", {
+                  externalId: tooltip.identity.externalId,
+                })}
+              </div>
+            </div>
+          ) : null}
           {tooltip.connections.length === 0 ? (
             <div className="text-slate-500">{t("dataCatalog.tooltip.empty")}</div>
           ) : (
@@ -374,6 +403,18 @@ export function DataCatalogGraph({
           }}
         >
           <div className="mb-1 font-semibold text-slate-800">{leftTooltip.title}</div>
+          {leftTooltip.identity ? (
+            <div className="mb-2 space-y-0.5 border-b border-slate-100 pb-2 text-[11px] leading-snug text-slate-600">
+              <div className="break-all">
+                {t("dataCatalog.tooltip.space", { space: leftTooltip.identity.space })}
+              </div>
+              <div className="break-all">
+                {t("dataCatalog.tooltip.externalId", {
+                  externalId: leftTooltip.identity.externalId,
+                })}
+              </div>
+            </div>
+          ) : null}
           {leftTooltip.connections.length === 0 ? (
             <div className="text-slate-500">{t("dataCatalog.tooltip.empty")}</div>
           ) : (

@@ -77,6 +77,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.error.workflows": "Failed to load workflows.",
     "processing.error.extractors": "Failed to load extraction pipelines.",
     "processing.bubbles.loading": "Loading…",
+    "processing.bubbles.waiting": "Waiting (other diagram data loads first).",
     "processing.bubbles.empty": "No data in this window.",
     "processing.bubbles.ready": "Loaded",
     "processing.heatmap.title": "Scheduled starts heatmap",
@@ -143,6 +144,14 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.card.concurrency.description":
       "Parallel function executions per {bucketSeconds}-second bucket. Dotted vertical lines and light bands mark five-minute boundaries (UTC).",
     "processing.status.error": "error",
+    "processing.partial.title": "Partial results",
+    "processing.partial.summary":
+      "{failed} of {total} API requests failed after automatic retries ({percent}% failure rate). Charts use data that loaded successfully.",
+    "processing.partial.detailLine": "{label}: {failed}/{total} failed ({percent}%)",
+    "processing.partial.schedulesLabel": "Schedule data (heatmap)",
+    "processing.filter.externalIdLabel": "External ID substring",
+    "processing.filter.externalIdLead":
+      "Matches function id, transformation id or name, workflow external id, extraction pipeline external id or name, and schedule ids/names in the heatmap.",
     "processing.loader.title": "Loading processing data",
     "processing.unknown.transformation": "Unknown transformation",
     "processing.legend.functions.title": "Function bubbles",
@@ -291,6 +300,9 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.groups.title": "Group capabilities",
     "permissions.groups.description": "Capability actions and scopes aggregated by security group.",
     "permissions.groups.none": "No groups found.",
+    "permissions.groups.filterLabel": "Filter groups",
+    "permissions.groups.filterSummary": "{shown} / {total} groups",
+    "permissions.groups.noFilterMatches": "No groups match this filter. Try another substring or clear the box.",
     "permissions.loading": "Loading permissions...",
     "permissions.loadingDetail.groups": "Fetching security groups for this project…",
     "permissions.loadingDetail.datasets": "Fetching data sets…",
@@ -336,7 +348,7 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.scopes.dataset.description": "Dataset scope entries per security group.",
     "permissions.compare.title": "User comparison",
     "permissions.compare.searchLabel": "Search",
-    "permissions.compare.searchPlaceholder": "Search groups by name, ID, or source…",
+    "permissions.compare.searchPlaceholder": "Substring (group name, id, source)…",
     "permissions.compare.utilizedOnly": "Only show groups with a member among listed users",
     "permissions.compare.truncatedSummary":
       "Showing {shown} of {total} groups (all {pinned} groups your users belong to are included). {hidden} more hidden.",
@@ -398,9 +410,9 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.subnav.dataModelVersions": "Data Model Versions",
     "dataCatalog.subnav.viewVersions": "View Versions",
     "dataCatalog.versionMatrix.showChecksumVersions":
-      "Show checksum-style version columns",
+      "Show implicit version columns",
     "dataCatalog.versionMatrix.onlyChecksumColumns":
-      "No regular version columns in this scope; only checksum-style identifiers remain. Enable below to show the grid.",
+      "No regular version columns in this scope; only implicit version identifiers remain. Enable below to show the grid.",
     "dataCatalog.versionHistory.backToGrid": "Back to version matrix",
     "dataCatalog.versionHistory.open": "Version history",
     "dataCatalog.versionHistory.openPinned": "Version history",
@@ -408,13 +420,31 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.versions": "versions",
     "dataCatalog.versionHistory.hint":
       "Expand a row for Fusion links and timestamps for each side, then the change summary. Steps compare consecutive published versions (newest first): views added or removed, reference version bumps, and—when CDF returns full inline view definitions—property and metadata changes between those view versions.",
+    "dataCatalog.versionHistory.help.title": "Data model version history",
+    "dataCatalog.versionHistory.help.subtitle": "How to read the heat map, details panel, and version steps",
+    "dataCatalog.versionHistory.help.sectionPage": "This page",
+    "dataCatalog.versionHistory.help.sectionHeatmap": "Field presence heat map",
+    "dataCatalog.versionHistory.help.hoverVersionRowOrange":
+      "When you hover a non-latest version row label (left), orange cells in the grid mark fields that are missing in that revision through the row below latest but appear again in a newer published version.",
+    "dataCatalog.versionHistory.fieldHeatmapPromptForHelp":
+      "Hover or pin a cell for version, field, presence, and inheritance boxes. Open What does this mean? (top right) for colors, legends, version-step diffs, and how each property name resolves.",
     "dataCatalog.versionHistory.stepFrom": "From",
     "dataCatalog.versionHistory.stepTo": "To",
     "dataCatalog.versionHistory.stepSingle": "Version",
     "dataCatalog.versionHistory.fieldHeatmapCaption":
-      "View field presence by data model version. Each column is one property identifier (no headers)—the same name is merged across views using DMS `implements` precedence (later array entries override earlier). Dark blue = present; light blue = present in this version and the adjacent older/newer row too, but which view wins after `implements` resolution changed between those two; white = absent. Details below—hover a cell or click to pin.",
+      "View field presence by data model version. Each column is one property identifier (no headers) merged across member views. When the name is present, cell color reflects how many members declare it (see the legend under the grid). Light blue still marks supplier drift vs an adjacent version—solid fill when only one member contributes, tinted overlay when several do. White = absent; hover a cell for details.",
+    "dataCatalog.versionHistory.fieldHeatmapHelpCellPalette":
+      "Absent cells stay white (or orange when you hover a non-latest version row label—fields missing there but present in a newer revision). One member declaring the name: saturated blue. Two through ten members: a stepped blue-to-violet ramp (counts of 10 or more use the same color as 10). When the resolved supplier signature for that version differs from an adjacent row, a single-member cell turns solid light blue; with multiple members, the ramp keeps the same ramp color underneath and adds a semi-transparent light blue layer.",
     "dataCatalog.versionHistory.fieldHeatmapLegendLightBlue":
-      "Light blue cells: property still present vs the neighboring version row, but the resolved supplying view (per root) changed—often because `implements` order or parent view definitions changed.",
+      "Light blue drift vs neighbor: solid cell when exactly one member declares the property and its resolved supplier map changed; tinted overlay on top of the multi-member ramp when several members declare it and any member’s resolution changed.",
+    "dataCatalog.versionHistory.fieldHeatmapCellLegendTitle": "Cell colors",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchAbsent": "absent",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchOneMember": "1 member",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchMultiScale": "2–10+ members",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchMultiTitle":
+      "Nine steps from 2 to 10 member views; 11 or more reuse the 10-member color.",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchDrift": "drift overlay",
+    "dataCatalog.versionHistory.fieldHeatmapDetailMemberViews": "Member views (count)",
     "dataCatalog.versionHistory.fieldHeatmapLegendOrange":
       "Orange row border: a transformation uses this data model version as a write destination and it is not the latest published version.",
     "dataCatalog.versionHistory.fieldHeatmapLegendAddedFieldHover":
@@ -431,12 +461,57 @@ const translations: Record<Language, Record<string, string>> = {
       "No view properties found for this heat map. Published versions may only include view references without inline property lists.",
     "dataCatalog.versionHistory.fieldHeatmapTooltip": 'Version "{version}" · field "{field}"',
     "dataCatalog.versionHistory.fieldHeatmapDetailResolution": "Inheritance / resolution",
-    "dataCatalog.versionHistory.fieldHeatmapResolutionRuleShort":
-      "Per root: later `implements` entries override earlier. Tags show root, any shadowed suppliers (struck through), then the resolved supplier for this version.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionFlowTitle":
+      "How you get the definition used (this version)",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStep1":
+      "The heat map uses one column per property identifier merged across the model. Each resolution row in the details panel is one member view (a view listed in this data model) that declares that identifier for the version of the cell you hover or pin.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStep2":
+      "For that member, Cognite walks its `implements` array in order: later entries override earlier ones for the same name. Properties declared on the member view itself override inherited definitions with the same identifier.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStep3":
+      "Each labeled box in the details panel ends in exactly one effective view supplier for that member only (strikethrough = discarded along `implements`). Several boxes mean several members each declare this view-level property identifier and each has its own inheritance chain. That is separate from whether those view properties map to the same container field underneath (see help note on storage).",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionPerRowLead":
+      "Each box is one member view. Inside it, only the highlighted bottom row is which view definition supplies that property name for that member after `implements`. Strikethrough views were considered then discarded. Several boxes = several members each expose the same identifier string with their own resolution. If every mapping points at the same `container` + `containerPropertyIdentifier`, CDF still stores one underlying value for queries—even though this panel lists one chain per member.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionContainerLayer":
+      "Container mapping (what you read in docs): a view property is backed by a specific container property. Different views whose properties map to the same container + `containerPropertyIdentifier` read and write the same stored datum—filters and queries align on that. This heat map instead answers: for each member view in the data model, does this view-level property name exist after merging `implements`, and which view supplies that name in the schema? It does not collapse columns by container identity, so a high member count does not by itself mean multiple physical fields—only multiple member schemas expose that name.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowMember": "Member view",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowSuperseded": "Superseded (not used)",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowWinner": "Effective for this member",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowEffectiveWho":
+      "WHO this applies to: data model member `{member}` — this box only fixes how that member exposes the heat-map column identifier after `implements`.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowWinnerForMember":
+      "Supplier view wins the merge for `{member}` only (below: where that supplier stores the value when mapping is declared).",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageWhatThisIs":
+      "View property → concrete storage column: Cognite resolves to a container reference (`space`/`externalId`) plus `containerPropertyIdentifier` — that combination is one physical backing field. “Underlying container” without the container property id is incomplete.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowUnderlyingContainer": "Underlying container",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowContainerPropertyId": "Container property id",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowStorageUnknown":
+      "Not in snapshot (missing `container` + `containerPropertyIdentifier` on the winning definition, or unmapped)",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorage":
+      "Underlying storage (snapshot)",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageUnifiedAll":
+      "All {total} member row(s) with this property declare the same backing: `{container}` / `{propertyId}`.",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageUnifiedPartial":
+      "{mapped} of {total} rows have mapping in this snapshot; those rows share `{container}` / `{propertyId}`. Unmapped rows: see inheritance below.",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageDistinct":
+      "{distinct} distinct container fields among {mapped} mapped row(s) — members do not all read/write via the same storage column.",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageDistinctPartial":
+      "{distinct} distinct container fields among mapped rows; plus at least one row without mapping — see inheritance below.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageUnified":
+      "Distinct members above all map to `{container}` / `{propertyId}` for this property identifier — unified stored field.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageDistinct":
+      "{count} different container mappings across these rows — stored data paths are not all the same for this identifier.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageIncomplete":
+      "At least one member row lacks an inline container mapping in this snapshot—the summary below compares only rows that do.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionSingleMemberLead":
+      "This property name appears on one member view in this published version. The box shows how that member alone resolves it along `implements` (one effective supplier at the bottom).",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionMultiMemberLead":
+      "This property name appears on {count} member views here. The heat map counts view-schema exposure: each member resolves `implements` on its own, so you see one box per member. That is not the same as “{count} different container fields”: if those view properties all map to one underlying container property, the stored data is still unified—open help for the full distinction.",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowSelfOnly":
+      "This member declares the property on its own schema; nothing was superseded along `implements`.",
     "dataCatalog.versionHistory.fieldHeatmapResolutionTrivialManyRoots":
-      "This heatmap column is only the property name \"{field}\" merged across all member views in the model. In this version it appears on {count} views, each with a trivial chain (that view supplies the name itself—no `implements` shadowing). There is not one shared inheritance path for the whole column.",
+      "The column is the identifier \"{field}\" merged across the model. In this version it appears on {count} member views, and each supplies it only from its own schema (no `implements` shadowing). There is no single combined inheritance row—each member is independent.",
     "dataCatalog.versionHistory.fieldHeatmapResolutionOmittedTrivialRoots":
-      "{count} other member view(s) also supply this name only from themselves (not shown).",
+      "{count} more member views also supply this name only from themselves (no strikethrough segment; omitted here).",
     "dataCatalog.versionHistory.fieldHeatmapDriftVsOlder": "vs older row ({version})",
     "dataCatalog.versionHistory.fieldHeatmapDriftVsNewer": "vs newer row ({version})",
     "dataCatalog.versionHistory.fieldHeatmapDriftWinnerAbsentInVersion": "Absent / {version}",
@@ -449,7 +524,7 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.fieldHeatmapDriftDebugDismiss": "Dismiss",
     "dataCatalog.versionHistory.fieldHeatmapDetailWinnerDrift": "Supplier vs adjacent version",
     "dataCatalog.versionHistory.fieldHeatmapResolutionRule":
-      "DMS resolves the same property identifier from multiple inherited views by walking each view's `implements` chain: later entries in the `implements` array override earlier ones (with topological ordering for the full graph). You get one effective property per name.",
+      "Per view, DMS resolves the same property identifier across `implements` by array order (later overrides earlier; the graph is ordered topologically). You get one effective view supplier per name on that view. Multiple member views in a data model can each expose the same identifier; container mapping may still unify their storage when they point at the same container property.",
     "dataCatalog.versionHistory.fieldHeatmapResolutionMultiRoot":
       "This property name is also exposed by other views listed in this data model (separate roots):",
     "dataCatalog.versionHistory.fieldHeatmapResolutionModelMember":
@@ -484,6 +559,16 @@ const translations: Record<Language, Record<string, string>> = {
       "CDF did not return full inline definitions for this view pair; only the referenced version change is shown.",
     "dataCatalog.versionHistory.viewSchemaUnchanged":
       "No differences in inline view metadata, filter, or properties between these versions.",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsExplanation":
+      "These rows only differ by implicit version strings on nested view references (same space and external id as before). DMS often rewrites these identifiers when the data model or related views are saved, without changing this view’s inline properties, filter, or metadata.",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsHiddenCount":
+      "There are {count} entries like this; the per-view list is collapsed below.",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsShowList": "Show full list ({count})",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsHideList": "Hide full list",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsFields":
+      "Nested view references (version string only): {props}",
+    "dataCatalog.versionHistory.viewReferenceSubstantiveChanges":
+      "Other view changes (schema, filter, or metadata)",
     "dataCatalog.versionHistory.identicalFingerprint":
       "No differences in model metadata or view membership for this step.",
     "dataCatalog.versionHistory.viewPrevCreated": "Previous view created",
@@ -494,22 +579,105 @@ const translations: Record<Language, Record<string, string>> = {
       "Underlined names open version history when a model has more than one version. ↗ opens the latest version in Cognite Fusion.",
     "dataCatalog.dataModelVersions.searchLabel": "Search rows",
     "dataCatalog.dataModelVersions.searchPlaceholder":
-      "Filter by model name, space, external id, or view ref…",
+      "Substring (name, space, external id, view refs)…",
     "dataCatalog.dataModelVersions.noSearchResults":
       "No data models match this search. Try another substring or clear the box.",
     "dataCatalog.viewVersions.searchLabel": "Search rows",
     "dataCatalog.viewVersions.searchPlaceholder":
-      "Filter by view name, space, external id, version, property, or implements ref…",
+      "Substring (name, space, version, properties, implements)…",
     "dataCatalog.viewVersions.noSearchResults":
       "No views match this search. Try another substring or clear the box.",
+    "dataCatalog.viewVersions.promptForHelp":
+      "Open What does this mean? for how to read the grid, colors, “in use”, legend filtering, and the referrers panel.",
+    "dataCatalog.viewVersions.help.title": "View versions matrix",
+    "dataCatalog.viewVersions.help.subtitle":
+      "How this page relates views, versions, catalog references, and transformations",
+    "dataCatalog.viewVersions.help.sectionGrid": "Grid layout",
+    "dataCatalog.viewVersions.help.gridBody":
+      "Each row is one view (`space:externalId`). Columns are published version identifiers for that view (left to right = older to newer within that row). Filter by data model to limit rows to member views of that model and to show a strip of that model’s versions above the matrix. Search narrows rows by name, version, property names, or `implements` references.",
+    "dataCatalog.viewVersions.help.sectionInUse": "What “in use” means here",
+    "dataCatalog.viewVersions.help.inUseBody":
+      "For dot colors, a view counts as in use when Qualitizer finds it in at least one of: (1) any published data model in this project lists that view in its view membership, or (2) transformations—either the view appears as a write destination (`destination.view`), or a transformation’s SQL references a data model that includes this view among its members (the whole member set for that model is then treated as tied to that transformation for this signal). This is a catalog and pipeline wiring signal, not runtime instance traffic; a view can be “not in use” here and still hold data.",
+    "dataCatalog.viewVersions.help.sectionDots": "Dot size and fill",
+    "dataCatalog.viewVersions.help.dotsBody":
+      "Adjacent columns compare consecutive versions on that row. A larger dot means the view definition fingerprint (properties, filter, `implements`) changed from the previous column; a smaller dot means it matches the previous version’s definition. Fill color uses the latest column and whether the view is in use as defined above: green = latest and in use; orange = latest but not in use; pink = older and not in use; white outline = older and still in use.",
+    "dataCatalog.viewVersions.help.sectionLegend": "Legend swatches",
+    "dataCatalog.viewVersions.help.legendBody":
+      "The interactive legend mirrors those meanings: small vs large dots, the four in-use / latest combinations, indigo vs red rings for transformation write destinations (latest vs explicit older version column), and implicit version placeholders (checksum-like ids shown as i1, i2, … per row). Hover a column header to see what an implicit label stands for on that row.",
+    "dataCatalog.viewVersions.help.sectionLegendFilter": "Legend as row filter",
+    "dataCatalog.viewVersions.help.legendFilterBody":
+      "Click a legend entry once to show only rows that contain at least one cell matching that category (include). Click again to hide those rows (exclude). A third click clears that filter. Active mode is indicated under the swatch.",
+    "dataCatalog.viewVersions.help.sectionInteractions": "Referrers and rings",
+    "dataCatalog.viewVersions.help.interactionsBody":
+      "Click a cell bubble to pin it and list referrers in the side panel: data models that include the view, transformations that reference related models or destinations, and notes when nothing was found. Pinned cells use an orange ring so they are distinct from indigo rings, which mark transformation write targets aimed at that cell’s view version (red ring when the destination pins an older published version).",
+    "dataCatalog.viewVersions.help.sectionCatalogLimits": "Loading and row limits",
+    "dataCatalog.viewVersions.help.catalogLimitsBody":
+      "The first load may stop after a fixed number of unique views for a fast paint; use Load all from server to continue listing. The matrix may show only the first chunk of rows sorted by name; expand with Show all in matrix when offered.",
+    "dataCatalog.viewVersions.help.sectionModelRail": "Data model version strip",
+    "dataCatalog.viewVersions.help.modelRailBody":
+      "When a data model is selected, the sky-blue strip lists that model’s published versions in order. Bubbles there mirror transformation activity for each model version (same pin and ring language as the main grid). Scroll rails above and below stay in sync for wide timelines.",
+    "dataCatalog.viewVersions.legend.sizeSmall": "Small = no change from previous version",
+    "dataCatalog.viewVersions.legend.sizeLarge": "Large = change from previous version",
+    "dataCatalog.viewVersions.legend.latestInUse": "Latest version, in use",
+    "dataCatalog.viewVersions.legend.latestNotInUse": "Latest version, not in use",
+    "dataCatalog.viewVersions.legend.olderNotInUse": "Older version, not in use",
+    "dataCatalog.viewVersions.legend.otherInUse": "Other (older, in use)",
+    "dataCatalog.viewVersions.legend.txLatestBorder": "Write destination: latest view version (indigo ring)",
+    "dataCatalog.viewVersions.legend.txOlderBorder": "Write destination: older view version (red ring)",
+    "dataCatalog.viewVersions.legend.implicitVersions": "Has implicit view versions (i1 = oldest implicit on that row)",
+    "dataCatalog.viewVersions.legendFilterTitleInclude":
+      "Include: matching rows only. Click again for exclude.",
+    "dataCatalog.viewVersions.legendFilterTitleExclude":
+      "Exclude: hide matching rows. Click again to clear.",
+    "dataCatalog.viewVersions.legendFilterTitleCycle": "Click: include → exclude → off",
+    "dataCatalog.viewVersions.legendOnlyMatching": "only matching",
+    "dataCatalog.viewVersions.legendHideMatching": "hide matching",
+    "dataCatalog.viewVersions.legendNoRows":
+      "No rows match this legend setting. Click the same legend entry again to switch include → exclude → off.",
+    "dataCatalog.viewVersions.sidebarEmpty":
+      "Click a bubble to pin referrers here. Pinned cells use an orange ring; indigo rings mark transformation write targets to the latest column.",
+    "dataCatalog.viewVersions.unpin": "Unpin",
+    "dataCatalog.viewVersions.referrers": "Referrers",
+    "dataCatalog.viewVersions.noReferrers": "No referrers found.",
+    "dataCatalog.viewVersions.labelDataModel": "Data model",
+    "dataCatalog.viewVersions.optionAllViews": "All views",
+    "dataCatalog.viewVersions.filterAll": "All",
+    "dataCatalog.viewVersions.dataModelVersionsStrip": "Data model versions",
+    "dataCatalog.viewVersions.loadingTitle": "Loading views…",
+    "dataCatalog.viewVersions.loadingListingProgress":
+      "Listing view definitions from CDF… {itemsLoaded} items fetched, {uniqueViews} unique views so far.",
+    "dataCatalog.viewVersions.loadingDetailsProgress":
+      "Loading view details… batch {batchIndex} of {batchTotal}.",
+    "dataCatalog.viewVersions.loadingPreparing": "Preparing request…",
+    "dataCatalog.viewVersions.emptyNoViews": "No views or versions found.",
+    "dataCatalog.viewVersions.emptyNoViewsInModel": "No views in this data model.",
+    "dataCatalog.viewVersions.emptyNoVersionColumns": "No version data for views in this data model.",
+    "dataCatalog.viewVersions.refreshingBanner": "Refreshing views…",
+    "dataCatalog.viewVersions.capShowingFirst":
+      "Showing the first {shown} of {total} views in the matrix (sorted by name).",
+    "dataCatalog.viewVersions.capListingPaused":
+      "Listing paused after {cap} unique views for a quick first paint; more definitions exist on the server.",
+    "dataCatalog.viewVersions.capListingPausedSuffix": "Use the button below to fetch the remainder.",
+    "dataCatalog.viewVersions.loadAllFromServer": "Load all from server",
+    "dataCatalog.viewVersions.showAllMore": "Show all in matrix ({more} more)",
+    "dataCatalog.viewVersions.refKindView": "View",
+    "dataCatalog.viewVersions.refKindDataModel": "Data model",
+    "dataCatalog.viewVersions.refKindTransformation": "Transformation",
     "dataCatalog.dataModelVersions.tooltipVersionHistory": "Click to open version history",
     "dataCatalog.dataModelVersions.tooltipFusion": "Open latest version in Cognite Fusion",
     "dataCatalog.subtitle": "Columns: Data models → Views → Fields.",
-    "dataCatalog.filter.placeholder": "Substring…",
+    "dataCatalog.filter.placeholder.substring": "Substring…",
+    "dataCatalog.filter.placeholder.substringMinChars": "Substring (min. {min} characters)…",
+    "dataCatalog.filter.placeholder.propertyExplorer": "Substring (property name)…",
+    "dataCatalog.filter.spaceColumnLead":
+      "Matches CDF space ids on models and views; fields remain if any linked view’s space matches.",
+    "dataCatalog.filter.minCharsHint":
+      "Filtering runs after you pause typing and uses at least {min} characters in each box (models, views, fields, spaces) so the graph stays responsive on large catalogs.",
+    "dataCatalog.filter.debouncePending": "Applying filter after you pause typing…",
     "dataCatalog.filter.exclude": "Exclude",
     "dataCatalog.filter.excludeAria": "Exclude matches for {column}",
     "dataCatalog.filter.summary":
-      "{mShown} / {mTotal} models · {vShown} / {vTotal} views · {fShown} / {fTotal} fields",
+      "{mShown} / {mTotal} models · {vShown} / {vTotal} views · {fShown} / {fTotal} fields · {spShown} / {spTotal} spaces",
     "dataCatalog.filter.clear": "Clear filters",
     "dataCatalog.filter.noMatch":
       "No nodes match the current filters. Clear or loosen the search text.",
@@ -558,7 +726,8 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.list.loading": "Loading transformations...",
     "transformations.list.error": "Failed to load transformations.",
     "transformations.list.empty": "No transformations found.",
-    "transformations.list.searchPlaceholder": "Search (name, id, query)...",
+    "transformations.list.filterLabel": "Filter list",
+    "transformations.list.searchPlaceholder": "Substring (name, id, query)…",
     "transformations.list.backToList": "Back to list",
     "transformations.list.name": "Name",
     "transformations.list.runs24h": "Runs (24h)",
@@ -600,6 +769,18 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.cte.timelineLoading": "Loading…",
     "transformations.cte.noRowsReturned": "No rows returned.",
     "dataCatalog.loading": "Loading metadata...",
+    "dataCatalog.overview.loadingTitle": "Loading catalog overview…",
+    "dataCatalog.overview.progress.dataModels":
+      "Listing data models from CDF (paged catalog; shared cache with other Data Catalog tools).",
+    "dataCatalog.overview.progress.sdkInitializing": "Waiting for SDK session / authentication…",
+    "dataCatalog.overview.progress.buildingGraph":
+      "Building model → view links from {modelsTotal} data models ({uniqueViews} unique member views).",
+    "dataCatalog.overview.progress.viewDetails":
+      "Loading view schemas with inherited properties… batch {batchIndex} of {batchTotal} ({viewsLoaded} of {viewsTotal} views).",
+    "dataCatalog.overview.progress.samples": "Loading sample instances for the selection…",
+    "dataCatalog.overview.progress.preparing": "Preparing…",
+    "dataCatalog.overview.progress.loaderPanelTitle": "Current activity",
+    "dataCatalog.overview.loaderOverlayTitle": "Loading data catalog",
     "dataCatalog.error": "Failed to load metadata.",
     "dataCatalog.empty": "No data models available.",
     "dataCatalog.error.noRelatedView": "No related view found for this selection.",
@@ -610,6 +791,7 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.column.dataModels": "Data models",
     "dataCatalog.column.views": "Views",
     "dataCatalog.column.fields": "Fields",
+    "dataCatalog.column.spaces": "Spaces",
     "dataCatalog.sample.loading": "Loading sample rows...",
     "dataCatalog.sample.error": "Failed to load sample rows.",
     "dataCatalog.sample.empty": "No rows available.",
@@ -710,7 +892,7 @@ const translations: Record<Language, Record<string, string>> = {
       "{count} view version(s) would be orphaned if unused model versions were removed ({pct}% of unused views).",
     "healthChecks.versioning.implicitViewRefs.title": "Data models with implicit view references",
     "healthChecks.versioning.implicitViewRefs.description":
-      "These data model versions include at least one inline view without an explicit version. Pin a view version (for example v1) on the model to avoid opaque auto-generated view versions.",
+      "These data model versions include at least one inline view without an explicit version. Pin a view version (for example v1) on the model to avoid auto-generated implicit view versions.",
     "healthChecks.versioning.implicitViewRefs.none":
       "Every inline view on every data model version specifies an explicit version.",
     "healthChecks.versioning.implicitViewRefs.missingVersionTag": "no explicit version on model",
@@ -826,6 +1008,8 @@ const translations: Record<Language, Record<string, string>> = {
       "{capability} ({actions}) · {scopeType} differs by a few items: {left} vs {right}",
     "healthChecks.permissions.drift.unknownCapability": "Unknown",
     "dataCatalog.tooltip.empty": "No connections.",
+    "dataCatalog.tooltip.space": "Space: {space}",
+    "dataCatalog.tooltip.externalId": "External ID: {externalId}",
   },
   ja: {
     "language.english": "English",
@@ -893,6 +1077,7 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.error.workflows": "ワークフローの読み込みに失敗しました。",
     "processing.error.extractors": "抽出パイプラインの読み込みに失敗しました。",
     "processing.bubbles.loading": "読み込み中…",
+    "processing.bubbles.waiting": "待機中（他の図のデータを先に読み込み中）。",
     "processing.bubbles.empty": "この時間帯のデータはありません。",
     "processing.bubbles.ready": "読み込み完了",
     "processing.heatmap.title": "スケジュール開始のヒートマップ",
@@ -959,6 +1144,14 @@ const translations: Record<Language, Record<string, string>> = {
     "processing.card.concurrency.description":
       "{bucketSeconds} 秒ごとの関数実行の並列数。点線の縦線と淡い帯は 5 分境界（UTC）です。",
     "processing.status.error": "エラー",
+    "processing.partial.title": "結果の一部のみ表示",
+    "processing.partial.summary":
+      "自動再試行後も {total} 件中 {failed} 件の API リクエストが失敗しました（失敗率 {percent}%）。読み込めたデータのみグラフに表示しています。",
+    "processing.partial.detailLine": "{label}: {failed}/{total} 件失敗 ({percent}%)",
+    "processing.partial.schedulesLabel": "スケジュール（ヒートマップ）",
+    "processing.filter.externalIdLabel": "外部 ID の部分一致",
+    "processing.filter.externalIdLead":
+      "関数 ID、変換 ID または名前、ワークフロー外部 ID、抽出パイプラインの外部 ID または名前、ヒートマップのスケジュール ID／名前に一致します。",
     "processing.loader.title": "処理データを読み込み中",
     "processing.unknown.transformation": "不明な変換",
     "processing.legend.functions.title": "関数バブル",
@@ -1107,6 +1300,10 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.groups.title": "グループ権限",
     "permissions.groups.description": "セキュリティグループ別の権限アクションとスコープ。",
     "permissions.groups.none": "グループが見つかりません。",
+    "permissions.groups.filterLabel": "グループで絞り込み",
+    "permissions.groups.filterSummary": "グループ {shown} / {total}",
+    "permissions.groups.noFilterMatches":
+      "この条件に一致するグループはありません。別の文字列を試すか検索をクリアしてください。",
     "permissions.loading": "権限を読み込み中...",
     "permissions.loadingDetail.groups": "このプロジェクトのセキュリティグループを取得中…",
     "permissions.loadingDetail.datasets": "データセットを取得中…",
@@ -1153,7 +1350,7 @@ const translations: Record<Language, Record<string, string>> = {
     "permissions.scopes.dataset.description": "セキュリティグループごとのデータセットスコープ。",
     "permissions.compare.title": "ユーザー比較",
     "permissions.compare.searchLabel": "検索",
-    "permissions.compare.searchPlaceholder": "グループ名、ID、ソースで検索…",
+    "permissions.compare.searchPlaceholder": "部分文字列（グループ名、ID、ソース）…",
     "permissions.compare.utilizedOnly": "一覧ユーザーの誰かが所属しているグループのみ表示",
     "permissions.compare.truncatedSummary":
       "{total} 件中 {shown} 件を表示（ユーザーが所属する {pinned} 件のグループはすべて含みます）。あと {hidden} 件は非表示です。",
@@ -1215,9 +1412,9 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.subnav.dataModelVersions": "データモデルバージョン",
     "dataCatalog.subnav.viewVersions": "ビューバージョン",
     "dataCatalog.versionMatrix.showChecksumVersions":
-      "チェックサム形式のバージョン列を表示",
+      "暗黙バージョン列を表示",
     "dataCatalog.versionMatrix.onlyChecksumColumns":
-      "この範囲では通常のバージョン列がなく、チェックサム形式の識別子のみです。下で有効にするとグリッドに表示されます。",
+      "この範囲では通常のバージョン列がなく、暗黙バージョンの識別子のみです。下で有効にするとグリッドに表示されます。",
     "dataCatalog.versionHistory.backToGrid": "バージョン一覧に戻る",
     "dataCatalog.versionHistory.open": "バージョン履歴",
     "dataCatalog.versionHistory.openPinned": "バージョン履歴",
@@ -1225,13 +1422,31 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.versions": "バージョン",
     "dataCatalog.versionHistory.hint":
       "行を開くと、それぞれの側の Fusion リンクと作成・更新日時、その後に変更内容が表示されます。ステップは連続する公開バージョン同士を比較します（新しい順）。追加・削除されたビュー、参照バージョンの更新、およびCDFが完全なインラインビュー定義を返した場合はそのビュー間のプロパティとメタデータの差分を表示します。",
+    "dataCatalog.versionHistory.help.title": "データモデルのバージョン履歴",
+    "dataCatalog.versionHistory.help.subtitle": "ヒートマップ・詳細パネル・バージョンステップの読み方",
+    "dataCatalog.versionHistory.help.sectionPage": "このページ",
+    "dataCatalog.versionHistory.help.sectionHeatmap": "フィールド有無のヒートマップ",
+    "dataCatalog.versionHistory.help.hoverVersionRowOrange":
+      "最新以外のバージョン行ラベル（左）にホバーすると、グリッドのオレンジのセルは、その公開リビジョンから「最新の一つ手前」の行までで欠けていて、より新しい版では再び現れるフィールドを示します。",
+    "dataCatalog.versionHistory.fieldHeatmapPromptForHelp":
+      "セルにホバーまたは固定で、バージョン・フィールド・有無・継承のボックスを表示します。色・凡例・バージョン間の差分・名前の解決のしかたは右上の「これは何を意味しますか？」を開いてください。",
     "dataCatalog.versionHistory.stepFrom": "変更前",
     "dataCatalog.versionHistory.stepTo": "変更後",
     "dataCatalog.versionHistory.stepSingle": "バージョン",
     "dataCatalog.versionHistory.fieldHeatmapCaption":
-      "データモデル各バージョンにおけるビューフィールドの有無。列はプロパティ識別子ごと（見出しなし）。同一の名前は DMS の `implements` の優先（配列の後ろのエントリが前に勝つ）でビュー間でまとめます。濃い青＝存在、薄い青＝隣の行（より新しい／古い公開バージョン）でも存在するが、その2版の間で `implements` 解決後の供給元ビューが変わった、白＝なし。下のパネルに詳細—セルにホバーまたはクリックで固定。",
+      "データモデル各バージョンにおけるビューフィールドの有無。列はプロパティ識別子ごと（見出しなし）でメンバービューにまたがってまとめます。名前がある場合、セルの色は宣言するメンバー数を表します（グリッド下の凡例）。隣バージョンとの供給元の差は引き続き薄い青で示します—メンバーが1件のときはセル全体、複数のときはランプ色の上に半透明の薄い青。白＝なし。セルにホバーで詳細。",
+    "dataCatalog.versionHistory.fieldHeatmapHelpCellPalette":
+      "無いセルは白（最新以外のバージョン行ラベルにホバー中はオレンジ—そのリビジョンでは欠けているがより新しい版で現れるフィールド）。メンバーが1つだけ宣言: 濃い青。2〜10: 青から紫へ段階的に濃くなるランプ（11件以上は10件と同じ色）。隣行と解決後の供給元シグネチャが違うとき、メンバー1件ならセル全体が薄い青、複数メンバーではランプの上に半透明の薄い青を重ねます。",
     "dataCatalog.versionHistory.fieldHeatmapLegendLightBlue":
-      "薄い青のセル：隣のバージョン行ともプロパティはあるが、ルートごとの解決後の供給元ビューが変わっている（`implements` の順や親ビュー定義の変更など）。",
+      "薄い青（隣行とのドリフト）: プロパティを宣言するメンバーがちょうど1つで解決先の組み合わせが変わったときはセル全体が薄い青。複数メンバーが宣言しているときは、いずれかのメンバーの解決が変わった場合にランプ色の上へ半透明の薄い青を重ねます。",
+    "dataCatalog.versionHistory.fieldHeatmapCellLegendTitle": "セルの色",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchAbsent": "なし",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchOneMember": "メンバー1",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchMultiScale": "メンバー2–10+",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchMultiTitle":
+      "2から10メンバーまでの9段階。11以上は10と同じ色です。",
+    "dataCatalog.versionHistory.fieldHeatmapLegendSwatchDrift": "ドリフト重ね",
+    "dataCatalog.versionHistory.fieldHeatmapDetailMemberViews": "メンバービュー数",
     "dataCatalog.versionHistory.fieldHeatmapLegendOrange":
       "オレンジの行枠：変換の書き込み先がこのデータモデルバージョンで、かつ最新の公開バージョンではありません。",
     "dataCatalog.versionHistory.fieldHeatmapLegendAddedFieldHover":
@@ -1248,12 +1463,57 @@ const translations: Record<Language, Record<string, string>> = {
       "ヒートマップ用のビュープロパティが見つかりません。公開バージョンにインラインのプロパティ一覧が含まれていない可能性があります。",
     "dataCatalog.versionHistory.fieldHeatmapTooltip": 'バージョン "{version}" · フィールド "{field}"',
     "dataCatalog.versionHistory.fieldHeatmapDetailResolution": "継承 / 解決",
-    "dataCatalog.versionHistory.fieldHeatmapResolutionRuleShort":
-      "ルートごと: `implements` では配列の後ろのエントリが前に優先。タグはルート →（打ち消しはシャドウ）→ このバージョンで採用される供給元ビュー。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionFlowTitle":
+      "どの定義が採用されるか（このバージョン）",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStep1":
+      "ヒートマップの列はモデル全体でまとめた一つのプロパティ識別子です。詳細パネルの各解決行は、ホバーまたは固定したセルのバージョンにおいて、その識別子を宣言しているメンバービュー（このデータモデルに列挙されているビュー）が一つずつです。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStep2":
+      "そのメンバーについて Cognite は `implements` 配列を順に辿ります。同じ名前では後ろのエントリが前に優先されます。メンバービュー自身のプロパティは、同じ識別子の継承より優先されます。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStep3":
+      "詳細パネルの各ボックスの末尾は、そのメンバーに対して有効なビュー上の供給元が一つだけ（取り消し線は `implements` 上で破棄）です。複数のボックスは、複数のメンバーが同じビュー側のプロパティ識別子をそれぞれ宣言し、それぞれが独自の継承チェーンを持つことを意味します。下のコンテナ層の説明のとおり、同じコンテナプロパティに写像されるかどうかとは別の話です。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionPerRowLead":
+      "各ボックスはメンバービューが一つ分です。下段のハイライトは、そのメンバーで `implements` をマージしたあと、そのプロパティ名をどのビュー定義が供給するかです。取り消し線は検討のうえ破棄。複数ボックス＝複数メンバーが同じ識別子文字列を持ち、それぞれ別に解決します。写像がすべて同じ `container` + `containerPropertyIdentifier` を指すなら、CDF の格納データはクエリ上ひとつにまとまりますが、このパネルはコンテナ単位ではマージしません。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionContainerLayer":
+      "コンテナ写像（ドキュメントで説明される層）: ビュープロパティは特定のコンテナプロパティにバックされます。異なるビューのプロパティが同じコンテナ + `containerPropertyIdentifier` に写像される場合、読み書きされる格納値は同一であり、フィルタやクエリもそれに揃います。このヒートマップが答えるのは別で、データモデル内の各メンバービューについて、このビュー側のプロパティ名が `implements` マージ後に存在するか、スキーマ上どのビューがその名前を供給するかです。列をコンテナ識別子で畳まないため、メンバー数が多いこと自体が「物理フィールドが複数ある」とは限りません。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowMember": "メンバービュー",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowSuperseded": "優先されず未使用",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowWinner": "このメンバーで有効",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowEffectiveWho":
+      "適用対象（WHO）: データモデルメンバー `{member}` — このボックスはそのメンバーがヒートマップ列の識別子を `implements` のあとどう公開するかだけを固定します。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowWinnerForMember":
+      "供給元ビューは `{member}` に対してだけマージに勝ちます（下は写像がある場合、その供給元が値をどのコンテナ列に載せるか）。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageWhatThisIs":
+      "ビュープロパティから具体的なストレージ列への写像です。コンテナ参照（space / externalId）と `containerPropertyIdentifier` の組み合わせが一つの実体列です。コンテナプロパティ ID なしの「下のコンテナ」だけでは列は決まりません。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowUnderlyingContainer": "下のコンテナ",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowContainerPropertyId": "コンテナ側プロパティID",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowStorageUnknown":
+      "スナップショットに無し（勝利側の定義に `container` + `containerPropertyIdentifier` がない、またはコンテナ無しタイプなど）",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorage":
+      "下のストレージ（スナップショットから）",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageUnifiedAll":
+      "このプロパティを持つ {total} 行とも、同じバック `{container}` / `{propertyId}` を宣言しています。",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageUnifiedPartial":
+      "{total} 行中 {mapped} 行のみこのスナップショットに写像があります。共通は `{container}` / `{propertyId}`。未取得の行は下の継承を確認してください。",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageDistinct":
+      "写像のある行 {mapped} で {distinct} 種類のコンテナ列があります — メンバーがすべて同じ格納列を共有しているとは限りません。",
+    "dataCatalog.versionHistory.fieldHeatmapDetailUnderlyingStorageDistinctPartial":
+      "写像のある行に {distinct} 種類のコンテナがあり、また写像不明の行もあります — 継承の各ボックスを確認してください。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageUnified":
+      "上の各行はこのプロパティ識別子についてすべて `{container}` / `{propertyId}` に写像されています — 格納先はひとつに揃っています。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageDistinct":
+      "これらの行で {count} 種類のコンテナ写像があります — メンバー間でこの識別子の格納パスがすべて同一とは限りません。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionStorageIncomplete":
+      "少なくとも1行はこのスナップショットにインラインのコンテナ写像がありません — 下のサマリーは取得できた行同士のみの比較です。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionSingleMemberLead":
+      "この公開バージョンでは、このプロパティ名はメンバービューが一つだけ宣言しています。ボックスはそのメンバーが `implements` 上でどう解決するか（下端が一つの有効な供給元）を示します。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionMultiMemberLead":
+      "このプロパティ名は {count} のメンバービューに現れています。ヒートマップはビュースキーマ上の露出を数えます。メンバーごとに `implements` を解決するためメンバーごとにボックスがあります。それは「{count} 個の別コンテナ列がある」とは限りません。各ビュープロパティが同じコンテナプロパティに写像されていれば格納データは統一されます（詳細はヘルプのコンテナ層の説明）。",
+    "dataCatalog.versionHistory.fieldHeatmapResolutionRowSelfOnly":
+      "このメンバーは自スキーマでこのプロパティを宣言しており、`implements` 上で打ち消された供給元はありません。",
     "dataCatalog.versionHistory.fieldHeatmapResolutionTrivialManyRoots":
-      "ヒートマップの列はプロパティ名「{field}」だけをモデル内の全メンバービューにまたがってまとめています。このバージョンでは {count} ビューに存在し、いずれも自ビューがその名前を供給するだけの自明なチェーンです（`implements` によるシャドウはありません）。列全体で共有される単一の継承パスはありません。",
+      "列は識別子「{field}」をモデル全体でまとめたものです。このバージョンでは {count} のメンバービューに存在し、いずれも自スキーマからのみ供給しています（`implements` によるシャドウなし）。列全体で一つにまとめた継承行はありません。",
     "dataCatalog.versionHistory.fieldHeatmapResolutionOmittedTrivialRoots":
-      "他に {count} 件のメンバービューも、この名前を自ビューからのみ供給しています（省略）。",
+      "ほか {count} 件のメンバービューも、この名前を自ビューからのみ供給しています（取り消し線のセグメントなしのためここでは省略）。",
     "dataCatalog.versionHistory.fieldHeatmapDriftVsOlder": "より古い行（{version}）との差",
     "dataCatalog.versionHistory.fieldHeatmapDriftVsNewer": "より新しい行（{version}）との差",
     "dataCatalog.versionHistory.fieldHeatmapDriftWinnerAbsentInVersion": "なし / {version}",
@@ -1266,7 +1526,7 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.versionHistory.fieldHeatmapDriftDebugDismiss": "閉じる",
     "dataCatalog.versionHistory.fieldHeatmapDetailWinnerDrift": "隣接バージョンとの供給元の差",
     "dataCatalog.versionHistory.fieldHeatmapResolutionRule":
-      "DMS では、複数の継承ビューに同じプロパティ識別子がある場合、各ビューの `implements` を辿って解決します。`implements` 配列では後のエントリが先に優先され（グラフ全体はトポロジカル順）、名前ごとに一つの有効なプロパティになります。",
+      "ビューごとに、DMS は同じプロパティ識別子を `implements` の配列順（後が先に勝つ。グラフはトポロジカル順）で解決し、そのビュー上では名前ごとに一つの有効な供給元になります。データモデルに複数のメンバービューがあり同じ識別子を持つ場合でも、コンテナ写像が同じコンテナプロパティを指せば格納は統一され得ます。",
     "dataCatalog.versionHistory.fieldHeatmapResolutionMultiRoot":
       "このプロパティ名は、このデータモデルに列挙されている他のビュー（別ルート）からも公開されています:",
     "dataCatalog.versionHistory.fieldHeatmapResolutionModelMember":
@@ -1301,6 +1561,16 @@ const translations: Record<Language, Record<string, string>> = {
       "CDFはこのビューペアの完全なインライン定義を返していません。参照バージョンの変更のみ表示します。",
     "dataCatalog.versionHistory.viewSchemaUnchanged":
       "これらのバージョン間でインラインビューのメタデータ、フィルター、プロパティに差分はありません。",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsExplanation":
+      "これらの行は、ネストしたビュー参照の暗黙バージョン文字列だけが変わったものです（スペースと外部IDは以前と同じ）。データモデルや関連ビューを保存するとDMSがよくこれらの識別子を書き換えますが、このビューのインラインのプロパティ・フィルター・メタデータは変わっていません。",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsHiddenCount":
+      "該当するビューは {count} 件です。ビューごとの内訳は下で折りたたみ中です。",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsShowList": "一覧を表示（{count} 件）",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsHideList": "一覧を隠す",
+    "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsFields":
+      "ネストしたビュー参照（版文字列のみ）: {props}",
+    "dataCatalog.versionHistory.viewReferenceSubstantiveChanges":
+      "その他のビュー変更（スキーマ・フィルター・メタデータ）",
     "dataCatalog.versionHistory.identicalFingerprint":
       "このステップではモデルメタデータまたはビュー構成に差分はありません。",
     "dataCatalog.versionHistory.viewPrevCreated": "以前のビュー作成",
@@ -1311,22 +1581,106 @@ const translations: Record<Language, Record<string, string>> = {
       "下線のある名前は複数バージョンがあるモデルでバージョン履歴を開きます。↗ は Cognite Fusion で最新バージョンを開きます。",
     "dataCatalog.dataModelVersions.searchLabel": "行を検索",
     "dataCatalog.dataModelVersions.searchPlaceholder":
-      "モデル名・スペース・外部ID・ビュー参照で絞り込み…",
+      "部分文字列（名前・スペース・外部ID・ビュー参照）…",
     "dataCatalog.dataModelVersions.noSearchResults":
       "検索に一致するデータモデルはありません。別の文字列を試すか検索をクリアしてください。",
     "dataCatalog.viewVersions.searchLabel": "行を検索",
     "dataCatalog.viewVersions.searchPlaceholder":
-      "ビュー名・スペース・外部ID・バージョン・プロパティ・implements参照で絞り込み…",
+      "部分文字列（名前・スペース・バージョン・プロパティ・implements）…",
     "dataCatalog.viewVersions.noSearchResults":
       "検索に一致するビューはありません。別の文字列を試すか検索をクリアしてください。",
+    "dataCatalog.viewVersions.promptForHelp":
+      "グリッドの読み方・色・「使用中」の意味・凡例フィルター・参照パネルについては「これは何を意味しますか？」を開いてください。",
+    "dataCatalog.viewVersions.help.title": "ビューバージョンのマトリックス",
+    "dataCatalog.viewVersions.help.subtitle":
+      "ビュー・バージョン・カタログ参照・変換の関係の読み方",
+    "dataCatalog.viewVersions.help.sectionGrid": "グリッドの構成",
+    "dataCatalog.viewVersions.help.gridBody":
+      "各行はビュー一つ（`space:externalId`）です。列はそのビューの公開バージョン識別子で、行内では左から右へ古い順から新しい順です。データモデルで絞り込むと、そのモデルのメンバービューに行が限定され、マトリックスの上にそのモデルのバージョンの帯が表示されます。検索は名前・バージョン・プロパティ名・`implements` 参照で行を絞ります。",
+    "dataCatalog.viewVersions.help.sectionInUse": "ここでの「使用中」の意味",
+    "dataCatalog.viewVersions.help.inUseBody":
+      "ドットの色に使う「使用中」とは、Qualitizer が次のいずれかを見つけたときです。(1) このプロジェクトの公開データモデルのいずれかが、そのビューをメンバーとして列挙している、(2) 変換で—書き込み先の `destination.view` にそのビューが現れる、または変換の SQL がデータモデルを参照しており、そのモデルのメンバー集合にこのビューが含まれる（そのモデルに紐づく変換としてメンバー全体をこのシグナルに含めます）。これはカタログとパイプライン上の接続の目安であり、実行時のインスタンス利用状況ではありません。ここで「未使用」でもデータが存在し得ます。",
+    "dataCatalog.viewVersions.help.sectionDots": "ドットの大きさと塗り",
+    "dataCatalog.viewVersions.help.dotsBody":
+      "隣り合う列同士で、その行の連続するバージョンを比較します。大きいドットはビュー定義のフィンガープリント（プロパティ、フィルター、`implements`）が前列から変わったとき、小さいドットは前列と一致するときです。塗り色は最新列と上記の「使用中」に基づきます：緑＝最新かつ使用中、橙＝最新だが未使用、ピンク＝古い列かつ未使用、白の輪郭＝古い列だがまだ使用中。",
+    "dataCatalog.viewVersions.help.sectionLegend": "凡例のスウォッチ",
+    "dataCatalog.viewVersions.help.legendBody":
+      "凡例はその意味に対応します：小／大、最新×使用中の四組み合わせ、変換の書き込み先を示すインディゴと赤のリング（最新列か明示的な古いバージョン列か）、および暗黙のバージョン（チェックサム風の ID は行ごとに i1, i2, …）。列ヘッダにホバーすると、その行での暗黙ラベルの意味が分かります。",
+    "dataCatalog.viewVersions.help.sectionLegendFilter": "凡例による行フィルター",
+    "dataCatalog.viewVersions.help.legendFilterBody":
+      "凡例を一度クリックすると、そのカテゴリに一致するセルを少なくとも一つ含む行だけを表示（インクルード）します。もう一度クリックするとそれらの行を非表示（エクスクルード）。三回目でそのフィルターを解除します。モードはスウォッチ下の表示で分かります。",
+    "dataCatalog.viewVersions.help.sectionInteractions": "参照元とリング",
+    "dataCatalog.viewVersions.help.interactionsBody":
+      "セルのバブルをクリックして固定すると、横のパネルに参照元が並びます：ビューを含むデータモデル、関連モデルや書き込み先を参照する変換、見つからない場合の注記です。固定されたセルは橙のリングで、変換の書き込み先（そのセルのビューバージョンを指す）を示すインディゴのリングとは別です（公開の古いバージョン列を指す書き込み先は赤リング）。",
+    "dataCatalog.viewVersions.help.sectionCatalogLimits": "読み込みと行数の上限",
+    "dataCatalog.viewVersions.help.catalogLimitsBody":
+      "初回の一覧はユニークビュー数の上限で止まり、先に画面を出すことがあります。残りは「サーバーからすべて読み込み」で続けます。マトリックスは名前順の先頭のみ表示する場合があり、表示されるときは「マトリックスですべて表示」で展開できます。",
+    "dataCatalog.viewVersions.help.sectionModelRail": "データモデルバージョンの帯",
+    "dataCatalog.viewVersions.help.modelRailBody":
+      "データモデルを選ぶと、水色の帯にそのモデルの公開バージョンが並びます。各バブルはメイングリッドと同じ固定・リングの意味で、そのモデルバージョンに対する変換の動きを表します。上下のスクロールレールは同期します。",
+    "dataCatalog.viewVersions.legend.sizeSmall": "小＝前列から変更なし",
+    "dataCatalog.viewVersions.legend.sizeLarge": "大＝前列から定義が変化",
+    "dataCatalog.viewVersions.legend.latestInUse": "最新バージョン・使用中",
+    "dataCatalog.viewVersions.legend.latestNotInUse": "最新バージョン・未使用",
+    "dataCatalog.viewVersions.legend.olderNotInUse": "古いバージョン・未使用",
+    "dataCatalog.viewVersions.legend.otherInUse": "その他（古いが使用中）",
+    "dataCatalog.viewVersions.legend.txLatestBorder": "書き込み先：最新ビューバージョン（インディゴの輪）",
+    "dataCatalog.viewVersions.legend.txOlderBorder": "書き込み先：古いビューバージョン（赤の輪）",
+    "dataCatalog.viewVersions.legend.implicitVersions":
+      "暗黙のビューバージョンあり（i1＝その行で最も古い暗黙）",
+    "dataCatalog.viewVersions.legendFilterTitleInclude":
+      "インクルード：一致する行のみ。もう一度クリックでエクスクルードへ。",
+    "dataCatalog.viewVersions.legendFilterTitleExclude":
+      "エクスクルード：一致する行を非表示。もう一度クリックで解除。",
+    "dataCatalog.viewVersions.legendFilterTitleCycle": "クリック：インクルード → エクスクルード → オフ",
+    "dataCatalog.viewVersions.legendOnlyMatching": "一致のみ",
+    "dataCatalog.viewVersions.legendHideMatching": "一致を非表示",
+    "dataCatalog.viewVersions.legendNoRows":
+      "この凡例条件に一致する行がありません。同じ凡例をもう一度クリックしてインクルード → エクスクルード → オフに切り替えてください。",
+    "dataCatalog.viewVersions.sidebarEmpty":
+      "バブルをクリックして参照元をここに固定します。固定セルは橙の輪、インディゴの輪は最新列への変換の書き込み先です。",
+    "dataCatalog.viewVersions.unpin": "固定解除",
+    "dataCatalog.viewVersions.referrers": "参照元",
+    "dataCatalog.viewVersions.noReferrers": "参照元が見つかりません。",
+    "dataCatalog.viewVersions.labelDataModel": "データモデル",
+    "dataCatalog.viewVersions.optionAllViews": "すべてのビュー",
+    "dataCatalog.viewVersions.filterAll": "すべて",
+    "dataCatalog.viewVersions.dataModelVersionsStrip": "データモデルのバージョン",
+    "dataCatalog.viewVersions.loadingTitle": "ビューを読み込み中…",
+    "dataCatalog.viewVersions.loadingListingProgress":
+      "CDF からビュー定義を一覧取得中… {itemsLoaded} 件取得、ユニークビュー {uniqueViews} 件。",
+    "dataCatalog.viewVersions.loadingDetailsProgress":
+      "ビュー詳細を読み込み中… バッチ {batchIndex} / {batchTotal}。",
+    "dataCatalog.viewVersions.loadingPreparing": "リクエスト準備中…",
+    "dataCatalog.viewVersions.emptyNoViews": "ビューまたはバージョンが見つかりません。",
+    "dataCatalog.viewVersions.emptyNoViewsInModel": "このデータモデルにビューがありません。",
+    "dataCatalog.viewVersions.emptyNoVersionColumns": "このデータモデルのビューにバージョン列がありません。",
+    "dataCatalog.viewVersions.refreshingBanner": "ビューを更新中…",
+    "dataCatalog.viewVersions.capShowingFirst":
+      "マトリックスには名前順で先頭 {shown} 件のみ表示しています（全 {total} 件）。",
+    "dataCatalog.viewVersions.capListingPaused":
+      "一覧は最初の {cap} ユニークビューで一度停止しています。サーバーにはほかにも定義があります。",
+    "dataCatalog.viewVersions.capListingPausedSuffix": "残りは下のボタンで取得してください。",
+    "dataCatalog.viewVersions.loadAllFromServer": "サーバーからすべて読み込み",
+    "dataCatalog.viewVersions.showAllMore": "マトリックスですべて表示（あと {more} 件）",
+    "dataCatalog.viewVersions.refKindView": "ビュー",
+    "dataCatalog.viewVersions.refKindDataModel": "データモデル",
+    "dataCatalog.viewVersions.refKindTransformation": "変換",
     "dataCatalog.dataModelVersions.tooltipVersionHistory": "クリックでバージョン履歴を開く",
     "dataCatalog.dataModelVersions.tooltipFusion": "Cognite Fusion で最新バージョンを開く",
     "dataCatalog.subtitle": "列: データモデル → ビュー → フィールド。",
-    "dataCatalog.filter.placeholder": "部分文字列…",
+    "dataCatalog.filter.placeholder.substring": "部分文字列…",
+    "dataCatalog.filter.placeholder.substringMinChars": "部分文字列（各ボックス {min} 文字以上）…",
+    "dataCatalog.filter.placeholder.propertyExplorer": "部分文字列（プロパティ名）…",
+    "dataCatalog.filter.spaceColumnLead":
+      "データモデルとビューのスペースIDに一致。フィールドは、リンク先ビューのスペースが一致するとき残ります。",
+    "dataCatalog.filter.minCharsHint":
+      "大規模カタログ向けに、入力が一段落してから、各ボックスで少なくとも {min} 文字（モデル・ビュー・フィールド・スペース）になったときだけ絞り込みます。",
+    "dataCatalog.filter.debouncePending": "入力が止まってからフィルターを適用しています…",
     "dataCatalog.filter.exclude": "除外",
     "dataCatalog.filter.excludeAria": "{column}で一致した項目を除外",
     "dataCatalog.filter.summary":
-      "データモデル {mShown} / {mTotal} · ビュー {vShown} / {vTotal} · フィールド {fShown} / {fTotal}",
+      "データモデル {mShown} / {mTotal} · ビュー {vShown} / {vTotal} · フィールド {fShown} / {fTotal} · スペース {spShown} / {spTotal}",
     "dataCatalog.filter.clear": "フィルターをクリア",
     "dataCatalog.filter.noMatch":
       "条件に一致するノードがありません。フィルターをクリアするか検索を緩めてください。",
@@ -1375,7 +1729,8 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.list.loading": "変換を読み込み中...",
     "transformations.list.error": "変換の読み込みに失敗しました。",
     "transformations.list.empty": "変換が見つかりません。",
-    "transformations.list.searchPlaceholder": "検索 (名前、ID、クエリ)...",
+    "transformations.list.filterLabel": "一覧を絞り込む",
+    "transformations.list.searchPlaceholder": "部分文字列（名前、ID、クエリ）…",
     "transformations.list.backToList": "一覧に戻る",
     "transformations.list.name": "名前",
     "transformations.list.runs24h": "実行 (24h)",
@@ -1417,6 +1772,18 @@ const translations: Record<Language, Record<string, string>> = {
     "transformations.cte.timelineLoading": "読み込み中…",
     "transformations.cte.noRowsReturned": "行が返されませんでした。",
     "dataCatalog.loading": "メタデータを読み込み中...",
+    "dataCatalog.overview.loadingTitle": "データカタログの概要を読み込み中…",
+    "dataCatalog.overview.progress.dataModels":
+      "CDF からデータモデルを一覧取得中（ページング・他のデータカタログ機能と共有キャッシュ）。",
+    "dataCatalog.overview.progress.sdkInitializing": "SDK セッション／認証を待機中…",
+    "dataCatalog.overview.progress.buildingGraph":
+      "{modelsTotal} 件のデータモデルからモデル→ビューのリンクを構築中（ユニークなメンバービュー {uniqueViews} 件）。",
+    "dataCatalog.overview.progress.viewDetails":
+      "継承プロパティ付きのビュースキーマを読み込み中… バッチ {batchIndex} / {batchTotal}（{viewsLoaded} / {viewsTotal} ビュー）。",
+    "dataCatalog.overview.progress.samples": "選択に対するインスタンスのサンプルを読み込み中…",
+    "dataCatalog.overview.progress.preparing": "準備中…",
+    "dataCatalog.overview.progress.loaderPanelTitle": "進行状況",
+    "dataCatalog.overview.loaderOverlayTitle": "データカタログを読み込み中",
     "dataCatalog.error": "メタデータの読み込みに失敗しました。",
     "dataCatalog.empty": "データモデルがありません。",
     "dataCatalog.error.noRelatedView": "選択に関連するビューが見つかりません。",
@@ -1427,6 +1794,7 @@ const translations: Record<Language, Record<string, string>> = {
     "dataCatalog.column.dataModels": "データモデル",
     "dataCatalog.column.views": "ビュー",
     "dataCatalog.column.fields": "フィールド",
+    "dataCatalog.column.spaces": "スペース",
     "dataCatalog.sample.loading": "サンプル行を読み込み中...",
     "dataCatalog.sample.error": "サンプル行の読み込みに失敗しました。",
     "dataCatalog.sample.empty": "行がありません。",
@@ -1529,7 +1897,7 @@ const translations: Record<Language, Record<string, string>> = {
       "未使用のモデルバージョンを削除すると、{count} のビューバージョンが孤立します（未使用ビューの{pct}%）。",
     "healthChecks.versioning.implicitViewRefs.title": "暗黙のビュー参照があるデータモデル",
     "healthChecks.versioning.implicitViewRefs.description":
-      "これらのデータモデルバージョンのインラインビューに、明示的なバージョンが付いていないものが含まれています。不透明な自動生成ビューバージョンを避けるため、モデルでビューバージョン（例: v1）を固定してください。",
+      "これらのデータモデルバージョンのインラインビューに、明示的なバージョンが付いていないものが含まれています。自動生成された暗黙ビューバージョンを避けるため、モデルでビューバージョン（例: v1）を固定してください。",
     "healthChecks.versioning.implicitViewRefs.none":
       "すべてのデータモデルバージョンで、インラインビューに明示的なバージョンが指定されています。",
     "healthChecks.versioning.implicitViewRefs.missingVersionTag": "モデル上で明示バージョンなし",
@@ -1647,6 +2015,8 @@ const translations: Record<Language, Record<string, string>> = {
       "{capability} ({actions}) · {scopeType} に小さな差分: {left} と {right}",
     "healthChecks.permissions.drift.unknownCapability": "不明",
     "dataCatalog.tooltip.empty": "接続がありません。",
+    "dataCatalog.tooltip.space": "スペース: {space}",
+    "dataCatalog.tooltip.externalId": "外部ID: {externalId}",
   },
 };
 

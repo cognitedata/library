@@ -1,5 +1,6 @@
 import type { CogniteClient } from "@cognite/sdk";
 import { LRUCache } from "lru-cache";
+import { isAppCachingEnabled } from "@/shared/app-caching-flag";
 
 export type TransformationByIdsRow = {
   id?: number | string;
@@ -71,6 +72,9 @@ export async function cachedTransformationsList(
   sdk: TxGetSdk,
   params: Record<string, string>
 ): Promise<unknown> {
+  if (!isAppCachingEnabled()) {
+    return sdk.get(`/api/v1/projects/${sdk.project}/transformations`, { params });
+  }
   const key = `${sdk.project}:txList:${stableParamKey(params)}`;
   const hit = listCache.get(key);
   if (hit) return hit;
@@ -84,6 +88,11 @@ export async function cachedTransformationJobs(
   transformationId: string,
   limit: string
 ): Promise<unknown> {
+  if (!isAppCachingEnabled()) {
+    return sdk.get(`/api/v1/projects/${sdk.project}/transformations/jobs`, {
+      params: { limit, transformationId },
+    });
+  }
   const key = `${sdk.project}:txJobs:${transformationId}:${limit}`;
   const hit = jobsCache.get(key);
   if (hit) return hit;
@@ -98,6 +107,11 @@ export async function cachedTransformationJobMetrics(
   sdk: TxGetSdk,
   jobId: string
 ): Promise<unknown> {
+  if (!isAppCachingEnabled()) {
+    return sdk.get(
+      `/api/v1/projects/${sdk.project}/transformations/jobs/${jobId}/metrics`
+    );
+  }
   const key = `${sdk.project}:txJobMetrics:${jobId}`;
   const hit = jobMetricsCache.get(key);
   if (hit) return hit;
@@ -129,9 +143,10 @@ export async function fetchTransformationsByIds(
   const out = new Map<string, TransformationByIdsRow>();
   const unique = [...new Set(ids.filter(Boolean))];
   const missing: string[] = [];
+  const useCache = isAppCachingEnabled();
   for (const id of unique) {
     const k = rowKey(project, id);
-    const row = byIdRowCache.get(k);
+    const row = useCache ? byIdRowCache.get(k) : undefined;
     if (row) out.set(id, row);
     else missing.push(id);
   }
@@ -140,7 +155,7 @@ export async function fetchTransformationsByIds(
     const chunk = missing.slice(i, i + BATCH_SIZE);
     const items = buildByIdsPayload(chunk);
     if (items.length === 0) continue;
-    const cacheRowsFromResponse = items.length === 1;
+    const cacheRowsFromResponse = useCache && items.length === 1;
     try {
       const response = (await sdk.post(
         `/api/v1/projects/${project}/transformations/byids`,

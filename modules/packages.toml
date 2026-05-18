@@ -33,6 +33,18 @@ description = "Deploy Infield configuration modules for CDM-backed locations."
 canCherryPick = true
 modules = [
     "infield/location"
+
+[packages.cdm_maintain_quickstart]
+id = "dp:cdm_maintain_quickstart"
+title = "CDM Maintain Quickstart"
+description = "Complete Maintain deployment package with data models, locations, and sample data"
+canCherryPick = false
+modules = [
+    "accelerators/cdm_maintain_quickstart/cdf_maintain_config_base",
+    "accelerators/cdm_maintain_quickstart/cdf_maintain_location",
+    "accelerators/cdm_maintain_quickstart/cdf_maintain_solution_model",
+    "accelerators/cdm_maintain_quickstart/cdf_maintain_source_data_model",
+    "accelerators/cdm_maintain_quickstart/cdf_sample_data"
 ]
 
 [packages.models]

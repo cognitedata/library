@@ -12,6 +12,7 @@ import { DataCacheProvider } from "./shared/data-cache";
 import { I18nProvider, useI18n } from "./shared/i18n";
 import { LimitsProvider } from "./shared/LimitsContext";
 import { NavigationProvider } from "./shared/NavigationContext";
+import { AppCachingProvider } from "./shared/AppCachingContext";
 import { PrivateModeProvider, usePrivateMode } from "./shared/PrivateModeContext";
 import { loadNavState, saveNavState } from "./shared/nav-persistence";
 import { LruCacheStatsPanel } from "./shared/LruCacheStatsPanel";
@@ -296,9 +297,11 @@ function PrivateModeBadge() {
 function App() {
   return (
     <I18nProvider>
+      <AppCachingProvider>
       <PrivateModeProvider>
       <AppContent />
       </PrivateModeProvider>
+      </AppCachingProvider>
     </I18nProvider>
   );
 }

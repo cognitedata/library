@@ -1,5 +1,6 @@
 import { LRUCache } from "lru-cache";
 import type { DmsCatalogCacheStatRow } from "@/shared/dms-catalog-cache";
+import { isAppCachingEnabled } from "@/shared/app-caching-flag";
 
 /** Mirrors `ResolvedView` in `asset-types` for cached payloads (shared layer must not import internal). */
 export type CachedResolvedView = {
@@ -58,10 +59,12 @@ export function assetsDiscoveryCacheKey(
 }
 
 export function getCachedAssetDiscovery(cacheKey: string): AssetDiscoveryPayload | undefined {
+  if (!isAppCachingEnabled()) return undefined;
   return assetsDiscoveryLru.get(cacheKey);
 }
 
 export function setCachedAssetDiscovery(cacheKey: string, payload: AssetDiscoveryPayload): void {
+  if (!isAppCachingEnabled()) return;
   assetsDiscoveryLru.set(cacheKey, payload);
 }
 

@@ -71,6 +71,14 @@ Key rules:
 - `through.identifier` must match an actual property name on that view.
 - Use `single_reverse_direct_relation` when the reverse is guaranteed to be 1:1.
 
+### Where reverse relations should live
+Reverse relations belong in the model that owns the **forward** relation:
+
+- Forward on a CDM/IDM container or enterprise container (e.g. `CogniteAsset.parent`, `Tag.parent`) → reverse can stay on the enterprise side (e.g. `Tag.children`).
+- Forward on a solution-specific view (e.g. `WorkOrder.assets`, `Notification.asset`, `TimeSeriesData.assets`) → reverse belongs in the solution that defines it, **not** piled onto the enterprise asset/tag view.
+
+Each reverse declared on the enterprise side adds a coupling point: the enterprise model now depends on the solution's forward property name and target view version. See `cdf-enterprise-vs-solution.md` §4.
+
 ## Forward–reverse pairing and anchor view (NEAT-DMS-CONNECTIONS-REVERSE-009)
 
 Validators (e.g. NEAT) expect symmetry: if view **A** declares a reverse through view **B**’s property **`p`**, then property **`p`** on **B** must have `source` pointing to **A** — **only when** the container behind **`p`** stores references to instances that are meant to be opened as **A** (same view as the reverse host).

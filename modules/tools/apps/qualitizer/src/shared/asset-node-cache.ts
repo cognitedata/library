@@ -1,4 +1,5 @@
 import { LRUCache } from "lru-cache";
+import { isAppCachingEnabled } from "@/shared/app-caching-flag";
 
 export type CachedNodeSummary = {
   project: string;
@@ -32,16 +33,19 @@ export function getAssetNode(
   space: string,
   externalId: string
 ): CachedNodeSummary | undefined {
+  if (!isAppCachingEnabled()) return undefined;
   return cache.get(nodeKey(project, space, externalId));
 }
 
 export function setAssetNode(node: CachedNodeSummary): void {
+  if (!isAppCachingEnabled()) return;
   cache.set(nodeKey(node.project, node.space, node.externalId), node);
 }
 
 type AssetNodeWrite = Omit<CachedNodeSummary, "project">;
 
 export function setAssetNodes(project: string, nodes: AssetNodeWrite[]): void {
+  if (!isAppCachingEnabled()) return;
   for (const node of nodes) {
     cache.set(nodeKey(project, node.space, node.externalId), { project, ...node });
   }
@@ -53,6 +57,9 @@ export function getAssetNodes(
   hits: CachedNodeSummary[];
   misses: Array<{ project: string; space: string; externalId: string }>;
 } {
+  if (!isAppCachingEnabled()) {
+    return { hits: [], misses: keys };
+  }
   const hits: CachedNodeSummary[] = [];
   const misses: Array<{ project: string; space: string; externalId: string }> = [];
   for (const k of keys) {
