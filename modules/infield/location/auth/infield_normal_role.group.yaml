@@ -1,0 +1,58 @@
+# Normal Infield users can execute checklists and upload app data for the configured location.
+name: "gp_infield_{{location}}_normal_users"
+sourceId: "{{infield_location_normal_users_source_id}}"
+metadata:
+  origin: "cognite-toolkit"
+  module_version: "{{module_version}}"
+capabilities:
+  - groupsAcl:
+      actions:
+        - READ
+        - LIST
+      scope:
+        currentuserscope: {}
+
+  - dataModelsAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cdf_cdm
+            - cdf_cdm_3d
+            - cdf_idm
+            - cdf_infield
+            - cdf_apps_shared
+
+  - dataModelInstancesAcl:
+      actions:
+        - READ
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cognite_app_data
+            - cdf_infield
+            - sp_infield_{{location}}_cfg_inst
+            - sp_infield_{{location}}_assets
+            - sp_infield_{{location}}_maintenance
+            - sp_infield_{{location}}_timeseries
+            - sp_infield_{{location}}_files
+            - sp_infield_{{location}}_app_inst
+            - cdf_cdm_units
+
+  - dataModelInstancesAcl:
+      actions:
+        - WRITE
+      scope:
+        spaceIdScope:
+          spaceIds:
+            - cognite_app_data
+            - sp_infield_{{location}}_app_inst
+
+  - locationFiltersAcl:
+      actions:
+        - READ
+      scope:
+        idScope:
+          ids:
+            - loc_fltr_{{location}}

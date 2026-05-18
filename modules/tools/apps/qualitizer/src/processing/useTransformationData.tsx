@@ -1,13 +1,15 @@
 import type { CogniteClient } from "@cognite/sdk";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { normalizeStatus } from "@/shared/time-utils";
 import type {
   LoadState,
   ProcessingDataLoadProgress,
+  ProcessingRequestStats,
   TransformationJobSummary,
   TransformationSummary,
 } from "./types";
 import { useI18n } from "@/shared/i18n";
+import { withTransientRetries } from "@/shared/transient-http-retry";
 import {
   cachedTransformationJobs,
   cachedTransformationsList,
@@ -17,9 +19,15 @@ type UseTransformationDataArgs = {
   isSdkLoading: boolean;
   sdk: Pick<CogniteClient, "project" | "get">;
   windowRange: { start: number; end: number } | null;
+  fetchEnabled?: boolean;
 };
 
-export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTransformationDataArgs) {
+export function useTransformationData({
+  isSdkLoading,
+  sdk,
+  windowRange,
+  fetchEnabled = true,
+}: UseTransformationDataArgs) {
   const { t } = useI18n();
   const [transformationsStatus, setTransformationsStatus] = useState<LoadState>("idle");
   const [transformationsError, setTransformationsError] = useState<string | null>(null);
@@ -29,22 +37,35 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
     Record<string, TransformationSummary>
   >({});
   const [loadProgress, setLoadProgress] = useState<ProcessingDataLoadProgress | null>(null);
+  const [requestStats, setRequestStats] = useState<ProcessingRequestStats | null>(null);
+
+  useLayoutEffect(() => {
+    if (!fetchEnabled || isSdkLoading) return;
+    setTransformationsStatus("loading");
+  }, [fetchEnabled, isSdkLoading]);
 
   useEffect(() => {
+    if (!fetchEnabled) return;
     if (isSdkLoading) return;
     let cancelled = false;
     const loadTransformations = async () => {
       setTransformationsStatus("loading");
       setTransformationsError(null);
+      setRequestStats(null);
       setTransformationJobsAll([]);
       setTransformationNameMap({});
       setTransformationMetaMap({});
       setLoadProgress({ kind: "transformations_list" });
       try {
-        const response = (await cachedTransformationsList(sdk, {
-          includePublic: "true",
-          limit: "1000",
-        })) as { data?: { items?: TransformationSummary[] } };
+        let failedRequests = 0;
+        let totalRequests = 0;
+        totalRequests++;
+        const response = (await withTransientRetries(() =>
+          cachedTransformationsList(sdk, {
+            includePublic: "true",
+            limit: "1000",
+          })
+        )) as { data?: { items?: TransformationSummary[] } };
         const transformations = response.data?.items ?? [];
 
         const nameMap: Record<string, string> = {};
@@ -64,12 +85,15 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
         const jobs: TransformationJobSummary[] = [];
         let index = 0;
         for (const transformation of transformations) {
-          const jobResponse = (await cachedTransformationJobs(
-            sdk,
-            String(transformation.id),
-            "1000"
-          )) as { data?: { items?: TransformationJobSummary[] } };
-          jobs.push(...(jobResponse.data?.items ?? []));
+          totalRequests++;
+          try {
+            const jobResponse = (await withTransientRetries(() =>
+              cachedTransformationJobs(sdk, String(transformation.id), "1000")
+            )) as { data?: { items?: TransformationJobSummary[] } };
+            jobs.push(...(jobResponse.data?.items ?? []));
+          } catch {
+            failedRequests++;
+          }
           index += 1;
           if (!cancelled && (index % 5 === 0 || index === total)) {
             setLoadProgress({ kind: "transformations_jobs", current: index, total });
@@ -81,11 +105,15 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
           setTransformationNameMap(nameMap);
           setTransformationMetaMap(metaMap);
           setLoadProgress(null);
+          if (failedRequests > 0) {
+            setRequestStats({ failed: failedRequests, total: totalRequests });
+          }
           setTransformationsStatus("success");
         }
       } catch (error) {
         if (!cancelled) {
           setLoadProgress(null);
+          setRequestStats(null);
           setTransformationsError(
             error instanceof Error ? error.message : t("processing.error.transformations")
           );
@@ -98,7 +126,7 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
     return () => {
       cancelled = true;
     };
-  }, [isSdkLoading, sdk, t]);
+  }, [fetchEnabled, isSdkLoading, sdk, t]);
 
   const filteredTransformationJobs = useMemo(() => {
     if (!windowRange) return [];
@@ -139,6 +167,7 @@ export function useTransformationData({ isSdkLoading, sdk, windowRange }: UseTra
   return {
     transformationsStatus,
     loadProgress,
+    requestStats,
     transformationsError,
     transformationJobsAll,
     transformationNameMap,

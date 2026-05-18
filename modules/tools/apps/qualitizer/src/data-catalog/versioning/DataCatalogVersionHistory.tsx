@@ -5,8 +5,14 @@ import { useAppSdk } from "@/shared/auth";
 import { compareVersionStrings } from "./versioning-utils";
 import type { DmVersionSnapshot, TransitionDiff } from "./version-history-types";
 import { formatTs, shouldShowUpdatedSeparate } from "./version-history-utils";
-import { buildTransitionDiff, isLikelyFullViewDef, snapshotForKey } from "./version-history-diff";
+import {
+  buildTransitionDiff,
+  isLikelyFullViewDef,
+  snapshotForKey,
+  viewVersionDiffIsChecksumOnlyNestedViewRefs,
+} from "./version-history-diff";
 import { DM_TX_DEST_LATEST, FieldPresenceHeatmap, buildFieldPresenceHeatmap, type HeatmapRowVisual } from "./FieldPresenceHeatmap";
+import { DataCatalogVersionHistoryHelpModal } from "./DataCatalogVersionHistoryHelpModal";
 import { VersionSnapshotMeta } from "./VersionSnapshotMeta";
 
 export type { DmVersionSnapshot } from "./version-history-types";
@@ -38,9 +44,13 @@ export function DataCatalogVersionHistory({
   const { t } = useI18n();
   const { sdk } = useAppSdk();
   const [openSteps, setOpenSteps] = useState<Set<number>>(() => new Set([0]));
+  const [checksumListExpanded, setChecksumListExpanded] = useState<Set<number>>(() => new Set());
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     setOpenSteps(new Set([0]));
+    setChecksumListExpanded(new Set());
+    setShowHelp(false);
   }, [dmKey]);
 
   const versionsAscending = useMemo(
@@ -132,6 +142,15 @@ export function DataCatalogVersionHistory({
     });
   };
 
+  const toggleChecksumList = (i: number) => {
+    setChecksumListExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(i)) n.delete(i);
+      else n.add(i);
+      return n;
+    });
+  };
+
   const fusionUrl = (version: string) => {
     const colonIdx = dmKey.indexOf(":");
     const space = colonIdx >= 0 ? dmKey.slice(0, colonIdx) : "";
@@ -141,18 +160,21 @@ export function DataCatalogVersionHistory({
 
   return (
     <div className="min-w-0 w-full rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-5 py-4">
+      <div className="relative border-b border-slate-200 px-5 py-4 pr-36">
         <h2 className="text-xl font-semibold text-slate-900">{t("dataCatalog.versionHistory.title")}</h2>
         <p className="mt-1 text-sm text-slate-500">
           {label} · {versionsAscending.length} {t("dataCatalog.versionHistory.versions")}
         </p>
+        <button
+          type="button"
+          className="absolute right-4 top-4 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+          onClick={() => setShowHelp(true)}
+        >
+          {t("shared.help.button")}
+        </button>
       </div>
 
       <div className="px-5 py-4">
-          <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            {t("dataCatalog.versionHistory.hint")}
-          </div>
-
           {fieldHeatmap ? (
             <FieldPresenceHeatmap
               columns={fieldHeatmap.columns}
@@ -160,8 +182,8 @@ export function DataCatalogVersionHistory({
               matrix={fieldHeatmap.matrix}
               resolutionRowsByCellKey={fieldHeatmap.resolutionRowsByCellKey}
               winnerSigByCellKey={fieldHeatmap.winnerSigByCellKey}
+              contributorCountByCellKey={fieldHeatmap.contributorCountByCellKey}
               rowsMeta={heatmapRowsMeta}
-              showTxSqlLegend={dmKeysInTransformation.has(dmKey)}
               t={t}
             />
           ) : versionsAscending.length > 0 ? (
@@ -306,150 +328,224 @@ export function DataCatalogVersionHistory({
                             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                               {t("dataCatalog.versionHistory.viewVersionBumps")}
                             </div>
-                            <ul className="mt-2 space-y-2">
-                              {tr.viewVersionChanges.map(({ ref, prevRef, viewDiff }) => {
-                                const rawPrev = prevRef.raw;
-                                const rawNext = ref.raw;
-                                const prevCt =
-                                  isLikelyFullViewDef(rawPrev) && typeof rawPrev.createdTime === "number"
-                                    ? formatTs(rawPrev.createdTime)
-                                    : null;
-                                const nextCt =
-                                  isLikelyFullViewDef(rawNext) && typeof rawNext.createdTime === "number"
-                                    ? formatTs(rawNext.createdTime)
-                                    : null;
-                                const prevLut =
-                                  isLikelyFullViewDef(rawPrev) &&
-                                  typeof rawPrev.lastUpdatedTime === "number" &&
-                                  shouldShowUpdatedSeparate(
-                                    typeof rawPrev.createdTime === "number"
-                                      ? rawPrev.createdTime
-                                      : undefined,
-                                    rawPrev.lastUpdatedTime
-                                  )
-                                    ? formatTs(rawPrev.lastUpdatedTime)
-                                    : null;
-                                const nextLut =
-                                  isLikelyFullViewDef(rawNext) &&
-                                  typeof rawNext.lastUpdatedTime === "number" &&
-                                  shouldShowUpdatedSeparate(
-                                    typeof rawNext.createdTime === "number"
-                                      ? rawNext.createdTime
-                                      : undefined,
-                                    rawNext.lastUpdatedTime
-                                  )
-                                    ? formatTs(rawNext.lastUpdatedTime)
-                                    : null;
-                                return (
-                                <li
-                                  key={`${ref.key}:${ref.version}`}
-                                  className="rounded-md border border-amber-200 bg-amber-50/80 px-2 py-2 text-xs"
-                                >
-                                  <div className="font-mono font-semibold text-amber-950">
-                                    {ref.key}
-                                  </div>
-                                  <div className="mt-1 text-amber-900">
-                                    {prevRef.version} → {ref.version}
-                                  </div>
-                                  {prevCt || nextCt || prevLut || nextLut ? (
-                                    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-600">
-                                      {prevCt ? (
-                                        <span>
-                                          {t("dataCatalog.versionHistory.viewPrevCreated")}: {prevCt}
-                                        </span>
-                                      ) : null}
-                                      {nextCt ? (
-                                        <span>
-                                          {t("dataCatalog.versionHistory.viewNextCreated")}: {nextCt}
-                                        </span>
-                                      ) : null}
-                                      {prevLut ? (
-                                        <span>
-                                          {t("dataCatalog.versionHistory.viewPrevUpdated")}: {prevLut}
-                                        </span>
-                                      ) : null}
-                                      {nextLut ? (
-                                        <span>
-                                          {t("dataCatalog.versionHistory.viewNextUpdated")}: {nextLut}
-                                        </span>
+                            {(() => {
+                              const checksumOnly = tr.viewVersionChanges.filter((x) =>
+                                viewVersionDiffIsChecksumOnlyNestedViewRefs(x.viewDiff)
+                              );
+                              const substantive = tr.viewVersionChanges.filter(
+                                (x) => !viewVersionDiffIsChecksumOnlyNestedViewRefs(x.viewDiff)
+                              );
+                              return (
+                                <>
+                                  {checksumOnly.length > 0 ? (
+                                    <div className="mt-2 rounded-md border border-slate-200 bg-slate-50/90 px-2.5 py-2">
+                                      <p className="text-[11px] leading-snug text-slate-700">
+                                        {t("dataCatalog.versionHistory.viewChecksumOnlyNestedRefsExplanation")}
+                                      </p>
+                                      <p className="mt-1.5 text-[11px] text-slate-600">
+                                        {t("dataCatalog.versionHistory.viewChecksumOnlyNestedRefsHiddenCount", {
+                                          count: String(checksumOnly.length),
+                                        })}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        aria-expanded={checksumListExpanded.has(idx)}
+                                        onClick={() => toggleChecksumList(idx)}
+                                        className="mt-1.5 text-left text-[11px] font-medium text-slate-800 underline decoration-slate-400 underline-offset-2 hover:decoration-slate-700"
+                                      >
+                                        {checksumListExpanded.has(idx)
+                                          ? t("dataCatalog.versionHistory.viewChecksumOnlyNestedRefsHideList")
+                                          : t("dataCatalog.versionHistory.viewChecksumOnlyNestedRefsShowList", {
+                                              count: String(checksumOnly.length),
+                                            })}
+                                      </button>
+                                      {checksumListExpanded.has(idx) ? (
+                                        <ul className="mt-2 divide-y divide-slate-200 border-t border-slate-200 pt-1 font-mono text-[10px] text-slate-800">
+                                          {checksumOnly.map(({ ref, prevRef, viewDiff }) => {
+                                            const props =
+                                              viewDiff?.propChanges.map((pc) => pc.name).join(", ") ?? "";
+                                            return (
+                                              <li
+                                                key={`${ref.key}:${prevRef.version}:${ref.version}`}
+                                                className="py-1.5 first:pt-0"
+                                              >
+                                                <div className="font-semibold">{ref.key}</div>
+                                                <div className="text-slate-700">
+                                                  {prevRef.version} → {ref.version}
+                                                </div>
+                                                {props ? (
+                                                  <div className="mt-0.5 font-sans text-[10px] text-slate-500">
+                                                    {t(
+                                                      "dataCatalog.versionHistory.viewChecksumOnlyNestedRefsFields",
+                                                      { props }
+                                                    )}
+                                                  </div>
+                                                ) : null}
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
                                       ) : null}
                                     </div>
                                   ) : null}
-                                  {viewDiff &&
-                                  (viewDiff.metaChanges.length > 0 ||
-                                    viewDiff.propChanges.length > 0 ||
-                                    viewDiff.filterChanged) ? (
-                                    <div className="mt-2 space-y-2 border-t border-amber-200/80 pt-2">
-                                      {viewDiff.metaChanges.length > 0 ? (
-                                        <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-slate-700">
-                                          {viewDiff.metaChanges.map((m, mi) => (
-                                            <li key={mi}>{m}</li>
-                                          ))}
-                                        </ul>
-                                      ) : null}
-                                      {viewDiff.filterChanged ? (
-                                        <p className="text-[11px] text-slate-600">
-                                          {t("dataCatalog.versionHistory.filterChanged")}
-                                        </p>
-                                      ) : null}
-                                      {viewDiff.propChanges.length > 0 ? (
-                                        <div className="space-y-1.5">
-                                          {viewDiff.propChanges.map((pc) => (
-                                            <div
-                                              key={pc.name}
-                                              className={`rounded border px-2 py-1 font-mono text-[10px] leading-snug ${
-                                                pc.kind === "add"
-                                                  ? "border-emerald-200 bg-emerald-50/90"
-                                                  : pc.kind === "remove"
-                                                    ? "border-red-200 bg-red-50/90"
-                                                    : "border-slate-200 bg-white"
-                                              }`}
-                                            >
-                                              <span className="font-sans text-[11px] font-semibold text-slate-800">
-                                                {pc.kind === "add"
-                                                  ? "+ "
-                                                  : pc.kind === "remove"
-                                                    ? "− "
-                                                    : "~ "}
-                                                {pc.name}
-                                              </span>
-                                              {pc.semanticLines && pc.semanticLines.length > 0 ? (
-                                                <ul className="mt-1 list-disc space-y-0.5 pl-4 font-sans text-[11px] text-slate-800">
-                                                  {pc.semanticLines.map((line, li) => (
-                                                    <li key={li} className="break-words">
-                                                      {line}
-                                                    </li>
-                                                  ))}
-                                                </ul>
-                                              ) : null}
-                                              {!pc.semanticLines?.length && pc.before ? (
-                                                <pre className="mt-1 whitespace-pre-wrap break-all text-slate-600">
-                                                  {pc.before}
-                                                </pre>
-                                              ) : null}
-                                              {!pc.semanticLines?.length && pc.after ? (
-                                                <pre className="mt-1 whitespace-pre-wrap break-all text-slate-800">
-                                                  {pc.after}
-                                                </pre>
-                                              ) : null}
-                                            </div>
-                                          ))}
+                                  {substantive.length > 0 ? (
+                                    <div className={checksumOnly.length > 0 ? "mt-3" : "mt-2"}>
+                                      {checksumOnly.length > 0 ? (
+                                        <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-amber-900/90">
+                                          {t("dataCatalog.versionHistory.viewReferenceSubstantiveChanges")}
                                         </div>
                                       ) : null}
+                                      <ul className="space-y-2">
+                                        {substantive.map(({ ref, prevRef, viewDiff }) => {
+                                          const rawPrev = prevRef.raw;
+                                          const rawNext = ref.raw;
+                                          const prevCt =
+                                            isLikelyFullViewDef(rawPrev) &&
+                                            typeof rawPrev.createdTime === "number"
+                                              ? formatTs(rawPrev.createdTime)
+                                              : null;
+                                          const nextCt =
+                                            isLikelyFullViewDef(rawNext) &&
+                                            typeof rawNext.createdTime === "number"
+                                              ? formatTs(rawNext.createdTime)
+                                              : null;
+                                          const prevLut =
+                                            isLikelyFullViewDef(rawPrev) &&
+                                            typeof rawPrev.lastUpdatedTime === "number" &&
+                                            shouldShowUpdatedSeparate(
+                                              typeof rawPrev.createdTime === "number"
+                                                ? rawPrev.createdTime
+                                                : undefined,
+                                              rawPrev.lastUpdatedTime
+                                            )
+                                              ? formatTs(rawPrev.lastUpdatedTime)
+                                              : null;
+                                          const nextLut =
+                                            isLikelyFullViewDef(rawNext) &&
+                                            typeof rawNext.lastUpdatedTime === "number" &&
+                                            shouldShowUpdatedSeparate(
+                                              typeof rawNext.createdTime === "number"
+                                                ? rawNext.createdTime
+                                                : undefined,
+                                              rawNext.lastUpdatedTime
+                                            )
+                                              ? formatTs(rawNext.lastUpdatedTime)
+                                              : null;
+                                          return (
+                                            <li
+                                              key={`${ref.key}:${ref.version}`}
+                                              className="rounded-md border border-amber-200 bg-amber-50/80 px-2 py-2 text-xs"
+                                            >
+                                              <div className="font-mono font-semibold text-amber-950">
+                                                {ref.key}
+                                              </div>
+                                              <div className="mt-1 text-amber-900">
+                                                {prevRef.version} → {ref.version}
+                                              </div>
+                                              {prevCt || nextCt || prevLut || nextLut ? (
+                                                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-600">
+                                                  {prevCt ? (
+                                                    <span>
+                                                      {t("dataCatalog.versionHistory.viewPrevCreated")}: {prevCt}
+                                                    </span>
+                                                  ) : null}
+                                                  {nextCt ? (
+                                                    <span>
+                                                      {t("dataCatalog.versionHistory.viewNextCreated")}: {nextCt}
+                                                    </span>
+                                                  ) : null}
+                                                  {prevLut ? (
+                                                    <span>
+                                                      {t("dataCatalog.versionHistory.viewPrevUpdated")}: {prevLut}
+                                                    </span>
+                                                  ) : null}
+                                                  {nextLut ? (
+                                                    <span>
+                                                      {t("dataCatalog.versionHistory.viewNextUpdated")}: {nextLut}
+                                                    </span>
+                                                  ) : null}
+                                                </div>
+                                              ) : null}
+                                              {viewDiff &&
+                                              (viewDiff.metaChanges.length > 0 ||
+                                                viewDiff.propChanges.length > 0 ||
+                                                viewDiff.filterChanged) ? (
+                                                <div className="mt-2 space-y-2 border-t border-amber-200/80 pt-2">
+                                                  {viewDiff.metaChanges.length > 0 ? (
+                                                    <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-slate-700">
+                                                      {viewDiff.metaChanges.map((m, mi) => (
+                                                        <li key={mi}>{m}</li>
+                                                      ))}
+                                                    </ul>
+                                                  ) : null}
+                                                  {viewDiff.filterChanged ? (
+                                                    <p className="text-[11px] text-slate-600">
+                                                      {t("dataCatalog.versionHistory.filterChanged")}
+                                                    </p>
+                                                  ) : null}
+                                                  {viewDiff.propChanges.length > 0 ? (
+                                                    <div className="space-y-1.5">
+                                                      {viewDiff.propChanges.map((pc) => (
+                                                        <div
+                                                          key={pc.name}
+                                                          className={`rounded border px-2 py-1 font-mono text-[10px] leading-snug ${
+                                                            pc.kind === "add"
+                                                              ? "border-emerald-200 bg-emerald-50/90"
+                                                              : pc.kind === "remove"
+                                                                ? "border-red-200 bg-red-50/90"
+                                                                : "border-slate-200 bg-white"
+                                                          }`}
+                                                        >
+                                                          <span className="font-sans text-[11px] font-semibold text-slate-800">
+                                                            {pc.kind === "add"
+                                                              ? "+ "
+                                                              : pc.kind === "remove"
+                                                                ? "− "
+                                                                : "~ "}
+                                                            {pc.name}
+                                                          </span>
+                                                          {pc.semanticLines && pc.semanticLines.length > 0 ? (
+                                                            <ul className="mt-1 list-disc space-y-0.5 pl-4 font-sans text-[11px] text-slate-800">
+                                                              {pc.semanticLines.map((line, li) => (
+                                                                <li key={li} className="break-words">
+                                                                  {line}
+                                                                </li>
+                                                              ))}
+                                                            </ul>
+                                                          ) : null}
+                                                          {!pc.semanticLines?.length && pc.before ? (
+                                                            <pre className="mt-1 whitespace-pre-wrap break-all text-slate-600">
+                                                              {pc.before}
+                                                            </pre>
+                                                          ) : null}
+                                                          {!pc.semanticLines?.length && pc.after ? (
+                                                            <pre className="mt-1 whitespace-pre-wrap break-all text-slate-800">
+                                                              {pc.after}
+                                                            </pre>
+                                                          ) : null}
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  ) : null}
+                                                </div>
+                                              ) : viewDiff ? (
+                                                <p className="mt-1 text-[11px] text-slate-600">
+                                                  {t("dataCatalog.versionHistory.viewSchemaUnchanged")}
+                                                </p>
+                                              ) : (
+                                                <p className="mt-1 text-[11px] text-slate-600">
+                                                  {t("dataCatalog.versionHistory.inlineViewMissing")}
+                                                </p>
+                                              )}
+                                            </li>
+                                          );
+                                        })}
+                                      </ul>
                                     </div>
-                                  ) : viewDiff ? (
-                                    <p className="mt-1 text-[11px] text-slate-600">
-                                      {t("dataCatalog.versionHistory.viewSchemaUnchanged")}
-                                    </p>
-                                  ) : (
-                                    <p className="mt-1 text-[11px] text-slate-600">
-                                      {t("dataCatalog.versionHistory.inlineViewMissing")}
-                                    </p>
-                                  )}
-                                </li>
+                                  ) : null}
+                                </>
                               );
-                              })}
-                            </ul>
+                            })()}
                           </div>
                         ) : null}
 
@@ -464,6 +560,11 @@ export function DataCatalogVersionHistory({
             </ul>
           ) : null}
       </div>
+      <DataCatalogVersionHistoryHelpModal
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        showTxSqlLegend={dmKeysInTransformation.has(dmKey)}
+      />
     </div>
   );
 }

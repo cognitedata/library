@@ -1,5 +1,6 @@
 import type { CogniteClient } from "@cognite/sdk";
 import { LRUCache } from "lru-cache";
+import { isAppCachingEnabled } from "@/shared/app-caching-flag";
 
 type InstancesListParams = Record<string, unknown>;
 type InstancesRetrieveSource = Record<string, unknown>;
@@ -43,6 +44,9 @@ export function cachedInstancesList(
   sdk: InstancesSdk,
   params: InstancesListParams
 ): Promise<InstancesListResponse> {
+  if (!isAppCachingEnabled()) {
+    return sdk.instances.list(params as never);
+  }
   const key = `${sdk.project}:${JSON.stringify(params)}`;
   const cached = cache.get(key);
   if (cached) {
@@ -90,6 +94,10 @@ export async function cachedInstancesByIds(
 ): Promise<InstancesRetrieveResponse> {
   const items = params.items ?? [];
   if (items.length === 0) return { items: [] };
+
+  if (!isAppCachingEnabled()) {
+    return (await sdk.instances.retrieve(params as never)) as unknown as InstancesRetrieveResponse;
+  }
 
   const sourcesKey = sourcesVariantKey(params.sources);
   const cachedMap = new Map<string, Record<string, unknown>>();

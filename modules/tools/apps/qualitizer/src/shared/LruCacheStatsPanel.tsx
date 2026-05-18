@@ -11,9 +11,9 @@ import {
   getTransformationsListCacheStats,
 } from "@/transformations/transformations-cache";
 import {
-  getDmsDataModelsListCacheStats,
+  getDmsDataModelsListItemCacheStats,
   getDmsDataModelsRetrieveCacheStats,
-  getDmsViewsListCacheStats,
+  getDmsViewsListItemCacheStats,
   getDmsViewsRetrieveCacheStats,
 } from "@/shared/dms-catalog-cache";
 import { getAssetsDiscoveryCacheStats } from "@/shared/assets-discovery-cache";
@@ -54,8 +54,8 @@ export function LruCacheStatsPanel({ onClose }: { onClose: () => void }) {
     getTransformationJobsCacheStats(),
     getTransformationJobMetricsCacheStats(),
     getTransformationByIdRowCacheStats(),
-    getDmsDataModelsListCacheStats(),
-    getDmsViewsListCacheStats(),
+    getDmsDataModelsListItemCacheStats(),
+    getDmsViewsListItemCacheStats(),
     getDmsDataModelsRetrieveCacheStats(),
     getDmsViewsRetrieveCacheStats(),
     getAssetsDiscoveryCacheStats(),

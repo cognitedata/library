@@ -1,0 +1,68 @@
+space: APM_Config
+externalId: APM_Config
+name: APM_Config
+version: "1"
+properties:
+  name:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: name
+    name: name
+  appDataSpaceId:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: appDataSpaceId
+    name: appDataSpaceId
+  appDataSpaceVersion:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: appDataSpaceVersion
+    name: appDataSpaceVersion
+  customerDataSpaceId:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: customerDataSpaceId
+    name: customerDataSpaceId
+  customerDataSpaceVersion:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: customerDataSpaceVersion
+    name: customerDataSpaceVersion
+  featureConfiguration:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: featureConfiguration
+    name: featureConfiguration
+  fieldConfiguration:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: fieldConfiguration
+    name: fieldConfiguration
+  rootLocationsConfiguration:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: rootLocationsConfiguration
+    name: rootLocationsConfiguration
+  isDefault:
+    container:
+      type: container
+      space: APM_Config
+      externalId: APM_Config
+    containerPropertyIdentifier: isDefault
+    name: isDefault

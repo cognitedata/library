@@ -1,0 +1,108 @@
+space: {{schemaSpace}}
+externalId: SourceMaintenanceOrder
+name: SourceMaintenanceOrder
+version: v1
+implements:
+  - type: view
+    space: cdf_idm
+    externalId: CogniteMaintenanceOrder
+    version: v1
+filter:
+  hasData:
+    - type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+properties:
+  isCompleted:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: isCompleted
+    name: isCompleted
+  isSafetyCritical:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: isSafetyCritical
+    name: isSafetyCritical
+  workPackageNumber:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: workPackageNumber
+    name: workPackageNumber
+  workOrderNumber:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: workOrderNumber
+    name: workOrderNumber
+  createdDate:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: createdDate
+    name: createdDate
+  actualHours:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: actualHours
+    name: actualHours
+  isCancelled:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: isCancelled
+    name: isCancelled
+  durationHours:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: durationHours
+    name: durationHours
+  isActive:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: isActive
+    name: isActive
+  dueDate:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: dueDate
+    name: dueDate
+  percentageProgress:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: percentageProgress
+    name: percentageProgress
+  files:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: files
+    name: files
+    description: Related P&ID diagrams and files
+  sourceId:
+    container:
+      type: container
+      space: {{schemaSpace}}
+      externalId: SourceMaintenanceOrder
+    containerPropertyIdentifier: sourceId
+    name: sourceId
+    description: Unique identifier matching the externalId, used for activity lookup by the app

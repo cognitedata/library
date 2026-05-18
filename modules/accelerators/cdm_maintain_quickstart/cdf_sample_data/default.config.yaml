@@ -1,0 +1,4 @@
+# Space where sample data instances are written (must match schemaSpace in cdf_maintain_source_data_model)
+instanceSpace: maintain_source_data
+# Location identifier — must match the location variable in cdf_maintain_location
+location: <change_me>

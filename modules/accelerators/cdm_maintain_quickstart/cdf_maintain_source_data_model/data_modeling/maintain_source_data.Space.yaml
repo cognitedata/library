@@ -1,0 +1,3 @@
+space: {{schemaSpace}}
+name: Maintain Source Data
+description: Space for customer-provided source data used by the Maintain application

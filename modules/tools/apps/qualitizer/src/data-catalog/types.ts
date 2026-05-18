@@ -3,6 +3,8 @@ export type LoadState = "idle" | "loading" | "success" | "error";
 export type ModelNode = {
   key: string;
   label: string;
+  space: string;
+  externalId: string;
 };
 
 export type ViewNode = {

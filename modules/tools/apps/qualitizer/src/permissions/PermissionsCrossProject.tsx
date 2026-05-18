@@ -1,6 +1,8 @@
 import { ApiError } from "@/shared/ApiError";
+import { Masked } from "@/shared/Masked";
 import { capabilityActionBand, getActionDisplay } from "@/shared/permissions-utils";
 import { useI18n } from "@/shared/i18n";
+import { usePrivateMode } from "@/shared/PrivateModeContext";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useState } from "react";
 import type { NormalizedCapability } from "./types";
@@ -13,7 +15,6 @@ import type {
 
 type PermissionsCrossProjectProps = {
   state: CrossProjectMembershipState;
-  privateMaskClass?: string;
 };
 
 function cellText(
@@ -133,8 +134,9 @@ function CapabilityDriftMarker(props: {
   );
 }
 
-export function PermissionsCrossProject({ state, privateMaskClass = "" }: PermissionsCrossProjectProps) {
+export function PermissionsCrossProject({ state }: PermissionsCrossProjectProps) {
   const { t } = useI18n();
+  const { isPrivateMode } = usePrivateMode();
   const [metric, setMetric] = useState<CrossProjectMatrixMetric>("status");
   const [driftModal, setDriftModal] = useState<DriftModalState | null>(null);
 
@@ -169,6 +171,12 @@ export function PermissionsCrossProject({ state, privateMaskClass = "" }: Permis
   } = state;
   const hasIdOnlyRows = rows.some((r) => r.idOnlyMatch);
   const deniedProjectSet = new Set(groupListAccessDeniedProjects);
+  const projectHeaderTitle = (p: string, deniedCol: boolean) => {
+    if (isPrivateMode) return undefined;
+    return deniedCol
+      ? `${p} — ${t("permissions.crossProject.columnDefinitionsForbiddenTitle")}`
+      : p;
+  };
 
   return (
     <div className="space-y-4">
@@ -273,14 +281,12 @@ export function PermissionsCrossProject({ state, privateMaskClass = "" }: Permis
                           >
                             <div className="flex flex-col items-center gap-0.5">
                               <span
-                                className="max-w-[140px] truncate"
-                                title={
-                                  deniedCol
-                                    ? `${p} — ${t("permissions.crossProject.columnDefinitionsForbiddenTitle")}`
-                                    : p
-                                }
+                                className="inline-block max-w-[140px]"
+                                title={projectHeaderTitle(p, deniedCol)}
                               >
-                                {p}
+                                <Masked as="span" className="block truncate">
+                                  {p}
+                                </Masked>
                               </span>
                               <span
                                 className="cursor-default rounded bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-normal text-slate-700"
@@ -296,7 +302,7 @@ export function PermissionsCrossProject({ state, privateMaskClass = "" }: Permis
                       })}
                     </tr>
                   </thead>
-                  <tbody className={`divide-y divide-slate-100${privateMaskClass}`}>
+                  <tbody className="divide-y divide-slate-100">
                     {rows.map((row) => {
                       const memberProjects = projects.filter((p) => row.cells[p]?.member);
                       const partial =
@@ -341,21 +347,25 @@ export function PermissionsCrossProject({ state, privateMaskClass = "" }: Permis
                                       : "bg-slate-100 text-slate-600"
                                 }`}
                                 title={
-                                  c.member
-                                    ? deniedCol
-                                      ? [memberTitle, t("permissions.crossProject.membershipForbiddenCellTitle")]
-                                          .filter(Boolean)
-                                          .join(" — ")
-                                      : memberTitle
-                                    : gap
-                                      ? t("permissions.crossProject.cellGapTitle")
-                                      : ""
+                                  isPrivateMode
+                                    ? undefined
+                                    : c.member
+                                      ? deniedCol
+                                        ? [memberTitle, t("permissions.crossProject.membershipForbiddenCellTitle")]
+                                            .filter(Boolean)
+                                            .join(" — ")
+                                        : memberTitle
+                                      : gap
+                                        ? t("permissions.crossProject.cellGapTitle")
+                                        : ""
                                 }
                               >
                                 {metric === "status" ? (
                                   <span className="text-base">{text}</span>
                                 ) : (
-                                  <span className="text-[11px]">{text}</span>
+                                  <Masked as="span" className="text-[11px]">
+                                    {text}
+                                  </Masked>
                                 )}
                               </td>
                             );
@@ -416,21 +426,19 @@ export function PermissionsCrossProject({ state, privateMaskClass = "" }: Permis
                                   }`}
                                 >
                                   <span
-                                    className="max-w-[140px] truncate"
-                                    title={
-                                      deniedCol
-                                        ? `${p} — ${t("permissions.crossProject.columnDefinitionsForbiddenTitle")}`
-                                        : p
-                                    }
+                                    className="inline-block max-w-[140px]"
+                                    title={projectHeaderTitle(p, deniedCol)}
                                   >
-                                    {p}
+                                    <Masked as="span" className="block truncate">
+                                      {p}
+                                    </Masked>
                                   </span>
                                 </th>
                               );
                             })}
                           </tr>
                         </thead>
-                        <tbody className={`divide-y divide-slate-100${privateMaskClass}`}>
+                        <tbody className="divide-y divide-slate-100">
                           {capabilityRows.map((crow) => {
                             const projectsWithCapData = projects.filter(
                               (p) => !crow.cells[p]?.definitionsUnavailable
@@ -466,17 +474,19 @@ export function PermissionsCrossProject({ state, privateMaskClass = "" }: Permis
                                               : "bg-slate-100 text-slate-600"
                                       }`}
                                       title={
-                                        c.definitionsUnavailable
-                                          ? t("permissions.crossProject.capCellDefinitionsForbiddenTitle")
-                                          : c.present
-                                            ? c.showScopeDrift
-                                              ? c.driftReadWriteTierOnly
-                                                ? t("permissions.crossProject.capCellReadWriteDriftTitle")
-                                                : t("permissions.crossProject.capCellDriftTitle")
-                                              : t("permissions.crossProject.capCellPresentTitle")
-                                            : gap
-                                              ? t("permissions.crossProject.capCellGapTitle")
-                                              : ""
+                                        isPrivateMode
+                                          ? undefined
+                                          : c.definitionsUnavailable
+                                            ? t("permissions.crossProject.capCellDefinitionsForbiddenTitle")
+                                            : c.present
+                                              ? c.showScopeDrift
+                                                ? c.driftReadWriteTierOnly
+                                                  ? t("permissions.crossProject.capCellReadWriteDriftTitle")
+                                                  : t("permissions.crossProject.capCellDriftTitle")
+                                                : t("permissions.crossProject.capCellPresentTitle")
+                                              : gap
+                                                ? t("permissions.crossProject.capCellGapTitle")
+                                                : ""
                                       }
                                     >
                                       <span className="inline-flex items-center justify-center gap-1.5">

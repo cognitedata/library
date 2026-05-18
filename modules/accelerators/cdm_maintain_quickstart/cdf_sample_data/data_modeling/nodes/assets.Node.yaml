@@ -1,0 +1,32 @@
+# Root asset — externalId must match the root asset configured in APM config ({{location}}_root)
+- space: {{instanceSpace}}
+  externalId: "{{location}}_root"
+  sources:
+    - source:
+        type: view
+        space: cdf_cdm
+        externalId: CogniteAsset
+        version: v1
+      properties:
+        name: "Root Location"
+        description: "Root asset for the location"
+        tags:
+          - root
+
+# Equipment asset — child of the root
+- space: {{instanceSpace}}
+  externalId: abc_12345
+  sources:
+    - source:
+        type: view
+        space: cdf_cdm
+        externalId: CogniteAsset
+        version: v1
+      properties:
+        name: "ABC 12345"
+        description: "ABC 12345"
+        tags:
+          - equipment
+        parent:
+          space: {{instanceSpace}}
+          externalId: "{{location}}_root"

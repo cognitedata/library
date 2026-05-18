@@ -1,6 +1,6 @@
 # Schema changes, view versions, and data model references
 
-Distilled for Toolkit YAML workflows. For **index and btree rules**, use `cdf-data-model-indexes.md`. Do **not** use outdated “10 indexes per container” figures from older guides — CDF allows **20** btree indexes per container (`usedFor: node`).
+Distilled for Toolkit YAML workflows. For **index and btree rules**, use `cdf-data-model-indexes.md` (max **10** btree indexes per `usedFor: node` container).
 
 ## View `version` bumps
 
@@ -18,10 +18,12 @@ Each list item is a **view reference** only: `space`, `externalId`, `version`, `
 
 ## Containers (long-lived schema)
 
-Containers are **not** versioned like views. Treat deployed container schema as **additive** where possible:
+Containers are **not** versioned like views — they are the **durable contract** between enterprise and solution layers. Treat deployed container schema as **additive** where possible:
 
 - **Avoid** deleting properties or changing property **type**, **`list`**, **`usedFor`**, or direct-relation target — these are destructive or disallowed paths that require migration (export, delete container, recreate, re-ingest).
 - **Safer:** add new properties, adjust **name** / **description**, add nullable fields, add indexes/constraints per current CDF rules (see indexes reference).
+
+Because containers are unversioned, mapping a solution view to an enterprise **container** (`container:` + `containerPropertyIdentifier:`) decouples the solution from enterprise view version churn. Mapping (or `implements:`) to an enterprise **view** re-couples you to that view's lifecycle. See `cdf-enterprise-vs-solution.md` §2–§3.
 
 Confirm current CDF rules with **`SearchCogniteDocs`** or `cdf build` before advising a specific migration.
 
