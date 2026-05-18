@@ -18,15 +18,13 @@ modules = [
     "contextualization/cdf_connection_sql",
 ]
 
-[packages.cdm_infield]
-id = "dp:cdm_infield"
-title = "Infield CDM"
-description = "Accelerate Infield App configuration on Cognite Data Model"
-canCherryPick = false
+[packages.infield]
+id = "dp:infield"
+title = "Infield"
+description = "Deploy Infield configuration modules for CDM-backed locations."
+canCherryPick = true
 modules = [
-    "solutions/cdm_infield/cdf_apm_base",
-    "solutions/cdm_infield/cdf_infield_common",
-    "solutions/cdm_infield/cdf_infield_location",
+    "infield/location",
 ]
 
 [packages.cdm_maintain]

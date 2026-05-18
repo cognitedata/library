@@ -175,14 +175,6 @@ export const DEPLOYMENT_PACKS: DeploymentPackDefinition[] = [
     },
   },
   {
-    id: "dp:cdm_infield",
-    name: "Infield CDM",
-    description: `APM / Infield CDM config data model (library: modules/solutions/cdm_infield/cdf_apm_base). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,
-    signals: {
-      dataModels: [{ space: "APM_Config", externalId: "APM_Config", version: "1" }],
-    },
-  },
-  {
     id: "cdf_pi",
     name: "AVEVA PI / PI System",
     description: `PI timeseries population (modules/sourcesystem/cdf_pi). Hub: ${HUB_DEPLOYMENT_PACKS_LIBRARY}`,

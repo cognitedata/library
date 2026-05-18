@@ -16,7 +16,8 @@ modules/
   common/                 # Shared CDF platform modules (cdf_common, cdf_ingestion, cdf_search)
   contextualization/      # Contextualization toolkit modules
   data_models/            # Industry and extension data models
-  solutions/              # Product verticals (cdm_maintain, cdm_infield, cdf_ai_extractor, …)
+  solutions/              # Product verticals (cdm_maintain, cdf_ai_extractor, …)
+  infield/                # Infield on CDM (location, …)
   sourcesystem/           # Source system connectors
   dashboards/             # Streamlit dashboards and reporting
   atlas_ai/               # Atlas AI agents (excluding ai_extractor → solutions/)
@@ -29,7 +30,7 @@ modules/
 | Prefix | When to use | Examples |
 |--------|-------------|----------|
 | `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi`, `cdf_file_annotation` |
-| `cdm_` | Modules built on Cognite Data Model (CDM) | `cdm_maintain`, `cdm_infield` |
+| `cdm_` | Modules built on Cognite Data Model (CDM) | `cdm_maintain` |
 | *(none)* | Industry-standard models, dashboards, tools | `isa_manufacturing_extension`, `context_quality`, `report_quality` |
 
 Packages are defined in `modules/packages.toml`, while each module lives under `modules/<domain>/<module_name>` with a `module.toml` descriptor and any assets the Toolkit should deploy.

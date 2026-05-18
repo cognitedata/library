@@ -31,8 +31,10 @@ modules/
 │
 ├── solutions/                   # Product verticals (CDM-backed)
 │   ├── cdm_maintain/            # Maintain quickstart (5 submodules)
-│   ├── cdm_infield/             # Infield quickstart (3 submodules)
 │   └── cdf_ai_extractor/        # Atlas AI property extractor
+│
+├── infield/                     # Infield on CDM (per-location modules)
+│   └── location/
 │
 ├── sourcesystem/              # Source system connectors
 │   ├── cdf_pi/
@@ -71,7 +73,7 @@ These are the packs exposed in the Toolkit menu (from `packages.toml`):
 | `dp:dashboards` | Dashboards | `dashboards/` |
 | `dp:atlas_ai` | Atlas AI | `atlas_ai/`, `solutions/cdf_ai_extractor` |
 | `dp:cdm_maintain` | CDM Maintain | `solutions/cdm_maintain/*` |
-| `dp:cdm_infield` | Infield CDM | `solutions/cdm_infield/*` |
+| `dp:infield` | Infield | `infield/location` |
 | `tool` | Tools and Accelerators | `tools/` |
 | `dp:emptymodule` | Empty Module | `custom/my_module` |
 
@@ -82,7 +84,7 @@ Some modules appear in more than one pack (for example `dashboards/report_qualit
 | Prefix | Use for | Examples |
 |--------|---------|----------|
 | `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi`, `cdf_file_annotation` |
-| `cdm_` | Solutions built on Cognite Data Model | `cdm_maintain`, `cdm_infield` |
+| `cdm_` | Solutions built on Cognite Data Model | `cdm_maintain` |
 | *(none)* | Industry-standard models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
 
 Apply the prefix on **module folder names** where it helps discovery. Top-level folders (`common/`, `data_models/`, …) are not prefixed.

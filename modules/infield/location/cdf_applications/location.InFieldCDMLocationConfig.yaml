@@ -1,0 +1,73 @@
+space: sp_infield_{{location}}_cfg_inst
+externalId: {{location}}
+name: {{location_name}}
+description: {{location_description}}
+featureToggles:
+  threeD: true
+  trends: true
+  documents: true
+  workorders: true
+  notifications: true
+  media: true
+  templateChecklistFlow: true
+  observations: true
+  copilot: true
+dataFilters: # mandatory fields. Spaces that should apply in the data filters for specific resources.
+  assets:
+    instanceSpaces: # only one space is supported for now.
+      - sp_infield_{{location}}_assets
+  files:
+    instanceSpaces: # multiple spaces are supported.
+      - sp_infield_{{location}}_files
+  timeseries:
+    instanceSpaces: # multiple spaces are supported.
+      - sp_infield_{{location}}_timeseries
+  maintenanceOrders: # must be same as operations and notification.
+    instanceSpaces: # only one space is supported for now.
+      - sp_infield_{{location}}_maintenance
+  operations: # must be same as maintenance orders and notification.
+    instanceSpaces: # only one space is supported for now.
+      - sp_infield_{{location}}_maintenance
+  notifications: # must be same as maintenance orders and operations.
+    instanceSpaces: # only one space is supported for now.
+      - sp_infield_{{location}}_maintenance
+dataStorage:
+  rootLocation: # mandatory field. Stores a default asset contextualization on Template and Checklist
+    space: sp_infield_{{location}}_assets
+    externalId: {{location}}_root
+  appInstanceSpace: sp_infield_{{location}}_app_inst # mandatory field. Space for InField to store app data (e.g., uploaded images from Infield, templates, checklists, observations etc.)
+viewMappings: # Replace with customer extended views if needed.
+  asset: 
+    space: cdf_cdm
+    version: v1
+    externalId: CogniteAsset
+  operation:
+    space: cdf_idm
+    version: v1
+    externalId: CogniteOperation
+  notification:
+    space: cdf_idm
+    version: v1
+    externalId: CogniteNotification
+  maintenanceOrder:
+    space: cdf_idm
+    version: v1
+    externalId: CogniteMaintenanceOrder
+  file:
+    space: cdf_cdm
+    version: v1
+    externalId: CogniteFile
+accessManagement: # optional. If not configured, all users will have template and checklist admin rights.
+  templateAdmins:
+    - gp_infield_{{location}}_template_admin_users
+  checklistAdmins:
+    - gp_infield_{{location}}_checklist_admin_users
+disciplines: # optional. Examples below — replace with your own disciplines or remove this section if not needed.
+  - name: Automation
+    externalId: f84cf669-9e64-4aa4-972a-4f497359880f
+  - name: Electrical
+    externalId: 39061c6e-d45d-4735-b485-c7d0d0e5a7e3
+  - name: Mechanical
+    externalId: 550fe38b-b16e-4a47-8af0-86f51ed15696
+  - name: Process
+    externalId: 361683bf-f25d-450a-bceb-bd22c8a37553
