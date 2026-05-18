@@ -11,8 +11,8 @@ export type IsaDataModelSummary = {
 
 /**
  * ISA-specific view externalIds from cognitedata/library
- * `modules/models/isa_manufacturing_extension` SLA/EDM (same ISA view set as SLM).
- * @see https://github.com/cognitedata/library/tree/main/modules/models/isa_manufacturing_extension
+ * `modules/data_models/isa_manufacturing_extension` SLA/EDM (same ISA view set as SLM).
+ * @see https://github.com/cognitedata/library/tree/main/modules/data_models/isa_manufacturing_extension
  */
 export const ISA_MANUFACTURING_TEMPLATE_VIEW_EXTERNAL_IDS = [
   "ISAAsset",

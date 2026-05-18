@@ -1,19 +1,39 @@
-# Template library
+# Cognite Library (deployment packs)
 
-This repository contains Cognite Templates as downloadable and extensible
-configuration that can be downloaded and adapted, then deployed with the
-[Cognite Toolkit](https://docs.cognite.com/cdf/deploy/cdf_toolkit/).
+This repository contains **Cognite deployment packs** — downloadable, extensible Toolkit modules that you configure and deploy with the [Cognite Toolkit](https://docs.cognite.com/cdf/deploy/cdf_toolkit/).
 
-> The Cognite Template is a reusable blueprint that guides users through
-> deploying, customizing, and building Cognite solutions. The template can be
-> part of a specific business use case for data processing, contextualization
-> pipelines for enriching and managing data, and front-end user screens for
-> seamless interaction with the system.
+> Templates guide users through deploying, customizing, and building Cognite solutions: data processing, contextualization pipelines, and application configuration.
 
 ![Cognite Toolkit Template Modules](templates.png)
 
-## Current Release
+## Repository layout
 
+All deployable content lives under [`modules/`](modules/). The registry of packs is [`modules/packages.toml`](modules/packages.toml).
+
+| Folder | Purpose |
+|--------|---------|
+| [`common/`](modules/common/) | Shared CDF platform modules (`cdf_common`, `cdf_ingestion`, `cdf_search`) |
+| [`contextualization/`](modules/contextualization/) | File annotation, entity matching, P&ID, connection SQL |
+| [`data_models/`](modules/data_models/) | Industry and extension data models (`rmdm`, ISA, CFIHOS, …) |
+| [`solutions/`](modules/solutions/) | Product verticals (`cdm_maintain`, `cdm_infield`, `cdf_ai_extractor`) |
+| [`sourcesystem/`](modules/sourcesystem/) | Source connectors (PI, SAP, SharePoint, OID sync) |
+| [`dashboards/`](modules/dashboards/) | Streamlit dashboards and reporting |
+| [`atlas_ai/`](modules/atlas_ai/) | Atlas AI agents |
+| [`tools/`](modules/tools/) | Qualitizer, performance notebooks |
+| [`custom/`](modules/custom/) | Empty module template |
+
+### Naming conventions
+
+| Prefix | Use for | Examples |
+|--------|---------|----------|
+| `cdf_` | Cognite-built platform capabilities | `cdf_common`, `cdf_pi`, `cdf_file_annotation` |
+| `cdm_` | Solutions on Cognite Data Model | `cdm_maintain`, `cdm_infield` |
+| *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
+
+Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md).  
+Jira / review evidence: [docs/JIRA_ACCEPTANCE.md](docs/JIRA_ACCEPTANCE.md).
+
+## Current release
 
 ```toml
 [library.cognite]
@@ -21,41 +41,41 @@ url = "https://github.com/cognitedata/library/releases/download/latest/packages.
 checksum = "sha256:..."
 ```
 
+For the current checksum, see the [latest release](https://github.com/cognitedata/library/releases/latest).
+
 ## Usage
 
-### 1. Add library reference to cdf.toml
+### 1. Add library reference to `cdf.toml`
 
-
-**Note:** The checksum below is a placeholder. For the current checksum, check the [latest release](https://github.com/cognitedata/library/releases/latest) or click the release badge above.
-
-Add this to your cdf.toml file: 
-```
+```toml
 [library.cognite]
 url = "https://github.com/cognitedata/library/releases/download/latest/packages.zip"
-checksum = "sha256:..."
+checksum = "sha256:..."  # from latest release
 ```
 
-### 2. Enable alpha flag
+### 2. Enable alpha flag (Toolkit &lt; 0.7.0 only)
 
-**Note:** If your Toolkit version is 0.7.0 or higher, you can skip this step
-
-Add this to your cdf.toml file: 
-```
-[alpha_flags] 
+```toml
+[alpha_flags]
 external-libraries = true
 ```
 
-### 3. Run the init command
+### 3. Initialize or add modules
 
-Run `cdf modules init` (new repo) or `cdf modules add` (existing repo). The Toolkit will present an interactive menu of the Deployment Packs offered. 
+- New project: `cdf modules init`
+- Existing project: `cdf modules add`
 
+The Toolkit shows deployment packs defined in `modules/packages.toml`.
+
+## Validation (contributors)
+
+From the `library/` directory:
+
+```bash
+python validate_packages.py
+python build_packages.py
+```
 
 ## Disclaimer
 
-The open-source Github repository ("Repository") is provided "as is", without
-warranty of any kind, express or implied, including but not limited to the
-warranties of merchantability, fitness for a particular purpose, and
-non-infringement. Usage of the Repository is voluntary and in no event shall
-Cognite be liable for any claim, damages, or other liability, whether in an
-action of contract, tort, or otherwise, arising from, out of, or in connection
-with the use of the Repository.
+The open-source Github repository ("Repository") is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. Usage of the Repository is voluntary and in no event shall Cognite be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the use of the Repository.
