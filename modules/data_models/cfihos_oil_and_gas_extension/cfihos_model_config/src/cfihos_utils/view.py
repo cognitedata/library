@@ -24,8 +24,6 @@ def _create_cfihos_view_filter(
     Returns:
         Equals | In | None: The potential view filter.
     """
-    filter_: Equals | In | None
-
     if not view_filters:
         return None
 
@@ -42,16 +40,14 @@ def _create_cfihos_view_filter(
 
     match filter_type:
         case "self":
-            filter_ = Equals(property=property_ref, value=class_.id_)
+            return Equals(property=property_ref, value=class_.id_)
         case "all":
-            filter_ = In(
+            return In(
                 property=property_ref,
                 values=[class_.id_, *(class_.children_by_id or [])],
             )
         case _:
             raise ValueError(f"Unspported filter type: {filter_type}")
-
-    return filter_
 
 
 def create_cfihos_view(

@@ -4,7 +4,7 @@ from typing import Tuple
 from cognite.client import ClientConfig, CogniteClient, global_config
 from cognite.client.credentials import OAuthClientCredentials
 from dotenv import load_dotenv
-from services.ConfigService import load_config_parameters
+from services.ConfigService import load_config_parameters as load_oid_config_parameters
 from services.DataSyncService import DataSyncService, OIDPublicClient
 from services.LoggerService import CompactLogger
 from utils.DataStructures import EnvConfig, OIDConfig
@@ -100,7 +100,7 @@ def create_config_and_client(
         client = create_client(env_config)
     
     oid_secret = _get_oid_secret(secrets, env_config)
-    config = load_config_parameters(client=client, oid_client_secret=oid_secret)
+    config = load_oid_config_parameters(client, oid_secret)
     
     return config, client
 

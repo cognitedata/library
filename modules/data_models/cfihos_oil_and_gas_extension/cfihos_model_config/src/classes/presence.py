@@ -13,17 +13,15 @@ class Presence(Enum):
     @classmethod
     def from_string(cls, value: str) -> "Presence":
         """Convert a string to a Presence enum."""
-        match value:
-            case "Required":
-                return cls.REQUIRED
-            case "Preferred":
-                return cls.PREFERRED
-            case "Optional":
-                return cls.OPTIONAL
-            case "NotApplicable":
-                return cls.NOT_APPLICABLE
-            case _:
-                raise ValueError(f"Invalid presence value: {value}")
+        if value == "Required":
+            return cls.REQUIRED
+        if value == "Preferred":
+            return cls.PREFERRED
+        if value == "Optional":
+            return cls.OPTIONAL
+        if value == "NotApplicable":
+            return cls.NOT_APPLICABLE
+        raise ValueError(f"Invalid presence value: {value}")
 
 
 class PresenceRanking:

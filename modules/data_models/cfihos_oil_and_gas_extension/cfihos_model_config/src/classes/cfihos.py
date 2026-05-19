@@ -32,6 +32,7 @@ class Property(BaseModel):
     )
 
     @field_validator("presence", mode="before")
+    @classmethod
     def validate_presence(cls, value: str) -> Presence:
         """Validate the presence of the property."""
         if not value:
@@ -42,6 +43,7 @@ class Property(BaseModel):
             raise ValidationError(f"Invalid presence value: {value}") from ve
 
     @field_validator("uom_required", mode="before")
+    @classmethod
     def validate_uom_required(cls, value: str | bool) -> bool:
         """Validate the uom_required field."""
         if value is None:
