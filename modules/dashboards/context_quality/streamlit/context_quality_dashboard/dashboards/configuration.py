@@ -9,6 +9,7 @@ for each dashboard. Includes function execution with status tracking.
 import streamlit as st
 from cognite.client import CogniteClient
 
+
 # ----------------------------------------------------
 # DEFAULT CONFIGURATION (mirrors handler defaults)
 # ----------------------------------------------------
@@ -489,7 +490,7 @@ def _render_batch_processing_section(client: CogniteClient):
                     st.write(f"{icon} **Batch {i}:** {status_str} (Call ID: {call_id})")
                 with col_retry:
                     if is_failed:
-                        if st.button("Retry", key=f"retry_batch_{i}", use_container_width=True):
+                        if st.button(f"Retry", key=f"retry_batch_{i}", use_container_width=True):
                             config = _get_current_config()
                             config["batch_mode"] = True
                             config["batch_index"] = i

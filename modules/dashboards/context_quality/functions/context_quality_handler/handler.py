@@ -61,43 +61,44 @@ from metrics import (
     # Config and constants
     DEFAULT_CONFIG,
     LOG_EVERY_N_BATCHES,
-    # Accumulator
-    CombinedAccumulator,
-    # File annotation processors
-    FileAnnotationAccumulator,
-    # 3D model processors
-    Model3DAccumulator,
-    compute_3d_metrics,
-    compute_asset_hierarchy_metrics,
-    compute_equipment_metrics,
-    compute_file_annotation_metrics,
-    compute_file_metrics,
-    compute_historical_gaps_batch,
-    compute_maintenance_metrics,
-    # Metric computers
-    compute_ts_metrics,
-    delete_batch_files,
     # Utilities
     format_elapsed,
-    list_batch_files,
-    load_and_merge_all_batches,
-    process_3d_object_batch,
-    process_annotation_batch,
-    process_asset_3d_batch,
-    process_asset_batch,
-    process_equipment_batch,
-    process_failure_notification_batch,
-    # File contextualization processors
-    process_file_batch,
-    process_maintenance_order_batch,
-    process_notification_batch,
+    # Accumulator
+    CombinedAccumulator,
     # Batch processors
     process_timeseries_batch,
-    # Batch processing
-    save_batch_file,
+    process_asset_batch,
+    process_equipment_batch,
+    process_notification_batch,
+    process_maintenance_order_batch,
+    process_failure_notification_batch,
+    compute_historical_gaps_batch,
+    # File annotation processors
+    FileAnnotationAccumulator,
+    process_annotation_batch,
+    # 3D model processors
+    Model3DAccumulator,
+    process_asset_3d_batch,
+    process_3d_object_batch,
+    # File contextualization processors
+    process_file_batch,
+    # Metric computers
+    compute_ts_metrics,
+    compute_asset_hierarchy_metrics,
+    compute_equipment_metrics,
+    compute_maintenance_metrics,
+    compute_file_annotation_metrics,
+    compute_3d_metrics,
+    compute_file_metrics,
     # Storage
     save_metrics_to_file,
+    # Batch processing
+    save_batch_file,
+    load_and_merge_all_batches,
+    delete_batch_files,
+    list_batch_files,
 )
+
 
 # ----------------------------------------------------
 # LOGGING SETUP
@@ -712,11 +713,10 @@ _TRACKER_VERSION = "1"
 
 def _report_usage(client: CogniteClient) -> None:
     try:
-        import base64
-        import json
         import re
+        import json
+        import base64
         import threading
-
         import requests
         cluster = getattr(client.config, "cdf_cluster", None)
         if not cluster:

@@ -6,10 +6,11 @@ Uses CogniteDiagramAnnotation edges from the Core Data Model.
 """
 
 import logging
-from dataclasses import dataclass, field
 from typing import Optional, Set
+from dataclasses import dataclass, field
 
 from cognite.client.data_classes.data_modeling import ViewId
+
 
 logger = logging.getLogger(__name__)
 

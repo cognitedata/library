@@ -1,0 +1,5 @@
+[module]
+title = "Maintain Source Data Model"
+is_selected_by_default = true
+id = "Maintain Quickstart"
+package_id = "dp:cdm_maintain"

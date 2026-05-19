@@ -3,7 +3,6 @@ Chart components for the CDF Project Health Dashboard.
 """
 
 import plotly.graph_objects as go
-
 from .config import COLORS
 
 

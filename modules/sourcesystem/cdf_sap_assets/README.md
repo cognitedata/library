@@ -185,5 +185,5 @@ graph TD
 
 ## 📄 License
 
-This module is part of the Cognite Templates repository and follows the same licensing terms.
+This module is part of the [Cognite library](https://github.com/cognitedata/library) repository and follows the same licensing terms.
 

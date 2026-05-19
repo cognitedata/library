@@ -10,8 +10,8 @@ Supports both single-run mode and batch processing mode:
 
 import json
 import logging
-import os
 import tempfile
+import os
 from typing import List, Optional, Tuple
 
 from cognite.client import CogniteClient
@@ -19,6 +19,7 @@ from cognite.client import CogniteClient
 from .common import BATCH_FILE_PREFIX, CombinedAccumulator
 from .file_annotation import FileAnnotationAccumulator
 from .model_3d import Model3DAccumulator
+
 
 logger = logging.getLogger(__name__)
 

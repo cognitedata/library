@@ -5,14 +5,14 @@ This module provides helper functions for measuring and analyzing
 performance of various CDF operations.
 """
 
-import functools
-import json
-import logging
-import os
-import statistics
 import time
+import statistics
+import functools
+from typing import Callable, List, Dict
+import logging
 from datetime import datetime
-from typing import Callable, Dict, List
+import json
+import os
 
 
 class PerformanceTracker:

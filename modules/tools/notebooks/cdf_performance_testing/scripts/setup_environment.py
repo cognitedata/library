@@ -7,8 +7,8 @@ CDF performance tests.
 """
 
 import os
-import subprocess
 import sys
+import subprocess
 from pathlib import Path
 
 

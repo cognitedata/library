@@ -1,5 +1,7 @@
 # Infield Location
 
+Library path: `modules/infield/location/` · Deployment pack: `dp:infield`
+
 This module configures an Infield location backed by CDM/IDM extension views. It is based on the Springfield example and deploys:
 
 - Location-specific instance spaces for assets, maintenance, time series, files, 3D, app data, and app configuration.

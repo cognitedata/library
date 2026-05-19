@@ -5,16 +5,16 @@ Time Series Contextualization Dashboard.
 
 import streamlit as st
 
-from .ai_summary import (
-    format_timeseries_metrics,
-    get_timeseries_prompt,
-    render_ai_summary_section,
-)
 from .common import (
-    gauge,
-    gauge_na,
     get_status_color_ts,
     metric_card,
+    gauge,
+    gauge_na,
+)
+from .ai_summary import (
+    render_ai_summary_section,
+    get_timeseries_prompt,
+    format_timeseries_metrics,
 )
 
 

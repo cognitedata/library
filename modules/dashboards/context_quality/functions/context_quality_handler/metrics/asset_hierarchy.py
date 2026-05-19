@@ -3,14 +3,13 @@ Asset processing and hierarchy metrics computation.
 """
 
 from typing import Dict, Optional
-
 from cognite.client.data_classes.data_modeling import ViewId
 
 from .common import (
-    CombinedAccumulator,
-    extract_parent_external_id,
-    get_external_id,
     get_props,
+    get_external_id,
+    extract_parent_external_id,
+    CombinedAccumulator,
 )
 
 

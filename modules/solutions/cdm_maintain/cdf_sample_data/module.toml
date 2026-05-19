@@ -1,0 +1,5 @@
+[module]
+title = "Maintain Sample Data"
+is_selected_by_default = false
+id = "Maintain Quickstart"
+package_id = "dp:cdm_maintain"

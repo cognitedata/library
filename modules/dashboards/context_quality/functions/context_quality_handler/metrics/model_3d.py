@@ -7,12 +7,12 @@ Metrics:
 3. Bounding Box Completeness - % of 3D objects with complete bounding boxes
 """
 
-from dataclasses import dataclass, field
 from typing import Optional, Set
-
+from dataclasses import dataclass, field
 from cognite.client.data_classes.data_modeling import ViewId
 
-from .common import get_external_id, get_props
+from .common import get_props, get_external_id
+
 
 # ----------------------------------------------------
 # 3D ACCUMULATOR

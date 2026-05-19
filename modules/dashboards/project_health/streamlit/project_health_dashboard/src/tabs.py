@@ -3,10 +3,9 @@ Tab rendering for the CDF Project Health Dashboard.
 """
 
 import streamlit as st
-
 from .charts import create_health_gauge, create_status_donut
-from .ui_components import render_errors_section, render_function_details, render_resource_table
-from .utils import build_cdf_link, format_timestamp, get_status_emoji
+from .utils import get_status_emoji, format_timestamp, build_cdf_link
+from .ui_components import render_resource_table, render_errors_section, render_function_details
 
 
 def render_health_charts(

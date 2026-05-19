@@ -98,7 +98,7 @@ This allows the Toolkit to retrieve official library packages.
 > | `[library.toolkit-data]` | `[library.cognite]` |
 > | `github.com/cognitedata/toolkit-data/...` | `github.com/cognitedata/library/...` |
 >
-> The `library.cognite` package includes all Deployment Packs developed by the Value Delivery Accelerator team (RMDM, RCA agents, Context Quality Dashboard, etc.).
+> The `library.cognite` package includes Deployment Packs developed by the Value Delivery Accelerator team (RMDM, Atlas AI, Context Quality Dashboard, etc.).
 
 > **⚠️ Checksum Warning**
 >

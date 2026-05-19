@@ -5,12 +5,12 @@ Equipment processing and metrics computation.
 from cognite.client.data_classes.data_modeling import ViewId
 
 from .common import (
-    CombinedAccumulator,
-    EquipmentData,
-    get_asset_link,
-    get_external_id,
     get_props,
+    get_external_id,
+    get_asset_link,
     is_type_consistent,
+    EquipmentData,
+    CombinedAccumulator,
 )
 
 

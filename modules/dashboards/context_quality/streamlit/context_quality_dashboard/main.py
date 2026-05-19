@@ -17,7 +17,6 @@ Tabs:
 """
 
 import json
-
 import streamlit as st
 from cognite.client import CogniteClient
 
@@ -29,16 +28,17 @@ except ImportError:
 
 # Import dashboard modules
 from dashboards import (
-    render_3d_model_dashboard,
     render_asset_hierarchy_dashboard,
-    render_configuration_panel,
     render_equipment_dashboard,
-    render_file_annotation_dashboard,
-    render_files_dashboard,
-    render_maintenance_dashboard,
-    render_metadata_sidebar,
     render_time_series_dashboard,
+    render_maintenance_dashboard,
+    render_file_annotation_dashboard,
+    render_3d_model_dashboard,
+    render_files_dashboard,
+    render_metadata_sidebar,
+    render_configuration_panel,
 )
+
 
 # ----------------------------------------------------
 # PAGE CONFIG 
@@ -71,10 +71,9 @@ def _report_usage(cdf_client) -> None:
     if st.session_state.get("_usage_tracked"):
         return
     try:
-        import base64
-        import json
         import re
-
+        import json
+        import base64
         import requests
         cluster = getattr(cdf_client.config, "cdf_cluster", None)
         if not cluster:

@@ -3,10 +3,10 @@ import type { DeploymentPackMatch, CfihosOilAndGasDerivativeRule } from "./types
 
 /**
  * Customer-space views from cognitedata/library
- * `modules/models/cfihos_oil_and_gas_extension` composed domain model (dm_dom_oil_and_gas /
+ * `modules/data_models/cfihos_oil_and_gas_extension` composed domain model (dm_dom_oil_and_gas /
  * dm_sol_search_oil_and_gas). Excludes cdf_cdm / cdf_idm includes so the fingerprint targets the
  * CFIHOS extension slice, not generic CDM membership.
- * @see https://github.com/cognitedata/library/tree/main/modules/models/cfihos_oil_and_gas_extension
+ * @see https://github.com/cognitedata/library/tree/main/modules/data_models/cfihos_oil_and_gas_extension
  */
 export const CFIHOS_OIL_AND_GAS_TEMPLATE_VIEW_EXTERNAL_IDS = [
   "CommonLCIProperties",

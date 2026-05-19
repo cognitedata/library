@@ -8,13 +8,14 @@ Primary metric: Files linked to Assets (contextualization coverage)
 
 import streamlit as st
 
-from .ai_summary import (
-    render_ai_summary_section,
-)
 from .common import (
-    gauge,
     get_status_color_files,
     metric_card,
+    gauge,
+    gauge_na,
+)
+from .ai_summary import (
+    render_ai_summary_section,
 )
 
 

@@ -3,16 +3,15 @@ UI components for the CDF Project Health Dashboard.
 """
 
 import streamlit as st
-
-from .config import COLORS
 from .utils import (
-    build_cdf_link,
-    format_timestamp,
     get_status_color,
     get_status_emoji,
     get_time_ago,
+    format_timestamp,
+    build_cdf_link,
     is_failed_status,
 )
+from .config import COLORS
 
 
 def _render_status_cell(status: str) -> None:
