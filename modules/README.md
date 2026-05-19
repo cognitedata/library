@@ -115,4 +115,3 @@ python build_packages.py
 
 - [../README.md](../README.md) — consuming the library from `cdf.toml`
 - [../ADDING_PACKAGES_AND_MODULES.md](../ADDING_PACKAGES_AND_MODULES.md) — adding modules and packs
-- [../docs/JIRA_ACCEPTANCE.md](../docs/JIRA_ACCEPTANCE.md) — repo review / restructure notes

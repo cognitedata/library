@@ -31,8 +31,7 @@ All deployable content lives under [`modules/`](modules/). The registry of packs
 | `cdm_` | Solutions on Cognite Data Model | `cdm_maintain` |
 | *(none)* | Industry models, dashboards, tools | `rmdm`, `context_quality`, `report_quality` |
 
-Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md).  
-Jira / review evidence: [docs/JIRA_ACCEPTANCE.md](docs/JIRA_ACCEPTANCE.md).
+Contributors: see [ADDING_PACKAGES_AND_MODULES.md](ADDING_PACKAGES_AND_MODULES.md).
 
 ## Current release
 
