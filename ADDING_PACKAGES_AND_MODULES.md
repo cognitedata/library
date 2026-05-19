@@ -86,6 +86,18 @@ location = "common/cdf_common/data_sets/demo.DataSet.yaml"
 
 3. **Keep modules grouped**: use the top-level domains above so unrelated solutions are not mixed.
 
+```toml
+[packages.atlas_ai]
+id = "dp:atlas_ai"
+title = "Atlas AI Deployment Pack"
+description = "Deploy all Atlas AI modules in one package."
+canCherryPick = true
+modules = [
+    "atlas_ai/ootb_agents",
+    "solutions/cdf_ai_extractor",
+]
+```
+
 4. **Document package intent** inside `README.md` (package root or module-level) so discoverability stays high.
 
 ## Validation & Release Checklist
